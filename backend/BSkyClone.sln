@@ -1,0 +1,21 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BSkyClone", "BSkyClone.csproj", "{93A99D71-03F8-41C7-8AA4-892C1397DA8C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4E0F5EE9-554A-4855-B4BB-F184AEAD101A}"
+	ProjectSection(SolutionItems) = preProject
+		compose.yaml = compose.yaml
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{93A99D71-03F8-41C7-8AA4-892C1397DA8C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93A99D71-03F8-41C7-8AA4-892C1397DA8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93A99D71-03F8-41C7-8AA4-892C1397DA8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93A99D71-03F8-41C7-8AA4-892C1397DA8C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,55 @@
+                                            {/* Reply Context */}
+                                            {msg.replyTo && !msg.isRecalled && (
+                                                <div className={`mx-2 mt-2 p-2 rounded-lg text-xs border-l-2 bg-black/5 dark:bg-white/5 flex flex-col gap-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${isMe ? 'border-white/50' : 'border-primary-500/50'}`}
+                                                    onClick={() => {
+                                                        const target = document.getElementById(`msg-${msg.replyTo?.id}`);
+                                                        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                    }}
+                                                >
+                                                    <span className="font-bold opacity-70">
+                                                        {msg.replyTo.senderId === currentUser?.id ? t('common.you') : (msg.replyTo.sender?.displayName || t('messages.unknown_user'))}
+                                                    </span>
+                                                    <p className="line-clamp-1 opacity-60">
+                                                        {msg.replyTo.isRecalled ? t('messages.recalled_msg', { name: '' }).trim() : msg.replyTo.content || (msg.replyTo.imageUrl ? '📷 Photo' : '')}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {msg.isRecalled ? (
+                                                <div className="px-4 py-2.5 italic opacity-50 text-[14px]">
+                                                    {t('messages.recalled_msg', { name: isMe ? t('common.you') : (msg.sender?.displayName || t('messages.unknown_user')) })}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    {msg.imageUrl && (
+                                                        <div className="p-1">
+                                                            <img
+                                                                src={msg.imageUrl.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl}
+                                                                alt="Chat"
+                                                                className="rounded-xl w-full max-h-[400px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                                                onClick={() => {
+                                                                    const fullUrl = msg.imageUrl!.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl!;
+                                                                    dispatch(openImageViewer({
+                                                                        images: [fullUrl],
+                                                                        index: 0
+                                                                    }));
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {msg.content && (
+                                                        <div className="px-4 py-2.5 relative group/content">
+                                                            <p className="text-[15px] whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                                                            {msg.isModified && (
+                                                                <span className="text-[10px] opacity-50 block mt-1 italic">{t('messages.modified')}</span>
+                                                            )}
+                                                            {extractPostId(msg.content) ? (
+                                                                <PostEmbed postId={extractPostId(msg.content)!} />
+                                                            ) : (
+                                                                msg.linkPreview && <LinkPreviewCard preview={msg.linkPreview} />
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}

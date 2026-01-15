@@ -1,0 +1,32 @@
+using BSkyClone.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace BSkyClone.Repositories;
+
+public class UserRepository : Repository<User>, IUserRepository
+{
+    public UserRepository(BSkyDbContext context) : base(context)
+    {
+    }
+
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        return await _dbSet
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Email == email);
+    }
+
+    public async Task<User?> GetByHandleAsync(string handle)
+    {
+        return await _dbSet
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Handle == handle);
+    }
+
+    public async Task<User?> GetByUsernameAsync(string username)
+    {
+        return await _dbSet
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Username == username);
+    }
+}

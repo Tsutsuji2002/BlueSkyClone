@@ -1,0 +1,536 @@
+using BSkyClone.DTOs;
+using BSkyClone.Models;
+using BSkyClone.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using BSkyClone.Hubs;
+
+namespace BSkyClone.Services;
+
+public class PostService : IPostService
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IWebHostEnvironment _environment;
+    private readonly IHubContext<ChatHub> _hubContext;
+    private readonly ILinkService _linkService;
+
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ILinkService linkService)
+    {
+        _unitOfWork = unitOfWork;
+        _environment = environment;
+        _hubContext = hubContext;
+        _linkService = linkService;
+    }
+
+    public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId)
+    {
+        var posts = await _unitOfWork.Posts.GetTimelinePostsAsync(userId);
+        var postDtos = posts.Select(MapToDto).ToList();
+        await EnrichPostsWithInteractions(postDtos, userId);
+        return postDtos;
+    }
+
+    public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null)
+    {
+        if (viewerId.HasValue)
+        {
+            var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(userId, viewerId.Value);
+            if (isBlocked) return new List<PostDto>();
+        }
+
+        var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type);
+        var postDtos = posts.Select(MapToDto).ToList();
+        
+        if (viewerId.HasValue)
+        {
+            await EnrichPostsWithInteractions(postDtos, viewerId.Value);
+        }
+
+        return postDtos;
+    }
+
+    private async Task EnrichPostsWithInteractions(List<PostDto> posts, Guid viewerId)
+    {
+        if (!posts.Any()) return;
+
+        var postIds = posts.Select(p => p.Id).ToList();
+
+        var likedPostIds = await _unitOfWork.Likes.Query()
+            .Where(l => l.UserId == viewerId && postIds.Contains(l.PostId))
+            .Select(l => l.PostId)
+            .ToListAsync();
+
+        var bookmarkedPostIds = await _unitOfWork.Bookmarks.Query()
+            .Where(b => b.UserId == viewerId && postIds.Contains(b.PostId))
+            .Select(b => b.PostId)
+            .ToListAsync();
+
+        var repostedPostIds = await _unitOfWork.Reposts.Query()
+            .Where(r => r.UserId == viewerId && postIds.Contains(r.PostId))
+            .Select(r => r.PostId)
+            .ToListAsync();
+
+        var followedUserIds = await _unitOfWork.Follows.GetFollowingAsync(viewerId); 
+             
+        var followingIds = followedUserIds.Select(f => f.FollowingId).ToHashSet();
+
+        foreach (var post in posts)
+        {
+            post.IsLiked = likedPostIds.Contains(post.Id);
+            post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
+            post.IsReposted = repostedPostIds.Contains(post.Id);
+            post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
+        }
+    }
+
+    public async Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request)
+    {
+        var post = new Post
+        {
+            Id = Guid.NewGuid(),
+            Tid = GenerateTid(),
+            AuthorId = userId,
+            Content = request.Content,
+            CreatedAt = DateTime.UtcNow,
+            ReplyToPostId = request.ReplyToPostId,
+            RootPostId = request.RootPostId,
+            LikesCount = 0,
+            RepostsCount = 0,
+            RepliesCount = 0,
+            QuotesCount = 0,
+            IsDeleted = false
+        };
+
+        if (request.Images != null && request.Images.Any())
+        {
+            foreach (var file in request.Images)
+            {
+                var imagePath = await SaveFileAsync(file, "posts");
+                post.PostMedia.Add(new PostMedium
+                {
+                    Id = Guid.NewGuid(),
+                    PostId = post.Id,
+                    Type = "image",
+                    Url = imagePath,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        if (!string.IsNullOrEmpty(request.Content))
+        {
+            var linkPreview = await _linkService.GetLinkPreviewAsync(request.Content);
+            if (linkPreview != null)
+            {
+                linkPreview.PostId = post.Id;
+                post.LinkPreview = linkPreview;
+            }
+        }
+
+        await _unitOfWork.Posts.AddAsync(post);
+        
+        Notification? replyNotification = null;
+        if (request.ReplyToPostId.HasValue)
+        {
+            var parentPost = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .FirstOrDefaultAsync(p => p.Id == request.ReplyToPostId.Value);
+
+            if (parentPost != null)
+            {
+                parentPost.RepliesCount = (parentPost.RepliesCount ?? 0) + 1;
+                _unitOfWork.Posts.Update(parentPost);
+
+                if (parentPost.AuthorId != userId)
+                {
+                    replyNotification = new Notification
+                    {
+                        Id = Guid.NewGuid(),
+                        Tid = GenerateTid(),
+                        Type = "reply",
+                        SenderId = userId,
+                        RecipientId = parentPost.AuthorId,
+                        PostId = post.Id,
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow,
+                        IsDeleted = false
+                    };
+                    await _unitOfWork.Notifications.AddAsync(replyNotification);
+                }
+            }
+        }
+
+        await _unitOfWork.CompleteAsync();
+
+        if (replyNotification != null)
+        {
+            await SendNotificationAsync(replyNotification.Id);
+        }
+
+        // Refresh to get Author and Media
+        var savedPost = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .FirstOrDefaultAsync(p => p.Id == post.Id);
+
+        return MapToDto(savedPost!);
+    }
+
+    public async Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null)
+    {
+        var post = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
+        if (post == null) return null;
+
+        if (viewerId.HasValue)
+        {
+            var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(post.AuthorId, viewerId.Value);
+            if (isBlocked) return null;
+        }
+
+        var postDto = MapToDto(post);
+
+        if (viewerId.HasValue)
+        {
+            postDto.IsLiked = await _unitOfWork.Likes.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
+            postDto.IsBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
+            postDto.IsReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == viewerId.Value);
+            postDto.Author.IsFollowing = await _unitOfWork.Follows.IsFollowingAsync(viewerId.Value, post.AuthorId);
+        }
+
+        return postDto;
+    }
+
+    public async Task<bool> DeletePostAsync(Guid userId, Guid postId)
+    {
+        var post = await _unitOfWork.Posts.GetByIdAsync(postId);
+        if (post == null || post.AuthorId != userId) return false;
+
+        post.IsDeleted = true;
+        _unitOfWork.Posts.Update(post);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
+
+    public async Task<object> ToggleLikeAsync(Guid userId, Guid postId)
+    {
+        var existingLike = await _unitOfWork.Likes.Query()
+            .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+
+        bool isLiked;
+        var post = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+        if (post == null) return new { isLiked = false, likesCount = 0 };
+
+        if (existingLike != null)
+        {
+            _unitOfWork.Likes.Remove(existingLike);
+            isLiked = false;
+            post.LikesCount = Math.Max(0, (post.LikesCount ?? 0) - 1);
+        }
+        else
+        {
+            await _unitOfWork.Likes.AddAsync(new Like
+            {
+                PostId = postId,
+                UserId = userId,
+                Tid = GenerateTid(),
+                CreatedAt = DateTime.UtcNow
+            });
+            isLiked = true;
+            post.LikesCount = (post.LikesCount ?? 0) + 1;
+
+            // Create notification for post author (only if liker is not the author)
+            if (userId != post.AuthorId)
+            {
+                var notification = new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    Tid = GenerateTid(),
+                    Type = "like",
+                    SenderId = userId,
+                    RecipientId = post.AuthorId,
+                    PostId = postId,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow,
+                    IsDeleted = false
+                };
+
+                await _unitOfWork.Notifications.AddAsync(notification);
+                await _unitOfWork.CompleteAsync();
+                await SendNotificationAsync(notification.Id);
+            }
+        }
+
+        _unitOfWork.Posts.Update(post);
+        await _unitOfWork.CompleteAsync();
+
+        return new 
+        { 
+            isLiked, 
+            likesCount = post.LikesCount 
+        };
+    }
+
+    public async Task<object> ToggleBookmarkAsync(Guid userId, Guid postId)
+    {
+        var existingBookmark = await _unitOfWork.Bookmarks.Query()
+             .FirstOrDefaultAsync(b => b.PostId == postId && b.UserId == userId);
+
+        bool isBookmarked;
+        if (existingBookmark != null)
+        {
+            _unitOfWork.Bookmarks.Remove(existingBookmark);
+            isBookmarked = false;
+        }
+        else
+        {
+            await _unitOfWork.Bookmarks.AddAsync(new Bookmark
+            {
+                PostId = postId,
+                UserId = userId,
+                Tid = GenerateTid(),
+                CreatedAt = DateTime.UtcNow
+            });
+            isBookmarked = true;
+        }
+
+        await _unitOfWork.CompleteAsync();
+
+         return new 
+        { 
+            isBookmarked
+        };
+    }
+
+    public async Task<object> ToggleRepostAsync(Guid userId, Guid postId)
+    {
+        var existingRepost = await _unitOfWork.Reposts.Query()
+            .FirstOrDefaultAsync(r => r.PostId == postId && r.UserId == userId);
+
+        bool isReposted;
+        var post = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
+        if (post == null) return new { isReposted = false, repostsCount = 0 };
+
+        if (existingRepost != null)
+        {
+            _unitOfWork.Reposts.Remove(existingRepost);
+            isReposted = false;
+            post.RepostsCount = Math.Max(0, (post.RepostsCount ?? 0) - 1);
+        }
+        else
+        {
+            await _unitOfWork.Reposts.AddAsync(new Repost
+            {
+                PostId = postId,
+                UserId = userId,
+                Tid = GenerateTid(),
+                CreatedAt = DateTime.UtcNow
+            });
+            isReposted = true;
+            post.RepostsCount = (post.RepostsCount ?? 0) + 1;
+
+            // Create notification for post author (only if reposter is not the author)
+            if (userId != post.AuthorId)
+            {
+                var notification = new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    Tid = GenerateTid(),
+                    Type = "repost",
+                    SenderId = userId,
+                    RecipientId = post.AuthorId,
+                    PostId = postId,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow,
+                    IsDeleted = false
+                };
+
+                await _unitOfWork.Notifications.AddAsync(notification);
+                await _unitOfWork.CompleteAsync();
+                await SendNotificationAsync(notification.Id);
+            }
+        }
+
+        _unitOfWork.Posts.Update(post);
+        await _unitOfWork.CompleteAsync();
+
+        return new
+        {
+            isReposted,
+            repostsCount = post.RepostsCount
+        };
+    }
+
+    public async Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null)
+    {
+        var replies = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
+            .OrderBy(p => p.CreatedAt)
+            .ToListAsync();
+
+        var replyDtos = replies.Select(MapToDto).ToList();
+
+        if (viewerId.HasValue)
+        {
+            var follows = await _unitOfWork.Follows.GetFollowingAsync(viewerId.Value);
+            var followingIds = follows.Select(f => f.FollowingId).ToHashSet();
+
+
+            var likedPostIds = await _unitOfWork.Likes.Query()
+                .Where(l => l.UserId == viewerId.Value)
+                .Select(l => l.PostId)
+                .ToListAsync();
+
+            var bookmarkedPostIds = await _unitOfWork.Bookmarks.Query()
+                .Where(b => b.UserId == viewerId.Value)
+                .Select(b => b.PostId)
+                .ToListAsync();
+
+            var repostedPostIds = await _unitOfWork.Reposts.Query()
+                .Where(r => r.UserId == viewerId.Value)
+                .Select(r => r.PostId)
+                .ToListAsync();
+
+            foreach (var dto in replyDtos)
+            {
+                dto.IsLiked = likedPostIds.Contains(dto.Id);
+                dto.IsBookmarked = bookmarkedPostIds.Contains(dto.Id);
+                dto.IsReposted = repostedPostIds.Contains(dto.Id);
+                dto.Author.IsFollowing = followingIds.Contains(dto.Author.Id);
+            }
+        }
+
+        return replyDtos;
+    }
+
+    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null)
+    {
+        var posts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
+            .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
+            .Take(50)
+            .ToListAsync();
+
+        var postDtos = posts.Select(MapToDto).ToList();
+
+        if (viewerId.HasValue)
+        {
+            await EnrichPostsWithInteractions(postDtos, viewerId.Value);
+        }
+
+        return postDtos;
+    }
+
+    private PostDto MapToDto(Post post)
+    {
+        return new PostDto
+        {
+            Id = post.Id,
+            Tid = post.Tid,
+            Content = post.Content,
+            CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : null,
+            Author = new AuthorDto
+            {
+                Id = post.Author.Id,
+                Username = post.Author.Username,
+                Handle = post.Author.Handle,
+                DisplayName = post.Author.DisplayName,
+                AvatarUrl = post.Author.AvatarUrl,
+                IsFollowing = false // Default, overridden in context-aware methods
+            },
+            ImageUrls = post.PostMedia.Select(m => m.Url).ToList(),
+            LikesCount = post.LikesCount ?? 0,
+            RepostsCount = post.RepostsCount ?? 0,
+            RepliesCount = post.RepliesCount ?? 0,
+            ReplyToPostId = post.ReplyToPostId,
+            ReplyToHandle = post.ReplyToPost?.Author?.Handle,
+            RootPostId = post.RootPostId,
+            IsLiked = false, // Default
+            IsBookmarked = false, // Default
+            IsReposted = false, // Default
+            LinkPreview = post.LinkPreview == null ? null : new LinkPreviewDto
+            {
+                Url = post.LinkPreview.Url,
+                Title = post.LinkPreview.Title,
+                Description = post.LinkPreview.Description,
+                Image = post.LinkPreview.Image,
+                Domain = post.LinkPreview.Domain
+            }
+        };
+    }
+
+    private string GenerateTid()
+    {
+        // Simple TID generator for now (333rd-style)
+        return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+    }
+
+    private async Task<string> SaveFileAsync(IFormFile file, string folder)
+    {
+        var uploadsRoot = Path.Combine(_environment.WebRootPath, "uploads", folder);
+        if (!Directory.Exists(uploadsRoot)) Directory.CreateDirectory(uploadsRoot);
+
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+        var filePath = Path.Combine(uploadsRoot, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        return $"/uploads/{folder}/{fileName}";
+    }
+
+    private async Task SendNotificationAsync(Guid notificationId)
+    {
+        var savedNotification = await _unitOfWork.Notifications.Query()
+            .Include(n => n.Sender)
+            .FirstOrDefaultAsync(n => n.Id == notificationId);
+
+        if (savedNotification != null)
+        {
+            var notificationDto = new NotificationDto(
+                savedNotification.Id,
+                savedNotification.Type ?? "like",
+                new UserDto(
+                    savedNotification.Sender.Id,
+                    savedNotification.Sender.Username,
+                    savedNotification.Sender.Handle,
+                    savedNotification.Sender.Email,
+                    savedNotification.Sender.DisplayName,
+                    savedNotification.Sender.AvatarUrl,
+                    savedNotification.Sender.CoverImageUrl,
+                    savedNotification.Sender.Bio,
+                    savedNotification.Sender.Location,
+                    savedNotification.Sender.Website,
+                    savedNotification.Sender.DateOfBirth,
+                    savedNotification.Sender.FollowersCount,
+                    savedNotification.Sender.FollowingCount,
+                    savedNotification.Sender.PostsCount
+                ),
+                savedNotification.PostId,
+                savedNotification.IsRead ?? false,
+                savedNotification.CreatedAt ?? DateTime.UtcNow
+            );
+
+            await _hubContext.Clients.Group($"user-{savedNotification.RecipientId}")
+                .SendAsync("ReceiveNotification", notificationDto);
+        }
+    }
+}

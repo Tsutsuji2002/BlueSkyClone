@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      target: build
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_USE_POLLING_FILE_WATCHER=1
+    volumes:
+      - ./backend:/src
+    command: dotnet watch run --project BSkyClone.csproj --urls http://0.0.0.0:8080
+
+  frontend:
+    build:
+      target: build
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WDS_SOCKET_PORT=0
+      - PORT=80
+      - REACT_APP_API_URL=http://localhost:5000/api
+    command: npm start

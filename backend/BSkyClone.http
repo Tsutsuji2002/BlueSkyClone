@@ -1,0 +1,28 @@
+@BSkyClone_HostAddress = http://localhost:5138
+@BSkyClone_DockerAddress = http://localhost:8080
+
+### Test Weather
+GET {{BSkyClone_HostAddress}}/weatherforecast/
+Accept: application/json
+
+### Register User (3-step flow)
+POST {{BSkyClone_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+    "email": "dev@example.com",
+    "password": "Password123!",
+    "dateOfBirth": "1995-06-26T00:00:00Z",
+    "username": "devuser",
+    "hostingProvider": "bsky.social",
+    "displayName": "Developer User"
+}
+
+### Login User
+POST {{BSkyClone_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+    "identifier": "devuser.bsky.social",
+    "password": "Password123!"
+}

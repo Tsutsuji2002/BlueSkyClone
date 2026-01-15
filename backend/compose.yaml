@@ -1,0 +1,23 @@
+﻿services:
+  bskyclone:
+    image: bskyclone
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      # 1. Switched to SQL Authentication (sa user). 
+      # Note: Windows Auth (Trusted_Connection) is not supported from Linux containers.
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;
+      # 2. Re-enabled globalization (ICU library is now installed in Dockerfile)
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+      - Redis__ConnectionString=redis:6379
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"

@@ -1,0 +1,1545 @@
+{
+  "$schema": "http://json.schemastore.org/sarif-1.0.0",
+  "version": "1.0.0",
+  "runs": [
+    {
+      "tool": {
+        "name": "Microsoft (R) Visual C# Compiler",
+        "version": "4.14.0.0",
+        "fileVersion": "4.14.0-3.25359.3 (6dbcfd2f)",
+        "semanticVersion": "4.14.0",
+        "language": "en-US"
+      },
+      "results": [
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'BlockedAccounts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 18,
+                  "startColumn": 42,
+                  "endLine": 18,
+                  "endColumn": 57
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Bookmarks' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 20,
+                  "startColumn": 36,
+                  "endLine": 20,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Conversations' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 22,
+                  "startColumn": 40,
+                  "endLine": 22,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'ConversationParticipants' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 24,
+                  "startColumn": 51,
+                  "endLine": 24,
+                  "endColumn": 75
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Feeds' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 26,
+                  "startColumn": 32,
+                  "endLine": 26,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Interests' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 28,
+                  "startColumn": 36,
+                  "endLine": 28,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Likes' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 30,
+                  "startColumn": 32,
+                  "endLine": 30,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Lists' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 32,
+                  "endLine": 32,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'ListMembers' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 34,
+                  "startColumn": 38,
+                  "endLine": 34,
+                  "endColumn": 49
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Messages' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 36,
+                  "startColumn": 35,
+                  "endLine": 36,
+                  "endColumn": 43
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'MutedAccounts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 38,
+                  "startColumn": 40,
+                  "endLine": 38,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'MutedWords' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 40,
+                  "startColumn": 37,
+                  "endLine": 40,
+                  "endColumn": 47
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Notifications' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 42,
+                  "startColumn": 40,
+                  "endLine": 42,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Posts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 44,
+                  "startColumn": 32,
+                  "endLine": 44,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'PostMedia' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 46,
+                  "startColumn": 38,
+                  "endLine": 46,
+                  "endColumn": 47
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Reposts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 48,
+                  "startColumn": 34,
+                  "endLine": 48,
+                  "endColumn": 41
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Users' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 50,
+                  "startColumn": 32,
+                  "endLine": 50,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'UserFeedSubscriptions' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 52,
+                  "startColumn": 48,
+                  "endLine": 52,
+                  "endColumn": 69
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'UserFollows' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 54,
+                  "startColumn": 38,
+                  "endLine": 54,
+                  "endColumn": 49
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'UserSettings' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 12,
+                  "endLine": 9,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 56,
+                  "startColumn": 39,
+                  "endLine": 56,
+                  "endColumn": 51
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'BlockedAccounts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 18,
+                  "startColumn": 42,
+                  "endLine": 18,
+                  "endColumn": 57
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Bookmarks' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 20,
+                  "startColumn": 36,
+                  "endLine": 20,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Conversations' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 22,
+                  "startColumn": 40,
+                  "endLine": 22,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'ConversationParticipants' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 24,
+                  "startColumn": 51,
+                  "endLine": 24,
+                  "endColumn": 75
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Feeds' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 26,
+                  "startColumn": 32,
+                  "endLine": 26,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Interests' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 28,
+                  "startColumn": 36,
+                  "endLine": 28,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Likes' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 30,
+                  "startColumn": 32,
+                  "endLine": 30,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Lists' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 32,
+                  "endLine": 32,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'ListMembers' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 34,
+                  "startColumn": 38,
+                  "endLine": 34,
+                  "endColumn": 49
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Messages' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 36,
+                  "startColumn": 35,
+                  "endLine": 36,
+                  "endColumn": 43
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'MutedAccounts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 38,
+                  "startColumn": 40,
+                  "endLine": 38,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'MutedWords' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 40,
+                  "startColumn": 37,
+                  "endLine": 40,
+                  "endColumn": 47
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Notifications' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 42,
+                  "startColumn": 40,
+                  "endLine": 42,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Posts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 44,
+                  "startColumn": 32,
+                  "endLine": 44,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'PostMedia' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 46,
+                  "startColumn": 38,
+                  "endLine": 46,
+                  "endColumn": 47
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Reposts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 48,
+                  "startColumn": 34,
+                  "endLine": 48,
+                  "endColumn": 41
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Users' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 50,
+                  "startColumn": 32,
+                  "endLine": 50,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'UserFeedSubscriptions' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 52,
+                  "startColumn": 48,
+                  "endLine": 52,
+                  "endColumn": 69
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'UserFollows' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 54,
+                  "startColumn": 38,
+                  "endLine": 54,
+                  "endColumn": 49
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'UserSettings' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 12,
+                  "endLine": 13,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 56,
+                  "startColumn": 39,
+                  "endLine": 56,
+                  "endColumn": 51
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS0201",
+          "level": "error",
+          "message": "Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Projects/BlueSky/BlueSky_WebAPI/BSkyClone/Models/BSkyDbContext.cs",
+                "region": {
+                  "startLine": 59,
+                  "startColumn": 12,
+                  "endLine": 59,
+                  "endColumn": 26
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "rules": {
+        "CS0201": {
+          "id": "CS0201",
+          "defaultLevel": "error",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS0201)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry",
+              "NotConfigurable"
+            ]
+          }
+        },
+        "CS8618": {
+          "id": "CS8618",
+          "shortDescription": "Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.",
+          "defaultLevel": "warning",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS8618)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

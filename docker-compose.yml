@@ -1,0 +1,58 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      # CONNECT TO LOCAL HOST (Windows Machine)
+      # 1. 'host.docker.internal' points to your laptop
+      # 2. You MUST use User ID/Password (Docker handling Windows Auth is very difficult)
+      # 3. Ensure your local SQL Server has TCP/IP Enabled on Port 1433
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;
+      - Redis__ConnectionString=redis:6379
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/wwwroot/uploads:/app/wwwroot/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      # REACT_APP_API_URL is loaded from .env file directly during development
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  # Virtual SQL Server REMOVED. Using Local SQL Server instead.
+
+  # sql-server:
+  #   image: mcr.microsoft.com/mssql/server:2022-latest
+  #   environment:
+  #     - ACCEPT_EULA=Y
+  #     - MSSQL_SA_PASSWORD=Ifilp0721! # Use a strong password
+  #   ports:
+  #     - "1433:1433"
+  #   healthcheck:
+  #     # The -C flag trusts the self-signed certificate, preventing connection errors
+  #     test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Ifilp0721!", "-C", "-Q", "SELECT 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
