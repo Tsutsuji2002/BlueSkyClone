@@ -459,7 +459,7 @@ const ChatPage: React.FC = () => {
                                                     {selectedReactionMessageId === msg.id && (
                                                         <div
                                                             ref={messageMenuRef}
-                                                            className="absolute bottom-full mb-2 right-0 bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-20 min-w-[150px] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                                                            className={`absolute bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-20 min-w-[150px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
                                                         >
                                                             <div className="p-2 flex gap-1 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-bg/20">
                                                                 {['❤️', '😆', '😲', '😢', '😡', '👍'].map(emoji => (
