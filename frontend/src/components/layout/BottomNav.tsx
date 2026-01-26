@@ -20,6 +20,8 @@ const BottomNav: React.FC = () => {
     const location = useLocation();
     const user = useAppSelector((state) => state.auth.user);
     const unreadNotifications = useAppSelector((state) => state.notifications.unreadCount);
+    const conversations = useAppSelector((state) => state.messages.conversations);
+    const unreadMessages = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
 
     // Define mobile navigation items with their routes
     const mobileNavItems = [
@@ -49,8 +51,13 @@ const BottomNav: React.FC = () => {
                             <div className="relative">
                                 {getIcon(item.icon)}
                                 {item.id === 'notifications' && unreadNotifications > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-primary-500 text-white text-[10px] px-1 rounded-full flex items-center justify-center font-bold">
                                         {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                                    </span>
+                                )}
+                                {item.id === 'messages' && unreadMessages > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-primary-500 text-white text-[10px] px-1 rounded-full flex items-center justify-center font-bold">
+                                        {unreadMessages > 9 ? '9+' : unreadMessages}
                                     </span>
                                 )}
                             </div>

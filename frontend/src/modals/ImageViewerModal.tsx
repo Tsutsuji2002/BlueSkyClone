@@ -94,16 +94,25 @@ const ImageViewerModal: React.FC = () => {
                 </>
             )}
 
-            {/* Image Container */}
+            {/* Content Container */}
             <div
                 className="relative w-full h-full flex items-center justify-center p-4 md:p-12"
                 onClick={(e) => e.stopPropagation()}
             >
-                <img
-                    src={resolveUrl(images[currentIndex])}
-                    alt={`${t('common.viewed', { defaultValue: 'Viewed content' })} ${currentIndex + 1}`}
-                    className="max-width-full max-height-full object-contain select-none animate-in fade-in zoom-in duration-300"
-                />
+                {images[currentIndex]?.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) ? (
+                    <video
+                        src={resolveUrl(images[currentIndex])}
+                        className="max-w-full max-h-full object-contain animate-in fade-in zoom-in duration-300"
+                        controls
+                        autoPlay
+                    />
+                ) : (
+                    <img
+                        src={resolveUrl(images[currentIndex])}
+                        alt={`${t('common.viewed', { defaultValue: 'Viewed content' })} ${currentIndex + 1}`}
+                        className="max-width-full max-height-full object-contain select-none animate-in fade-in zoom-in duration-300"
+                    />
+                )}
             </div>
 
             {/* Image Counter */}

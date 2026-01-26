@@ -43,7 +43,8 @@
         "save": "保存",
         "copied_to_clipboard": "クリップボードにコピーされました",
         "you": "あなた",
-        "user": "ユーザー"
+        "user": "ユーザー",
+        "post_not_found": "投稿が見つかりませんでした"
     },
     "settings": {
         "title": "設定",
@@ -233,7 +234,11 @@
         "add_to_lists": "リストに追加",
         "no_replies": "まだ返信がありません",
         "no_media": "まだメディアがありません",
-        "no_videos": "まだ動画がありません"
+        "no_video": "まだ動画がありません",
+        "no_likes": "まだ「いいね」した投稿はありません",
+        "no_feeds": "まだフィードはありません",
+        "no_lists": "まだリストはありません",
+        "no_bookmarks": "まだブックマークはありません"
     },
     "home": {
         "title": "ホーム",
@@ -390,7 +395,11 @@
         "alt_text_description": "代替テキストの説明",
         "alt_text_placeholder": "代替テキスト",
         "alt_text_help": "代替テキストは、視覚に障害がある方や視力が低い方のための画像説明であり、すべての人に背景情報を伝えるのに役立ちます。",
-        "images_selected": "{{count}} 枚の画像が選択されました"
+        "images_selected": "{{count}} 枚の画像が選択されました",
+        "preview": "プレビュー",
+        "created_success": "投稿を作成しました",
+        "reply_success": "返信を送信しました",
+        "loading": "読み込み中..."
     },
     "sidebar": {
         "trending": "トレンドトピック",

@@ -13,24 +13,32 @@ public class PostService : IPostService
     private readonly IWebHostEnvironment _environment;
     private readonly IHubContext<ChatHub> _hubContext;
     private readonly ILinkService _linkService;
+    private readonly ICacheService _cacheService;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ILinkService linkService)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ILinkService linkService, ICacheService cacheService)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _hubContext = hubContext;
         _linkService = linkService;
+        _cacheService = cacheService;
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId)
     {
+        var cacheKey = $"user:{userId}:timeline";
+        var cached = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
+        if (cached != null) return cached;
+
         var posts = await _unitOfWork.Posts.GetTimelinePostsAsync(userId);
         var postDtos = posts.Select(MapToDto).ToList();
         await EnrichPostsWithInteractions(postDtos, userId);
+
+        await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)postDtos, TimeSpan.FromMinutes(2));
         return postDtos;
     }
 
-    public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null)
+    public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 3, int offset = 0)
     {
         if (viewerId.HasValue)
         {
@@ -38,7 +46,7 @@ public class PostService : IPostService
             if (isBlocked) return new List<PostDto>();
         }
 
-        var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type);
+        var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type, limit, offset);
         var postDtos = posts.Select(MapToDto).ToList();
         
         if (viewerId.HasValue)
@@ -98,6 +106,7 @@ public class PostService : IPostService
             RepostsCount = 0,
             RepliesCount = 0,
             QuotesCount = 0,
+            BookmarksCount = 0,
             IsDeleted = false
         };
 
@@ -115,6 +124,19 @@ public class PostService : IPostService
                     CreatedAt = DateTime.UtcNow
                 });
             }
+        }
+
+        if (request.Video != null)
+        {
+            var videoPath = await SaveFileAsync(request.Video, "posts");
+            post.PostMedia.Add(new PostMedium
+            {
+                Id = Guid.NewGuid(),
+                PostId = post.Id,
+                Type = "video",
+                Url = videoPath,
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
         if (!string.IsNullOrEmpty(request.Content))
@@ -162,10 +184,42 @@ public class PostService : IPostService
 
         await _unitOfWork.CompleteAsync();
 
+        // Detect Mentions
+        var mentions = System.Text.RegularExpressions.Regex.Matches(request.Content ?? "", @"@(\w+)")
+            .Select(m => m.Groups[1].Value.ToLower())
+            .Distinct()
+            .ToList();
+
+        foreach (var handle in mentions)
+        {
+            var mentionedUser = await _unitOfWork.Users.GetByHandleAsync($"{handle}.bsky.social");
+            if (mentionedUser != null && mentionedUser.Id != userId)
+            {
+                var mentionNotification = new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    Tid = GenerateTid(),
+                    Type = "mention",
+                    SenderId = userId,
+                    RecipientId = mentionedUser.Id,
+                    PostId = post.Id,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow,
+                    IsDeleted = false
+                };
+                await _unitOfWork.Notifications.AddAsync(mentionNotification);
+                await _unitOfWork.CompleteAsync();
+                await SendNotificationAsync(mentionNotification.Id);
+            }
+        }
+
         if (replyNotification != null)
         {
             await SendNotificationAsync(replyNotification.Id);
         }
+
+        // Invalidate timeline cache for the author
+        await _cacheService.RemoveAsync($"user:{userId}:timeline");
 
         // Refresh to get Author and Media
         var savedPost = await _unitOfWork.Posts.Query()
@@ -179,29 +233,45 @@ public class PostService : IPostService
 
     public async Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null)
     {
-        var post = await _unitOfWork.Posts.Query()
-            .Include(p => p.Author)
-            .Include(p => p.PostMedia)
-            .Include(p => p.LinkPreview)
-            .FirstOrDefaultAsync(p => p.Id == postId);
+        var cacheKey = $"post:{postId}";
+        var cachedPost = await _cacheService.GetAsync<PostDto>(cacheKey);
 
-        if (post == null) return null;
+        PostDto? postDto = null;
 
-        if (viewerId.HasValue)
+        if (cachedPost != null)
         {
-            var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(post.AuthorId, viewerId.Value);
-            if (isBlocked) return null;
+            postDto = cachedPost;
+        }
+        else
+        {
+            var post = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .FirstOrDefaultAsync(p => p.Id == postId);
+
+            if (post == null) return null;
+
+            postDto = MapToDto(post);
+            await _cacheService.SetAsync(cacheKey, postDto, TimeSpan.FromMinutes(30));
         }
 
-        var postDto = MapToDto(post);
-
         if (viewerId.HasValue)
         {
+            var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(postDto.Author.Id, viewerId.Value);
+            if (isBlocked) return null;
+
+            // Interactions and counts must be checked live for accuracy in detail view
             postDto.IsLiked = await _unitOfWork.Likes.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
             postDto.IsBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
             postDto.IsReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == viewerId.Value);
-            postDto.Author.IsFollowing = await _unitOfWork.Follows.IsFollowingAsync(viewerId.Value, post.AuthorId);
+            postDto.Author.IsFollowing = await _unitOfWork.Follows.IsFollowingAsync(viewerId.Value, postDto.Author.Id);
         }
+
+        // Always fetch live counts for the detail view to ensure 100% accuracy
+        postDto.LikesCount = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == postId);
+        postDto.BookmarksCount = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == postId);
+        postDto.RepostsCount = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == postId);
 
         return postDto;
     }
@@ -214,6 +284,12 @@ public class PostService : IPostService
         post.IsDeleted = true;
         _unitOfWork.Posts.Update(post);
         await _unitOfWork.CompleteAsync();
+
+        // Invalidate caches
+        await _cacheService.RemoveAsync($"post:{postId}");
+        await _cacheService.RemoveAsync($"user:{userId}:timeline");
+        await _cacheService.RemoveAsync("posts:trending");
+
         return true;
     }
 
@@ -233,6 +309,14 @@ public class PostService : IPostService
             _unitOfWork.Likes.Remove(existingLike);
             isLiked = false;
             post.LikesCount = Math.Max(0, (post.LikesCount ?? 0) - 1);
+
+            // Remove corresponding notification
+            var notification = await _unitOfWork.Notifications.Query()
+                .FirstOrDefaultAsync(n => n.Type == "like" && n.SenderId == userId && n.PostId == postId);
+            if (notification != null)
+            {
+                _unitOfWork.Notifications.Remove(notification);
+            }
         }
         else
         {
@@ -271,6 +355,9 @@ public class PostService : IPostService
         _unitOfWork.Posts.Update(post);
         await _unitOfWork.CompleteAsync();
 
+        // Invalidate post cache
+        await _cacheService.RemoveAsync($"post:{postId}");
+
         return new 
         { 
             isLiked, 
@@ -282,12 +369,18 @@ public class PostService : IPostService
     {
         var existingBookmark = await _unitOfWork.Bookmarks.Query()
              .FirstOrDefaultAsync(b => b.PostId == postId && b.UserId == userId);
+        
+        var post = await _unitOfWork.Posts.Query()
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
+        if (post == null) return new { isBookmarked = false, bookmarksCount = 0 };
 
         bool isBookmarked;
         if (existingBookmark != null)
         {
             _unitOfWork.Bookmarks.Remove(existingBookmark);
             isBookmarked = false;
+            post.BookmarksCount = Math.Max(0, (post.BookmarksCount ?? 0) - 1);
         }
         else
         {
@@ -299,13 +392,19 @@ public class PostService : IPostService
                 CreatedAt = DateTime.UtcNow
             });
             isBookmarked = true;
+            post.BookmarksCount = (post.BookmarksCount ?? 0) + 1;
         }
 
+        _unitOfWork.Posts.Update(post);
         await _unitOfWork.CompleteAsync();
+
+        // Invalidate post cache
+        await _cacheService.RemoveAsync($"post:{postId}");
 
          return new 
         { 
-            isBookmarked
+            isBookmarked,
+            bookmarksCount = post.BookmarksCount
         };
     }
 
@@ -326,6 +425,14 @@ public class PostService : IPostService
             _unitOfWork.Reposts.Remove(existingRepost);
             isReposted = false;
             post.RepostsCount = Math.Max(0, (post.RepostsCount ?? 0) - 1);
+
+            // Remove corresponding notification
+            var notification = await _unitOfWork.Notifications.Query()
+                .FirstOrDefaultAsync(n => n.Type == "repost" && n.SenderId == userId && n.PostId == postId);
+            if (notification != null)
+            {
+                _unitOfWork.Notifications.Remove(notification);
+            }
         }
         else
         {
@@ -363,6 +470,10 @@ public class PostService : IPostService
 
         _unitOfWork.Posts.Update(post);
         await _unitOfWork.CompleteAsync();
+
+        // Invalidate caches
+        await _cacheService.RemoveAsync($"post:{postId}");
+        await _cacheService.RemoveAsync($"user:{userId}:timeline");
 
         return new
         {
@@ -418,22 +529,53 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null)
     {
-        var posts = await _unitOfWork.Posts.Query()
-            .Include(p => p.Author)
-            .Include(p => p.PostMedia)
-            .Include(p => p.LinkPreview)
-            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
-            .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
-            .Take(50)
-            .ToListAsync();
+        var cacheKey = "posts:trending";
+        var cached = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
+        
+        List<PostDto> postDtos;
+        if (cached != null)
+        {
+            postDtos = cached.ToList();
+        }
+        else
+        {
+            var posts = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
+                .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
+                .Take(50)
+                .ToListAsync();
 
-        var postDtos = posts.Select(MapToDto).ToList();
+            postDtos = posts.Select(MapToDto).ToList();
+            await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)postDtos, TimeSpan.FromMinutes(5));
+        }
 
         if (viewerId.HasValue)
         {
             await EnrichPostsWithInteractions(postDtos, viewerId.Value);
         }
 
+        return postDtos;
+    }
+
+    public async Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId)
+    {
+        var bookmarkedPosts = await _unitOfWork.Bookmarks.Query()
+            .Where(b => b.UserId == userId)
+            .Include(b => b.Post)
+                .ThenInclude(p => p.Author)
+            .Include(b => b.Post)
+                .ThenInclude(p => p.PostMedia)
+            .Include(b => b.Post)
+                .ThenInclude(p => p.LinkPreview)
+            .OrderByDescending(b => b.CreatedAt)
+            .Select(b => b.Post)
+            .ToListAsync();
+
+        var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
+        await EnrichPostsWithInteractions(postDtos, userId);
         return postDtos;
     }
 
@@ -454,10 +596,12 @@ public class PostService : IPostService
                 AvatarUrl = post.Author.AvatarUrl,
                 IsFollowing = false // Default, overridden in context-aware methods
             },
-            ImageUrls = post.PostMedia.Select(m => m.Url).ToList(),
+            ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
+            VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,
             LikesCount = post.LikesCount ?? 0,
             RepostsCount = post.RepostsCount ?? 0,
             RepliesCount = post.RepliesCount ?? 0,
+            BookmarksCount = post.BookmarksCount ?? 0,
             ReplyToPostId = post.ReplyToPostId,
             ReplyToHandle = post.ReplyToPost?.Author?.Handle,
             RootPostId = post.RootPostId,
@@ -526,7 +670,7 @@ public class PostService : IPostService
                 ),
                 savedNotification.PostId,
                 savedNotification.IsRead ?? false,
-                savedNotification.CreatedAt ?? DateTime.UtcNow
+                DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
             );
 
             await _hubContext.Clients.Group($"user-{savedNotification.RecipientId}")

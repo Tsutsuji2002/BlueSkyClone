@@ -13,15 +13,21 @@ public class ChatService : IChatService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILinkService _linkService;
+    private readonly ICacheService _cacheService;
 
-    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService)
+    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService)
     {
         _unitOfWork = unitOfWork;
         _linkService = linkService;
+        _cacheService = cacheService;
     }
 
     public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId)
     {
+        var cacheKey = $"user:{userId}:conversations";
+        var cached = await _cacheService.GetAsync<IEnumerable<ConversationDto>>(cacheKey);
+        if (cached != null) return cached;
+
         var conversations = await _unitOfWork.Conversations.GetUserConversationsAsync(userId);
         var dtos = new List<ConversationDto>();
         foreach (var c in conversations)
@@ -29,11 +35,19 @@ public class ChatService : IChatService
             var unreadCount = await _unitOfWork.Messages.GetUnreadCountAsync(c.Id, userId);
             dtos.Add(MapToConversationDto(c, userId, unreadCount));
         }
+
+        await _cacheService.SetAsync(cacheKey, (IEnumerable<ConversationDto>)dtos, TimeSpan.FromMinutes(10));
         return dtos;
     }
 
     public async Task<ConversationDto?> GetConversationAsync(Guid userId, Guid conversationId)
     {
+        // For single conversation, we can check if it's in the user's conversation list cache
+        // but for now, we'll just implement a simple cache for the specific conversation
+        var cacheKey = $"user:{userId}:conv:{conversationId}";
+        var cached = await _cacheService.GetAsync<ConversationDto>(cacheKey);
+        if (cached != null) return cached;
+
         var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
         {
@@ -41,11 +55,27 @@ public class ChatService : IChatService
         }
 
         var unreadCount = await _unitOfWork.Messages.GetUnreadCountAsync(conversationId, userId);
-        return MapToConversationDto(conversation, userId, unreadCount);
+        var dto = MapToConversationDto(conversation, userId, unreadCount);
+        
+        await _cacheService.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(10));
+        return dto;
     }
 
     public async Task<IEnumerable<MessageDto>> GetConversationMessagesAsync(Guid userId, Guid conversationId, int limit = 50, DateTimeOffset? before = null)
     {
+        // Don't cache when fetching historical messages (before is set) for simplicity
+        if (!before.HasValue && limit == 50)
+        {
+            var cacheKey = $"conv:{conversationId}:messages";
+            var cached = await _cacheService.GetAsync<IEnumerable<MessageDto>>(cacheKey);
+            if (cached != null)
+            {
+                // When serving from cache, we still need to mark as read
+                await MarkAsReadAsync(userId, conversationId);
+                return cached;
+            }
+        }
+
         var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
         {
@@ -73,7 +103,14 @@ public class ChatService : IChatService
             .Take(limit)
             .ToListAsync();
 
-        return messages.OrderBy(m => m.CreatedAt).Select(MapToMessageDto);
+        var dtos = messages.OrderBy(m => m.CreatedAt).Select(MapToMessageDto).ToList();
+
+        if (!before.HasValue && limit == 50)
+        {
+            await _cacheService.SetAsync($"conv:{conversationId}:messages", (IEnumerable<MessageDto>)dtos, TimeSpan.FromMinutes(5));
+        }
+
+        return dtos;
     }
 
     public async Task<ConversationDto> GetOrCreateConversationAsync(Guid userId, List<Guid> participantIds)
@@ -112,6 +149,8 @@ public class ChatService : IChatService
                 UserId = pId,
                 JoinedAt = DateTime.UtcNow
             });
+            // Prepare to invalidate these users' conversation list caches
+            await _cacheService.RemoveAsync($"user:{pId}:conversations");
         }
 
         await _unitOfWork.Conversations.AddAsync(newConversation);
@@ -158,6 +197,14 @@ public class ChatService : IChatService
         await _unitOfWork.Messages.AddAsync(message);
         await _unitOfWork.CompleteAsync();
 
+        // Invalidate caches
+        await _cacheService.RemoveAsync($"conv:{conversationId}:messages");
+        foreach (var p in conversation.ConversationParticipants)
+        {
+            await _cacheService.RemoveAsync($"user:{p.UserId}:conversations");
+            await _cacheService.RemoveAsync($"user:{p.UserId}:conv:{conversationId}");
+        }
+
         var savedMessage = await _unitOfWork.Messages.Query()
             .Include(m => m.Sender)
             .Include(m => m.LinkPreview)
@@ -200,6 +247,10 @@ public class ChatService : IChatService
         }
 
         await _unitOfWork.CompleteAsync();
+
+        // Invalidate message cache
+        await _cacheService.RemoveAsync($"conv:{message.ConversationId}:messages");
+
         return MapToMessageDto(message);
     }
 
@@ -227,6 +278,10 @@ public class ChatService : IChatService
         }
 
         await _unitOfWork.CompleteAsync();
+
+        // Invalidate message cache
+        await _cacheService.RemoveAsync($"conv:{message.ConversationId}:messages");
+
         return MapToMessageDto(message);
     }
 
@@ -234,6 +289,8 @@ public class ChatService : IChatService
     {
         var existingReaction = await _unitOfWork.MessageReactions.Query()
             .FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserId == userId);
+
+        Guid conversationId = Guid.Empty;
 
         if (existingReaction != null)
         {
@@ -252,11 +309,12 @@ public class ChatService : IChatService
         else
         {
             // Verify message exists before adding
-            var messageExists = await _unitOfWork.Messages.Query().AnyAsync(m => m.Id == messageId && (m.IsRecalled == false || m.IsRecalled == null));
-            if (!messageExists)
+            var message = await _unitOfWork.Messages.Query().FirstOrDefaultAsync(m => m.Id == messageId && (m.IsRecalled == false || m.IsRecalled == null));
+            if (message == null)
             {
                 throw new Exception("Message not found or has been recalled");
             }
+            conversationId = message.ConversationId;
 
             var reaction = new MessageReaction
             {
@@ -272,16 +330,19 @@ public class ChatService : IChatService
         await _unitOfWork.CompleteAsync();
 
         // Fetch the message with updated reactions to return
-        var message = await _unitOfWork.Messages.Query()
+        var updatedMessage = await _unitOfWork.Messages.Query()
             .Include(m => m.Sender)
             .Include(m => m.LinkPreview)
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
             .FirstOrDefaultAsync(m => m.Id == messageId);
 
-        if (message == null) throw new Exception("Message disappeared after update");
+        if (updatedMessage == null) throw new Exception("Message disappeared after update");
 
-        return MapToMessageDto(message);
+        // Invalidate message cache
+        await _cacheService.RemoveAsync($"conv:{updatedMessage.ConversationId}:messages");
+
+        return MapToMessageDto(updatedMessage);
     }
 
     public async Task<IEnumerable<MessageDto>> ForwardMessageAsync(Guid userId, Guid messageId, List<Guid> targetConversationIds)
@@ -308,6 +369,10 @@ public class ChatService : IChatService
     {
         await _unitOfWork.Messages.MarkAsReadAsync(conversationId, userId);
         await _unitOfWork.CompleteAsync();
+        
+        // Invalidate conversation-related caches specifically for the user
+        await _cacheService.RemoveAsync($"user:{userId}:conversations");
+        await _cacheService.RemoveAsync($"user:{userId}:conv:{conversationId}");
     }
 
     public async Task<List<Guid>> GetParticipantIdsAsync(Guid conversationId)

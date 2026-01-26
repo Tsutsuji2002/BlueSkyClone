@@ -76,7 +76,9 @@
         "cancel": "Hủy bỏ",
         "save": "Lưu",
         "done": "Xong",
-        "current_password": "Mật khẩu hiện tại"
+        "current_password": "Mật khẩu hiện tại",
+        "handle_same": "Đây là handle hiện tại của bạn",
+        "username_updated_success": "Đã cập nhật handle thành công"
     },
     "moderation": {
         "title": "Kiểm duyệt",
@@ -261,7 +263,11 @@
         "no_posts": "Chưa có bài đăng nào",
         "no_replies": "Chưa có trả lời nào",
         "no_media": "Chưa có phương tiện nào",
-        "no_videos": "Chưa có video nào",
+        "no_video": "Chưa có video nào",
+        "no_likes": "Chưa có lượt thích nào",
+        "no_feeds": "Chưa có bảng tin nào",
+        "no_lists": "Chưa có danh sách nào",
+        "no_bookmarks": "Chưa có lưu trữ nào",
         "create_post": "Viết bài đăng",
         "feed_by": "Bảng tin bởi",
         "edit_profile_title": "Chỉnh sửa hồ sơ",
@@ -444,7 +450,8 @@
         "copied_to_clipboard": "Đã sao chép vào bộ nhớ tạm",
         "hours_ago": "{{count}} giờ trước",
         "you": "Bạn",
-        "user": "Người dùng"
+        "user": "Người dùng",
+        "post_not_found": "Không tìm thấy bài đăng"
     },
     "post": {
         "title": "Đăng",
@@ -483,7 +490,11 @@
         "discard_title": "Hủy bản nháp?",
         "discard_message": "Bạn có chắc chắn muốn hủy bỏ bản nháp này không?",
         "discard_confirm": "Hủy bỏ",
-        "discard_cancel": "Hủy bỏ"
+        "discard_cancel": "Hủy bỏ",
+        "preview": "Xem trước bài đăng",
+        "created_success": "Đã tạo bài đăng thành công",
+        "reply_success": "Đã trả lời thành công",
+        "loading": "Đang tải bài đăng..."
     },
     "sidebar": {
         "trending": "Chủ đề nổi bật",

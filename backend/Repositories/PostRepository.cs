@@ -33,7 +33,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<Post>> GetUserPostsAsync(Guid userId, string? type = null, int limit = 50)
+    public async Task<IEnumerable<Post>> GetUserPostsAsync(Guid userId, string? type = null, int limit = 50, int offset = 0)
     {
         var query = _dbSet
             .Include(p => p.Author)
@@ -47,39 +47,41 @@ public class PostRepository : Repository<Post>, IPostRepository
         {
             query = query.Where(p => p.AuthorId == userId && p.ReplyToPostId != null);
         }
+        else if (type == "media")
+        {
+            query = query.Where(p => p.AuthorId == userId && p.PostMedia.Any(m => m.Type == "image"));
+        }
+        else if (type == "video")
+        {
+            query = query.Where(p => p.AuthorId == userId && p.PostMedia.Any(m => m.Type == "video"));
+        }
+        else if (type == "likes")
+        {
+            return await ((BSkyDbContext)_context).Likes
+                .Where(l => l.UserId == userId)
+                .Include(l => l.Post.Author)
+                .Include(l => l.Post.PostMedia)
+                .Include(l => l.Post.LinkPreview)
+                .Include(l => l.Post.ReplyToPost).ThenInclude(rp => rp!.Author)
+                .OrderByDescending(l => l.CreatedAt)
+                .Skip(offset)
+                .Take(limit)
+                .Select(l => l.Post)
+                .ToListAsync();
+        }
         else // default to "posts" tab
         {
-            // Show original posts + reposts
-            // For now, reposts are stored in a separate table, but we might want to include them here.
-            // If the user wants reposts in the "Posts" tab, we need to fetch them.
-            // Simplified: Show original posts (including those that are replies but we filter them out in main "Posts" tab of some apps)
-            // USER requested: "show repost/reply post in Post tab in user profile, only reply posts in replies tab"
-            // Wait, "repost/reply post in Post tab" -> usually means "posts and reposts". 
-            // Most platforms show "Posts" (posts + reposts) and "Replies" (posts + reposts + replies).
-            
-            // Let's stick to: 
-            // "posts" tab -> original posts (ReplyToPostId == null) by user
-            // "replies" tab -> replies by user
-            
-            // Re-reading user request: "show repost/reply post in Post tab in user profile, only reply posts in replies tab"
-            // Actually, usually "Post" tab has everything EXCEPT replies. 
-            // But user says: "repost/reply post in Post tab". This is slightly confusing.
-            // Maybe they mean: Post tab = original posts + reposts. Replies tab = replies only.
-            
-            if (string.IsNullOrEmpty(type) || type == "posts")
-            {
-                // Show original posts (including those that are not replies) OR posts that the user has reposted
-                var repostedPostIds = await ((BSkyDbContext)_context).Reposts
-                    .Where(r => r.UserId == userId)
-                    .Select(r => r.PostId)
-                    .ToListAsync();
+            var repostedPostIds = await ((BSkyDbContext)_context).Reposts
+                .Where(r => r.UserId == userId)
+                .Select(r => r.PostId)
+                .ToListAsync();
 
-                query = query.Where(p => (p.AuthorId == userId && p.ReplyToPostId == null) || repostedPostIds.Contains(p.Id));
-            }
+            query = query.Where(p => p.AuthorId == userId || repostedPostIds.Contains(p.Id));
         }
 
         return await query
             .OrderByDescending(p => p.CreatedAt)
+            .Skip(offset)
             .Take(limit)
             .ToListAsync();
     }

@@ -16,6 +16,10 @@ import AltTextModal from '../modals/AltTextModal';
 import { cn } from '../utils/classNames';
 import { getLinkMetadata } from '../utils/linkMetadata';
 import ConfirmModal from '../components/common/ConfirmModal';
+import { useUserSearch } from '../hooks/useUserSearch';
+import MentionSuggester from '../components/common/MentionSuggester';
+import RichText from '../components/common/RichText';
+import { User } from '../types';
 
 const CreatePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -27,6 +31,7 @@ const CreatePostModal: React.FC = () => {
     const [images, setImages] = useState<PostImage[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [video, setVideo] = useState<PostVideo | null>(null);
+    const [videoFile, setVideoFile] = useState<File | null>(null);
     const [isVideoProcessing, setIsVideoProcessing] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
@@ -36,7 +41,13 @@ const CreatePostModal: React.FC = () => {
     const [isAltModalOpen, setIsAltModalOpen] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
+    const [mentionSearch, setMentionSearch] = useState('');
+    const [mentionRange, setMentionRange] = useState<{ start: number, end: number } | null>(null);
+
+    const { results: mentionResults, isLoading: isMentionLoading } = useUserSearch(mentionSearch);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevContentRef = useRef('');
 
     // Link Detection logic
@@ -104,6 +115,56 @@ const CreatePostModal: React.FC = () => {
         prevContentRef.current = content;
     }, [content, stickyLink, dismissedLinks, isOpen, linkPreview, setIsLinkLoading]);
 
+    const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newValue = e.target.value;
+        const cursorPos = e.target.selectionStart;
+        setContent(newValue);
+
+        // Mention detection
+        const textBeforeCursor = newValue.slice(0, cursorPos);
+        const atMatch = textBeforeCursor.match(/@(\w*)$/);
+
+        console.log('Mention Debug:', {
+            textBeforeCursor,
+            atMatch,
+            matched: atMatch ? atMatch[1] : 'none'
+        });
+
+        if (atMatch) {
+            console.log('Setting mention search to:', atMatch[1]);
+            setMentionSearch(atMatch[1]);
+            setMentionRange({
+                start: cursorPos - atMatch[0].length,
+                end: cursorPos
+            });
+        } else {
+            setMentionSearch('');
+            setMentionRange(null);
+        }
+    };
+
+    const handleMentionSelect = (selectedUser: User) => {
+        if (mentionRange) {
+            const before = content.slice(0, mentionRange.start);
+            const after = content.slice(mentionRange.end);
+            const handle = selectedUser.handle || selectedUser.username;
+            const newContent = `${before}@${handle} ${after}`;
+            setContent(newContent);
+            setMentionSearch('');
+            setMentionRange(null);
+
+            const newCursorPos = mentionRange.start + handle.length + 2; // +1 for @, +1 for space
+
+            // Focus back to textarea after selection and set cursor position
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                    textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            }, 0);
+        }
+    };
+
     const handleClose = () => {
         const hasContent = content.trim().length > 0 || images.length > 0 || !!video;
 
@@ -120,6 +181,7 @@ const CreatePostModal: React.FC = () => {
         setImages([]);
         setImageFiles([]);
         setVideo(null);
+        setVideoFile(null);
         setLinkPreview(null);
         setStickyLink(null);
         setDismissedLinks(new Set());
@@ -135,6 +197,9 @@ const CreatePostModal: React.FC = () => {
         imageFiles.forEach(file => {
             formData.append('Images', file);
         });
+        if (videoFile) {
+            formData.append('Video', videoFile);
+        }
 
         try {
             await dispatch(createPost(formData)).unwrap();
@@ -162,7 +227,10 @@ const CreatePostModal: React.FC = () => {
         if (files) {
             Array.from(files).forEach((file) => {
                 if (file.type.startsWith('video/')) {
-                    // Video support coming later to backend
+                    if (images.length > 0 || video) return; // Only one video or images
+                    setVideoFile(file);
+                    const url = URL.createObjectURL(file);
+                    setVideo({ url });
                     return;
                 }
 
@@ -252,13 +320,36 @@ const CreatePostModal: React.FC = () => {
                             />
 
                             <div className="flex-1 min-w-0">
+
                                 <textarea
+                                    ref={textareaRef}
                                     value={content}
-                                    onChange={(e) => setContent(e.target.value)}
+                                    onChange={handleContentChange}
                                     placeholder={t('common.whats_new')}
                                     className="w-full min-h-[150px] py-2 text-[20px] bg-transparent border-none resize-none focus:outline-none text-gray-900 dark:text-dark-text placeholder-gray-500 dark:placeholder-dark-text-secondary"
                                     autoFocus
                                 />
+
+                                {content.trim().length > 0 && (content.includes('@') || content.includes('http')) && (
+                                    <div className="mt-2 mb-4 p-3 bg-blue-50/30 dark:bg-primary-900/5 rounded-xl border border-blue-100/50 dark:border-primary-800/20">
+                                        <div className="text-[11px] font-bold text-primary-500 uppercase tracking-wider mb-2 opacity-70">
+                                            {t('post.preview')}
+                                        </div>
+                                        <RichText
+                                            content={content}
+                                            className="text-[16px] text-gray-800 dark:text-dark-text leading-normal break-words whitespace-pre-wrap"
+                                        />
+                                    </div>
+                                )}
+
+                                {mentionRange && (
+                                    <MentionSuggester
+                                        users={mentionResults}
+                                        isLoading={isMentionLoading}
+                                        onSelect={handleMentionSelect}
+                                    />
+                                )}
+
 
                                 {/* Link Preview (Only if no images/video) */}
                                 {isLinkLoading && !video && images.length === 0 && (

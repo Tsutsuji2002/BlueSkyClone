@@ -98,4 +98,27 @@ public class UserController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchUsers([FromQuery] string q, [FromQuery] int limit = 10)
+    {
+        var users = await _userService.SearchUsersAsync(q, limit);
+        var dtos = users.Select(user => new UserDto(
+            user.Id,
+            user.Username,
+            user.Handle,
+            user.Email,
+            user.DisplayName,
+            user.AvatarUrl,
+            user.CoverImageUrl,
+            user.Bio,
+            user.Location,
+            user.Website,
+            user.DateOfBirth,
+            user.FollowersCount,
+            user.FollowingCount,
+            user.PostsCount
+        ));
+        return Ok(dtos);
+    }
 }

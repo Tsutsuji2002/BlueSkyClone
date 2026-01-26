@@ -52,7 +52,7 @@ public class NotificationService : INotificationService
             MapToUserDto(n.Sender),
             n.PostId,
             n.IsRead ?? false,
-            n.CreatedAt ?? DateTime.UtcNow
+            DateTime.SpecifyKind(n.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
         );
     }
 

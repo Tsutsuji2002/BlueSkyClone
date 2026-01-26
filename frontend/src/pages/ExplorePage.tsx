@@ -6,6 +6,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { FiSearch, FiX, FiPlus, FiChevronRight, FiGrid, FiAtSign, FiMenu, FiCheck } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
+import LoadingIndicator from '../components/common/LoadingIndicator';
 import { cn } from '../utils/classNames';
 import { Feed, TrendingAccount } from '../types';
 import Avatar from '../components/common/Avatar';
@@ -124,7 +125,9 @@ const ExplorePage: React.FC = () => {
 
                     {/* Trending Section */}
                     <section className="flex flex-col">
-                        {accounts.map((item, index) => (
+                        {accounts.length === 0 ? (
+                            <LoadingIndicator text={t('explore.loading_accounts', { defaultValue: 'Loading trending accounts...' })} />
+                        ) : accounts.map((item, index) => (
                             <div
                                 key={item.id}
                                 onClick={() => navigate(`/profile/user/${item.id}`)}

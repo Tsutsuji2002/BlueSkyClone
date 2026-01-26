@@ -19,7 +19,10 @@ import AltTextModal from '../modals/AltTextModal';
 import { cn } from '../utils/classNames';
 import { getLinkMetadata } from '../utils/linkMetadata';
 import ConfirmModal from '../components/common/ConfirmModal';
-
+import { useUserSearch } from '../hooks/useUserSearch';
+import MentionSuggester from '../components/common/MentionSuggester';
+import RichText from '../components/common/RichText';
+import { User } from '../types';
 import { RootState } from '../redux/store';
 
 const ReplyModal: React.FC = () => {
@@ -40,7 +43,13 @@ const ReplyModal: React.FC = () => {
     const [isAltModalOpen, setIsAltModalOpen] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
+    const [mentionSearch, setMentionSearch] = useState('');
+    const [mentionRange, setMentionRange] = useState<{ start: number, end: number } | null>(null);
+
+    const { results: mentionResults, isLoading: isMentionLoading } = useUserSearch(mentionSearch);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevContentRef = useRef('');
 
     // Link Detection logic
@@ -107,6 +116,49 @@ const ReplyModal: React.FC = () => {
 
         prevContentRef.current = content;
     }, [content, stickyLink, dismissedLinks, isOpen, linkPreview, setIsLinkLoading]);
+
+    const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newValue = e.target.value;
+        const cursorPos = e.target.selectionStart;
+        setContent(newValue);
+
+        // Mention detection
+        const textBeforeCursor = newValue.slice(0, cursorPos);
+        const atMatch = textBeforeCursor.match(/@(\w*)$/);
+
+        if (atMatch) {
+            setMentionSearch(atMatch[1]);
+            setMentionRange({
+                start: cursorPos - atMatch[0].length,
+                end: cursorPos
+            });
+        } else {
+            setMentionSearch('');
+            setMentionRange(null);
+        }
+    };
+
+    const handleMentionSelect = (selectedUser: User) => {
+        if (mentionRange) {
+            const before = content.slice(0, mentionRange.start);
+            const after = content.slice(mentionRange.end);
+            const handle = selectedUser.handle || selectedUser.username;
+            const newContent = `${before}@${handle} ${after}`;
+            setContent(newContent);
+            setMentionSearch('');
+            setMentionRange(null);
+
+            const newCursorPos = mentionRange.start + handle.length + 2; // +1 for @, +1 for space
+
+            // Focus back to textarea after selection and set cursor position
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                    textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            }, 0);
+        }
+    };
 
     const handleClose = () => {
         const hasContent = content.trim().length > 0 || images.length > 0 || !!video;
@@ -304,13 +356,36 @@ const ReplyModal: React.FC = () => {
                                 size="md"
                             />
                             <div className="flex-1">
+
                                 <textarea
+                                    ref={textareaRef}
                                     value={content}
-                                    onChange={(e) => setContent(e.target.value)}
+                                    onChange={handleContentChange}
                                     placeholder={t('common.reply_placeholder')}
                                     className="w-full min-h-[120px] py-2 text-[18px] bg-transparent border-none resize-none focus:outline-none text-gray-900 dark:text-dark-text placeholder-gray-400 dark:placeholder-dark-text-secondary"
                                     autoFocus
                                 />
+
+                                {content.trim().length > 0 && (content.includes('@') || content.includes('http')) && (
+                                    <div className="mt-2 mb-4 p-3 bg-blue-50/30 dark:bg-primary-900/5 rounded-xl border border-blue-100/50 dark:border-primary-800/20">
+                                        <div className="text-[11px] font-bold text-primary-500 uppercase tracking-wider mb-2 opacity-70">
+                                            {t('post.preview')}
+                                        </div>
+                                        <RichText
+                                            content={content}
+                                            className="text-[16px] text-gray-800 dark:text-dark-text leading-normal break-words whitespace-pre-wrap"
+                                        />
+                                    </div>
+                                )}
+
+                                {mentionRange && (
+                                    <MentionSuggester
+                                        users={mentionResults}
+                                        isLoading={isMentionLoading}
+                                        onSelect={handleMentionSelect}
+                                    />
+                                )}
+
 
                                 {/* Link Preview (Only if no images/video) */}
                                 {isLinkLoading && !video && images.length === 0 && (

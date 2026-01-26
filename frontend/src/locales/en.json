@@ -83,7 +83,9 @@
         "passwords_dont_match": "Passwords do not match",
         "not_set": "Not set",
         "new_password": "New password",
-        "current_password": "Current password"
+        "current_password": "Current password",
+        "handle_same": "This is already your current handle",
+        "username_updated_success": "Handle updated successfully"
     },
     "moderation": {
         "title": "Moderation",
@@ -268,10 +270,10 @@
         "no_posts": "No posts yet",
         "no_replies": "No replies yet",
         "no_media": "No media yet",
-        "no_videos": "No videos yet",
+        "no_video": "No videos yet",
         "no_likes": "No liked posts yet",
-        "no_lists": "No lists yet",
         "no_feeds": "No feeds yet",
+        "no_lists": "No lists yet",
         "no_bookmarks": "No bookmarks yet",
         "create_post": "Write a post",
         "feed_by": "Feed by",
@@ -476,7 +478,8 @@
         "copied_to_clipboard": "Copied to clipboard",
         "hours_ago": "{{count}}h ago",
         "you": "You",
-        "user": "User"
+        "user": "User",
+        "post_not_found": "Post not found"
     },
     "post": {
         "title": "Post",
@@ -515,7 +518,11 @@
         "discard_title": "Discard draft?",
         "discard_message": "Are you sure you want to discard this draft?",
         "discard_confirm": "Discard",
-        "discard_cancel": "Cancel"
+        "discard_cancel": "Cancel",
+        "preview": "Post Preview",
+        "created_success": "Post created successfully",
+        "reply_success": "Reply posted successfully",
+        "loading": "Loading post..."
     },
     "sidebar": {
         "trending": "Trending Topics",

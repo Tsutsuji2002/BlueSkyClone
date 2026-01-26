@@ -102,6 +102,7 @@ export const samplePosts: Post[] = [
         repostsCount: 5,
         repliesCount: 2,
         quotesCount: 1,
+        bookmarksCount: 5,
         isLiked: false,
         isReposted: false,
         isBookmarked: true,
@@ -115,6 +116,7 @@ export const samplePosts: Post[] = [
         repostsCount: 28,
         repliesCount: 12,
         quotesCount: 3,
+        bookmarksCount: 42,
         isLiked: true,
         isReposted: true,
         isBookmarked: false,
@@ -131,6 +133,7 @@ export const samplePosts: Post[] = [
         repostsCount: 12,
         repliesCount: 5,
         quotesCount: 0,
+        bookmarksCount: 0,
         isLiked: false,
         isReposted: false,
     }

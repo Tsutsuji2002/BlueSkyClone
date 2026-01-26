@@ -116,7 +116,7 @@ public class AdminService : IAdminService
         {
             var search = searchQuery.ToLower();
             query = query.Where(p => 
-                p.Content.ToLower().Contains(search) || 
+                (p.Content != null && p.Content.ToLower().Contains(search)) || 
                 p.Author.Handle.ToLower().Contains(search) ||
                 (p.Author.DisplayName != null && p.Author.DisplayName.ToLower().Contains(search))
             );

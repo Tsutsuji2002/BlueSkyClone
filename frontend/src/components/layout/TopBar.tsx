@@ -17,6 +17,10 @@ const TopBar: React.FC = () => {
     const { t } = useTranslation();
     const user = useAppSelector((state: RootState) => state.auth.user);
     const isMobileMenuOpen = useAppSelector((state: RootState) => state.modals.mobileMenu);
+    const unreadNotifications = useAppSelector((state: RootState) => state.notifications.unreadCount);
+    const conversations = useAppSelector((state: RootState) => state.messages.conversations);
+    const unreadMessages = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
+    const totalUnread = unreadNotifications + unreadMessages;
 
     const setIsMobileMenuOpen = (open: boolean) => {
         if (open) {
@@ -34,9 +38,12 @@ const TopBar: React.FC = () => {
                     {/* Menu Button */}
                     <button
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full relative"
                     >
                         <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
+                        {totalUnread > 0 && (
+                            <span className="absolute top-2 right-2 w-2 h-2 bg-primary-500 rounded-full border-2 border-white dark:border-dark-bg" />
+                        )}
                     </button>
 
                     {/* Logo */}

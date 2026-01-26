@@ -8,8 +8,8 @@ import Button from '../components/common/Button';
 import PostCard from '../components/feed/PostCard';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchUserProfileById, followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
-import { fetchUserPosts } from '../redux/slices/postsSlice';
+import { fetchUserProfileById, followUserAsync, unfollowUserAsync, clearProfile } from '../redux/slices/userSlice';
+import { fetchUserPosts, clearPosts } from '../redux/slices/postsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import { cn } from '../utils/classNames';
 import { RootState } from '../redux/store';
@@ -21,8 +21,8 @@ const SampleProfilePage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { profile, isLoading } = useAppSelector((state: RootState) => state.user);
-    const { posts } = useAppSelector((state: RootState) => state.posts);
+    const { profile, isLoading: isProfileLoading } = useAppSelector((state: RootState) => state.user);
+    const { posts: reduxPosts, isLoading: isPostsLoading } = useAppSelector((state: RootState) => state.posts);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
 
     const [activeTab, setActiveTab] = useState('posts');
@@ -32,12 +32,21 @@ const SampleProfilePage: React.FC = () => {
     useEffect(() => {
         if (userId) {
             dispatch(fetchUserProfileById(userId));
+        }
+        return () => {
+            dispatch(clearProfile());
+        };
+    }, [dispatch, userId]);
+
+    useEffect(() => {
+        if (userId) {
+            dispatch(clearPosts());
             dispatch(fetchUserPosts({ userId, type: activeTab }));
         }
     }, [dispatch, userId, activeTab]);
 
     const profileUser = profile;
-    const profilePosts = posts;
+    const profilePosts = reduxPosts;
 
     const handleFollowToggle = async (user: User) => {
         try {
@@ -51,7 +60,7 @@ const SampleProfilePage: React.FC = () => {
         }
     };
 
-    if (isLoading && !profileUser) {
+    if (isProfileLoading && !profileUser) {
         return (
             <MainLayout>
                 <div className="flex items-center justify-center min-h-[50vh]">
@@ -360,38 +369,26 @@ const SampleProfilePage: React.FC = () => {
 
                 {/* Tab Content */}
                 <div className="flex-1">
-                    {activeTab === 'posts' && (
+                    {isPostsLoading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                        </div>
+                    ) : (
                         <div className="flex flex-col">
                             {profilePosts.length > 0 ? (
-                                profilePosts.map((post: Post) => <PostCard key={post.id} post={post} />)
+                                profilePosts.map((post: Post) => (
+                                    <PostCard key={post.id} post={post} />
+                                ))
                             ) : (
-                                <div className="py-20 text-center">
+                                <div className="py-20 text-center flex flex-col items-center">
+                                    <div className="mb-4">
+                                        <FiSearch size={48} className="text-gray-300 dark:text-dark-surface" />
+                                    </div>
                                     <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
-                                        {t('profile.no_posts')}
+                                        {t(`profile.no_${activeTab}`)}
                                     </p>
                                 </div>
                             )}
-                        </div>
-                    )}
-                    {activeTab === 'replies' && (
-                        <div className="py-20 text-center">
-                            <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
-                                {t('profile.no_replies')}
-                            </p>
-                        </div>
-                    )}
-                    {activeTab === 'media' && (
-                        <div className="py-20 text-center">
-                            <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
-                                {t('profile.no_media')}
-                            </p>
-                        </div>
-                    )}
-                    {activeTab === 'video' && (
-                        <div className="py-20 text-center">
-                            <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
-                                {t('profile.no_videos')}
-                            </p>
                         </div>
                     )}
                 </div>

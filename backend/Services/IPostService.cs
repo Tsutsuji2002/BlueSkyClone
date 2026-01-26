@@ -5,7 +5,7 @@ namespace BSkyClone.Services;
 public interface IPostService
 {
     Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId);
-    Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null);
+    Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 3, int offset = 0);
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null);
     Task<bool> DeletePostAsync(Guid userId, Guid postId);
@@ -14,4 +14,5 @@ public interface IPostService
     Task<object> ToggleRepostAsync(Guid userId, Guid postId);
     Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null);
     Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null);
+    Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId);
 }

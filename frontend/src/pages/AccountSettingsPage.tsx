@@ -8,6 +8,7 @@ import { FiArrowLeft, FiChevronRight, FiMail, FiEdit2, FiLock, FiAtSign, FiGift,
 import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
 import { updateUserAccount } from '../redux/slices/authSlice';
+import { showToast } from '../redux/slices/toastSlice';
 
 // Functional Modal Components for updating account settings
 const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: string }> = ({ isOpen, onClose, email }) => {
@@ -156,10 +157,17 @@ const ChangeUsernameModal: React.FC<{ isOpen: boolean; onClose: () => void; user
     if (!isOpen) return null;
 
     const handleSave = async () => {
+        if (newUsername.trim() === username.trim()) {
+            dispatch(showToast({ message: t('settings.handle_same'), type: 'info' }));
+            onClose();
+            return;
+        }
+
         setIsLoading(true);
         setError('');
         try {
             await dispatch(updateUserAccount({ username: newUsername })).unwrap();
+            dispatch(showToast({ message: t('settings.username_updated_success'), type: 'success' }));
             onClose();
         } catch (err: any) {
             setError(err || 'Failed to update username');

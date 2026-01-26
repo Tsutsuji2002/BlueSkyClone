@@ -72,6 +72,6 @@ public class LinkService : ILinkService
         var node = doc.DocumentNode.SelectSingleNode($"//meta[@property='{property}']") 
                 ?? doc.DocumentNode.SelectSingleNode($"//meta[@name='{property}']");
         
-        return node?.GetAttributeValue("content", null);
+        return node?.Attributes["content"]?.Value;
     }
 }

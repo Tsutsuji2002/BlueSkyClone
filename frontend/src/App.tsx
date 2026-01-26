@@ -21,7 +21,10 @@ import { RootState } from './redux/store';
 import { useAppDispatch } from './hooks/useAppDispatch';
 import { getMe } from './redux/slices/authSlice';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
+import { fetchConversations } from './redux/slices/messagesSlice';
 import signalrService from './services/signalrService';
+
+import LoadingScreen from './components/common/LoadingScreen';
 
 const AppContent: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -41,6 +44,7 @@ const AppContent: React.FC = () => {
     if (isAuthenticated) {
       signalrService.startConnection();
       dispatch(fetchUnreadCount());
+      dispatch(fetchConversations());
     } else {
       signalrService.stopConnection();
     }
@@ -53,11 +57,7 @@ const AppContent: React.FC = () => {
   }, [appLanguage, i18n]);
 
   if (isLoading && !isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-dark-bg flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (

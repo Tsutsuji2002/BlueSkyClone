@@ -15,7 +15,7 @@ import { showToast } from '../redux/slices/toastSlice';
 import { PROFILE_TABS, COVER_PLACEHOLDER } from '../constants';
 import { cn } from '../utils/classNames';
 import PostCard from '../components/feed/PostCard';
-import { fetchUserPosts } from '../redux/slices/postsSlice';
+import { fetchUserPosts, clearPosts } from '../redux/slices/postsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import { RootState } from '../redux/store';
 
@@ -31,7 +31,9 @@ const ProfilePage: React.FC = () => {
     const isProfileLoading = useAppSelector((state: RootState) => state.user.isLoading);
     const reduxPosts = useAppSelector((state: RootState) => state.posts.posts);
     const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
+    const hasMore = useAppSelector((state: RootState) => state.posts.hasMore);
     const [activeTab, setActiveTab] = useState('posts');
+    const observerTarget = React.useRef(null);
 
     useEffect(() => {
         if (handle) {
@@ -44,9 +46,36 @@ const ProfilePage: React.FC = () => {
 
     useEffect(() => {
         if (profileUser?.id) {
-            dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab }));
+            dispatch(clearPosts());
+            dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 3, offset: 0 }));
         }
     }, [dispatch, profileUser?.id, activeTab]);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && hasMore && !isPostsLoading && profileUser?.id) {
+                    dispatch(fetchUserPosts({
+                        userId: profileUser.id,
+                        type: activeTab,
+                        limit: 3,
+                        offset: reduxPosts.length
+                    }));
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [dispatch, profileUser?.id, activeTab, hasMore, isPostsLoading, reduxPosts.length]);
+
+    const handleTabChange = (tabId: string) => {
+        setActiveTab(tabId);
+    };
 
     const isOwnProfile = currentUser?.id === profileUser?.id;
 
@@ -283,7 +312,7 @@ const ProfilePage: React.FC = () => {
                         {PROFILE_TABS.map((tab: { id: string; label: string }) => (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => handleTabChange(tab.id)}
                                 className={cn(
                                     'px-3 py-3 text-[14px] font-bold transition-all whitespace-nowrap relative flex-shrink-0',
                                     activeTab === tab.id
@@ -310,9 +339,16 @@ const ProfilePage: React.FC = () => {
                 ) : (
                     <div className="flex flex-col">
                         {reduxPosts.length > 0 ? (
-                            reduxPosts.map((post: Post) => (
-                                <PostCard key={post.id} post={post} />
-                            ))
+                            <>
+                                {reduxPosts.map((post: Post) => (
+                                    <PostCard key={post.id} post={post} />
+                                ))}
+                                <div ref={observerTarget} className="h-10 flex items-center justify-center">
+                                    {isPostsLoading && hasMore && (
+                                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
+                                    )}
+                                </div>
+                            </>
                         ) : (
                             <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
                                 <div className="mb-4">

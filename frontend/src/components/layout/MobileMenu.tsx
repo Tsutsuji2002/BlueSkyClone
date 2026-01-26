@@ -6,16 +6,39 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { closeMobileMenu } from '../../redux/slices/modalsSlice';
 import Avatar from '../common/Avatar';
 import { useTranslation } from 'react-i18next';
-import { FiX } from 'react-icons/fi';
+import {
+    FiX, FiHome, FiSearch, FiBell, FiMail, FiUser, FiSettings,
+    FiRss, FiList, FiBookmark, FiLogOut, FiSun, FiMoon
+} from 'react-icons/fi';
 import { RootState } from '../../redux/store';
+import { cn } from '../../utils/classNames';
+import { useTheme } from '../../hooks/useTheme';
+import { logoutAsync } from '../../redux/slices/authSlice';
+import IconButton from '../common/IconButton';
+
+const iconMap: Record<string, React.ReactNode> = {
+    home: <FiHome size={22} />,
+    search: <FiSearch size={22} />,
+    bell: <FiBell size={22} />,
+    mail: <FiMail size={22} />,
+    feeds: <FiRss size={22} />,
+    lists: <FiList size={22} />,
+    saved: <FiBookmark size={22} />,
+    user: <FiUser size={22} />,
+    settings: <FiSettings size={22} />,
+};
 
 const MobileMenu: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
+    const { toggle, isDark } = useTheme();
     const user = useAppSelector((state: RootState) => state.auth.user);
     const isOpen = useAppSelector((state: RootState) => state.modals.mobileMenu);
+    const unreadNotifications = useAppSelector((state: RootState) => state.notifications.unreadCount);
+    const conversations = useAppSelector((state: RootState) => state.messages.conversations);
+    const unreadMessages = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
 
     // Local state to handle the transition timing
     const [isVisible, setIsVisible] = useState(false);
@@ -75,10 +98,10 @@ const MobileMenu: React.FC = () => {
                             <p className="text-sm text-gray-500 dark:text-dark-text-secondary">@{user.handle}</p>
                             <div className="flex gap-4 mt-2 text-sm">
                                 <span className="text-gray-700 dark:text-dark-text">
-                                    <strong>{user.followingCount}</strong> đang theo dõi
+                                    <strong>{user.followingCount}</strong> {t('profile.following')}
                                 </span>
                                 <span className="text-gray-700 dark:text-dark-text">
-                                    <strong>{user.followersCount}</strong> người theo dõi
+                                    <strong>{user.followersCount}</strong> {t('profile.followers')}
                                 </span>
                             </div>
                         </div>
@@ -88,7 +111,11 @@ const MobileMenu: React.FC = () => {
                 {/* Navigation Items */}
                 <nav className="p-4">
                     {NAV_ITEMS.map((item) => {
-                        const isActive = location.pathname === item.path;
+                        const isActive = location.pathname === item.path ||
+                            (item.path === '/profile' && location.pathname.startsWith('/profile'));
+
+                        const badgeCount = item.id === 'notifications' ? unreadNotifications : (item.id === 'messages' ? unreadMessages : 0);
+
                         return (
                             <button
                                 key={item.id}
@@ -96,25 +123,63 @@ const MobileMenu: React.FC = () => {
                                     navigate(item.id === 'profile' ? `/profile/${user?.handle}` : item.path);
                                     dispatch(closeMobileMenu());
                                 }}
-                                className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg mb-2 transition-colors ${isActive
-                                    ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-500 font-semibold'
-                                    : 'hover:bg-gray-100 dark:hover:bg-dark-surface text-gray-700 dark:text-dark-text'
-                                    }`}
+                                className={cn(
+                                    "w-full flex items-center gap-4 px-4 py-3 rounded-xl mb-1 transition-colors",
+                                    isActive
+                                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-500 font-bold'
+                                        : 'hover:bg-gray-100 dark:hover:bg-dark-surface text-gray-700 dark:text-dark-text'
+                                )}
                             >
+                                <div className="relative">
+                                    {iconMap[item.icon]}
+                                    {badgeCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-primary-500 text-white text-[10px] px-1 rounded-full flex items-center justify-center font-bold">
+                                            {badgeCount > 9 ? '9+' : badgeCount}
+                                        </span>
+                                    )}
+                                </div>
                                 <span className="text-xl">{t(`nav.${item.id}`)}</span>
                             </button>
                         );
                     })}
                 </nav>
 
-                {/* Footer Links */}
+                {/* Theme Toggle */}
+                <div className="p-4 border-t border-gray-100 dark:border-dark-border">
+                    <div className="flex items-center justify-between px-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">
+                            {isDark ? t('settings.dark_mode') : t('settings.light_mode')}
+                        </span>
+                        <IconButton
+                            icon={isDark ? <FiSun size={20} /> : <FiMoon size={20} />}
+                            onClick={toggle}
+                            variant="default"
+                        />
+                    </div>
+                </div>
+
+                {/* Footer Links & Logout */}
                 <div className="p-4 border-t border-gray-200 dark:border-dark-border">
-                    <button className="text-primary-500 hover:underline text-sm block mb-2">
-                        Điều khoản dịch vụ
+                    <button
+                        onClick={async () => {
+                            await dispatch(logoutAsync());
+                            dispatch(closeMobileMenu());
+                            navigate('/welcome');
+                        }}
+                        className="w-full flex items-center gap-4 px-4 py-3 rounded-xl mb-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors font-bold"
+                    >
+                        <FiLogOut size={22} />
+                        <span>{t('settings.logout_label')}</span>
                     </button>
-                    <button className="text-primary-500 hover:underline text-sm block">
-                        Chính sách bảo mật
-                    </button>
+
+                    <div className="flex flex-wrap gap-4 px-2">
+                        <button className="text-gray-500 dark:text-dark-text-secondary hover:underline text-xs">
+                            {t('signup.terms_link')}
+                        </button>
+                        <button className="text-gray-500 dark:text-dark-text-secondary hover:underline text-xs">
+                            {t('signup.privacy_link')}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

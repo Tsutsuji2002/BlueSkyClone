@@ -44,6 +44,7 @@ builder.Services.AddScoped<ILinkService, LinkService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IListService, ListService>();
+builder.Services.AddScoped<ICacheService, CacheService>();
 
 // Redis Caching
 builder.Services.AddStackExchangeRedisCache(options =>

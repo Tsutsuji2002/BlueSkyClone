@@ -12,6 +12,7 @@ import IconButton from '../components/common/IconButton';
 import PostCard from '../components/feed/PostCard';
 import MediaGrid from '../components/feed/MediaGrid';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
+import RichText from '../components/common/RichText';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
 import { showToast } from '../redux/slices/toastSlice';
 import { usePostActions } from '../hooks/usePostActions';
@@ -43,6 +44,8 @@ import { cn } from '../utils/classNames';
 import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
 import { FiCheck, FiPlus, FiTrash2 } from 'react-icons/fi';
 import ConfirmModal from '../components/common/ConfirmModal';
+
+import LoadingIndicator from '../components/common/LoadingIndicator';
 
 const PostDetailPage: React.FC = () => {
     const { postId } = useParams<{ postId: string }>();
@@ -80,21 +83,19 @@ const PostDetailPage: React.FC = () => {
         if (isLoading) {
             return (
                 <MainLayout>
-                    <div className="flex items-center justify-center min-h-[50vh]">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
-                    </div>
+                    <LoadingIndicator text={t('post.loading', { defaultValue: 'Loading post...' })} />
                 </MainLayout>
             );
         }
         return (
             <MainLayout hideTopBar={true}>
                 <div className="p-4 text-center">
-                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('common.post_not_found', { defaultValue: 'Post not found' })}</p>
+                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('common.post_not_found')}</p>
                     <button
                         onClick={() => navigate(-1)}
                         className="mt-4 text-primary-500 hover:underline"
                     >
-                        {t('common.go_back', { defaultValue: 'Go back' })}
+                        {t('common.go_back')}
                     </button>
                 </div>
             </MainLayout>
@@ -128,7 +129,9 @@ const PostDetailPage: React.FC = () => {
     };
 
     const handleImageClick = (index: number) => {
-        const imagesToView = post.imageUrls || post.images?.map((img: any) => img.url) || [];
+        const baseMedia = post.imageUrls || post.images?.map((img: any) => img.url) || [];
+        const imagesToView = post.videoUrl ? [post.videoUrl, ...baseMedia] : baseMedia;
+
         if (imagesToView.length > 0) {
             dispatch(openImageViewer({
                 images: imagesToView,
@@ -352,9 +355,10 @@ const PostDetailPage: React.FC = () => {
                     </div>
 
                     {/* Content */}
-                    <div className="text-lg text-gray-900 dark:text-dark-text mb-4 whitespace-pre-wrap">
-                        {post.content}
-                    </div>
+                    <RichText
+                        content={post.content}
+                        className="text-lg text-gray-900 dark:text-dark-text mb-4 whitespace-pre-wrap"
+                    />
 
                     {/* Media */}
                     <div className="mb-4">
@@ -362,6 +366,7 @@ const PostDetailPage: React.FC = () => {
                             images={post.images}
                             imageUrls={post.imageUrls}
                             video={post.video}
+                            videoUrl={post.videoUrl}
                             onImageClick={(index) => handleImageClick(index)}
                         />
                     </div>
@@ -403,7 +408,7 @@ const PostDetailPage: React.FC = () => {
                             <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.likes')}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                            <span className="font-bold text-gray-900 dark:text-dark-text">0</span>
+                            <span className="font-bold text-gray-900 dark:text-dark-text">{post.bookmarksCount || 0}</span>
                             <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.saves')}</span>
                         </div>
                     </div>

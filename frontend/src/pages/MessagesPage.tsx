@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import { RootState } from '../redux/store';
+import LoadingIndicator from '../components/common/LoadingIndicator';
 
 
 const MessagesPage: React.FC = () => {
@@ -86,8 +87,8 @@ const MessagesPage: React.FC = () => {
                 {/* Conversations List */}
                 <div className="flex-1 overflow-y-auto">
                     {isLoading && conversations.length === 0 ? (
-                        <div className="flex items-center justify-center p-12">
-                            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="flex items-center justify-center p-20">
+                            <LoadingIndicator size="lg" />
                         </div>
                     ) : filteredConversations.length > 0 ? (
                         filteredConversations.map((conv) => (

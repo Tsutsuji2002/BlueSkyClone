@@ -10,9 +10,11 @@ public class PostDto
     public DateTime? CreatedAt { get; set; }
     public AuthorDto Author { get; set; } = null!;
     public List<string> ImageUrls { get; set; } = new();
+    public string? VideoUrl { get; set; }
     public int LikesCount { get; set; }
     public int RepostsCount { get; set; }
     public int RepliesCount { get; set; }
+    public int BookmarksCount { get; set; }
     public Guid? ReplyToPostId { get; set; }
     public string? ReplyToHandle { get; set; }
     public Guid? RootPostId { get; set; }
@@ -45,6 +47,7 @@ public class CreatePostRequest
 {
     public string? Content { get; set; }
     public List<IFormFile>? Images { get; set; }
+    public IFormFile? Video { get; set; }
     public Guid? ReplyToPostId { get; set; }
     public Guid? RootPostId { get; set; }
 }

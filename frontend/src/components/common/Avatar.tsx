@@ -50,6 +50,7 @@ const Avatar: React.FC<AvatarProps> = ({
                         className
                     )}
                     referrerPolicy="no-referrer"
+                    loading="lazy"
                 />
             ) : (
                 <div

@@ -36,13 +36,21 @@ public class PostsController : ControllerBase
         return Ok(posts);
     }
 
-    [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserPosts(Guid userId, [FromQuery] string? type = null)
+    [HttpGet("bookmarks")]
+    public async Task<IActionResult> GetBookmarks()
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var posts = await _postService.GetBookmarkedPostsAsync(userId);
+        return Ok(posts);
+    }
+
+    [HttpGet("user/{userId:guid}")]
+    public async Task<IActionResult> GetUserPosts(Guid userId, [FromQuery] string? type = null, [FromQuery] int limit = 3, [FromQuery] int offset = 0)
     {
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-        var posts = await _postService.GetUserPostsAsync(userId, type, viewerId);
+        var posts = await _postService.GetUserPostsAsync(userId, type, viewerId, limit, offset);
         return Ok(posts);
     }
 
@@ -54,7 +62,7 @@ public class PostsController : ControllerBase
         return Ok(post);
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetPost(Guid id)
     {
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -65,7 +73,7 @@ public class PostsController : ControllerBase
         return Ok(post);
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeletePost(Guid id)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
@@ -74,7 +82,7 @@ public class PostsController : ControllerBase
         return Ok();
     }
 
-    [HttpPost("{id}/like")]
+    [HttpPost("{id:guid}/like")]
     public async Task<IActionResult> LikePost(Guid id)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
@@ -82,7 +90,7 @@ public class PostsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("{id}/bookmark")]
+    [HttpPost("{id:guid}/bookmark")]
     public async Task<IActionResult> BookmarkPost(Guid id)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
@@ -90,7 +98,7 @@ public class PostsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("{id}/repost")]
+    [HttpPost("{id:guid}/repost")]
     public async Task<IActionResult> RepostPost(Guid id)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
@@ -98,7 +106,7 @@ public class PostsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("{id}/replies")]
+    [HttpGet("{id:guid}/replies")]
     public async Task<IActionResult> GetPostReplies(Guid id)
     {
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

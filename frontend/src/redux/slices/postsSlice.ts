@@ -31,12 +31,12 @@ export const fetchTimeline = createAsyncThunk(
 
 export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
-    async ({ userId, type }: { userId: string; type?: string }, { rejectWithValue }) => {
+    async ({ userId, type, limit = 3, offset = 0 }: { userId: string; type?: string; limit?: number; offset?: number }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            let url = `${API_BASE_URL}/posts/user/${userId}`;
+            let url = `${API_BASE_URL}/posts/user/${userId}?limit=${limit}&offset=${offset}`;
             if (type && type !== 'posts') {
-                url += `?type=${type}`;
+                url += `&type=${type}`;
             }
             const response = await fetch(url, {
                 headers: {
@@ -45,7 +45,7 @@ export const fetchUserPosts = createAsyncThunk(
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch user posts');
-            return data;
+            return { posts: data, offset };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -212,6 +212,23 @@ export const fetchTrendingPosts = createAsyncThunk(
     }
 );
 
+export const fetchBookmarkedPosts = createAsyncThunk(
+    'posts/fetchBookmarked',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/bookmarks`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch bookmarked posts');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 const postsSlice = createSlice({
     name: 'posts',
     initialState,
@@ -253,9 +270,14 @@ const postsSlice = createSlice({
             .addCase(fetchUserPosts.pending, (state: PostsState) => {
                 state.isLoading = true;
             })
-            .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
+            .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], offset: number }>) => {
                 state.isLoading = false;
-                state.posts = action.payload;
+                if (action.payload.offset === 0) {
+                    state.posts = action.payload.posts;
+                } else {
+                    state.posts = [...state.posts, ...action.payload.posts];
+                }
+                state.hasMore = action.payload.posts.length === 3; // Assuming limit is 3
             })
             .addCase(fetchUserPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -288,10 +310,11 @@ const postsSlice = createSlice({
                 }
             })
             // Bookmark
-            .addCase(bookmarkPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isBookmarked: boolean }>) => {
+            .addCase(bookmarkPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isBookmarked: boolean, bookmarksCount: number }>) => {
                 const post = state.posts.find(p => p.id === action.payload.postId);
                 if (post) {
                     post.isBookmarked = action.payload.isBookmarked;
+                    post.bookmarksCount = action.payload.bookmarksCount;
                 }
             })
             // Delete Post
@@ -326,6 +349,26 @@ const postsSlice = createSlice({
                         state.posts.push(reply);
                     }
                 });
+            })
+            // Fetch Bookmarked Posts
+            .addCase(fetchBookmarkedPosts.pending, (state: PostsState) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
+                state.isLoading = false;
+                // We want to combine these into the main posts list but also mark them
+                action.payload.forEach(post => {
+                    const index = state.posts.findIndex(p => p.id === post.id);
+                    if (index !== -1) {
+                        state.posts[index] = post;
+                    } else {
+                        state.posts.push(post);
+                    }
+                });
+            })
+            .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
             });
 
 

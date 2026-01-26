@@ -1,4 +1,4 @@
-import { formatDistance, format, isSameWeek } from 'date-fns';
+import { formatDistance, format, isSameWeek, formatDistanceToNowStrict } from 'date-fns';
 import { enUS, vi, es, fr, ja, ko, zhCN, de } from 'date-fns/locale';
 
 const dateLocales: { [key: string]: any } = {
@@ -72,22 +72,36 @@ export const formatChatMessageDate = (date: string | Date, lang: string = 'en'):
 /**
  * Format a date for display in posts (e.g., "2h" or "Dec 19")
  */
-export const formatPostDate = (date: string | Date): string => {
+export const formatPostDate = (date: string | Date, lang: string = 'en'): string => {
     try {
         const dateObj = typeof date === 'string' ? new Date(date) : date;
         const now = new Date();
         const diffInHours = (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60);
+        const locale = dateLocales[lang] || enUS;
 
-        if (diffInHours < 1) {
-            const diffInMinutes = Math.floor(diffInHours * 60);
-            return `${diffInMinutes}m`;
-        } else if (diffInHours < 24) {
-            return `${Math.floor(diffInHours)}h`;
-        } else if (diffInHours < 24 * 7) {
-            const diffInDays = Math.floor(diffInHours / 24);
-            return `${diffInDays}d`;
+        if (diffInHours < 24 * 7) {
+            // Use date-fns for relative time which is localized
+            // "1m", "2h", "3d" etc.
+            return formatDistanceToNowStrict(dateObj, {
+                locale,
+                addSuffix: false
+            })
+                .replace(' minutes', 'm')
+                .replace(' minute', 'm')
+                .replace(' hours', 'h')
+                .replace(' hour', 'h')
+                .replace(' days', 'd')
+                .replace(' day', 'd')
+                .replace(' seconds', 's')
+                .replace(' second', 's')
+                .replace(' phút', 'phót') // Vietnamese short forms if needed
+                .replace(' giờ', 'giờ')
+                .replace(' ngày', 'ngày');
+            // Note: Bluesky uses very short forms. 
+            // In Vietnamese it's usually "1 giờ", "1 ngày".
+            // If we want exact "1h", "1d" we might need custom logic for each lang.
         } else {
-            return format(dateObj, 'MMM d');
+            return format(dateObj, 'MMM d', { locale });
         }
     } catch (error) {
         return '';

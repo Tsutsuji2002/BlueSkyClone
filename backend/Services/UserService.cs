@@ -211,7 +211,7 @@ public class UserService : IUserService
                 ),
                 savedNotification.PostId,
                 savedNotification.IsRead ?? false,
-                savedNotification.CreatedAt ?? DateTime.UtcNow
+                DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
             );
 
             await _hubContext.Clients.Group($"user-{followingId}")
@@ -350,5 +350,19 @@ public class UserService : IUserService
     public async Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId)
     {
         return await _unitOfWork.Mutes.IsMutedAsync(userId, potentialMutedUserId);
+    }
+
+    public async Task<List<User>> SearchUsersAsync(string query, int limit = 10)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return new List<User>();
+
+        query = query.ToLower().Trim();
+        // Search by handle or username or display name
+        return await _unitOfWork.Users.Query()
+            .Where(u => u.Handle.ToLower().Contains(query) || 
+                        u.Username.ToLower().Contains(query) || 
+                        (u.DisplayName != null && u.DisplayName.ToLower().Contains(query)))
+            .Take(limit)
+            .ToListAsync();
     }
 }

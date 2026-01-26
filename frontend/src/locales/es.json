@@ -37,9 +37,11 @@
         "search_posts": "Buscar posts",
         "add_to_starter_packs": "Añadir a paquetes iniciales",
         "add_to_lists": "Añadir a listas",
-        "no_replies": "Aún no hay respuestas",
-        "no_media": "Aún no hay medios",
-        "no_videos": "Aún no hay videos"
+        "no_video": "Aún no hay videos",
+        "no_likes": "Aún no hay me gusta",
+        "no_feeds": "Aún no hay feeds",
+        "no_lists": "Aún no hay listas",
+        "no_bookmarks": "Aún no hay marcadores"
     },
     "settings": {
         "title": "Configuración",
@@ -283,6 +285,10 @@
         "embed_post": "Insertar post",
         "show_more": "Mostrar más como esto",
         "show_less": "Mostrar menos como esto",
+        "preview": "Vista previa",
+        "created_success": "Publicación creada con éxito",
+        "reply_success": "Respuesta enviada con éxito",
+        "loading": "Cargando publicación...",
         "mute_thread": "Silenciar hilo",
         "hide_words": "Ocultar palabras y etiquetas",
         "hide_post": "Ocultar post para mí",

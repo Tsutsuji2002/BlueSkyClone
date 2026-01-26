@@ -132,7 +132,7 @@ const Sidebar: React.FC = () => {
             <div className="space-y-2">
                 <div className="flex items-center justify-between px-4">
                     <span className="text-sm text-gray-600 dark:text-dark-text-secondary">
-                        {isDark ? t('settings.dark_mode', { defaultValue: 'Chế độ tối' }) : t('settings.light_mode', { defaultValue: 'Chế độ sáng' })}
+                        {isDark ? t('settings.dark_mode') : t('settings.light_mode')}
                     </span>
                     <IconButton
                         icon={isDark ? <FiSun size={20} /> : <FiMoon size={20} />}

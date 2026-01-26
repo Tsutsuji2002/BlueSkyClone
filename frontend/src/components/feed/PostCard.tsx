@@ -14,9 +14,11 @@ import Avatar from '../common/Avatar';
 import IconButton from '../common/IconButton';
 import Dropdown, { DropdownItem } from '../common/Dropdown';
 import { cn } from '../../utils/classNames';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import MediaGrid from './MediaGrid';
 import { formatPostDate } from '../../utils/formatDate';
+import RichText from '../common/RichText';
+
 import { formatDistanceToNowStrict } from 'date-fns';
 import { vi, enUS, ja, ko, zhCN, es, fr, de } from 'date-fns/locale';
 import {
@@ -240,7 +242,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
                         </span>
                         <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary">·</span>
                         <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary whitespace-nowrap">
-                            {formatPostDate(post.createdAt)}
+                            {formatPostDate(post.createdAt, i18n.language)}
                         </span>
                     </div>
 
@@ -248,16 +250,23 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
                     {post.replyToHandle && !isComment && (
                         <div className="flex items-center gap-1 mb-1 text-[15px] text-gray-500 dark:text-dark-text-secondary">
                             <FiMessageCircle size={14} className="mt-0.5" />
-                            <span>{t('post.replying_to', { defaultValue: 'Replying to' })}</span>
-                            <span className="text-primary-500 hover:underline">@{post.replyToHandle}</span>
+                            <span>{t('messages.replying_to', { name: '' }).replace(' {{name}}', '').replace('{{name}}', '')}</span>
+                            <Link
+                                to={`/profile/${post.replyToHandle}`}
+                                className="text-primary-500 hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                @{post.replyToHandle}
+                            </Link>
                         </div>
                     )}
 
                     {/* Post Content */}
 
-                    <p className="text-[15px] text-gray-900 dark:text-dark-text mb-3 whitespace-pre-wrap break-words leading-normal">
-                        {post.content}
-                    </p>
+                    <RichText
+                        content={post.content}
+                        className="text-[15px] text-gray-900 dark:text-dark-text mb-3 whitespace-pre-wrap break-words leading-normal"
+                    />
 
                     {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
 
@@ -267,8 +276,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
                             images={post.images}
                             imageUrls={post.imageUrls}
                             video={post.video}
+                            videoUrl={post.videoUrl}
                             onImageClick={(index) => {
-                                const imagesToView = post.imageUrls || post.images?.map(img => img.url) || [];
+                                const baseMedia = post.imageUrls || post.images?.map(img => img.url) || [];
+                                const imagesToView = post.videoUrl ? [post.videoUrl, ...baseMedia] : baseMedia;
+
                                 if (imagesToView.length > 0) {
                                     dispatch(openImageViewer({
                                         images: imagesToView,

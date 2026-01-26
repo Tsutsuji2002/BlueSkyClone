@@ -16,6 +16,7 @@ import { Message, Conversation, User } from '../types';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
 import PostEmbed from '../components/messages/PostEmbed';
 import { formatChatMessageDate } from '../utils/formatDate';
+import LoadingIndicator from '../components/common/LoadingIndicator';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -81,7 +82,7 @@ const ChatPage: React.FC = () => {
     useEffect(() => {
         if (conversationId) {
             dispatch(setActiveConversation(conversationId));
-            dispatch(fetchMessages({ conversationId, limit: 20 }));
+            dispatch(fetchMessages({ conversationId, limit: 10 }));
             dispatch(markAsRead(conversationId));
 
             if (!conversation) {
@@ -342,12 +343,11 @@ const ChatPage: React.FC = () => {
                     ref={messagesContainerRef}
                     onScroll={handleScroll}
                 >
-                    {isLoadingMore && (
-                        <div className="flex justify-center py-2">
-                            <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                    {isLoading && activeConversationMessages.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <LoadingIndicator size="lg" />
                         </div>
-                    )}
-                    {activeConversationMessages.length === 0 ? (
+                    ) : activeConversationMessages.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                             <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
                                 <FiSmile size={32} className="text-blue-500" />
@@ -364,6 +364,11 @@ const ChatPage: React.FC = () => {
                         </div>
                     ) : (
                         <>
+                            {isLoadingMore && (
+                                <div className="flex justify-center py-2">
+                                    <LoadingIndicator size="sm" center={false} />
+                                </div>
+                            )}
                             <div className="flex-grow min-h-0"></div>
                             {activeConversationMessages.map((msg: Message) => {
                                 const isMe = msg.senderId === currentUser?.id;

@@ -97,11 +97,13 @@ export interface Post {
     content: string;
     images?: PostImage[];
     imageUrls?: string[]; // From backend
+    videoUrl?: string; // From backend
     video?: PostVideo;
     linkPreview?: LinkPreview;
     createdAt: string;
     likesCount: number;
     repostsCount: number;
+    bookmarksCount: number;
     repliesCount: number;
     quotesCount: number;
     isLiked?: boolean;
