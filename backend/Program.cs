@@ -179,6 +179,9 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<BSkyDbContext>();
         
+        // Apply any pending migrations before manual updates
+        context.Database.Migrate();
+
         // --- MANUAL SCHEMA UPDATES ---
         try
         {
@@ -202,6 +205,10 @@ using (var scope = app.Services.CreateScope())
                     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsVerified')
                     BEGIN
                         ALTER TABLE Users ADD IsVerified BIT NOT NULL DEFAULT 0;
+                    END
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Feeds') AND name = 'IsOfficial')
+                    BEGIN
+                        ALTER TABLE Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
                     END";
                 context.Database.ExecuteSqlRaw(modSql);
 
@@ -238,9 +245,6 @@ using (var scope = app.Services.CreateScope())
             var logger = services.GetRequiredService<ILogger<Program>>();
             logger.LogWarning(ex, "An error occurred during manual schema updates. Continuing...");
         }
-
-        // Apply any pending migrations
-        context.Database.Migrate();
     }
     catch (Exception ex)
     {
