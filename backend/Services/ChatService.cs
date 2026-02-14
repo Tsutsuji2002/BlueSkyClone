@@ -216,7 +216,7 @@ public class ChatService : IChatService
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
             .FirstOrDefaultAsync(m => m.Id == message.Id);
 
-        // Create and send notifications for other participants
+        // Send SignalR notifications for other participants
         foreach (var p in conversation.ConversationParticipants.Where(p => p.UserId != userId))
         {
             var notification = new Notification
@@ -230,11 +230,11 @@ public class ChatService : IChatService
                 Content = content?.Length > 50 ? content.Substring(0, 47) + "..." : content,
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow,
-                IsDeleted = false
+                IsDeleted = false,
+                Sender = savedMessage?.Sender!
             };
-            await _unitOfWork.Notifications.AddAsync(notification);
-            await _unitOfWork.CompleteAsync(); // Save to get the ID and relationships if needed
-            await SendNotificationAsync(notification.Id);
+            
+            await SendNotificationAsync(notification);
         }
 
         return MapToMessageDto(savedMessage!);
@@ -487,28 +487,21 @@ public class ChatService : IChatService
         return DateTime.UtcNow.Ticks.ToString();
     }
 
-    private async Task SendNotificationAsync(Guid notificationId)
+    private async Task SendNotificationAsync(Notification notification)
     {
-        var savedNotification = await _unitOfWork.Notifications.Query()
-            .Include(n => n.Sender)
-            .FirstOrDefaultAsync(n => n.Id == notificationId);
+        var notificationDto = new NotificationDto(
+            notification.Id,
+            notification.Type ?? "message",
+            MapToUserDto(notification.Sender),
+            notification.PostId,
+            notification.ListId,
+            notification.Title,
+            notification.Content,
+            notification.IsRead ?? false,
+            DateTime.SpecifyKind(notification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
+        );
 
-        if (savedNotification != null)
-        {
-            var notificationDto = new NotificationDto(
-                savedNotification.Id,
-                savedNotification.Type ?? "message",
-                MapToUserDto(savedNotification.Sender),
-                savedNotification.PostId,
-                savedNotification.ListId,
-                savedNotification.Title,
-                savedNotification.Content,
-                savedNotification.IsRead ?? false,
-                DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
-            );
-
-            await _hubContext.Clients.Group($"user-{savedNotification.RecipientId}")
-                .SendAsync("ReceiveNotification", notificationDto);
-        }
+        await _hubContext.Clients.Group($"user-{notification.RecipientId}")
+            .SendAsync("ReceiveNotification", notificationDto);
     }
 }

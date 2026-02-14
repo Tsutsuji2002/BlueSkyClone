@@ -24,6 +24,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./backend/wwwroot/uploads:/app/wwwroot/uploads
     restart: always
 
   frontend:
@@ -38,6 +40,16 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
+      - ./backend/wwwroot/uploads:/usr/share/nginx/html/uploads:ro
+    restart: always
+
+  redis:
+    image: redis:alpine
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: always
 
   certbot:

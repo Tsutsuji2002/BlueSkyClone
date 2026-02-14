@@ -28,6 +28,8 @@ fi
 # The .NET container runs as user 'app' (UID 1654)
 echo "Fixing upload directory permissions..."
 mkdir -p backend/wwwroot/uploads/posts
+mkdir -p backend/wwwroot/uploads/covers
+mkdir -p backend/wwwroot/uploads/avatars
 sudo chown -R 1654:1654 backend/wwwroot/uploads
 
 # 5. SSL Certificate Check and Generation
