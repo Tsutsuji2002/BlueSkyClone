@@ -210,6 +210,14 @@ public class PostService : IPostService
 
         await _unitOfWork.Posts.AddAsync(post);
         
+        // Update User PostsCount
+        var author = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (author != null)
+        {
+            author.PostsCount = (author.PostsCount ?? 0) + 1;
+            _unitOfWork.Users.Update(author);
+        }
+        
         Notification? replyNotification = null;
         if (request.ReplyToPostId.HasValue)
         {
@@ -347,6 +355,15 @@ public class PostService : IPostService
 
         post.IsDeleted = true;
         _unitOfWork.Posts.Update(post);
+
+        // Update User PostsCount
+        var author = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (author != null)
+        {
+            author.PostsCount = Math.Max(0, (author.PostsCount ?? 0) - 1);
+            _unitOfWork.Users.Update(author);
+        }
+
         await _unitOfWork.CompleteAsync();
 
         // Invalidate caches

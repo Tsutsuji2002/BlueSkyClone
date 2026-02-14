@@ -302,7 +302,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
 
                     <RichText
                         content={post.content}
-                        className="text-[15px] text-gray-900 dark:text-dark-text mb-3 whitespace-pre-wrap break-words leading-normal"
+                        className="text-[15px] text-gray-900 dark:text-dark-text mb-3 whitespace-pre-wrap break-words break-all leading-normal"
                     />
 
                     {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}

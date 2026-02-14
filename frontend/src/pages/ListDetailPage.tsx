@@ -130,7 +130,7 @@ const ListDetailPage: React.FC = () => {
         });
     };
 
-    const isMember = currentUser ? activeListMembers.some(m => m.userId === currentUser.id) : false;
+    const isMember = currentUser && activeList ? listsIAmOn.some(l => l.id === activeList.id) : false;
     const canAddPost = activeList?.isOwner || isMember;
 
     if (isLoading && !activeList) {
