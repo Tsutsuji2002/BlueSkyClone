@@ -249,8 +249,12 @@ const PostDetailPage: React.FC = () => {
         }
     };
 
+    const pageTitle = post.content
+        ? (post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content)
+        : t('post.title');
+
     return (
-        <MainLayout hideTopBar={true} title={post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content}>
+        <MainLayout hideTopBar={true} title={pageTitle}>
             <div className="min-h-screen">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">

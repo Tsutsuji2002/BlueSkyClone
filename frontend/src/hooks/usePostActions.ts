@@ -9,12 +9,14 @@ export const usePostActions = () => {
     const dispatch = useAppDispatch();
 
     const handleTranslate = (content: string) => {
+        if (!content) return;
         const targetLang = i18n.language || 'en';
         const url = `https://translate.google.com/?sl=auto&tl=${targetLang}&text=${encodeURIComponent(content)}&op=translate`;
         window.open(url, '_blank');
     };
 
     const handleCopyText = (content: string) => {
+        if (!content) return;
         navigator.clipboard.writeText(content);
         dispatch(showToast({ message: t('common.copied_to_clipboard') }));
     };
@@ -27,7 +29,8 @@ export const usePostActions = () => {
 
     const handleEmbedPost = (handle: string, postId: string, content: string) => {
         const postUrl = `${window.location.origin}/profile/${handle}/post/${postId}`;
-        const embedCode = `<blockquote class="bluesky-embed"><a href="${postUrl}">@${handle}</a><p>${content}</p></blockquote>`;
+        const embedText = content || "";
+        const embedCode = `<blockquote class="bluesky-embed"><a href="${postUrl}">@${handle}</a><p>${embedText}</p></blockquote>`;
         navigator.clipboard.writeText(embedCode);
         dispatch(showToast({ message: t('post.embed_copied') }));
     };
