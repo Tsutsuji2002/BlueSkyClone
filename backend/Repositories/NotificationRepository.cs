@@ -17,7 +17,9 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
     {
         return await _dbSet
             .Include(n => n.Sender)
-            .Where(n => n.RecipientId == userId && (n.IsDeleted == false || n.IsDeleted == null))
+            .Where(n => n.RecipientId == userId 
+                && n.Type != "message"
+                && (n.IsDeleted == false || n.IsDeleted == null))
             .OrderByDescending(n => n.CreatedAt)
             .Take(limit)
             .ToListAsync();
@@ -27,6 +29,7 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
     {
         return await _dbSet
             .CountAsync(n => n.RecipientId == userId 
+                && n.Type != "message"
                 && (n.IsRead == false || n.IsRead == null) 
                 && (n.IsDeleted == false || n.IsDeleted == null));
     }
@@ -34,7 +37,9 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
     public async Task MarkAllAsReadAsync(Guid userId)
     {
         var unread = await _dbSet
-            .Where(n => n.RecipientId == userId && (n.IsRead == false || n.IsRead == null))
+            .Where(n => n.RecipientId == userId 
+                && n.Type != "message"
+                && (n.IsRead == false || n.IsRead == null))
             .ToListAsync();
 
         foreach (var n in unread)

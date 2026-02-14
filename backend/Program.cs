@@ -249,6 +249,9 @@ using (var scope = app.Services.CreateScope())
                 -- Always ensure any status-less (0) members are migrated to Accepted (1) 
                 -- for users transitioning to the invitation system.
                 EXEC('UPDATE ListMembers SET Status = 1 WHERE Status = 0');
+
+                -- CLEANUP: Remove old chat notifications from general feed
+                DELETE FROM Notifications WHERE Type = 'message';
                 ";
             context.Database.ExecuteSqlRaw(sql);
         }
