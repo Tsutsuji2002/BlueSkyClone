@@ -314,6 +314,45 @@ public class PostService : IPostService
 
             if (parentPost != null)
             {
+                // Enforce Reply Restrictions
+                var restriction = parentPost.ReplyRestriction ?? "anyone";
+                
+                if (restriction != "anyone" && parentPost.AuthorId != userId)
+                {
+                    if (restriction == "none" || restriction == "no_one") // Handle both possible values
+                    {
+                        throw new Exception("You are not allowed to reply to this post.");
+                    }
+                    else if (restriction == "followed")
+                    {
+                        // Check if parent post author follows the current user
+                        var isFollowedByAuthor = await _unitOfWork.Follows.IsFollowingAsync(parentPost.AuthorId, userId);
+                        if (!isFollowedByAuthor)
+                        {
+                            throw new Exception("Only users followed by the author can reply.");
+                        }
+                    }
+                    else if (restriction == "mentioned")
+                    {
+                         // Check if the user is mentioned in the parent post
+                         // Simple check for handle mentions for now
+                         var userHandle = (await _unitOfWork.Users.GetByIdAsync(userId))?.Handle;
+                         var mentionedHandle = userHandle?.Split('.').First(); // basic handle check
+                         
+                         bool isMentioned = false;
+                         if (!string.IsNullOrEmpty(parentPost.Content) && !string.IsNullOrEmpty(mentionedHandle))
+                         {
+                             // Simple regex or string contains check (a more robust mention system would check entity facets)
+                             isMentioned = parentPost.Content.Contains($"@{mentionedHandle}", StringComparison.OrdinalIgnoreCase);
+                         }
+
+                         if (!isMentioned)
+                         {
+                             throw new Exception("Only mentioned users can reply.");
+                         }
+                    }
+                }
+
                 parentPost.RepliesCount = (parentPost.RepliesCount ?? 0) + 1;
                 _unitOfWork.Posts.Update(parentPost);
 
