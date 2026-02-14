@@ -5,6 +5,8 @@ import { RootState } from '../../redux/store';
 import { fetchPostById } from '../../redux/slices/postsSlice';
 import Avatar from '../common/Avatar';
 import { formatPostDate } from '../../utils/formatDate';
+import LinkPreviewCard from '../common/LinkPreviewCard';
+import { FiPlay } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 interface PostEmbedProps {
@@ -79,8 +81,35 @@ const PostEmbed: React.FC<PostEmbedProps> = ({ postId }) => {
                     </p>
                 )}
 
-                {/* Media Preview (Simplified) */}
-                {(post.images?.length || 0) > 0 && (
+                {/* Media Preview */}
+                {post.videoUrl ? (
+                    <div className="rounded-lg overflow-hidden w-full bg-black relative aspect-video group"
+                        onMouseEnter={(e) => {
+                            const video = e.currentTarget.querySelector('video');
+                            if (video) video.play().catch(() => { });
+                        }}
+                        onMouseLeave={(e) => {
+                            const video = e.currentTarget.querySelector('video');
+                            if (video) {
+                                video.pause();
+                                video.currentTime = 0;
+                            }
+                        }}
+                    >
+                        <video
+                            src={post.videoUrl}
+                            className="w-full h-full object-cover"
+                            muted
+                            loop
+                            playsInline
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-transparent transition-colors">
+                            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white">
+                                <FiPlay className="ml-1" size={20} />
+                            </div>
+                        </div>
+                    </div>
+                ) : (post.images?.length || 0) > 0 ? (
                     <div className="rounded-lg overflow-hidden h-40 w-full bg-gray-100 dark:bg-dark-surface relative">
                         <img
                             src={post.images![0].url}
@@ -93,7 +122,9 @@ const PostEmbed: React.FC<PostEmbedProps> = ({ postId }) => {
                             </div>
                         )}
                     </div>
-                )}
+                ) : post.linkPreview ? (
+                    <LinkPreviewCard preview={post.linkPreview} />
+                ) : null}
             </div>
 
             {/* Footer Stats */}

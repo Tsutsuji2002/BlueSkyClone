@@ -237,6 +237,14 @@ const CreatePostModal: React.FC = () => {
             Array.from(files).forEach((file) => {
                 if (file.type.startsWith('video/')) {
                     if (images.length > 0 || video) return; // Only one video or images
+
+                    // Check file size (500MB Limit)
+                    const MAX_SIZE = 500 * 1024 * 1024; // 500MB
+                    if (file.size > MAX_SIZE) {
+                        dispatch(showToast({ message: t('post.video_too_large', 'Video too large (Max 500MB)'), type: 'error' }));
+                        return;
+                    }
+
                     setVideoFile(file);
                     const url = URL.createObjectURL(file);
                     setVideo({ url });
