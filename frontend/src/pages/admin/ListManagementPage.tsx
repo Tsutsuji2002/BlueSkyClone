@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
 import { AdminList } from '../../types/admin';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import Avatar from '../../components/common/Avatar';
+
 import UserListModal from '../../components/admin/UserListModal';
 import { formatDistanceToNow } from 'date-fns';
 

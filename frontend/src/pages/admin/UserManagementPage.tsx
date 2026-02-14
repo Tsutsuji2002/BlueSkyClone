@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiSearch, FiShield, FiShieldOff, FiCheckCircle, FiUser, FiMail, FiCalendar, FiEdit2, FiInfo, FiX, FiExternalLink } from 'react-icons/fi';
+import { FiSearch, FiShield, FiShieldOff, FiCheckCircle, FiMail, FiCalendar, FiInfo, FiX, FiExternalLink } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../../components/common/Avatar';
 import { adminService } from '../../services/adminService';

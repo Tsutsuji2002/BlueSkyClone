@@ -4,7 +4,7 @@ import { FiTrash2, FiExternalLink, FiMessageSquare, FiSearch, FiX } from 'react-
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../../components/common/Avatar';
 import { API_BASE_URL } from '../../constants';
-import { AdminPost, PaginatedResult } from '../../types/admin';
+import { AdminPost } from '../../types/admin';
 import { adminService } from '../../services/adminService';
 import ConfirmModal from '../../components/common/ConfirmModal';
 

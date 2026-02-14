@@ -1,6 +1,6 @@
 import { store } from '../redux/store';
 import { logoutAsync } from '../redux/slices/authSlice';
-import { isTokenExpired } from './authUtils';
+
 
 export const setupFetchInterceptor = () => {
     const { fetch: originalFetch } = window;
@@ -10,7 +10,7 @@ export const setupFetchInterceptor = () => {
         const url = args[0]?.toString() || '';
         const isLogoutRequest = url.endsWith('/auth/logout');
 
-        const token = localStorage.getItem('token');
+
 
         const response = await originalFetch(...args);
 

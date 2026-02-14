@@ -52,6 +52,7 @@ const UserListModal: React.FC<UserListModalProps> = ({ isOpen, onClose, title, f
             setSkip(0);
             setSearchQuery('');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
     // Debounce search
@@ -61,6 +62,7 @@ const UserListModal: React.FC<UserListModalProps> = ({ isOpen, onClose, title, f
             loadUsers(true);
         }, 500);
         return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery, isOpen]);
 
     if (!isOpen) return null;

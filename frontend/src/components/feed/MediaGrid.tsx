@@ -215,6 +215,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
         }
 
         return list;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [video, videoUrl, images, imageUrls, isDetailView]);
 
     const firstMedia = mediaList[0];

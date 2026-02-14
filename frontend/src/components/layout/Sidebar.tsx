@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FiHome, FiSearch, FiBell, FiMail, FiUser, FiSettings,
-    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield, FiHeart
+    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { NAV_ITEMS } from '../../constants';
