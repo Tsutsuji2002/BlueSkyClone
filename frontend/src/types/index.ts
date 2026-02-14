@@ -83,6 +83,9 @@ export interface UserSettings {
     primaryLanguage: string;
     themeMode: 'system' | 'light' | 'dark';
     fontSize?: number;
+    // Interaction Settings
+    defaultReplyRestriction?: string;
+    defaultAllowQuotes?: boolean;
 }
 
 export interface LinkPreview {
