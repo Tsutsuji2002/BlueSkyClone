@@ -12,7 +12,7 @@ const InterestsWidget: React.FC = () => {
 
     const loadInterests = () => {
         const storedInterests = localStorage.getItem('selected_interests');
-        const current = storedInterests ? JSON.parse(storedInterests) : ['art', 'books', 'developers', 'technology'];
+        const current = storedInterests ? JSON.parse(storedInterests) : [];
         setSelectedInterests(current);
     }
 

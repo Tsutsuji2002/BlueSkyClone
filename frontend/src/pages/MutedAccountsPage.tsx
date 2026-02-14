@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,8 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { fetchMutedAccounts, unmuteUserAsync } from '../redux/slices/userSlice';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import Avatar from '../components/common/Avatar';
+import ConfirmModal from '../components/common/ConfirmModal';
+import { User } from '../types';
 
 const MutedAccountsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -15,12 +17,22 @@ const MutedAccountsPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { users, isLoading } = useAppSelector(state => state.user);
 
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        user: User | null;
+    }>({ isOpen: false, user: null });
+
     useEffect(() => {
         dispatch(fetchMutedAccounts());
     }, [dispatch]);
 
-    const handleUnmute = (userId: string) => {
-        dispatch(unmuteUserAsync(userId)).then(() => {
+    const handleUnmuteClick = (user: User) => {
+        setConfirmModal({ isOpen: true, user });
+    };
+
+    const confirmUnmute = () => {
+        if (!confirmModal.user) return;
+        dispatch(unmuteUserAsync(confirmModal.user.id)).then(() => {
             dispatch(fetchMutedAccounts());
         });
     };
@@ -69,7 +81,7 @@ const MutedAccountsPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleUnmute(user.id)}
+                                        onClick={() => handleUnmuteClick(user)}
                                         className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-gray-200 dark:border-dark-border text-sm font-bold text-gray-700 dark:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
                                     >
                                         <FiVolume2 className="text-blue-500" />
@@ -90,6 +102,15 @@ const MutedAccountsPage: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={confirmUnmute}
+                title={t('profile.unmute')}
+                message={t('moderation.unmute_confirm', { name: confirmModal.user?.displayName || confirmModal.user?.handle })}
+                variant="primary"
+            />
         </MainLayout>
     );
 };

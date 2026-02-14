@@ -19,12 +19,12 @@ const InterestsPage: React.FC = () => {
     useEffect(() => {
         dispatch(fetchInterestsList());
 
-        const stored = localStorage.getItem('selected_interests');
-        if (stored) {
-            setSelectedInterests(JSON.parse(stored));
-        } else {
-            setSelectedInterests(['art', 'books', 'developers', 'technology']);
+        const loadInterests = () => {
+            const storedInterests = localStorage.getItem('selected_interests');
+            const current = storedInterests ? JSON.parse(storedInterests) : [];
+            setSelectedInterests(current);
         }
+        loadInterests();
     }, [dispatch]);
 
     const toggleInterest = (interest: string) => {

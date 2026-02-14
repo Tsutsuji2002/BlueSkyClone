@@ -13,6 +13,7 @@ import Dropdown, { DropdownItem } from '../components/common/Dropdown';
 import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss } from 'react-icons/fi';
 import ListAvatar from '../components/common/ListAvatar';
 import { showToast } from '../redux/slices/toastSlice';
+import ConfirmModal from '../components/common/ConfirmModal';
 import { PROFILE_TABS, COVER_PLACEHOLDER } from '../constants';
 import { cn } from '../utils/classNames';
 import PostCard from '../components/feed/PostCard';
@@ -44,6 +45,10 @@ const ProfilePage: React.FC = () => {
     const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
     const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        type: 'mute' | 'unmute' | 'block' | 'unblock' | null;
+    }>({ isOpen: false, type: null });
 
     useEffect(() => {
         if (handle) {
@@ -107,7 +112,15 @@ const ProfilePage: React.FC = () => {
         }
     };
 
-    const handleBlockToggle = async () => {
+    const handleBlockToggle = () => {
+        if (!profileUser) return;
+        setConfirmModal({
+            isOpen: true,
+            type: profileUser.isBlocking ? 'unblock' : 'block'
+        });
+    };
+
+    const confirmBlockAction = async () => {
         if (!profileUser) return;
         try {
             if (profileUser.isBlocking) {
@@ -122,7 +135,15 @@ const ProfilePage: React.FC = () => {
         }
     };
 
-    const handleMuteToggle = async () => {
+    const handleMuteToggle = () => {
+        if (!profileUser) return;
+        setConfirmModal({
+            isOpen: true,
+            type: profileUser.isMuted ? 'unmute' : 'mute'
+        });
+    };
+
+    const confirmMuteAction = async () => {
         if (!profileUser) return;
         try {
             if (profileUser.isMuted) {
@@ -488,6 +509,22 @@ const ProfilePage: React.FC = () => {
                 onClose={() => setMediaViewerOpen(false)}
                 post={selectedPost}
                 initialMediaIndex={selectedMediaIndex}
+            />
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={() => {
+                    if (confirmModal.type === 'block' || confirmModal.type === 'unblock') {
+                        confirmBlockAction();
+                    } else if (confirmModal.type === 'mute' || confirmModal.type === 'unmute') {
+                        confirmMuteAction();
+                    }
+                }}
+                title={t(`profile.${confirmModal.type}`)}
+                message={t(`moderation.${confirmModal.type}_confirm`, { name: profileUser?.displayName || profileUser?.handle })}
+                confirmLabel={t(`profile.${confirmModal.type}`)}
+                variant={confirmModal.type === 'block' || confirmModal.type === 'mute' ? 'danger' : 'primary'}
             />
         </MainLayout>
     );

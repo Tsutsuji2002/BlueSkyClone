@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,8 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { fetchBlockedAccounts, unblockUserAsync } from '../redux/slices/userSlice';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import Avatar from '../components/common/Avatar';
+import ConfirmModal from '../components/common/ConfirmModal';
+import { User } from '../types';
 
 const BlockedAccountsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -15,12 +17,22 @@ const BlockedAccountsPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { users, isLoading } = useAppSelector(state => state.user);
 
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        user: User | null;
+    }>({ isOpen: false, user: null });
+
     useEffect(() => {
         dispatch(fetchBlockedAccounts());
     }, [dispatch]);
 
-    const handleUnblock = (userId: string) => {
-        dispatch(unblockUserAsync(userId)).then(() => {
+    const handleUnblockClick = (user: User) => {
+        setConfirmModal({ isOpen: true, user });
+    };
+
+    const confirmUnblock = () => {
+        if (!confirmModal.user) return;
+        dispatch(unblockUserAsync(confirmModal.user.id)).then(() => {
             dispatch(fetchBlockedAccounts());
         });
     };
@@ -71,7 +83,7 @@ const BlockedAccountsPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleUnblock(user.id)}
+                                        onClick={() => handleUnblockClick(user)}
                                         className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors"
                                     >
                                         <FiUserCheck />
@@ -92,6 +104,15 @@ const BlockedAccountsPage: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={confirmUnblock}
+                title={t('profile.unblock')}
+                message={t('moderation.unblock_confirm', { name: confirmModal.user?.displayName || confirmModal.user?.handle })}
+                variant="primary"
+            />
         </MainLayout>
     );
 };

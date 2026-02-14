@@ -10,25 +10,10 @@ const InterestsSection: React.FC = () => {
     const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    const loadInterests = async () => {
+    const loadInterests = () => {
         const storedInterests = localStorage.getItem('selected_interests');
         if (storedInterests) {
             setSelectedInterests(JSON.parse(storedInterests));
-        } else {
-            setIsLoading(true);
-            try {
-                const response = await fetch(`${API_BASE_URL}/Interests`);
-                if (response.ok) {
-                    const data = await response.json();
-                    // Take top 4-5 interests if many exist
-                    const interests = data.slice(0, 5).map((i: any) => i.name);
-                    setSelectedInterests(interests);
-                }
-            } catch (error) {
-                console.error('Failed to fetch interests:', error);
-            } finally {
-                setIsLoading(false);
-            }
         }
     }
 

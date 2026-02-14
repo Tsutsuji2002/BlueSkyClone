@@ -105,6 +105,13 @@
         "select_list": "Select from your lists",
         "allow_quote": "Cho phép trích dẫn bài đăng",
         "block_confirm": "Bạn có chắc chắn muốn chặn {{name}}? Họ sẽ không thể xem bài đăng của bạn hoặc tương tác với bạn nữa.",
+        "unblock_confirm": "Bạn có chắc chắn muốn bỏ chặn {{name}}?",
+        "mute_confirm": "Bạn có chắc chắn muốn ẩn {{name}}? Bài đăng của họ sẽ không còn xuất hiện trên bảng tin của bạn.",
+        "unmute_confirm": "Bạn có chắc chắn muốn hiện lại {{name}}?",
+        "unblock": "Bỏ chặn",
+        "unmute": "Bỏ ẩn",
+        "block": "Chặn",
+        "mute": "Ẩn",
         "save": "Lưu",
         "muted_words_title": "Từ & thẻ bị ẩn",
         "add_muted_word_title": "Thêm từ cấm và thẻ",
@@ -288,7 +295,11 @@
         "add_to_lists": "Thêm vào danh sách",
         "hide_account": "Ẩn tài khoản",
         "block_account": "Chặn tài khoản",
-        "report_account": "Báo cáo tài khoản"
+        "report_account": "Báo cáo tài khoản",
+        "block": "Chặn",
+        "unblock": "Bỏ chặn",
+        "mute": "Ẩn",
+        "unmute": "Bỏ ẩn"
     },
     "home": {
         "title": "Trang chủ",
