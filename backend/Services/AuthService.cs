@@ -131,6 +131,8 @@ public class AuthService : IAuthService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
+        user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+
         // Banned user logic: Instantly invalidate session if banned
         if (user.IsBanned)
         {

@@ -26,17 +26,32 @@ public class UserService : IUserService
 
     public async Task<User?> GetUserByIdAsync(Guid id)
     {
-        return await _unitOfWork.Users.GetByIdAsync(id);
+        var user = await _unitOfWork.Users.GetByIdAsync(id);
+        if (user != null)
+        {
+            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+        }
+        return user;
     }
 
     public async Task<User?> GetUserByHandleAsync(string handle)
     {
-        return await _unitOfWork.Users.GetByHandleAsync(handle);
+        var user = await _unitOfWork.Users.GetByHandleAsync(handle);
+        if (user != null)
+        {
+            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+        }
+        return user;
     }
 
     public async Task<User?> GetUserByUsernameAsync(string username)
     {
-        return await _unitOfWork.Users.GetByUsernameAsync(username);
+        var user = await _unitOfWork.Users.GetByUsernameAsync(username);
+        if (user != null)
+        {
+            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+        }
+        return user;
     }
 
     public async Task<User> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)

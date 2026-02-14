@@ -264,6 +264,29 @@ using (var scope = app.Services.CreateScope())
 
                 -- CLEANUP: Remove old chat notifications from general feed
                 DELETE FROM Notifications WHERE Type = 'message';
+
+                -- RECALCULATE: Fix PostsCount for all users based on actual non-deleted posts
+                UPDATE u SET u.PostsCount = sub.ActualCount
+                FROM Users u
+                INNER JOIN (
+                    SELECT AuthorId, COUNT(*) AS ActualCount
+                    FROM Posts
+                    WHERE IsDeleted = 0 OR IsDeleted IS NULL
+                    GROUP BY AuthorId
+                ) sub ON u.Id = sub.AuthorId
+                WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
+
+                -- Also zero out users with no posts
+                UPDATE Users SET PostsCount = 0
+                WHERE PostsCount IS NULL AND Id NOT IN (
+                    SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL
+                );
+
+                -- CLEANUP: Remove non-official sample feeds (keep official ones)
+                DELETE FROM Feeds WHERE IsOfficial = 0;
+
+                -- ADMIN: Set admin role for specific users
+                UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';
                 ";
             context.Database.ExecuteSqlRaw(sql);
         }
