@@ -25,6 +25,8 @@ public partial class BSkyDbContext : DbContext
 
     public virtual DbSet<Feed> Feeds { get; set; }
 
+    public virtual DbSet<Hashtag> Hashtags { get; set; }
+
     public virtual DbSet<Interest> Interests { get; set; }
 
     public virtual DbSet<Like> Likes { get; set; }
@@ -280,6 +282,9 @@ public partial class BSkyDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__MutedWor__3214EC076609311A");
 
             entity.Property(e => e.Word).HasMaxLength(256);
+            entity.Property(e => e.MuteBehavior)
+                .HasMaxLength(20)
+                .HasDefaultValue("hide");
 
             entity.HasOne(d => d.User).WithMany(p => p.MutedWords)
                 .HasForeignKey(d => d.UserId)
@@ -586,6 +591,32 @@ public partial class BSkyDbContext : DbContext
              // Extending existing config if possible, or just add specific property config here?
              // But List is already configured in lines 181-196.
              // I shouldn't duplicate the entity config block.
+        });
+
+        modelBuilder.Entity<Hashtag>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_Hashtags");
+            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Slug).HasMaxLength(100);
+            entity.Property(e => e.PostsCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+
+            entity.HasMany(d => d.Posts).WithMany(p => p.Hashtags)
+                .UsingEntity<Dictionary<string, object>>(
+                    "PostHashtag",
+                    r => r.HasOne<Post>().WithMany()
+                        .HasForeignKey("PostId")
+                        .HasConstraintName("FK_PH_Post"),
+                    l => l.HasOne<Hashtag>().WithMany()
+                        .HasForeignKey("HashtagId")
+                        .HasConstraintName("FK_PH_Hashtag"),
+                    j =>
+                    {
+                        j.HasKey("PostId", "HashtagId").HasName("PK_PostHashtags");
+                        j.ToTable("PostHashtags");
+                    });
         });
 
         modelBuilder.Entity<LinkPreview>(entity =>

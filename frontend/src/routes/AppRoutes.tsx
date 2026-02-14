@@ -61,6 +61,7 @@ const UserManagementPage = React.lazy(() => import('../pages/admin/UserManagemen
 const PostManagementPage = React.lazy(() => import('../pages/admin/PostManagementPage'));
 const FeedManagementPage = React.lazy(() => import('../pages/admin/FeedManagementPage'));
 const InterestManagementPage = React.lazy(() => import('../pages/admin/InterestManagementPage'));
+const HashtagManagementPage = React.lazy(() => import('../pages/admin/HashtagManagementPage'));
 const ListManagementPage = React.lazy(() => import('../pages/admin/ListManagementPage'));
 const ConversationManagementPage = React.lazy(() => import('../pages/admin/ConversationManagementPage'));
 const ModerationPage = React.lazy(() => import('../pages/admin/ModerationPage'));
@@ -135,6 +136,7 @@ const AppRoutes: React.FC = () => {
                         <Route path="posts" element={<PostManagementPage />} />
                         <Route path="feeds" element={<FeedManagementPage />} />
                         <Route path="interests" element={<InterestManagementPage />} />
+                        <Route path="hashtags" element={<HashtagManagementPage />} />
                         <Route path="lists" element={<ListManagementPage />} />
                         <Route path="conversations" element={<ConversationManagementPage />} />
                         <Route path="moderation" element={<ModerationPage />} />

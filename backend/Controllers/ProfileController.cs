@@ -278,4 +278,30 @@ public class ProfileController : ControllerBase
         ));
         return Ok(dtos);
     }
+
+    [HttpGet("muted-words")]
+    public async Task<IActionResult> GetMutedWords()
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var words = await _userService.GetMutedWordsAsync(currentUserId);
+        var dtos = words.Select(w => new MutedWordDto(w.Id, w.Word, w.MuteBehavior, w.CreatedAt));
+        return Ok(dtos);
+    }
+
+    [HttpPost("muted-words")]
+    public async Task<IActionResult> AddMutedWord([FromBody] MutedWordDto request)
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var word = await _userService.AddMutedWordAsync(currentUserId, request.Word, request.MuteBehavior);
+        return Ok(new MutedWordDto(word.Id, word.Word, word.MuteBehavior, word.CreatedAt));
+    }
+
+    [HttpDelete("muted-words/{id}")]
+    public async Task<IActionResult> DeleteMutedWord(int id)
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var success = await _userService.DeleteMutedWordAsync(currentUserId, id);
+        if (!success) return NotFound();
+        return Ok();
+    }
 }

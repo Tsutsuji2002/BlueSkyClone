@@ -517,4 +517,39 @@ public class UserService : IUserService
             .Take(limit)
             .ToListAsync();
     }
+
+    public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId)
+    {
+        return await _unitOfWork.MutedWords.Query()
+            .Where(w => w.UserId == userId)
+            .OrderByDescending(w => w.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior)
+    {
+        var mutedWord = new MutedWord
+        {
+            UserId = userId,
+            Word = word.Trim().ToLower(),
+            MuteBehavior = behavior,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.MutedWords.AddAsync(mutedWord);
+        await _unitOfWork.CompleteAsync();
+        return mutedWord;
+    }
+
+    public async Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId)
+    {
+        var word = await _unitOfWork.MutedWords.Query()
+            .FirstOrDefaultAsync(w => w.Id == mutedWordId && w.UserId == userId);
+        
+        if (word == null) return false;
+
+        _unitOfWork.MutedWords.Remove(word);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
 }

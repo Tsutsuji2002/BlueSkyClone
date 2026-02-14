@@ -656,6 +656,46 @@ public class AdminService : IAdminService
         return new PaginatedResult<AdminMuteDto>(mutes, total, skip, take);
     }
 
+    public async Task<PaginatedResult<AdminHashtagDto>> GetHashtagsAsync(int skip, int take, string? searchQuery)
+    {
+        var query = _context.Hashtags
+            .Where(h => h.IsDeleted != true)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var search = searchQuery.ToLower();
+            query = query.Where(h => h.Name.ToLower().Contains(search) || h.Slug.ToLower().Contains(search));
+        }
+
+        var total = await query.CountAsync();
+
+        var hashtags = await query
+            .OrderByDescending(h => h.PostsCount)
+            .Skip(skip)
+            .Take(take)
+            .Select(h => new AdminHashtagDto(
+                h.Id,
+                h.Name,
+                h.Slug,
+                h.PostsCount ?? 0,
+                h.CreatedAt ?? DateTime.UtcNow
+            ))
+            .ToListAsync();
+
+        return new PaginatedResult<AdminHashtagDto>(hashtags, total, skip, take);
+    }
+
+    public async Task<bool> DeleteHashtagAsync(int hashtagId)
+    {
+        var hashtag = await _context.Hashtags.FindAsync(hashtagId);
+        if (hashtag == null) return false;
+
+        hashtag.IsDeleted = true;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     // ── Notification Broadcasting ──
 
     public async Task<bool> BroadcastNotificationAsync(BroadcastNotificationRequest request)

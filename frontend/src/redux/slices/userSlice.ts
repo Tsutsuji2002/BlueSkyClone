@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
-import { UserState, User } from '../../types';
+import { UserState, User, MutedWord } from '../../types';
 import { API_BASE_URL } from '../../constants';
 
 const initialState: UserState = {
@@ -298,6 +298,81 @@ export const unmuteUserAsync = createAsyncThunk<
     }
 );
 
+export const fetchMutedWords = createAsyncThunk<
+    MutedWord[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchMutedWords',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted words');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const addMutedWordAsync = createAsyncThunk<
+    MutedWord,
+    { word: string, muteBehavior: string },
+    { rejectValue: string }
+>(
+    'user/addMutedWord',
+    async (payload, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to add muted word');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const deleteMutedWordAsync = createAsyncThunk<
+    number,
+    number,
+    { rejectValue: string }
+>(
+    'user/deleteMutedWord',
+    async (id, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to delete muted word');
+            }
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 const userSlice = createSlice({
     name: 'user',
     initialState,
@@ -492,6 +567,16 @@ const userSlice = createSlice({
             .addCase(fetchBlockedAccounts.rejected, (state: UserState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+            })
+            // Muted Words
+            .addCase(fetchMutedWords.fulfilled, (state: UserState, action: PayloadAction<MutedWord[]>) => {
+                state.mutedWords = action.payload;
+            })
+            .addCase(addMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<MutedWord>) => {
+                state.mutedWords = [action.payload, ...state.mutedWords];
+            })
+            .addCase(deleteMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<number>) => {
+                state.mutedWords = state.mutedWords.filter(w => w.id !== action.payload);
             });
     }
 });
@@ -500,4 +585,3 @@ export const { clearProfile, updateProfileLocal, toggleFollowSuggestedUser } = u
 
 
 export default userSlice.reducer;
-

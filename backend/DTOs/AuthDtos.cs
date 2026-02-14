@@ -74,3 +74,11 @@ public record AuthResponse(
     string Token,
     string RefreshToken
 );
+
+public record MutedWordDto(
+    int Id,
+    string Word,
+    string MuteBehavior,
+    DateTime? CreatedAt
+);
+

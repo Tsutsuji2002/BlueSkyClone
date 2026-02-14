@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
-import { FiUsers, FiCpu, FiMessageSquare, FiActivity, FiArrowLeft, FiTag, FiList, FiMessageCircle, FiShield, FiBell, FiMenu, FiX } from 'react-icons/fi';
+import { FiUsers, FiCpu, FiMessageSquare, FiActivity, FiArrowLeft, FiTag, FiList, FiMessageCircle, FiShield, FiBell, FiMenu, FiX, FiHash } from 'react-icons/fi';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -41,6 +41,7 @@ const AdminLayout: React.FC = () => {
                 { path: '/admin/posts', icon: <FiMessageSquare size={20} />, label: t('admin.posts.title') },
                 { path: '/admin/feeds', icon: <FiCpu size={20} />, label: t('admin.feeds.title') },
                 { path: '/admin/interests', icon: <FiTag size={20} />, label: t('admin.interests.title') },
+                { path: '/admin/hashtags', icon: <FiHash size={20} />, label: t('admin.hashtags.title', 'Hashtags') },
                 { path: '/admin/conversations', icon: <FiMessageCircle size={20} />, label: t('admin.conversations.title') },
             ]
         },

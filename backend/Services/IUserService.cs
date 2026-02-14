@@ -28,4 +28,7 @@ public interface IUserService
     Task<List<User>> GetMutedUsersAsync(Guid userId);
     Task<List<User>> GetBlockedUsersAsync(Guid userId);
     Task<List<User>> SearchUsersAsync(string query, int limit = 10);
+    Task<List<MutedWord>> GetMutedWordsAsync(Guid userId);
+    Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior);
+    Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId);
 }

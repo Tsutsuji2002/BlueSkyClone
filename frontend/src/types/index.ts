@@ -130,6 +130,11 @@ export interface Post {
     rootPostId?: string;
     addedByUserId?: string; // For curated lists
     tags?: string[];
+    muteInfo?: {
+        isMuted: boolean;
+        behavior: 'hide' | 'warn' | 'none';
+        reason?: string;
+    };
 }
 
 // Comment/Reply types
@@ -157,6 +162,13 @@ export interface Notification {
     createdAt: string;
     isRead: boolean;
     invitationStatus?: number;
+}
+
+export interface MutedWord {
+    id: number;
+    word: string;
+    muteBehavior: string;
+    createdAt?: string;
 }
 
 // Trending topic types
@@ -292,7 +304,7 @@ export interface UserState {
     profile: User | null; // Current viewing profile
     users: User[]; // All sample users
     suggestedUsers: User[]; // Suggested users to follow
-    mutedWords: string[];
+    mutedWords: MutedWord[];
     mutedUsers: string[]; // User IDs
     blockedUsers: string[]; // User IDs
     isLoading: boolean;

@@ -35,10 +35,10 @@ public class PostService : IPostService
 
         var posts = await _unitOfWork.Posts.GetTimelinePostsAsync(userId);
         var postDtos = posts.Select(MapToDto).ToList();
-        await EnrichPostsWithInteractions(postDtos, userId);
+        var filteredDtos = await EnrichAndFilterPostsAsync(postDtos, userId);
 
-        await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)postDtos, TimeSpan.FromMinutes(2));
-        return postDtos;
+        await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)filteredDtos, TimeSpan.FromMinutes(2));
+        return filteredDtos;
     }
 
     public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 3, int offset = 0)
@@ -71,15 +71,15 @@ public class PostService : IPostService
         
         if (viewerId.HasValue)
         {
-            await EnrichPostsWithInteractions(postDtos, viewerId.Value);
+            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
         }
 
         return postDtos;
     }
 
-    private async Task EnrichPostsWithInteractions(List<PostDto> posts, Guid viewerId)
+    private async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId)
     {
-        if (!posts.Any()) return;
+        if (!posts.Any()) return posts;
 
         var postIds = posts.Select(p => p.Id).ToList();
 
@@ -98,17 +98,52 @@ public class PostService : IPostService
             .Select(r => r.PostId)
             .ToListAsync();
 
-        var followedUserIds = await _unitOfWork.Follows.GetFollowingAsync(viewerId); 
-             
-        var followingIds = followedUserIds.Select(f => f.FollowingId).ToHashSet();
+        var followingIds = await _unitOfWork.Follows.Query()
+            .Where(f => f.FollowerId == viewerId)
+            .Select(f => f.FollowingId)
+            .ToListAsync();
 
+        var mutedWords = await _unitOfWork.MutedWords.Query()
+            .Where(w => w.UserId == viewerId)
+            .ToListAsync();
+
+        var filteredPosts = new List<PostDto>();
         foreach (var post in posts)
         {
             post.IsLiked = likedPostIds.Contains(post.Id);
             post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
             post.IsReposted = repostedPostIds.Contains(post.Id);
             post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
+
+            if (mutedWords.Any())
+            {
+                var content = post.Content?.ToLower() ?? "";
+                var tags = (post.Tags ?? new List<string>())
+                    .Concat(post.Interests ?? new List<string>())
+                    .Select(t => t.ToLower());
+
+                var matchingWord = mutedWords.FirstOrDefault(mw => 
+                {
+                    var word = mw.Word.ToLower();
+                    return content.Contains(word) || tags.Contains(word);
+                });
+
+                if (matchingWord != null)
+                {
+                    if (matchingWord.MuteBehavior == "hide") continue;
+                    
+                    post.MuteInfo = new PostMuteDto
+                    {
+                        IsMuted = true,
+                        Behavior = "warn",
+                        Reason = matchingWord.Word
+                    };
+                }
+            }
+            filteredPosts.Add(post);
         }
+
+        return filteredPosts;
     }
 
     public async Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request)
@@ -218,21 +253,27 @@ public class PostService : IPostService
 
         foreach (var tag in hashtags)
         {
-            var interest = await _unitOfWork.Interests.Query().FirstOrDefaultAsync(i => i.Slug == tag);
-            if (interest == null)
+            var hashtag = await _unitOfWork.Hashtags.Query().FirstOrDefaultAsync(h => h.Slug == tag);
+            if (hashtag == null)
             {
-                interest = new Interest
+                hashtag = new Hashtag
                 {
                     Name = tag.Substring(0, 1).ToUpper() + tag.Substring(1),
-                    Slug = tag
+                    Slug = tag,
+                    PostsCount = 1,
+                    CreatedAt = DateTime.UtcNow
                 };
-                await _unitOfWork.Interests.AddAsync(interest);
-                await _unitOfWork.CompleteAsync();
+                await _unitOfWork.Hashtags.AddAsync(hashtag);
+            }
+            else
+            {
+                hashtag.PostsCount = (hashtag.PostsCount ?? 0) + 1;
+                _unitOfWork.Hashtags.Update(hashtag);
             }
             
-            if (!post.Interests.Any(i => i.Id == interest.Id))
+            if (!post.Hashtags.Any(h => h.Id == hashtag.Id))
             {
-                post.Interests.Add(interest);
+                post.Hashtags.Add(hashtag);
             }
         }
 
@@ -322,6 +363,8 @@ public class PostService : IPostService
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
+            .Include(p => p.Hashtags)
+            .Include(p => p.Interests)
             .FirstOrDefaultAsync(p => p.Id == post.Id);
 
         return MapToDto(savedPost!);
@@ -645,32 +688,7 @@ public class PostService : IPostService
 
         if (viewerId.HasValue)
         {
-            var follows = await _unitOfWork.Follows.GetFollowingAsync(viewerId.Value);
-            var followingIds = follows.Select(f => f.FollowingId).ToHashSet();
-
-
-            var likedPostIds = await _unitOfWork.Likes.Query()
-                .Where(l => l.UserId == viewerId.Value)
-                .Select(l => l.PostId)
-                .ToListAsync();
-
-            var bookmarkedPostIds = await _unitOfWork.Bookmarks.Query()
-                .Where(b => b.UserId == viewerId.Value)
-                .Select(b => b.PostId)
-                .ToListAsync();
-
-            var repostedPostIds = await _unitOfWork.Reposts.Query()
-                .Where(r => r.UserId == viewerId.Value)
-                .Select(r => r.PostId)
-                .ToListAsync();
-
-            foreach (var dto in replyDtos)
-            {
-                dto.IsLiked = likedPostIds.Contains(dto.Id);
-                dto.IsBookmarked = bookmarkedPostIds.Contains(dto.Id);
-                dto.IsReposted = repostedPostIds.Contains(dto.Id);
-                dto.Author.IsFollowing = followingIds.Contains(dto.Author.Id);
-            }
+            replyDtos = await EnrichAndFilterPostsAsync(replyDtos, viewerId.Value);
         }
 
         return replyDtos;
@@ -703,7 +721,7 @@ public class PostService : IPostService
 
         if (viewerId.HasValue)
         {
-            await EnrichPostsWithInteractions(postDtos, viewerId.Value);
+            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
         }
 
         return postDtos;
@@ -716,7 +734,7 @@ public class PostService : IPostService
 
         if (viewerId.HasValue)
         {
-            await EnrichPostsWithInteractions(postDtos, viewerId.Value);
+            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
         }
 
         return postDtos;
@@ -737,8 +755,7 @@ public class PostService : IPostService
             .ToListAsync();
 
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
-        await EnrichPostsWithInteractions(postDtos, userId);
-        return postDtos;
+        return await EnrichAndFilterPostsAsync(postDtos, userId);
     }
 
     public PostDto MapToDto(Post post)
@@ -778,7 +795,8 @@ public class PostService : IPostService
                 Image = post.LinkPreview.Image,
                 Domain = post.LinkPreview.Domain
             },
-            Tags = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>()
+            Tags = post.Hashtags?.Select(h => h.Name).ToList() ?? new List<string>(),
+            Interests = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>()
         };
     }
 
@@ -851,7 +869,7 @@ public class PostService : IPostService
 
         if (viewerId.HasValue)
         {
-            await EnrichPostsWithInteractions(postDtos, viewerId.Value);
+            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
         }
 
         return postDtos;

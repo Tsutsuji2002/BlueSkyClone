@@ -58,6 +58,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
     const isOwnPost = isOwnPostProp ?? (currentUser?.id === post.author.id);
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
     const [showRemoveConfirm, setShowRemoveConfirm] = React.useState(false);
+    const [isUnmuted, setIsUnmuted] = React.useState(false);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
 
     const handleCardClick = () => {
@@ -247,9 +248,31 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
         ] : []),
     ];
 
+    if (post.muteInfo?.isMuted && post.muteInfo?.behavior === 'warn' && !isUnmuted) {
+        return (
+            <div
+                className="border-b border-gray-200 dark:border-dark-border p-6 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-dark-surface/30 group cursor-pointer"
+                onClick={(e) => { e.stopPropagation(); setIsUnmuted(true); }}
+            >
+                <div className="flex items-center gap-3 text-gray-500 dark:text-dark-text-secondary mb-3">
+                    <FiEyeOff size={24} className="group-hover:text-primary-500 transition-colors" />
+                    <span className="font-medium">
+                        {t('post.muted_by_word', 'Post hidden by your muted word')}: <span className="font-bold text-gray-700 dark:text-dark-text">{post.muteInfo.reason}</span>
+                    </span>
+                </div>
+                <button
+                    className="px-6 py-2 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-full text-sm font-bold shadow-sm hover:bg-gray-100 dark:hover:bg-dark-bg transition-all"
+                    onClick={(e) => { e.stopPropagation(); setIsUnmuted(true); }}
+                >
+                    {t('post.show_anyway', 'Show anyway')}
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div
-            className="border-b border-gray-200 dark:border-dark-border p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer"
+            className="border-b border-gray-200 dark:border-dark-border p-4 hover:bg-gray-100/50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer"
             onClick={handleCardClick}
         >
             <div className="flex gap-3">

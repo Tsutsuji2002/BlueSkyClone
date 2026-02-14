@@ -23,8 +23,17 @@ public class PostDto
     public bool IsReposted { get; set; }
     public LinkPreviewDto? LinkPreview { get; set; }
     public List<string> Tags { get; set; } = new();
+    public List<string> Interests { get; set; } = new();
     public string? ListCaption { get; set; } // For Curated Lists
     public Guid? AddedByUserId { get; set; } // For Curated Lists
+    public PostMuteDto MuteInfo { get; set; } = new();
+}
+
+public class PostMuteDto
+{
+    public bool IsMuted { get; set; }
+    public string Behavior { get; set; } = "none"; // "hide", "warn"
+    public string? Reason { get; set; }
 }
 
 public class LinkPreviewDto

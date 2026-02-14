@@ -134,5 +134,14 @@ public record ChangeRoleRequest(
 public record AdminInterestDto(
     string Name,
     int UsersCount,
-    DateTime CreatedAt // if available, or remove
+    DateTime CreatedAt
 );
+
+public record AdminHashtagDto(
+    int Id,
+    string Name,
+    string Slug,
+    int PostsCount,
+    DateTime CreatedAt
+);
+
