@@ -13,6 +13,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 
+// Ensure WebRootPath is set
+if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
+{
+    builder.Environment.WebRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+}
+if (!Directory.Exists(builder.Environment.WebRootPath))
+{
+    Directory.CreateDirectory(builder.Environment.WebRootPath);
+}
+
 // CORS for Frontend
 builder.Services.AddCors(options =>
 {
@@ -45,6 +55,7 @@ builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
+builder.Services.AddScoped<ICategorizationService, CategorizationService>();
 
 // Redis Caching
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -139,16 +150,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 
-// Configure static files with explicit options
-var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-if (!Directory.Exists(webRootPath))
-{
-    Directory.CreateDirectory(webRootPath);
-}
-
+// Configure static files
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRootPath),
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(app.Environment.WebRootPath),
     RequestPath = "",
     ServeUnknownFileTypes = false,
     OnPrepareResponse = ctx =>
@@ -159,6 +164,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseAuthentication();
+app.UseMiddleware<BSkyClone.Middleware.BannedUserMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -171,11 +177,34 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<BSkyDbContext>();
-        context.Database.Migrate();
-
-        // Manual Table Creation for UserListSubscriptions (since we can't run migrations)
-        try 
+        
+        // --- MANUAL SCHEMA UPDATES ---
+        try
         {
+                // Ensure Notification Columns exist
+                // This is critical because the code now depends on these columns
+                var modSql = @"
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'Title')
+                    BEGIN
+                        ALTER TABLE Notifications ADD Title NVARCHAR(MAX) NULL;
+                    END
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'Content')
+                    BEGIN
+                        ALTER TABLE Notifications ADD Content NVARCHAR(MAX) NULL;
+                    END
+                    
+                    -- Admin properties for Users
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsBanned')
+                    BEGIN
+                        ALTER TABLE Users ADD IsBanned BIT NOT NULL DEFAULT 0;
+                    END
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsVerified')
+                    BEGIN
+                        ALTER TABLE Users ADD IsVerified BIT NOT NULL DEFAULT 0;
+                    END";
+                context.Database.ExecuteSqlRaw(modSql);
+
+            // Manual Table Creation for UserListSubscriptions (since we can't run migrations)
             var sql = @"
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserListSubscriptions' AND xtype='U')
                 BEGIN
@@ -188,14 +217,29 @@ using (var scope = app.Services.CreateScope())
                         CONSTRAINT FK_ULS_User FOREIGN KEY (UserId) REFERENCES Users(Id),
                         CONSTRAINT FK_ULS_List FOREIGN KEY (ListId) REFERENCES Lists(Id) ON DELETE CASCADE
                     )
-                END";
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'ListId')
+                BEGIN
+                    ALTER TABLE Notifications ADD ListId UNIQUEIDENTIFIER NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('ListMembers') AND name = 'Status')
+                BEGIN
+                    ALTER TABLE ListMembers ADD Status INT NOT NULL DEFAULT 0;
+                END
+                -- Always ensure any status-less (0) members are migrated to Accepted (1) 
+                -- for users transitioning to the invitation system.
+                EXEC('UPDATE ListMembers SET Status = 1 WHERE Status = 0');
+                ";
             context.Database.ExecuteSqlRaw(sql);
         }
         catch (Exception ex)
         {
             var logger = services.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "An error occurred while manually creating tables.");
+            logger.LogWarning(ex, "An error occurred during manual schema updates. Continuing...");
         }
+
+        // Apply any pending migrations
+        context.Database.Migrate();
     }
     catch (Exception ex)
     {

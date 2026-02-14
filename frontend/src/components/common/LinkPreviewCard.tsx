@@ -22,6 +22,7 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview }) => {
                         alt={preview.title || t('nav.link_preview')}
                         className="w-full h-full object-cover"
                         onError={(e) => {
+                            e.currentTarget.onerror = null; // Prevent potential infinite loop
                             (e.target as HTMLImageElement).style.display = 'none';
                         }}
                     />

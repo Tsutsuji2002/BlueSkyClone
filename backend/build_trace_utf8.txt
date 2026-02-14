@@ -1,0 +1,11 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  BSkyClone -> C:\Projects\BlueSky\backend\bin\Debug\net9.0\BSkyClone.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:06.51
+
+Workload updates are available. Run `dotnet workload list` for more information.

@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiPlus, FiX, FiInfo, FiCamera, FiUsers } from 'react-icons/fi';
-import { cn } from '../utils/classNames';
+import { FiArrowLeft, FiPlus, FiCamera, FiUsers } from 'react-icons/fi';
 
 const ModerationListsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -22,7 +21,7 @@ const ModerationListsPage: React.FC = () => {
     };
 
     return (
-        <MainLayout>
+        <MainLayout title={t('moderation.mod_lists_title')}>
             {/* Main Page Content */}
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg relative">
                 {/* Header */}
@@ -80,7 +79,7 @@ const ModerationListsPage: React.FC = () => {
                         <div className="p-6">
                             <div className="mb-6">
                                 <label className="block text-sm font-bold text-gray-500 dark:text-dark-text-secondary mb-2">
-                                    List avatar
+                                    {t('lists.list_avatar')}
                                 </label>
                                 <div className="w-24 h-24 bg-blue-500 rounded-xl flex flex-col items-center justify-center text-white relative group cursor-pointer overflow-hidden">
                                     <FiUsers size={40} className="mb-1" />

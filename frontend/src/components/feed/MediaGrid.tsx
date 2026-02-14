@@ -11,12 +11,14 @@ interface MediaGridProps {
     video?: PostVideo | null;
     videoUrl?: string; // From backend
     onImageClick: (index: number) => void;
+    isDetailView?: boolean;
 }
 
 interface MediaItem {
     url: string;
     alt?: string;
     isVideo: boolean;
+    thumbnail?: string;
 }
 
 interface GridItemProps {
@@ -26,11 +28,13 @@ interface GridItemProps {
     showOverlay?: boolean;
     totalCount: number;
     onImageClick: (index: number) => void;
+    isDetailView?: boolean;
 }
 
-const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay, totalCount, onImageClick }) => {
+const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay, totalCount, onImageClick, isDetailView }) => {
     const { t } = useTranslation();
     const videoRef = React.useRef<HTMLVideoElement>(null);
+    const [imageError, setImageError] = useState(false);
 
     const handleMouseEnter = () => {
         if (item.isVideo && videoRef.current) {
@@ -44,6 +48,24 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
             videoRef.current.currentTime = 0;
         }
     };
+
+    // Reset error state when URL changes
+    useEffect(() => {
+        setImageError(false);
+    }, [item.url]);
+
+    if (imageError && !item.isVideo) {
+        return (
+            <div
+                className={cn('flex items-center justify-center bg-gray-100 dark:bg-dark-hover aspect-square', className)}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="text-gray-400 text-xs font-medium text-center p-4">
+                    {t('common.image_not_found', 'Image error')}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -63,10 +85,18 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     <video
                         ref={videoRef}
                         src={item.url}
-                        className="w-full h-full object-cover"
+                        poster={item.thumbnail}
+                        className={cn(
+                            "w-full h-full",
+                            isDetailView ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover"
+                        )}
                         muted
                         playsInline
                         loop
+                        onError={(e) => {
+                            // On video error, we'll just show a generic indicator or nothing
+                            console.error('Video load error:', item.url);
+                        }}
                     />
                     <div className="absolute inset-0 bg-black/10 group-hover/video:bg-transparent transition-colors flex items-center justify-center">
                         <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white opacity-80 group-hover/video:opacity-0 transition-opacity">
@@ -80,12 +110,12 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 <img
                     src={item.url}
                     alt={item.alt || ''}
-                    className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                    className={cn(
+                        "w-full h-full hover:opacity-90 transition-opacity",
+                        totalCount === 1 ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover"
+                    )}
                     loading="lazy"
-                    onError={(e) => {
-                        e.currentTarget.src = '/placeholders/image-error.png';
-                        e.currentTarget.classList.add('p-8', 'opacity-50');
-                    }}
+                    onError={() => setImageError(true)}
                 />
             )}
             {item.alt && (
@@ -93,9 +123,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     ALT
                 </div>
             )}
-            {showOverlay && totalCount > 5 && (
+            {showOverlay && totalCount > (index + 1) && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-2xl backdrop-blur-[2px]">
-                    +{totalCount - 5}
+                    +{totalCount - (index + 1)}
                 </div>
             )}
             {item.isVideo && (
@@ -105,51 +135,129 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     );
 };
 
-const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], video, videoUrl, onImageClick }) => {
-    const { t } = useTranslation();
+const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], video, videoUrl, onImageClick, isDetailView = false }) => {
     const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [hasError, setHasError] = useState(false);
 
     const resolveUrl = (url: string) => {
+        if (!url) return '';
         if (url.startsWith('http') || url.startsWith('data:')) return url;
-        return `${API_BASE_URL.replace('/api', '')}${url}`;
+
+        // Clean base URL: remove trailing /api or just trailing slash
+        const base = API_BASE_URL.replace(/\/api$/, '').replace(/\/$/, '');
+        // Clean relative URL: ensure it starts with a single slash
+        const path = url.startsWith('/') ? url : `/${url}`;
+
+        return `${base}${path}`;
     };
 
-    const mediaList: MediaItem[] = [];
-    if (video) mediaList.push({ url: resolveUrl(video.url), isVideo: true });
-    if (videoUrl) mediaList.push({ url: resolveUrl(videoUrl), isVideo: true });
+    // Route images through resize endpoint for feed views (smaller/faster)
+    const getOptimizedUrl = (originalRelativePath: string, resolvedUrl: string, isVideo: boolean) => {
+        if (isDetailView || isVideo) return resolvedUrl;
+        // Only optimize local uploads
+        if (!originalRelativePath.includes('/uploads/')) return resolvedUrl;
+        const base = API_BASE_URL.replace(/\/$/, '');
+        const path = originalRelativePath.startsWith('/') ? originalRelativePath : `/${originalRelativePath}`;
+        return `${base}/media/resize?path=${encodeURIComponent(path)}&w=600&q=80`;
+    };
 
-    images.forEach(img => mediaList.push({ url: resolveUrl(img.url), alt: img.alt, isVideo: false }));
-    imageUrls.forEach(url => mediaList.push({ url: resolveUrl(url), isVideo: false }));
+    const isVideoUrl = (url: string) => {
+        if (!url) return false;
+        const videoExtensions = ['.mp4', '.mov', '.webm', '.ogg', '.m4v'];
+        const urlWithoutQuery = url.split('?')[0].toLowerCase();
+        return videoExtensions.some(ext => urlWithoutQuery.endsWith(ext));
+    };
+
+    // Memoize mediaList to prevent recreation on every render
+    const mediaList: MediaItem[] = React.useMemo(() => {
+        const list: MediaItem[] = [];
+
+        // Use a set to track added URLs to avoid duplicates
+        const addedUrls = new Set<string>();
+
+        // 1. Handle primary video (prefers video object with thumbnail)
+        if (video) {
+            const url = resolveUrl(video.url);
+            const thumbUrl = video.thumbnail ? resolveUrl(video.thumbnail) : undefined;
+            list.push({ url, isVideo: true, thumbnail: thumbUrl, alt: video.alt });
+            addedUrls.add(url);
+        } else if (videoUrl) {
+            const url = resolveUrl(videoUrl);
+            list.push({ url, isVideo: true });
+            addedUrls.add(url);
+        }
+
+        // 2. Add images (with video detection safety)
+        images.forEach(img => {
+            const resolved = resolveUrl(img.url);
+            if (!addedUrls.has(resolved)) {
+                const isActuallyVideo = isVideoUrl(resolved);
+                const optimized = getOptimizedUrl(img.url, resolved, isActuallyVideo);
+                list.push({ url: optimized, alt: img.alt, isVideo: isActuallyVideo });
+                addedUrls.add(resolved);
+            }
+        });
+
+        imageUrls.forEach(rawUrl => {
+            const resolved = resolveUrl(rawUrl);
+            if (!addedUrls.has(resolved)) {
+                const isActuallyVideo = isVideoUrl(resolved);
+                const optimized = getOptimizedUrl(rawUrl, resolved, isActuallyVideo);
+                list.push({ url: optimized, isVideo: isActuallyVideo });
+                addedUrls.add(resolved);
+            }
+        });
+
+        // Final sanity check: if we have a videoUrl that wasn't added yet (shouldn't happen but for safety)
+        if (videoUrl && !addedUrls.has(resolveUrl(videoUrl))) {
+            const url = resolveUrl(videoUrl);
+            list.unshift({ url, isVideo: true });
+            addedUrls.add(url);
+        }
+
+        return list;
+    }, [video, videoUrl, images, imageUrls, isDetailView]);
 
     const firstMedia = mediaList[0];
-
+    // Use the URL string as dependency instead of the object to avoid infinite loops
+    const firstMediaUrl = firstMedia?.url;
+    const firstMediaIsVideo = firstMedia?.isVideo;
 
     useEffect(() => {
-        if (!firstMedia) return;
+        if (!firstMediaUrl) return;
 
-        if (firstMedia.isVideo) {
+        if (firstMediaIsVideo) {
             const vid = document.createElement('video');
-            vid.src = firstMedia.url;
+            vid.src = firstMediaUrl;
             vid.onloadedmetadata = () => {
                 setOrientation(vid.videoWidth >= vid.videoHeight ? 'landscape' : 'portrait');
-                setIsLoaded(true);
+            };
+            vid.onerror = () => {
+                console.error('Video load error:', firstMediaUrl);
+            };
+            // Cleanup just in case
+            return () => {
+                vid.onloadedmetadata = null;
+                vid.onerror = null;
+                vid.src = '';
+                vid.load();
             };
         } else {
             const img = new Image();
-            img.src = firstMedia.url;
+            img.src = firstMediaUrl;
             img.onload = () => {
                 setOrientation(img.width >= img.height ? 'landscape' : 'portrait');
-                setIsLoaded(true);
             };
             img.onerror = () => {
-                // If can't load, default to landscape but mark error
-                setHasError(true);
-                setIsLoaded(true);
+                // If can't load, default to landscape
+            };
+            // Cleanup
+            return () => {
+                img.onload = null;
+                img.onerror = null;
+                img.src = '';
             };
         }
-    }, [firstMedia]);
+    }, [firstMediaUrl, firstMediaIsVideo]);
 
     if (mediaList.length === 0) return null;
 
@@ -157,9 +265,26 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
 
 
     if (count === 1) {
+        // Feed view: Zoom to center for portrait videos to avoid tall black bars
+        // Detail view: Show entire video with proper sizing
         return (
-            <div className="rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border">
-                <GridItem item={mediaList[0]} index={0} className="aspect-auto max-h-[512px]" totalCount={count} onImageClick={onImageClick} />
+            <div className={cn(
+                "rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border bg-black/[0.03] dark:bg-white/[0.03] flex justify-center w-full",
+                orientation === 'portrait'
+                    ? (isDetailView ? "max-h-[650px] w-fit mx-auto" : "aspect-[4/5] max-h-[512px] max-w-[450px] mx-auto")
+                    : "max-h-[512px]"
+            )}>
+                <GridItem
+                    item={mediaList[0]}
+                    index={0}
+                    className={cn(
+                        "w-full h-full min-h-[150px]",
+                        orientation === 'portrait' && !isDetailView ? "h-full w-full" : "aspect-auto"
+                    )}
+                    totalCount={count}
+                    onImageClick={onImageClick}
+                    isDetailView={isDetailView}
+                />
             </div>
         );
     }
@@ -168,7 +293,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
         return (
             <div className="grid grid-cols-2 gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-[2/1]">
                 {mediaList.slice(0, 2).map((item, i) => (
-                    <GridItem key={i} item={item} index={i} className="h-full" totalCount={count} onImageClick={onImageClick} />
+                    <GridItem key={i} item={item} index={i} className="h-full" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
                 ))}
             </div>
         );
@@ -182,15 +307,15 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
             )}>
                 {orientation === 'landscape' ? (
                     <>
-                        <GridItem item={mediaList[0]} index={0} className="col-span-2 aspect-[3/2]" totalCount={count} onImageClick={onImageClick} />
-                        <GridItem item={mediaList[1]} index={1} className="aspect-square" totalCount={count} onImageClick={onImageClick} />
-                        <GridItem item={mediaList[2]} index={2} className="aspect-square" totalCount={count} onImageClick={onImageClick} />
+                        <GridItem item={mediaList[0]} index={0} className="col-span-2 aspect-[3/2]" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                        <GridItem item={mediaList[1]} index={1} className="aspect-square" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                        <GridItem item={mediaList[2]} index={2} className="aspect-square" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
                     </>
                 ) : (
                     <>
-                        <GridItem item={mediaList[0]} index={0} className="row-span-2 h-full" totalCount={count} onImageClick={onImageClick} />
-                        <GridItem item={mediaList[1]} index={1} className="aspect-square" totalCount={count} onImageClick={onImageClick} />
-                        <GridItem item={mediaList[2]} index={2} className="aspect-square" totalCount={count} onImageClick={onImageClick} />
+                        <GridItem item={mediaList[0]} index={0} className="row-span-2 h-full" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                        <GridItem item={mediaList[1]} index={1} className="aspect-square" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                        <GridItem item={mediaList[2]} index={2} className="aspect-square" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
                     </>
                 )}
             </div>
@@ -201,7 +326,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
         return (
             <div className="grid grid-cols-2 gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-square">
                 {mediaList.slice(0, 4).map((item, i) => (
-                    <GridItem key={i} item={item} index={i} className="h-full" totalCount={count} onImageClick={onImageClick} />
+                    <GridItem key={i} item={item} index={i} className="h-full" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
                 ))}
             </div>
         );
@@ -212,21 +337,21 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
         if (orientation === 'landscape') {
             return (
                 <div className="grid grid-cols-6 grid-rows-2 gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-square">
-                    <GridItem item={mediaList[0]} index={0} className="col-span-3" totalCount={count} onImageClick={onImageClick} />
-                    <GridItem item={mediaList[1]} index={1} className="col-span-3" totalCount={count} onImageClick={onImageClick} />
-                    <GridItem item={mediaList[2]} index={2} className="col-span-2" totalCount={count} onImageClick={onImageClick} />
-                    <GridItem item={mediaList[3]} index={3} className="col-span-2" totalCount={count} onImageClick={onImageClick} />
-                    <GridItem item={mediaList[4]} index={4} className="col-span-2" showOverlay={true} totalCount={count} onImageClick={onImageClick} />
+                    <GridItem item={mediaList[0]} index={0} className="col-span-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem item={mediaList[1]} index={1} className="col-span-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem item={mediaList[2]} index={2} className="col-span-2" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem item={mediaList[3]} index={3} className="col-span-2" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem item={mediaList[4]} index={4} className="col-span-2" showOverlay={true} totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
                 </div>
             );
         } else {
             return (
                 <div className="grid grid-rows-6 grid-cols-2 gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-[4/5]">
-                    <GridItem item={mediaList[0]} index={0} className="row-span-3" totalCount={count} onImageClick={onImageClick} />
-                    <GridItem item={mediaList[1]} index={1} className="row-span-3" totalCount={count} onImageClick={onImageClick} />
-                    <GridItem item={mediaList[2]} index={2} className="row-span-2 col-start-2 row-start-1" totalCount={count} onImageClick={onImageClick} />
-                    <GridItem item={mediaList[3]} index={3} className="row-span-2 col-start-2 row-start-3" totalCount={count} onImageClick={onImageClick} />
-                    <GridItem item={mediaList[4]} index={4} className="row-span-2 col-start-2 row-start-5" showOverlay={true} totalCount={count} onImageClick={onImageClick} />
+                    <GridItem item={mediaList[0]} index={0} className="row-span-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem item={mediaList[1]} index={1} className="row-span-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem item={mediaList[2]} index={2} className="row-span-2 col-start-2 row-start-1" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem item={mediaList[3]} index={3} className="row-span-2 col-start-2 row-start-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem item={mediaList[4]} index={4} className="row-span-2 col-start-2 row-start-5" showOverlay={true} totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
                 </div>
             );
         }

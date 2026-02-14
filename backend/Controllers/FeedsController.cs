@@ -35,6 +35,16 @@ public class FeedsController : ControllerBase
         return Ok(feeds);
     }
 
+    [HttpGet("trending-posts")]
+    public async Task<IActionResult> GetTrendingPosts([FromServices] IPostService postService, [FromQuery] int limit = 50)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userId = string.IsNullOrEmpty(userIdString) ? null : Guid.Parse(userIdString);
+        
+        var posts = await postService.GetTrendingPosts24hAsync(userId, limit);
+        return Ok(posts);
+    }
+
     [HttpGet("subscribed")]
     public async Task<IActionResult> GetSubscribed()
     {
@@ -106,5 +116,15 @@ public class FeedsController : ControllerBase
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
         var feeds = await _feedService.SearchFeedsAsync(userId, query, skip, take);
         return Ok(feeds);
+    }
+
+    [HttpGet("{feedId}/posts")]
+    public async Task<IActionResult> GetFeedPosts(Guid feedId, [FromQuery] int skip = 0, [FromQuery] int take = 10)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userId = string.IsNullOrEmpty(userIdString) ? null : Guid.Parse(userIdString);
+
+        var posts = await _feedService.GetFeedPostsAsync(feedId, userId, skip, take);
+        return Ok(posts);
     }
 }

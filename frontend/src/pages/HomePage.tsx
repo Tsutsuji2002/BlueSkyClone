@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiHash, FiMenu } from 'react-icons/fi';
 import { Feed as FeedType } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
-import Avatar from '../components/common/Avatar';
+import ButterflyLogo from '../components/common/ButterflyLogo';
 
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
@@ -22,7 +22,6 @@ const HomePage: React.FC = () => {
     const { subscribedFeeds, activeTab, feedPosts } = useAppSelector((state: RootState) => state.feeds);
     const reduxPosts = useAppSelector((state: RootState) => state.posts.posts);
     const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
-    const user = useAppSelector((state: RootState) => state.auth.user); // Assuming user is available in auth slice
 
     useEffect(() => {
         dispatch(setActiveTab('following'));
@@ -64,7 +63,7 @@ const HomePage: React.FC = () => {
             : (feedPosts[activeTab] || []);
 
     return (
-        <MainLayout hideTopBar={true}>
+        <MainLayout hideTopBar={true} title={t('nav.home')}>
             <div className="min-h-screen">
                 {/* Header with Logo and Feeds Button */}
                 <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
@@ -77,14 +76,10 @@ const HomePage: React.FC = () => {
                         </button>
                         <div className="hidden lg:block w-10" /> {/* Spacer */}
 
-                        <svg
+                        <ButterflyLogo
                             className="w-7 h-7 text-primary-500 cursor-pointer"
-                            viewBox="0 0 64 64"
-                            fill="currentColor"
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                        >
-                            <path d="M13.873 3.805C21.21 9.332 29.103 20.537 32 26.55v15.882c0-.338-.13.044-.41.867-1.512 4.456-7.418 21.847-20.923 7.944-7.111-7.32-3.819-14.64 9.125-16.85-7.405 1.264-15.73-.825-18.014-9.015C1.12 23.022 0 8.51 0 6.55 0-3.268 8.579-.182 13.873 3.805zm36.254 0C42.79 9.332 34.897 20.537 32 26.55v15.882c0-.338.13.044.41.867 1.512 4.456 7.418 21.847 20.923 7.944 7.111-7.32 3.819-14.64-9.125-16.85 7.405 1.264 15.73-.825 18.014-9.015C62.88 23.022 64 8.51 64 6.55c0-9.818-8.579-6.732-13.873-2.745z" />
-                        </svg>
+                        />
 
                         <button
                             onClick={() => navigate('/feeds')}

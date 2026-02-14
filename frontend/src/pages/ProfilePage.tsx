@@ -4,18 +4,22 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchUserProfile, followUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync } from '../redux/slices/userSlice';
-import { openEditProfile, openCreatePost, openMobileMenu } from '../redux/slices/modalsSlice';
+import { openEditProfile, openCreatePost } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
-import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss } from 'react-icons/fi';
+import ListAvatar from '../components/common/ListAvatar';
 import { showToast } from '../redux/slices/toastSlice';
 import { PROFILE_TABS, COVER_PLACEHOLDER } from '../constants';
 import { cn } from '../utils/classNames';
 import PostCard from '../components/feed/PostCard';
+import MediaGrid from '../components/profile/MediaGrid';
+import MediaPostViewerModal from '../modals/MediaPostViewerModal';
 import { fetchUserPosts, clearPosts } from '../redux/slices/postsSlice';
+import { fetchUserLists } from '../redux/slices/listsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import { RootState } from '../redux/store';
 
@@ -32,8 +36,14 @@ const ProfilePage: React.FC = () => {
     const reduxPosts = useAppSelector((state: RootState) => state.posts.posts);
     const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
     const hasMore = useAppSelector((state: RootState) => state.posts.hasMore);
+    const userLists = useAppSelector((state: RootState) => state.lists.userLists);
+    const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
+    const actionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
     const [activeTab, setActiveTab] = useState('posts');
     const observerTarget = React.useRef(null);
+    const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
+    const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+    const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
 
     useEffect(() => {
         if (handle) {
@@ -46,8 +56,12 @@ const ProfilePage: React.FC = () => {
 
     useEffect(() => {
         if (profileUser?.id) {
-            dispatch(clearPosts());
-            dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 3, offset: 0 }));
+            if (activeTab === 'lists') {
+                dispatch(fetchUserLists(profileUser.id));
+            } else {
+                dispatch(clearPosts());
+                dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 3, offset: 0 }));
+            }
         }
     }, [dispatch, profileUser?.id, activeTab]);
 
@@ -76,6 +90,8 @@ const ProfilePage: React.FC = () => {
     const handleTabChange = (tabId: string) => {
         setActiveTab(tabId);
     };
+
+
 
     const isOwnProfile = currentUser?.id === profileUser?.id;
 
@@ -190,7 +206,7 @@ const ProfilePage: React.FC = () => {
     }
 
     return (
-        <MainLayout hideTopBar={true}>
+        <MainLayout hideTopBar={true} title={profileUser?.displayName || profileUser?.handle}>
             <div className="flex flex-col bg-white dark:bg-dark-bg">
                 {/* Header/Cover Section */}
                 <div className="relative w-full">
@@ -252,6 +268,7 @@ const ProfilePage: React.FC = () => {
                                     variant={profileUser?.isFollowing ? 'outline' : 'primary'}
                                     size="sm"
                                     onClick={handleFollowToggle}
+                                    disabled={!!(profileUser?.id && actionLoading[profileUser.id])}
                                     className="rounded-full text-[15px] font-bold px-5 py-2 min-w-[100px]"
                                 >
                                     {profileUser?.isFollowing ? t('profile.following_btn') : t('profile.follow')}
@@ -332,44 +349,146 @@ const ProfilePage: React.FC = () => {
 
             {/* Content Section */}
             <div className="flex-1 bg-white dark:bg-dark-bg">
-                {isPostsLoading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                {activeTab === 'feeds' ? (
+                    // Feeds Tab - Blank for now
+                    <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
+                        <FiRss size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                        <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
+                            {t('profile.feeds_coming_soon')}
+                        </h3>
                     </div>
-                ) : (
-                    <div className="flex flex-col">
-                        {reduxPosts.length > 0 ? (
-                            <>
-                                {reduxPosts.map((post: Post) => (
-                                    <PostCard key={post.id} post={post} />
-                                ))}
-                                <div ref={observerTarget} className="h-10 flex items-center justify-center">
-                                    {isPostsLoading && hasMore && (
-                                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
-                                    )}
+                ) : activeTab === 'lists' ? (
+                    // Lists Tab - Show user's lists
+                    isListsLoading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                        </div>
+                    ) : userLists.length > 0 ? (
+                        <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
+                            {userLists.map(list => (
+                                <div
+                                    key={list.id}
+                                    className="p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer transition-colors"
+                                    onClick={() => navigate(`/lists/${list.id}`)}
+                                >
+                                    <div className="flex gap-4">
+                                        <div className="shrink-0">
+                                            <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-bold text-gray-900 dark:text-dark-text truncate">{list.name}</h4>
+                                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                    {t('lists.members_count', { count: list.membersCount || 0 })}
+                                                </span>
+                                            </div>
+                                            {list.description && (
+                                                <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
+                                                    {list.description}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <Avatar
+                                                    src={list.owner.avatarUrl || list.owner.avatar}
+                                                    alt={list.owner.displayName}
+                                                    size="xs"
+                                                />
+                                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                    {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                                <div className="mb-4">
-                                    <FiEdit3 size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                                </div>
-                                <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mb-6">
-                                    {t(`profile.no_${activeTab}`)}
-                                </h3>
-                                {isOwnProfile && activeTab === 'posts' && (
-                                    <button
-                                        className="rounded-full font-bold px-8 py-2.5 bg-primary-500 hover:bg-primary-600 text-white transition-all shadow-sm text-[15px]"
-                                        onClick={() => dispatch(openCreatePost())}
-                                    >
-                                        {t('profile.create_post')}
-                                    </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
+                            <FiList size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                            <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
+                                {t('profile.no_lists')}
+                            </h3>
+                        </div>
+                    )
+                ) : activeTab === 'media' ? (
+                    // Media Tab - Grid View
+                    isPostsLoading && reduxPosts.length === 0 ? (
+                        <div className="flex items-center justify-center py-20">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                        </div>
+                    ) : reduxPosts.length > 0 ? (
+                        <>
+                            <MediaGrid
+                                posts={reduxPosts}
+                                onMediaClick={(post, mediaIndex) => {
+                                    setSelectedPost(post);
+                                    setSelectedMediaIndex(mediaIndex);
+                                    setMediaViewerOpen(true);
+                                }}
+                            />
+                            <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
+                                {isPostsLoading && hasMore && (
+                                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
                                 )}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
+                            <FiImage size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                            <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
+                                {t('profile.no_media')}
+                            </h3>
+                        </div>
+                    )
+                ) : (
+                    // Posts, Replies, Video, Likes tabs - List View
+                    isPostsLoading && reduxPosts.length === 0 ? (
+                        <div className="flex items-center justify-center py-20">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col">
+                            {reduxPosts.length > 0 ? (
+                                <>
+                                    {reduxPosts.map((post: Post) => (
+                                        <PostCard key={post.id} post={post} />
+                                    ))}
+                                    <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
+                                        {isPostsLoading && hasMore && (
+                                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
+                                    <div className="mb-4">
+                                        <FiEdit3 size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                                    </div>
+                                    <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mb-6">
+                                        {t(`profile.no_${activeTab}`)}
+                                    </h3>
+                                    {isOwnProfile && activeTab === 'posts' && (
+                                        <button
+                                            className="rounded-full font-bold px-8 py-2.5 bg-primary-500 hover:bg-primary-600 text-white transition-all shadow-sm text-[15px]"
+                                            onClick={() => dispatch(openCreatePost())}
+                                        >
+                                            {t('profile.create_post')}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )
                 )}
             </div>
+
+            {/* Media Post Viewer Modal */}
+            <MediaPostViewerModal
+                isOpen={mediaViewerOpen}
+                onClose={() => setMediaViewerOpen(false)}
+                post={selectedPost}
+                initialMediaIndex={selectedMediaIndex}
+            />
         </MainLayout>
     );
 };

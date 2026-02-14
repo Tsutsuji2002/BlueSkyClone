@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { TrendingState, TrendingTopic, TrendingAccount } from '../../types';
+import { TrendingState } from '../../types';
 import { API_BASE_URL } from '../../constants';
 
 const initialState: TrendingState = {

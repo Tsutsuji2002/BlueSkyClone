@@ -99,6 +99,64 @@ public class UserController : ControllerBase
         }
     }
 
+    [HttpPatch("settings")]
+    public async Task<IActionResult> UpdateSettings([FromBody] UserSettingDto? request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { message = "Invalid request body" });
+        }
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var settings = await _userService.UpdateSettingsAsync(userId, request);
+            
+            // Map back to DTO
+            var settingsDto = new UserSettingDto(
+                settings.AdultContentFilter,
+                settings.EnableAdultContent,
+                settings.SortReplies,
+                settings.RequireAltText,
+                settings.AutoplayVideoGif,
+                settings.AppLanguage,
+                settings.ThemeMode,
+                settings.NotifyLikes,
+                settings.NotifyFollowers,
+                settings.NotifyReplies,
+                settings.NotifyMentions,
+                settings.NotifyQuotes,
+                settings.NotifyReposts,
+                settings.PushNotifyLikes,
+                settings.PushNotifyFollowers,
+                settings.PushNotifyReplies,
+                settings.PushNotifyMentions,
+                settings.PushNotifyQuotes,
+                settings.PushNotifyReposts,
+                settings.InAppNotifyLikes,
+                settings.InAppNotifyFollowers,
+                settings.InAppNotifyReplies,
+                settings.InAppNotifyMentions,
+                settings.InAppNotifyQuotes,
+                settings.InAppNotifyReposts,
+                settings.DefaultReplyRestriction,
+                settings.DefaultAllowQuotes,
+                settings.FontSize
+            );
+
+            return Ok(settingsDto);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+
     [HttpGet("search")]
     public async Task<IActionResult> SearchUsers([FromQuery] string q, [FromQuery] int limit = 10)
     {

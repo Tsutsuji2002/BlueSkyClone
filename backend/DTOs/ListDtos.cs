@@ -13,6 +13,7 @@ public class ListDto
     public string? Purpose { get; set; }
     public string? AvatarUrl { get; set; }
     public int MembersCount { get; set; }
+    public int PostsCount { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsPinned { get; set; }
     public bool IsOwner { get; set; }
@@ -51,4 +52,10 @@ public class ListItemDto
 public class AddListMemberDto
 {
     public Guid UserId { get; set; }
+}
+
+public class AddListPostRequest
+{
+    public Guid PostId { get; set; }
+    public string? Caption { get; set; }
 }

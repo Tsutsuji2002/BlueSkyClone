@@ -6,7 +6,6 @@ import { fetchPostById } from '../../redux/slices/postsSlice';
 import Avatar from '../common/Avatar';
 import { formatPostDate } from '../../utils/formatDate';
 import { useNavigate } from 'react-router-dom';
-import MediaGrid from '../feed/MediaGrid';
 
 interface PostEmbedProps {
     postId: string;

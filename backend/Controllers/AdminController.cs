@@ -56,11 +56,35 @@ public class AdminController : ControllerBase
         return Ok(new { message = "User verification toggled successfully" });
     }
 
-    [HttpGet("posts")]
-    public async Task<IActionResult> GetPosts([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    [HttpPatch("users/{id}/role")]
+    public async Task<IActionResult> ChangeRole(Guid id, [FromBody] ChangeRoleRequest request)
     {
-        var result = await _adminService.GetPostsAsync(skip, take, search);
+        var success = await _adminService.ChangeUserRoleAsync(id, request.Role);
+        if (!success) return BadRequest(new { message = "Invalid role or user not found" });
+        return Ok(new { message = "User role updated successfully" });
+    }
+
+    [HttpGet("posts")]
+    public async Task<IActionResult> GetPosts([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null, [FromQuery] bool includeDeleted = false, [FromQuery] bool onlyDeleted = false)
+    {
+        var result = await _adminService.GetPostsAsync(skip, take, search, includeDeleted, onlyDeleted);
         return Ok(result);
+    }
+
+    [HttpPost("posts/{id}/hide")]
+    public async Task<IActionResult> HidePost(Guid id)
+    {
+        var success = await _adminService.HidePostAsync(id);
+        if (!success) return NotFound(new { message = "Post not found" });
+        return Ok(new { message = "Post hidden successfully" });
+    }
+
+    [HttpDelete("posts/{id}/permanent")]
+    public async Task<IActionResult> DeletePostPermanent(Guid id)
+    {
+        var success = await _adminService.DeletePostPermanentAsync(id);
+        if (!success) return NotFound(new { message = "Post not found" });
+        return Ok(new { message = "Post permanently deleted" });
     }
 
     [HttpDelete("posts/{id}")]
@@ -72,9 +96,16 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("feeds")]
-    public async Task<IActionResult> GetFeeds([FromQuery] int skip = 0, [FromQuery] int take = 20)
+    public async Task<IActionResult> GetFeeds([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
     {
-        var result = await _adminService.GetFeedsAsync(skip, take);
+        var result = await _adminService.GetFeedsAsync(skip, take, search);
+        return Ok(result);
+    }
+
+    [HttpGet("feeds/{id}/subscribers")]
+    public async Task<IActionResult> GetFeedSubscribers(Guid id, [FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        var result = await _adminService.GetFeedSubscribersAsync(id, skip, take, search);
         return Ok(result);
     }
 
@@ -100,5 +131,98 @@ public class AdminController : ControllerBase
         var result = await _adminService.UpdateFeedAsync(id, request);
         if (result == null) return NotFound(new { message = "Feed not found" });
         return Ok(result);
+    }
+
+    // ── Interests Management ──
+
+    [HttpGet("interests")]
+    public async Task<IActionResult> GetInterests([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        var result = await _adminService.GetInterestsAsync(skip, take, search);
+        return Ok(result);
+    }
+
+    [HttpGet("interests/{interest}/users")]
+    public async Task<IActionResult> GetInterestUsers(string interest, [FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        // Decode interest name if needed, but FromRoute usually handles it.
+        // Might need handling for special chars if interest is a tag.
+        var result = await _adminService.GetInterestUsersAsync(interest, skip, take, search);
+        return Ok(result);
+    }
+
+    [HttpDelete("interests/{interest}")]
+    public async Task<IActionResult> DeleteInterest(string interest)
+    {
+        var success = await _adminService.DeleteInterestAsync(interest);
+        if (!success) return NotFound(new { message = "Interest not found" });
+        return Ok(new { message = "Interest deleted successfully" });
+    }
+
+    // ── Lists Management ──
+
+    [HttpGet("lists")]
+    public async Task<IActionResult> GetLists([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        var result = await _adminService.GetListsAsync(skip, take, search);
+        return Ok(result);
+    }
+
+    [HttpDelete("lists/{id}")]
+    public async Task<IActionResult> DeleteList(Guid id)
+    {
+        var success = await _adminService.DeleteListAsync(id);
+        if (!success) return NotFound(new { message = "List not found" });
+        return Ok(new { message = "List deleted successfully" });
+    }
+
+    [HttpGet("lists/{id}/members")]
+    public async Task<IActionResult> GetListMembers(Guid id, [FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        var result = await _adminService.GetListMembersAsync(id, skip, take, search);
+        return Ok(result);
+    }
+
+    // ── Conversations Management ──
+
+    [HttpGet("conversations")]
+    public async Task<IActionResult> GetConversations([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        var result = await _adminService.GetConversationsAsync(skip, take, search);
+        return Ok(result);
+    }
+
+    [HttpDelete("conversations/{id}")]
+    public async Task<IActionResult> DeleteConversation(Guid id)
+    {
+        var success = await _adminService.DeleteConversationAsync(id);
+        if (!success) return NotFound(new { message = "Conversation not found" });
+        return Ok(new { message = "Conversation deleted successfully" });
+    }
+
+    // ── Moderation ──
+
+    [HttpGet("moderation/blocks")]
+    public async Task<IActionResult> GetBlocks([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        var result = await _adminService.GetBlocksAsync(skip, take, search);
+        return Ok(result);
+    }
+
+    [HttpGet("moderation/mutes")]
+    public async Task<IActionResult> GetMutes([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        var result = await _adminService.GetMutesAsync(skip, take, search);
+        return Ok(result);
+    }
+
+    // ── Notifications ──
+
+    [HttpPost("notifications/broadcast")]
+    public async Task<IActionResult> BroadcastNotification([FromBody] BroadcastNotificationRequest request)
+    {
+        var success = await _adminService.BroadcastNotificationAsync(request);
+        if (!success) return Ok(new { message = "No matching users were found for this broadcast." });
+        return Ok(new { message = "Notification broadcasted successfully" });
     }
 }

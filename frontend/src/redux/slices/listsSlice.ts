@@ -1,12 +1,18 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { ListDto, ListItemDto, CreateListDto, UpdateListDto, Post } from '../../types';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+
+import { ListDto, ListItemDto, CreateListDto, UpdateListDto, Post, UserDto } from '../../types';
 import listService from '../../services/listsService';
+import { API_BASE_URL } from '../../constants';
 
 interface ListsState {
     myLists: ListDto[];
+    userLists: ListDto[];
+    listsIAmOn: ListDto[];
     pinnedLists: ListDto[];
     activeList: ListDto | null;
     activeListMembers: ListItemDto[];
+    candidateMembers: UserDto[]; // For adding members
+    candidatePosts: Post[]; // For adding posts
     activeListFeed: Post[];
     isLoading: boolean;
     error: string | null;
@@ -14,9 +20,13 @@ interface ListsState {
 
 const initialState: ListsState = {
     myLists: [],
+    userLists: [],
+    listsIAmOn: [],
     pinnedLists: [],
     activeList: null,
     activeListMembers: [],
+    candidateMembers: [],
+    candidatePosts: [],
     activeListFeed: [],
     isLoading: false,
     error: null,
@@ -31,6 +41,17 @@ export const fetchMyLists = createAsyncThunk(
             return await listService.getMyLists();
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Failed to fetch lists');
+        }
+    }
+);
+
+export const fetchUserLists = createAsyncThunk(
+    'lists/fetchUserLists',
+    async (userId: string, { rejectWithValue }) => {
+        try {
+            return await listService.getUserLists(userId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch user lists');
         }
     }
 );
@@ -137,6 +158,28 @@ export const fetchListFeed = createAsyncThunk(
     }
 );
 
+export const fetchListsIAmOn = createAsyncThunk(
+    'lists/fetchListsIAmOn',
+    async (_, { rejectWithValue }) => {
+        try {
+            return await listService.getListsIAmOn();
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch participating lists');
+        }
+    }
+);
+
+export const fetchCandidateMembers = createAsyncThunk(
+    'lists/fetchCandidateMembers',
+    async ({ listId, query }: { listId: string; query?: string }, { rejectWithValue }) => {
+        try {
+            return await listService.getCandidateMembers(listId, query);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch candidates');
+        }
+    }
+);
+
 export const addListMember = createAsyncThunk(
     'lists/addListMember',
     async ({ listId, userId }: { listId: string; userId: string }, { rejectWithValue }) => {
@@ -161,6 +204,47 @@ export const removeListMember = createAsyncThunk(
     }
 );
 
+export const fetchCandidatePosts = createAsyncThunk(
+    'lists/fetchCandidatePosts',
+    async ({ listId, userId, limit = 10, offset = 0 }: { listId: string; userId: string; limit?: number; offset?: number }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/lists/${listId}/candidate-posts?userId=${userId}&limit=${limit}&offset=${offset}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch posts');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const addListPost = createAsyncThunk(
+    'lists/addListPost',
+    async ({ listId, postId, caption }: { listId: string; postId: string; caption?: string }, { rejectWithValue }) => {
+        try {
+            await listService.addPost(listId, postId, caption);
+            return { listId, postId };
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to add post');
+        }
+    }
+);
+
+export const removeListPost = createAsyncThunk(
+    'lists/removeListPost',
+    async ({ listId, postId }: { listId: string; postId: string }, { rejectWithValue }) => {
+        try {
+            await listService.removePost(listId, postId);
+            return { listId, postId };
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to remove post');
+        }
+    }
+);
+
 const listsSlice = createSlice({
     name: 'lists',
     initialState,
@@ -168,6 +252,14 @@ const listsSlice = createSlice({
         clearActiveList: (state) => {
             state.activeList = null;
             state.activeListMembers = [];
+            state.activeListFeed = [];
+            state.candidateMembers = [];
+        },
+        clearCandidates: (state) => {
+            state.candidateMembers = [];
+        },
+        clearCandidatePosts: (state) => {
+            state.candidatePosts = [];
         }
     },
     extraReducers: (builder) => {
@@ -252,8 +344,74 @@ const listsSlice = createSlice({
         builder.addCase(fetchListFeed.fulfilled, (state, action) => {
             state.activeListFeed = action.payload;
         });
+
+        // Fetch User Lists
+        builder.addCase(fetchUserLists.pending, (state) => {
+            state.isLoading = true;
+            state.error = null;
+        });
+        builder.addCase(fetchUserLists.fulfilled, (state, action) => {
+            state.isLoading = false;
+            state.userLists = action.payload;
+        });
+        builder.addCase(fetchUserLists.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload as string;
+        });
+
+        // Lists I Am On
+        builder.addCase(fetchListsIAmOn.fulfilled, (state, action) => {
+            state.listsIAmOn = action.payload;
+        });
+
+        // Candidate Members
+        builder.addCase(fetchCandidateMembers.fulfilled, (state, action) => {
+            state.candidateMembers = action.payload;
+        });
+
+        // Add Member
+        builder.addCase(addListMember.fulfilled, (state, action) => {
+            // Optimistically update active members if we have the user detail? 
+            // We only have userId. So we might need to rely on refetch or pass user object. 
+            // For now, let's just trigger a refetch in UI or let UI handle it. 
+            // Better: remove from candidates
+            state.candidateMembers = state.candidateMembers.filter(u => u.id !== action.payload.userId);
+        });
+
+        // Remove Member
+        builder.addCase(removeListMember.fulfilled, (state, action) => {
+            if (state.activeList?.id === action.payload.listId) {
+                state.activeListMembers = state.activeListMembers.filter(m => m.userId !== action.payload.userId);
+                state.activeList.membersCount = Math.max(0, state.activeList.membersCount - 1);
+            }
+            // If I removed myself, logic to update listsIAmOn
+            // But checking my ID in reducer is hard without auth state access. 
+            // UI should handle refetching listsIAmOn if needed.
+            // UI should handle refetching listsIAmOn if needed.
+        });
+
+        // Add Post
+        builder.addCase(addListPost.fulfilled, (state) => {
+            // Invalidate feed so it reloads
+            // Or we could try to just add it if we had the object, but we don't.
+        });
+
+        // Remove Post
+        builder.addCase(removeListPost.fulfilled, (state, action) => {
+            state.activeListFeed = state.activeListFeed.filter(p => p.id !== action.payload.postId);
+        });
+        // Candidate Posts
+        builder.addCase(fetchCandidatePosts.fulfilled, (state, action) => {
+            if (action.meta.arg.offset && action.meta.arg.offset > 0) {
+                // Check for duplicates before appending?
+                const newPosts = action.payload.filter((p: Post) => !state.candidatePosts.some(existing => existing.id === p.id));
+                state.candidatePosts = [...state.candidatePosts, ...newPosts];
+            } else {
+                state.candidatePosts = action.payload;
+            }
+        });
     }
 });
 
-export const { clearActiveList } = listsSlice.actions;
+export const { clearActiveList, clearCandidates, clearCandidatePosts } = listsSlice.actions;
 export default listsSlice.reducer;

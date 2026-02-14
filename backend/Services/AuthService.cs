@@ -93,8 +93,14 @@ public class AuthService : IAuthService
             return null;
         }
 
-        var token = GenerateJwtToken(user);
-        var refreshToken = await GenerateAndSaveRefreshToken(user.Id);
+        // Banned user logic: Prevent login
+        if (user.IsBanned)
+        {
+            throw new UnauthorizedAccessException("Your account has been banned.");
+        }
+
+        var token = GenerateJwtToken(user, request.RememberMe);
+        var refreshToken = await GenerateAndSaveRefreshToken(user.Id, request.RememberMe);
 
         return MapToAuthResponse(user, token, refreshToken);
     }
@@ -104,15 +110,18 @@ public class AuthService : IAuthService
         var userIdString = await _cache.GetStringAsync($"RefreshToken_{refreshToken}");
         if (string.IsNullOrEmpty(userIdString)) return null;
 
-        var userId = Guid.Parse(userIdString);
+        var userId = Guid.Parse(userIdString.Split('|')[0]);
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
         // Invalidate old refresh token (optional but recommended for security)
         await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
 
-        var newToken = GenerateJwtToken(user);
-        var newRefreshToken = await GenerateAndSaveRefreshToken(user.Id);
+        // Persist rememberMe status if it was encoded in the value
+        bool rememberMe = userIdString.Contains("|") && bool.Parse(userIdString.Split('|')[1]);
+
+        var newToken = GenerateJwtToken(user, rememberMe);
+        var newRefreshToken = await GenerateAndSaveRefreshToken(user.Id, rememberMe);
 
         return MapToAuthResponse(user, newToken, newRefreshToken);
     }
@@ -122,6 +131,12 @@ public class AuthService : IAuthService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
+        // Banned user logic: Instantly invalidate session if banned
+        if (user.IsBanned)
+        {
+            throw new UnauthorizedAccessException("Your account has been banned.");
+        }
+
         return MapToAuthResponse(user, "", ""); // No new tokens needed for a profile sync
     }
 
@@ -130,7 +145,7 @@ public class AuthService : IAuthService
         await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
     }
 
-    private async Task<string> GenerateAndSaveRefreshToken(Guid userId)
+    private async Task<string> GenerateAndSaveRefreshToken(Guid userId, bool rememberMe = false)
     {
         var randomNumber = new byte[32];
         using var rng = RandomNumberGenerator.Create();
@@ -139,10 +154,11 @@ public class AuthService : IAuthService
 
         var cacheOptions = new DistributedCacheEntryOptions
         {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(7)
+            // If rememberMe is checked, extend refresh token to 30 days, else keep it at 7 days
+            AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7)
         };
 
-        await _cache.SetStringAsync($"RefreshToken_{refreshToken}", userId.ToString(), cacheOptions);
+        await _cache.SetStringAsync($"RefreshToken_{refreshToken}", $"{userId}|{rememberMe}", cacheOptions);
         return refreshToken;
     }
 
@@ -177,18 +193,38 @@ public class AuthService : IAuthService
             user.UserSetting.NotifyLikes,
             user.UserSetting.NotifyFollowers,
             user.UserSetting.NotifyReplies,
+            user.UserSetting.NotifyMentions,
+            user.UserSetting.NotifyQuotes,
+            user.UserSetting.NotifyReposts,
+            user.UserSetting.PushNotifyLikes,
+            user.UserSetting.PushNotifyFollowers,
+            user.UserSetting.PushNotifyReplies,
+            user.UserSetting.PushNotifyMentions,
+            user.UserSetting.PushNotifyQuotes,
+            user.UserSetting.PushNotifyReposts,
+            user.UserSetting.InAppNotifyLikes,
+            user.UserSetting.InAppNotifyFollowers,
+            user.UserSetting.InAppNotifyReplies,
+            user.UserSetting.InAppNotifyMentions,
+            user.UserSetting.InAppNotifyQuotes,
+            user.UserSetting.InAppNotifyReposts,
             user.UserSetting.DefaultReplyRestriction,
             user.UserSetting.DefaultAllowQuotes,
             user.UserSetting.FontSize
-        ) : new UserSettingDto(null, null, null, null, null, "en", "system", true, true, true, "anyone", true, 15);
+        ) : new UserSettingDto(null, null, null, null, null, "en", "system", true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, "anyone", true, 15);
 
         return new AuthResponse(userDto, settingsDto, token, refreshToken);
     }
 
-    private string GenerateJwtToken(User user)
+    private string GenerateJwtToken(User user, bool rememberMe = false)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long");
+        
+        // If remember me is true, set a longer-lived JWT token (e.g., 7 days)
+        // Otherwise, keep it short (e.g., 2 hours)
+        var expires = rememberMe ? DateTime.UtcNow.AddDays(7) : DateTime.UtcNow.AddHours(2);
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(new[]
@@ -198,7 +234,7 @@ public class AuthService : IAuthService
                 new Claim("handle", user.Handle),
                 new Claim(ClaimTypes.Role, user.Role)
             }),
-            Expires = DateTime.UtcNow.AddHours(1), // Shorter lived JWT
+            Expires = expires,
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
             Issuer = _configuration["Jwt:Issuer"],
             Audience = _configuration["Jwt:Audience"]

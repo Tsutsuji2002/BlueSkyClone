@@ -6,7 +6,6 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiChevronRight, FiMail, FiEdit2, FiLock, FiAtSign, FiGift, FiDownload, FiX, FiTrash2, FiAlertCircle, FiCheck, FiCalendar } from 'react-icons/fi';
 import Button from '../components/common/Button';
-import Avatar from '../components/common/Avatar';
 import { updateUserAccount } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
 
@@ -29,7 +28,7 @@ const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: 
         setIsLoading(true);
         setError('');
         try {
-            const result = await dispatch(updateUserAccount({ email: newEmail, currentPassword: password })).unwrap();
+            await dispatch(updateUserAccount({ email: newEmail, currentPassword: password })).unwrap();
             onClose();
         } catch (err: any) {
             setError(err || 'Failed to update email');

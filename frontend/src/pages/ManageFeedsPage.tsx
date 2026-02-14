@@ -12,8 +12,6 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { showToast } from '../redux/slices/toastSlice';
 import {
-    setActiveFeed,
-    setActiveTab,
     fetchSubscribedFeeds,
     reorderFeeds,
 } from '../redux/slices/feedsSlice';
@@ -228,7 +226,7 @@ const ManageFeedsPage: React.FC = () => {
                     {/* Footer Info */}
                     <div className="p-4 mt-2">
                         <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary leading-normal">
-                            Feeds are custom algorithms that users build with a little coding expertise. <a href="#" className="text-primary-500 hover:underline">See this guide</a> for more information.
+                            Feeds are custom algorithms that users build with a little coding expertise. <button className="text-primary-500 hover:underline">See this guide</button> for more information.
                         </p>
                     </div>
                 </div>

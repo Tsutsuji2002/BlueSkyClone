@@ -43,6 +43,13 @@ class SignalRService {
         // Add handler for notifications
         this.connection.on('ReceiveNotification', (notification) => {
             store.dispatch(addNotification(notification));
+            // Show a toast for instant feedback
+            const message = notification.title || 'New notification received';
+            // @ts-ignore
+            store.dispatch({
+                type: 'toast/showToast',
+                payload: { message, type: 'info' }
+            });
         });
 
         try {

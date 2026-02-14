@@ -21,10 +21,17 @@ public class AuthController : ControllerBase
     [HttpGet("me")]
     public async Task<IActionResult> GetMe()
     {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var result = await _authService.GetUserProfileAsync(userId);
-        if (result == null) return NotFound();
-        return Ok(result);
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await _authService.GetUserProfileAsync(userId);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
     }
 
     [HttpPost("register")]
@@ -41,12 +48,19 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var result = await _authService.LoginAsync(request);
-        if (result == null)
+        try
         {
-            return Unauthorized(new { message = "Invalid email/handle or password." });
+            var result = await _authService.LoginAsync(request);
+            if (result == null)
+            {
+                return Unauthorized(new { message = "Invalid email/handle or password." });
+            }
+            return Ok(result);
         }
-        return Ok(result);
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
     }
 
     [HttpPost("refresh")]

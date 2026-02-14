@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FiHome, FiSearch, FiBell, FiMail, FiUser, FiSettings,
-    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield
+    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield, FiHeart
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { NAV_ITEMS } from '../../constants';
@@ -17,11 +17,14 @@ import IconButton from '../common/IconButton';
 import Dropdown from '../common/Dropdown';
 import { cn } from '../../utils/classNames';
 
+import ButterflyLogo from '../common/ButterflyLogo';
+
 const iconMap: Record<string, React.ReactNode> = {
     home: <FiHome size={24} />,
     search: <FiSearch size={24} />,
     bell: <FiBell size={24} />,
     mail: <FiMail size={24} />,
+    notifications: <FiBell size={24} />,
     feeds: <FiRss size={24} />,
     lists: <FiList size={24} />,
     saved: <FiBookmark size={24} />,
@@ -48,15 +51,8 @@ const Sidebar: React.FC = () => {
     return (
         <div className="h-screen sticky top-0 flex flex-col p-3">
             {/* Logo */}
-            <div className="p-3 mb-2">
-                <svg
-                    className="w-8 h-8 text-primary-500 cursor-pointer"
-                    viewBox="0 0 64 64"
-                    fill="currentColor"
-                    onClick={() => navigate('/')}
-                >
-                    <path d="M13.873 3.805C21.21 9.332 29.103 20.537 32 26.55v15.882c0-.338-.13.044-.41.867-1.512 4.456-7.418 21.847-20.923 7.944-7.111-7.32-3.819-14.64 9.125-16.85-7.405 1.264-15.73-.825-18.014-9.015C1.12 23.022 0 8.51 0 6.55 0-3.268 8.579-.182 13.873 3.805zm36.254 0C42.79 9.332 34.897 20.537 32 26.55v15.882c0-.338.13.044.41.867 1.512 4.456 7.418 21.847 20.923 7.944 7.111-7.32 3.819-14.64-9.125-16.85 7.405 1.264 15.73-.825 18.014-9.015C62.88 23.022 64 8.51 64 6.55c0-9.818-8.579-6.732-13.873-2.745z" />
-                </svg>
+            <div className="p-3 mb-2" onClick={() => navigate('/')}>
+                <ButterflyLogo className="w-8 h-8 text-primary-500 cursor-pointer" />
             </div>
 
             {/* Navigation */}

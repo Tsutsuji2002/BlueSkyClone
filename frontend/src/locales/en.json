@@ -2,6 +2,7 @@
     "nav": {
         "home": "Home",
         "explore": "Explore",
+        "trending": "Trending",
         "notifications": "Notifications",
         "messages": "Chat",
         "following": "Following",
@@ -225,7 +226,8 @@
         "from_followers": "People I follow",
         "setting_summary": "In-app, Push, Everyone",
         "setting_summary_simple": "In-app, Everyone",
-        "setting_summary_push": "In-app, Push"
+        "setting_summary_push": "In-app, Push",
+        "system_announcement": "System Announcement"
     },
     "appearance": {
         "title": "Appearance",
@@ -277,6 +279,17 @@
         "no_bookmarks": "No bookmarks yet",
         "create_post": "Write a post",
         "feed_by": "Feed by",
+        "feeds_coming_soon": "Feeds coming soon",
+        "user_not_found": "User not found",
+        "user_not_found_desc": "The user you're looking for doesn't exist or has been removed.",
+        "blocked_success": "User blocked",
+        "unblocked_success": "User unblocked",
+        "muted_success": "User muted",
+        "unmuted_success": "User unmuted",
+        "block": "Block",
+        "unblock": "Unblock",
+        "mute": "Mute",
+        "unmute": "Unmute",
         "edit_profile_title": "Edit Profile",
         "save_changes": "Save changes",
         "cancel": "Cancel",
@@ -334,7 +347,8 @@
         "interests": "Your interests",
         "interests_desc": "Your interests help us find what you like!",
         "edit_interests": "Edit interests",
-        "promoted": "Promoted"
+        "promoted": "Promoted",
+        "no_posts_found": "No trending posts found in the last 24 hours."
     },
     "lists": {
         "title": "Lists",
@@ -359,7 +373,36 @@
         "copy_link": "Copy link to list",
         "edit_list_details": "Edit list details",
         "delete_list": "Delete list",
-        "about_header": "About"
+        "add_people": "Add people",
+        "no_suggestions": "No suggestions found",
+        "confirm_leave": "Are you sure you want to leave this list?",
+        "confirm_remove_member": "Are you sure you want to remove this member?",
+        "remove_member": "Remove member",
+        "leave_list": "Leave list",
+        "my_lists": "My Lists",
+        "joined_lists": "Lists I'm on",
+        "no_joined_lists": "You haven't joined any lists yet.",
+        "search_placeholder": "Search users...",
+        "add": "Add",
+        "add_post": "Add Post",
+        "add_from_user": "Add post from user",
+        "select_post": "Select one of your posts",
+        "remove_from_list": "Remove from list",
+        "confirm_remove_post": "Remove this post from the list?",
+        "your_recent_posts": "Your recent posts",
+        "about_header": "About",
+        "loading": "Loading...",
+        "loading_posts": "Loading your posts...",
+        "no_posts_available": "No posts available to add",
+        "list_not_found": "List not found",
+        "list_by": "List by @{{handle}}",
+        "members_count": "{{count}} members",
+        "posts_count": "{{count}} posts",
+        "confirm_delete": "Are you sure you want to delete this list?",
+        "invited": "Invited",
+        "member": "Member",
+        "invitation_accepted": "Invitation accepted",
+        "invitation_rejected": "Invitation declined"
     },
     "saved": {
         "title": "Saved",
@@ -453,6 +496,7 @@
         "add_reaction": "Add reaction"
     },
     "common": {
+        "app_name": "BlueSky",
         "go_back": "Go back",
         "post": "Post",
         "post_verb": "Post",
@@ -479,7 +523,11 @@
         "hours_ago": "{{count}}h ago",
         "you": "You",
         "user": "User",
-        "post_not_found": "Post not found"
+        "post_not_found": "Post not found",
+        "go_home": "Go home",
+        "show_more": "Show more",
+        "show_less": "Show less",
+        "adding": "Adding..."
     },
     "post": {
         "title": "Post",
@@ -522,7 +570,9 @@
         "preview": "Post Preview",
         "created_success": "Post created successfully",
         "reply_success": "Reply posted successfully",
-        "loading": "Loading post..."
+        "loading": "Loading post...",
+        "view_full_post": "View full post",
+        "no_replies": "No replies yet"
     },
     "sidebar": {
         "trending": "Trending Topics",
@@ -718,6 +768,55 @@
             "no_results": "No interests found matching your search",
             "total_interests": "Total Interests",
             "filtered_results": "Filtered Results"
+        },
+        "lists": {
+            "title": "List Management",
+            "desc": "Manage user lists",
+            "create_btn": "Create List",
+            "search_placeholder": "Search lists...",
+            "name_header": "Name",
+            "owner_header": "Owner",
+            "members_header": "Members",
+            "created_at_header": "Created At",
+            "actions_header": "Actions",
+            "delete_confirm": "Are you sure you want to delete this list?"
+        },
+        "conversations": {
+            "title": "Conversation Management",
+            "desc": "Manage direct messages and groups",
+            "search_placeholder": "Search conversations...",
+            "participants_header": "Participants",
+            "last_message_header": "Last Message",
+            "updated_at_header": "Updated At",
+            "actions_header": "Actions",
+            "delete_confirm": "Are you sure you want to delete this conversation?",
+            "showing_range": "Showing {{start}} to {{end}} of {{total}} conversations"
+        },
+        "moderation": {
+            "title": "Content Moderation",
+            "desc": "Review reports and manage blocks/mutes",
+            "blocks_tab": "Blocks",
+            "mutes_tab": "Mutes",
+            "reports_tab": "Reports",
+            "search_placeholder": "Search users...",
+            "user_header": "User",
+            "target_header": "Target",
+            "reason_header": "Reason",
+            "date_header": "Date",
+            "actions_header": "Actions",
+            "lift_block_btn": "Lift Block",
+            "unmute_btn": "Unmute"
+        },
+        "notifications": {
+            "title": "Notification Broadcast",
+            "desc": "Send system-wide notifications",
+            "create_btn": "New Broadcast",
+            "history_title": "Broadcast History",
+            "message_label": "Message",
+            "type_label": "Type",
+            "target_audience_label": "Target Audience",
+            "send_btn": "Send Notification",
+            "sent_success": "Notification sent successfully"
         }
     }
 }

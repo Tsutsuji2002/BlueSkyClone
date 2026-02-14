@@ -36,6 +36,9 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<LinkPreview> LinkPreviews => _linkPreviews ??= new Repository<LinkPreview>(_context);
     public IRepository<MessageReaction> MessageReactions => _messageReactions ??= new Repository<MessageReaction>(_context);
 
+    public IRepository<ListPost> ListPosts => _listPosts ??= new Repository<ListPost>(_context);
+    public IRepository<Interest> Interests => _interests ??= new Repository<Interest>(_context);
+
     private IBlockRepository? _blocks;
     private IMuteRepository? _mutes;
     private IConversationRepository? _conversations;
@@ -49,6 +52,8 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<UserListSubscription>? _userListSubscriptions;
     private IRepository<LinkPreview>? _linkPreviews;
     private IRepository<MessageReaction>? _messageReactions;
+    private IRepository<ListPost>? _listPosts;
+    private IRepository<Interest>? _interests;
 
     public async Task<int> CompleteAsync()
     {

@@ -14,12 +14,14 @@ public class UserService : IUserService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;
     private readonly IHubContext<ChatHub> _hubContext;
+    private readonly ICacheService _cacheService;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _hubContext = hubContext;
+        _cacheService = cacheService;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
@@ -142,11 +144,74 @@ public class UserService : IUserService
         return user;
     }
 
+    public async Task<UserSetting> UpdateSettingsAsync(Guid userId, UserSettingDto request)
+    {
+        var user = await _unitOfWork.Users.Query()
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null) throw new Exception("User not found");
+
+        if (user.UserSetting == null)
+        {
+            user.UserSetting = new UserSetting { UserId = userId };
+        }
+
+        var s = user.UserSetting;
+        if (request.AdultContentFilter != null) s.AdultContentFilter = request.AdultContentFilter;
+        if (request.EnableAdultContent != null) s.EnableAdultContent = request.EnableAdultContent;
+        if (request.SortReplies != null) s.SortReplies = request.SortReplies;
+        if (request.RequireAltText != null) s.RequireAltText = request.RequireAltText;
+        if (request.AutoplayVideoGif != null) s.AutoplayVideoGif = request.AutoplayVideoGif;
+        if (request.AppLanguage != null) s.AppLanguage = request.AppLanguage;
+        if (request.ThemeMode != null) s.ThemeMode = request.ThemeMode;
+        if (request.FontSize != null) s.FontSize = request.FontSize;
+
+        // Notification toggles
+        if (request.NotifyLikes != null) s.NotifyLikes = request.NotifyLikes;
+        if (request.NotifyFollowers != null) s.NotifyFollowers = request.NotifyFollowers;
+        if (request.NotifyReplies != null) s.NotifyReplies = request.NotifyReplies;
+        if (request.NotifyMentions != null) s.NotifyMentions = request.NotifyMentions;
+        if (request.NotifyQuotes != null) s.NotifyQuotes = request.NotifyQuotes;
+        if (request.NotifyReposts != null) s.NotifyReposts = request.NotifyReposts;
+
+        // Push
+        if (request.PushNotifyLikes != null) s.PushNotifyLikes = request.PushNotifyLikes;
+        if (request.PushNotifyFollowers != null) s.PushNotifyFollowers = request.PushNotifyFollowers;
+        if (request.PushNotifyReplies != null) s.PushNotifyReplies = request.PushNotifyReplies;
+        if (request.PushNotifyMentions != null) s.PushNotifyMentions = request.PushNotifyMentions;
+        if (request.PushNotifyQuotes != null) s.PushNotifyQuotes = request.PushNotifyQuotes;
+        if (request.PushNotifyReposts != null) s.PushNotifyReposts = request.PushNotifyReposts;
+
+        // In-App
+        if (request.InAppNotifyLikes != null) s.InAppNotifyLikes = request.InAppNotifyLikes;
+        if (request.InAppNotifyFollowers != null) s.InAppNotifyFollowers = request.InAppNotifyFollowers;
+        if (request.InAppNotifyReplies != null) s.InAppNotifyReplies = request.InAppNotifyReplies;
+        if (request.InAppNotifyMentions != null) s.InAppNotifyMentions = request.InAppNotifyMentions;
+        if (request.InAppNotifyQuotes != null) s.InAppNotifyQuotes = request.InAppNotifyQuotes;
+        if (request.InAppNotifyReposts != null) s.InAppNotifyReposts = request.InAppNotifyReposts;
+
+        if (request.DefaultReplyRestriction != null) s.DefaultReplyRestriction = request.DefaultReplyRestriction;
+        if (request.DefaultAllowQuotes != null) s.DefaultAllowQuotes = request.DefaultAllowQuotes;
+
+        await _unitOfWork.CompleteAsync();
+        return s;
+    }
+
+
     public async Task<bool> FollowUserAsync(Guid followerId, Guid followingId)
     {
         if (followerId == followingId) return false;
 
-        var existing = await _unitOfWork.Follows.GetAsync(followerId, followingId);
+        var lockKey = $"lock:follow:{followerId}:{followingId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        {
+            return false;
+        }
+
+        try
+        {
+            var existing = await _unitOfWork.Follows.GetAsync(followerId, followingId);
         if (existing != null) return true;
 
         var follower = await _unitOfWork.Users.GetByIdAsync(followerId);
@@ -210,6 +275,9 @@ public class UserService : IUserService
                     savedNotification.Sender.PostsCount
                 ),
                 savedNotification.PostId,
+                savedNotification.ListId,
+                savedNotification.Title,
+                savedNotification.Content,
                 savedNotification.IsRead ?? false,
                 DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
             );
@@ -220,6 +288,11 @@ public class UserService : IUserService
 
         return true;
     }
+    finally
+    {
+        await _cacheService.ReleaseLockAsync(lockKey);
+    }
+}
 
     public async Task<bool> UnfollowUserAsync(Guid followerId, Guid followingId)
     {
@@ -279,7 +352,15 @@ public class UserService : IUserService
     {
         if (userId == blockedUserId) return false;
 
-        // Check if already blocked
+        var lockKey = $"lock:block:{userId}:{blockedUserId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        {
+            return false;
+        }
+
+        try
+        {
+            // Check if already blocked
         if (await _unitOfWork.Blocks.IsBlockedAsync(userId, blockedUserId)) return true;
 
         // Create Block
@@ -297,16 +378,34 @@ public class UserService : IUserService
 
         await _unitOfWork.CompleteAsync();
         return true;
+        }
+        finally
+        {
+            await _cacheService.ReleaseLockAsync(lockKey);
+        }
     }
 
     public async Task<bool> UnblockUserAsync(Guid userId, Guid blockedUserId)
     {
-        var block = await _unitOfWork.Blocks.GetAsync(userId, blockedUserId);
+        var lockKey = $"lock:unblock:{userId}:{blockedUserId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        {
+            return false;
+        }
+
+        try
+        {
+            var block = await _unitOfWork.Blocks.GetAsync(userId, blockedUserId);
         if (block == null) return true;
 
         _unitOfWork.Blocks.Remove(block);
         await _unitOfWork.CompleteAsync();
         return true;
+        }
+        finally
+        {
+            await _cacheService.ReleaseLockAsync(lockKey);
+        }
     }
 
     public async Task<bool> IsBlockedAsync(Guid userId, Guid potentialBlockedUserId)
@@ -323,28 +422,54 @@ public class UserService : IUserService
     {
         if (userId == mutedUserId) return false;
 
-        if (await _unitOfWork.Mutes.IsMutedAsync(userId, mutedUserId)) return true;
-
-        var mute = new MutedAccount
+        var lockKey = $"lock:mute:{userId}:{mutedUserId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
         {
-            UserId = userId,
-            MutedUserId = mutedUserId,
-            CreatedAt = DateTime.UtcNow
-        };
+            return false;
+        }
 
-        await _unitOfWork.Mutes.AddAsync(mute);
-        await _unitOfWork.CompleteAsync();
-        return true;
+        try
+        {
+            if (await _unitOfWork.Mutes.IsMutedAsync(userId, mutedUserId)) return true;
+
+            var mute = new MutedAccount
+            {
+                UserId = userId,
+                MutedUserId = mutedUserId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.Mutes.AddAsync(mute);
+            await _unitOfWork.CompleteAsync();
+            return true;
+        }
+        finally
+        {
+            await _cacheService.ReleaseLockAsync(lockKey);
+        }
     }
 
     public async Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId)
     {
-        var mute = await _unitOfWork.Mutes.GetAsync(userId, mutedUserId);
-        if (mute == null) return true;
+        var lockKey = $"lock:unmute:{userId}:{mutedUserId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        {
+            return false;
+        }
 
-        _unitOfWork.Mutes.Remove(mute);
-        await _unitOfWork.CompleteAsync();
-        return true;
+        try
+        {
+            var mute = await _unitOfWork.Mutes.GetAsync(userId, mutedUserId);
+            if (mute == null) return true;
+
+            _unitOfWork.Mutes.Remove(mute);
+            await _unitOfWork.CompleteAsync();
+            return true;
+        }
+        finally
+        {
+            await _cacheService.ReleaseLockAsync(lockKey);
+        }
     }
 
     public async Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId)

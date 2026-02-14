@@ -28,7 +28,6 @@ export const PROFILE_TABS = [
     { id: 'likes', label: 'nav.likes' },
     { id: 'feeds', label: 'nav.feeds' },
     { id: 'lists', label: 'nav.lists' },
-    { id: 'bookmarks', label: 'nav.bookmarks' },
 ];
 
 // Theme colors

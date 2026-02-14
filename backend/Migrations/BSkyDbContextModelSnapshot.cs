@@ -308,6 +308,11 @@ namespace BSkyClone.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsCurated")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<bool?>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -354,6 +359,41 @@ namespace BSkyClone.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ListMembers");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.ListPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("(newsequentialid())");
+
+                    b.Property<DateTime>("AddedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<Guid>("AddedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Caption")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ListId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddedByUserId");
+
+                    b.HasIndex("ListId");
+
+                    b.HasIndex("PostId");
+
+                    b.ToTable("ListPosts");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Message", b =>
@@ -958,6 +998,36 @@ namespace BSkyClone.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(15);
 
+                    b.Property<bool?>("InAppNotifyFollowers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyLikes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyMentions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyQuotes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyReplies")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<bool?>("NotifyFollowers")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -968,7 +1038,52 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("NotifyMentions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("NotifyQuotes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<bool?>("NotifyReplies")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("NotifyReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyFollowers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyLikes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyMentions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyQuotes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyReplies")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyReposts")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
@@ -1179,6 +1294,33 @@ namespace BSkyClone.Migrations
                     b.Navigation("List");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.ListPost", b =>
+                {
+                    b.HasOne("BSkyClone.Models.User", "AddedByUser")
+                        .WithMany()
+                        .HasForeignKey("AddedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("BSkyClone.Models.List", "List")
+                        .WithMany("ListPosts")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BSkyClone.Models.Post", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("AddedByUser");
+
+                    b.Navigation("List");
+
+                    b.Navigation("Post");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Message", b =>
@@ -1471,6 +1613,8 @@ namespace BSkyClone.Migrations
             modelBuilder.Entity("BSkyClone.Models.List", b =>
                 {
                     b.Navigation("ListMembers");
+
+                    b.Navigation("ListPosts");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Message", b =>

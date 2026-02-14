@@ -21,7 +21,7 @@ const SavedPage: React.FC = () => {
     }, [dispatch]);
 
     return (
-        <MainLayout>
+        <MainLayout title={t('saved.title')}>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
                     <div className="p-4">

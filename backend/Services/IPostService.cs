@@ -1,4 +1,5 @@
 using BSkyClone.DTOs;
+using BSkyClone.Models;
 
 namespace BSkyClone.Services;
 
@@ -14,5 +15,7 @@ public interface IPostService
     Task<object> ToggleRepostAsync(Guid userId, Guid postId);
     Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null);
     Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null);
+    Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50);
     Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId);
+    PostDto MapToDto(Post post);
 }

@@ -1,0 +1,19 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+C:\Projects\BlueSky\backend\Services\UserService.cs(258,39): error CS7036: There is no argument given that corresponds to the required parameter 'CreatedAt' of 'NotificationDto.NotificationDto(Guid, string, UserDto, Guid?, Guid?, string?, string?, bool, DateTime)' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ListService.cs(168,81): error CS1061: 'IClientProxy' does not contain a definition for 'SendAsync' and no accessible extension method 'SendAsync' accepting a first argument of type 'IClientProxy' could be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ListService.cs(517,29): warning CS8602: Dereference of a possibly null reference. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(750,39): error CS7036: There is no argument given that corresponds to the required parameter 'CreatedAt' of 'NotificationDto.NotificationDto(Guid, string, UserDto, Guid?, Guid?, string?, string?, bool, DateTime)' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+
+Build FAILED.
+
+C:\Projects\BlueSky\backend\Services\ListService.cs(517,29): warning CS8602: Dereference of a possibly null reference. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\UserService.cs(258,39): error CS7036: There is no argument given that corresponds to the required parameter 'CreatedAt' of 'NotificationDto.NotificationDto(Guid, string, UserDto, Guid?, Guid?, string?, string?, bool, DateTime)' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ListService.cs(168,81): error CS1061: 'IClientProxy' does not contain a definition for 'SendAsync' and no accessible extension method 'SendAsync' accepting a first argument of type 'IClientProxy' could be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(750,39): error CS7036: There is no argument given that corresponds to the required parameter 'CreatedAt' of 'NotificationDto.NotificationDto(Guid, string, UserDto, Guid?, Guid?, string?, string?, bool, DateTime)' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+    1 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:08.56
+
+Workload updates are available. Run `dotnet workload list` for more information.

@@ -7,7 +7,10 @@ services:
       - DOTNET_USE_POLLING_FILE_WATCHER=1
     volumes:
       - ./backend:/src
-    command: dotnet watch run --project BSkyClone.csproj --urls http://0.0.0.0:8080
+      - /src/bin
+      - /src/obj
+      - ./backend/wwwroot/uploads:/src/wwwroot/uploads
+    command: dotnet run --project BSkyClone.csproj --urls http://0.0.0.0:8080
 
   frontend:
     build:

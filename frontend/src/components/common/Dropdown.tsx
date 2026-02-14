@@ -30,7 +30,7 @@ const Dropdown: React.FC<DropdownProps> = ({
     const dropdownRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const updateCoords = () => {
+    const updateCoords = React.useCallback(() => {
         if (dropdownRef.current) {
             const rect = dropdownRef.current.getBoundingClientRect();
             setCoords({
@@ -50,7 +50,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                 setOpenUpwards(false);
             }
         }
-    };
+    }, [items.length]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -75,7 +75,7 @@ const Dropdown: React.FC<DropdownProps> = ({
             window.removeEventListener('resize', updateCoords);
             window.removeEventListener('scroll', updateCoords, true);
         };
-    }, [isOpen, items.length]);
+    }, [isOpen, updateCoords]);
 
     const getAlignmentStyles = (): React.CSSProperties => {
         const menuWidth = 256; // Matching 'w-64'

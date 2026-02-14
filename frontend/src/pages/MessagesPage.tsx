@@ -9,7 +9,6 @@ import IconButton from '../components/common/IconButton';
 import { FiSettings, FiMail, FiSearch, FiMenu } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
-import Avatar from '../components/common/Avatar';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 
@@ -40,7 +39,7 @@ const MessagesPage: React.FC = () => {
     });
 
     return (
-        <MainLayout hideTopBar={true}>
+        <MainLayout hideTopBar={true} title={t('messages.title')}>
             <div className="min-h-screen flex flex-col border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">

@@ -23,5 +23,7 @@ public interface IUnitOfWork : IDisposable
     IRepository<UserListSubscription> UserListSubscriptions { get; }
     IRepository<LinkPreview> LinkPreviews { get; }
     IRepository<MessageReaction> MessageReactions { get; }
+    IRepository<ListPost> ListPosts { get; }
+    IRepository<Interest> Interests { get; }
     Task<int> CompleteAsync();
 }

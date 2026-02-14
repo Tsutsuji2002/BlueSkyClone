@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import MainLayout from '../components/layout/MainLayout';
 import {
     FiArrowLeft, FiSettings, FiPlus, FiSearch, FiRss,
-    FiChevronRight, FiGrid, FiCheck, FiMinus, FiMenu, FiActivity, FiMapPin
+    FiChevronRight, FiGrid, FiCheck, FiMenu, FiActivity, FiMapPin
 } from 'react-icons/fi';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
@@ -30,16 +30,14 @@ const FeedsPage: React.FC = () => {
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
     const [showMorePinned, setShowMorePinned] = useState(false);
-    const [page, setPage] = useState(0);
 
     const {
         subscribedFeeds,
         searchResults,
-        searchLoading,
-        hasMoreSearch,
-        recommendedFeeds // New state
+
+        recommendedFeeds,
+        actionLoading
     } = useAppSelector((state: RootState) => state.feeds);
-    const { user } = useAppSelector((state: RootState) => state.auth);
 
 
     useEffect(() => {
@@ -51,19 +49,12 @@ const FeedsPage: React.FC = () => {
         if (searchQuery.length > 2) {
             const delayDebounceFn = setTimeout(() => {
                 dispatch(searchFeeds({ query: searchQuery, skip: 0, take: 10 }));
-                setPage(0);
             }, 500);
             return () => clearTimeout(delayDebounceFn);
         }
     }, [searchQuery, dispatch]);
 
-    const handleLoadMore = () => {
-        const nextSkip = (page + 1) * 10;
-        dispatch(searchFeeds({ query: searchQuery, skip: nextSkip, take: 10 }));
-        setPage(page + 1);
-    };
 
-    const displayPinned = showMorePinned ? subscribedFeeds : subscribedFeeds.slice(0, 5);
 
     const handlePinToggle = async (e: React.MouseEvent, feed: Feed) => {
         e.stopPropagation();
@@ -87,7 +78,7 @@ const FeedsPage: React.FC = () => {
     };
 
     return (
-        <MainLayout hideTopBar={true}>
+        <MainLayout hideTopBar={true} title={t('feeds.title')}>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
@@ -145,8 +136,9 @@ const FeedsPage: React.FC = () => {
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
+                                            disabled={actionLoading[feed.id]}
                                             className={cn(
-                                                "p-2 rounded-full transition-colors",
+                                                "p-2 rounded-full transition-colors disabled:opacity-50",
                                                 feed.isPinned ? "text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
                                             )}
                                         >
@@ -246,8 +238,9 @@ const FeedsPage: React.FC = () => {
                                         </div>
                                         <button
                                             onClick={(e: React.MouseEvent) => handleSaveToggle(e, feed)}
+                                            disabled={actionLoading[feed.id]}
                                             className={cn(
-                                                "p-2 rounded-full transition-colors",
+                                                "p-2 rounded-full transition-colors disabled:opacity-50",
                                                 feed.isSubscribed ? "text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
                                             )}
                                         >

@@ -4,24 +4,22 @@ import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
-import { FiSearch, FiX, FiPlus, FiChevronRight, FiGrid, FiAtSign, FiMenu, FiCheck } from 'react-icons/fi';
+import { FiSearch, FiX, FiPlus, FiGrid, FiMenu, FiCheck } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { cn } from '../utils/classNames';
-import { Feed, TrendingAccount } from '../types';
-import Avatar from '../components/common/Avatar';
+import { Feed } from '../types';
 import FeedAvatar from '../components/common/FeedAvatar';
-import Button from '../components/common/Button';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { fetchTrending, fetchInterestsList } from '../redux/slices/trendingSlice';
-import { fetchTrendingFeeds, pinFeed, unpinFeed, saveFeed, unsaveFeed, fetchSubscribedFeeds } from '../redux/slices/feedsSlice';
+import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds } from '../redux/slices/feedsSlice';
 
 const ExplorePage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { topics, accounts, interests } = useAppSelector((state: RootState) => state.trending);
-    const { feeds, subscribedFeeds } = useAppSelector((state: RootState) => state.feeds);
+    const { accounts, interests } = useAppSelector((state: RootState) => state.trending);
+    const { feeds } = useAppSelector((state: RootState) => state.feeds);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
@@ -57,7 +55,7 @@ const ExplorePage: React.FC = () => {
     };
 
     return (
-        <MainLayout hideTopBar={true}>
+        <MainLayout hideTopBar={true} title={t('nav.explore')}>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-4">
@@ -125,6 +123,17 @@ const ExplorePage: React.FC = () => {
 
                     {/* Trending Section */}
                     <section className="flex flex-col">
+                        <div className="flex items-center justify-between px-2 mb-2">
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text mt-2">{t('nav.trending')}</h2>
+                            {feeds.find(f => f.name === 'Trending') && (
+                                <button
+                                    onClick={() => navigate(`/feeds/${feeds.find(f => f.name === 'Trending')?.id}`)}
+                                    className="text-primary-500 hover:underline text-sm font-bold mt-2"
+                                >
+                                    {t('common.show_more')}
+                                </button>
+                            )}
+                        </div>
                         {accounts.length === 0 ? (
                             <LoadingIndicator text={t('explore.loading_accounts', { defaultValue: 'Loading trending accounts...' })} />
                         ) : accounts.map((item, index) => (

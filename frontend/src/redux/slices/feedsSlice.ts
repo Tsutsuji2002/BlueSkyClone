@@ -15,6 +15,7 @@ interface FeedsState {
     searchLoading: boolean;
     error: string | null;
     hasMoreSearch: boolean;
+    actionLoading: Record<string, boolean>;
 }
 
 const initialState: FeedsState = {
@@ -30,6 +31,7 @@ const initialState: FeedsState = {
     searchLoading: false,
     error: null,
     hasMoreSearch: true,
+    actionLoading: {},
 };
 
 export const fetchTrendingFeeds = createAsyncThunk<
@@ -107,7 +109,8 @@ export const saveFeed = createAsyncThunk<
     { rejectValue: string }
 >(
     'feeds/save',
-    async (feedId: string, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async (feedId: string, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
+        console.log('saveFeed thunk started for:', feedId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/save/${feedId}`, {
@@ -129,7 +132,8 @@ export const unsaveFeed = createAsyncThunk<
     { rejectValue: string }
 >(
     'feeds/unsave',
-    async (feedId: string, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async (feedId: string, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
+        console.log('unsaveFeed thunk started for:', feedId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/unsave/${feedId}`, {
@@ -151,7 +155,8 @@ export const pinFeed = createAsyncThunk<
     { rejectValue: string }
 >(
     'feeds/pin',
-    async (feedId: string, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async (feedId: string, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
+        console.log('pinFeed thunk started for:', feedId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/pin/${feedId}`, {
@@ -173,7 +178,8 @@ export const unpinFeed = createAsyncThunk<
     { rejectValue: string }
 >(
     'feeds/unpin',
-    async (feedId: string, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async (feedId: string, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
+        console.log('unpinFeed thunk started for:', feedId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/unpin/${feedId}`, {
@@ -349,9 +355,13 @@ const feedsSlice = createSlice({
                 state.searchResults = action.payload;
                 state.hasMoreSearch = action.payload.length === 10;
             })
+            .addCase(pinFeed.pending, (state: FeedsState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(pinFeed.fulfilled, (state: FeedsState, action: any) => {
                 state.isLoading = false;
                 const feedId = action.meta.arg;
+                state.actionLoading[feedId] = false;
 
                 const updateInList = (list: Feed[]) => {
                     const f = list.find(x => x.id === feedId);
@@ -383,9 +393,16 @@ const feedsSlice = createSlice({
                     state.pinnedFeedIds.push(feedId);
                 }
             })
+            .addCase(pinFeed.rejected, (state: FeedsState, action: any) => {
+                state.actionLoading[action.meta.arg] = false;
+            })
+            .addCase(unpinFeed.pending, (state: FeedsState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(unpinFeed.fulfilled, (state: FeedsState, action: any) => {
                 state.isLoading = false;
                 const feedId = action.meta.arg;
+                state.actionLoading[feedId] = false;
 
                 const updateInList = (list: Feed[]) => {
                     const f = list.find(x => x.id === feedId);
@@ -401,8 +418,15 @@ const feedsSlice = createSlice({
 
                 state.pinnedFeedIds = state.pinnedFeedIds.filter(id => id !== feedId);
             })
+            .addCase(unpinFeed.rejected, (state: FeedsState, action: any) => {
+                state.actionLoading[action.meta.arg] = false;
+            })
+            .addCase(saveFeed.pending, (state: FeedsState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(saveFeed.fulfilled, (state: FeedsState, action: any) => {
                 const feedId = action.meta.arg;
+                state.actionLoading[feedId] = false;
                 const sourceFeed = state.searchResults.find(f => f.id === feedId) ||
                     state.recommendedFeeds.find(f => f.id === feedId);
 
@@ -413,8 +437,15 @@ const feedsSlice = createSlice({
                     }
                 }
             })
+            .addCase(saveFeed.rejected, (state: FeedsState, action: any) => {
+                state.actionLoading[action.meta.arg] = false;
+            })
+            .addCase(unsaveFeed.pending, (state: FeedsState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(unsaveFeed.fulfilled, (state: FeedsState, action: any) => {
                 const feedId = action.meta.arg;
+                state.actionLoading[feedId] = false;
                 const findAndUpdate = (list: Feed[]) => {
                     const f = list.find(x => x.id === feedId);
                     if (f) {
@@ -426,6 +457,9 @@ const feedsSlice = createSlice({
                 findAndUpdate(state.recommendedFeeds);
                 state.subscribedFeeds = state.subscribedFeeds.filter(f => f.id !== feedId);
                 state.pinnedFeedIds = state.pinnedFeedIds.filter(id => id !== feedId);
+            })
+            .addCase(unsaveFeed.rejected, (state: FeedsState, action: any) => {
+                state.actionLoading[action.meta.arg] = false;
             })
             .addCase(fetchFeedPosts.pending, (state: FeedsState) => {
                 state.isLoading = true;

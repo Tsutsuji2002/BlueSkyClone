@@ -6,14 +6,18 @@ import BottomNav from './BottomNav';
 import MobileCreateButton from './MobileCreateButton';
 import MobileMenu from './MobileMenu';
 import { cn } from '../../utils/classNames';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 interface MainLayoutProps {
     children: React.ReactNode;
     hideTopBar?: boolean;
     hideBottomNav?: boolean;
+    title?: string;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, hideBottomNav = false }) => {
+const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, hideBottomNav = false, title }) => {
+    useDocumentTitle(title || '');
+
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">
             {/* Mobile Top Bar */}

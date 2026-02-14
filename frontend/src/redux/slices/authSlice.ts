@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AuthState, User, UserSettings, LoginFormData, SignUpFormData } from '../../types';
+import { isTokenExpired } from '../../utils/authUtils';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -55,10 +56,15 @@ export const signUp = createAsyncThunk(
 
 export const getMe = createAsyncThunk(
     'auth/getMe',
-    async (_, { rejectWithValue }) => {
+    async (_, { rejectWithValue, dispatch }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return rejectWithValue('No token found');
+
+            if (isTokenExpired(token)) {
+                dispatch(logoutAsync());
+                return rejectWithValue('Token expired');
+            }
 
             const response = await fetch(`${API_URL}/auth/me`, {
                 method: 'GET',
@@ -152,6 +158,31 @@ export const updateUserAccount = createAsyncThunk(
         }
     }
 );
+
+export const updateNotificationSettings = createAsyncThunk(
+    'auth/updateSettings',
+    async (settings: Partial<UserSettings>, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/user/settings`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return rejectWithValue(data.message || 'Update failed');
+            }
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
 
 const authSlice = createSlice({
     name: 'auth',
@@ -267,6 +298,10 @@ const authSlice = createSlice({
             .addCase(updateUserAccount.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+            })
+            // Update Settings
+            .addCase(updateNotificationSettings.fulfilled, (state, action: PayloadAction<UserSettings>) => {
+                state.settings = { ...state.settings, ...action.payload } as UserSettings;
             });
     },
 });

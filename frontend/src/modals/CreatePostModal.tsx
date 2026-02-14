@@ -26,6 +26,7 @@ const CreatePostModal: React.FC = () => {
     const { t } = useTranslation();
     const isOpen = useAppSelector((state) => state.modals.createPost);
     const user = useAppSelector((state) => state.auth.user);
+    const isPostLoading = useAppSelector((state) => state.posts.isLoading);
 
     const [content, setContent] = useState('');
     const [images, setImages] = useState<PostImage[]>([]);
@@ -190,7 +191,7 @@ const CreatePostModal: React.FC = () => {
     };
 
     const handleSubmit = async () => {
-        if ((!content.trim() && images.length === 0) || !user) return;
+        if (isPostLoading || (!content.trim() && images.length === 0 && !video) || !user) return;
 
         const formData = new FormData();
         formData.append('Content', content);
@@ -303,10 +304,15 @@ const CreatePostModal: React.FC = () => {
                                 variant="primary"
                                 size="sm"
                                 onClick={handleSubmit}
-                                disabled={(!content.trim() && images.length === 0 && !video) || isOverLimit}
+                                disabled={(!content.trim() && images.length === 0 && !video) || isOverLimit || isPostLoading}
                                 className="rounded-full px-6 py-1.5 font-bold"
                             >
-                                {t('common.post_verb')}
+                                {isPostLoading ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>{t('common.posting', 'Posting...')}</span>
+                                    </div>
+                                ) : t('common.post_verb')}
                             </Button>
                         </div>
                     </div>

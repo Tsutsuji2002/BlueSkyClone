@@ -5,7 +5,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post } from '../types';
 import { toggleLike, repostPost, bookmarkPost, deletePost, fetchPostById, fetchPostReplies } from '../redux/slices/postsSlice';
-import { openImageViewer, openReply, openMobileMenu } from '../redux/slices/modalsSlice';
+import { openReply, openMobileMenu } from '../redux/slices/modalsSlice';
 import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -56,6 +56,8 @@ const PostDetailPage: React.FC = () => {
 
     const posts = useAppSelector((state: RootState) => state.posts.posts);
     const isLoading = useAppSelector((state: RootState) => state.posts.isLoading);
+    const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
+    const userActionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const post = posts.find((p: Post) => p.id === postId);
     const replies = [...posts.filter((p: Post) => p.replyToPostId === postId)].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -128,17 +130,7 @@ const PostDetailPage: React.FC = () => {
         }
     };
 
-    const handleImageClick = (index: number) => {
-        const baseMedia = post.imageUrls || post.images?.map((img: any) => img.url) || [];
-        const imagesToView = post.videoUrl ? [post.videoUrl, ...baseMedia] : baseMedia;
 
-        if (imagesToView.length > 0) {
-            dispatch(openImageViewer({
-                images: imagesToView,
-                index
-            }));
-        }
-    };
 
     const shareDropdownItems: DropdownItem[] = [
         {
@@ -258,7 +250,7 @@ const PostDetailPage: React.FC = () => {
     };
 
     return (
-        <MainLayout hideTopBar={true}>
+        <MainLayout hideTopBar={true} title={post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content}>
             <div className="min-h-screen">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
@@ -332,8 +324,9 @@ const PostDetailPage: React.FC = () => {
                         {currentUser?.id !== post.author.id && (
                             <button
                                 onClick={handleFollowToggle}
+                                disabled={userActionLoading[post.author.id]}
                                 className={cn(
-                                    "px-4 py-1.5 rounded-full text-sm font-bold transition-opacity flex items-center gap-1",
+                                    "px-4 py-1.5 rounded-full text-sm font-bold transition-opacity flex items-center gap-1 disabled:opacity-50",
                                     post.author.isFollowing
                                         ? "bg-gray-200 dark:bg-dark-surface text-gray-900 dark:text-dark-text hover:bg-gray-300 dark:hover:bg-dark-surface/80"
                                         : "bg-gray-900 dark:bg-dark-text text-white dark:text-dark-bg hover:opacity-90"
@@ -342,7 +335,7 @@ const PostDetailPage: React.FC = () => {
                                 {post.author.isFollowing ? (
                                     <>
                                         <FiCheck size={16} />
-                                        {t('profile.following_btn', { defaultValue: 'Following' })}
+                                        {t('profile.following_btn')}
                                     </>
                                 ) : (
                                     <>
@@ -367,7 +360,10 @@ const PostDetailPage: React.FC = () => {
                             imageUrls={post.imageUrls}
                             video={post.video}
                             videoUrl={post.videoUrl}
-                            onImageClick={(index) => handleImageClick(index)}
+                            isDetailView={true}
+                            onImageClick={(index: number) => {
+                                navigate(`/profile/${post.author.handle}/post/${post.id}/media/${index}`);
+                            }}
                         />
                     </div>
 
@@ -423,16 +419,19 @@ const PostDetailPage: React.FC = () => {
                         <IconButton
                             icon={<FiRepeat size={22} className={post.isReposted ? 'text-primary-500' : ''} />}
                             onClick={handleRepost}
+                            disabled={actionLoading[post.id]}
                             variant="default"
                         />
                         <IconButton
                             icon={<FiHeart size={22} className={post.isLiked ? 'fill-red-500 text-red-500' : ''} />}
                             onClick={handleLike}
+                            disabled={actionLoading[post.id]}
                             variant="default"
                         />
                         <IconButton
                             icon={<FiBookmark size={22} className={post.isBookmarked ? 'fill-primary-500 text-primary-500' : ''} />}
                             onClick={handleBookmark}
+                            disabled={actionLoading[post.id]}
                             variant="default"
                         />
                         <Dropdown

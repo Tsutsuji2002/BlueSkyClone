@@ -1,39 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
-import { FiUsers, FiActivity, FiCpu, FiTrendingUp, FiMessageSquare } from 'react-icons/fi';
+import { FiUsers, FiActivity, FiCpu, FiTrendingUp, FiMessageSquare, FiList, FiMessageCircle, FiBell } from 'react-icons/fi';
 import { RootState } from '../../redux/store';
-import { API_BASE_URL } from '../../constants';
+import { adminService } from '../../services/adminService';
+import { AdminStats } from '../../types/admin';
 
 const AdminDashboardPage: React.FC = () => {
     const { t } = useTranslation();
-    const dispatch = useAppDispatch();
     const { user } = useAppSelector((state: RootState) => state.auth);
-    const [stats, setStats] = useState({
+    const [stats, setStats] = useState<AdminStats>({
         totalUsers: 0,
         totalPosts: 0,
         totalFeeds: 0,
         activeUsersToday: 0,
         newPostsToday: 0,
-        bannedUsers: 0
+        bannedUsers: 0,
+        totalLists: 0,
+        totalConversations: 0,
+        totalNotifications: 0
     });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${API_BASE_URL}/admin/stats`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    setStats(data);
-                }
+                const data = await adminService.getStats();
+                setStats(data);
             } catch (error) {
                 console.error('Failed to fetch admin stats:', error);
             } finally {
@@ -79,6 +72,27 @@ const AdminDashboardPage: React.FC = () => {
             icon: FiCpu,
             color: 'bg-indigo-500',
             change: '+5%'
+        },
+        {
+            title: t('admin.stats.total_lists', 'Total Lists'),
+            value: stats.totalLists,
+            icon: FiList,
+            color: 'bg-pink-500',
+            change: '+10%'
+        },
+        {
+            title: t('admin.stats.total_conversations', 'Conversations'),
+            value: stats.totalConversations,
+            icon: FiMessageCircle,
+            color: 'bg-teal-500',
+            change: '+7%'
+        },
+        {
+            title: t('admin.stats.total_notifications', 'Notifications Sent'),
+            value: stats.totalNotifications,
+            icon: FiBell,
+            color: 'bg-yellow-500',
+            change: '+30%'
         },
         {
             title: t('admin.stats.banned_users'),

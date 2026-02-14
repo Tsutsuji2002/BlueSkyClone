@@ -46,6 +46,22 @@ public class ListsController : ControllerBase
         return Ok(lists);
     }
 
+    [HttpGet("member")]
+    public async Task<IActionResult> GetListsIAmOn()
+    {
+        var userId = GetUserId();
+        var lists = await _listService.GetListsIAmOnAsync(userId);
+        return Ok(lists);
+    }
+
+    [HttpGet("user/{userId}")]
+    public async Task<IActionResult> GetUserLists(Guid userId)
+    {
+        var viewerId = GetUserId();
+        var lists = await _listService.GetUserListsAsync(userId, viewerId);
+        return Ok(lists);
+    }
+
     [HttpGet("pinned")]
     public async Task<IActionResult> GetPinnedLists()
     {
@@ -104,10 +120,10 @@ public class ListsController : ControllerBase
     }
 
     [HttpGet("{id}/feed")]
-    public async Task<IActionResult> GetListFeed(Guid id)
+    public async Task<IActionResult> GetListFeed(Guid id, [FromQuery] int limit = 50, [FromQuery] int offset = 0)
     {
         var userId = GetUserId();
-        var posts = await _listService.GetListFeedAsync(userId, id);
+        var posts = await _listService.GetListFeedAsync(userId, id, limit, offset);
         return Ok(posts);
     }
 
@@ -116,6 +132,39 @@ public class ListsController : ControllerBase
     {
         var members = await _listService.GetListMembersAsync(id);
         return Ok(members);
+    }
+
+    [HttpGet("{id}/candidates")]
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetCandidateMembers(Guid id, [FromQuery] string? q)
+    {
+        var userId = GetUserId(); // Retained original GetUserId() call
+        var candidates = await _listService.GetCandidateMembersAsync(id, userId, q);
+        return Ok(candidates);
+    }
+
+    [HttpGet("{id}/candidate-posts")]
+    public async Task<IActionResult> GetCandidatePosts(Guid id, [FromQuery] Guid userId, [FromQuery] int limit = 10, [FromQuery] int offset = 0)
+    {
+        var posts = await _listService.GetCandidatePostsAsync(id, userId, limit, offset);
+        return Ok(posts);
+    }
+
+    [HttpPost("{id}/posts")]
+    public async Task<IActionResult> AddPost(Guid id, [FromBody] AddListPostRequest dto)
+    {
+        var userId = GetUserId(); // Retained original GetUserId() call
+        var success = await _listService.AddPostAsync(userId, id, dto.PostId, dto.Caption);
+        if (!success) return BadRequest("Failed to add post");
+        return Ok();
+    }
+
+    [HttpDelete("{id}/posts/{postId}")]
+    public async Task<IActionResult> RemovePost(Guid id, Guid postId)
+    {
+        var userId = GetUserId(); // Retained original GetUserId() call
+        var success = await _listService.RemovePostAsync(userId, id, postId);
+        if (!success) return BadRequest("Failed to remove post");
+        return Ok();
     }
 
     [HttpPost("{id}/members")]
@@ -132,5 +181,21 @@ public class ListsController : ControllerBase
         var userId = GetUserId();
         var success = await _listService.RemoveMemberAsync(userId, id, targetId);
         return success ? Ok() : BadRequest("Failed to remove member");
+    }
+
+    [HttpPost("{id}/accept")]
+    public async Task<IActionResult> AcceptInvitation(Guid id)
+    {
+        var userId = GetUserId();
+        var success = await _listService.AcceptInvitationAsync(userId, id);
+        return success ? Ok() : BadRequest("Failed to accept invitation");
+    }
+
+    [HttpPost("{id}/reject")]
+    public async Task<IActionResult> RejectInvitation(Guid id)
+    {
+        var userId = GetUserId();
+        var success = await _listService.RejectInvitationAsync(userId, id);
+        return success ? Ok() : BadRequest("Failed to reject invitation");
     }
 }

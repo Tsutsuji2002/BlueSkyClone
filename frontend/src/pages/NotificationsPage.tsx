@@ -16,7 +16,6 @@ const NotificationsPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const { notifications, unreadCount } = useAppSelector((state: RootState) => state.notifications);
-    const { user } = useAppSelector((state: RootState) => state.auth);
     const [activeTab, setActiveTab] = useState<'all' | 'mentions'>('all');
 
     useEffect(() => {
@@ -41,7 +40,7 @@ const NotificationsPage: React.FC = () => {
     ];
 
     return (
-        <MainLayout hideTopBar={true}>
+        <MainLayout hideTopBar={true} title={t('notifications.title')}>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">

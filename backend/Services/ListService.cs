@@ -2,6 +2,7 @@ using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,10 +13,12 @@ namespace BSkyClone.Services;
 public class ListService : IListService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> _hubContext;
 
-    public ListService(IUnitOfWork unitOfWork)
+    public ListService(IUnitOfWork unitOfWork, Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> hubContext)
     {
         _unitOfWork = unitOfWork;
+        _hubContext = hubContext;
     }
 
     public async Task<ListDto> CreateListAsync(Guid userId, CreateListDto dto)
@@ -49,6 +52,22 @@ public class ListService : IListService
         foreach (var list in lists)
         {
             result.Add(await MapToListDto(list, userId));
+        }
+        return result;
+    }
+
+    public async Task<IEnumerable<ListDto>> GetUserListsAsync(Guid userId, Guid viewerId)
+    {
+        // Lists of another user (or current user)
+        var lists = await _unitOfWork.Lists.Query()
+            .Where(l => l.OwnerId == userId && l.IsDeleted != true)
+            .OrderByDescending(l => l.CreatedAt)
+            .ToListAsync();
+
+        var result = new List<ListDto>();
+        foreach (var list in lists)
+        {
+            result.Add(await MapToListDto(list, viewerId));
         }
         return result;
     }
@@ -100,23 +119,88 @@ public class ListService : IListService
         var existing = await _unitOfWork.ListMembers.Query()
             .FirstOrDefaultAsync(lm => lm.ListId == listId && lm.UserId == targetUserId);
         
-        if (existing != null) return true; // Already member
-
-        var member = new ListMember
+        if (existing != null) 
         {
+            if (existing.Status == 1) return true; // Already member
+            if (existing.Status == 0) return true; // Already pending
+            
+            // If rejected, allow re-inviting
+            existing.Status = 0;
+            existing.JoinedAt = DateTime.UtcNow;
+            _unitOfWork.ListMembers.Update(existing);
+        }
+        else
+        {
+            var member = new ListMember
+            {
+                ListId = listId,
+                UserId = targetUserId,
+                JoinedAt = DateTime.UtcNow,
+                Status = 0 // Pending
+            };
+            await _unitOfWork.ListMembers.AddAsync(member);
+        }
+
+        // Check if a pending notification already exists to avoid spamming
+        var existingNotification = await _unitOfWork.Notifications.Query()
+            .FirstOrDefaultAsync(n => n.RecipientId == targetUserId && n.ListId == listId && n.Type == "list_invitation" && n.IsRead == false);
+        
+        if (existingNotification != null) return true;
+
+        // Send Notification
+        var notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            Tid = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(),
+            Type = "list_invitation",
+            RecipientId = targetUserId,
+            SenderId = ownerId,
             ListId = listId,
-            UserId = targetUserId,
-            JoinedAt = DateTime.UtcNow
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow,
+            Title = "List Invitation",
+            Content = $"invited you to join the list: {list.Name}"
         };
 
-        await _unitOfWork.ListMembers.AddAsync(member);
-        return await _unitOfWork.CompleteAsync() > 0;
+        await _unitOfWork.Notifications.AddAsync(notification);
+        var success = await _unitOfWork.CompleteAsync() > 0;
+
+        if (success)
+        {
+            // Real-time SignalR notification
+            _ = Task.Run(async () => {
+                try {
+                    var sender = await _unitOfWork.Users.GetByIdAsync(ownerId);
+                    if (sender != null) {
+                        await _hubContext.Clients.Group($"user-{targetUserId}").SendAsync("ReceiveNotification", new {
+                            Id = notification.Id,
+                            Type = notification.Type,
+                            Sender = new { sender.Id, sender.Username, sender.Handle, sender.AvatarUrl, sender.DisplayName },
+                            ListId = notification.ListId,
+                            CreatedAt = notification.CreatedAt,
+                            Title = notification.Title,
+                            Content = notification.Content,
+                            IsRead = false,
+                            InvitationStatus = 0
+                        });
+                    }
+                } catch { }
+            });
+        }
+
+        return success;
     }
 
-    public async Task<bool> RemoveMemberAsync(Guid ownerId, Guid listId, Guid targetUserId)
+    public async Task<bool> RemoveMemberAsync(Guid requestingUserId, Guid listId, Guid targetUserId)
     {
         var list = await _unitOfWork.Lists.GetByIdAsync(listId);
-        if (list == null || list.OwnerId != ownerId) return false;
+        if (list == null) return false;
+
+        // Allow if requester is owner OR requester is removing themselves
+        if (list.OwnerId != requestingUserId && requestingUserId != targetUserId) 
+        {
+            return false;
+        }
 
         var existing = await _unitOfWork.ListMembers.Query()
             .FirstOrDefaultAsync(lm => lm.ListId == listId && lm.UserId == targetUserId);
@@ -130,7 +214,7 @@ public class ListService : IListService
     public async Task<IEnumerable<ListItemDto>> GetListMembersAsync(Guid listId)
     {
         var members = await _unitOfWork.ListMembers.Query()
-            .Where(lm => lm.ListId == listId)
+            .Where(lm => lm.ListId == listId && lm.Status == 1) // Only accepted members
             .Include(lm => lm.User)
             .OrderByDescending(lm => lm.JoinedAt)
             .ToListAsync();
@@ -228,7 +312,10 @@ public class ListService : IListService
             .AnyAsync(uls => uls.UserId == currentUserId && uls.ListId == list.Id);
 
         int membersCount = await _unitOfWork.ListMembers.Query()
-            .CountAsync(lm => lm.ListId == list.Id);
+            .CountAsync(lm => lm.ListId == list.Id && lm.Status == 1);
+
+        int postsCount = await _unitOfWork.ListPosts.Query()
+            .CountAsync(lp => lp.ListId == list.Id);
 
         return new ListDto
         {
@@ -239,6 +326,7 @@ public class ListService : IListService
             Purpose = list.Purpose,
             AvatarUrl = list.AvatarUrl,
             MembersCount = membersCount,
+            PostsCount = postsCount,
             CreatedAt = list.CreatedAt ?? DateTime.UtcNow,
             IsPinned = pinned,
             IsOwner = list.OwnerId == currentUserId,
@@ -262,28 +350,31 @@ public class ListService : IListService
         };
     }
 
-    public async Task<IEnumerable<PostDto>> GetListFeedAsync(Guid userId, Guid listId)
+    public async Task<IEnumerable<PostDto>> GetListFeedAsync(Guid userId, Guid listId, int limit = 50, int offset = 0)
     {
-        var memberIds = await _unitOfWork.ListMembers.Query()
-            .Where(lm => lm.ListId == listId)
-            .Select(lm => lm.UserId)
+        var list = await _unitOfWork.Lists.GetByIdAsync(listId);
+        if (list == null) return new List<PostDto>();
+
+        var listPosts = await _unitOfWork.ListPosts.Query()
+            .Include(lp => lp.Post).ThenInclude(p => p.Author)
+            .Include(lp => lp.Post).ThenInclude(p => p.PostMedia)
+            .Include(lp => lp.Post).ThenInclude(p => p.LinkPreview)
+            .Where(lp => lp.ListId == listId)
+            .OrderByDescending(lp => lp.AddedAt)
+            .Skip(offset)
+            .Take(limit)
+            .Select(lp => new { lp.Post, lp.Caption, lp.AddedByUserId })
             .ToListAsync();
 
-        if (!memberIds.Any()) return new List<PostDto>();
-
-        var posts = await _unitOfWork.Posts.Query()
-            .Include(p => p.Author)
-            .Include(p => p.PostMedia)
-            .Include(p => p.LinkPreview)
-            .Where(p => memberIds.Contains(p.AuthorId) && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
-            .OrderByDescending(p => p.CreatedAt)
-            .Take(50)
-            .ToListAsync();
-
-        var postDtos = posts.Select(MapToPostDto).ToList();
-        await EnrichPostsWithInteractions(postDtos, userId);
-
-        return postDtos;
+        var curatedDtos = listPosts.Select(x => {
+            var dto = MapToPostDto(x.Post);
+            dto.ListCaption = x.Caption;
+            dto.AddedByUserId = x.AddedByUserId;
+            return dto;
+        }).ToList();
+        
+        await EnrichPostsWithInteractions(curatedDtos, userId);
+        return curatedDtos;
     }
 
     // Helper from PostService
@@ -357,5 +448,209 @@ public class ListService : IListService
             post.IsReposted = repostedPostIds.Contains(post.Id);
             post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
         }
+    }
+    public async Task<IEnumerable<ListDto>> GetListsIAmOnAsync(Guid userId)
+    {
+        var listIds = await _unitOfWork.ListMembers.Query()
+            .Where(lm => lm.UserId == userId && lm.Status == 1) // Only accepted members
+            .Select(lm => lm.ListId)
+            .ToListAsync();
+
+        if (!listIds.Any()) return new List<ListDto>();
+
+        var lists = await _unitOfWork.Lists.Query()
+            .Where(l => listIds.Contains(l.Id) && l.IsDeleted != true)
+            .Include(l => l.Owner)
+            .OrderByDescending(l => l.CreatedAt)
+            .ToListAsync();
+
+        var result = new List<ListDto>();
+        foreach (var list in lists)
+        {
+            result.Add(await MapToListDto(list, userId));
+        }
+        return result;
+    }
+
+    public async Task<IEnumerable<PostDto>> GetCandidatePostsAsync(Guid listId, Guid userId, int limit = 10, int offset = 0)
+    {
+        var existingPostIds = await _unitOfWork.ListPosts.Query()
+            .Where(lp => lp.ListId == listId)
+            .Select(lp => lp.PostId)
+            .ToListAsync();
+
+        var posts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Where(p => p.AuthorId == userId && !existingPostIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
+
+        return posts.Select(MapToPostDto);
+    }
+
+    public async Task<IEnumerable<UserDto>> GetCandidateMembersAsync(Guid listId, Guid userId, string? query)
+    {
+        // Get existing members to check status (including pending and accepted)
+        var existingMembers = await _unitOfWork.ListMembers.Query()
+            .Where(lm => lm.ListId == listId)
+            .ToDictionaryAsync(lm => lm.UserId, lm => lm.Status);
+
+        List<User> users;
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            // Get follows
+            var allFollows = await _unitOfWork.Follows.GetFollowingAsync(userId);
+            users = allFollows
+                .OrderByDescending(f => f.CreatedAt)
+                .Take(20)
+                .Select(f => f.Following)
+                .ToList();
+        }
+        else
+        {
+            // Search
+            query = query.ToLower();
+            users = await _unitOfWork.Users.Query()
+                .Where(u => u.Id != userId && 
+                           (u.Username.ToLower().Contains(query) || 
+                            u.DisplayName.ToLower().Contains(query) ||
+                            u.Handle.ToLower().Contains(query)))
+                .Take(20)
+                .ToListAsync();
+        }
+
+        // Map to DTO with status
+        return users.Select(user => {
+            int? status = existingMembers.ContainsKey(user.Id) ? existingMembers[user.Id] : null;
+
+            return new UserDto(
+                user.Id,
+                user.Username,
+                user.Handle,
+                user.Email,
+                user.DisplayName,
+                user.AvatarUrl,
+                user.CoverImageUrl,
+                user.Bio,
+                user.Location,
+                user.Website,
+                user.DateOfBirth,
+                user.FollowersCount,
+                user.FollowingCount,
+                user.PostsCount,
+                user.Role,
+                status // New field: ListMembershipStatus
+            );
+        });
+    }
+
+    public async Task<bool> AddPostAsync(Guid userId, Guid listId, Guid postId, string? caption = null)
+    {
+        var list = await _unitOfWork.Lists.GetByIdAsync(listId);
+        if (list == null) return false;
+
+        // Check if member or owner
+        bool isMember = await _unitOfWork.ListMembers.Query().AnyAsync(lm => lm.ListId == listId && lm.UserId == userId);
+        if (list.OwnerId != userId && !isMember) return false;
+
+        // Check if already added
+        var existing = await _unitOfWork.ListPosts.Query()
+            .FirstOrDefaultAsync(lp => lp.ListId == listId && lp.PostId == postId);
+        if (existing != null) return true;
+
+        var post = await _unitOfWork.Posts.Query().Include(p => p.LinkPreview).FirstOrDefaultAsync(p => p.Id == postId);
+        if (post == null || post.AuthorId != userId) return false;
+
+        // Auto-generate caption if null
+        if (string.IsNullOrEmpty(caption))
+        {
+            if (!string.IsNullOrEmpty(post.Content))
+            {
+                var sentences = post.Content.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
+                caption = sentences.FirstOrDefault()?.Trim();
+            }
+            
+            if (string.IsNullOrEmpty(caption) && post.LinkPreview != null)
+            {
+                caption = post.LinkPreview.Title;
+            }
+
+            if (caption != null && caption.Length > 200) caption = caption.Substring(0, 197) + "...";
+        }
+
+        var listPost = new ListPost
+        {
+            ListId = listId,
+            PostId = postId,
+            AddedByUserId = userId,
+            AddedAt = DateTime.UtcNow,
+            Caption = caption
+        };
+
+        if (!list.IsCurated)
+        {
+            list.IsCurated = true;
+            _unitOfWork.Lists.Update(list);
+        }
+
+        await _unitOfWork.ListPosts.AddAsync(listPost);
+        return await _unitOfWork.CompleteAsync() > 0;
+    }
+
+    public async Task<bool> RemovePostAsync(Guid userId, Guid listId, Guid postId)
+    {
+        var lp = await _unitOfWork.ListPosts.Query()
+             .FirstOrDefaultAsync(x => x.ListId == listId && x.PostId == postId);
+        if (lp == null) return false;
+        
+        var list = await _unitOfWork.Lists.GetByIdAsync(listId);
+        if (list == null || (list.OwnerId != userId && lp.AddedByUserId != userId)) return false;
+
+    _unitOfWork.ListPosts.Remove(lp);
+        return await _unitOfWork.CompleteAsync() > 0;
+    }
+
+    public async Task<bool> AcceptInvitationAsync(Guid userId, Guid listId)
+    {
+        var member = await _unitOfWork.ListMembers.Query()
+            .FirstOrDefaultAsync(lm => lm.ListId == listId && lm.UserId == userId);
+        
+        if (member == null) return false;
+        if (member.Status == 1) return true; // Already accepted
+        if (member.Status != 0) return false;
+
+        member.Status = 1; // Accepted
+        member.JoinedAt = DateTime.UtcNow;
+        _unitOfWork.ListMembers.Update(member);
+
+        // Mark invitation notification as read
+        var notification = await _unitOfWork.Notifications.Query()
+            .FirstOrDefaultAsync(n => n.RecipientId == userId && n.ListId == listId && n.Type == "list_invitation");
+        if (notification != null) notification.IsRead = true;
+
+        return await _unitOfWork.CompleteAsync() > 0;
+    }
+
+    public async Task<bool> RejectInvitationAsync(Guid userId, Guid listId)
+    {
+        var member = await _unitOfWork.ListMembers.Query()
+            .FirstOrDefaultAsync(lm => lm.ListId == listId && lm.UserId == userId);
+        
+        if (member == null || member.Status != 0) return false;
+
+        member.Status = 2; // Rejected
+        _unitOfWork.ListMembers.Update(member);
+
+        // Mark invitation notification as read
+        var notification = await _unitOfWork.Notifications.Query()
+            .FirstOrDefaultAsync(n => n.RecipientId == userId && n.ListId == listId && n.Type == "list_invitation");
+        if (notification != null) notification.IsRead = true;
+
+        return await _unitOfWork.CompleteAsync() > 0;
     }
 }

@@ -45,14 +45,17 @@ public class PostRepository : Repository<Post>, IPostRepository
 
         if (type == "replies")
         {
+            // Only posts that are replies
             query = query.Where(p => p.AuthorId == userId && p.ReplyToPostId != null);
         }
         else if (type == "media")
         {
-            query = query.Where(p => p.AuthorId == userId && p.PostMedia.Any(m => m.Type == "image"));
+            // Posts with images OR videos (for the media grid)
+            query = query.Where(p => p.AuthorId == userId && p.PostMedia.Any(m => m.Type == "image" || m.Type == "video"));
         }
         else if (type == "video")
         {
+            // Only posts with videos
             query = query.Where(p => p.AuthorId == userId && p.PostMedia.Any(m => m.Type == "video"));
         }
         else if (type == "likes")
@@ -69,19 +72,30 @@ public class PostRepository : Repository<Post>, IPostRepository
                 .Select(l => l.Post)
                 .ToListAsync();
         }
-        else // default to "posts" tab
+        else // default to "posts" tab - user's own posts (excluding replies)
         {
-            var repostedPostIds = await ((BSkyDbContext)_context).Reposts
-                .Where(r => r.UserId == userId)
-                .Select(r => r.PostId)
-                .ToListAsync();
-
-            query = query.Where(p => p.AuthorId == userId || repostedPostIds.Contains(p.Id));
+            query = query.Where(p => p.AuthorId == userId && p.ReplyToPostId == null);
         }
 
         return await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Post>> GetTrendingPosts24hAsync(int limit = 50)
+    {
+        var dayAgo = DateTime.UtcNow.AddHours(-24);
+        return await _dbSet
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
+                        && p.CreatedAt >= dayAgo)
+            .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
+            .ThenByDescending(p => p.CreatedAt)
             .Take(limit)
             .ToListAsync();
     }

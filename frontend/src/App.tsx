@@ -19,9 +19,10 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { getMe } from './redux/slices/authSlice';
+import { getMe, logoutAsync } from './redux/slices/authSlice';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
+import { isTokenExpired } from './utils/authUtils';
 import signalrService from './services/signalrService';
 
 import LoadingScreen from './components/common/LoadingScreen';
@@ -34,10 +35,26 @@ const AppContent: React.FC = () => {
   const { i18n } = useTranslation();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token && !isAuthenticated) {
-      dispatch(getMe());
-    }
+    // Clear chunk reload count on successful mount
+    sessionStorage.removeItem('chunk_reload_count');
+
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        if (isTokenExpired(token)) {
+          dispatch(logoutAsync());
+          return;
+        }
+        if (!isAuthenticated) {
+          dispatch(getMe());
+        }
+      }
+    };
+
+    checkAuth();
+    // Also check every minute for auto-logout
+    const interval = setInterval(checkAuth, 60000);
+    return () => clearInterval(interval);
   }, [dispatch, isAuthenticated]);
 
   useEffect(() => {

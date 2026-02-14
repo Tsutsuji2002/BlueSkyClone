@@ -14,7 +14,7 @@ import { RootState } from '../redux/store';
 const EditProfileModal: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { createPost: _, editProfile } = useAppSelector((state: RootState) => state.modals);
+    const { editProfile } = useAppSelector((state: RootState) => state.modals);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
 
     const [displayName, setDisplayName] = useState('');

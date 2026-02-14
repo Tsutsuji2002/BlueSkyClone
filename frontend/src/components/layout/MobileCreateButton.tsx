@@ -1,7 +1,8 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
 import { FiEdit } from 'react-icons/fi';
+import { useLocation } from 'react-router-dom';
 
 const MobileCreateButton: React.FC = () => {
     const dispatch = useAppDispatch();

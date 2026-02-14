@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
-import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiImage, FiX, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiCheck, FiSearch } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiImage, FiX, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -17,6 +17,7 @@ import LinkPreviewCard from '../components/common/LinkPreviewCard';
 import PostEmbed from '../components/messages/PostEmbed';
 import { formatChatMessageDate } from '../utils/formatDate';
 import LoadingIndicator from '../components/common/LoadingIndicator';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -41,6 +42,18 @@ const ChatPage: React.FC = () => {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'primary' | 'danger';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { }
+    });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +91,7 @@ const ChatPage: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showOptionsMenu, selectedReactionMessageId, showEmojiPicker]);
 
+    const hasConversation = !!conversation;
     // Set active conversation and fetch messages on mount
     useEffect(() => {
         if (conversationId) {
@@ -97,7 +111,7 @@ const ChatPage: React.FC = () => {
             }
             dispatch(setActiveConversation(null));
         };
-    }, [conversationId, dispatch, !!conversation]);
+    }, [conversationId, dispatch, hasConversation, conversation]);
 
     // Mark as read when new messages arrive
     useEffect(() => {
@@ -107,7 +121,7 @@ const ChatPage: React.FC = () => {
                 dispatch(markAsRead(conversationId));
             }
         }
-    }, [activeConversationMessages.length, conversationId, dispatch, currentUser?.id]);
+    }, [activeConversationMessages, conversationId, dispatch, currentUser?.id]);
 
     // Scroll to bottom immediately
     React.useLayoutEffect(() => {
@@ -237,11 +251,18 @@ const ChatPage: React.FC = () => {
     };
 
     const handleBlockUser = () => {
-        if (otherParticipant && window.confirm(t('moderation.block_confirm', { name: otherParticipant.displayName || otherParticipant.handle }))) {
-            // TODO: Implement block user functionality
-            console.log('Block user:', otherParticipant.id);
-            navigate('/messages');
-        }
+        if (!otherParticipant) return;
+        setConfirmModal({
+            isOpen: true,
+            title: t('moderation.block_title', 'Block User'),
+            message: t('moderation.block_confirm', { name: otherParticipant.displayName || otherParticipant.handle }),
+            onConfirm: () => {
+                // TODO: Implement block user functionality
+                console.log('Block user:', otherParticipant.id);
+                navigate('/messages');
+            },
+            variant: 'danger'
+        });
         setShowOptionsMenu(false);
     };
 
@@ -254,18 +275,24 @@ const ChatPage: React.FC = () => {
     };
 
     const handleLeaveConversation = () => {
-        if (window.confirm(t('messages.leave_confirm'))) {
-            // TODO: Implement leave conversation functionality
-            console.log('Leave conversation');
-            navigate('/messages');
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: t('messages.leave_conversation', 'Leave Conversation'),
+            message: t('messages.leave_confirm'),
+            onConfirm: () => {
+                // TODO: Implement leave conversation functionality
+                console.log('Leave conversation');
+                navigate('/messages');
+            },
+            variant: 'danger'
+        });
         setShowOptionsMenu(false);
     };
 
     const otherParticipant = conversation?.participants.find((p: User) => p.id !== currentUser?.id);
 
     return (
-        <MainLayout hideTopBar={true} hideBottomNav={true}>
+        <MainLayout hideTopBar={true} hideBottomNav={true} title={otherParticipant?.displayName || otherParticipant?.handle}>
             <div className="flex flex-col h-screen lg:h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border relative">
                 {/* Header */}
                 <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-dark-border bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md sticky top-0 z-10">
@@ -724,6 +751,15 @@ const ChatPage: React.FC = () => {
                     </div>
                 </div>
             )}
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                variant={confirmModal.variant}
+            />
         </MainLayout>
     );
 };

@@ -8,6 +8,7 @@ const initialState: PostsState = {
     isLoading: false,
     error: null,
     hasMore: true,
+    actionLoading: {}, // Map of postId -> boolean
 };
 
 export const fetchTimeline = createAsyncThunk(
@@ -76,7 +77,8 @@ export const createPost = createAsyncThunk(
 
 export const toggleLike = createAsyncThunk(
     'posts/toggleLike',
-    async (postId: string, { rejectWithValue }) => {
+    async (postId: string, { rejectWithValue, getState }) => {
+        console.log('toggleLike thunk started for:', postId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/like`, {
@@ -96,7 +98,8 @@ export const toggleLike = createAsyncThunk(
 
 export const repostPost = createAsyncThunk(
     'posts/repost',
-    async (postId: string, { rejectWithValue }) => {
+    async (postId: string, { rejectWithValue, getState }) => {
+        console.log('repostPost thunk started for:', postId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost`, {
@@ -116,7 +119,8 @@ export const repostPost = createAsyncThunk(
 
 export const bookmarkPost = createAsyncThunk(
     'posts/bookmark',
-    async (postId: string, { rejectWithValue }) => {
+    async (postId: string, { rejectWithValue, getState }) => {
+        console.log('bookmarkPost thunk started for:', postId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/bookmark`, {
@@ -212,6 +216,23 @@ export const fetchTrendingPosts = createAsyncThunk(
     }
 );
 
+export const fetchTrendingPosts24h = createAsyncThunk(
+    'posts/fetchTrending24h',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/Feeds/trending-posts`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch trending posts');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const fetchBookmarkedPosts = createAsyncThunk(
     'posts/fetchBookmarked',
     async (_, { rejectWithValue }) => {
@@ -266,6 +287,18 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
+            // Fetch Trending Posts 24h
+            .addCase(fetchTrendingPosts24h.pending, (state: PostsState) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchTrendingPosts24h.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
+                state.isLoading = false;
+                state.trendingPosts = action.payload;
+            })
+            .addCase(fetchTrendingPosts24h.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
             // Fetch User Posts
             .addCase(fetchUserPosts.pending, (state: PostsState) => {
                 state.isLoading = true;
@@ -284,7 +317,12 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Create Post
+            .addCase(createPost.pending, (state: PostsState) => {
+                state.isLoading = true;
+                state.error = null;
+            })
             .addCase(createPost.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
+                state.isLoading = false;
                 state.posts.unshift(action.payload);
                 if (action.payload.replyToPostId) {
                     const parentPost = state.posts.find(p => p.id === action.payload.replyToPostId);
@@ -293,29 +331,54 @@ const postsSlice = createSlice({
                     }
                 }
             })
+            .addCase(createPost.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
             // Toggle Like
+            .addCase(toggleLike.pending, (state: PostsState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isLiked: boolean, likesCount: number }>) => {
+                state.actionLoading[action.payload.postId] = false;
                 const post = state.posts.find(p => p.id === action.payload.postId);
                 if (post) {
                     post.isLiked = action.payload.isLiked;
                     post.likesCount = action.payload.likesCount;
                 }
             })
+            .addCase(toggleLike.rejected, (state: PostsState, action) => {
+                state.actionLoading[action.meta.arg] = false;
+            })
             // Repost
+            .addCase(repostPost.pending, (state: PostsState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isReposted: boolean, repostsCount: number }>) => {
+                state.actionLoading[action.payload.postId] = false;
                 const post = state.posts.find(p => p.id === action.payload.postId);
                 if (post) {
                     post.isReposted = action.payload.isReposted;
                     post.repostsCount = action.payload.repostsCount;
                 }
             })
+            .addCase(repostPost.rejected, (state: PostsState, action) => {
+                state.actionLoading[action.meta.arg] = false;
+            })
             // Bookmark
+            .addCase(bookmarkPost.pending, (state: PostsState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(bookmarkPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isBookmarked: boolean, bookmarksCount: number }>) => {
+                state.actionLoading[action.payload.postId] = false;
                 const post = state.posts.find(p => p.id === action.payload.postId);
                 if (post) {
                     post.isBookmarked = action.payload.isBookmarked;
                     post.bookmarksCount = action.payload.bookmarksCount;
                 }
+            })
+            .addCase(bookmarkPost.rejected, (state: PostsState, action) => {
+                state.actionLoading[action.meta.arg] = false;
             })
             // Delete Post
             .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string>) => {

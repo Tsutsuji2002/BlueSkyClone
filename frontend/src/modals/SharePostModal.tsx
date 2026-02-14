@@ -11,12 +11,10 @@ import Button from '../components/common/Button';
 import { fetchConversations } from '../redux/slices/messagesSlice';
 import signalrService from '../services/signalrService';
 import { showToast } from '../redux/slices/toastSlice';
-import { useNavigate } from 'react-router-dom';
 import { formatPostDate } from '../utils/formatDate';
 
 const SharePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
-    const navigate = useNavigate();
     const { t } = useTranslation();
     const sharePostState = useAppSelector((state: RootState) => state.modals.sharePost);
     const { isOpen, post } = sharePostState || { isOpen: false, post: null };

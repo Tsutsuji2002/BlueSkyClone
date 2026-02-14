@@ -25,5 +25,9 @@ public partial class List
 
     public virtual User Owner { get; set; } = null!;
 
-    public virtual ICollection<Post> Posts { get; set; } = new List<Post>();
+    public virtual ICollection<Post> Posts { get; set; } = new List<Post>(); // Existing, possibly unused?
+
+    public virtual ICollection<ListPost> ListPosts { get; set; } = new List<ListPost>();
+    
+    public bool IsCurated { get; set; } = false;
 }

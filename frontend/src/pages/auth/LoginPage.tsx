@@ -8,11 +8,14 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
 import { login, clearError } from '../../redux/slices/authSlice';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import ButterflyLogo from '../../components/common/ButterflyLogo';
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t, i18n } = useTranslation();
+    useDocumentTitle(t('auth.login.title'));
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
     const { isLoading, error } = useAppSelector((state) => state.auth);
 
@@ -40,13 +43,7 @@ const LoginPage: React.FC = () => {
             {/* Left Side - Branding (Hidden on mobile) */}
             <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary-500 to-primary-700 p-12 items-center justify-center">
                 <div className="text-white text-center">
-                    <svg
-                        className="w-32 h-32 mx-auto mb-8"
-                        viewBox="0 0 64 64"
-                        fill="currentColor"
-                    >
-                        <path d="M13.873 3.805C21.21 9.332 29.103 20.537 32 26.55v15.882c0-.338-.13.044-.41.867-1.512 4.456-7.418 21.847-20.923 7.944-7.111-7.32-3.819-14.64 9.125-16.85-7.405 1.264-15.73-.825-18.014-9.015C1.12 23.022 0 8.51 0 6.55 0-3.268 8.579-.182 13.873 3.805zm36.254 0C42.79 9.332 34.897 20.537 32 26.55v15.882c0-.338.13.044.41.867 1.512 4.456 7.418 21.847 20.923 7.944 7.111-7.32 3.819-14.64-9.125-16.85 7.405 1.264 15.73-.825 18.014-9.015C62.88 23.022 64 8.51 64 6.55c0-9.818-8.579-6.732-13.873-2.745z" />
-                    </svg>
+                    <ButterflyLogo size={128} className="mx-auto mb-8 text-white" />
                     <h1 className="text-4xl font-bold mb-4">{t('auth.login.welcome_back')}</h1>
                     <p className="text-xl opacity-90">{t('auth.login.login_to_continue')}</p>
                 </div>
@@ -103,9 +100,14 @@ const LoginPage: React.FC = () => {
                         />
 
                         <div className="flex items-center justify-between">
-                            <label className="flex items-center">
-                                <input type="checkbox" className="mr-2" />
-                                <span className="text-sm text-gray-600 dark:text-dark-text-secondary">
+                            <label className="flex items-center cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                    checked={formData.rememberMe}
+                                    onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
+                                />
+                                <span className="ml-2 text-sm text-gray-600 dark:text-dark-text-secondary group-hover:text-gray-900 dark:group-hover:text-dark-text transition-colors">
                                     {t('auth.login.remember_me')}
                                 </span>
                             </label>

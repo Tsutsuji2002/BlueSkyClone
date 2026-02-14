@@ -14,14 +14,16 @@ public class PostService : IPostService
     private readonly IHubContext<ChatHub> _hubContext;
     private readonly ILinkService _linkService;
     private readonly ICacheService _cacheService;
+    private readonly ICategorizationService _categorizationService;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ILinkService linkService, ICacheService cacheService)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _hubContext = hubContext;
         _linkService = linkService;
         _cacheService = cacheService;
+        _categorizationService = categorizationService;
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId)
@@ -46,8 +48,25 @@ public class PostService : IPostService
             if (isBlocked) return new List<PostDto>();
         }
 
+        // Redis caching for quick re-access (1 minute TTL)
+        var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}";
+        var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
+        
+        if (cached != null && cached.Count > 0)
+        {
+            // Enrich with viewer-specific interactions (not cached)
+            if (viewerId.HasValue)
+            {
+                await EnrichPostsWithInteractions(cached, viewerId.Value);
+            }
+            return cached;
+        }
+
         var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type, limit, offset);
         var postDtos = posts.Select(MapToDto).ToList();
+        
+        // Cache for 1 minute
+        await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(1));
         
         if (viewerId.HasValue)
         {
@@ -93,8 +112,16 @@ public class PostService : IPostService
 
     public async Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request)
     {
-        var post = new Post
+        var lockKey = $"lock:create_post:{userId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(3)))
         {
+            throw new Exception("Please wait a moment before posting again.");
+        }
+
+        try
+        {
+            var post = new Post
+            {
             Id = Guid.NewGuid(),
             Tid = GenerateTid(),
             AuthorId = userId,
@@ -146,6 +173,20 @@ public class PostService : IPostService
             {
                 linkPreview.PostId = post.Id;
                 post.LinkPreview = linkPreview;
+            }
+        }
+
+        // Automatic Categorization (AI Sort)
+        var matchedInterestIds = await _categorizationService.CategorizePostAsync(request.Content ?? "", post.PostMedia.Select(m => m.Url).ToList());
+        if (matchedInterestIds.Any())
+        {
+            var interests = await _unitOfWork.Interests.Query()
+                .Where(i => matchedInterestIds.Contains(i.Id))
+                .ToListAsync();
+            
+            foreach (var interest in interests)
+            {
+                post.Interests.Add(interest);
             }
         }
 
@@ -230,6 +271,11 @@ public class PostService : IPostService
 
         return MapToDto(savedPost!);
     }
+    finally
+    {
+        await _cacheService.ReleaseLockAsync(lockKey);
+    }
+}
 
     public async Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null)
     {
@@ -295,8 +341,16 @@ public class PostService : IPostService
 
     public async Task<object> ToggleLikeAsync(Guid userId, Guid postId)
     {
-        var existingLike = await _unitOfWork.Likes.Query()
-            .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+        var lockKey = $"lock:like:{userId}:{postId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        {
+            return new { isLiked = false, likesCount = 0, error = "Action in progress" };
+        }
+
+        try
+        {
+            var existingLike = await _unitOfWork.Likes.Query()
+                .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
 
         bool isLiked;
         var post = await _unitOfWork.Posts.Query()
@@ -364,11 +418,24 @@ public class PostService : IPostService
             likesCount = post.LikesCount 
         };
     }
+    finally
+    {
+        await _cacheService.ReleaseLockAsync(lockKey);
+    }
+}
 
     public async Task<object> ToggleBookmarkAsync(Guid userId, Guid postId)
     {
-        var existingBookmark = await _unitOfWork.Bookmarks.Query()
-             .FirstOrDefaultAsync(b => b.PostId == postId && b.UserId == userId);
+        var lockKey = $"lock:bookmark:{userId}:{postId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        {
+             return new { isBookmarked = false, bookmarksCount = 0, error = "Action in progress" };
+        }
+
+        try
+        {
+            var existingBookmark = await _unitOfWork.Bookmarks.Query()
+                 .FirstOrDefaultAsync(b => b.PostId == postId && b.UserId == userId);
         
         var post = await _unitOfWork.Posts.Query()
             .FirstOrDefaultAsync(p => p.Id == postId);
@@ -407,11 +474,24 @@ public class PostService : IPostService
             bookmarksCount = post.BookmarksCount
         };
     }
+    finally
+    {
+        await _cacheService.ReleaseLockAsync(lockKey);
+    }
+}
 
     public async Task<object> ToggleRepostAsync(Guid userId, Guid postId)
     {
-        var existingRepost = await _unitOfWork.Reposts.Query()
-            .FirstOrDefaultAsync(r => r.PostId == postId && r.UserId == userId);
+        var lockKey = $"lock:repost:{userId}:{postId}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        {
+             return new { isReposted = false, repostsCount = 0, error = "Action in progress" };
+        }
+
+        try
+        {
+            var existingRepost = await _unitOfWork.Reposts.Query()
+                .FirstOrDefaultAsync(r => r.PostId == postId && r.UserId == userId);
 
         bool isReposted;
         var post = await _unitOfWork.Posts.Query()
@@ -481,6 +561,11 @@ public class PostService : IPostService
             repostsCount = post.RepostsCount
         };
     }
+    finally
+    {
+        await _cacheService.ReleaseLockAsync(lockKey);
+    }
+}
 
     public async Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null)
     {
@@ -560,6 +645,19 @@ public class PostService : IPostService
         return postDtos;
     }
 
+    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50)
+    {
+        var posts = await _unitOfWork.Posts.GetTrendingPosts24hAsync(limit);
+        var postDtos = posts.Select(MapToDto).ToList();
+
+        if (viewerId.HasValue)
+        {
+            await EnrichPostsWithInteractions(postDtos, viewerId.Value);
+        }
+
+        return postDtos;
+    }
+
     public async Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId)
     {
         var bookmarkedPosts = await _unitOfWork.Bookmarks.Query()
@@ -579,7 +677,7 @@ public class PostService : IPostService
         return postDtos;
     }
 
-    private PostDto MapToDto(Post post)
+    public PostDto MapToDto(Post post)
     {
         return new PostDto
         {
@@ -669,6 +767,9 @@ public class PostService : IPostService
                     savedNotification.Sender.PostsCount
                 ),
                 savedNotification.PostId,
+                savedNotification.ListId,
+                savedNotification.Title,
+                savedNotification.Content,
                 savedNotification.IsRead ?? false,
                 DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
             );

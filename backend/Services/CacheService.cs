@@ -80,15 +80,39 @@ public class CacheService : ICacheService
 
     public async Task RemoveByPrefixAsync(string prefix)
     {
-        // IDistributedCache doesn't natively support RemoveByPrefix.
-        // For a true implementation, we'd need to use IConnectionMultiplexer (StackExchange.Redis) directly.
-        // However, for simplicity and to stay within common IDistributedCache patterns, 
-        // we will implement a basic version or Skip if it gets complex.
-        
-        // Note: For BlueSky, we will primarily use specific keys like "user:{id}:timeline".
-        // If we really need prefix removal, we can inject IConnectionMultiplexer.
-        
         _logger.LogWarning("RemoveByPrefixAsync called with prefix {Prefix}, but not fully implemented for IDistributedCache wrapper.", prefix);
         await Task.CompletedTask;
+    }
+
+    public async Task<bool> TryLockAsync(string key, TimeSpan expiration)
+    {
+        try
+        {
+            var existing = await _cache.GetStringAsync(key);
+            if (existing != null) return false;
+
+            await _cache.SetStringAsync(key, "locked", new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = expiration
+            });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error trying to lock key: {Key}", key);
+            return true; // If cache is down, allow the operation but log it
+        }
+    }
+
+    public async Task ReleaseLockAsync(string key)
+    {
+        try
+        {
+            await _cache.RemoveAsync(key);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error releasing lock for key: {Key}", key);
+        }
     }
 }

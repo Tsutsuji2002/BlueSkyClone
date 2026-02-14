@@ -29,6 +29,7 @@ export interface User {
     isBlocking?: boolean;
     isMuted?: boolean;
     role?: 'user' | 'admin';
+    listMembershipStatus?: number; // 0: Pending, 1: Accepted, 2: Rejected, null: None
 }
 
 export interface UserSettings {
@@ -65,10 +66,23 @@ export interface UserSettings {
     notifyMentions: boolean;
     notifyQuotes: boolean;
     notifyReposts: boolean;
+    pushNotifyLikes: boolean;
+    pushNotifyFollowers: boolean;
+    pushNotifyReplies: boolean;
+    pushNotifyMentions: boolean;
+    pushNotifyQuotes: boolean;
+    pushNotifyReposts: boolean;
+    inAppNotifyLikes: boolean;
+    inAppNotifyFollowers: boolean;
+    inAppNotifyReplies: boolean;
+    inAppNotifyMentions: boolean;
+    inAppNotifyQuotes: boolean;
+    inAppNotifyReposts: boolean;
     // Branding/UI
     appLanguage: string;
     primaryLanguage: string;
     themeMode: 'system' | 'light' | 'dark';
+    fontSize?: number;
 }
 
 export interface LinkPreview {
@@ -109,10 +123,12 @@ export interface Post {
     isLiked?: boolean;
     isReposted?: boolean;
     isBookmarked?: boolean;
+    listCaption?: string; // For curated lists
     isDeleted?: boolean;
     replyToPostId?: string;
     replyToHandle?: string;
     rootPostId?: string;
+    addedByUserId?: string; // For curated lists
 }
 
 // Comment/Reply types
@@ -127,15 +143,19 @@ export interface Comment {
 }
 
 // Notification types
-export type NotificationType = 'like' | 'repost' | 'follow' | 'mention' | 'reply' | 'quote';
+export type NotificationType = 'like' | 'repost' | 'follow' | 'mention' | 'reply' | 'quote' | 'system' | 'System' | 'list_invitation';
 
 export interface Notification {
     id: string;
     type: NotificationType;
     sender: User;
     postId?: string;
+    listId?: string;
+    title?: string;
+    content?: string;
     createdAt: string;
     isRead: boolean;
+    invitationStatus?: number;
 }
 
 // Trending topic types
@@ -216,6 +236,7 @@ export interface ListDto {
     purpose?: string;
     avatarUrl?: string;
     membersCount: number;
+    postsCount: number;
     createdAt: string;
     isPinned: boolean;
     isOwner: boolean;
@@ -263,6 +284,7 @@ export interface PostsState {
     isLoading: boolean;
     error: string | null;
     hasMore: boolean;
+    actionLoading: Record<string, boolean>;
 }
 
 export interface UserState {
@@ -274,6 +296,7 @@ export interface UserState {
     blockedUsers: string[]; // User IDs
     isLoading: boolean;
     error: string | null;
+    actionLoading: Record<string, boolean>;
 }
 
 export interface NotificationsState {

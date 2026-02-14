@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { NotificationsState, Notification } from '../../types';
-import { RootState } from '../store';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 

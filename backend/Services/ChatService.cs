@@ -309,7 +309,7 @@ public class ChatService : IChatService
         else
         {
             // Verify message exists before adding
-            var message = await _unitOfWork.Messages.Query().FirstOrDefaultAsync(m => m.Id == messageId && (m.IsRecalled == false || m.IsRecalled == null));
+            var message = await _unitOfWork.Messages.Query().FirstOrDefaultAsync(m => m.Id == messageId && !m.IsRecalled);
             if (message == null)
             {
                 throw new Exception("Message not found or has been recalled");

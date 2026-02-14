@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiCamera, FiX } from 'react-icons/fi';
+import { FiCamera } from 'react-icons/fi';
 import { uploadImage } from '../../services/mediaService';
 import { CreateListDto, ListDto } from '../../types';
 
@@ -26,7 +26,17 @@ const CreateListModal: React.FC<CreateListModalProps> = ({ isOpen, onClose, onSu
             if (initialData && isEditing) {
                 setName(initialData.name);
                 setDescription(initialData.description || '');
-                setPreview(initialData.avatarUrl || null);
+                const avatar = initialData.avatarUrl;
+                if (avatar) {
+                    if (avatar.startsWith('http') || avatar.startsWith('blob:')) {
+                        setPreview(avatar);
+                    } else {
+                        const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '');
+                        setPreview(`${baseUrl}${avatar}`);
+                    }
+                } else {
+                    setPreview(null);
+                }
             } else {
                 setName('');
                 setDescription('');
@@ -83,7 +93,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({ isOpen, onClose, onSu
                         disabled={!name.trim() || loading}
                         className="text-primary-500 font-bold hover:text-primary-600 disabled:opacity-50"
                     >
-                        {loading ? '...' : t('lists.save')}
+                        {loading ? t('common.loading') : t('lists.save')}
                     </button>
                 </div>
 

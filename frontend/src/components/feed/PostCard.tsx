@@ -5,22 +5,18 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { toggleLike, repostPost, bookmarkPost, deletePost } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
-import { openImageViewer, openReply } from '../../redux/slices/modalsSlice';
+import { openReply } from '../../redux/slices/modalsSlice';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import Avatar from '../common/Avatar';
-import IconButton from '../common/IconButton';
 import Dropdown, { DropdownItem } from '../common/Dropdown';
 import { cn } from '../../utils/classNames';
 import { useNavigate, Link } from 'react-router-dom';
 import MediaGrid from './MediaGrid';
 import { formatPostDate } from '../../utils/formatDate';
 import RichText from '../common/RichText';
-
-import { formatDistanceToNowStrict } from 'date-fns';
-import { vi, enUS, ja, ko, zhCN, es, fr, de } from 'date-fns/locale';
 import {
     FiHeart,
     FiRepeat,
@@ -49,15 +45,19 @@ interface PostCardProps {
     post: Post;
     isOwnPost?: boolean;
     isComment?: boolean;
+    isInListContext?: boolean;
+    onRemoveFromList?: () => void;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment = false }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment = false, isInListContext = false, onRemoveFromList }) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal } = usePostActions();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+    const [showRemoveConfirm, setShowRemoveConfirm] = React.useState(false);
+    const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
 
     const handleCardClick = () => {
         navigate(`/profile/${post.author.handle}/post/${post.id}`);
@@ -65,15 +65,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
 
     const handleLike = (e: React.MouseEvent) => {
         e.stopPropagation();
+        console.log('PostCard handleLike clicked for:', post.id);
         dispatch(toggleLike(post.id));
     };
 
     const handleRepost = (e: React.MouseEvent) => {
         e.stopPropagation();
+        console.log('PostCard handleRepost clicked for:', post.id);
         dispatch(repostPost(post.id));
     };
 
     const handleBookmark = () => {
+        console.log('PostCard handleBookmark clicked for:', post.id);
         dispatch(bookmarkPost(post.id));
     };
 
@@ -83,17 +86,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
             dispatch(showToast({ message: t('common.post_deleted'), type: 'success' }));
         } catch (error: any) {
             dispatch(showToast({ message: error || t('common.failed_to_delete'), type: 'error' }));
-        }
-    };
-
-    const handleImageClick = (e: React.MouseEvent, index: number) => {
-        e.stopPropagation();
-        const imagesToView = post.imageUrls || post.images?.map(img => img.url) || [];
-        if (imagesToView.length > 0) {
-            dispatch(openImageViewer({
-                images: imagesToView,
-                index
-            }));
         }
     };
 
@@ -127,7 +119,39 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
         },
     ];
 
-    const moreDropdownItems: DropdownItem[] = [
+    // Build more dropdown items based on context
+    const moreDropdownItems: DropdownItem[] = isInListContext ? [
+        // Simplified options for list context
+        {
+            id: 'translate',
+            label: t('post.translate'),
+            icon: <FiHelpCircle />,
+            onClick: () => handleTranslate(post.content),
+        },
+        {
+            id: 'copy-text',
+            label: t('post.copy_text'),
+            icon: <FiType />,
+            onClick: () => handleCopyText(post.content),
+        },
+        {
+            id: 'copy-link',
+            label: t('post.copy_link'),
+            icon: <FiLink />,
+            onClick: () => handleCopyLink(post.author.handle, post.id),
+        },
+        ...(onRemoveFromList ? [
+            { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
+            {
+                id: 'remove-from-list',
+                label: t('lists.remove_from_list'),
+                icon: <FiTrash2 />,
+                onClick: () => setShowRemoveConfirm(true),
+                danger: true,
+            }
+        ] : []),
+    ] : [
+        // Full options for normal context
         {
             id: 'translate',
             label: t('post.translate'),
@@ -200,6 +224,16 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
             icon: <FiAlertTriangle />,
             onClick: () => { },
         },
+        ...(onRemoveFromList ? [
+            { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
+            {
+                id: 'remove-from-list',
+                label: t('lists.remove_from_list'),
+                icon: <FiTrash2 />,
+                onClick: () => setShowRemoveConfirm(true),
+                danger: true,
+            }
+        ] : []),
         ...(isOwnPost ? [
             { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
             {
@@ -261,6 +295,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
                         </div>
                     )}
 
+                    {/* Curated List Caption - Removed to avoid duplication as requested */}
+
                     {/* Post Content */}
 
                     <RichText
@@ -277,16 +313,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
                             imageUrls={post.imageUrls}
                             video={post.video}
                             videoUrl={post.videoUrl}
-                            onImageClick={(index) => {
-                                const baseMedia = post.imageUrls || post.images?.map(img => img.url) || [];
-                                const imagesToView = post.videoUrl ? [post.videoUrl, ...baseMedia] : baseMedia;
-
-                                if (imagesToView.length > 0) {
-                                    dispatch(openImageViewer({
-                                        images: imagesToView,
-                                        index
-                                    }));
-                                }
+                            onImageClick={(index: number) => {
+                                navigate(`/profile/${post.author.handle}/post/${post.id}/media/${index}`);
                             }}
                         />
                     </div>
@@ -307,8 +335,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
 
                             <button
                                 onClick={handleRepost}
+                                disabled={actionLoading[post.id]}
                                 className={cn(
-                                    "flex items-center gap-2 group transition-colors",
+                                    "flex items-center gap-2 group transition-colors disabled:opacity-50",
                                     post.isReposted ? "text-green-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-green-500"
                                 )}
                             >
@@ -318,19 +347,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
 
                             <button
                                 onClick={handleLike}
+                                disabled={actionLoading[post.id]}
                                 className={cn(
-                                    "flex items-center gap-2 group transition-colors",
+                                    "flex items-center gap-2 group transition-colors disabled:opacity-50",
                                     post.isLiked ? "text-red-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-red-500"
                                 )}
                             >
                                 <FiHeart size={18} className={post.isLiked ? "fill-current" : ""} />
-                                <span className="text-[13px]">{post.likesCount > 1000 ? `${(post.likesCount / 1000).toFixed(1)} N` : post.likesCount}</span>
+                                <span className="text-[13px]">{post.likesCount > 1000 ? `${(post.likesCount / 1000).toFixed(1)} ${t('common.user').startsWith('N') ? 'N' : 'K'}` : post.likesCount}</span>
                             </button>
 
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
+                                disabled={actionLoading[post.id]}
                                 className={cn(
-                                    "flex items-center transition-colors",
+                                    "flex items-center transition-colors disabled:opacity-50",
                                     post.isBookmarked ? "text-primary-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-primary-500"
                                 )}
                             >
@@ -373,6 +404,17 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment 
                 message={t('common.delete_post_confirm_message', { defaultValue: 'This cannot be undone. The post will be removed from your profile, the timeline of any accounts that follow you, and from search results.' })}
                 confirmLabel={t('common.delete', { defaultValue: 'Delete' })}
                 variant="danger"
+            />
+
+            {/* Remove from List Confirmation */}
+            <ConfirmModal
+                isOpen={showRemoveConfirm}
+                title={t('lists.remove_from_list')}
+                message={t('lists.confirm_remove_post', 'Remove this post from the list?')}
+                onConfirm={() => {
+                    onRemoveFromList?.();
+                }}
+                onClose={() => setShowRemoveConfirm(false)}
             />
         </div>
     );

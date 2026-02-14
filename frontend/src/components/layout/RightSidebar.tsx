@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiSearch } from 'react-icons/fi';
-import Avatar from '../common/Avatar';
-import Button from '../common/Button';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 

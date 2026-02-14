@@ -30,6 +30,7 @@ const ReplyModal: React.FC = () => {
     const { t, i18n } = useTranslation();
     const { isOpen, post } = useAppSelector((state: RootState) => state.modals.reply);
     const user = useAppSelector((state: RootState) => state.auth.user);
+    const isPostLoading = useAppSelector((state: RootState) => state.posts.isLoading);
     const [content, setContent] = useState('');
     const [images, setImages] = useState<PostImage[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -310,10 +311,10 @@ const ReplyModal: React.FC = () => {
                                 variant="primary"
                                 size="sm"
                                 onClick={handleSubmit}
-                                disabled={(!content.trim() && images.length === 0 && !video) || isOverLimit}
+                                disabled={(!content.trim() && images.length === 0 && !video) || isOverLimit || isPostLoading}
                                 className="rounded-full px-6 py-1.5 font-bold"
                             >
-                                {t('common.reply')}
+                                {isPostLoading ? 'Posting...' : t('common.reply')}
                             </Button>
                         </div>
                     </div>

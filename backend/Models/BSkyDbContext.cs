@@ -60,6 +60,8 @@ public partial class BSkyDbContext : DbContext
 
     public virtual DbSet<UserListSubscription> UserListSubscriptions { get; set; }
 
+    public virtual DbSet<ListPost> ListPosts { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
     }
@@ -189,6 +191,7 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.Purpose)
                 .HasMaxLength(50)
                 .HasDefaultValue("social");
+            entity.Property(e => e.IsCurated).HasDefaultValue(false);
 
             entity.HasOne(d => d.Owner).WithMany(p => p.Lists)
                 .HasForeignKey(d => d.OwnerId)
@@ -297,6 +300,8 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.IsRead).HasDefaultValue(false);
             entity.Property(e => e.Tid).HasMaxLength(20);
             entity.Property(e => e.Type).HasMaxLength(50);
+            entity.Property(e => e.Title).IsRequired(false);
+            entity.Property(e => e.Content).IsRequired(false);
 
             entity.HasOne(d => d.Recipient).WithMany(p => p.NotificationRecipients)
                 .HasForeignKey(d => d.RecipientId)
@@ -511,6 +516,21 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.NotifyFollowers).HasDefaultValue(true);
             entity.Property(e => e.NotifyLikes).HasDefaultValue(true);
             entity.Property(e => e.NotifyReplies).HasDefaultValue(true);
+            entity.Property(e => e.NotifyMentions).HasDefaultValue(true);
+            entity.Property(e => e.NotifyQuotes).HasDefaultValue(true);
+            entity.Property(e => e.NotifyReposts).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyFollowers).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyLikes).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyReplies).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyMentions).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyQuotes).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyReposts).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyFollowers).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyLikes).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyReplies).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyMentions).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyQuotes).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyReposts).HasDefaultValue(true);
             entity.Property(e => e.RequireAltText).HasDefaultValue(false);
             entity.Property(e => e.SortReplies)
                 .HasMaxLength(50)
@@ -540,6 +560,32 @@ public partial class BSkyDbContext : DbContext
                 .HasForeignKey(d => d.ListId)
                 .OnDelete(DeleteBehavior.Cascade) // If list is deleted, unpin it
                 .HasConstraintName("FK_ULS_List");
+        });
+
+        modelBuilder.Entity<ListPost>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.AddedAt).HasDefaultValueSql("(getutcdate())");
+
+            entity.HasOne(d => d.List).WithMany(p => p.ListPosts)
+                .HasForeignKey(d => d.ListId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Post).WithMany()
+                .HasForeignKey(d => d.PostId)
+                .OnDelete(DeleteBehavior.NoAction); // Avoid multiple cascade paths
+
+            entity.HasOne(d => d.AddedByUser).WithMany()
+                .HasForeignKey(d => d.AddedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<List>(entity =>
+        {
+             // Extending existing config if possible, or just add specific property config here?
+             // But List is already configured in lines 181-196.
+             // I shouldn't duplicate the entity config block.
         });
 
         modelBuilder.Entity<LinkPreview>(entity =>

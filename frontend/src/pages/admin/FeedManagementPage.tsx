@@ -1,26 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiTrash2, FiRss, FiUsers, FiSearch, FiPlus, FiEdit2, FiX, FiUpload, FiImage } from 'react-icons/fi';
+import { FiTrash2, FiUsers, FiSearch, FiPlus, FiEdit2, FiX, FiUpload } from 'react-icons/fi';
 import { API_BASE_URL } from '../../constants';
 import FeedAvatar from '../../components/common/FeedAvatar';
-
-interface AdminFeed {
-    id: string;
-    name: string;
-    handle: string;
-    description?: string;
-    avatarUrl?: string;
-    subscribersCount: number;
-    createdAt: string;
-    isOfficial: boolean;
-}
-
-interface PaginatedResult {
-    items: AdminFeed[];
-    total: number;
-    skip: number;
-    take: number;
-}
+import UserListModal from '../../components/admin/UserListModal';
+import { adminService } from '../../services/adminService';
+import { AdminFeed } from '../../types/admin';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 interface FeedFormData {
     name: string;
@@ -53,54 +39,40 @@ const FeedManagementPage: React.FC = () => {
         isOfficial: false
     });
 
-    const fetchFeeds = async () => {
+    // New State for Subscribers Modal
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [selectedFeedId, setSelectedFeedId] = useState<string | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+    const handleViewSubscribers = (feedId: string) => {
+        setSelectedFeedId(feedId);
+        setIsUserModalOpen(true);
+    };
+
+    const fetchFeeds = useCallback(async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const params = new URLSearchParams({
-                skip: skip.toString(),
-                take: take.toString()
-            });
-
-            const response = await fetch(`${API_BASE_URL}/admin/feeds?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                const data: PaginatedResult = await response.json();
-                setFeeds(data.items);
-                setTotal(data.total);
-            }
+            const data = await adminService.getFeeds(skip, take, searchQuery);
+            setFeeds(data.items);
+            setTotal(data.totalCount);
         } catch (error) {
             console.error('Failed to fetch feeds:', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [skip, take, searchQuery]);
 
     useEffect(() => {
         fetchFeeds();
-    }, [skip]);
+    }, [fetchFeeds]);
 
-    const handleDelete = async (feedId: string) => {
-        if (!window.confirm(t('admin.feeds.delete_confirm'))) {
-            return;
-        }
+    const handleDelete = async () => {
+        if (!confirmDeleteId) return;
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/admin/feeds/${feedId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                fetchFeeds();
-            }
+            await adminService.deleteFeed(confirmDeleteId);
+            setConfirmDeleteId(null);
+            fetchFeeds();
         } catch (error) {
             console.error('Failed to delete feed:', error);
         }
@@ -359,7 +331,7 @@ const FeedManagementPage: React.FC = () => {
                             </label>
                             <div className="flex items-center gap-4">
                                 <FeedAvatar
-                                    src={formData.avatarUrl || (formData as any).avatar}
+                                    src={formData.avatarUrl}
                                     alt="Avatar Preview"
                                     size="lg"
                                     className="flex-shrink-0"
@@ -454,7 +426,7 @@ const FeedManagementPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-dark-border">
-                            {loading ? (
+                            {loading && feeds.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-dark-text-secondary">
                                         {t('admin.dashboard.loading')}
@@ -468,11 +440,11 @@ const FeedManagementPage: React.FC = () => {
                                 </tr>
                             ) : (
                                 filteredAndSortedFeeds.map((feed) => (
-                                    <tr key={feed.id} className="hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors">
+                                    <tr key={feed.id} className="hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <FeedAvatar
-                                                    src={feed.avatarUrl || (feed as any).avatar}
+                                                    src={feed.avatarUrl}
                                                     alt={feed.name}
                                                 />
                                                 <div>
@@ -491,9 +463,9 @@ const FeedManagementPage: React.FC = () => {
                                             </p>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-dark-text-secondary">
-                                                <FiUsers size={16} />
-                                                <span>{feed.subscribersCount}</span>
+                                            <div className="flex items-center gap-2 text-sm text-gray-900 dark:text-dark-text font-bold">
+                                                <FiUsers size={16} className="text-gray-400 font-normal" />
+                                                <span>{feed.subscribersCount.toLocaleString()}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-dark-text-secondary">
@@ -513,16 +485,23 @@ const FeedManagementPage: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-2">
                                                 <button
+                                                    onClick={() => handleViewSubscribers(feed.id)}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                    title={t('admin.feeds.view_subscribers', 'View Subscribers')}
+                                                >
+                                                    <FiUsers size={18} />
+                                                </button>
+                                                <button
                                                     onClick={() => handleEdit(feed)}
-                                                    className="p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-dark-bg rounded-lg transition-colors"
-                                                    title={t('admin.feeds.edit_title')}
+                                                    className="p-2 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                                                    title={t('admin.feeds.edit_btn')}
                                                 >
                                                     <FiEdit2 size={18} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(feed.id)}
+                                                    onClick={() => setConfirmDeleteId(feed.id)}
                                                     className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                    title={t('common.delete')}
+                                                    title={t('admin.feeds.delete_btn')}
                                                 >
                                                     <FiTrash2 size={18} />
                                                 </button>
@@ -539,7 +518,6 @@ const FeedManagementPage: React.FC = () => {
                 <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border flex items-center justify-between">
                     <div className="text-sm text-gray-600 dark:text-dark-text-secondary">
                         {t('admin.feeds.showing_info', { count: filteredAndSortedFeeds.length, total: total })}
-                        {searchQuery && t('admin.feeds.filtered_info', { total: feeds.length })}
                     </div>
                     <div className="flex gap-2">
                         <button
@@ -559,6 +537,21 @@ const FeedManagementPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <UserListModal
+                isOpen={isUserModalOpen}
+                onClose={() => setIsUserModalOpen(false)}
+                title={t('admin.feeds.subscribers_title', 'Feed Subscribers')}
+                fetchData={(skip, take, search) => adminService.getFeedSubscribers(selectedFeedId!, skip, take, search)}
+            />
+            <ConfirmModal
+                isOpen={!!confirmDeleteId}
+                onClose={() => setConfirmDeleteId(null)}
+                onConfirm={handleDelete}
+                title={t('admin.feeds.delete_confirm_title', 'Delete Feed')}
+                message={t('admin.feeds.delete_confirm_message', 'Are you sure you want to delete this feed? This action cannot be undone.')}
+                confirmLabel={t('common.delete')}
+                variant="danger"
+            />
         </div>
     );
 };

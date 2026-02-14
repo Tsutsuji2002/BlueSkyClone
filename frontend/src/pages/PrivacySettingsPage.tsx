@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiChevronRight, FiShield, FiKey, FiBell, FiEye, FiCheck, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronRight, FiShield, FiKey, FiBell, FiEye, FiX } from 'react-icons/fi';
 import Button from '../components/common/Button';
 
 const Enable2FAModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {

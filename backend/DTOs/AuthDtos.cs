@@ -14,7 +14,8 @@ public record RegisterRequest(
 
 public record LoginRequest(
     string Identifier, // Email or Handle
-    string Password
+    string Password,
+    bool RememberMe = false
 );
 
 public record UserDto(
@@ -32,7 +33,8 @@ public record UserDto(
     int? FollowersCount,
     int? FollowingCount,
     int? PostsCount,
-    string Role = "user"
+    string Role = "user",
+    int? ListMembershipStatus = null
 );
 
 public record UserSettingDto(
@@ -46,6 +48,21 @@ public record UserSettingDto(
     bool? NotifyLikes,
     bool? NotifyFollowers,
     bool? NotifyReplies,
+    bool? NotifyMentions,
+    bool? NotifyQuotes,
+    bool? NotifyReposts,
+    bool? PushNotifyLikes,
+    bool? PushNotifyFollowers,
+    bool? PushNotifyReplies,
+    bool? PushNotifyMentions,
+    bool? PushNotifyQuotes,
+    bool? PushNotifyReposts,
+    bool? InAppNotifyLikes,
+    bool? InAppNotifyFollowers,
+    bool? InAppNotifyReplies,
+    bool? InAppNotifyMentions,
+    bool? InAppNotifyQuotes,
+    bool? InAppNotifyReposts,
     string? DefaultReplyRestriction,
     bool? DefaultAllowQuotes,
     int? FontSize

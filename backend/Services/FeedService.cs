@@ -8,14 +8,17 @@ namespace BSkyClone.Services;
 public class FeedService : IFeedService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPostService _postService;
 
-    public FeedService(IUnitOfWork unitOfWork)
+    public FeedService(IUnitOfWork unitOfWork, IPostService postService)
     {
         _unitOfWork = unitOfWork;
+        _postService = postService;
     }
 
     public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid userId)
     {
+        await EnsureOfficialFeedsSeededAsync();
         var feeds = await _unitOfWork.Feeds.GetTrendingFeedsAsync();
         
         var userSubscribedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
@@ -34,6 +37,61 @@ public class FeedService : IFeedService
             0, 
             userSubscribedFeedIds.Contains(f.Id)
         ));
+    }
+
+    private async Task EnsureOfficialFeedsSeededAsync()
+    {
+        var trendingFeed = await _unitOfWork.Feeds.Query()
+            .FirstOrDefaultAsync(f => f.IsOfficial && f.Name == "Trending");
+
+        if (trendingFeed == null)
+        {
+            trendingFeed = new Feed
+            {
+                Id = Guid.NewGuid(),
+                Tid = "official-trending",
+                Name = "Trending",
+                Description = "The most popular posts from the last 24 hours.",
+                Handle = "trending.official",
+                IsOfficial = true,
+                CreatedAt = DateTime.UtcNow,
+                SubscribersCount = 0,
+                IsDeleted = false
+            };
+            await _unitOfWork.Feeds.AddAsync(trendingFeed);
+            await _unitOfWork.CompleteAsync();
+        }
+
+        var topics = new List<(string Name, string Description, string Handle)>
+        {
+            ("Art", "Discover amazing drawings, paintings, and digital art.", "art.official"),
+            ("Gaming", "Latest from the gaming world, consoles, and streaming.", "gaming.official"),
+            ("Tech", "Software, hardware, AI, and developer updates.", "tech.official")
+        };
+
+        foreach (var topic in topics)
+        {
+            var feed = await _unitOfWork.Feeds.Query()
+                .FirstOrDefaultAsync(f => f.IsOfficial && f.Name == topic.Name);
+
+            if (feed == null)
+            {
+                var newFeed = new Feed
+                {
+                    Id = Guid.NewGuid(),
+                    Tid = $"official-{topic.Name.ToLower()}",
+                    Name = topic.Name,
+                    Description = topic.Description,
+                    Handle = topic.Handle,
+                    IsOfficial = true,
+                    CreatedAt = DateTime.UtcNow,
+                    SubscribersCount = 0,
+                    IsDeleted = false
+                };
+                await _unitOfWork.Feeds.AddAsync(newFeed);
+                await _unitOfWork.CompleteAsync();
+            }
+        }
     }
 
     public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId)
@@ -213,6 +271,38 @@ public class FeedService : IFeedService
             subscription?.PinnedOrder ?? 0, 
             subscription != null
         );
+    }
+
+    public async Task<IEnumerable<PostDto>> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take)
+    {
+        var feed = await _unitOfWork.Feeds.GetByIdAsync(feedId);
+        if (feed == null) return new List<PostDto>();
+
+        // Special handling for official feeds
+        if (feed.IsOfficial)
+        {
+            if (feed.Name == "Trending")
+            {
+                return await _postService.GetTrendingPosts24hAsync(userId, take);
+            }
+
+            // AI Sort: Fetch posts tagged with this interest
+            var posts = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                            p.Interests.Any(i => i.Name == feed.Name))
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+
+            return posts.Select(p => _postService.MapToDto(p));
+        }
+
+        // Future: Handle non-official community feeds if logic exists
+        return new List<PostDto>();
     }
 }
 

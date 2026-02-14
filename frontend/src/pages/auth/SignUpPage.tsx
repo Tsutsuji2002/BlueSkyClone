@@ -3,17 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { SignUpFormData } from '../../types';
-import { HOSTING_PROVIDERS } from '../../constants';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation, Trans } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
 import { signUp, clearError } from '../../redux/slices/authSlice';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 const SignUpPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t, i18n } = useTranslation();
+    useDocumentTitle(t('auth.signup.title'));
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
     const { isLoading, error } = useAppSelector((state) => state.auth);
 
@@ -184,8 +185,8 @@ const SignUpPage: React.FC = () => {
                                             privacy: t('auth.signup.privacy_link')
                                         }}
                                         components={{
-                                            terms: <a href="#" className="text-primary-500 hover:underline" />,
-                                            privacy: <a href="#" className="text-primary-500 hover:underline" />
+                                            terms: <button type="button" className="text-primary-500 hover:underline" />,
+                                            privacy: <button type="button" className="text-primary-500 hover:underline" />
                                         }}
                                     />
                                 </p>
@@ -229,7 +230,7 @@ const SignUpPage: React.FC = () => {
 
                                 <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
                                     {t('auth.signup.having_trouble')}{' '}
-                                    <a href="#" className="text-primary-500 hover:underline">{t('auth.signup.contact_support')}</a>
+                                    <button type="button" className="text-primary-500 hover:underline">{t('auth.signup.contact_support')}</button>
                                 </p>
                             </div>
                         </div>
@@ -269,7 +270,7 @@ const SignUpPage: React.FC = () => {
                             <option value="de">{t('language.de')}</option>
                         </select>
                         <p className="mt-2 text-sm text-gray-500 dark:text-dark-text-secondary">
-                            {t('auth.signup.having_trouble')} <a href="#" className="text-primary-500 hover:underline">{t('auth.signup.contact_support')}</a>
+                            {t('auth.signup.having_trouble')} <button type="button" className="text-primary-500 hover:underline">{t('auth.signup.contact_support')}</button>
                         </p>
                     </div>
                 </div>

@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
-import { UserState, User, Post } from '../../types';
+import { UserState, User } from '../../types';
 import { API_BASE_URL } from '../../constants';
-import { RootState } from '../store';
 
 const initialState: UserState = {
     profile: null,
@@ -12,6 +11,7 @@ const initialState: UserState = {
     blockedUsers: [],
     isLoading: false,
     error: null,
+    actionLoading: {}, // Map of userId -> boolean
 };
 
 export const fetchUserProfile = createAsyncThunk<
@@ -112,7 +112,8 @@ export const followUserAsync = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/follow',
-    async (userId: string, { rejectWithValue }) => {
+    async (userId: string, { rejectWithValue, getState }) => {
+        console.log('followUser thunk started for:', userId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/follow/${userId}`, {
@@ -136,7 +137,8 @@ export const unfollowUserAsync = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/unfollow',
-    async (userId: string, { rejectWithValue }) => {
+    async (userId: string, { rejectWithValue, getState }) => {
+        console.log('unfollowUser thunk started for:', userId);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/unfollow/${userId}`, {
@@ -311,9 +313,13 @@ const userSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Follow User
+            .addCase(followUserAsync.pending, (state: UserState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(followUserAsync.fulfilled, (state: UserState, action) => {
-                const { isFollowing, followersCount } = action.payload;
                 const userId = action.meta.arg as string;
+                state.actionLoading[userId] = false;
+                const { isFollowing, followersCount } = action.payload;
 
                 if (state.profile && state.profile.id === userId) {
                     state.profile.isFollowing = isFollowing;
@@ -333,10 +339,17 @@ const userSlice = createSlice({
                     listUser.followersCount = followersCount;
                 }
             })
+            .addCase(followUserAsync.rejected, (state: UserState, action) => {
+                state.actionLoading[action.meta.arg as string] = false;
+            })
             // Unfollow User
+            .addCase(unfollowUserAsync.pending, (state: UserState, action) => {
+                state.actionLoading[action.meta.arg] = true;
+            })
             .addCase(unfollowUserAsync.fulfilled, (state: UserState, action) => {
-                const { isFollowing, followersCount } = action.payload;
                 const userId = action.meta.arg as string;
+                state.actionLoading[userId] = false;
+                const { isFollowing, followersCount } = action.payload;
 
                 if (state.profile && state.profile.id === userId) {
                     state.profile.isFollowing = isFollowing;
@@ -355,6 +368,9 @@ const userSlice = createSlice({
                     listUser.isFollowing = isFollowing;
                     listUser.followersCount = followersCount;
                 }
+            })
+            .addCase(unfollowUserAsync.rejected, (state: UserState, action) => {
+                state.actionLoading[action.meta.arg as string] = false;
             })
             // Block User
             .addCase(blockUserAsync.fulfilled, (state: UserState, action) => {
