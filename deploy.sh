@@ -17,7 +17,13 @@ fi
 # 3. Export variables from .env
 export $(grep -v '^#' .env | xargs)
 
-# 4. Deploy with Docker Compose
+# 4. Ensure upload directories exist and have correct permissions
+# The .NET container runs as user 'app' (UID 1654)
+echo "Fixing upload directory permissions..."
+mkdir -p backend/wwwroot/uploads/posts
+sudo chown -R 1654:1654 backend/wwwroot/uploads
+
+# 5. Deploy with Docker Compose
 echo "Building and starting containers..."
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
