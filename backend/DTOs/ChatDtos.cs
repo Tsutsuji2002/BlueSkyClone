@@ -36,7 +36,12 @@ public record MessageDto(
 public record SendMessageRequest(
     string? Content,
     string? ImageUrl = null,
-    Guid? ReplyToId = null
+    Guid? ReplyToId = null,
+    string? LinkPreviewUrl = null,
+    string? LinkPreviewTitle = null,
+    string? LinkPreviewDescription = null,
+    string? LinkPreviewImage = null,
+    string? LinkPreviewDomain = null
 );
 
 public record EditMessageRequest(

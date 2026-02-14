@@ -202,6 +202,14 @@ const CreatePostModal: React.FC = () => {
             formData.append('Video', videoFile);
         }
 
+        if (linkPreview) {
+            formData.append('LinkPreviewUrl', linkPreview.url);
+            if (linkPreview.title) formData.append('LinkPreviewTitle', linkPreview.title);
+            if (linkPreview.description) formData.append('LinkPreviewDescription', linkPreview.description);
+            if (linkPreview.image) formData.append('LinkPreviewImage', linkPreview.image);
+            if (linkPreview.domain) formData.append('LinkPreviewDomain', linkPreview.domain);
+        }
+
         try {
             await dispatch(createPost(formData)).unwrap();
             performClose();

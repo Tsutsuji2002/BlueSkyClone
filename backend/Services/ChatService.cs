@@ -164,7 +164,7 @@ public class ChatService : IChatService
         return MapToConversationDto(created!, userId, 0);
     }
 
-    public async Task<MessageDto> SendMessageAsync(Guid userId, Guid conversationId, string? content, string? imageUrl = null, Guid? replyToId = null)
+    public async Task<MessageDto> SendMessageAsync(Guid userId, Guid conversationId, string? content, string? imageUrl = null, Guid? replyToId = null, LinkPreviewDto? linkPreviewDto = null)
     {
         var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
@@ -190,11 +190,35 @@ public class ChatService : IChatService
 
         if (!string.IsNullOrEmpty(content))
         {
-            var linkPreview = await _linkService.GetLinkPreviewAsync(content);
-            if (linkPreview != null)
+            // Internal variable to hold the preview to save
+            LinkPreview? previewToSave = null;
+
+            if (linkPreviewDto != null && !string.IsNullOrEmpty(linkPreviewDto.Url))
             {
-                linkPreview.MessageId = message.Id;
-                message.LinkPreview = linkPreview;
+                 previewToSave = new LinkPreview
+                 {
+                     Id = Guid.NewGuid(),
+                     MessageId = message.Id,
+                     Url = linkPreviewDto.Url,
+                     Title = linkPreviewDto.Title,
+                     Description = linkPreviewDto.Description,
+                     Image = linkPreviewDto.Image,
+                     Domain = linkPreviewDto.Domain ?? new Uri(linkPreviewDto.Url).Host.Replace("www.", ""),
+                     CreatedAt = DateTime.UtcNow
+                 };
+            }
+            else
+            {
+                 previewToSave = await _linkService.GetLinkPreviewAsync(content);
+                 if (previewToSave != null)
+                 {
+                     previewToSave.MessageId = message.Id;
+                 }
+            }
+
+            if (previewToSave != null)
+            {
+                message.LinkPreview = previewToSave;
             }
         }
 

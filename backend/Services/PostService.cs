@@ -168,11 +168,29 @@ public class PostService : IPostService
 
         if (!string.IsNullOrEmpty(request.Content))
         {
-            var linkPreview = await _linkService.GetLinkPreviewAsync(request.Content);
-            if (linkPreview != null)
+            // Use provided preview if available, otherwise fetch
+            if (!string.IsNullOrEmpty(request.LinkPreviewUrl))
             {
-                linkPreview.PostId = post.Id;
-                post.LinkPreview = linkPreview;
+                post.LinkPreview = new LinkPreview
+                {
+                    Id = Guid.NewGuid(),
+                    PostId = post.Id,
+                    Url = request.LinkPreviewUrl,
+                    Title = request.LinkPreviewTitle,
+                    Description = request.LinkPreviewDescription,
+                    Image = request.LinkPreviewImage,
+                    Domain = request.LinkPreviewDomain ?? new Uri(request.LinkPreviewUrl).Host.Replace("www.", ""),
+                    CreatedAt = DateTime.UtcNow
+                };
+            }
+            else
+            {
+                var linkPreview = await _linkService.GetLinkPreviewAsync(request.Content);
+                if (linkPreview != null)
+                {
+                    linkPreview.PostId = post.Id;
+                    post.LinkPreview = linkPreview;
+                }
             }
         }
 

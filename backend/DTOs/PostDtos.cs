@@ -52,6 +52,13 @@ public class CreatePostRequest
     public IFormFile? Video { get; set; }
     public Guid? ReplyToPostId { get; set; }
     public Guid? RootPostId { get; set; }
+
+    // Optional Link Preview Metadata
+    public string? LinkPreviewUrl { get; set; }
+    public string? LinkPreviewTitle { get; set; }
+    public string? LinkPreviewDescription { get; set; }
+    public string? LinkPreviewImage { get; set; }
+    public string? LinkPreviewDomain { get; set; }
 }
 
 public class FeedDto

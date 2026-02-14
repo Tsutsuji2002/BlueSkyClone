@@ -18,6 +18,8 @@ import PostEmbed from '../components/messages/PostEmbed';
 import { formatChatMessageDate } from '../utils/formatDate';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import ConfirmModal from '../components/common/ConfirmModal';
+import { getLinkMetadata } from '../utils/linkMetadata';
+import { LinkPreview } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -40,6 +42,13 @@ const ChatPage: React.FC = () => {
     const [selectedReactionMessageId, setSelectedReactionMessageId] = useState<string | null>(null);
     const [hubStatus, setHubStatus] = useState<HubStatus>(signalrService.hubStatus);
 
+    // Link Preview State
+    const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
+    const [isLinkLoading, setIsLinkLoading] = useState(false);
+    const [stickyLink, setStickyLink] = useState<string | null>(null);
+    const [dismissedLinks, setDismissedLinks] = useState<Set<string>>(new Set());
+    const prevContentRef = useRef('');
+
     useEffect(() => {
         signalrService.onStatusChange((status) => {
             setHubStatus(status);
@@ -47,6 +56,70 @@ const ChatPage: React.FC = () => {
     }, []);
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+    // Link Detection
+    useEffect(() => {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const matches = (message.match(urlRegex) || []) as string[];
+        const prevMatches = (prevContentRef.current.match(urlRegex) || []) as string[];
+
+        const getCounts = (arr: string[]) => {
+            const counts: Record<string, number> = {};
+            arr.forEach(val => counts[val] = (counts[val] || 0) + 1);
+            return counts;
+        };
+
+        const currentCounts = getCounts(matches);
+        const prevCounts = getCounts(prevMatches);
+
+        const addedLink = matches.find(link => currentCounts[link] > (prevCounts[link] || 0));
+
+        const isPaste = addedLink && (message.length - prevContentRef.current.length > 1);
+        const isEnterOrSpace = message.length > 0 && (message.endsWith(' ') || message.endsWith('\n'));
+        const isInitialDetection = !linkPreview && addedLink;
+
+        if (addedLink && (isPaste || isEnterOrSpace || isInitialDetection)) {
+            const isDifferentLink = !stickyLink || (addedLink !== stickyLink && !stickyLink.startsWith(addedLink) && !addedLink.startsWith(stickyLink));
+            const isRePaste = stickyLink === addedLink && isPaste;
+            const isFallback = linkPreview && !linkPreview.image;
+
+            if (isDifferentLink || isRePaste || (isEnterOrSpace && (addedLink === stickyLink || isFallback))) {
+                const fetchMetadata = async () => {
+                    setIsLinkLoading(true);
+                    const metadata = await getLinkMetadata(addedLink);
+                    if (metadata) {
+                        if (dismissedLinks.has(addedLink)) {
+                            setDismissedLinks(prev => {
+                                const next = new Set(prev);
+                                next.delete(addedLink);
+                                return next;
+                            });
+                        }
+                        setStickyLink(addedLink);
+                        setLinkPreview(metadata);
+                    }
+                    setIsLinkLoading(false);
+                };
+                fetchMetadata();
+            }
+        } else if (!stickyLink && matches.length > 0) {
+            const firstLink = matches.find(link => !dismissedLinks.has(link));
+            if (firstLink && (isPaste || isEnterOrSpace)) {
+                const fetchMetadata = async () => {
+                    setIsLinkLoading(true);
+                    const metadata = await getLinkMetadata(firstLink);
+                    if (metadata) {
+                        setStickyLink(firstLink);
+                        setLinkPreview(metadata);
+                    }
+                    setIsLinkLoading(false);
+                };
+                fetchMetadata();
+            }
+        }
+
+        prevContentRef.current = message;
+    }, [message, stickyLink, dismissedLinks, linkPreview]);
     const [isUploading, setIsUploading] = useState(false);
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{
@@ -196,15 +269,28 @@ const ChatPage: React.FC = () => {
                     imageUrl = await uploadImage(selectedImage);
                     setIsUploading(false);
                 }
-                await signalrService.sendMessage(conversationId, message.trim() || null, imageUrl || null, replyingTo?.id || null);
+
+                // Pass linkPreview to signalrService if exists
+                await signalrService.sendMessage(conversationId, message.trim() || null, imageUrl || null, replyingTo?.id || null, linkPreview);
             }
             setMessage('');
             removeImage();
             setShowEmojiPicker(false);
             setReplyingTo(null);
+            setLinkPreview(null);
+            setStickyLink(null);
+            setDismissedLinks(new Set());
         } catch (error) {
             console.error('Failed to send message:', error);
             setIsUploading(false);
+        }
+    };
+
+    const handleDismissLink = () => {
+        if (stickyLink) {
+            setDismissedLinks(prev => new Set(prev).add(stickyLink));
+            setStickyLink(null);
+            setLinkPreview(null);
         }
     };
 
@@ -304,8 +390,8 @@ const ChatPage: React.FC = () => {
                 {/* Connection Status Banner */}
                 {hubStatus !== HubStatus.Connected && (
                     <div className={`px-4 py-2 text-xs flex items-center justify-between ${hubStatus === HubStatus.Connecting || hubStatus === HubStatus.Reconnecting
-                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                            : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                         }`}>
                         <div className="flex items-center gap-2">
                             <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${hubStatus === HubStatus.Connecting || hubStatus === HubStatus.Reconnecting ? 'bg-amber-500' : 'bg-red-500'
@@ -599,26 +685,61 @@ const ChatPage: React.FC = () => {
                 )}
 
                 {/* Reply/Edit Preview */}
-                {(replyingTo || editingMessage) && (
+                {(replyingTo || editingMessage || linkPreview || isLinkLoading) && (
                     <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/50 border-t border-gray-100 dark:border-dark-border flex items-center justify-between animate-in slide-in-from-bottom duration-200">
-                        <div className="flex items-center gap-3 min-w-0">
-                            <div className="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-500 rounded-full">
-                                {replyingTo ? <FiCornerUpLeft size={16} /> : <FiEdit3 size={16} />}
+                        {(replyingTo || editingMessage) ? (
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-500 rounded-full">
+                                    {replyingTo ? <FiCornerUpLeft size={16} /> : <FiEdit3 size={16} />}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[11px] font-bold text-primary-500 uppercase tracking-wider">
+                                        {replyingTo
+                                            ? t('messages.replying_to', { name: replyingTo.senderId === currentUser?.id ? t('common.you') : (replyingTo.sender?.displayName || t('messages.unknown_user')) })
+                                            : t('messages.edit')}
+                                    </p>
+                                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
+                                        {replyingTo ? (replyingTo.content || '📷 Photo') : (editingMessage?.content || '📷 Photo')}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-bold text-primary-500 uppercase tracking-wider">
-                                    {replyingTo
-                                        ? t('messages.replying_to', { name: replyingTo.senderId === currentUser?.id ? t('common.you') : (replyingTo.sender?.displayName || t('messages.unknown_user')) })
-                                        : t('messages.edit')}
-                                </p>
-                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
-                                    {replyingTo ? (replyingTo.content || '📷 Photo') : (editingMessage?.content || '📷 Photo')}
-                                </p>
+                        ) : (
+                            // Link Preview
+                            <div className="w-full relative group">
+                                {isLinkLoading ? (
+                                    <div className="flex items-center gap-3 animate-pulse">
+                                        <div className="w-12 h-12 bg-gray-200 dark:bg-dark-border rounded-lg" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-3 bg-gray-200 dark:bg-dark-border rounded w-3/4" />
+                                            <div className="h-2 bg-gray-200 dark:bg-dark-border rounded w-1/2" />
+                                        </div>
+                                    </div>
+                                ) : linkPreview ? (
+                                    <div className="flex gap-3 bg-white dark:bg-dark-bg rounded-lg p-2 border border-gray-100 dark:border-dark-border shadow-sm">
+                                        {linkPreview.image && (
+                                            <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-gray-100">
+                                                <img src={linkPreview.image} alt="" className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{linkPreview.domain}</div>
+                                            <div className="font-bold text-xs text-gray-900 dark:text-dark-text truncate">{linkPreview.title}</div>
+                                            <div className="text-xs text-gray-500 truncate">{linkPreview.description}</div>
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
-                        </div>
+                        )}
+
                         <button
-                            onClick={() => { setReplyingTo(null); setEditingMessage(null); if (editingMessage) setMessage(''); }}
-                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-bg rounded-full transition-colors"
+                            onClick={() => {
+                                if (replyingTo || editingMessage) {
+                                    setReplyingTo(null); setEditingMessage(null); if (editingMessage) setMessage('');
+                                } else {
+                                    handleDismissLink();
+                                }
+                            }}
+                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-bg rounded-full transition-colors ml-2"
                         >
                             <FiX size={16} />
                         </button>
