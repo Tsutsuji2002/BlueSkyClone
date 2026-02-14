@@ -4,8 +4,8 @@
 
 echo "Starting deployment process..."
 
-# 1. Pull latest changes (assuming you are in the project root)
-# git pull origin bskyclone-deploy
+# 1. Pull latest changes
+git pull origin bskyclone-deploy
 
 # 2. Check for .env file
 if [ ! -f .env ]; then
