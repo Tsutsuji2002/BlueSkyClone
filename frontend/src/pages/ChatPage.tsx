@@ -111,7 +111,7 @@ const ChatPage: React.FC = () => {
             }
             dispatch(setActiveConversation(null));
         };
-    }, [conversationId, dispatch, hasConversation, conversation]);
+    }, [conversationId, dispatch]);
 
     // Mark as read when new messages arrive
     useEffect(() => {

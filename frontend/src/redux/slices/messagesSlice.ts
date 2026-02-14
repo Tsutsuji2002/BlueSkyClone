@@ -209,7 +209,10 @@ const messagesSlice = createSlice({
                     state.isLoadingMore = true;
                 } else {
                     state.isLoading = true;
-                    state.activeConversationMessages = [];
+                    // Only clear if conversation changed, to prevent flickers on refresh
+                    if (state.activeConversationId !== action.meta.arg.conversationId) {
+                        state.activeConversationMessages = [];
+                    }
                 }
             })
             .addCase(fetchMessages.fulfilled, (state, action) => {

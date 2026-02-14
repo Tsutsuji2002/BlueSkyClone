@@ -265,7 +265,10 @@ const postsSlice = createSlice({
             // Fetch Timeline
             .addCase(fetchTimeline.pending, (state: PostsState) => {
                 state.isLoading = true;
-                state.posts = [];
+                // Only clear if we have no posts yet, otherwise keep them until fetch completes
+                if (state.posts.length === 0) {
+                    state.posts = [];
+                }
             })
             .addCase(fetchTimeline.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
                 state.isLoading = false;
@@ -303,8 +306,13 @@ const postsSlice = createSlice({
             // Fetch User Posts
             .addCase(fetchUserPosts.pending, (state: PostsState, action) => {
                 state.isLoading = true;
-                if (action.meta.arg.offset === 0) {
-                    state.posts = [];
+                const { offset, userId } = action.meta.arg;
+                // Clear only if it's the first page AND we're switching users or have no posts
+                if (offset === 0) {
+                    const currentAuthorId = state.posts[0]?.author?.id;
+                    if (currentAuthorId !== userId) {
+                        state.posts = [];
+                    }
                 }
             })
             .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], offset: number }>) => {
@@ -420,7 +428,10 @@ const postsSlice = createSlice({
             // Fetch Bookmarked Posts
             .addCase(fetchBookmarkedPosts.pending, (state: PostsState) => {
                 state.isLoading = true;
-                state.posts = [];
+                // For bookmarks, we can keep existing until new ones load unless list is empty
+                if (state.posts.length === 0) {
+                    state.posts = [];
+                }
             })
             .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
                 state.isLoading = false;

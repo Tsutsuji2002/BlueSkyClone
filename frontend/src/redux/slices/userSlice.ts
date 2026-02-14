@@ -275,10 +275,13 @@ const userSlice = createSlice({
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
         builder
             // Fetch Profile
-            .addCase(fetchUserProfile.pending, (state: UserState) => {
+            .addCase(fetchUserProfile.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
-                state.profile = null;
+                // Clear profile only if requested handle is different from current
+                if (state.profile?.handle !== action.meta.arg) {
+                    state.profile = null;
+                }
             })
             .addCase(fetchUserProfile.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
@@ -295,10 +298,13 @@ const userSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Fetch Profile by ID
-            .addCase(fetchUserProfileById.pending, (state: UserState) => {
+            .addCase(fetchUserProfileById.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
-                state.profile = null;
+                // Clear profile only if requested id is different from current
+                if (state.profile?.id !== action.meta.arg) {
+                    state.profile = null;
+                }
             })
             .addCase(fetchUserProfileById.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
