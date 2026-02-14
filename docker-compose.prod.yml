@@ -1,0 +1,39 @@
+services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bsky-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:-YourStrongPassword123!}
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: [ "CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${DB_PASSWORD:-YourStrongPassword123!}", "-C", "-Q", "SELECT 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=BlueSkyClone;User Id=sa;Password=${DB_PASSWORD:-YourStrongPassword123!};TrustServerCertificate=True;
+      - Redis__ConnectionString=redis:6379
+      - Jwt__Key=${JWT_KEY:-a_very_long_random_secret_string_change_this_for_prod}
+    depends_on:
+      sql-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000/api}
+    ports:
+      - "80:80"
+    restart: always
+
+volumes:
+  mssql_data:

@@ -6,13 +6,10 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      # CONNECT TO LOCAL HOST (Windows Machine)
-      # 1. 'host.docker.internal' points to your laptop
-      # 2. You MUST use User ID/Password (Docker handling Windows Auth is very difficult)
-      # 3. Ensure your local SQL Server has TCP/IP Enabled on Port 1433
-      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;
-      - Redis__ConnectionString=redis:6379
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      # CONNECT TO LOCAL HOST (Windows Machine) or Docker Service
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING:-Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;}
+      - Redis__ConnectionString=${REDIS_CONNECTION:-redis:6379}
       - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
     depends_on:
       redis:
