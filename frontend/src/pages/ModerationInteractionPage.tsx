@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiInfo, Figlobe, FiUsers, FiAtSign, FiXCircle } from 'react-icons/fi'; // Corrected icon imports
+import { FiArrowLeft, FiInfo, FiGlobe, FiUsers, FiAtSign, FiXCircle } from 'react-icons/fi'; // Corrected icon imports
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -46,7 +46,7 @@ const ModerationInteractionPage: React.FC = () => {
         {
             value: 'anyone',
             label: t('moderation.anyone'),
-            icon: <Figlobe size={20} />,
+            icon: <FiGlobe size={20} />,
             desc: "Everyone can reply to your posts"
         },
         {
