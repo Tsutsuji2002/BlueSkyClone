@@ -107,9 +107,20 @@ public class PostService : IPostService
             .Where(w => w.UserId == viewerId)
             .ToListAsync();
 
+        var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId);
+        var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
+
+        var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
+
         var filteredPosts = new List<PostDto>();
         foreach (var post in posts)
         {
+            // Filter out muted or blocked users
+            if (mutedUserIds.Contains(post.Author.Id) || blockedUserIds.Contains(post.Author.Id))
+            {
+                continue;
+            }
+
             post.IsLiked = likedPostIds.Contains(post.Id);
             post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
             post.IsReposted = repostedPostIds.Contains(post.Id);
