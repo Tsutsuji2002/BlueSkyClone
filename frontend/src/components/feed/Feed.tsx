@@ -46,7 +46,6 @@ const Feed: React.FC<FeedProps> = ({ posts: propPosts }) => {
                 <PostCard
                     key={post.id}
                     post={post}
-                    isOwnPost={post.author.id === currentUser?.id}
                 />
             ))}
         </div>

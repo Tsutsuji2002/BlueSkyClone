@@ -49,12 +49,13 @@ interface PostCardProps {
     onRemoveFromList?: () => void;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost = false, isComment = false, isInListContext = false, onRemoveFromList }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList }) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal } = usePostActions();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const isOwnPost = isOwnPostProp ?? (currentUser?.id === post.author.id);
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
     const [showRemoveConfirm, setShowRemoveConfirm] = React.useState(false);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);

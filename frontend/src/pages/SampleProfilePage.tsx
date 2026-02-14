@@ -342,7 +342,7 @@ const SampleProfilePage: React.FC = () => {
 
                     {/* Bio */}
                     <div className="mt-3 text-[15px] leading-relaxed text-gray-900 dark:text-dark-text">
-                        <p>{profileUser.bio || 'Slowly, slowly writing a book about historical baseball equipment. Professional baseball talkerer. Two time World Series Champion support staff.'}</p>
+                        <p>{profileUser.bio || ''}</p>
                     </div>
                 </div>
 
