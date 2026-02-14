@@ -8,7 +8,7 @@ import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo } from '../redux/slices/feedsSlice';
+import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed } from '../redux/slices/feedsSlice';
 import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
 
@@ -17,7 +17,7 @@ const FeedDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { subscribedFeeds, feedPosts, isLoading, recommendedFeeds, searchResults, feeds } = useAppSelector((state: RootState) => state.feeds);
+    const { subscribedFeeds, feedPosts, isLoading, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading } = useAppSelector((state: RootState) => state.feeds);
 
     const [page, setPage] = useState(0);
     const take = 10;
@@ -140,8 +140,18 @@ const FeedDetailPage: React.FC = () => {
                                     </span>
                                 </div>
                                 <button
+                                    onClick={async () => {
+                                        if (feed.isSubscribed) {
+                                            await dispatch(unsaveFeed(feed.id));
+                                        } else {
+                                            await dispatch(saveFeed(feed.id));
+                                        }
+                                        dispatch(fetchSubscribedFeeds());
+                                        if (feedId) dispatch(fetchFeedInfo(feedId));
+                                    }}
+                                    disabled={feeds_actionLoading[feed.id]}
                                     className={cn(
-                                        "px-5 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm flex-shrink-0",
+                                        "px-5 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm flex-shrink-0 disabled:opacity-50",
                                         feed.isSubscribed
                                             ? "bg-gray-100 dark:bg-dark-surface text-gray-700 dark:text-dark-text border border-gray-200 dark:border-dark-border"
                                             : "bg-primary-500 hover:bg-primary-600 text-white"
