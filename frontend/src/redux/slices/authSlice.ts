@@ -93,12 +93,14 @@ export const logoutAsync = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const refreshToken = localStorage.getItem('refreshToken');
+            // Fire and forget logout request
             if (refreshToken) {
-                await fetch(`${API_URL}/auth/logout`, {
+                fetch(`${API_URL}/auth/logout`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(refreshToken),
-                });
+                    keepalive: true // Ensure request completes even if page unloads
+                }).catch(err => console.error('Logout failed', err));
             }
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
@@ -270,6 +272,7 @@ const authSlice = createSlice({
                 state.user = null;
                 state.settings = null;
                 state.isAuthenticated = false;
+                state.isLoading = false;
                 state.error = null;
             })
             // Update Profile
