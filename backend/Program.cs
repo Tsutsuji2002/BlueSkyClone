@@ -28,7 +28,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // Common React/Vite ports
+        policy.SetIsOriginAllowed(_ => true) // Allow any origin in production
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials()
@@ -137,16 +137,16 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Enable Swagger in production for easy debugging
+app.UseSwagger();
+app.UseSwaggerUI();
 
+/* 
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+*/
 
 app.UseCors("AllowFrontend");
 
