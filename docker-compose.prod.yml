@@ -30,10 +30,22 @@ services:
     build:
       context: ./frontend
       args:
-        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000/api}
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-https://bskyclone.site/api}
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     restart: always
+
+  certbot:
+    image: certbot/certbot
+    container_name: bsky-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
   mssql_data:
