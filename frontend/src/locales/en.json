@@ -550,7 +550,8 @@
         "go_home": "Go home",
         "show_more": "Show more",
         "show_less": "Show less",
-        "adding": "Adding..."
+        "adding": "Adding...",
+        "saving": "Saving..."
     },
     "post": {
         "title": "Post",

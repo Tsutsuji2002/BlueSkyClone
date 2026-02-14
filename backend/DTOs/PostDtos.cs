@@ -27,6 +27,8 @@ public class PostDto
     public string? ListCaption { get; set; } // For Curated Lists
     public Guid? AddedByUserId { get; set; } // For Curated Lists
     public PostMuteDto MuteInfo { get; set; } = new();
+    public string ReplyRestriction { get; set; } = "anyone";
+    public bool AllowQuotes { get; set; } = true;
 }
 
 public class PostMuteDto

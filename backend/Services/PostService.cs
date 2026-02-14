@@ -166,24 +166,30 @@ public class PostService : IPostService
             throw new Exception("Please wait a moment before posting again.");
         }
 
+        var userSettings = await _unitOfWork.UserSettings.GetByIdAsync(userId);
+        var replyRestriction = userSettings?.DefaultReplyRestriction ?? "anyone";
+        var allowQuotes = userSettings?.DefaultAllowQuotes ?? true;
+
         try
         {
             var post = new Post
             {
-            Id = Guid.NewGuid(),
-            Tid = GenerateTid(),
-            AuthorId = userId,
-            Content = request.Content,
-            CreatedAt = DateTime.UtcNow,
-            ReplyToPostId = request.ReplyToPostId,
-            RootPostId = request.RootPostId,
-            LikesCount = 0,
-            RepostsCount = 0,
-            RepliesCount = 0,
-            QuotesCount = 0,
-            BookmarksCount = 0,
-            IsDeleted = false
-        };
+                Id = Guid.NewGuid(),
+                Tid = GenerateTid(),
+                AuthorId = userId,
+                Content = request.Content,
+                CreatedAt = DateTime.UtcNow,
+                ReplyToPostId = request.ReplyToPostId,
+                RootPostId = request.RootPostId,
+                LikesCount = 0,
+                RepostsCount = 0,
+                RepliesCount = 0,
+                QuotesCount = 0,
+                BookmarksCount = 0,
+                IsDeleted = false,
+                ReplyRestriction = replyRestriction,
+                AllowQuotes = allowQuotes
+            };
 
         if (request.Images != null && request.Images.Any())
         {
@@ -808,7 +814,9 @@ public class PostService : IPostService
                 Domain = post.LinkPreview.Domain
             },
             Tags = post.Hashtags?.Select(h => h.Name).ToList() ?? new List<string>(),
-            Interests = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>()
+            Interests = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>(),
+            ReplyRestriction = post.ReplyRestriction ?? "anyone",
+            AllowQuotes = post.AllowQuotes ?? true
         };
     }
 

@@ -27,5 +27,6 @@ public interface IUnitOfWork : IDisposable
     IRepository<Interest> Interests { get; }
     IRepository<Hashtag> Hashtags { get; }
     IRepository<MutedWord> MutedWords { get; }
+    IRepository<UserSetting> UserSettings { get; }
     Task<int> CompleteAsync();
 }
