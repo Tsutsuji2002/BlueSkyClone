@@ -31,6 +31,7 @@ services:
       context: ./frontend
       args:
         - REACT_APP_API_URL=${REACT_APP_API_URL:-https://bskyclone.site/api}
+        - REACT_APP_HUB_URL=${REACT_APP_HUB_URL:-https://bskyclone.site/hubs/chat}
     ports:
       - "80:80"
       - "443:443"
