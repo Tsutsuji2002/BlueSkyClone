@@ -16,7 +16,7 @@ const RichText: React.FC<RichTextProps> = ({ content, className }) => {
     const elements: (React.ReactNode | string)[] = [];
 
     // We'll split the text and then map over it to handle different types
-    const parts = content.split(/(@[a-zA-Z0-9.-]+)|(https?:\/\/[^\s]+)/g).filter(Boolean);
+    const parts = content.split(/(@[a-zA-Z0-9.-]+)|(https?:\/\/[^\s]+)|(#\w+)/g).filter(Boolean);
 
     parts.forEach((part, index) => {
         if (part.startsWith('@')) {
@@ -25,6 +25,18 @@ const RichText: React.FC<RichTextProps> = ({ content, className }) => {
                 <Link
                     key={index}
                     to={`/profile/${handle}`}
+                    className="text-primary-500 hover:underline font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {part}
+                </Link>
+            );
+        } else if (part.startsWith('#')) {
+            const tag = part.substring(1);
+            elements.push(
+                <Link
+                    key={index}
+                    to={`/tag/${tag}`}
                     className="text-primary-500 hover:underline font-medium"
                     onClick={(e) => e.stopPropagation()}
                 >

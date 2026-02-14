@@ -17,5 +17,6 @@ public interface IPostService
     Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null);
     Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50);
     Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId);
+    Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0);
     PostDto MapToDto(Post post);
 }

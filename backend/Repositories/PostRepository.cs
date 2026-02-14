@@ -99,4 +99,19 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Take(limit)
             .ToListAsync();
     }
+
+    public async Task<IEnumerable<Post>> GetPostsByTagAsync(string tag, int limit = 20, int offset = 0)
+    {
+        return await _dbSet
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Include(p => p.Interests)
+            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
+                        && p.Interests.Any(i => i.Slug == tag.ToLower() || i.Name.ToLower() == tag.ToLower()))
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
+    }
 }

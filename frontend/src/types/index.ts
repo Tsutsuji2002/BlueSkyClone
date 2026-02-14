@@ -129,6 +129,7 @@ export interface Post {
     replyToHandle?: string;
     rootPostId?: string;
     addedByUserId?: string; // For curated lists
+    tags?: string[];
 }
 
 // Comment/Reply types

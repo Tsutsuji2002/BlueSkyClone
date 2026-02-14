@@ -115,4 +115,14 @@ public class PostsController : ControllerBase
         var replies = await _postService.GetPostRepliesAsync(id, viewerId);
         return Ok(replies);
     }
+
+    [HttpGet("tag/{tag}")]
+    public async Task<IActionResult> GetPostsByTag(string tag, [FromQuery] int limit = 20, [FromQuery] int offset = 0)
+    {
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var posts = await _postService.GetPostsByTagAsync(tag, viewerId, limit, offset);
+        return Ok(posts);
+    }
 }

@@ -4,6 +4,7 @@ using BSkyClone.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using BSkyClone.Hubs;
+using System.Text.RegularExpressions;
 
 namespace BSkyClone.Services;
 
@@ -208,6 +209,33 @@ public class PostService : IPostService
             }
         }
 
+        // Tag Handling (#hashtags)
+        var hashtags = Regex.Matches(request.Content ?? "", @"#(\w+)")
+            .Cast<Match>()
+            .Select(m => m.Groups[1].Value.ToLower())
+            .Distinct()
+            .ToList();
+
+        foreach (var tag in hashtags)
+        {
+            var interest = await _unitOfWork.Interests.Query().FirstOrDefaultAsync(i => i.Slug == tag);
+            if (interest == null)
+            {
+                interest = new Interest
+                {
+                    Name = tag.Substring(0, 1).ToUpper() + tag.Substring(1),
+                    Slug = tag
+                };
+                await _unitOfWork.Interests.AddAsync(interest);
+                await _unitOfWork.CompleteAsync();
+            }
+            
+            if (!post.Interests.Any(i => i.Id == interest.Id))
+            {
+                post.Interests.Add(interest);
+            }
+        }
+
         await _unitOfWork.Posts.AddAsync(post);
         
         // Update User PostsCount
@@ -252,7 +280,8 @@ public class PostService : IPostService
         await _unitOfWork.CompleteAsync();
 
         // Detect Mentions
-        var mentions = System.Text.RegularExpressions.Regex.Matches(request.Content ?? "", @"@(\w+)")
+        var mentions = Regex.Matches(request.Content ?? "", @"@(\w+)")
+            .Cast<Match>()
             .Select(m => m.Groups[1].Value.ToLower())
             .Distinct()
             .ToList();
@@ -748,7 +777,8 @@ public class PostService : IPostService
                 Description = post.LinkPreview.Description,
                 Image = post.LinkPreview.Image,
                 Domain = post.LinkPreview.Domain
-            }
+            },
+            Tags = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>()
         };
     }
 
@@ -812,5 +842,18 @@ public class PostService : IPostService
             await _hubContext.Clients.Group($"user-{savedNotification.RecipientId}")
                 .SendAsync("ReceiveNotification", notificationDto);
         }
+    }
+
+    public async Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0)
+    {
+        var posts = await _unitOfWork.Posts.GetPostsByTagAsync(tag, limit, offset);
+        var postDtos = posts.Select(MapToDto).ToList();
+
+        if (viewerId.HasValue)
+        {
+            await EnrichPostsWithInteractions(postDtos, viewerId.Value);
+        }
+
+        return postDtos;
     }
 }

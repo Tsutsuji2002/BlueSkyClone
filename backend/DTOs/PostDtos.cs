@@ -22,6 +22,7 @@ public class PostDto
     public bool IsBookmarked { get; set; }
     public bool IsReposted { get; set; }
     public LinkPreviewDto? LinkPreview { get; set; }
+    public List<string> Tags { get; set; } = new();
     public string? ListCaption { get; set; } // For Curated Lists
     public Guid? AddedByUserId { get; set; } // For Curated Lists
 }

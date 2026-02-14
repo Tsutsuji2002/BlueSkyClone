@@ -52,6 +52,7 @@ const BlockedAccountsPage = React.lazy(() => import('../pages/BlockedAccountsPag
 const VerificationSettingsPage = React.lazy(() => import('../pages/VerificationSettingsPage'));
 
 const PostDetailPage = React.lazy(() => import('../pages/PostDetailPage'));
+const TagPage = React.lazy(() => import('../pages/TagPage'));
 const SubmitRequestPage = React.lazy(() => import('../pages/SubmitRequestPage'));
 
 // Admin Pages
@@ -121,6 +122,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="/settings/content/external-media" element={<ExternalMediaPage />} />
 
                     <Route path="/interests" element={<MyInterestsPage />} />
+                    <Route path="/tag/:tag" element={<TagPage />} />
                     <Route path="/profile/:handle/post/:postId" element={<PostDetailPage />} />
                     <Route path="/profile/:handle/post/:postId/media/:index" element={<MediaViewerPage />} />
                     <Route path="/support" element={<SubmitRequestPage />} />

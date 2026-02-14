@@ -160,6 +160,23 @@ export const deletePost = createAsyncThunk(
     }
 );
 
+export const fetchPostsByTag = createAsyncThunk(
+    'posts/fetchByTag',
+    async ({ tag, limit = 20, offset = 0 }: { tag: string; limit?: number; offset?: number }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/tag/${tag}?limit=${limit}&offset=${offset}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch posts by tag');
+            return { posts: data, offset };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const fetchPostById = createAsyncThunk(
     'posts/fetchPostById',
     async (postId: string, { rejectWithValue }) => {
@@ -446,6 +463,26 @@ const postsSlice = createSlice({
                 });
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Fetch Posts By Tag
+            .addCase(fetchPostsByTag.pending, (state: PostsState, action) => {
+                state.isLoading = true;
+                if (action.meta.arg.offset === 0) {
+                    state.posts = [];
+                }
+            })
+            .addCase(fetchPostsByTag.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], offset: number }>) => {
+                state.isLoading = false;
+                if (action.payload.offset === 0) {
+                    state.posts = action.payload.posts;
+                } else {
+                    state.posts = [...state.posts, ...action.payload.posts];
+                }
+                state.hasMore = action.payload.posts.length > 0;
+            })
+            .addCase(fetchPostsByTag.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             });
