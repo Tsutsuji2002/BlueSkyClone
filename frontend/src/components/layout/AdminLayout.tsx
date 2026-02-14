@@ -36,7 +36,7 @@ const AdminLayout: React.FC = () => {
             ]
         },
         {
-            title: t('admin.content.title', 'Content Management'),
+            title: t('admin.content.title'),
             items: [
                 { path: '/admin/posts', icon: <FiMessageSquare size={20} />, label: t('admin.posts.title') },
                 { path: '/admin/feeds', icon: <FiCpu size={20} />, label: t('admin.feeds.title') },
@@ -45,7 +45,7 @@ const AdminLayout: React.FC = () => {
             ]
         },
         {
-            title: t('admin.safety.title', 'Safety & System'),
+            title: t('admin.safety.title'),
             items: [
                 { path: '/admin/moderation', icon: <FiShield size={20} />, label: t('admin.moderation.title') },
                 { path: '/admin/notifications', icon: <FiBell size={20} />, label: t('admin.notifications.title') },
@@ -67,7 +67,7 @@ const AdminLayout: React.FC = () => {
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
                         A
                     </div>
-                    <span className="font-bold text-xl tracking-tight">Admin<span className="text-blue-500">Panel</span></span>
+                    <span className="font-bold text-xl tracking-tight">Admin<span className="text-blue-500">{t('admin.panel')}</span></span>
                 </div>
                 <button
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -94,7 +94,7 @@ const AdminLayout: React.FC = () => {
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
                         A
                     </div>
-                    <span className="font-bold text-xl tracking-tight">Admin<span className="text-blue-500">Panel</span></span>
+                    <span className="font-bold text-xl tracking-tight">Admin<span className="text-blue-500">{t('admin.panel')}</span></span>
                 </div>
 
                 <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-100 dark:border-dark-border">
@@ -138,7 +138,7 @@ const AdminLayout: React.FC = () => {
                         className="w-full flex items-center gap-4 px-4 py-3 rounded-full text-lg font-medium hover:bg-gray-50 dark:hover:bg-dark-surface/50 text-gray-600 dark:text-dark-text-secondary transition-colors"
                     >
                         <FiArrowLeft size={24} />
-                        Back to App
+                        {t('admin.back_to_app')}
                     </button>
                 </div>
             </div>

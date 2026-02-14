@@ -101,7 +101,7 @@ const SignUpPage: React.FC = () => {
                                 {t('auth.signup.your_account')}
                             </h2>
                             <p className="text-gray-600 dark:text-dark-text-secondary mb-8">
-                                {t('auth.signup.creating_on')} <span className="text-primary-500 font-semibold">Bluesky Social</span>
+                                {t('auth.signup.creating_on')} <span className="text-primary-500 font-semibold">{t('auth.signup.hosting_provider_name')}</span>
                             </p>
 
                             <div className="space-y-6">
@@ -224,7 +224,7 @@ const SignUpPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <p className="mt-2 text-sm text-gray-500 dark:text-dark-text-secondary">
-                                        {t('auth.signup.username_preview')} <span className="font-semibold">{formData.username || 'username'}.{formData.hostingProvider}</span>
+                                        {t('auth.signup.username_preview')} <span className="font-semibold">{formData.username || t('auth.signup.username_placeholder_default')}.{formData.hostingProvider}</span>
                                     </p>
                                 </div>
 

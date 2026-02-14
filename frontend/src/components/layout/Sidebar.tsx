@@ -100,7 +100,7 @@ const Sidebar: React.FC = () => {
                         <div className="relative">
                             <FiShield size={24} />
                         </div>
-                        <span className="text-xl hidden xl:inline">Admin</span>
+                        <span className="text-xl hidden xl:inline">{t('nav.admin')}</span>
                     </button>
                 )}
             </nav>

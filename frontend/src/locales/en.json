@@ -18,7 +18,8 @@
         "video": "Video",
         "likes": "Likes",
         "bookmarks": "Bookmarks",
-        "link_preview": "Link preview"
+        "link_preview": "Link preview",
+        "admin": "Admin"
     },
     "settings": {
         "title": "Settings",
@@ -355,7 +356,9 @@
         "interests_desc": "Your interests help us find what you like!",
         "edit_interests": "Edit interests",
         "promoted": "Promoted",
-        "no_posts_found": "No trending posts found in the last 24 hours."
+        "no_posts_found": "No trending posts found in the last 24 hours.",
+        "trending_posts": "Trending posts",
+        "loading_accounts": "Loading trending accounts..."
     },
     "lists": {
         "title": "Lists",
@@ -445,6 +448,7 @@
             "step": "Step {{step}} / 3",
             "your_account": "Your account",
             "creating_on": "You are creating an account on",
+            "hosting_provider_name": "Bluesky Social",
             "email_label": "Email",
             "email_placeholder": "Enter your email address",
             "password_label": "Password",
@@ -459,6 +463,7 @@
             "username_desc": "You can change this later",
             "username_label": "Username",
             "username_preview": "Your username will be:",
+            "username_placeholder_default": "username",
             "having_trouble": "Having trouble?",
             "contact_support": "Contact support",
             "back": "Back",
@@ -499,6 +504,7 @@
         "forward": "Forward",
         "reply": "Reply",
         "replying_to": "Replying to {{name}}",
+        "replying_to_prefix": "Replying to",
         "modified": "Modified",
         "add_reaction": "Add reaction"
     },
@@ -685,13 +691,22 @@
             "welcome": "Welcome back, {{name}}",
             "loading": "Loading statistics..."
         },
+        "content": {
+            "title": "Content Management"
+        },
+        "safety": {
+            "title": "Safety & System"
+        },
         "stats": {
             "total_users": "Total Users",
             "total_posts": "Total Posts",
             "active_today": "Active Today",
             "new_posts_today": "New Posts Today",
             "total_feeds": "Total Feeds",
-            "banned_users": "Banned Users"
+            "banned_users": "Banned Users",
+            "total_lists": "Total Lists",
+            "total_conversations": "Total Conversations",
+            "total_notifications": "Total Notifications"
         },
         "feeds": {
             "title": "Feed Management",
@@ -818,12 +833,57 @@
             "title": "Notification Broadcast",
             "desc": "Send system-wide notifications",
             "create_btn": "New Broadcast",
-            "history_title": "Broadcast History",
-            "message_label": "Message",
-            "type_label": "Type",
-            "target_audience_label": "Target Audience",
-            "send_btn": "Send Notification",
-            "sent_success": "Notification sent successfully"
-        }
+            "sent_success": "Notification sent successfully",
+            "send_error": "Failed to send notification. Please try again.",
+            "broadcast_confirm_title": "Confirm Broadcast",
+            "broadcast_confirm_message": "Are you sure you want to send this notification to the selected audience? This action cannot be undone.",
+            "audience_all": "All Users",
+            "audience_user": "Regular Users Only",
+            "audience_admin": "Admins Only",
+            "best_practices": "Best Practices",
+            "best_practices_list": [
+                "Keep notifications concise and clear.",
+                "Use titles that grab attention but aren't clickbait.",
+                "Target specific roles when the message isn't relevant to everyone.",
+                "Avoid sending too many broadcasts to prevent user fatigue."
+            ]
+        },
+        "back_to_app": "Back to App",
+        "panel": "Panel"
+    },
+    "tag": {
+        "exploring_tagged": "Exploring posts tagged with #{{tag}}",
+        "no_posts_with_tag": "No posts found with tag #{{tag}}"
+    },
+    "support": {
+        "submit_request": "Submit a request",
+        "sign_in": "Sign in",
+        "required_fields": "Fields marked with an asterisk (*) are required.",
+        "email_label": "Your email address",
+        "description_label": "Enter device type and description of concern",
+        "description_info": "Please enter the details of your request. A member of our support staff will respond as soon as possible.",
+        "username_label": "Username",
+        "category_label": "Category",
+        "category_options": {
+            "account": "Account/Profile Concern",
+            "bug": "Bug Report",
+            "domain": "Custom Domain",
+            "feedback": "Product Feedback/Suggestions",
+            "moderation": "Moderation",
+            "other": "Other"
+        },
+        "device_label": "Type of Device:",
+        "device_info": "The type of device used to access the platform.",
+        "device_options": {
+            "android": "Android",
+            "ios": "IOS",
+            "web": "Web"
+        },
+        "attachments": "Attachments",
+        "choose_file": "Choose a file",
+        "drag_drop": "or drag and drop here",
+        "files_skipped_size": "Some files were skipped because they exceed the {{size}}MB limit.",
+        "submit": "Submit",
+        "powered_by": "Powered by"
     }
 }

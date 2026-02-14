@@ -285,7 +285,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                     {post.replyToHandle && !isComment && (
                         <div className="flex items-center gap-1 mb-1 text-[15px] text-gray-500 dark:text-dark-text-secondary">
                             <FiMessageCircle size={14} className="mt-0.5" />
-                            <span>{t('messages.replying_to', { name: '' }).replace(' {{name}}', '').replace('{{name}}', '')}</span>
+                            <span>{t('messages.replying_to_prefix')}</span>
                             <Link
                                 to={`/profile/${post.replyToHandle}`}
                                 className="text-primary-500 hover:underline"

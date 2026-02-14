@@ -74,21 +74,21 @@ const AdminDashboardPage: React.FC = () => {
             change: '+5%'
         },
         {
-            title: t('admin.stats.total_lists', 'Total Lists'),
+            title: t('admin.stats.total_lists'),
             value: stats.totalLists,
             icon: FiList,
             color: 'bg-pink-500',
             change: '+10%'
         },
         {
-            title: t('admin.stats.total_conversations', 'Conversations'),
+            title: t('admin.stats.total_conversations'),
             value: stats.totalConversations,
             icon: FiMessageCircle,
             color: 'bg-teal-500',
             change: '+7%'
         },
         {
-            title: t('admin.stats.total_notifications', 'Notifications Sent'),
+            title: t('admin.stats.total_notifications'),
             value: stats.totalNotifications,
             icon: FiBell,
             color: 'bg-yellow-500',

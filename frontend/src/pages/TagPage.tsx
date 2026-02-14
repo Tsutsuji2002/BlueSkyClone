@@ -68,7 +68,7 @@ const TagPage: React.FC = () => {
                     </h2>
                     <p className="text-gray-500 dark:text-dark-text-secondary max-w-sm mx-auto flex items-center justify-center gap-2">
                         <FiTrendingUp size={16} />
-                        Exploring posts tagged with {tag}
+                        {t('tag.exploring_tagged', { tag })}
                     </p>
                 </div>
 
@@ -87,7 +87,7 @@ const TagPage: React.FC = () => {
                                 {t('feeds.no_posts')}
                             </h2>
                             <p className="text-gray-500 dark:text-dark-text-secondary">
-                                No posts found with tag #{tag}
+                                {t('tag.no_posts_with_tag', { tag })}
                             </p>
                         </div>
                     ) : (

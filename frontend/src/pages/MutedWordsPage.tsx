@@ -75,7 +75,7 @@ const MutedWordsPage: React.FC = () => {
                                         onClick={() => setMutedWords(mutedWords.filter(w => w.id !== item.id))}
                                         className="text-red-500 hover:text-red-700 font-medium text-sm"
                                     >
-                                        Delete
+                                        {t('common.delete')}
                                     </button>
                                 </div>
                             ))}

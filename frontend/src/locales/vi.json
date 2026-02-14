@@ -18,7 +18,8 @@
         "video": "Video",
         "likes": "Lượt thích",
         "bookmarks": "Đã lưu",
-        "link_preview": "Xem trước liên kết"
+        "link_preview": "Xem trước liên kết",
+        "admin": "Quản trị"
     },
     "settings": {
         "title": "Cài đặt",
@@ -338,10 +339,12 @@
     "explore": {
         "search_placeholder": "Tìm kiếm bài đăng, người dùng hoặc bảng tin",
         "interests": "Mục quan tâm của bạn",
-        "interests_desc": "Mục quan tâm của bạn giúp chúng tôi tìm những gì bạn thích!",
-        "edit_interests": "Chỉnh sửa mục quan tâm",
-        "promoted": "Nổi bật",
-        "no_posts_found": "Không tìm thấy bài đăng xu hướng nào trong 24 giờ qua."
+        "interests_desc": "Sở thích của bạn giúp chúng tôi tìm thấy những gì bạn thích!",
+        "edit_interests": "Chỉnh sơ thích",
+        "promoted": "Được tài trợ",
+        "no_posts_found": "Không tìm thấy bài đăng xu hướng nào trong 24 giờ qua.",
+        "trending_posts": "Bài đăng xu hướng",
+        "loading_accounts": "Đang tải các tài khoản xu hướng..."
     },
     "lists": {
         "title": "Danh sách",
@@ -431,6 +434,7 @@
             "step": "Bước {{step}} / 3",
             "your_account": "Tài khoản của bạn",
             "creating_on": "Bạn đang tạo tài khoản trên",
+            "hosting_provider_name": "Bluesky Social",
             "email_label": "Email",
             "email_placeholder": "Nhập địa chỉ email của bạn",
             "password_label": "Mật khẩu",
@@ -445,6 +449,7 @@
             "username_desc": "Bạn có thể thay đổi sau",
             "username_label": "Tên người dùng",
             "username_preview": "Tên người dùng của bạn sẽ là:",
+            "username_placeholder_default": "tennguoidung",
             "having_trouble": "Gặp khó khăn?",
             "contact_support": "Liên hệ hỗ trợ",
             "back": "Trở lại",
@@ -485,6 +490,7 @@
         "forward": "Chuyển tiếp",
         "reply": "Trả lời",
         "replying_to": "Đang trả lời {{name}}",
+        "replying_to_prefix": "Đang trả lời",
         "modified": "Đã chỉnh sửa",
         "add_reaction": "Bày tỏ cảm xúc"
     },
@@ -671,13 +677,22 @@
             "welcome": "Chào mừng trở lại, {{name}}",
             "loading": "Đang tải thống kê..."
         },
+        "content": {
+            "title": "Quản lý nội dung"
+        },
+        "safety": {
+            "title": "An toàn & Hệ thống"
+        },
         "stats": {
             "total_users": "Tổng người dùng",
             "total_posts": "Tổng bài đăng",
             "active_today": "Hoạt động hôm nay",
             "new_posts_today": "Bài đăng mới hôm nay",
             "total_feeds": "Tổng bảng tin",
-            "banned_users": "Người dùng bị cấm"
+            "banned_users": "Người dùng bị cấm",
+            "total_lists": "Tổng danh sách",
+            "total_conversations": "Tổng cuộc trò chuyện",
+            "total_notifications": "Tổng thông báo"
         },
         "feeds": {
             "title": "Quản lý Bảng tin",
@@ -803,12 +818,57 @@
             "title": "Phát thông báo",
             "desc": "Gửi thông báo toàn hệ thống",
             "create_btn": "Tạo thông báo mới",
-            "history_title": "Lịch sử phát thông báo",
-            "message_label": "Nội dung",
-            "type_label": "Tiêu đề",
-            "target_audience_label": "Đối tượng mục tiêu",
-            "send_btn": "Gửi thông báo",
-            "sent_success": "Thông báo đã được gửi thành công"
-        }
+            "sent_success": "Đã gửi thông báo thành công",
+            "send_error": "Gửi thông báo thất bại. Vui lòng thử lại.",
+            "broadcast_confirm_title": "Xác nhận phát thông báo",
+            "broadcast_confirm_message": "Bạn có chắc chắn muốn gửi thông báo này tới đối tượng đã chọn? Hành động này không thể hoàn tác.",
+            "audience_all": "Tất cả người dùng",
+            "audience_user": "Chỉ người dùng thường",
+            "audience_admin": "Chỉ quản trị viên",
+            "best_practices": "Quy tắc tốt nhất",
+            "best_practices_list": [
+                "Giữ thông báo súc tích và rõ ràng.",
+                "Sử dụng tiêu đề thu hút sự chú ý nhưng không phải là clickbait.",
+                "Nhắm mục tiêu vào các vai trò cụ thể khi thông báo không liên quan đến mọi người.",
+                "Tránh gửi quá nhiều thông báo để ngăn chặn sự mệt mỏi của người dùng."
+            ]
+        },
+        "back_to_app": "Quay lại ứng dụng",
+        "panel": "Bảng điều khiển"
+    },
+    "tag": {
+        "exploring_tagged": "Khám phá các bài đăng được gắn thẻ #{{tag}}",
+        "no_posts_with_tag": "Không tìm thấy bài đăng nào với thẻ #{{tag}}"
+    },
+    "support": {
+        "submit_request": "Gửi yêu cầu",
+        "sign_in": "Đăng nhập",
+        "required_fields": "Các trường được đánh dấu bằng dấu sao (*) là bắt buộc.",
+        "email_label": "Địa chỉ email của bạn",
+        "description_label": "Nhập loại thiết bị và mô tả mối quan tâm",
+        "description_info": "Vui lòng nhập chi tiết yêu cầu của bạn. Nhân viên hỗ trợ của chúng tôi sẽ phản hồi sớm nhất có thể.",
+        "username_label": "Tên người dùng",
+        "category_label": "Danh mục",
+        "category_options": {
+            "account": "Vấn đề về Tài khoản/Hồ sơ",
+            "bug": "Báo cáo lỗi",
+            "domain": "Tên miền tùy chỉnh",
+            "feedback": "Phản hồi/Gợi ý sản phẩm",
+            "moderation": "Kiểm duyệt",
+            "other": "Khác"
+        },
+        "device_label": "Loại thiết bị:",
+        "device_info": "Loại thiết bị được sử dụng để truy cập nền tảng.",
+        "device_options": {
+            "android": "Android",
+            "ios": "IOS",
+            "web": "Web"
+        },
+        "attachments": "Tệp đính kèm",
+        "choose_file": "Chọn một tệp",
+        "drag_drop": "hoặc kéo và thả vào đây",
+        "files_skipped_size": "Một số tệp đã bị bỏ qua vì chúng vượt quá giới hạn {{size}}MB.",
+        "submit": "Gửi",
+        "powered_by": "Cung cấp bởi"
     }
 }

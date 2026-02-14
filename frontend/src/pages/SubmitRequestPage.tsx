@@ -5,8 +5,10 @@ import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css'; // Import styles
 import { useAppSelector } from '../hooks/useAppSelector';
 import { RootState } from '../redux/store';
+import { useTranslation } from 'react-i18next';
 
 const SubmitRequestPage: React.FC = () => {
+    const { t } = useTranslation();
     const { user } = useAppSelector((state: RootState) => state.auth);
     const location = useLocation();
 
@@ -93,7 +95,7 @@ const SubmitRequestPage: React.FC = () => {
         });
 
         if (hasError) {
-            alert(`Some files were skipped because they exceed the ${MAX_FILE_SIZE_MB}MB limit.`);
+            alert(t('support.files_skipped_size', { size: MAX_FILE_SIZE_MB }));
         }
 
         setFiles(prev => [...prev, ...validFiles]);
@@ -117,16 +119,16 @@ const SubmitRequestPage: React.FC = () => {
                             <svg viewBox="0 0 64 64" fill="currentColor" className="w-8 h-8 text-[#0085FF]">
                                 <path d="M13.873 3.805C21.21 9.332 29.103 20.537 32 26.55v15.882c0-.338-.13.044-.41.867-1.512 4.456-7.418 21.847-20.923 7.944-7.111-7.32-3.819-14.64 9.125-16.85-7.405 1.264-15.73-.825-18.014-9.015C1.12 23.022 0 8.51 0 6.55 0-3.268 8.579-.182 13.873 3.805zm36.254 0C42.79 9.332 34.897 20.537 32 26.55v15.882c0-.338.13.044.41.867 1.512 4.456 7.418 21.847 20.923 7.944 7.111-7.32 3.819-14.64-9.125-16.85 7.405 1.264 15.73-.825 18.014-9.015C62.88 23.022 64 8.51 64 6.55c0-9.818-8.579-6.732-13.873-2.745z" />
                             </svg>
-                            <span className="text-xl font-semibold text-gray-900">Submit a request</span>
+                            <span className="text-xl font-semibold text-gray-900">{t('support.submit_request')}</span>
                         </Link>
                     </div>
 
                     <div className="hidden md:flex items-center gap-6 text-sm">
-                        <Link to="/support" className="text-gray-500 hover:text-gray-900 transition-colors">Submit a request</Link>
+                        <Link to="/support" className="text-gray-500 hover:text-gray-900 transition-colors">{t('support.submit_request')}</Link>
                         {username ? (
                             <span className="text-primary-600 font-medium">{username}</span>
                         ) : (
-                            <Link to="/login" className="text-primary-600 hover:underline">Sign in</Link>
+                            <Link to="/login" className="text-primary-600 hover:underline">{t('support.sign_in')}</Link>
                         )}
                     </div>
 
@@ -137,22 +139,22 @@ const SubmitRequestPage: React.FC = () => {
 
                 {isMenuOpen && (
                     <div className="md:hidden border-t border-gray-200 px-4 py-2 space-y-2">
-                        <Link to="/support" className="block py-2 text-gray-500">Submit a request</Link>
-                        <Link to="/login" className="block py-2 text-primary-600">Sign in</Link>
+                        <Link to="/support" className="block py-2 text-gray-500">{t('support.submit_request')}</Link>
+                        <Link to="/login" className="block py-2 text-primary-600">{t('support.sign_in')}</Link>
                     </div>
                 )}
             </header>
 
             {/* Main Content */}
             <div className="max-w-2xl mx-auto w-full px-4 md:px-0 py-12 flex-grow">
-                <h1 className="text-[32px] font-bold mb-4 text-gray-900">Submit a request</h1>
-                <p className="text-sm text-gray-600 mb-8">Fields marked with an asterisk (*) are required.</p>
+                <h1 className="text-[32px] font-bold mb-4 text-gray-900">{t('support.submit_request')}</h1>
+                <p className="text-sm text-gray-600 mb-8">{t('support.required_fields')}</p>
 
                 <div className="space-y-6">
                     {/* Email */}
                     <div className="space-y-1">
                         <label className="block text-sm font-bold text-gray-700">
-                            Your email address<span className="text-red-500">*</span>
+                            {t('support.email_label')}<span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
@@ -165,9 +167,9 @@ const SubmitRequestPage: React.FC = () => {
                     {/* Description */}
                     <div className="space-y-1">
                         <label className="block text-sm font-bold text-gray-700">
-                            Enter device type and description of concern<span className="text-red-500">*</span>
+                            {t('support.description_label')}<span className="text-red-500">*</span>
                         </label>
-                        <p className="text-sm text-gray-600 mb-2">Please enter the details of your request. A member of our support staff will respond as soon as possible.</p>
+                        <p className="text-sm text-gray-600 mb-2">{t('support.description_info')}</p>
 
                         {/* React Quill Editor */}
                         <div className="rounded overflow-hidden bg-white react-quill-wrapper">
@@ -212,7 +214,7 @@ const SubmitRequestPage: React.FC = () => {
                     {/* Username */}
                     <div className="space-y-1">
                         <label className="block text-sm font-bold text-gray-700">
-                            Username
+                            {t('support.username_label')}
                         </label>
                         <input
                             type="text"
@@ -224,7 +226,7 @@ const SubmitRequestPage: React.FC = () => {
 
                     {/* Category */}
                     <div className="space-y-1">
-                        <label className="block text-sm font-bold text-gray-700">Category<span className="text-red-500">*</span></label>
+                        <label className="block text-sm font-bold text-gray-700">{t('support.category_label')}<span className="text-red-500">*</span></label>
                         <div className="relative">
                             <select
                                 className="w-full px-4 py-2.5 rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none"
@@ -232,12 +234,12 @@ const SubmitRequestPage: React.FC = () => {
                                 onChange={(e) => setCategory(e.target.value)}
                             >
                                 <option value="">-</option>
-                                <option value="account">Account/Profile Concern</option>
-                                <option value="bug">Bug Report</option>
-                                <option value="domain">Custom Domain</option>
-                                <option value="feedback">Product Feedback/Suggestions</option>
-                                <option value="moderation">Moderation</option>
-                                <option value="other">Other</option>
+                                <option value="account">{t('support.category_options.account')}</option>
+                                <option value="bug">{t('support.category_options.bug')}</option>
+                                <option value="domain">{t('support.category_options.domain')}</option>
+                                <option value="feedback">{t('support.category_options.feedback')}</option>
+                                <option value="moderation">{t('support.category_options.moderation')}</option>
+                                <option value="other">{t('support.category_options.other')}</option>
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -249,8 +251,8 @@ const SubmitRequestPage: React.FC = () => {
 
                     {/* Device */}
                     <div className="space-y-1">
-                        <label className="block text-sm font-bold text-gray-700">Type of Device:<span className="text-red-500">*</span></label>
-                        <p className="text-sm text-gray-600">The type of device used to access the platform.</p>
+                        <label className="block text-sm font-bold text-gray-700">{t('support.device_label')}<span className="text-red-500">*</span></label>
+                        <p className="text-sm text-gray-600">{t('support.device_info')}</p>
                         <div className="relative">
                             <select
                                 className="w-full px-4 py-2.5 rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none"
@@ -258,9 +260,9 @@ const SubmitRequestPage: React.FC = () => {
                                 onChange={(e) => setDeviceType(e.target.value)}
                             >
                                 <option value="">-</option>
-                                <option value="android">Android</option>
-                                <option value="ios">IOS</option>
-                                <option value="web">Web</option>
+                                <option value="android">{t('support.device_options.android')}</option>
+                                <option value="ios">{t('support.device_options.ios')}</option>
+                                <option value="web">{t('support.device_options.web')}</option>
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,7 +274,7 @@ const SubmitRequestPage: React.FC = () => {
 
                     {/* Attachments */}
                     <div className="space-y-2 mt-6">
-                        <label className="block text-sm font-bold text-gray-700">Attachments</label>
+                        <label className="block text-sm font-bold text-gray-700">{t('support.attachments')}</label>
 
                         {/* Hidden Input */}
                         <input
@@ -292,8 +294,8 @@ const SubmitRequestPage: React.FC = () => {
                             onDrop={handleDrop}
                             onClick={triggerFileInput}
                         >
-                            <span className="text-sm text-primary-600 group-hover:underline">Choose a file</span>
-                            <span className="text-sm text-gray-500 ml-1">or drag and drop here</span>
+                            <span className="text-sm text-primary-600 group-hover:underline">{t('support.choose_file')}</span>
+                            <span className="text-sm text-gray-500 ml-1">{t('support.drag_drop')}</span>
                         </div>
 
                         {/* File List */}
@@ -322,7 +324,7 @@ const SubmitRequestPage: React.FC = () => {
 
                 <div className="mt-8">
                     <button className="bg-[#0072EF] hover:bg-[#0060cb] text-white font-medium py-2.5 px-6 rounded transition-colors text-sm">
-                        Submit
+                        {t('support.submit')}
                     </button>
                 </div>
             </div>
@@ -333,7 +335,7 @@ const SubmitRequestPage: React.FC = () => {
                         Bluesky
                     </div>
                     <div className="flex items-center gap-1">
-                        <span>Powered by</span>
+                        <span>{t('support.powered_by')}</span>
                         <a href="https://www.zendesk.com" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-600 hover:underline">Zendesk</a>
                     </div>
                 </div>
