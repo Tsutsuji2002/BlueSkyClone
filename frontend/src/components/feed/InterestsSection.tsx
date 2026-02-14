@@ -1,17 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../constants';
 
 const InterestsSection: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
 
     const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const loadInterests = () => {
+    const loadInterests = async () => {
         const storedInterests = localStorage.getItem('selected_interests');
-        const current = storedInterests ? JSON.parse(storedInterests) : ['art', 'books', 'developers', 'technology'];
-        setSelectedInterests(current);
+        if (storedInterests) {
+            setSelectedInterests(JSON.parse(storedInterests));
+        } else {
+            setIsLoading(true);
+            try {
+                const response = await fetch(`${API_BASE_URL}/Interests`);
+                if (response.ok) {
+                    const data = await response.json();
+                    // Take top 4-5 interests if many exist
+                    const interests = data.slice(0, 5).map((i: any) => i.name);
+                    setSelectedInterests(interests);
+                }
+            } catch (error) {
+                console.error('Failed to fetch interests:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        }
     }
 
     useEffect(() => {

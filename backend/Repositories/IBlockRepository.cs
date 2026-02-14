@@ -8,5 +8,6 @@ public interface IBlockRepository
     Task AddAsync(BlockedAccount block);
     void Remove(BlockedAccount block);
     Task<bool> IsBlockedAsync(Guid userId, Guid potentialBlockedUserId);
+    Task<List<BlockedAccount>> GetBlockedAccountsAsync(Guid userId);
     Task<List<Guid>> GetBlockedUserIdsAsync(Guid userId);
 }

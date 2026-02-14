@@ -8,4 +8,5 @@ public interface IMuteRepository
     Task AddAsync(MutedAccount mute);
     void Remove(MutedAccount mute);
     Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId);
+    Task<List<MutedAccount>> GetMutedAccountsAsync(Guid userId);
 }

@@ -133,6 +133,6 @@ public record ChangeRoleRequest(
 
 public record AdminInterestDto(
     string Name,
-    int UsedByCount,
+    int UsersCount,
     DateTime CreatedAt // if available, or remove
 );

@@ -106,6 +106,52 @@ export const fetchFollowing = createAsyncThunk<
     }
 );
 
+export const fetchMutedAccounts = createAsyncThunk<
+    User[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchMuted',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted accounts');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchBlockedAccounts = createAsyncThunk<
+    User[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchBlocked',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/blocked`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch blocked accounts');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const followUserAsync = createAsyncThunk<
     { isFollowing: boolean, followersCount: number },
     string,
@@ -423,6 +469,29 @@ const userSlice = createSlice({
             .addCase(fetchFollowing.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
                 state.isLoading = false;
                 state.users = action.payload;
+            })
+            // Fetch Muted/Blocked
+            .addCase(fetchMutedAccounts.pending, (state: UserState) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchMutedAccounts.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+                state.isLoading = false;
+                state.users = action.payload;
+            })
+            .addCase(fetchMutedAccounts.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(fetchBlockedAccounts.pending, (state: UserState) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchBlockedAccounts.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+                state.isLoading = false;
+                state.users = action.payload;
+            })
+            .addCase(fetchBlockedAccounts.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
             });
     }
 });

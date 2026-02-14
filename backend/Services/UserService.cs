@@ -492,6 +492,18 @@ public class UserService : IUserService
         return await _unitOfWork.Mutes.IsMutedAsync(userId, potentialMutedUserId);
     }
 
+    public async Task<List<User>> GetMutedUsersAsync(Guid userId)
+    {
+        var mutes = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
+        return mutes.Select(m => m.MutedUser).ToList();
+    }
+
+    public async Task<List<User>> GetBlockedUsersAsync(Guid userId)
+    {
+        var blocks = await _unitOfWork.Blocks.GetBlockedAccountsAsync(userId);
+        return blocks.Select(b => b.BlockedUser).ToList();
+    }
+
     public async Task<List<User>> SearchUsersAsync(string query, int limit = 10)
     {
         if (string.IsNullOrWhiteSpace(query)) return new List<User>();

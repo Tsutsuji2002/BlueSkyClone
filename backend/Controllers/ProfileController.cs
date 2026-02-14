@@ -230,4 +230,52 @@ public class ProfileController : ControllerBase
         ));
         return Ok(dtos);
     }
+
+    [HttpGet("muted")]
+    public async Task<IActionResult> GetMutedAccounts()
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var users = await _userService.GetMutedUsersAsync(currentUserId);
+        var dtos = users.Select(user => new UserDto(
+            user.Id,
+            user.Username,
+            user.Handle,
+            user.Email,
+            user.DisplayName,
+            user.AvatarUrl,
+            user.CoverImageUrl,
+            user.Bio,
+            user.Location,
+            user.Website,
+            user.DateOfBirth,
+            user.FollowersCount,
+            user.FollowingCount,
+            user.PostsCount
+        ));
+        return Ok(dtos);
+    }
+
+    [HttpGet("blocked")]
+    public async Task<IActionResult> GetBlockedAccounts()
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var users = await _userService.GetBlockedUsersAsync(currentUserId);
+        var dtos = users.Select(user => new UserDto(
+            user.Id,
+            user.Username,
+            user.Handle,
+            user.Email,
+            user.DisplayName,
+            user.AvatarUrl,
+            user.CoverImageUrl,
+            user.Bio,
+            user.Location,
+            user.Website,
+            user.DateOfBirth,
+            user.FollowersCount,
+            user.FollowingCount,
+            user.PostsCount
+        ));
+        return Ok(dtos);
+    }
 }

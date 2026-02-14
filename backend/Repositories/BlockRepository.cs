@@ -34,6 +34,14 @@ public class BlockRepository : IBlockRepository
             .AnyAsync(b => b.UserId == userId && b.BlockedUserId == potentialBlockedUserId);
     }
 
+    public async Task<List<BlockedAccount>> GetBlockedAccountsAsync(Guid userId)
+    {
+        return await _context.BlockedAccounts
+            .Include(b => b.BlockedUser)
+            .Where(b => b.UserId == userId)
+            .ToListAsync();
+    }
+
     public async Task<List<Guid>> GetBlockedUserIdsAsync(Guid userId)
     {
         return await _context.BlockedAccounts

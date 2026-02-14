@@ -33,4 +33,12 @@ public class MuteRepository : IMuteRepository
         return await _context.MutedAccounts
             .AnyAsync(m => m.UserId == userId && m.MutedUserId == potentialMutedUserId);
     }
+
+    public async Task<List<MutedAccount>> GetMutedAccountsAsync(Guid userId)
+    {
+        return await _context.MutedAccounts
+            .Include(m => m.MutedUser)
+            .Where(m => m.UserId == userId)
+            .ToListAsync();
+    }
 }
