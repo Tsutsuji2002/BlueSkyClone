@@ -236,6 +236,43 @@ using (var scope = app.Services.CreateScope())
                     END";
                 context.Database.ExecuteSqlRaw(modSql);
 
+            // Ensure MutedWords columns
+            var mutedWordsSql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('MutedWords') AND name = 'MuteBehavior')
+                BEGIN
+                    ALTER TABLE MutedWords ADD MuteBehavior NVARCHAR(20) NOT NULL DEFAULT 'hide';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('MutedWords') AND name = 'CreatedAt')
+                BEGIN
+                    ALTER TABLE MutedWords ADD CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE();
+                END";
+            context.Database.ExecuteSqlRaw(mutedWordsSql);
+
+            // Ensure Hashtags and PostHashtags tables
+            var hashtagsSql = @"
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Hashtags' AND xtype='U')
+                BEGIN
+                    CREATE TABLE Hashtags (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        Name NVARCHAR(100) NOT NULL,
+                        Slug NVARCHAR(100) NOT NULL UNIQUE,
+                        PostsCount INT NOT NULL DEFAULT 0,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        IsDeleted BIT NOT NULL DEFAULT 0
+                    )
+                END
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostHashtags' AND xtype='U')
+                BEGIN
+                    CREATE TABLE PostHashtags (
+                        PostId UNIQUEIDENTIFIER NOT NULL,
+                        HashtagId INT NOT NULL,
+                        PRIMARY KEY (PostId, HashtagId),
+                        CONSTRAINT FK_PH_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                        CONSTRAINT FK_PH_Hashtag FOREIGN KEY (HashtagId) REFERENCES Hashtags(Id) ON DELETE CASCADE
+                    )
+                END";
+            context.Database.ExecuteSqlRaw(hashtagsSql);
+
             // Manual Table Creation for UserListSubscriptions (since we can't run migrations)
             var sql = @"
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserListSubscriptions' AND xtype='U')

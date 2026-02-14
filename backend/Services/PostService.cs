@@ -30,14 +30,16 @@ public class PostService : IPostService
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId)
     {
         var cacheKey = $"user:{userId}:timeline";
-        var cached = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
-        if (cached != null) return cached;
+        var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
+        if (cached != null)
+        {
+            return await EnrichAndFilterPostsAsync(cached, userId);
+        }
 
         var posts = await _unitOfWork.Posts.GetTimelinePostsAsync(userId);
         var postDtos = posts.Select(MapToDto).ToList();
+        await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(2));
         var filteredDtos = await EnrichAndFilterPostsAsync(postDtos, userId);
-
-        await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)filteredDtos, TimeSpan.FromMinutes(2));
         return filteredDtos;
     }
 
@@ -122,6 +124,7 @@ public class PostService : IPostService
 
                 var matchingWord = mutedWords.FirstOrDefault(mw => 
                 {
+                    if (string.IsNullOrEmpty(mw.Word)) return false;
                     var word = mw.Word.ToLower();
                     return content.Contains(word) || tags.Contains(word);
                 });
