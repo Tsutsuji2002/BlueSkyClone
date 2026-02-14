@@ -367,15 +367,7 @@ public class UserService : IUserService
     {
         if (userId == blockedUserId) return false;
 
-        var lockKey = $"lock:block:{userId}:{blockedUserId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
-        {
-            return false;
-        }
-
-        try
-        {
-            // Check if already blocked
+        // Check if already blocked
         if (await _unitOfWork.Blocks.IsBlockedAsync(userId, blockedUserId)) return true;
 
         // Create Block
@@ -393,34 +385,17 @@ public class UserService : IUserService
 
         await _unitOfWork.CompleteAsync();
         return true;
-        }
-        finally
-        {
-            await _cacheService.ReleaseLockAsync(lockKey);
-        }
     }
+
 
     public async Task<bool> UnblockUserAsync(Guid userId, Guid blockedUserId)
     {
-        var lockKey = $"lock:unblock:{userId}:{blockedUserId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
-        {
-            return false;
-        }
-
-        try
-        {
-            var block = await _unitOfWork.Blocks.GetAsync(userId, blockedUserId);
+        var block = await _unitOfWork.Blocks.GetAsync(userId, blockedUserId);
         if (block == null) return true;
 
         _unitOfWork.Blocks.Remove(block);
         await _unitOfWork.CompleteAsync();
         return true;
-        }
-        finally
-        {
-            await _cacheService.ReleaseLockAsync(lockKey);
-        }
     }
 
     public async Task<bool> IsBlockedAsync(Guid userId, Guid potentialBlockedUserId)
@@ -437,54 +412,28 @@ public class UserService : IUserService
     {
         if (userId == mutedUserId) return false;
 
-        var lockKey = $"lock:mute:{userId}:{mutedUserId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
-        {
-            return false;
-        }
+        if (await _unitOfWork.Mutes.IsMutedAsync(userId, mutedUserId)) return true;
 
-        try
+        var mute = new MutedAccount
         {
-            if (await _unitOfWork.Mutes.IsMutedAsync(userId, mutedUserId)) return true;
+            UserId = userId,
+            MutedUserId = mutedUserId,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var mute = new MutedAccount
-            {
-                UserId = userId,
-                MutedUserId = mutedUserId,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await _unitOfWork.Mutes.AddAsync(mute);
-            await _unitOfWork.CompleteAsync();
-            return true;
-        }
-        finally
-        {
-            await _cacheService.ReleaseLockAsync(lockKey);
-        }
+        await _unitOfWork.Mutes.AddAsync(mute);
+        await _unitOfWork.CompleteAsync();
+        return true;
     }
 
     public async Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId)
     {
-        var lockKey = $"lock:unmute:{userId}:{mutedUserId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
-        {
-            return false;
-        }
+        var mute = await _unitOfWork.Mutes.GetAsync(userId, mutedUserId);
+        if (mute == null) return true;
 
-        try
-        {
-            var mute = await _unitOfWork.Mutes.GetAsync(userId, mutedUserId);
-            if (mute == null) return true;
-
-            _unitOfWork.Mutes.Remove(mute);
-            await _unitOfWork.CompleteAsync();
-            return true;
-        }
-        finally
-        {
-            await _cacheService.ReleaseLockAsync(lockKey);
-        }
+        _unitOfWork.Mutes.Remove(mute);
+        await _unitOfWork.CompleteAsync();
+        return true;
     }
 
     public async Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId)
