@@ -19,7 +19,7 @@ export $(grep -v '^#' .env | xargs)
 
 # 4. Deploy with Docker Compose
 echo "Building and starting containers..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # 5. Cleanup unused images
 echo "Cleaning up..."
