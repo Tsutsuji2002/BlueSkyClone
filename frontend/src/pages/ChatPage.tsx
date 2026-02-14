@@ -8,7 +8,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { setActiveConversation, fetchMessages, fetchConversationById, markAsRead } from '../redux/slices/messagesSlice';
 import { openImageViewer } from '../redux/slices/modalsSlice';
-import signalrService from '../services/signalrService';
+import signalrService, { HubStatus } from '../services/signalrService';
 import EmojiPicker, { Theme as EmojiTheme, EmojiClickData } from 'emoji-picker-react';
 import { uploadImage } from '../services/mediaService';
 import { RootState } from '../redux/store';
@@ -38,6 +38,13 @@ const ChatPage: React.FC = () => {
     const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
     const [forwardSearch, setForwardSearch] = useState('');
     const [selectedReactionMessageId, setSelectedReactionMessageId] = useState<string | null>(null);
+    const [hubStatus, setHubStatus] = useState<HubStatus>(signalrService.hubStatus);
+
+    useEffect(() => {
+        signalrService.onStatusChange((status) => {
+            setHubStatus(status);
+        });
+    }, []);
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -294,6 +301,21 @@ const ChatPage: React.FC = () => {
     return (
         <MainLayout hideTopBar={true} hideBottomNav={true} title={otherParticipant?.displayName || otherParticipant?.handle}>
             <div className="flex flex-col h-screen lg:h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border relative">
+                {/* Connection Status Banner */}
+                {hubStatus !== HubStatus.Connected && (
+                    <div className={`px-4 py-2 text-xs flex items-center justify-between ${hubStatus === HubStatus.Connecting || hubStatus === HubStatus.Reconnecting
+                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        }`}>
+                        <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${hubStatus === HubStatus.Connecting || hubStatus === HubStatus.Reconnecting ? 'bg-amber-500' : 'bg-red-500'
+                                }`} />
+                            {hubStatus === HubStatus.Connecting ? t('messages.connecting', 'Connecting...') :
+                                hubStatus === HubStatus.Reconnecting ? t('messages.reconnecting', 'Reconnecting...') :
+                                    t('messages.disconnected', 'Disconnected. Check connection/IP.')}
+                        </div>
+                    </div>
+                )}
                 {/* Header */}
                 <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-dark-border bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md sticky top-0 z-10">
                     <div className="flex items-center gap-3">
@@ -674,8 +696,8 @@ const ChatPage: React.FC = () => {
 
                         <button
                             type="submit"
-                            disabled={(!message.trim() && !selectedImage) || isUploading}
-                            className={`p-2 rounded-full transition-all transform active:scale-90 ${(message.trim() || selectedImage) && !isUploading
+                            disabled={(!message.trim() && !selectedImage) || isUploading || hubStatus !== HubStatus.Connected}
+                            className={`p-2 rounded-full transition-all transform active:scale-90 ${(message.trim() || selectedImage) && !isUploading && hubStatus === HubStatus.Connected
                                 ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
                                 : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                                 }`}

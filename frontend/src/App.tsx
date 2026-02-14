@@ -23,7 +23,7 @@ import { getMe, logoutAsync } from './redux/slices/authSlice';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
 import { isTokenExpired } from './utils/authUtils';
-import signalrService from './services/signalrService';
+import signalrService, { HubStatus } from './services/signalrService';
 
 import LoadingScreen from './components/common/LoadingScreen';
 
@@ -60,6 +60,28 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       signalrService.startConnection();
+
+      // Monitor SignalR connection status
+      signalrService.onStatusChange((status) => {
+        if (status === HubStatus.Disconnected) {
+          dispatch({
+            type: 'toast/showToast',
+            payload: {
+              message: 'SignalR Disconnected. Real-time updates may be delayed.',
+              type: 'error'
+            }
+          });
+        } else if (status === HubStatus.Reconnecting) {
+          dispatch({
+            type: 'toast/showToast',
+            payload: {
+              message: 'SignalR Reconnecting...',
+              type: 'info'
+            }
+          });
+        }
+      });
+
       dispatch(fetchUnreadCount());
       dispatch(fetchConversations());
     } else {

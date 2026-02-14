@@ -2,6 +2,8 @@ using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using BSkyClone.Hubs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,12 +16,14 @@ public class ChatService : IChatService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILinkService _linkService;
     private readonly ICacheService _cacheService;
+    private readonly IHubContext<ChatHub> _hubContext;
 
-    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService)
+    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext)
     {
         _unitOfWork = unitOfWork;
         _linkService = linkService;
         _cacheService = cacheService;
+        _hubContext = hubContext;
     }
 
     public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId)
@@ -211,6 +215,27 @@ public class ChatService : IChatService
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
             .FirstOrDefaultAsync(m => m.Id == message.Id);
+
+        // Create and send notifications for other participants
+        foreach (var p in conversation.ConversationParticipants.Where(p => p.UserId != userId))
+        {
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                Tid = GenerateTid(),
+                Type = "message",
+                SenderId = userId,
+                RecipientId = p.UserId,
+                Title = "Tin nhắn mới",
+                Content = content?.Length > 50 ? content.Substring(0, 47) + "..." : content,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
+            };
+            await _unitOfWork.Notifications.AddAsync(notification);
+            await _unitOfWork.CompleteAsync(); // Save to get the ID and relationships if needed
+            await SendNotificationAsync(notification.Id);
+        }
 
         return MapToMessageDto(savedMessage!);
     }
@@ -460,5 +485,30 @@ public class ChatService : IChatService
     private string GenerateTid()
     {
         return DateTime.UtcNow.Ticks.ToString();
+    }
+
+    private async Task SendNotificationAsync(Guid notificationId)
+    {
+        var savedNotification = await _unitOfWork.Notifications.Query()
+            .Include(n => n.Sender)
+            .FirstOrDefaultAsync(n => n.Id == notificationId);
+
+        if (savedNotification != null)
+        {
+            var notificationDto = new NotificationDto(
+                savedNotification.Id,
+                savedNotification.Type ?? "message",
+                MapToUserDto(savedNotification.Sender),
+                savedNotification.PostId,
+                savedNotification.ListId,
+                savedNotification.Title,
+                savedNotification.Content,
+                savedNotification.IsRead ?? false,
+                DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
+            );
+
+            await _hubContext.Clients.Group($"user-{savedNotification.RecipientId}")
+                .SendAsync("ReceiveNotification", notificationDto);
+        }
     }
 }
