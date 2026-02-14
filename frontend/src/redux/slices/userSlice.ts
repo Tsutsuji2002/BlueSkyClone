@@ -278,6 +278,7 @@ const userSlice = createSlice({
             .addCase(fetchUserProfile.pending, (state: UserState) => {
                 state.isLoading = true;
                 state.error = null;
+                state.profile = null;
             })
             .addCase(fetchUserProfile.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
@@ -297,6 +298,7 @@ const userSlice = createSlice({
             .addCase(fetchUserProfileById.pending, (state: UserState) => {
                 state.isLoading = true;
                 state.error = null;
+                state.profile = null;
             })
             .addCase(fetchUserProfileById.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;

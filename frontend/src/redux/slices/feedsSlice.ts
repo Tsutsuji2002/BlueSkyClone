@@ -310,6 +310,7 @@ const feedsSlice = createSlice({
         builder
             .addCase(fetchTrendingFeeds.pending, (state: FeedsState) => {
                 state.isLoading = true;
+                state.feeds = [];
             })
             .addCase(fetchTrendingFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
                 state.isLoading = false;
@@ -461,8 +462,11 @@ const feedsSlice = createSlice({
             .addCase(unsaveFeed.rejected, (state: FeedsState, action: any) => {
                 state.actionLoading[action.meta.arg] = false;
             })
-            .addCase(fetchFeedPosts.pending, (state: FeedsState) => {
+            .addCase(fetchFeedPosts.pending, (state: FeedsState, action) => {
                 state.isLoading = true;
+                if (action.meta.arg.skip === 0) {
+                    state.feedPosts[action.meta.arg.feedId] = [];
+                }
             })
             .addCase(fetchFeedPosts.fulfilled, (state: FeedsState, action: any) => {
                 state.isLoading = false;

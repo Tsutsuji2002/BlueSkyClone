@@ -265,6 +265,7 @@ const postsSlice = createSlice({
             // Fetch Timeline
             .addCase(fetchTimeline.pending, (state: PostsState) => {
                 state.isLoading = true;
+                state.posts = [];
             })
             .addCase(fetchTimeline.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
                 state.isLoading = false;
@@ -300,8 +301,11 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Fetch User Posts
-            .addCase(fetchUserPosts.pending, (state: PostsState) => {
+            .addCase(fetchUserPosts.pending, (state: PostsState, action) => {
                 state.isLoading = true;
+                if (action.meta.arg.offset === 0) {
+                    state.posts = [];
+                }
             })
             .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], offset: number }>) => {
                 state.isLoading = false;
@@ -416,6 +420,7 @@ const postsSlice = createSlice({
             // Fetch Bookmarked Posts
             .addCase(fetchBookmarkedPosts.pending, (state: PostsState) => {
                 state.isLoading = true;
+                state.posts = [];
             })
             .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
                 state.isLoading = false;

@@ -104,6 +104,8 @@ const notificationsSlice = createSlice({
             .addCase(fetchNotifications.pending, (state) => {
                 state.isLoading = true;
                 state.error = null;
+                state.notifications = [];
+                state.unreadCount = 0;
             })
             .addCase(fetchNotifications.fulfilled, (state, action) => {
                 state.isLoading = false;
