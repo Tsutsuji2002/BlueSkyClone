@@ -58,7 +58,7 @@ public class PostService : IPostService
             // Enrich with viewer-specific interactions (not cached)
             if (viewerId.HasValue)
             {
-                await EnrichPostsWithInteractions(cached, viewerId.Value);
+                cached = await EnrichAndFilterPostsAsync(cached, viewerId.Value);
             }
             return cached;
         }
@@ -98,10 +98,8 @@ public class PostService : IPostService
             .Select(r => r.PostId)
             .ToListAsync();
 
-        var followingIds = await _unitOfWork.Follows.Query()
-            .Where(f => f.FollowerId == viewerId)
-            .Select(f => f.FollowingId)
-            .ToListAsync();
+        var following = await _unitOfWork.Follows.GetFollowingAsync(viewerId);
+        var followingIds = following.Select(f => f.FollowingId).ToList();
 
         var mutedWords = await _unitOfWork.MutedWords.Query()
             .Where(w => w.UserId == viewerId)

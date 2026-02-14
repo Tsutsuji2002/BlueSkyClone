@@ -12,6 +12,7 @@ public partial class MutedWord
     public string Word { get; set; } = null!;
 
     public string MuteBehavior { get; set; } = "hide";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public virtual User User { get; set; } = null!;
 }

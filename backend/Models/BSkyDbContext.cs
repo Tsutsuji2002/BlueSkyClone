@@ -285,6 +285,7 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.MuteBehavior)
                 .HasMaxLength(20)
                 .HasDefaultValue("hide");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
 
             entity.HasOne(d => d.User).WithMany(p => p.MutedWords)
                 .HasForeignKey(d => d.UserId)
