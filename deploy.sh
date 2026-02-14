@@ -15,7 +15,14 @@ if [ ! -f .env ]; then
 fi
 
 # 3. Export variables from .env
-export $(grep -v '^#' .env | xargs)
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+else
+    echo "Error: .env file not found!"
+    exit 1
+fi
 
 # 4. Ensure upload directories exist and have correct permissions
 # The .NET container runs as user 'app' (UID 1654)
