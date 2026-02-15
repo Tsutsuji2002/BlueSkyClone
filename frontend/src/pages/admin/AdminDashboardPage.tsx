@@ -122,6 +122,25 @@ const AdminDashboardPage: React.FC = () => {
                 </p>
             </div>
 
+            <div className="mb-6 flex justify-end">
+                <button
+                    onClick={async () => {
+                        if (window.confirm(t('admin.dashboard.reindex_confirm'))) {
+                            try {
+                                await adminService.reindexSystem();
+                                alert(t('admin.dashboard.reindex_success'));
+                            } catch (error) {
+                                console.error(error);
+                                alert(t('admin.dashboard.reindex_error'));
+                            }
+                        }
+                    }}
+                    className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                    {t('admin.dashboard.reindex_system')}
+                </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {statCards.map((stat, index) => (
                     <div

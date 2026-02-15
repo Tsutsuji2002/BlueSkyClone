@@ -9,6 +9,7 @@ export const COVER_PLACEHOLDER = '/placeholders/cover-default.png';
 // Navigation items
 export const NAV_ITEMS = [
     { id: 'home', label: 'nav.home', path: '/', icon: 'home' },
+    { id: 'search', label: 'search.title', path: '/search', icon: 'search' },
     { id: 'explore', label: 'nav.explore', path: '/explore', icon: 'search' },
     { id: 'notifications', label: 'nav.notifications', path: '/notifications', icon: 'bell' },
     { id: 'messages', label: 'nav.messages', path: '/messages', icon: 'mail' },

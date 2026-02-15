@@ -19,7 +19,8 @@
         "likes": "Lượt thích",
         "bookmarks": "Đã lưu",
         "link_preview": "Xem trước liên kết",
-        "admin": "Quản trị"
+        "admin": "Quản trị",
+        "search": "Tìm kiếm"
     },
     "settings": {
         "title": "Cài đặt",
@@ -504,6 +505,18 @@
         "modified": "Đã chỉnh sửa",
         "add_reaction": "Bày tỏ cảm xúc"
     },
+    "search": {
+        "title": "Tìm kiếm",
+        "placeholder": "Tìm bài đăng hoặc người dùng...",
+        "tabs": {
+            "posts": "Bài đăng",
+            "users": "Mọi người"
+        },
+        "no_results_title": "Không tìm thấy kết quả",
+        "no_results_desc": "Hãy thử tìm nội dung khác, hoặc kiểm tra lỗi chính tả.",
+        "start_searching": "Tìm kiếm trên BlueSky",
+        "start_desc": "Tìm bài đăng và mọi người trên BlueSky."
+    },
     "common": {
         "app_name": "BlueSky",
         "go_back": "Quay lại",
@@ -687,7 +700,11 @@
         "dashboard": {
             "title": "Bảng điều khiển",
             "welcome": "Chào mừng trở lại, {{name}}",
-            "loading": "Đang tải thống kê..."
+            "loading": "Đang tải thống kê...",
+            "reindex_system": "Đánh chỉ mục lại Elasticsearch",
+            "reindex_confirm": "Bạn có chắc chắn muốn đánh chỉ mục lại toàn bộ dữ liệu? Việc này có thể mất một lúc và gây tải cao cho hệ thống.",
+            "reindex_success": "Đã bắt đầu đánh chỉ mục lại thành công",
+            "reindex_error": "Bắt đầu đánh chỉ mục lại thất bại"
         },
         "content": {
             "title": "Quản lý nội dung"

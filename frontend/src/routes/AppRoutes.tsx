@@ -22,7 +22,9 @@ const FeedDetailPage = React.lazy(() => import('../pages/FeedDetailPage'));
 const ListsPage = React.lazy(() => import('../pages/ListsPage'));
 const ListDetailPage = React.lazy(() => import('../pages/ListDetailPage'));
 const SavedPage = React.lazy(() => import('../pages/SavedPage'));
+
 const MediaViewerPage = React.lazy(() => import('../pages/MediaViewerPage'));
+const SearchPage = React.lazy(() => import('../pages/SearchPage'));
 
 // Settings Pages
 const SettingsPage = React.lazy(() => import('../pages/SettingsPage'));
@@ -86,6 +88,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="/profile/user/:userId/following" element={<FollowingPage />} />
                     <Route path="/notifications" element={<NotificationsPage />} />
                     <Route path="/explore" element={<ExplorePage />} />
+                    <Route path="/search" element={<SearchPage />} />
                     <Route path="/messages" element={<MessagesPage />} />
                     <Route path="/messages/:conversationId" element={<ChatPage />} />
                     <Route path="/feeds" element={<FeedsPage />} />

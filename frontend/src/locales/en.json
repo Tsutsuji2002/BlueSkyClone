@@ -19,7 +19,8 @@
         "likes": "Likes",
         "bookmarks": "Bookmarks",
         "link_preview": "Link preview",
-        "admin": "Admin"
+        "admin": "Admin",
+        "search": "Search"
     },
     "settings": {
         "title": "Settings",
@@ -518,6 +519,18 @@
         "modified": "Modified",
         "add_reaction": "Add reaction"
     },
+    "search": {
+        "title": "Search",
+        "placeholder": "Search posts or users...",
+        "tabs": {
+            "posts": "Posts",
+            "users": "People"
+        },
+        "no_results_title": "No results found",
+        "no_results_desc": "Try searching for something else, or check for typos.",
+        "start_searching": "Search BlueSky",
+        "start_desc": "Find posts and people on BlueSky."
+    },
     "common": {
         "app_name": "BlueSky",
         "go_back": "Go back",
@@ -702,7 +715,11 @@
         "dashboard": {
             "title": "Dashboard",
             "welcome": "Welcome back, {{name}}",
-            "loading": "Loading statistics..."
+            "loading": "Loading statistics...",
+            "reindex_system": "Reindex Elasticsearch",
+            "reindex_confirm": "Are you sure you want to reindex all data? This may take a while and cause high load.",
+            "reindex_success": "Reindexing started successfully",
+            "reindex_error": "Failed to start reindexing"
         },
         "content": {
             "title": "Content Management"
