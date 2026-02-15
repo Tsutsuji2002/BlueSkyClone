@@ -19,7 +19,7 @@ public class FeedService : IFeedService
 
     public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid userId)
     {
-        await EnsureOfficialFeedsSeededAsync();
+        await PreSeedFeedsAsync();
         var feeds = await _unitOfWork.Feeds.GetTrendingFeedsAsync();
         
         var userSubscribedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
@@ -325,6 +325,11 @@ public class FeedService : IFeedService
             .ToListAsync();
 
         return posts.Select(p => _postService.MapToDto(p));
+    }
+
+    public async Task PreSeedFeedsAsync()
+    {
+        await EnsureOfficialFeedsSeededAsync();
     }
 }
 

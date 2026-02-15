@@ -106,7 +106,7 @@ public class CategorizationService : ICategorizationService
             PostCategoryConstants.Art => new List<string> { "art", "drawing", "painting", "sketch", "illustration", "digital art", "artist" },
             PostCategoryConstants.Photography => new List<string> { "photo", "photography", "camera", "lens", "shot", "portrait", "landscape" },
             PostCategoryConstants.Gaming => new List<string> { "game", "gaming", "playstation", "xbox", "nintendo", "steam", "fps", "rpg" },
-            PostCategoryConstants.Tech => new List<string> { "tech", "technology", "software", "hardware", "ai", "programming", "coding", "developer" },
+            PostCategoryConstants.Tech => new List<string> { "tech", "technology", "software", "hardware", "ai", "programming", "coding", "developer", "csharp", "c#", "dotnet", "python", "javascript", "java", "golang" },
             PostCategoryConstants.Music => new List<string> { "music", "song", "album", "artist", "concert", "guitar", "piano" },
             PostCategoryConstants.News => new List<string> { "news", "breaking", "update", "politics", "world", "local", "report" },
             PostCategoryConstants.Nature => new List<string> { "nature", "outdoor", "hiking", "mountain", "forest", "animal", "wildlife" },

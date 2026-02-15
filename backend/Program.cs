@@ -369,6 +369,18 @@ using (var scope = app.Services.CreateScope())
             var logger = services.GetRequiredService<ILogger<Program>>();
             logger.LogWarning(ex, "An error occurred during manual schema updates. Continuing...");
         }
+
+        // --- SEED AI FEEDS AND INTERESTS ---
+        try
+        {
+            var feedService = services.GetRequiredService<IFeedService>();
+            await feedService.PreSeedFeedsAsync();
+        }
+        catch (Exception ex)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "An error occurred during AI feed seeding.");
+        }
     }
     catch (Exception ex)
     {
