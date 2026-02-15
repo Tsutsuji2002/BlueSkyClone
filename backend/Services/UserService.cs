@@ -15,13 +15,15 @@ public class UserService : IUserService
     private readonly IWebHostEnvironment _environment;
     private readonly IHubContext<ChatHub> _hubContext;
     private readonly ICacheService _cacheService;
+    private readonly ISearchService _searchService;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _hubContext = hubContext;
         _cacheService = cacheService;
+        _searchService = searchService;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
@@ -92,6 +94,12 @@ public class UserService : IUserService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
 
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
+
+        // Index in Elasticsearch
+        await _searchService.IndexUserAsync(user);
+
         return user;
     }
 
@@ -155,6 +163,12 @@ public class UserService : IUserService
 
         _unitOfWork.Users.Update(user); // Force entity state to Modified
         await _unitOfWork.CompleteAsync();
+
+        _unitOfWork.Users.Update(user); // Force entity state to Modified
+        await _unitOfWork.CompleteAsync();
+
+        // Index in Elasticsearch
+        await _searchService.IndexUserAsync(user);
 
         return user;
     }

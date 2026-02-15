@@ -10,11 +10,13 @@ public class AdminService : IAdminService
 {
     private readonly BSkyDbContext _context;
     private readonly IHubContext<ChatHub> _hubContext;
+    private readonly ISearchService _searchService;
 
-    public AdminService(BSkyDbContext context, IHubContext<ChatHub> hubContext)
+    public AdminService(BSkyDbContext context, IHubContext<ChatHub> hubContext, ISearchService searchService)
     {
         _context = context;
         _hubContext = hubContext;
+        _searchService = searchService;
     }
 
     public async Task<AdminStatsDto> GetStatsAsync()
@@ -788,5 +790,9 @@ public class AdminService : IAdminService
     {
         // Generate a high-precision hex TID based on Ticks (100ns resolution)
         return DateTime.UtcNow.Ticks.ToString("x");
+    }
+    public async Task ReindexSystemAsync()
+    {
+        await _searchService.ReindexAllAsync();
     }
 }

@@ -77,14 +77,25 @@ builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
+builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ICategorizationService, CategorizationService>();
+builder.Services.AddScoped<ISearchService, ElasticSearchService>();
 
 // Redis Caching
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
     options.InstanceName = "BSky_";
+    options.InstanceName = "BSky_";
 });
+
+// Elasticsearch
+var esUri = new Uri(builder.Configuration["Elasticsearch:Uri"] ?? "http://elasticsearch:9200");
+var esSettings = new Elastic.Clients.Elasticsearch.ElasticsearchClientSettings(esUri)
+    .DefaultMappingFor<BSkyClone.Models.Post>(m => m.IndexName("posts"))
+    .DefaultMappingFor<BSkyClone.Models.User>(m => m.IndexName("users"));
+
+builder.Services.AddSingleton(new Elastic.Clients.Elasticsearch.ElasticsearchClient(esSettings));
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long";

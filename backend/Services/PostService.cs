@@ -16,8 +16,9 @@ public class PostService : IPostService
     private readonly ILinkService _linkService;
     private readonly ICacheService _cacheService;
     private readonly ICategorizationService _categorizationService;
+    private readonly ISearchService _searchService;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -25,6 +26,7 @@ public class PostService : IPostService
         _linkService = linkService;
         _cacheService = cacheService;
         _categorizationService = categorizationService;
+        _searchService = searchService;
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId)
@@ -424,6 +426,9 @@ public class PostService : IPostService
             .Include(p => p.Interests)
             .FirstOrDefaultAsync(p => p.Id == post.Id);
 
+        // Index in Elasticsearch
+        await _searchService.IndexPostAsync(savedPost!);
+
         return MapToDto(savedPost!);
     }
     finally
@@ -499,6 +504,11 @@ public class PostService : IPostService
         await _cacheService.RemoveAsync($"post:{postId}");
         await _cacheService.RemoveAsync($"user:{userId}:timeline");
         await _cacheService.RemoveAsync("posts:trending");
+
+        await _cacheService.RemoveAsync("posts:trending");
+
+        // Remove from Elasticsearch
+        await _searchService.DeletePostAsync(postId);
 
         return true;
     }

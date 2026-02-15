@@ -242,4 +242,10 @@ public class AdminController : ControllerBase
         if (!success) return Ok(new { message = "No matching users were found for this broadcast." });
         return Ok(new { message = "Notification broadcasted successfully" });
     }
+    [HttpPost("system/reindex")]
+    public async Task<IActionResult> ReindexSystem()
+    {
+        await _adminService.ReindexSystemAsync();
+        return Ok(new { message = "Reindexing started in the background" });
+    }
 }

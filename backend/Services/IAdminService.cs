@@ -32,4 +32,5 @@ public interface IAdminService
     Task<PaginatedResult<AdminHashtagDto>> GetHashtagsAsync(int skip, int take, string? searchQuery);
     Task<bool> DeleteHashtagAsync(int hashtagId);
     Task<bool> BroadcastNotificationAsync(BroadcastNotificationRequest request);
+    Task ReindexSystemAsync();
 }

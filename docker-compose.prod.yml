@@ -52,6 +52,18 @@ services:
       retries: 5
     restart: always
 
+  elasticsearch:
+    restart: always
+
+  kibana:
+    restart: always
+
+  elasticsearch:
+    restart: always
+
+  kibana:
+    restart: always
+
   certbot:
     image: certbot/certbot
     container_name: bsky-certbot
