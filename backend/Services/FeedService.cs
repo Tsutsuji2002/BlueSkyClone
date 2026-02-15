@@ -1,6 +1,7 @@
 using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
+using BSkyClone.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace BSkyClone.Services;
@@ -90,7 +91,6 @@ public class FeedService : IFeedService
                 {
                     Name = topic.Name,
                     Slug = topic.Name.ToLower(),
-                    CreatedAt = DateTime.UtcNow,
                     IsDeleted = false
                 };
                 await _unitOfWork.Interests.AddAsync(interest);
