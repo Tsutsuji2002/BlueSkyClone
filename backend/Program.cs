@@ -248,6 +248,30 @@ using (var scope = app.Services.CreateScope())
                 END";
             context.Database.ExecuteSqlRaw(mutedWordsSql);
 
+            // Ensure Post interaction columns exist
+            var postInteractionSql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'ReplyRestriction')
+                BEGIN
+                    ALTER TABLE Posts ADD ReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'AllowQuotes')
+                BEGIN
+                    ALTER TABLE Posts ADD AllowQuotes BIT NULL DEFAULT 1;
+                END";
+            context.Database.ExecuteSqlRaw(postInteractionSql);
+
+            // Ensure UserSettings interaction columns exist
+            var userSettingsInteractionSql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('UserSettings') AND name = 'DefaultReplyRestriction')
+                BEGIN
+                    ALTER TABLE UserSettings ADD DefaultReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('UserSettings') AND name = 'DefaultAllowQuotes')
+                BEGIN
+                    ALTER TABLE UserSettings ADD DefaultAllowQuotes BIT NULL DEFAULT 1;
+                END";
+            context.Database.ExecuteSqlRaw(userSettingsInteractionSql);
+
             // Ensure Hashtags and PostHashtags tables
             var hashtagsSql = @"
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Hashtags' AND xtype='U')
