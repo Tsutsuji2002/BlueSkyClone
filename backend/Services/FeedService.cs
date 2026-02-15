@@ -64,13 +64,40 @@ public class FeedService : IFeedService
 
         var topics = new List<(string Name, string Description, string Handle)>
         {
-            ("Art", "Discover amazing drawings, paintings, and digital art.", "art.official"),
-            ("Gaming", "Latest from the gaming world, consoles, and streaming.", "gaming.official"),
-            ("Tech", "Software, hardware, AI, and developer updates.", "tech.official")
+            (PostCategoryConstants.Art, "Discover amazing drawings, paintings, and digital art.", "art.official"),
+            (PostCategoryConstants.Photography, "Professional and amateur photography from around the world.", "photo.official"),
+            (PostCategoryConstants.Gaming, "Latest from the gaming world, consoles, and streaming.", "gaming.official"),
+            (PostCategoryConstants.Tech, "Software, hardware, AI, and developer updates.", "tech.official"),
+            (PostCategoryConstants.Music, "New releases, concerts, and music discussions.", "music.official"),
+            (PostCategoryConstants.News, "Headlines and breaking news from trusted sources.", "news.official"),
+            (PostCategoryConstants.Nature, "Beautiful landscapes, wildlife, and environmental topics.", "nature.official"),
+            (PostCategoryConstants.Politics, "Discussion about global and local political events.", "politics.official"),
+            (PostCategoryConstants.Movies, "Reviews, trailers, and news from the cinema world.", "movies.official"),
+            (PostCategoryConstants.Science, "Space, biology, physics, and latest scientific research.", "science.official"),
+            (PostCategoryConstants.Sports, "Match results, athletes, and sporting event updates.", "sports.official"),
+            (PostCategoryConstants.Food, "Recipes, cooking tips, and culinary adventures.", "food.official")
         };
 
         foreach (var topic in topics)
         {
+            // Ensure Interest exists for AI tagging
+            var interest = await _unitOfWork.Interests.Query()
+                .FirstOrDefaultAsync(i => i.Name == topic.Name);
+            
+            if (interest == null)
+            {
+                interest = new Interest
+                {
+                    Name = topic.Name,
+                    Slug = topic.Name.ToLower(),
+                    CreatedAt = DateTime.UtcNow,
+                    IsDeleted = false
+                };
+                await _unitOfWork.Interests.AddAsync(interest);
+                await _unitOfWork.CompleteAsync();
+            }
+
+            // Ensure Feed exists
             var feed = await _unitOfWork.Feeds.Query()
                 .FirstOrDefaultAsync(f => f.IsOfficial && f.Name == topic.Name);
 
