@@ -128,7 +128,10 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> GetUserProfileAsync(Guid userId)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var user = await _unitOfWork.Users.Query()
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
         if (user == null) return null;
 
         user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);

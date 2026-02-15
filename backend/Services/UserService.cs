@@ -220,8 +220,33 @@ public class UserService : IUserService
         if (request.InAppNotifyQuotes != null) s.InAppNotifyQuotes = request.InAppNotifyQuotes;
         if (request.InAppNotifyReposts != null) s.InAppNotifyReposts = request.InAppNotifyReposts;
 
-        if (request.DefaultReplyRestriction != null) s.DefaultReplyRestriction = request.DefaultReplyRestriction;
-        if (request.DefaultAllowQuotes != null) s.DefaultAllowQuotes = request.DefaultAllowQuotes;
+        if (request.DefaultReplyRestriction != null)
+        {
+            s.DefaultReplyRestriction = request.DefaultReplyRestriction;
+            
+            // Proactively update existing posts to match the new default to meet user expectations of a "global" setting.
+            var postsToUpdate = await _unitOfWork.Posts.Query()
+                .Where(p => p.AuthorId == userId && (p.IsDeleted == false || p.IsDeleted == null))
+                .ToListAsync();
+            
+            foreach (var post in postsToUpdate)
+            {
+                post.ReplyRestriction = request.DefaultReplyRestriction;
+            }
+        }
+        if (request.DefaultAllowQuotes != null)
+        {
+            s.DefaultAllowQuotes = request.DefaultAllowQuotes;
+            
+            var postsToUpdate = await _unitOfWork.Posts.Query()
+                .Where(p => p.AuthorId == userId && (p.IsDeleted == false || p.IsDeleted == null))
+                .ToListAsync();
+            
+            foreach (var post in postsToUpdate)
+            {
+                post.AllowQuotes = request.DefaultAllowQuotes;
+            }
+        }
 
         await _unitOfWork.CompleteAsync();
         return s;
