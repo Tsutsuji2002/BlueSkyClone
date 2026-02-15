@@ -2,7 +2,7 @@ using BSkyClone.Models;
 
 namespace BSkyClone.Repositories;
 
-public interface IBlockRepository
+public interface IBlockRepository : IRepository<BlockedAccount>
 {
     Task<BlockedAccount?> GetAsync(Guid userId, Guid blockedUserId);
     Task AddAsync(BlockedAccount block);

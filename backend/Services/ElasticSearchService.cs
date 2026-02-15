@@ -68,7 +68,7 @@ public class ElasticSearchService : ISearchService
     public async Task<IEnumerable<Guid>> SearchPostsAsync(string query, int skip = 0, int take = 20)
     {
         var response = await _client.SearchAsync<PostIndex>(s => s
-            .Index("posts")
+            .Indices("posts")
             .From(skip)
             .Size(take)
             .Query(q => q
@@ -92,7 +92,7 @@ public class ElasticSearchService : ISearchService
     public async Task<IEnumerable<Guid>> SearchUsersAsync(string query, int skip = 0, int take = 20)
     {
         var response = await _client.SearchAsync<UserIndex>(s => s
-            .Index("users")
+            .Indices("users")
             .From(skip)
             .Size(take)
             .Query(q => q
@@ -113,10 +113,10 @@ public class ElasticSearchService : ISearchService
         return response.Documents.Select(d => d.Id);
     }
 
-    public async Task ReindexAllAsync()
+    public Task ReindexAllAsync()
     {
         // Run in background to avoid blocking
-        _ = Task.Run(async () =>
+        return Task.Run(async () =>
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<BSkyDbContext>();

@@ -25,7 +25,7 @@ public class NotificationService : INotificationService
         // Fetch membership statuses for list invitations in bulk
         var invitationListIds = notifications
             .Where(n => n.Type == "list_invitation" && n.ListId.HasValue)
-            .Select(n => n.ListId.Value)
+            .Select(n => n.ListId!.Value)
             .Distinct()
             .ToList();
 

@@ -518,7 +518,7 @@ public class ListService : IListService
             users = await _unitOfWork.Users.Query()
                 .Where(u => u.Id != userId && 
                            (u.Username.ToLower().Contains(query) || 
-                            u.DisplayName.ToLower().Contains(query) ||
+                            (u.DisplayName != null && u.DisplayName.ToLower().Contains(query)) ||
                             u.Handle.ToLower().Contains(query)))
                 .Take(20)
                 .ToListAsync();
