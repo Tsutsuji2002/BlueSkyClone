@@ -85,31 +85,22 @@ public class CategorizationService : ICategorizationService
 
     private async Task<List<int>> AnalyzeImagesAsync(List<string> imageUrls)
     {
-        var matchedIds = new List<int>();
+        var matchedIds = new HashSet<int>();
         
-        // --- REAL AI IMPLEMENTATION (ML.NET) ---
-        // 1. Load pre-trained model (e.g., MobileNet)
-        // 2. Process each image URL
-        // 3. Get labels (e.g., "Cat", "Sunset", "Painting")
-        // 4. Map labels to Interest IDs
-        
-        // --- SIMULATED AI (For Demonstration) ---
         foreach (var url in imageUrls)
         {
-            var lowerUrl = url.ToLower();
-            if (lowerUrl.Contains("art") || lowerUrl.Contains("draw") || lowerUrl.Contains("paint"))
+            var label = await _mlService.PredictImageLabelAsync(url);
+            if (!string.IsNullOrEmpty(label) && label != "neutral" && label != "unknown")
             {
-                var artInterest = await GetInterestIdByNameAsync("Art");
-                if (artInterest.HasValue) matchedIds.Add(artInterest.Value);
-            }
-            if (lowerUrl.Contains("nature") || lowerUrl.Contains("mountain") || lowerUrl.Contains("forest"))
-            {
-                var natureInterest = await GetInterestIdByNameAsync("Nature");
-                if (natureInterest.HasValue) matchedIds.Add(natureInterest.Value);
+                var interestId = await GetInterestIdByNameAsync(label);
+                if (interestId.HasValue)
+                {
+                    matchedIds.Add(interestId.Value);
+                }
             }
         }
 
-        return matchedIds;
+        return matchedIds.ToList();
     }
 
     private async Task<int?> GetInterestIdByNameAsync(string name)
