@@ -1,0 +1,37 @@
+  Determining projects to restore...
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1603: BSkyClone depends on Microsoft.ML.Tokenizers (>= 1.0.1-preview.25125.1) but Microsoft.ML.Tokenizers 1.0.1-preview.25125.1 was not found. Microsoft.ML.Tokenizers 1.0.1 was resolved instead.
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+  Restored C:\Projects\BlueSky\backend\BSkyClone.csproj (in 2.77 sec).
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1603: BSkyClone depends on Microsoft.ML.Tokenizers (>= 1.0.1-preview.25125.1) but Microsoft.ML.Tokenizers 1.0.1-preview.25125.1 was not found. Microsoft.ML.Tokenizers 1.0.1 was resolved instead.
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(50,31): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(108,33): error CS1061: 'Tokenizer' does not contain a definition for 'Encode' and no accessible extension method 'Encode' accepting a first argument of type 'Tokenizer' could be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(151,20): error CS1729: 'WordPieceTokenizer' does not contain a constructor that takes 1 arguments [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(137,59): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(209,26): warning CS0168: The variable 'ex' is declared but never used [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(216,32): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(273,29): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(986,30): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(136,48): warning CS0649: Field 'MLModelService._tokenizer' is never assigned to, and will always have its default value null [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+
+Build FAILED.
+
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1603: BSkyClone depends on Microsoft.ML.Tokenizers (>= 1.0.1-preview.25125.1) but Microsoft.ML.Tokenizers 1.0.1-preview.25125.1 was not found. Microsoft.ML.Tokenizers 1.0.1 was resolved instead.
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1603: BSkyClone depends on Microsoft.ML.Tokenizers (>= 1.0.1-preview.25125.1) but Microsoft.ML.Tokenizers 1.0.1-preview.25125.1 was not found. Microsoft.ML.Tokenizers 1.0.1 was resolved instead.
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(50,31): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(137,59): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(209,26): warning CS0168: The variable 'ex' is declared but never used [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(216,32): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(273,29): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(986,30): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(136,48): warning CS0649: Field 'MLModelService._tokenizer' is never assigned to, and will always have its default value null [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(108,33): error CS1061: 'Tokenizer' does not contain a definition for 'Encode' and no accessible extension method 'Encode' accepting a first argument of type 'Tokenizer' could be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(151,20): error CS1729: 'WordPieceTokenizer' does not contain a constructor that takes 1 arguments [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+    11 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:10.47
+
+Workload updates are available. Run `dotnet workload list` for more information.

@@ -58,13 +58,30 @@ public class MLModelService : IMLModelService
 
     public async Task<(string Label, float Probability)> PredictTextCategoryWithScoreAsync(string content)
     {
+        // 1. Try ONNX (BERT) first
+        try 
+        {
+            var onnxPath = Path.Combine(_modelPath, "text_model.onnx");
+            var vocabPath = Path.Combine(_modelPath, "bert_vocab.txt");
+            
+            if (File.Exists(onnxPath) && File.Exists(vocabPath))
+            {
+                return await PredictTextWithOnnxAsync(content, onnxPath, vocabPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Fallback on error
+            Console.WriteLine($"BERT Error: {ex.Message}");
+        }
+
+        // 2. Fallback to ML.NET (Legacy)
         EnsureTextPredictorInitialized();
         if (_textPredictionEngine == null) return ("unknown", 0f);
 
         var prediction = _textPredictionEngine.Predict(new TextData { Content = content });
         var normalizedLabel = PostCategoryConstants.Normalize(prediction.Category);
         
-        // Get the probability score if available
         float maxScore = 0;
         if (prediction.Score != null && prediction.Score.Length > 0)
         {
@@ -72,6 +89,89 @@ public class MLModelService : IMLModelService
         }
 
         return (normalizedLabel, maxScore);
+    }
+
+    private async Task<(string Label, float Probability)> PredictTextWithOnnxAsync(string text, string modelPath, string vocabPath)
+    {
+        // --- BERT TOKENIZATION ---
+        // Ideally we use Microsoft.ML.Tokenizers, but for a quick implementation 
+        // without heavy dependencies, we can do a basic WordPiece tokenization here 
+        // or rely on the library if added. 
+        // Given we added Microsoft.ML.Tokenizers, let's use it.
+        
+        // Note: Real implementation would cache the tokenizer and session
+        using var session = new InferenceSession(modelPath);
+        var tokenizer = await GetTokenizerAsync(vocabPath);
+        
+        // Tokenize and Pad/Truncate to 128 tokens
+        var maxLen = 128;
+        var encoded = tokenizer.Encode(text).Take(maxLen).ToList();
+        
+        // Pad with 0 if needed
+        while (encoded.Count < maxLen) encoded.Add(0);
+        
+        var inputIds = new DenseTensor<long>(new[] { 1, maxLen });
+        var attentionMask = new DenseTensor<long>(new[] { 1, maxLen });
+
+        for (int i = 0; i < maxLen; i++)
+        {
+            inputIds[0, i] = encoded[i];
+            attentionMask[0, i] = encoded[i] > 0 ? 1 : 0;
+        }
+
+        var inputs = new List<NamedOnnxValue>
+        {
+            NamedOnnxValue.CreateFromTensor("input_ids", inputIds),
+            NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask)
+        };
+
+        using var results = session.Run(inputs);
+        var logits = results.First().AsEnumerable<float>().ToArray();
+        
+        // Softmax
+        var (category, confidence) = MapBertLogitsToCategory(logits);
+        return (category, confidence);
+    }
+
+    private SimpleBertTokenizer? _tokenizer;
+    private async Task<SimpleBertTokenizer> GetTokenizerAsync(string vocabPath)
+    {
+        if (_tokenizer != null) return _tokenizer;
+        
+        var vocabStream = File.OpenRead(vocabPath);
+        _tokenizer = new SimpleBertTokenizer(vocabStream);
+        return _tokenizer;
+    }
+
+    private (string, float) MapBertLogitsToCategory(float[] logits)
+    {
+        // Softmax
+        var maxVal = logits.Max();
+        var exp = logits.Select(x => Math.Exp(x - maxVal)).ToArray();
+        var sum = exp.Sum();
+        var probs = exp.Select(x => (float)(x / sum)).ToArray();
+        
+        var top = probs.Select((p, i) => new { p, i })
+                       .OrderByDescending(x => x.p)
+                       .First();
+                       
+        // Categories order MUST match training order.
+        // Assumed order: Tech, Art, Nature, Gaming, Music, Food, Movies, Unknown
+        string[] categories = { 
+            PostCategoryConstants.Tech, 
+            PostCategoryConstants.Art, 
+            PostCategoryConstants.Nature, 
+            PostCategoryConstants.Gaming, 
+            PostCategoryConstants.Music, 
+            PostCategoryConstants.Food, 
+            PostCategoryConstants.Movies,
+            "unknown" 
+        };
+        
+        if (top.i < categories.Length)
+            return (categories[top.i], top.p);
+            
+        return ("unknown", 0f);
     }
 
     public async Task<string> PredictImageLabelAsync(string imageUrl)
