@@ -5,6 +5,7 @@ namespace BSkyClone.Constants;
 public static class PostCategoryConstants
 {
     public const string Art = "Art";
+    public const string Photography = "Photography";
     public const string Tech = "Tech";
     public const string Gaming = "Gaming";
     public const string Nature = "Nature";
@@ -18,7 +19,7 @@ public static class PostCategoryConstants
 
     public static readonly List<string> AllCategories = new()
     {
-        Art, Tech, Gaming, Nature, Music, News, Politics, Movies, Science, Sports, Food
+        Art, Photography, Tech, Gaming, Nature, Music, News, Politics, Movies, Science, Sports, Food
     };
 
     public static string Normalize(string category)
