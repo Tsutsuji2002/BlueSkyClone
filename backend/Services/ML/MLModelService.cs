@@ -4,8 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.ML;
-using Microsoft.ML.Data;
-using Microsoft.ML.Vision;
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using BSkyClone.Constants;
 
 namespace BSkyClone.Services.ML;
@@ -75,28 +78,87 @@ public class MLModelService : IMLModelService
     {
         try
         {
-            // 1. Analyze URL for obvious cues (Fast path)
+            // 1. Check for ONNX model existence
+            var onnxModelPath = Path.Combine(_modelPath, "vision_model.onnx");
+            if (File.Exists(onnxModelPath))
+            {
+                var imageBytes = await DownloadImageAsync(imageUrl);
+                if (imageBytes.Length > 0)
+                {
+                    return await PredictWithOnnxAsync(imageBytes, onnxModelPath);
+                }
+            }
+
+            // 2. Fallback: Fast URL analysis
             var lowerUrl = imageUrl.ToLower();
             if (lowerUrl.Contains("photo") || lowerUrl.Contains("camera") || lowerUrl.Contains("shot")) return PostCategoryConstants.Photography;
             if (lowerUrl.Contains("art") || lowerUrl.Contains("draw") || lowerUrl.Contains("paint") || lowerUrl.Contains("illustration")) return PostCategoryConstants.Art;
             if (lowerUrl.Contains("game") || lowerUrl.Contains("xbox") || lowerUrl.Contains("playstation")) return PostCategoryConstants.Gaming;
             if (lowerUrl.Contains("nature") || lowerUrl.Contains("mountain") || lowerUrl.Contains("forest") || lowerUrl.Contains("beach")) return PostCategoryConstants.Nature;
 
-            // 2. Real AI analysis (Simulation of ML.NET Vision)
-            // In a full implementation, we'd use _mlContext.MulticlassClassification.Trainers.ImageClassification
-            // or a pre-trained TensorFlow model via SciSharp.
-            
-            // For now, we simulate a high-confidence vision match based on typical content
-            // In a real environment, we'd:
-            // var imageBytes = await DownloadImageAsync(imageUrl);
-            // var prediction = _imagePredictionEngine.Predict(new ImageData { Image = imageBytes });
-            
             return "neutral";
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Log error if needed: Console.WriteLine($"ONNX Error: {ex.Message}");
             return "unknown";
         }
+    }
+
+    private async Task<string> PredictWithOnnxAsync(byte[] imageBytes, string modelPath)
+    {
+        try 
+        {
+            using var session = new InferenceSession(modelPath);
+            
+            // 1. Preprocess with ImageSharp
+            using var image = Image.Load<Rgb24>(imageBytes);
+            image.Mutate(x => x.Resize(new ResizeOptions {
+                Size = new Size(224, 224),
+                Mode = ResizeMode.Crop
+            }));
+
+            // 2. Convert to Tensor (Normalize: sub mean, div std)
+            var inputTensor = new DenseTensor<float>(new[] { 1, 3, 224, 224 });
+            for (int y = 0; y < 224; y++)
+            {
+                for (int x = 0; x < 224; x++)
+                {
+                    var pixel = image[x, y];
+                    // Standard ImageNet normalization
+                    inputTensor[0, 0, y, x] = (pixel.R / 255f - 0.485f) / 0.229f;
+                    inputTensor[0, 1, y, x] = (pixel.G / 255f - 0.456f) / 0.224f;
+                    inputTensor[0, 2, y, x] = (pixel.B / 255f - 0.406f) / 0.225f;
+                }
+            }
+
+            var inputName = session.InputMetadata.Keys.First();
+            var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor(inputName, inputTensor) };
+            
+            using var results = session.Run(inputs);
+            var output = results.First().AsEnumerable<float>().ToArray();
+            var maxIndex = output.Select((val, idx) => new { val, idx }).OrderByDescending(x => x.val).First().idx;
+            
+            return MapImageNetIndexToCategory(maxIndex);
+        }
+        catch 
+        {
+            return "neutral";
+        }
+    }
+
+    private string MapImageNetIndexToCategory(int index)
+    {
+        // Simple mapping from common ImageNet indices (e.g., MobileNetV2)
+        // Art/Painting: 500-550
+        // Nature/Landscape: 970-980
+        // Tech: 500 (Computer), 664 (Monitor)
+        
+        if (index >= 970 && index <= 980) return PostCategoryConstants.Nature;
+        if (index >= 400 && index <= 550) return PostCategoryConstants.Art;
+        if (index == 500 || index == 664 || index == 491) return PostCategoryConstants.Tech;
+        
+        return "neutral";
     }
 
     private async Task<byte[]> DownloadImageAsync(string url)
