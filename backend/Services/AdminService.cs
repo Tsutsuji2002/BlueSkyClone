@@ -60,6 +60,7 @@ public class AdminService : IAdminService
             query = query.Where(u => 
                 u.Handle.ToLower().Contains(search) || 
                 u.Email.ToLower().Contains(search) ||
+                u.Username.ToLower().Contains(search) ||
                 (u.DisplayName != null && u.DisplayName.ToLower().Contains(search))
             );
         }
