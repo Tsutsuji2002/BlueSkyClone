@@ -515,7 +515,9 @@
         "no_results_title": "Không tìm thấy kết quả",
         "no_results_desc": "Hãy thử tìm nội dung khác, hoặc kiểm tra lỗi chính tả.",
         "start_searching": "Tìm kiếm trên BlueSky",
-        "start_desc": "Tìm bài đăng và mọi người trên BlueSky."
+        "start_desc": "Tìm bài đăng và mọi người trên BlueSky.",
+        "searching_for": "Tìm kiếm \"{{query}}\"",
+        "no_results": "Không tìm thấy kết quả"
     },
     "common": {
         "app_name": "BlueSky",

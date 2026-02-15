@@ -529,7 +529,9 @@
         "no_results_title": "No results found",
         "no_results_desc": "Try searching for something else, or check for typos.",
         "start_searching": "Search BlueSky",
-        "start_desc": "Find posts and people on BlueSky."
+        "start_desc": "Find posts and people on BlueSky.",
+        "searching_for": "Search for \"{{query}}\"",
+        "no_results": "No results found"
     },
     "common": {
         "app_name": "BlueSky",
