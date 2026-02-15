@@ -298,15 +298,15 @@ const ReplyModal: React.FC = () => {
 
     return (
         <>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white dark:bg-dark-surface rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white dark:bg-dark-surface rounded-t-2xl lg:rounded-2xl w-full lg:max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh] lg:max-h-[90vh]">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 dark:border-dark-border">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-dark-border">
                         <button
                             onClick={handleClose}
-                            className="text-[17px] text-primary-500 hover:text-primary-600 font-medium px-2 py-1"
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-full transition-colors"
                         >
-                            {t('common.cancel')}
+                            <FiX size={24} className="text-gray-600 dark:text-dark-text-secondary" />
                         </button>
                         <div className="flex items-center gap-3">
                             {isVideoProcessing && (
@@ -322,7 +322,7 @@ const ReplyModal: React.FC = () => {
                                 disabled={(!content.trim() && images.length === 0 && !video) || isOverLimit || isPostLoading}
                                 className="rounded-full px-6 py-1.5 font-bold"
                             >
-                                {isPostLoading ? 'Posting...' : t('common.reply')}
+                                {isPostLoading ? t('common.posting', 'Posting...') : t('common.reply')}
                             </Button>
                         </div>
                     </div>
@@ -538,8 +538,14 @@ const ReplyModal: React.FC = () => {
                                 <FiSmile size={22} />
                             </button>
                             {showEmojiPicker && (
-                                <div className="absolute bottom-full left-0 z-50 mb-2">
-                                    <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} />
+                                <div className="absolute bottom-full left-0 lg:left-0 z-50 mb-2 w-full sm:w-auto">
+                                    <EmojiPicker
+                                        onEmojiClick={onEmojiClick}
+                                        theme={Theme.AUTO}
+                                        width="100%"
+                                        searchDisabled={window.innerWidth < 640}
+                                        skinTonesDisabled={window.innerWidth < 640}
+                                    />
                                 </div>
                             )}
                         </div>

@@ -521,8 +521,14 @@ const CreatePostModal: React.FC = () => {
                             <FiSmile size={22} />
                         </button>
                         {showEmojiPicker && (
-                            <div className="absolute bottom-full left-0 z-50 mb-2">
-                                <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} />
+                            <div className="absolute bottom-full left-0 lg:left-0 z-50 mb-2 w-full sm:w-auto">
+                                <EmojiPicker
+                                    onEmojiClick={onEmojiClick}
+                                    theme={Theme.AUTO}
+                                    width="100%"
+                                    searchDisabled={window.innerWidth < 640}
+                                    skinTonesDisabled={window.innerWidth < 640}
+                                />
                             </div>
                         )}
                     </div>
