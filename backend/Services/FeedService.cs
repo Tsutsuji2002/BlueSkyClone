@@ -278,31 +278,26 @@ public class FeedService : IFeedService
         var feed = await _unitOfWork.Feeds.GetByIdAsync(feedId);
         if (feed == null) return new List<PostDto>();
 
-        // Special handling for official feeds
-        if (feed.IsOfficial)
+        // 1. Special handling for Trending (still logic-based)
+        if (feed.IsOfficial && feed.Name == "Trending")
         {
-            if (feed.Name == "Trending")
-            {
-                return await _postService.GetTrendingPosts24hAsync(userId, take);
-            }
-
-            // AI Sort: Fetch posts tagged with this interest
-            var posts = await _unitOfWork.Posts.Query()
-                .Include(p => p.Author)
-                .Include(p => p.PostMedia)
-                .Include(p => p.LinkPreview)
-                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
-                            p.Interests.Any(i => i.Name == feed.Name))
-                .OrderByDescending(p => p.CreatedAt)
-                .Skip(skip)
-                .Take(take)
-                .ToListAsync();
-
-            return posts.Select(p => _postService.MapToDto(p));
+            return await _postService.GetTrendingPosts24hAsync(userId, take);
         }
 
-        // Future: Handle non-official community feeds if logic exists
-        return new List<PostDto>();
+        // 2. Generic AI/Category Sort: Fetch posts tagged with an interest matching the feed name or handle
+        // This works for any feed (Official or Community) if the system tagged the post correctly.
+        var posts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                        p.Interests.Any(i => i.Name == feed.Name))
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        return posts.Select(p => _postService.MapToDto(p));
     }
 }
 

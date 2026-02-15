@@ -1,6 +1,7 @@
 using BSkyClone.Models;
 using BSkyClone.Repositories;
 using BSkyClone.Services;
+using BSkyClone.Services.ML;
 using BSkyClone.UnitOfWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -80,6 +81,7 @@ builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ICategorizationService, CategorizationService>();
 builder.Services.AddScoped<ISearchService, ElasticSearchService>();
+builder.Services.AddSingleton<IMLModelService, MLModelService>();
 
 // Redis Caching
 builder.Services.AddStackExchangeRedisCache(options =>

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
+using BSkyClone.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace BSkyClone.Services;
@@ -11,10 +12,12 @@ namespace BSkyClone.Services;
 public class CategorizationService : ICategorizationService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMLModelService _mlService;
 
-    public CategorizationService(IUnitOfWork unitOfWork)
+    public CategorizationService(IUnitOfWork unitOfWork, IMLModelService mlService)
     {
         _unitOfWork = unitOfWork;
+        _mlService = mlService;
     }
 
     public async Task<List<int>> CategorizePostAsync(string content, List<string>? imageUrls = null)
@@ -29,13 +32,20 @@ public class CategorizationService : ICategorizationService
 
         var contentLower = content.ToLower();
 
+        var categoryName = await _mlService.PredictTextCategoryAsync(content);
+        if (!string.IsNullOrEmpty(categoryName) && categoryName != "unknown")
+        {
+            var interestId = await GetInterestIdByNameAsync(categoryName);
+            if (interestId.HasValue)
+            {
+                matchedInterestIds.Add(interestId.Value);
+            }
+        }
+
+        // Fallback or additional tags based on keyword matching (optional)
         foreach (var interest in interests)
         {
-            // Basic keyword matching for now
-            // In a real AI implementation, we'd use NLP or a trained model
-            // For this clone, we'll use a set of keywords defined for each interest
             var keywords = GetKeywordsForInterest(interest.Name);
-            
             if (keywords.Any(k => contentLower.Contains(k)))
             {
                 matchedInterestIds.Add(interest.Id);
@@ -90,20 +100,20 @@ public class CategorizationService : ICategorizationService
 
     private List<string> GetKeywordsForInterest(string interestName)
     {
-        return interestName.ToLower() switch
+        return interestName switch
         {
-            "art" => new List<string> { "art", "drawing", "painting", "sketch", "illustration", "digital art", "artist" },
-            "photography" => new List<string> { "photo", "photography", "camera", "lens", "shot", "portrait", "landscape", "iso", "shutter" },
-            "gaming" => new List<string> { "game", "gaming", "playstation", "xbox", "nintendo", "steam", "fps", "rpg", "streamer" },
-            "tech" => new List<string> { "tech", "technology", "software", "hardware", "ai", "programming", "coding", "developer", "gadget" },
-            "music" => new List<string> { "music", "song", "album", "artist", "concert", "guitar", "piano", "streaming", "playlist" },
-            "news" => new List<string> { "news", "breaking", "update", "politics", "world", "local", "report", "journalism" },
-            "nature" => new List<string> { "nature", "outdoor", "hiking", "mountain", "forest", "animal", "wildlife", "climate" },
-            "politics" => new List<string> { "politics", "election", "government", "policy", "vote", "democracy" },
-            "movies" => new List<string> { "movie", "film", "cinema", "actor", "director", "trailer", "netflix", "hollywood" },
-            "science" => new List<string> { "science", "physics", "biology", "space", "nasa", "research", "lab", "experiment" },
-            "sports" => new List<string> { "sport", "football", "soccer", "basketball", "tennis", "olympics", "match", "team" },
-            "food" => new List<string> { "food", "cooking", "recipe", "restaurant", "chef", "delicious", "dinner", "breakfast" },
+            PostCategoryConstants.Art => new List<string> { "art", "drawing", "painting", "sketch", "illustration", "digital art", "artist" },
+            PostCategoryConstants.Photography => new List<string> { "photo", "photography", "camera", "lens", "shot", "portrait", "landscape" },
+            PostCategoryConstants.Gaming => new List<string> { "game", "gaming", "playstation", "xbox", "nintendo", "steam", "fps", "rpg" },
+            PostCategoryConstants.Tech => new List<string> { "tech", "technology", "software", "hardware", "ai", "programming", "coding", "developer" },
+            PostCategoryConstants.Music => new List<string> { "music", "song", "album", "artist", "concert", "guitar", "piano" },
+            PostCategoryConstants.News => new List<string> { "news", "breaking", "update", "politics", "world", "local", "report" },
+            PostCategoryConstants.Nature => new List<string> { "nature", "outdoor", "hiking", "mountain", "forest", "animal", "wildlife" },
+            PostCategoryConstants.Politics => new List<string> { "politics", "election", "government", "policy", "vote", "democracy" },
+            PostCategoryConstants.Movies => new List<string> { "movie", "film", "cinema", "actor", "director", "trailer", "netflix" },
+            PostCategoryConstants.Science => new List<string> { "science", "physics", "biology", "space", "nasa", "research", "lab" },
+            PostCategoryConstants.Sports => new List<string> { "sport", "football", "soccer", "basketball", "tennis", "olympics", "match" },
+            PostCategoryConstants.Food => new List<string> { "food", "cooking", "recipe", "restaurant", "chef", "delicious", "dinner" },
             _ => new List<string> { interestName.ToLower() }
         };
     }
