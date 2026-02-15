@@ -149,7 +149,7 @@ public class PostService : IPostService
             }
             else
             {
-                var restriction = post.ReplyRestriction?.ToLower() ?? "anyone";
+                var restriction = post.ReplyRestriction?.ToLower()?.Trim() ?? "anyone";
                 if (restriction == "anyone")
                 {
                     post.CanReply = true;
@@ -160,25 +160,24 @@ public class PostService : IPostService
                 }
                 else if (restriction == "followed")
                 {
-                    // Author must follow viewer
-                    post.CanReply = usersFollowingViewerIds.Contains(post.Author.Id);
-                }
-                else if (restriction == "mentioned")
-                {
-                    if (!string.IsNullOrEmpty(viewerHandle) && !string.IsNullOrEmpty(post.Content))
+                    // Author follows viewer OR viewer is mentioned
+                    bool follows = usersFollowingViewerIds.Contains(post.Author.Id);
+                    if (follows)
                     {
-                        var content = post.Content.ToLower();
-                        post.CanReply = Regex.IsMatch(content, $@"\B@{Regex.Escape(viewerHandle)}\b", RegexOptions.IgnoreCase);
-                        if (!post.CanReply && viewerHandle.Contains("."))
-                        {
-                            var prefix = viewerHandle.Split('.')[0];
-                            post.CanReply = Regex.IsMatch(content, $@"\B@{Regex.Escape(prefix)}\b", RegexOptions.IgnoreCase);
-                        }
+                        post.CanReply = true;
                     }
                     else
                     {
-                        post.CanReply = false;
+                        post.CanReply = await IsUserMentionedAsync(post.Content, viewerHandle);
                     }
+                }
+                else if (restriction == "mentioned")
+                {
+                    post.CanReply = await IsUserMentionedAsync(post.Content, viewerHandle);
+                }
+                else
+                {
+                    post.CanReply = false; // Default to false for unknown restrictions
                 }
             }
 
@@ -380,49 +379,38 @@ public class PostService : IPostService
                 }
 
                 // Enforce Reply Restrictions
-                var restriction = parentPost.ReplyRestriction?.ToLower() ?? "anyone";
+                var restriction = parentPost.ReplyRestriction?.ToLower()?.Trim() ?? "anyone";
                 
                 if (!string.Equals(restriction, "anyone", StringComparison.OrdinalIgnoreCase) && parentPost.AuthorId != userId)
                 {
-                    if (string.Equals(restriction, "none", StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(restriction, "no_one", StringComparison.OrdinalIgnoreCase))
+                    bool canReply = false;
+
+                    if (restriction == "none" || restriction == "no_one")
                     {
-                        throw new Exception("You are not allowed to reply to this post.");
+                        canReply = false;
                     }
-                    else if (string.Equals(restriction, "followed", StringComparison.OrdinalIgnoreCase))
+                    else if (restriction == "followed")
                     {
-                        // Check if parent post author follows the current user
+                        // Author must follow the current user OR current user must be mentioned
                         var isFollowedByAuthor = await _unitOfWork.Follows.IsFollowingAsync(parentPost.AuthorId, userId);
-                        if (!isFollowedByAuthor)
+                        if (isFollowedByAuthor)
                         {
-                            throw new Exception("Only users followed by the author can reply.");
+                            canReply = true;
+                        }
+                        else
+                        {
+                            // Check for mention as a fallback
+                            canReply = await IsUserMentionedAsync(parentPost, userId);
                         }
                     }
-                    else if (string.Equals(restriction, "mentioned", StringComparison.OrdinalIgnoreCase))
+                    else if (restriction == "mentioned")
                     {
-                         // Check if the user is mentioned in the parent post
-                         var user = await _unitOfWork.Users.GetByIdAsync(userId);
-                         var handle = user?.Handle?.ToLower();
-                         
-                         bool isMentioned = false;
-                         if (!string.IsNullOrEmpty(parentPost.Content) && !string.IsNullOrEmpty(handle))
-                         {
-                             // Improved mention check using regex with word boundaries
-                             var content = parentPost.Content.ToLower();
-                             isMentioned = Regex.IsMatch(content, $@"\B@{Regex.Escape(handle)}\b", RegexOptions.IgnoreCase);
-                             
-                             // Fallback for short handle check if full handle not found
-                             if (!isMentioned && handle.Contains("."))
-                             {
-                                 var prefix = handle.Split('.')[0];
-                                 isMentioned = Regex.IsMatch(content, $@"\B@{Regex.Escape(prefix)}\b", RegexOptions.IgnoreCase);
-                             }
-                         }
+                        canReply = await IsUserMentionedAsync(parentPost, userId);
+                    }
 
-                         if (!isMentioned)
-                         {
-                             throw new Exception("Only mentioned users can reply.");
-                         }
+                    if (!canReply)
+                    {
+                        throw new Exception("You are not allowed to reply to this post based on the author's interaction settings.");
                     }
                 }
 
@@ -552,7 +540,7 @@ public class PostService : IPostService
             }
             else
             {
-                var restriction = postDto.ReplyRestriction?.ToLower() ?? "anyone";
+                var restriction = postDto.ReplyRestriction?.ToLower()?.Trim() ?? "anyone";
                 if (restriction == "anyone")
                 {
                     postDto.CanReply = true;
@@ -563,26 +551,26 @@ public class PostService : IPostService
                 }
                 else if (restriction == "followed")
                 {
-                    postDto.CanReply = await _unitOfWork.Follows.IsFollowingAsync(postDto.Author.Id, viewerId.Value);
+                    // Author follows viewer OR viewer is mentioned
+                    var authorFollowsViewer = await _unitOfWork.Follows.IsFollowingAsync(postDto.Author.Id, viewerId.Value);
+                    if (authorFollowsViewer)
+                    {
+                        postDto.CanReply = true;
+                    }
+                    else
+                    {
+                        var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId.Value);
+                        postDto.CanReply = await IsUserMentionedAsync(postDto.Content, viewerUser?.Handle);
+                    }
                 }
                 else if (restriction == "mentioned")
                 {
                     var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId.Value);
-                    var viewerHandle = viewerUser?.Handle?.ToLower();
-                    if (!string.IsNullOrEmpty(viewerHandle) && !string.IsNullOrEmpty(postDto.Content))
-                    {
-                        var content = postDto.Content.ToLower();
-                        postDto.CanReply = Regex.IsMatch(content, $@"\B@{Regex.Escape(viewerHandle)}\b", RegexOptions.IgnoreCase);
-                        if (!postDto.CanReply && viewerHandle.Contains("."))
-                        {
-                            var prefix = viewerHandle.Split('.')[0];
-                            postDto.CanReply = Regex.IsMatch(content, $@"\B@{Regex.Escape(prefix)}\b", RegexOptions.IgnoreCase);
-                        }
-                    }
-                    else
-                    {
-                        postDto.CanReply = false;
-                    }
+                    postDto.CanReply = await IsUserMentionedAsync(postDto.Content, viewerUser?.Handle);
+                }
+                else
+                {
+                    postDto.CanReply = false;
                 }
             }
         }
@@ -987,6 +975,28 @@ public class PostService : IPostService
     {
         // Simple TID generator for now (333rd-style)
         return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+    }
+
+    private async Task<bool> IsUserMentionedAsync(Post post, Guid userId)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        return await IsUserMentionedAsync(post.Content, user?.Handle);
+    }
+
+    private async Task<bool> IsUserMentionedAsync(string? content, string? handle)
+    {
+        if (string.IsNullOrEmpty(handle) || string.IsNullOrEmpty(content)) return false;
+
+        var lowerContent = content.ToLower();
+        var lowerHandle = handle.ToLower();
+
+        bool isMentioned = Regex.IsMatch(lowerContent, $@"\B@{Regex.Escape(lowerHandle)}\b", RegexOptions.IgnoreCase);
+        if (!isMentioned && lowerHandle.Contains("."))
+        {
+            var prefix = lowerHandle.Split('.')[0];
+            isMentioned = Regex.IsMatch(lowerContent, $@"\B@{Regex.Escape(prefix)}\b", RegexOptions.IgnoreCase);
+        }
+        return isMentioned;
     }
 
     private async Task<string> SaveFileAsync(IFormFile file, string folder)
