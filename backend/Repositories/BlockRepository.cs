@@ -15,16 +15,6 @@ public class BlockRepository : Repository<BlockedAccount>, IBlockRepository
             .FirstOrDefaultAsync(b => b.UserId == userId && b.BlockedUserId == blockedUserId);
     }
 
-    public async Task AddAsync(BlockedAccount block)
-    {
-        await _dbSet.AddAsync(block);
-    }
-
-    public void Remove(BlockedAccount block)
-    {
-        _dbSet.Remove(block);
-    }
-
     public async Task<bool> IsBlockedAsync(Guid userId, Guid potentialBlockedUserId)
     {
         return await _dbSet

@@ -2,11 +2,9 @@ using BSkyClone.Models;
 
 namespace BSkyClone.Repositories;
 
-public interface IMuteRepository
+public interface IMuteRepository : IRepository<MutedAccount>
 {
     Task<MutedAccount?> GetAsync(Guid userId, Guid mutedUserId);
-    Task AddAsync(MutedAccount mute);
-    void Remove(MutedAccount mute);
     Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId);
     Task<List<MutedAccount>> GetMutedAccountsAsync(Guid userId);
 }

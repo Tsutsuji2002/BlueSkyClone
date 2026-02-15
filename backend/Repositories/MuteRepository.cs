@@ -3,40 +3,27 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BSkyClone.Repositories;
 
-public class MuteRepository : IMuteRepository
+public class MuteRepository : Repository<MutedAccount>, IMuteRepository
 {
-    private readonly BSkyDbContext _context;
-
-    public MuteRepository(BSkyDbContext context)
+    public MuteRepository(BSkyDbContext context) : base(context)
     {
-        _context = context;
     }
 
     public async Task<MutedAccount?> GetAsync(Guid userId, Guid mutedUserId)
     {
-        return await _context.MutedAccounts
+        return await _dbSet
             .FirstOrDefaultAsync(m => m.UserId == userId && m.MutedUserId == mutedUserId);
-    }
-
-    public async Task AddAsync(MutedAccount mute)
-    {
-        await _context.MutedAccounts.AddAsync(mute);
-    }
-
-    public void Remove(MutedAccount mute)
-    {
-        _context.MutedAccounts.Remove(mute);
     }
 
     public async Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId)
     {
-        return await _context.MutedAccounts
+        return await _dbSet
             .AnyAsync(m => m.UserId == userId && m.MutedUserId == potentialMutedUserId);
     }
 
     public async Task<List<MutedAccount>> GetMutedAccountsAsync(Guid userId)
     {
-        return await _context.MutedAccounts
+        return await _dbSet
             .Include(m => m.MutedUser)
             .Where(m => m.UserId == userId)
             .ToListAsync();
