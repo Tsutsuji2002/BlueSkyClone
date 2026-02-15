@@ -58,12 +58,6 @@ services:
   kibana:
     restart: always
 
-  elasticsearch:
-    restart: always
-
-  kibana:
-    restart: always
-
   certbot:
     image: certbot/certbot
     container_name: bsky-certbot
