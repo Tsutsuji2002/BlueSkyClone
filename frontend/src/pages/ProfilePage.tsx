@@ -278,22 +278,26 @@ const ProfilePage: React.FC = () => {
                             </Button>
                         ) : (
                             <div className="flex gap-2">
-                                <button
-                                    onClick={handleMessageClick}
-                                    className="bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-full p-2.5 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors flex items-center justify-center"
-                                    title={t('messages.title')}
-                                >
-                                    <FiMail size={20} className="text-gray-900 dark:text-dark-text" />
-                                </button>
-                                <Button
-                                    variant={profileUser?.isFollowing ? 'outline' : 'primary'}
-                                    size="sm"
-                                    onClick={handleFollowToggle}
-                                    disabled={!!(profileUser?.id && actionLoading[profileUser.id])}
-                                    className="rounded-full text-[15px] font-bold px-5 py-2 min-w-[100px]"
-                                >
-                                    {profileUser?.isFollowing ? t('profile.following_btn') : t('profile.follow')}
-                                </Button>
+                                {!profileUser?.isBlockedBy && (
+                                    <>
+                                        <button
+                                            onClick={handleMessageClick}
+                                            className="bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-full p-2.5 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors flex items-center justify-center"
+                                            title={t('messages.title')}
+                                        >
+                                            <FiMail size={20} className="text-gray-900 dark:text-dark-text" />
+                                        </button>
+                                        <Button
+                                            variant={profileUser?.isFollowing ? 'outline' : 'primary'}
+                                            size="sm"
+                                            onClick={handleFollowToggle}
+                                            disabled={profileUser ? !!actionLoading[profileUser.id] : false}
+                                            className="rounded-full text-[15px] font-bold px-5 py-2 min-w-[100px]"
+                                        >
+                                            {profileUser?.isFollowing ? t('profile.following_btn') : t('profile.follow')}
+                                        </Button>
+                                    </>
+                                )}
                             </div>
                         )
                         }
@@ -318,162 +322,173 @@ const ProfilePage: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* Stats Section (One-line compact) */}
-                    <div className="flex items-center gap-2 mb-3 mt-1.5 text-[15px]">
-                        <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/user/${profileUser?.id}/followers`)}>
-                            <span className="font-bold text-black dark:text-dark-text">{profileUser?.followersCount || 0}</span>
-                            <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.followers')}</p>
-                        </div>
-                        <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/user/${profileUser?.id}/following`)}>
-                            <span className="font-bold text-black dark:text-dark-text">{profileUser?.followingCount || 0}</span>
-                            <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.following')}</p>
-                        </div>
-                        <div className="flex items-center gap-1 cursor-pointer">
-                            <span className="font-bold text-black dark:text-dark-text">{profileUser?.postsCount || 0}</span>
-                            <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.posts_stat')}</p>
-                        </div>
-                    </div>
+                    {!profileUser?.isBlockedBy && (
+                        <>
+                            {/* Stats Section (One-line compact) */}
+                            <div className="flex items-center gap-2 mb-3 mt-1.5 text-[15px]">
+                                <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/user/${profileUser?.id}/followers`)}>
+                                    <span className="font-bold text-black dark:text-dark-text">{profileUser?.followersCount || 0}</span>
+                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.followers')}</p>
+                                </div>
+                                <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/user/${profileUser?.id}/following`)}>
+                                    <span className="font-bold text-black dark:text-dark-text">{profileUser?.followingCount || 0}</span>
+                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.following')}</p>
+                                </div>
+                                <div className="flex items-center gap-1 cursor-pointer">
+                                    <span className="font-bold text-black dark:text-dark-text">{profileUser?.postsCount || 0}</span>
+                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.posts_stat')}</p>
+                                </div>
+                            </div>
 
-                    {/* Bio Section */}
-                    {profileUser?.bio && (
-                        <div className="mb-4 text-gray-900 dark:text-dark-text whitespace-pre-wrap text-[16px] leading-normal">
-                            {profileUser.bio}
-                        </div>
+                            {/* Bio Section */}
+                            {profileUser?.bio && (
+                                <div className="mb-4 text-gray-900 dark:text-dark-text whitespace-pre-wrap text-[16px] leading-normal">
+                                    {profileUser?.bio}
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
 
-            {/* Tabs Selection Section */}
-            <div className="border-b border-gray-100 dark:border-dark-border w-full sticky top-0 bg-white dark:bg-dark-bg z-30">
-                <div className="flex overflow-x-auto no-scrollbar scroll-smooth">
-                    <div className="flex w-full px-2">
-                        {PROFILE_TABS.map((tab: { id: string; label: string }) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => handleTabChange(tab.id)}
-                                className={cn(
-                                    'px-3 py-3 text-[14px] font-bold transition-all whitespace-nowrap relative flex-shrink-0',
-                                    activeTab === tab.id
-                                        ? 'text-gray-900 dark:text-dark-text'
-                                        : 'text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50'
-                                )}
-                            >
-                                {t(`nav.${tab.id}`)}
-                                {activeTab === tab.id && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-primary-500" />
-                                )}
-                            </button>
-                        ))}
+            {/* Blocked States */}
+            {profileUser?.isBlockedBy ? (
+                <div className="flex flex-col items-center justify-center py-20 px-6 text-center bg-white dark:bg-dark-bg min-h-[40vh]">
+                    <div className="bg-gray-100 dark:bg-dark-surface p-6 rounded-full mb-6">
+                        <FiUserX size={48} className="text-gray-400 dark:text-gray-500" />
                     </div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                        {profileUser && t('profile.blocked_by', { handle: profileUser.handle })}
+                    </h2>
+                    <p className="text-gray-500 dark:text-dark-text-secondary max-w-sm">
+                        {t('profile.blocked_by_desc')}
+                    </p>
                 </div>
-            </div>
-
-            {/* Content Section */}
-            <div className="flex-1 bg-white dark:bg-dark-bg">
-                {activeTab === 'feeds' ? (
-                    // Feeds Tab - Blank for now
-                    <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                        <FiRss size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                        <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
-                            {t('profile.feeds_coming_soon')}
-                        </h3>
+            ) : profileUser?.isBlocking ? (
+                <div className="flex flex-col items-center justify-center py-20 px-6 text-center bg-white dark:bg-dark-bg min-h-[40vh]">
+                    <div className="bg-gray-100 dark:bg-dark-surface p-6 rounded-full mb-6">
+                        <FiUserX size={48} className="text-gray-400 dark:text-gray-500" />
                     </div>
-                ) : activeTab === 'lists' ? (
-                    // Lists Tab - Show user's lists
-                    isListsLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
-                        </div>
-                    ) : userLists.length > 0 ? (
-                        <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
-                            {userLists.map(list => (
-                                <div
-                                    key={list.id}
-                                    className="p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer transition-colors"
-                                    onClick={() => navigate(`/lists/${list.id}`)}
-                                >
-                                    <div className="flex gap-4">
-                                        <div className="shrink-0">
-                                            <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-bold text-gray-900 dark:text-dark-text truncate">{list.name}</h4>
-                                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                    {t('lists.members_count', { count: list.membersCount || 0 })}
-                                                </span>
-                                            </div>
-                                            {list.description && (
-                                                <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
-                                                    {list.description}
-                                                </p>
-                                            )}
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <Avatar
-                                                    src={list.owner.avatarUrl || list.owner.avatar}
-                                                    alt={list.owner.displayName}
-                                                    size="xs"
-                                                />
-                                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                    {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                            <FiList size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                            <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
-                                {t('profile.no_lists')}
-                            </h3>
-                        </div>
-                    )
-                ) : activeTab === 'media' ? (
-                    // Media Tab - Grid View
-                    isPostsLoading && reduxPosts.length === 0 ? (
-                        <div className="flex items-center justify-center py-20">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
-                        </div>
-                    ) : reduxPosts.length > 0 ? (
-                        <>
-                            <MediaGrid
-                                posts={reduxPosts}
-                                onMediaClick={(post, mediaIndex) => {
-                                    setSelectedPost(post);
-                                    setSelectedMediaIndex(mediaIndex);
-                                    setMediaViewerOpen(true);
-                                }}
-                            />
-                            <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
-                                {isPostsLoading && hasMore && (
-                                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
-                                )}
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                        {t('profile.is_blocking_title')}
+                    </h2>
+                    <p className="text-gray-500 dark:text-dark-text-secondary mb-8 max-w-sm">
+                        {t('profile.is_blocking_desc')}
+                    </p>
+                    <Button
+                        variant="danger"
+                        onClick={handleBlockToggle}
+                        className="rounded-full px-8"
+                    >
+                        {t('profile.unblock')}
+                    </Button>
+                </div>
+            ) : (
+                <>
+                    {/* Tabs Selection Section */}
+                    <div className="border-b border-gray-100 dark:border-dark-border w-full sticky top-0 bg-white dark:bg-dark-bg z-30">
+                        <div className="flex overflow-x-auto no-scrollbar scroll-smooth">
+                            <div className="flex w-full px-2">
+                                {PROFILE_TABS.map((tab: { id: string; label: string }) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => handleTabChange(tab.id)}
+                                        className={cn(
+                                            'px-3 py-3 text-[14px] font-bold transition-all whitespace-nowrap relative flex-shrink-0',
+                                            activeTab === tab.id
+                                                ? 'text-gray-900 dark:text-dark-text'
+                                                : 'text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50'
+                                        )}
+                                    >
+                                        {t(`nav.${tab.id}`)}
+                                        {activeTab === tab.id && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-primary-500" />
+                                        )}
+                                    </button>
+                                ))}
                             </div>
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                            <FiImage size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                            <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
-                                {t('profile.no_media')}
-                            </h3>
                         </div>
-                    )
-                ) : (
-                    // Posts, Replies, Video, Likes tabs - List View
-                    isPostsLoading && reduxPosts.length === 0 ? (
-                        <div className="flex items-center justify-center py-20">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col">
-                            {reduxPosts.length > 0 ? (
-                                <>
-                                    {reduxPosts.map((post: Post) => (
-                                        <PostCard key={post.id} post={post} />
+                    </div>
+
+                    {/* Content Section */}
+                    <div className="flex-1 bg-white dark:bg-dark-bg">
+                        {activeTab === 'feeds' ? (
+                            // Feeds Tab - Blank for now
+                            <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
+                                <FiRss size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                                <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
+                                    {t('profile.feeds_coming_soon')}
+                                </h3>
+                            </div>
+                        ) : activeTab === 'lists' ? (
+                            // Lists Tab - Show user's lists
+                            isListsLoading ? (
+                                <div className="flex items-center justify-center py-20">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                                </div>
+                            ) : userLists.length > 0 ? (
+                                <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
+                                    {userLists.map(list => (
+                                        <div
+                                            key={list.id}
+                                            className="p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer transition-colors"
+                                            onClick={() => navigate(`/lists/${list.id}`)}
+                                        >
+                                            <div className="flex gap-4">
+                                                <div className="shrink-0">
+                                                    <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="font-bold text-gray-900 dark:text-dark-text truncate">{list.name}</h4>
+                                                        <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                            {t('lists.members_count', { count: list.membersCount || 0 })}
+                                                        </span>
+                                                    </div>
+                                                    {list.description && (
+                                                        <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
+                                                            {list.description}
+                                                        </p>
+                                                    )}
+                                                    <div className="flex items-center gap-2 mt-2">
+                                                        <Avatar
+                                                            src={list.owner.avatarUrl || list.owner.avatar}
+                                                            alt={list.owner.displayName}
+                                                            size="xs"
+                                                        />
+                                                        <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                            {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
+                                    <FiList size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                                    <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
+                                        {t('profile.no_lists')}
+                                    </h3>
+                                </div>
+                            )
+                        ) : activeTab === 'media' ? (
+                            // Media Tab - Grid View
+                            isPostsLoading && reduxPosts.length === 0 ? (
+                                <div className="flex items-center justify-center py-20">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                                </div>
+                            ) : reduxPosts.length > 0 ? (
+                                <>
+                                    <MediaGrid
+                                        posts={reduxPosts}
+                                        onMediaClick={(post, mediaIndex) => {
+                                            setSelectedPost(post);
+                                            setSelectedMediaIndex(mediaIndex);
+                                            setMediaViewerOpen(true);
+                                        }}
+                                    />
                                     <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
                                         {isPostsLoading && hasMore && (
                                             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
@@ -482,26 +497,55 @@ const ProfilePage: React.FC = () => {
                                 </>
                             ) : (
                                 <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                                    <div className="mb-4">
-                                        <FiEdit3 size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                                    </div>
-                                    <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mb-6">
-                                        {t(`profile.no_${activeTab}`)}
+                                    <FiImage size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                                    <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
+                                        {t('profile.no_media')}
                                     </h3>
-                                    {isOwnProfile && activeTab === 'posts' && (
-                                        <button
-                                            className="rounded-full font-bold px-8 py-2.5 bg-primary-500 hover:bg-primary-600 text-white transition-all shadow-sm text-[15px]"
-                                            onClick={() => dispatch(openCreatePost())}
-                                        >
-                                            {t('profile.create_post')}
-                                        </button>
+                                </div>
+                            )
+                        ) : (
+                            // Posts, Replies, Video, Likes tabs - List View
+                            isPostsLoading && reduxPosts.length === 0 ? (
+                                <div className="flex items-center justify-center py-20">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col">
+                                    {reduxPosts.length > 0 ? (
+                                        <>
+                                            {reduxPosts.map((post: Post) => (
+                                                <PostCard key={post.id} post={post} />
+                                            ))}
+                                            <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
+                                                {isPostsLoading && hasMore && (
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
+                                                )}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
+                                            <div className="mb-4">
+                                                <FiEdit3 size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                                            </div>
+                                            <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mb-6">
+                                                {t(`profile.no_${activeTab}`)}
+                                            </h3>
+                                            {isOwnProfile && activeTab === 'posts' && (
+                                                <button
+                                                    className="rounded-full font-bold px-8 py-2.5 bg-primary-500 hover:bg-primary-600 text-white transition-all shadow-sm text-[15px]"
+                                                    onClick={() => dispatch(openCreatePost())}
+                                                >
+                                                    {t('profile.create_post')}
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
-                            )}
-                        </div>
-                    )
-                )}
-            </div>
+                            )
+                        )}
+                    </div>
+                </>
+            )}
 
             {/* Media Post Viewer Modal */}
             <MediaPostViewerModal
@@ -522,13 +566,12 @@ const ProfilePage: React.FC = () => {
                     }
                 }}
                 title={t(`profile.${confirmModal.type}`)}
-                message={t(`moderation.${confirmModal.type}_confirm`, { name: profileUser?.displayName || profileUser?.handle })}
+                message={t(`moderation.${confirmModal.type}_confirm`, { name: profileUser?.displayName || profileUser?.handle || '' })}
                 confirmLabel={t(`profile.${confirmModal.type}`)}
                 variant={confirmModal.type === 'block' || confirmModal.type === 'mute' ? 'danger' : 'primary'}
             />
         </MainLayout>
     );
 };
-
 
 export default ProfilePage;

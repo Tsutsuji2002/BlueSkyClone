@@ -49,7 +49,25 @@ public class SearchController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
 
-        var userIds = await _searchService.SearchUsersAsync(q, skip, take);
+        var userIds = (await _searchService.SearchUsersAsync(q, skip, take)).ToList();
+
+        // Fallback to DB search if no results from ElasticSearch
+        if (userIds.Count == 0)
+        {
+            var dbUsers = await _userService.SearchUsersAsync(q, take);
+            return Ok(dbUsers.Select(user => new
+            {
+                user.Id,
+                user.Handle,
+                user.Username,
+                user.DisplayName,
+                user.AvatarUrl,
+                user.Bio,
+                user.FollowersCount,
+                user.FollowingCount,
+                user.PostsCount
+            }));
+        }
 
         // Hydrate users from DB/Service
         var users = new List<object>();
@@ -59,9 +77,6 @@ public class SearchController : ControllerBase
             var user = await _userService.GetUserByIdAsync(id);
             if (user != null)
             {
-                // Map to DTO if needed, or return user object (be careful with sensitive data)
-                // Using a safe DTO is better. existing UserDto or similar.
-                // For now, I'll return a simplified anonymous object to avoid circular refs or sensitive data
                 users.Add(new 
                 {
                    user.Id,

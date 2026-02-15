@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -10,9 +10,11 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import { cn } from '../utils/classNames';
 import { Feed } from '../types';
 import FeedAvatar from '../components/common/FeedAvatar';
+import Avatar from '../components/common/Avatar';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { fetchTrending, fetchInterestsList } from '../redux/slices/trendingSlice';
 import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds } from '../redux/slices/feedsSlice';
+import api from '../utils/api';
 
 const ExplorePage: React.FC = () => {
     const { t } = useTranslation();
@@ -21,6 +23,10 @@ const ExplorePage: React.FC = () => {
     const { accounts, interests } = useAppSelector((state: RootState) => state.trending);
     const { feeds } = useAppSelector((state: RootState) => state.feeds);
     const [searchQuery, setSearchQuery] = useState('');
+    const [results, setResults] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [showResults, setShowResults] = useState(false);
+    const searchRef = useRef<HTMLDivElement>(null);
     const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
     useEffect(() => {
@@ -34,6 +40,60 @@ const ExplorePage: React.FC = () => {
             setSelectedInterests(JSON.parse(stored));
         }
     }, [dispatch]);
+
+    const handleSearch = useCallback(async (query: string) => {
+        if (!query.trim()) {
+            setResults([]);
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await api.search.users(query);
+            setResults(response.data || []);
+        } catch (error) {
+            console.error('Search failed:', error);
+            setResults([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery.trim()) {
+                handleSearch(searchQuery);
+            } else {
+                setResults([]);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, handleSearch]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+                setShowResults(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleResultClick = (handle: string) => {
+        navigate(`/profile/${handle}`);
+        setSearchQuery('');
+        setShowResults(false);
+    };
+
+    const clearSearch = () => {
+        setSearchQuery('');
+        setResults([]);
+        setShowResults(false);
+    };
 
     const toggleInterest = (interest: string) => {
         const newSelection = selectedInterests.includes(interest)
@@ -58,22 +118,83 @@ const ExplorePage: React.FC = () => {
         <MainLayout hideTopBar={true} title={t('nav.explore')}>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
-                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-4">
+                <div className="sticky top-0 z-40 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-4">
                     <button
                         onClick={() => dispatch(openMobileMenu())}
                         className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
                     >
                         <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
                     </button>
-                    <div className="relative group flex-1">
-                        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
-                        <input
-                            type="text"
-                            placeholder={t('explore.search_placeholder')}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-4 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
-                        />
+                    <div className="relative group flex-1" ref={searchRef}>
+                        <div className="relative">
+                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
+                            <input
+                                type="text"
+                                placeholder={t('explore.search_placeholder')}
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setShowResults(true);
+                                }}
+                                onFocus={() => setShowResults(true)}
+                                className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={clearSearch}
+                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+                                >
+                                    <FiX size={16} />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Dropdown Results */}
+                        {showResults && (searchQuery.trim() || loading) && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl shadow-xl z-50 overflow-hidden min-h-[100px] max-h-[80vh] flex flex-col">
+                                <div className="p-3 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50">
+                                    <p className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
+                                        {t('search.searching_for', { defaultValue: 'Searching for "{{query}}"', query: searchQuery })}
+                                    </p>
+                                </div>
+
+                                <div className="overflow-y-auto flex-1">
+                                    {loading ? (
+                                        <div className="p-8 flex justify-center">
+                                            <LoadingIndicator size="md" />
+                                        </div>
+                                    ) : results.length > 0 ? (
+                                        <div className="py-2">
+                                            {results.map((user) => (
+                                                <button
+                                                    key={user.id}
+                                                    onClick={() => handleResultClick(user.handle)}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors text-left"
+                                                >
+                                                    <Avatar
+                                                        src={user.avatarUrl || user.avatar}
+                                                        alt={user.displayName}
+                                                        size="md"
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-gray-900 dark:text-dark-text truncate">
+                                                            {user.displayName}
+                                                        </p>
+                                                        <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary truncate">
+                                                            @{user.handle}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : searchQuery.trim() ? (
+                                        <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary">
+                                            {t('search.no_results', { defaultValue: 'No results found' })}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

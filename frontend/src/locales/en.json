@@ -325,7 +325,12 @@
         "add_to_lists": "Add to lists",
         "hide_account": "Hide account",
         "block_account": "Block account",
-        "report_account": "Report account"
+        "report_account": "Report account",
+        "blocked_by": "@{{handle}} blocked you",
+        "blocked_by_desc": "You cannot follow or see this user's posts.",
+        "is_blocking_title": "You have blocked this user",
+        "is_blocking_desc": "You cannot see their posts or interact with them.",
+        "unblock_to_see": "Unblock to see posts"
     },
     "home": {
         "title": "Home",

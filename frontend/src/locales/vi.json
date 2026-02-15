@@ -311,7 +311,12 @@
         "block": "Chặn",
         "unblock": "Bỏ chặn",
         "mute": "Ẩn",
-        "unmute": "Bỏ ẩn"
+        "unmute": "Bỏ ẩn",
+        "blocked_by": "@{{handle}} đã chặn bạn",
+        "blocked_by_desc": "Bạn không thể theo dõi hoặc xem các bài đăng của người dùng này.",
+        "is_blocking_title": "Bạn đã chặn người dùng này",
+        "is_blocking_desc": "Bạn không thể xem các bài đăng hoặc tương tác với họ.",
+        "unblock_to_see": "Bỏ chặn để xem bài đăng"
     },
     "home": {
         "title": "Trang chủ",

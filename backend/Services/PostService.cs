@@ -113,12 +113,18 @@ public class PostService : IPostService
         var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
 
         var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
+        var blockedByUserIds = await _unitOfWork.Blocks.Query()
+            .Where(b => b.BlockedUserId == viewerId)
+            .Select(b => b.UserId)
+            .ToListAsync();
 
         var filteredPosts = new List<PostDto>();
         foreach (var post in posts)
         {
             // Filter out muted or blocked users
-            if (mutedUserIds.Contains(post.Author.Id) || blockedUserIds.Contains(post.Author.Id))
+            if (mutedUserIds.Contains(post.Author.Id) || 
+                blockedUserIds.Contains(post.Author.Id) || 
+                blockedByUserIds.Contains(post.Author.Id))
             {
                 continue;
             }
