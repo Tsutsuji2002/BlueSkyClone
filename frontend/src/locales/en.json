@@ -600,6 +600,7 @@
         "mute_account": "Mute account",
         "block_account": "Block account",
         "report_post": "Report post",
+        "replies_disabled": "Replies are disabled for this post",
         "add_alt_text": "Add alt text",
         "alt_text_description": "ALT TEXT DESCRIPTION",
         "alt_text_placeholder": "Alt text",

@@ -202,30 +202,32 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             hasDivider: true,
             onClick: () => { },
         },
-        {
-            id: 'mute-account',
-            label: t('post.mute_account'),
-            icon: <FiUserMinus />,
-            onClick: () => {
-                dispatch(muteUserAsync(post.author.id));
-                dispatch(showToast({ message: t('profile.muted_success'), type: 'success' }));
+        ...(!isOwnPost ? [
+            {
+                id: 'mute-account',
+                label: t('post.mute_account'),
+                icon: <FiUserMinus />,
+                onClick: () => {
+                    dispatch(muteUserAsync(post.author.id));
+                    dispatch(showToast({ message: t('profile.muted_success'), type: 'success' }));
+                },
             },
-        },
-        {
-            id: 'block-account',
-            label: t('post.block_account'),
-            icon: <FiUserX />,
-            onClick: () => {
-                dispatch(blockUserAsync(post.author.id));
-                dispatch(showToast({ message: t('profile.blocked_success'), type: 'success' }));
+            {
+                id: 'block-account',
+                label: t('post.block_account'),
+                icon: <FiUserX />,
+                onClick: () => {
+                    dispatch(blockUserAsync(post.author.id));
+                    dispatch(showToast({ message: t('profile.blocked_success'), type: 'success' }));
+                },
             },
-        },
-        {
-            id: 'report-post',
-            label: t('post.report_post'),
-            icon: <FiAlertTriangle />,
-            onClick: () => { },
-        },
+            {
+                id: 'report-post',
+                label: t('post.report_post'),
+                icon: <FiAlertTriangle />,
+                onClick: () => { },
+            },
+        ] : []),
         ...(onRemoveFromList ? [
             { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
             {
@@ -353,11 +355,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                     <div className="flex items-center justify-between mt-1">
                         <div className="flex items-center gap-10">
                             <button
-                                className="flex items-center gap-2 group text-gray-500 dark:text-dark-text-secondary hover:text-blue-500 transition-colors"
+                                className={cn(
+                                    "flex items-center gap-2 group transition-colors",
+                                    post.canReply === false
+                                        ? "text-gray-300 dark:text-gray-700 cursor-not-allowed"
+                                        : "text-gray-500 dark:text-dark-text-secondary hover:text-blue-500"
+                                )}
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    if (post.canReply === false) {
+                                        dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' }));
+                                        return;
+                                    }
                                     dispatch(openReply(post));
                                 }}
+                                title={post.canReply === false ? t('post.replies_disabled') : undefined}
                             >
                                 <FiMessageCircle size={18} />
                                 <span className="text-[13px]">{post.repliesCount}</span>

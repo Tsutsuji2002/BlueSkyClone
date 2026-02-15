@@ -118,6 +118,14 @@ public class PostService : IPostService
             .Select(b => b.UserId)
             .ToListAsync();
 
+        var usersFollowingViewerIds = await _unitOfWork.Follows.Query()
+            .Where(f => f.FollowingId == viewerId)
+            .Select(f => f.FollowerId)
+            .ToListAsync();
+
+        var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
+        var viewerHandle = viewerUser?.Handle?.ToLower();
+
         var filteredPosts = new List<PostDto>();
         foreach (var post in posts)
         {
@@ -133,6 +141,46 @@ public class PostService : IPostService
             post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
             post.IsReposted = repostedPostIds.Contains(post.Id);
             post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
+
+            // Calculate CanReply logic
+            if (post.Author.Id == viewerId)
+            {
+                post.CanReply = true;
+            }
+            else
+            {
+                var restriction = post.ReplyRestriction?.ToLower() ?? "anyone";
+                if (restriction == "anyone")
+                {
+                    post.CanReply = true;
+                }
+                else if (restriction == "none" || restriction == "no_one")
+                {
+                    post.CanReply = false;
+                }
+                else if (restriction == "followed")
+                {
+                    // Author must follow viewer
+                    post.CanReply = usersFollowingViewerIds.Contains(post.Author.Id);
+                }
+                else if (restriction == "mentioned")
+                {
+                    if (!string.IsNullOrEmpty(viewerHandle) && !string.IsNullOrEmpty(post.Content))
+                    {
+                        var content = post.Content.ToLower();
+                        post.CanReply = Regex.IsMatch(content, $@"\B@{Regex.Escape(viewerHandle)}\b", RegexOptions.IgnoreCase);
+                        if (!post.CanReply && viewerHandle.Contains("."))
+                        {
+                            var prefix = viewerHandle.Split('.')[0];
+                            post.CanReply = Regex.IsMatch(content, $@"\B@{Regex.Escape(prefix)}\b", RegexOptions.IgnoreCase);
+                        }
+                    }
+                    else
+                    {
+                        post.CanReply = false;
+                    }
+                }
+            }
 
             if (mutedWords.Any())
             {
@@ -322,16 +370,26 @@ public class PostService : IPostService
 
             if (parentPost != null)
             {
-                // Enforce Reply Restrictions
-                var restriction = parentPost.ReplyRestriction ?? "anyone";
-                
-                if (restriction != "anyone" && parentPost.AuthorId != userId)
+                // Check if blocked
+                var isBlocked = await _unitOfWork.Blocks.Query()
+                    .AnyAsync(b => (b.UserId == parentPost.AuthorId && b.BlockedUserId == userId) || 
+                                   (b.UserId == userId && b.BlockedUserId == parentPost.AuthorId));
+                if (isBlocked)
                 {
-                    if (restriction == "none" || restriction == "no_one") // Handle both possible values
+                    throw new Exception("Interaction blocked.");
+                }
+
+                // Enforce Reply Restrictions
+                var restriction = parentPost.ReplyRestriction?.ToLower() ?? "anyone";
+                
+                if (!string.Equals(restriction, "anyone", StringComparison.OrdinalIgnoreCase) && parentPost.AuthorId != userId)
+                {
+                    if (string.Equals(restriction, "none", StringComparison.OrdinalIgnoreCase) || 
+                        string.Equals(restriction, "no_one", StringComparison.OrdinalIgnoreCase))
                     {
                         throw new Exception("You are not allowed to reply to this post.");
                     }
-                    else if (restriction == "followed")
+                    else if (string.Equals(restriction, "followed", StringComparison.OrdinalIgnoreCase))
                     {
                         // Check if parent post author follows the current user
                         var isFollowedByAuthor = await _unitOfWork.Follows.IsFollowingAsync(parentPost.AuthorId, userId);
@@ -340,18 +398,25 @@ public class PostService : IPostService
                             throw new Exception("Only users followed by the author can reply.");
                         }
                     }
-                    else if (restriction == "mentioned")
+                    else if (string.Equals(restriction, "mentioned", StringComparison.OrdinalIgnoreCase))
                     {
                          // Check if the user is mentioned in the parent post
-                         // Simple check for handle mentions for now
-                         var userHandle = (await _unitOfWork.Users.GetByIdAsync(userId))?.Handle;
-                         var mentionedHandle = userHandle?.Split('.').First(); // basic handle check
+                         var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                         var handle = user?.Handle?.ToLower();
                          
                          bool isMentioned = false;
-                         if (!string.IsNullOrEmpty(parentPost.Content) && !string.IsNullOrEmpty(mentionedHandle))
+                         if (!string.IsNullOrEmpty(parentPost.Content) && !string.IsNullOrEmpty(handle))
                          {
-                             // Simple regex or string contains check (a more robust mention system would check entity facets)
-                             isMentioned = parentPost.Content.Contains($"@{mentionedHandle}", StringComparison.OrdinalIgnoreCase);
+                             // Improved mention check using regex with word boundaries
+                             var content = parentPost.Content.ToLower();
+                             isMentioned = Regex.IsMatch(content, $@"\B@{Regex.Escape(handle)}\b", RegexOptions.IgnoreCase);
+                             
+                             // Fallback for short handle check if full handle not found
+                             if (!isMentioned && handle.Contains("."))
+                             {
+                                 var prefix = handle.Split('.')[0];
+                                 isMentioned = Regex.IsMatch(content, $@"\B@{Regex.Escape(prefix)}\b", RegexOptions.IgnoreCase);
+                             }
                          }
 
                          if (!isMentioned)
@@ -423,13 +488,14 @@ public class PostService : IPostService
         // Invalidate timeline cache for the author
         await _cacheService.RemoveAsync($"user:{userId}:timeline");
 
-        // Refresh to get Author and Media
+        // Refresh to get Author and Media, and Reply info for the DTO
         var savedPost = await _unitOfWork.Posts.Query()
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
             .Include(p => p.Hashtags)
             .Include(p => p.Interests)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
             .FirstOrDefaultAsync(p => p.Id == post.Id);
 
         // Index in Elasticsearch
@@ -478,6 +544,47 @@ public class PostService : IPostService
             postDto.IsBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
             postDto.IsReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == viewerId.Value);
             postDto.Author.IsFollowing = await _unitOfWork.Follows.IsFollowingAsync(viewerId.Value, postDto.Author.Id);
+
+            // Calculate CanReply
+            if (postDto.Author.Id == viewerId.Value)
+            {
+                postDto.CanReply = true;
+            }
+            else
+            {
+                var restriction = postDto.ReplyRestriction?.ToLower() ?? "anyone";
+                if (restriction == "anyone")
+                {
+                    postDto.CanReply = true;
+                }
+                else if (restriction == "none" || restriction == "no_one")
+                {
+                    postDto.CanReply = false;
+                }
+                else if (restriction == "followed")
+                {
+                    postDto.CanReply = await _unitOfWork.Follows.IsFollowingAsync(postDto.Author.Id, viewerId.Value);
+                }
+                else if (restriction == "mentioned")
+                {
+                    var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId.Value);
+                    var viewerHandle = viewerUser?.Handle?.ToLower();
+                    if (!string.IsNullOrEmpty(viewerHandle) && !string.IsNullOrEmpty(postDto.Content))
+                    {
+                        var content = postDto.Content.ToLower();
+                        postDto.CanReply = Regex.IsMatch(content, $@"\B@{Regex.Escape(viewerHandle)}\b", RegexOptions.IgnoreCase);
+                        if (!postDto.CanReply && viewerHandle.Contains("."))
+                        {
+                            var prefix = viewerHandle.Split('.')[0];
+                            postDto.CanReply = Regex.IsMatch(content, $@"\B@{Regex.Escape(prefix)}\b", RegexOptions.IgnoreCase);
+                        }
+                    }
+                    else
+                    {
+                        postDto.CanReply = false;
+                    }
+                }
+            }
         }
 
         // Always fetch live counts for the detail view to ensure 100% accuracy
@@ -846,7 +953,7 @@ public class PostService : IPostService
                 Handle = post.Author.Handle,
                 DisplayName = post.Author.DisplayName,
                 AvatarUrl = post.Author.AvatarUrl,
-                IsFollowing = false // Default, overridden in context-aware methods
+                IsFollowing = false // Default
             },
             ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
             VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,
@@ -857,9 +964,9 @@ public class PostService : IPostService
             ReplyToPostId = post.ReplyToPostId,
             ReplyToHandle = post.ReplyToPost?.Author?.Handle,
             RootPostId = post.RootPostId,
-            IsLiked = false, // Default
-            IsBookmarked = false, // Default
-            IsReposted = false, // Default
+            IsLiked = false,
+            IsBookmarked = false,
+            IsReposted = false,
             LinkPreview = post.LinkPreview == null ? null : new LinkPreviewDto
             {
                 Url = post.LinkPreview.Url,
@@ -871,7 +978,8 @@ public class PostService : IPostService
             Tags = post.Hashtags?.Select(h => h.Name).ToList() ?? new List<string>(),
             Interests = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>(),
             ReplyRestriction = post.ReplyRestriction ?? "anyone",
-            AllowQuotes = post.AllowQuotes ?? true
+            AllowQuotes = post.AllowQuotes ?? true,
+            CanReply = true // Default
         };
     }
 

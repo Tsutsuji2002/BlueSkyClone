@@ -29,6 +29,7 @@ public class PostDto
     public PostMuteDto MuteInfo { get; set; } = new();
     public string ReplyRestriction { get; set; } = "anyone";
     public bool AllowQuotes { get; set; } = true;
+    public bool CanReply { get; set; } = true;
 }
 
 public class PostMuteDto

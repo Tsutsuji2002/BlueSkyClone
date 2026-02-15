@@ -382,7 +382,15 @@ const PostDetailPage: React.FC = () => {
                         <span>·</span>
                         <div className="flex items-center gap-1">
                             <FiShare2 size={14} />
-                            <span>{t('post.everyone_can_reply')}</span>
+                            <span>{
+                                post.replyRestriction?.toLowerCase() === 'none' || post.replyRestriction?.toLowerCase() === 'no_one'
+                                    ? t('privacy.no_one')
+                                    : post.replyRestriction?.toLowerCase() === 'followed'
+                                        ? t('moderation.following')
+                                        : post.replyRestriction?.toLowerCase() === 'mentioned'
+                                            ? t('moderation.mentioned')
+                                            : t('post.everyone_can_reply')
+                            }</span>
                         </div>
                         <span>·</span>
                         <button
@@ -416,9 +424,17 @@ const PostDetailPage: React.FC = () => {
                     {/* Actions */}
                     <div className="flex items-center justify-between py-1 border-t border-gray-100 dark:border-dark-border/50">
                         <IconButton
-                            icon={<FiMessageCircle size={22} />}
-                            onClick={() => dispatch(openReply(post))}
+                            icon={<FiMessageCircle size={22} className={post.canReply === false ? 'text-gray-300 dark:text-gray-700' : ''} />}
+                            onClick={() => {
+                                if (post.canReply === false) {
+                                    dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' }));
+                                    return;
+                                }
+                                dispatch(openReply(post));
+                            }}
                             variant="default"
+                            disabled={post.canReply === false}
+                            tooltip={post.canReply === false ? t('post.replies_disabled') : undefined}
                         />
                         <IconButton
                             icon={<FiRepeat size={22} className={post.isReposted ? 'text-primary-500' : ''} />}
@@ -460,19 +476,27 @@ const PostDetailPage: React.FC = () => {
                 </div>
 
                 {/* Reply Input */}
-                <div
-                    onClick={() => dispatch(openReply(post))}
-                    className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-dark-border cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
-                >
-                    <Avatar
-                        src={currentUser?.avatar || post.author.avatar}
-                        alt="Current user"
-                        size="md"
-                    />
-                    <div className="flex-1 text-gray-500 dark:text-dark-text-secondary">
-                        {t('common.reply_placeholder')}
+                {post.canReply !== false ? (
+                    <div
+                        onClick={() => dispatch(openReply(post))}
+                        className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-dark-border cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+                    >
+                        <Avatar
+                            src={currentUser?.avatar || post.author.avatar}
+                            alt="Current user"
+                            size="md"
+                        />
+                        <div className="flex-1 text-gray-500 dark:text-dark-text-secondary">
+                            {t('common.reply_placeholder')}
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="p-4 border-b border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-surface/30">
+                        <p className="text-center text-gray-500 dark:text-dark-text-secondary text-sm italic">
+                            {t('post.replies_disabled')}
+                        </p>
+                    </div>
+                )}
 
                 <div className="pb-20">
                     {replies.map((reply: Post) => (

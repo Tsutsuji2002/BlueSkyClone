@@ -138,6 +138,8 @@ export interface Post {
         behavior: 'hide' | 'warn' | 'none';
         reason?: string;
     };
+    canReply?: boolean;
+    replyRestriction?: string;
 }
 
 // Comment/Reply types
