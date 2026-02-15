@@ -23,9 +23,9 @@ public class CategorizationService : ICategorizationService
 
     public async Task<List<int>> CategorizePostAsync(string content, List<string>? imageUrls = null)
     {
-        var matchedInterestIds = new List<int>();
+        var matchedInterestIds = new HashSet<int>();
         if (string.IsNullOrWhiteSpace(content) && (imageUrls == null || !imageUrls.Any()))
-            return matchedInterestIds;
+            return new List<int>();
 
         var interests = await _unitOfWork.Interests.Query()
             .Where(i => i.IsDeleted == false || i.IsDeleted == null)
@@ -33,34 +33,54 @@ public class CategorizationService : ICategorizationService
 
         var contentLower = content.ToLower();
 
-        var categoryName = await _mlService.PredictTextCategoryAsync(content);
-        if (!string.IsNullOrEmpty(categoryName) && categoryName != "unknown")
+        try
         {
-            var interestId = await GetInterestIdByNameAsync(categoryName);
-            if (interestId.HasValue)
+            // 1. AI Prediction with Confidence Score
+            var (categoryName, probability) = await _mlService.PredictTextCategoryWithScoreAsync(content);
+            
+            // High Confidence AI threshold (> 60%)
+            if (!string.IsNullOrEmpty(categoryName) && categoryName != "unknown" && probability > 0.6f)
             {
-                matchedInterestIds.Add(interestId.Value);
+                var interestId = await GetInterestIdByNameAsync(categoryName);
+                if (interestId.HasValue) matchedInterestIds.Add(interestId.Value);
+            }
+
+            // 2. Hybrid / Keyword Matching
+            foreach (var interest in interests)
+            {
+                var keywords = GetKeywordsForInterest(interest.Name);
+                var hasKeywordMatch = keywords.Any(k => contentLower.Contains(k));
+
+                // Logic: 
+                // - Either high keyword match count (we currently check for at least 1)
+                // - OR AI was 'somewhat' sure (30%+) and we have at least 1 keyword match
+                if (hasKeywordMatch || (probability > 0.3f && categoryName == interest.Name))
+                {
+                    matchedInterestIds.Add(interest.Id);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Fallback purely to keywords if AI service fails
+            foreach (var interest in interests)
+            {
+                var keywords = GetKeywordsForInterest(interest.Name);
+                if (keywords.Any(k => contentLower.Contains(k)))
+                {
+                    matchedInterestIds.Add(interest.Id);
+                }
             }
         }
 
-        // Fallback or additional tags based on keyword matching (optional)
-        foreach (var interest in interests)
-        {
-            var keywords = GetKeywordsForInterest(interest.Name);
-            if (keywords.Any(k => contentLower.Contains(k)))
-            {
-                matchedInterestIds.Add(interest.Id);
-            }
-        }
-
-        // Placeholder for Image Analysis (ML.NET)
+        // 3. Image Analysis
         if (imageUrls != null && imageUrls.Any())
         {
             var imageMatchedIds = await AnalyzeImagesAsync(imageUrls);
-            matchedInterestIds.AddRange(imageMatchedIds);
+            foreach (var id in imageMatchedIds) matchedInterestIds.Add(id);
         }
 
-        return matchedInterestIds.Distinct().ToList();
+        return matchedInterestIds.ToList();
     }
 
     private async Task<List<int>> AnalyzeImagesAsync(List<string> imageUrls)
@@ -106,15 +126,30 @@ public class CategorizationService : ICategorizationService
             PostCategoryConstants.Art => new List<string> { "art", "drawing", "painting", "sketch", "illustration", "digital art", "artist" },
             PostCategoryConstants.Photography => new List<string> { "photo", "photography", "camera", "lens", "shot", "portrait", "landscape" },
             PostCategoryConstants.Gaming => new List<string> { "game", "gaming", "playstation", "xbox", "nintendo", "steam", "fps", "rpg" },
-            PostCategoryConstants.Tech => new List<string> { "tech", "technology", "software", "hardware", "ai", "programming", "coding", "developer", "csharp", "c#", "dotnet", "python", "javascript", "java", "golang" },
-            PostCategoryConstants.Music => new List<string> { "music", "song", "album", "artist", "concert", "guitar", "piano" },
-            PostCategoryConstants.News => new List<string> { "news", "breaking", "update", "politics", "world", "local", "report" },
-            PostCategoryConstants.Nature => new List<string> { "nature", "outdoor", "hiking", "mountain", "forest", "animal", "wildlife" },
-            PostCategoryConstants.Politics => new List<string> { "politics", "election", "government", "policy", "vote", "democracy" },
-            PostCategoryConstants.Movies => new List<string> { "movie", "film", "cinema", "actor", "director", "trailer", "netflix" },
-            PostCategoryConstants.Science => new List<string> { "science", "physics", "biology", "space", "nasa", "research", "lab" },
-            PostCategoryConstants.Sports => new List<string> { "sport", "football", "soccer", "basketball", "tennis", "olympics", "match" },
-            PostCategoryConstants.Food => new List<string> { "food", "cooking", "recipe", "restaurant", "chef", "delicious", "dinner" },
+            PostCategoryConstants.Tech => new List<string> { 
+                "tech", "technology", "software", "hardware", "ai", "programming", "coding", "developer", "csharp", "c#", "dotnet", "python", "javascript", "java", "golang",
+                "lập trình", "mã nguồn", "phần mềm", "phần cứng", "thuật toán", "công nghệ", "hệ điều hành", "trí tuệ nhân tạo", "dữ liệu", "backend", "frontend", "fullstack", "fix bug"
+            },
+            PostCategoryConstants.Music => new List<string> { 
+                "music", "song", "album", "artist", "concert", "guitar", "piano",
+                "âm nhạc", "bài hát", "ca sĩ", "nhạc sĩ", "hòa nhạc", "nhạc trẻ", "mv", "ca khúc"
+            },
+            PostCategoryConstants.News => new List<string> { 
+                "news", "breaking", "update", "politics", "world", "local", "report",
+                "tin tức", "thời sự", "bản tin", "thế giới", "kinh tế", "chính trị", "báo chí"
+            },
+            PostCategoryConstants.Nature => new List<string> { 
+                "nature", "outdoor", "hiking", "mountain", "forest", "animal", "wildlife",
+                "thiên nhiên", "ngoài trời", "leo núi", "rừng", "động vật", "biển", "hoàng hôn", "môi trường"
+            },
+            PostCategoryConstants.Politics => new List<string> { "politics", "government", "election", "policy", "chính trị", "bầu cử", "chính phủ", "chính sách" },
+            PostCategoryConstants.Movies => new List<string> { "movie", "film", "cinema", "trailer", "phim", "điện ảnh", "chiếu rạp" },
+            PostCategoryConstants.Science => new List<string> { "science", "physics", "biology", "space", "khoa học", "vật lý", "sinh học", "vũ trụ" },
+            PostCategoryConstants.Sports => new List<string> { "sport", "football", "soccer", "basketball", "match", "thể thao", "bóng đá", "trận đấu" },
+            PostCategoryConstants.Food => new List<string> { 
+                "food", "cooking", "recipe", "delicious", "restaurant", "street food", "dinner",
+                "món ăn", "nấu ăn", "công thức", "ngon", "ẩm thực", "nhà hàng"
+            },
             _ => new List<string> { interestName.ToLower() }
         };
     }
