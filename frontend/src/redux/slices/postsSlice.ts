@@ -54,6 +54,28 @@ export const fetchUserPosts = createAsyncThunk(
 );
 
 
+
+export const updatePost = createAsyncThunk(
+    'posts/updatePost',
+    async ({ postId, formData }: { postId: string; formData: FormData }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to update post');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const createPost = createAsyncThunk(
     'posts/createPost',
     async (formData: FormData, { rejectWithValue }) => {
@@ -361,6 +383,22 @@ const postsSlice = createSlice({
                 }
             })
             .addCase(createPost.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Update Post
+            .addCase(updatePost.pending, (state: PostsState) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(updatePost.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
+                state.isLoading = false;
+                const index = state.posts.findIndex(p => p.id === action.payload.id);
+                if (index !== -1) {
+                    state.posts[index] = action.payload;
+                }
+            })
+            .addCase(updatePost.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             })

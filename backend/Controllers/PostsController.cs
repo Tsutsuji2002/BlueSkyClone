@@ -62,6 +62,15 @@ public class PostsController : ControllerBase
         return Ok(post);
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdatePost(Guid id, [FromForm] CreatePostRequest request)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var post = await _postService.UpdatePostAsync(userId, id, request);
+        if (post == null) return NotFound("Post not found or you are not authorized to edit it.");
+        return Ok(post);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetPost(Guid id)
     {

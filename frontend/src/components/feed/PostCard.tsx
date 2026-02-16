@@ -5,7 +5,7 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { toggleLike, repostPost, bookmarkPost, deletePost } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
-import { openReply } from '../../redux/slices/modalsSlice';
+import { openReply, openEditPost } from '../../redux/slices/modalsSlice';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
 import { useAppSelector } from '../../hooks/useAppSelector';
@@ -240,6 +240,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
         ] : []),
         ...(isOwnPost ? [
             { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
+            {
+                id: 'edit',
+                label: t('common.edit_post', 'Edit post'),
+                icon: <FiType />, // Reusing FiType or specific edit icon like FiEdit
+                onClick: () => dispatch(openEditPost(post)),
+            },
             {
                 id: 'delete',
                 label: t('common.delete_post'),

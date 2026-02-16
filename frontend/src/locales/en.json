@@ -564,6 +564,7 @@
         "close": "Close",
         "cancel": "Cancel",
         "save": "Save",
+        "edit_post": "Edit post",
         "copied_to_clipboard": "Copied to clipboard",
         "hours_ago": "{{count}}h ago",
         "you": "You",
@@ -577,6 +578,7 @@
     },
     "post": {
         "title": "Post",
+        "updated_success": "Post updated successfully",
         "everyone_can_reply": "Everyone can reply",
         "translate": "Translate",
         "copy_text": "Copy post text",

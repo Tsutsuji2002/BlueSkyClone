@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { closeCreatePost } from '../redux/slices/modalsSlice';
-import { createPost } from '../redux/slices/postsSlice';
+import { closeCreatePost, closeEditPost } from '../redux/slices/modalsSlice';
+import { createPost, updatePost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 
 import Button from '../components/common/Button';
@@ -25,6 +25,9 @@ const CreatePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const isOpen = useAppSelector((state) => state.modals.createPost);
+    const editPostState = useAppSelector((state) => state.modals.editPost);
+    const isEditing = editPostState.isOpen && !!editPostState.post;
+    const postToEdit = editPostState.post;
     const user = useAppSelector((state) => state.auth.user);
     const isPostLoading = useAppSelector((state) => state.posts.isLoading);
 
@@ -50,6 +53,36 @@ const CreatePostModal: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevContentRef = useRef('');
+
+    // Pre-fill for editing
+    useEffect(() => {
+        if (isEditing && postToEdit) {
+            setContent(postToEdit.content);
+            if (postToEdit.postMedia && postToEdit.postMedia.length > 0) {
+                // Map PostMedium to PostImage/PostVideo
+                // Note: We can't easily convert URL back to File object, so we just show them.
+                // We need to handle "existing" images vs "new" files.
+                // For now, let's just show them in `images` state. 
+                // We might need to adjust `images` state to allow string URLs without File.
+                // The current `images` state is `PostImage[]` which has `url` and `alt`.
+                // So we can map directly.
+                const loadedImages = postToEdit.postMedia.filter(m => m.type === 'image').map(m => ({
+                    url: m.url,
+                    alt: m.altText // Assuming PostMedium has altText or we need to fetch it? 
+                    // PostMedium in types/index.ts usually has altText? Let's check or assume for now.
+                }));
+                if (loadedImages.length > 0) setImages(loadedImages);
+
+                const loadedVideo = postToEdit.postMedia.find(m => m.type === 'video');
+                if (loadedVideo) setVideo({ url: loadedVideo.url });
+            }
+
+            if (postToEdit.linkPreview) {
+                setLinkPreview(postToEdit.linkPreview);
+                setStickyLink(postToEdit.linkPreview.url);
+            }
+        }
+    }, [isEditing, postToEdit]);
 
     // Link Detection logic
     useEffect(() => {
@@ -177,7 +210,11 @@ const CreatePostModal: React.FC = () => {
     };
 
     const performClose = () => {
-        dispatch(closeCreatePost());
+        if (isEditing) {
+            dispatch(closeEditPost());
+        } else {
+            dispatch(closeCreatePost());
+        }
         setContent('');
         setImages([]);
         setImageFiles([]);
@@ -195,6 +232,15 @@ const CreatePostModal: React.FC = () => {
 
         const formData = new FormData();
         formData.append('Content', content);
+
+        // Handle Images
+        // If editing, we might need to handle existing images separately if we want to support deleting them.
+        // But for now, we only support ADDING new images via file input.
+        // Existing images (urls) are not sent back in CreatePostRequest for "Images" or "Video" fields as they expect IFormFile.
+        // The backend UpdatePost only updates Content and LinkPreview currently. 
+        // Media update is not fully implemented in backend yet as noted in PostService.cs.
+        // But we should still send what we can.
+
         imageFiles.forEach(file => {
             formData.append('Images', file);
         });
@@ -211,9 +257,14 @@ const CreatePostModal: React.FC = () => {
         }
 
         try {
-            await dispatch(createPost(formData)).unwrap();
+            if (isEditing && postToEdit) {
+                await dispatch(updatePost({ postId: postToEdit.id, formData })).unwrap();
+                dispatch(showToast({ message: t('post.updated_success', 'Post updated successfully'), type: 'success' }));
+            } else {
+                await dispatch(createPost(formData)).unwrap();
+                dispatch(showToast({ message: t('post.created_success'), type: 'success' }));
+            }
             performClose();
-            dispatch(showToast({ message: t('post.created_success'), type: 'success' }));
         } catch (error: any) {
             dispatch(showToast({ message: error || t('common.failed_to_create'), type: 'error' }));
         }
@@ -326,9 +377,9 @@ const CreatePostModal: React.FC = () => {
                                 {isPostLoading ? (
                                     <div className="flex items-center gap-2">
                                         <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        <span>{t('common.posting', 'Posting...')}</span>
+                                        <span>{isEditing ? t('common.saving', 'Saving...') : t('common.posting', 'Posting...')}</span>
                                     </div>
-                                ) : t('common.post_verb')}
+                                ) : (isEditing ? t('common.save', 'Save') : t('common.post_verb'))}
                             </Button>
                         </div>
                     </div>

@@ -361,6 +361,10 @@ export interface ModalsState {
         isOpen: boolean;
         post: Post | null;
     };
+    editPost: {
+        isOpen: boolean;
+        post: Post | null;
+    };
 }
 
 // Component Props Types

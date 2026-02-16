@@ -25,6 +25,10 @@ const initialState: ModalsState = {
         isOpen: false,
         post: null,
     },
+    editPost: {
+        isOpen: false,
+        post: null,
+    },
 };
 
 const modalsSlice = createSlice({
@@ -105,6 +109,26 @@ const modalsSlice = createSlice({
                 post: null,
             };
         },
+        openEditPost: (state, action: PayloadAction<Post>) => {
+            state.editPost = {
+                isOpen: true,
+                post: action.payload,
+            };
+            // Re-use Create Post modal logic if possible, or we might need a separate flag?
+            // Plan said reuse CreatePostModal.
+            // But CreatePostModal uses `state.modals.createPost`.
+            // Let's make `openEditPost` ALSO set `createPost = true` but store `editingPost` data.
+            // Wait, better to have a dedicated state for "isEditing" or "postToEdit" and just open the same modal.
+            // Let's set `createPost = true` here too.
+            state.createPost = true;
+        },
+        closeEditPost: (state) => {
+            state.editPost = {
+                isOpen: false,
+                post: null,
+            };
+            state.createPost = false;
+        },
     },
 });
 
@@ -124,6 +148,8 @@ export const {
     closeMobileMenu,
     openSharePost,
     closeSharePost,
+    openEditPost,
+    closeEditPost,
 } = modalsSlice.actions;
 
 export default modalsSlice.reducer;
