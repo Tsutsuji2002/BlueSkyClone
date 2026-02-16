@@ -2,8 +2,8 @@
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // Placeholder images
-export const AVATAR_PLACEHOLDER = '/placeholders/avatar-default.png';
-export const COVER_PLACEHOLDER = '/placeholders/cover-default.png';
+export const AVATAR_PLACEHOLDER = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png';
+export const COVER_PLACEHOLDER = 'https://images.unsplash.com/photo-1614850523054-9273b4047099?q=80&w=1500&auto=format&fit=crop';
 
 
 // Navigation items
