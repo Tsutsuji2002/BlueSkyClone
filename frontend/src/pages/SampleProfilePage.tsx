@@ -260,7 +260,7 @@ const SampleProfilePage: React.FC = () => {
                     <div className="h-40 lg:h-48 w-full bg-blue-100 dark:bg-dark-surface overflow-hidden">
                         {coverImage && (
                             <img
-                                src={(coverImage && coverImage.startsWith('/')) ? `${API_BASE_URL.replace('/api', '')}${coverImage}` : coverImage}
+                                src={(coverImage && coverImage.startsWith('/') && coverImage !== COVER_PLACEHOLDER) ? `${API_BASE_URL.replace('/api', '')}${coverImage}` : coverImage}
                                 alt="Cover"
                                 className="w-full h-full object-cover"
                             />
@@ -438,42 +438,71 @@ const SampleProfilePage: React.FC = () => {
                                     </div>
                                 ) : userLists.length > 0 ? (
                                     <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
-                                        {userLists.map(list => (
-                                            <div
-                                                key={list.id}
-                                                className="p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer transition-colors"
-                                                onClick={() => navigate(`/lists/${list.id}`)}
-                                            >
-                                                <div className="flex gap-4">
-                                                    <div className="shrink-0">
-                                                        <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between">
-                                                            <h4 className="font-bold text-gray-900 dark:text-dark-text truncate">{list.name}</h4>
-                                                            <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                                {t('lists.members_count', { count: list.membersCount || 0 })}
-                                                            </span>
+                                        {userLists.map(list => {
+                                            const isListOwner = currentUser?.id === list.owner.id;
+                                            return (
+                                                <div
+                                                    key={list.id}
+                                                    className={cn(
+                                                        "p-4 transition-colors flex items-center justify-between gap-4",
+                                                        isListOwner
+                                                            ? "hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer"
+                                                            : "cursor-default" // Non-clickable for non-owners
+                                                    )}
+                                                    onClick={() => {
+                                                        if (isListOwner) {
+                                                            navigate(`/lists/${list.id}`);
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="flex gap-4 flex-1 min-w-0">
+                                                        <div className="shrink-0">
+                                                            <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
                                                         </div>
-                                                        {list.description && (
-                                                            <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
-                                                                {list.description}
-                                                            </p>
-                                                        )}
-                                                        <div className="flex items-center gap-2 mt-2">
-                                                            <Avatar
-                                                                src={list.owner.avatarUrl || list.owner.avatar}
-                                                                alt={list.owner.displayName}
-                                                                size="xs"
-                                                            />
-                                                            <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                                {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
-                                                            </span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between">
+                                                                <h4 className="font-bold text-gray-900 dark:text-dark-text truncate">{list.name}</h4>
+                                                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                                    {t('lists.members_count', { count: list.membersCount || 0 })}
+                                                                </span>
+                                                            </div>
+                                                            {list.description && (
+                                                                <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
+                                                                    {list.description}
+                                                                </p>
+                                                            )}
+                                                            <div className="flex items-center gap-2 mt-2">
+                                                                <Avatar
+                                                                    src={list.owner.avatarUrl || list.owner.avatar}
+                                                                    alt={list.owner.displayName}
+                                                                    size="xs"
+                                                                />
+                                                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                                    {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
+
+                                                    {/* Join Button for non-owners */}
+                                                    {!isListOwner && (
+                                                        <div className="shrink-0">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="primary"
+                                                                className="rounded-full px-4"
+                                                                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                                                                    e.stopPropagation();
+                                                                    dispatch(showToast({ message: t('lists.join_request_sent'), type: 'success' }));
+                                                                }}
+                                                            >
+                                                                {t('lists.join')}
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">

@@ -428,7 +428,9 @@
         "invited": "Invited",
         "member": "Member",
         "invitation_accepted": "Invitation accepted",
-        "invitation_rejected": "Invitation declined"
+        "invitation_rejected": "Invitation declined",
+        "join": "Join",
+        "join_request_sent": "Join request sent"
     },
     "saved": {
         "title": "Saved",

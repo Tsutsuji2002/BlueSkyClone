@@ -235,7 +235,7 @@ const ProfilePage: React.FC = () => {
                     <div className="h-40 lg:h-48 w-full bg-blue-100 dark:bg-dark-surface overflow-hidden">
                         {coverImage && (
                             <img
-                                src={(coverImage && coverImage.startsWith('/')) ? `${API_BASE_URL.replace('/api', '')}${coverImage}` : coverImage}
+                                src={(coverImage && coverImage.startsWith('/') && coverImage !== COVER_PLACEHOLDER) ? `${API_BASE_URL.replace('/api', '')}${coverImage}` : coverImage}
                                 alt="Cover"
                                 className="w-full h-full object-cover"
                             />

@@ -371,7 +371,7 @@ export interface ButtonProps {
     fullWidth?: boolean;
     disabled?: boolean;
     loading?: boolean;
-    onClick?: () => void;
+    onClick?: React.MouseEventHandler<HTMLButtonElement>;
     type?: 'button' | 'submit' | 'reset';
     className?: string;
 }
