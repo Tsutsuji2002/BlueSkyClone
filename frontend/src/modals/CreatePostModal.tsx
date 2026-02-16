@@ -58,23 +58,20 @@ const CreatePostModal: React.FC = () => {
     useEffect(() => {
         if (isEditing && postToEdit) {
             setContent(postToEdit.content);
-            if (postToEdit.postMedia && postToEdit.postMedia.length > 0) {
-                // Map PostMedium to PostImage/PostVideo
-                // Note: We can't easily convert URL back to File object, so we just show them.
-                // We need to handle "existing" images vs "new" files.
-                // For now, let's just show them in `images` state. 
-                // We might need to adjust `images` state to allow string URLs without File.
-                // The current `images` state is `PostImage[]` which has `url` and `alt`.
-                // So we can map directly.
-                const loadedImages = postToEdit.postMedia.filter(m => m.type === 'image').map(m => ({
-                    url: m.url,
-                    alt: m.altText // Assuming PostMedium has altText or we need to fetch it? 
-                    // PostMedium in types/index.ts usually has altText? Let's check or assume for now.
+            if (postToEdit.images && postToEdit.images.length > 0) {
+                setImages(postToEdit.images);
+            } else if (postToEdit.imageUrls && postToEdit.imageUrls.length > 0) {
+                const loadedImages = postToEdit.imageUrls.map(url => ({
+                    url: url,
+                    alt: '' // Alt text might not be available in simple string array
                 }));
-                if (loadedImages.length > 0) setImages(loadedImages);
+                setImages(loadedImages);
+            }
 
-                const loadedVideo = postToEdit.postMedia.find(m => m.type === 'video');
-                if (loadedVideo) setVideo({ url: loadedVideo.url });
+            if (postToEdit.video) {
+                setVideo(postToEdit.video);
+            } else if (postToEdit.videoUrl) {
+                setVideo({ url: postToEdit.videoUrl });
             }
 
             if (postToEdit.linkPreview) {
