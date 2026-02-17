@@ -381,6 +381,12 @@ const postsSlice = createSlice({
                         parentPost.repliesCount = (parentPost.repliesCount || 0) + 1;
                     }
                 }
+                if (action.payload.quotePostId) {
+                    const quotedPost = state.posts.find(p => p.id === action.payload.quotePostId);
+                    if (quotedPost) {
+                        quotedPost.quotesCount = (quotedPost.quotesCount || 0) + 1;
+                    }
+                }
             })
             .addCase(createPost.rejected, (state: PostsState, action) => {
                 state.isLoading = false;

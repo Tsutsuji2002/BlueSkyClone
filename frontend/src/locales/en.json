@@ -623,7 +623,10 @@
         "show_anyway": "Show anyway",
         "loading": "Loading post...",
         "view_full_post": "View full post",
-        "no_replies": "No replies yet"
+        "no_replies": "No replies yet",
+        "quote_post": "Quote post",
+        "repost": "Repost",
+        "undo_repost": "Undo repost"
     },
     "sidebar": {
         "trending": "Trending Topics",

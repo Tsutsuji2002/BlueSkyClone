@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { closeCreatePost, closeEditPost } from '../redux/slices/modalsSlice';
+import { closeCreatePost, closeEditPost, closeQuote } from '../redux/slices/modalsSlice';
 import { createPost, updatePost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 
@@ -20,14 +20,18 @@ import { useUserSearch } from '../hooks/useUserSearch';
 import MentionSuggester from '../components/common/MentionSuggester';
 import RichText from '../components/common/RichText';
 import { User } from '../types';
+import QuotedPost from '../components/feed/QuotedPost';
 
 const CreatePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const isOpen = useAppSelector((state) => state.modals.createPost);
     const editPostState = useAppSelector((state) => state.modals.editPost);
+    const quoteState = useAppSelector((state) => state.modals.quote);
     const isEditing = editPostState.isOpen && !!editPostState.post;
+    const isQuoting = quoteState.isOpen && !!quoteState.post;
     const postToEdit = editPostState.post;
+    const postToQuote = quoteState.post;
     const user = useAppSelector((state) => state.auth.user);
     const isPostLoading = useAppSelector((state) => state.posts.isLoading);
 
@@ -209,6 +213,8 @@ const CreatePostModal: React.FC = () => {
     const performClose = () => {
         if (isEditing) {
             dispatch(closeEditPost());
+        } else if (isQuoting) {
+            dispatch(closeQuote());
         } else {
             dispatch(closeCreatePost());
         }
@@ -229,6 +235,10 @@ const CreatePostModal: React.FC = () => {
 
         const formData = new FormData();
         formData.append('Content', content);
+
+        if (isQuoting && postToQuote) {
+            formData.append('QuotePostId', postToQuote.id);
+        }
 
         // Handle Images
         // If editing, we might need to handle existing images separately if we want to support deleting them.
@@ -428,6 +438,12 @@ const CreatePostModal: React.FC = () => {
                                         isLoading={isMentionLoading}
                                         onSelect={handleMentionSelect}
                                     />
+                                )}
+
+                                {isQuoting && postToQuote && (
+                                    <div className="mt-4 mb-2">
+                                        <QuotedPost post={postToQuote} isCard={false} />
+                                    </div>
                                 )}
 
 

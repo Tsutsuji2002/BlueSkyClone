@@ -215,6 +215,7 @@ public class PostService : IPostService
 
     public async Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request)
     {
+        Notification? quoteNotification = null;
         var lockKey = $"lock:create_post:{userId}";
         if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(3)))
         {
@@ -236,6 +237,7 @@ public class PostService : IPostService
                 CreatedAt = DateTime.UtcNow,
                 ReplyToPostId = request.ReplyToPostId,
                 RootPostId = request.RootPostId,
+                QuotePostId = request.QuotePostId,
                 LikesCount = 0,
                 RepostsCount = 0,
                 RepliesCount = 0,
@@ -245,6 +247,34 @@ public class PostService : IPostService
                 ReplyRestriction = replyRestriction,
                 AllowQuotes = allowQuotes
             };
+
+            if (request.QuotePostId.HasValue)
+            {
+                var quotedPost = await _unitOfWork.Posts.GetByIdAsync(request.QuotePostId.Value);
+                if (quotedPost != null)
+                {
+                    quotedPost.QuotesCount = (quotedPost.QuotesCount ?? 0) + 1;
+                    _unitOfWork.Posts.Update(quotedPost);
+
+                    // Send notification to quoted post author
+                    if (quotedPost.AuthorId != userId)
+                    {
+                        var quoteNotification = new Notification
+                        {
+                            Id = Guid.NewGuid(),
+                            Tid = GenerateTid(),
+                            Type = "quote",
+                            SenderId = userId,
+                            RecipientId = quotedPost.AuthorId,
+                            PostId = post.Id,
+                            IsRead = false,
+                            CreatedAt = DateTime.UtcNow,
+                            IsDeleted = false
+                        };
+                        await _unitOfWork.Notifications.AddAsync(quoteNotification);
+                    }
+                }
+            }
 
         if (request.Images != null && request.Images.Any())
         {
@@ -436,6 +466,33 @@ public class PostService : IPostService
             }
         }
 
+        if (request.QuotePostId.HasValue)
+        {
+            var quotedPost = await _unitOfWork.Posts.GetByIdAsync(request.QuotePostId.Value);
+            if (quotedPost != null)
+            {
+                quotedPost.QuotesCount = (quotedPost.QuotesCount ?? 0) + 1;
+                _unitOfWork.Posts.Update(quotedPost);
+
+                if (quotedPost.AuthorId != userId)
+                {
+                    quoteNotification = new Notification
+                    {
+                        Id = Guid.NewGuid(),
+                        Tid = GenerateTid(),
+                        Type = "quote",
+                        SenderId = userId,
+                        RecipientId = quotedPost.AuthorId,
+                        PostId = post.Id,
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow,
+                        IsDeleted = false
+                    };
+                    await _unitOfWork.Notifications.AddAsync(quoteNotification);
+                }
+            }
+        }
+
         await _unitOfWork.CompleteAsync();
 
         // Detect Mentions
@@ -473,6 +530,11 @@ public class PostService : IPostService
             await SendNotificationAsync(replyNotification.Id);
         }
 
+        if (quoteNotification != null)
+        {
+            await SendNotificationAsync(quoteNotification.Id);
+        }
+
         // Invalidate timeline cache for the author
         await _cacheService.RemoveAsync($"user:{userId}:timeline");
 
@@ -484,6 +546,9 @@ public class PostService : IPostService
             .Include(p => p.Hashtags)
             .Include(p => p.Interests)
             .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .FirstOrDefaultAsync(p => p.Id == post.Id);
 
         // Index in Elasticsearch
@@ -587,6 +652,9 @@ public class PostService : IPostService
                 .Include(p => p.Hashtags)
                 .Include(p => p.Interests)
                 .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                 .FirstOrDefaultAsync(p => p.Id == postId);
                 
             if (savedPost == null)
@@ -631,6 +699,9 @@ public class PostService : IPostService
                 .Include(p => p.Author)
                 .Include(p => p.PostMedia)
                 .Include(p => p.LinkPreview)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                 .FirstOrDefaultAsync(p => p.Id == postId);
 
             if (post == null) return null;
@@ -962,9 +1033,11 @@ public class PostService : IPostService
     public async Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null)
     {
         var replies = await _unitOfWork.Posts.Query()
-            .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
             .OrderBy(p => p.CreatedAt)
             .ToListAsync();
@@ -995,6 +1068,9 @@ public class PostService : IPostService
                 .Include(p => p.Author)
                 .Include(p => p.PostMedia)
                 .Include(p => p.LinkPreview)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                 .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
                 .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
                 .Take(50)
@@ -1035,6 +1111,12 @@ public class PostService : IPostService
                 .ThenInclude(p => p.PostMedia)
             .Include(b => b.Post)
                 .ThenInclude(p => p.LinkPreview)
+            .Include(b => b.Post)
+                .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(b => b.Post)
+                .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(b => b.Post)
+                .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .OrderByDescending(b => b.CreatedAt)
             .Select(b => b.Post)
             .ToListAsync();
@@ -1065,6 +1147,7 @@ public class PostService : IPostService
             LikesCount = post.LikesCount ?? 0,
             RepostsCount = post.RepostsCount ?? 0,
             RepliesCount = post.RepliesCount ?? 0,
+            QuotesCount = post.QuotesCount ?? 0,
             BookmarksCount = post.BookmarksCount ?? 0,
             ReplyToPostId = post.ReplyToPostId,
             ReplyToHandle = post.ReplyToPost?.Author?.Handle,
@@ -1084,6 +1167,8 @@ public class PostService : IPostService
             Interests = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>(),
             ReplyRestriction = post.ReplyRestriction ?? "anyone",
             AllowQuotes = post.AllowQuotes ?? true,
+            QuotePostId = post.QuotePostId,
+            QuotePost = post.QuotePost == null ? null : MapToDto(post.QuotePost),
             CanReply = true // Default
         };
     }

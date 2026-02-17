@@ -131,6 +131,8 @@ export interface Post {
     replyToPostId?: string;
     replyToHandle?: string;
     rootPostId?: string;
+    quotePostId?: string;
+    quotePost?: Post;
     addedByUserId?: string; // For curated lists
     tags?: string[];
     muteInfo?: {
@@ -362,6 +364,10 @@ export interface ModalsState {
         post: Post | null;
     };
     editPost: {
+        isOpen: boolean;
+        post: Post | null;
+    };
+    quote: {
         isOpen: boolean;
         post: Post | null;
     };

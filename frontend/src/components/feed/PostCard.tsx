@@ -5,7 +5,8 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { toggleLike, repostPost, bookmarkPost, deletePost } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
-import { openReply, openEditPost } from '../../redux/slices/modalsSlice';
+import { openReply, openEditPost, openQuote } from '../../redux/slices/modalsSlice';
+import QuotedPost from './QuotedPost';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
 import { useAppSelector } from '../../hooks/useAppSelector';
@@ -338,6 +339,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
 
                     {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
 
+                    {post.quotePost && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <QuotedPost post={post.quotePost} />
+                        </div>
+                    )}
+
                     {/* Media */}
                     <div className="mb-3">
                         <MediaGrid
@@ -381,17 +388,37 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                 <span className="text-[13px]">{post.repliesCount}</span>
                             </button>
 
-                            <button
-                                onClick={handleRepost}
-                                disabled={actionLoading[post.id]}
-                                className={cn(
-                                    "flex items-center gap-2 group transition-colors disabled:opacity-50",
-                                    post.isReposted ? "text-green-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-green-500"
-                                )}
-                            >
-                                <FiRepeat size={18} className={post.isReposted ? "fill-current" : ""} />
-                                <span className="text-[13px]">{post.repostsCount}</span>
-                            </button>
+                            <div onClick={(e) => e.stopPropagation()}>
+                                <Dropdown
+                                    trigger={
+                                        <button
+                                            disabled={actionLoading[post.id]}
+                                            className={cn(
+                                                "flex items-center gap-2 group transition-colors disabled:opacity-50",
+                                                post.isReposted ? "text-green-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-green-500"
+                                            )}
+                                        >
+                                            <FiRepeat size={18} className={post.isReposted ? "fill-current" : ""} />
+                                            <span className="text-[13px]">{post.repostsCount}</span>
+                                        </button>
+                                    }
+                                    items={[
+                                        {
+                                            id: 'repost',
+                                            label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
+                                            icon: <FiRepeat />,
+                                            onClick: () => dispatch(repostPost(post.id))
+                                        },
+                                        {
+                                            id: 'quote',
+                                            label: t('post.quote_post', 'Quote post'),
+                                            icon: <FiType />,
+                                            onClick: () => dispatch(openQuote(post))
+                                        }
+                                    ]}
+                                    align="left"
+                                />
+                            </div>
 
                             <button
                                 onClick={handleLike}

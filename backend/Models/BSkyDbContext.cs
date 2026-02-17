@@ -355,6 +355,11 @@ public partial class BSkyDbContext : DbContext
                 .HasForeignKey(d => d.RootPostId)
                 .HasConstraintName("FK_PostRoot");
 
+            entity.HasOne(d => d.QuotePost).WithMany(p => p.InverseQuotePost)
+                .HasForeignKey(d => d.QuotePostId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PostQuote");
+
             entity.HasMany(d => d.Interests).WithMany(p => p.Posts)
                 .UsingEntity<Dictionary<string, object>>(
                     "PostInterest",

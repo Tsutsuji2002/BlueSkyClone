@@ -10,7 +10,7 @@ interface MediaGridProps {
     imageUrls?: string[]; // From backend
     video?: PostVideo | null;
     videoUrl?: string; // From backend
-    onImageClick: (index: number) => void;
+    onImageClick?: (index: number) => void;
     isDetailView?: boolean;
 }
 
@@ -27,7 +27,7 @@ interface GridItemProps {
     className?: string;
     showOverlay?: boolean;
     totalCount: number;
-    onImageClick: (index: number) => void;
+    onImageClick?: (index: number) => void;
     isDetailView?: boolean;
 }
 
@@ -75,7 +75,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
             )}
             onClick={(e) => {
                 e.stopPropagation();
-                onImageClick(index);
+                onImageClick?.(index);
             }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}

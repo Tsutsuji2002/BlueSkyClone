@@ -14,10 +14,13 @@ public class PostDto
     public int LikesCount { get; set; }
     public int RepostsCount { get; set; }
     public int RepliesCount { get; set; }
+    public int QuotesCount { get; set; }
     public int BookmarksCount { get; set; }
     public Guid? ReplyToPostId { get; set; }
     public string? ReplyToHandle { get; set; }
     public Guid? RootPostId { get; set; }
+    public Guid? QuotePostId { get; set; }
+    public PostDto? QuotePost { get; set; }
     public bool IsLiked { get; set; }
     public bool IsBookmarked { get; set; }
     public bool IsReposted { get; set; }
@@ -65,6 +68,7 @@ public class CreatePostRequest
     public IFormFile? Video { get; set; }
     public Guid? ReplyToPostId { get; set; }
     public Guid? RootPostId { get; set; }
+    public Guid? QuotePostId { get; set; }
 
     // Optional Link Preview Metadata
     public string? LinkPreviewUrl { get; set; }
