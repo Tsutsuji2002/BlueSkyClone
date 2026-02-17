@@ -248,33 +248,7 @@ public class PostService : IPostService
                 AllowQuotes = allowQuotes
             };
 
-            if (request.QuotePostId.HasValue)
-            {
-                var quotedPost = await _unitOfWork.Posts.GetByIdAsync(request.QuotePostId.Value);
-                if (quotedPost != null)
-                {
-                    quotedPost.QuotesCount = (quotedPost.QuotesCount ?? 0) + 1;
-                    _unitOfWork.Posts.Update(quotedPost);
 
-                    // Send notification to quoted post author
-                    if (quotedPost.AuthorId != userId)
-                    {
-                        var quoteNotification = new Notification
-                        {
-                            Id = Guid.NewGuid(),
-                            Tid = GenerateTid(),
-                            Type = "quote",
-                            SenderId = userId,
-                            RecipientId = quotedPost.AuthorId,
-                            PostId = post.Id,
-                            IsRead = false,
-                            CreatedAt = DateTime.UtcNow,
-                            IsDeleted = false
-                        };
-                        await _unitOfWork.Notifications.AddAsync(quoteNotification);
-                    }
-                }
-            }
 
         if (request.Images != null && request.Images.Any())
         {
