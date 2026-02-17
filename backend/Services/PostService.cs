@@ -520,17 +520,12 @@ public class PostService : IPostService
                 return null;
             }
 
+            // Update content
             post.Content = request.Content;
-            // post.UpdatedAt = DateTime.UtcNow; // Assume Post model has no UpdatedAt for now to avoid errors
 
-            // Handle Link Preview - Simplified Logic: Replace if new one provided
+            // Handle Link Preview - Safer update logic
             if (!string.IsNullOrEmpty(request.LinkPreviewUrl))
             {
-                if (post.LinkPreview != null)
-                {
-                    _unitOfWork.LinkPreviews.Remove(post.LinkPreview);
-                }
-
                 string domain = request.LinkPreviewDomain ?? "unknown";
                 try
                 {
@@ -543,23 +538,42 @@ public class PostService : IPostService
                 {
                     Console.WriteLine($"[UpdatePostAsync] Error parsing URI: {ex.Message}");
                 }
-                
-                post.LinkPreview = new LinkPreview
+
+                if (post.LinkPreview != null)
                 {
-                    Id = Guid.NewGuid(),
-                    PostId = post.Id,
-                    Url = request.LinkPreviewUrl,
-                    Title = request.LinkPreviewTitle,
-                    Description = request.LinkPreviewDescription,
-                    Image = request.LinkPreviewImage,
-                    Domain = domain,
-                    CreatedAt = DateTime.UtcNow
-                };
+                    // Update existing LinkPreview properties
+                    post.LinkPreview.Url = request.LinkPreviewUrl;
+                    post.LinkPreview.Title = request.LinkPreviewTitle;
+                    post.LinkPreview.Description = request.LinkPreviewDescription;
+                    post.LinkPreview.Image = request.LinkPreviewImage;
+                    post.LinkPreview.Domain = domain;
+                }
+                else
+                {
+                    // Create new LinkPreview
+                    post.LinkPreview = new LinkPreview
+                    {
+                        Id = Guid.NewGuid(),
+                        PostId = post.Id,
+                        Url = request.LinkPreviewUrl,
+                        Title = request.LinkPreviewTitle,
+                        Description = request.LinkPreviewDescription,
+                        Image = request.LinkPreviewImage,
+                        Domain = domain,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                }
+            }
+            else if (post.LinkPreview != null)
+            {
+                // If URL is empty but preview exists, user might have removed it
+                _unitOfWork.LinkPreviews.Remove(post.LinkPreview);
+                post.LinkPreview = null;
             }
 
-            _unitOfWork.Posts.Update(post);
+            // DO NOT call _unitOfWork.Posts.Update(post) - standard EF change tracking handles it
             await _unitOfWork.CompleteAsync();
-            Console.WriteLine("[UpdatePostAsync] DB changes saved");
+            Console.WriteLine("[UpdatePostAsync] DB changes saved successfully");
             
             // Invalidate caches
             await _cacheService.RemoveAsync($"post:{postId}");
@@ -589,7 +603,6 @@ public class PostService : IPostService
             catch (Exception ex)
             {
                 Console.WriteLine($"[UpdatePostAsync] Indexing failed: {ex.Message}");
-                // Non-critical, continue
             }
 
             return MapToDto(savedPost);
