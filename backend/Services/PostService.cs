@@ -497,62 +497,109 @@ public class PostService : IPostService
     }
 }
 
-public async Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request)
-{
-    var post = await _unitOfWork.Posts.Query()
-        .Include(p => p.PostMedia)
-        .Include(p => p.LinkPreview)
-        .Include(p => p.Hashtags)
-        .Include(p => p.Interests)
-        .FirstOrDefaultAsync(p => p.Id == postId);
-
-    if (post == null || post.AuthorId != userId) return null;
-
-    post.Content = request.Content;
-    // post.UpdatedAt = DateTime.UtcNow; // Assume Post model has no UpdatedAt for now to avoid errors
-
-    // Handle Link Preview - Simplified Logic: Replace if new one provided
-    if (!string.IsNullOrEmpty(request.LinkPreviewUrl))
+    public async Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request)
     {
-         if (post.LinkPreview != null)
-         {
-             _unitOfWork.LinkPreviews.Remove(post.LinkPreview);
-         }
-         
-         post.LinkPreview = new LinkPreview
-         {
-             Id = Guid.NewGuid(),
-             PostId = post.Id,
-             Url = request.LinkPreviewUrl,
-             Title = request.LinkPreviewTitle,
-             Description = request.LinkPreviewDescription,
-             Image = request.LinkPreviewImage,
-             Domain = request.LinkPreviewDomain ?? new Uri(request.LinkPreviewUrl).Host.Replace("www.", ""),
-             CreatedAt = DateTime.UtcNow
-         };
+        Console.WriteLine($"[UpdatePostAsync] Starting update for Post {postId} by User {userId}");
+        try
+        {
+            var post = await _unitOfWork.Posts.Query()
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Include(p => p.Hashtags)
+                .Include(p => p.Interests)
+                .FirstOrDefaultAsync(p => p.Id == postId);
+
+            if (post == null)
+            {
+                Console.WriteLine($"[UpdatePostAsync] Post {postId} not found");
+                return null;
+            }
+            if (post.AuthorId != userId)
+            {
+                Console.WriteLine($"[UpdatePostAsync] User {userId} unauthorized to edit Post {postId}");
+                return null;
+            }
+
+            post.Content = request.Content;
+            // post.UpdatedAt = DateTime.UtcNow; // Assume Post model has no UpdatedAt for now to avoid errors
+
+            // Handle Link Preview - Simplified Logic: Replace if new one provided
+            if (!string.IsNullOrEmpty(request.LinkPreviewUrl))
+            {
+                if (post.LinkPreview != null)
+                {
+                    _unitOfWork.LinkPreviews.Remove(post.LinkPreview);
+                }
+
+                string domain = request.LinkPreviewDomain ?? "unknown";
+                try
+                {
+                    if (Uri.TryCreate(request.LinkPreviewUrl, UriKind.Absolute, out var uri))
+                    {
+                        domain = request.LinkPreviewDomain ?? uri.Host.Replace("www.", "");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[UpdatePostAsync] Error parsing URI: {ex.Message}");
+                }
+                
+                post.LinkPreview = new LinkPreview
+                {
+                    Id = Guid.NewGuid(),
+                    PostId = post.Id,
+                    Url = request.LinkPreviewUrl,
+                    Title = request.LinkPreviewTitle,
+                    Description = request.LinkPreviewDescription,
+                    Image = request.LinkPreviewImage,
+                    Domain = domain,
+                    CreatedAt = DateTime.UtcNow
+                };
+            }
+
+            _unitOfWork.Posts.Update(post);
+            await _unitOfWork.CompleteAsync();
+            Console.WriteLine("[UpdatePostAsync] DB changes saved");
+            
+            // Invalidate caches
+            await _cacheService.RemoveAsync($"post:{postId}");
+            await _cacheService.RemoveAsync($"user:{userId}:timeline");
+            
+            // Re-fetch for DTO mapping
+            var savedPost = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Include(p => p.Hashtags)
+                .Include(p => p.Interests)
+                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+                .FirstOrDefaultAsync(p => p.Id == postId);
+                
+            if (savedPost == null)
+            {
+                Console.WriteLine("[UpdatePostAsync] Critical: Saved post not found after update");
+                return null;
+            }
+
+            try
+            {
+                await _searchService.IndexPostAsync(savedPost);
+                Console.WriteLine("[UpdatePostAsync] Post indexed");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UpdatePostAsync] Indexing failed: {ex.Message}");
+                // Non-critical, continue
+            }
+
+            return MapToDto(savedPost);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpdatePostAsync] EXCEPTION: {ex}");
+            throw;
+        }
     }
-
-    _unitOfWork.Posts.Update(post);
-    await _unitOfWork.CompleteAsync();
-    
-    // Invalidate caches
-    await _cacheService.RemoveAsync($"post:{postId}");
-    await _cacheService.RemoveAsync($"user:{userId}:timeline");
-    
-    // Re-fetch for DTO mapping
-    var savedPost = await _unitOfWork.Posts.Query()
-        .Include(p => p.Author)
-        .Include(p => p.PostMedia)
-        .Include(p => p.LinkPreview)
-        .Include(p => p.Hashtags)
-        .Include(p => p.Interests)
-        .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
-        .FirstOrDefaultAsync(p => p.Id == postId);
-        
-     await _searchService.IndexPostAsync(savedPost!);
-
-    return MapToDto(savedPost!);
-}
 
     public async Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null)
     {
