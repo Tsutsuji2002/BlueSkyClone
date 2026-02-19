@@ -145,7 +145,12 @@ public class UserController : ControllerBase
                 settings.InAppNotifyReposts,
                 settings.DefaultReplyRestriction,
                 settings.DefaultAllowQuotes,
-                settings.FontSize
+                settings.FontSize,
+                settings.EnableTrending,
+                settings.EnableDiscoverVideo,
+                settings.EnableTreeView,
+                settings.RequireLogoutVisibility,
+                settings.LargerAltBadge
             );
 
             return Ok(settingsDto);
