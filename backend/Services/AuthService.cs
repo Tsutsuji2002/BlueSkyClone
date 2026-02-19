@@ -215,8 +215,13 @@ public class AuthService : IAuthService
             user.UserSetting.InAppNotifyReposts,
             user.UserSetting.DefaultReplyRestriction,
             user.UserSetting.DefaultAllowQuotes,
-            user.UserSetting.FontSize
-        ) : new UserSettingDto(null, null, null, null, null, "en", "system", true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, "anyone", true, 15);
+            user.UserSetting.FontSize,
+            user.UserSetting.EnableTrending,
+            user.UserSetting.EnableDiscoverVideo,
+            user.UserSetting.EnableTreeView,
+            user.UserSetting.RequireLogoutVisibility,
+            user.UserSetting.LargerAltBadge
+        ) : new UserSettingDto(null, null, null, null, null, "en", "system", true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, "anyone", true, 15, true, true, false, false, false);
 
         return new AuthResponse(userDto, settingsDto, token, refreshToken);
     }

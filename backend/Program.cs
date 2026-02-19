@@ -328,6 +328,26 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultAllowQuotes')
                 BEGIN
                     ALTER TABLE UserSettings ADD DefaultAllowQuotes BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableTrending')
+                BEGIN
+                    ALTER TABLE UserSettings ADD EnableTrending BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableDiscoverVideo')
+                BEGIN
+                    ALTER TABLE UserSettings ADD EnableDiscoverVideo BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableTreeView')
+                BEGIN
+                    ALTER TABLE UserSettings ADD EnableTreeView BIT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'RequireLogoutVisibility')
+                BEGIN
+                    ALTER TABLE UserSettings ADD RequireLogoutVisibility BIT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'LargerAltBadge')
+                BEGIN
+                    ALTER TABLE UserSettings ADD LargerAltBadge BIT NULL DEFAULT 0;
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied manual schema updates for UserSettings.");

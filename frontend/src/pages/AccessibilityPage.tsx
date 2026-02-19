@@ -1,16 +1,23 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { RootState } from '../redux/store';
 
 const AccessibilityPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
 
-    const [requireAltText, setRequireAltText] = useState(false);
-    const [largerAltBadge, setLargerAltBadge] = useState(false);
+    const dispatch = useAppDispatch();
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+
+    const handleToggle = (key: string, value: boolean) => {
+        dispatch(updateNotificationSettings({ [key]: value }));
+    };
 
     const SettingsToggle = ({
         label,
@@ -72,13 +79,13 @@ const AccessibilityPage: React.FC = () => {
                             <div className="flex flex-col">
                                 <SettingsToggle
                                     label={t('accessibility.require_alt_text')}
-                                    value={requireAltText}
-                                    onChange={setRequireAltText}
+                                    value={settings?.requireAltText ?? false}
+                                    onChange={(val) => handleToggle('requireAltText', val)}
                                 />
                                 <SettingsToggle
                                     label={t('accessibility.larger_alt_badge')}
-                                    value={largerAltBadge}
-                                    onChange={setLargerAltBadge}
+                                    value={settings?.largerAltBadge ?? false}
+                                    onChange={(val) => handleToggle('largerAltBadge', val)}
                                 />
                             </div>
                         </div>

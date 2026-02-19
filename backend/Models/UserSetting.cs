@@ -45,6 +45,11 @@ public partial class UserSetting
     public string? DefaultReplyRestriction { get; set; }
     public bool? DefaultAllowQuotes { get; set; }
     public int? FontSize { get; set; }
+    public bool? EnableTrending { get; set; }
+    public bool? EnableDiscoverVideo { get; set; }
+    public bool? EnableTreeView { get; set; }
+    public bool? RequireLogoutVisibility { get; set; }
+    public bool? LargerAltBadge { get; set; }
 
     public virtual User User { get; set; } = null!;
 }

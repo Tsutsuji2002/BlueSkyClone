@@ -65,7 +65,12 @@ public record UserSettingDto(
     bool? InAppNotifyReposts,
     string? DefaultReplyRestriction,
     bool? DefaultAllowQuotes,
-    int? FontSize
+    int? FontSize,
+    bool? EnableTrending,
+    bool? EnableDiscoverVideo,
+    bool? EnableTreeView,
+    bool? RequireLogoutVisibility,
+    bool? LargerAltBadge
 );
 
 public record AuthResponse(

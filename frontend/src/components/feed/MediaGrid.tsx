@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PostImage, PostVideo } from '../../types';
+import { useAppSelector } from '../../redux/hooks';
+import { RootState } from '../../redux/store';
 
 import { cn } from '../../utils/classNames';
 import { API_BASE_URL } from '../../constants';
@@ -36,14 +38,17 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [imageError, setImageError] = useState(false);
 
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+    const autoplayEnabled = settings?.autoplayVideoGif ?? true;
+
     const handleMouseEnter = () => {
-        if (item.isVideo && videoRef.current) {
+        if (item.isVideo && videoRef.current && autoplayEnabled) {
             videoRef.current.play().catch(() => { });
         }
     };
 
     const handleMouseLeave = () => {
-        if (item.isVideo && videoRef.current) {
+        if (item.isVideo && videoRef.current && autoplayEnabled) {
             videoRef.current.pause();
             videoRef.current.currentTime = 0;
         }
@@ -119,7 +124,10 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 />
             )}
             {item.alt && (
-                <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white rounded text-[10px] font-bold">
+                <div className={cn(
+                    "absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white rounded font-bold",
+                    settings?.largerAltBadge ? "text-xs px-2 py-1" : "text-[10px]"
+                )}>
                     ALT
                 </div>
             )}

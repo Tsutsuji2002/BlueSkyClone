@@ -59,8 +59,28 @@ const PostDetailPage: React.FC = () => {
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
     const userActionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+    const sortOrder = settings?.sortReplies || 'top';
+    const treeViewEnabled = settings?.treeView || false;
     const post = posts.find((p: Post) => p.id === postId);
-    const replies = [...posts.filter((p: Post) => p.replyToPostId === postId)].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    const replies = React.useMemo(() => {
+        const filtered = posts.filter((p: Post) => p.replyToPostId === postId);
+
+        return [...filtered].sort((a, b) => {
+            if (sortOrder === 'oldest') {
+                return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            } else if (sortOrder === 'newest') {
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            } else {
+                // 'top' - Sort by likesCount descending, then by date descending
+                if (b.likesCount !== a.likesCount) {
+                    return b.likesCount - a.likesCount;
+                }
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            }
+        });
+    }, [posts, postId, sortOrder]);
     const parentPost = post?.replyToPostId ? posts.find(p => p.id === post.replyToPostId) : null;
 
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
@@ -499,9 +519,28 @@ const PostDetailPage: React.FC = () => {
                 )}
 
                 <div className="pb-20">
-                    {replies.map((reply: Post) => (
-                        <PostCard key={reply.id} post={reply} isComment={true} />
-                    ))}
+                    {treeViewEnabled ? (
+                        <div className="divide-y divide-gray-100 dark:divide-dark-border/30">
+                            {replies.map((reply: Post) => (
+                                <div key={reply.id} className="relative">
+                                    <PostCard post={reply} isComment={true} />
+                                    {/* Sub-replies (Simple 1-level for now) */}
+                                    <div className="ml-8 border-l-2 border-gray-100 dark:border-dark-border/30">
+                                        {posts
+                                            .filter(p => p.replyToPostId === reply.id)
+                                            .map(subReply => (
+                                                <PostCard key={subReply.id} post={subReply} isComment={true} />
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        replies.map((reply: Post) => (
+                            <PostCard key={reply.id} post={reply} isComment={true} />
+                        ))
+                    )}
                 </div>
 
                 <ConfirmModal

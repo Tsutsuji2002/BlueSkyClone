@@ -230,8 +230,19 @@ const CreatePostModal: React.FC = () => {
         setIsVideoProcessing(false);
     };
 
+    const settings = useAppSelector((state) => state.auth.settings);
+
     const handleSubmit = async () => {
         if (isPostLoading || (!content.trim() && images.length === 0 && !video) || !user) return;
+
+        // Enforce Alt Text
+        if (settings?.requireAltText && images.length > 0) {
+            const missingAlt = images.some(img => !img.alt?.trim());
+            if (missingAlt) {
+                dispatch(showToast({ message: t('post.alt_text_required', 'Alt text is required for all images'), type: 'error' }));
+                return;
+            }
+        }
 
         const formData = new FormData();
         formData.append('Content', content);

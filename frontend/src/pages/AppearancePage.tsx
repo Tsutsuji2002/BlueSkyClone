@@ -4,6 +4,7 @@ import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { setColorMode, setDarkVariant, setFontFamily, setFontSize } from '../redux/slices/themeSlice';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
 import { useTranslation } from 'react-i18next';
 import {
     FiArrowLeft, FiTablet, FiMoon, FiType, FiMaximize2
@@ -15,6 +16,17 @@ const AppearancePage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const { colorMode, darkVariant, fontFamily, fontSize } = useAppSelector((state) => state.theme);
+
+    const handleColorModeChange = (val: string) => {
+        dispatch(setColorMode(val as any));
+        dispatch(updateNotificationSettings({ themeMode: val as any }));
+    };
+
+    const handleFontSizeChange = (val: 'sm' | 'md' | 'lg') => {
+        dispatch(setFontSize(val));
+        const numericSize = val === 'sm' ? 14 : val === 'md' ? 16 : 18;
+        dispatch(updateNotificationSettings({ fontSize: numericSize }));
+    };
 
     const SegmentedControl = ({
         options,
@@ -73,7 +85,7 @@ const AppearancePage: React.FC = () => {
                                 { label: t('appearance.dark'), value: 'dark' },
                             ]}
                             value={colorMode}
-                            onChange={(val) => dispatch(setColorMode(val))}
+                            onChange={handleColorModeChange}
                         />
                     </section>
 
@@ -127,7 +139,7 @@ const AppearancePage: React.FC = () => {
                                 { label: t('appearance.larger'), value: 'lg' },
                             ]}
                             value={fontSize}
-                            onChange={(val) => dispatch(setFontSize(val))}
+                            onChange={handleFontSizeChange}
                         />
                     </section>
                 </div>

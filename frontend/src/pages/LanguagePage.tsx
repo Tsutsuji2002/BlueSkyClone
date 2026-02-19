@@ -9,6 +9,7 @@ import {
     setPrimaryLanguage,
     toggleContentLanguage
 } from '../redux/slices/languageSlice';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
 import {
     FiArrowLeft, FiGlobe, FiType, FiCheck
 } from 'react-icons/fi';
@@ -72,7 +73,10 @@ const LanguagePage: React.FC = () => {
                         <div className="relative">
                             <select
                                 value={appLanguage}
-                                onChange={(e) => dispatch(setAppLanguage(e.target.value))}
+                                onChange={(e) => {
+                                    dispatch(setAppLanguage(e.target.value));
+                                    dispatch(updateNotificationSettings({ appLanguage: e.target.value }));
+                                }}
                                 className="w-full bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-[15px] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all dark:text-dark-text"
                             >
                                 {languages.map(lang => (
@@ -100,7 +104,10 @@ const LanguagePage: React.FC = () => {
                         <div className="relative">
                             <select
                                 value={primaryLanguage}
-                                onChange={(e) => dispatch(setPrimaryLanguage(e.target.value))}
+                                onChange={(e) => {
+                                    dispatch(setPrimaryLanguage(e.target.value));
+                                    dispatch(updateNotificationSettings({ primaryLanguage: e.target.value }));
+                                }}
                                 className="w-full bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-[15px] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all dark:text-dark-text"
                             >
                                 {languages.map(lang => (

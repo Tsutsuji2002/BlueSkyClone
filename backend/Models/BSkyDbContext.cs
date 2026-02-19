@@ -549,6 +549,11 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.ThemeMode)
                 .HasMaxLength(20)
                 .HasDefaultValue("system");
+            entity.Property(e => e.EnableTrending).HasDefaultValue(true);
+            entity.Property(e => e.EnableDiscoverVideo).HasDefaultValue(true);
+            entity.Property(e => e.EnableTreeView).HasDefaultValue(false);
+            entity.Property(e => e.RequireLogoutVisibility).HasDefaultValue(false);
+            entity.Property(e => e.LargerAltBadge).HasDefaultValue(false);
 
             entity.HasOne(d => d.User).WithOne(p => p.UserSetting)
                 .HasForeignKey<UserSetting>(d => d.UserId)

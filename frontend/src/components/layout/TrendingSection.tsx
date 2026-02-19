@@ -10,6 +10,11 @@ const TrendingSection: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const { topics: trendingTopics } = useAppSelector((state: RootState) => state.trending);
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+
+    if (settings?.openTrendingTopics === false) {
+        return null;
+    }
 
     return (
         <div className="bg-gray-50 dark:bg-dark-surface rounded-2xl p-4">

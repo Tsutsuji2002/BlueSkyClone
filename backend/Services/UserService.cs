@@ -195,6 +195,11 @@ public class UserService : IUserService
         if (request.AppLanguage != null) s.AppLanguage = request.AppLanguage;
         if (request.ThemeMode != null) s.ThemeMode = request.ThemeMode;
         if (request.FontSize != null) s.FontSize = request.FontSize;
+        if (request.EnableTrending != null) s.EnableTrending = request.EnableTrending;
+        if (request.EnableDiscoverVideo != null) s.EnableDiscoverVideo = request.EnableDiscoverVideo;
+        if (request.EnableTreeView != null) s.EnableTreeView = request.EnableTreeView;
+        if (request.RequireLogoutVisibility != null) s.RequireLogoutVisibility = request.RequireLogoutVisibility;
+        if (request.LargerAltBadge != null) s.LargerAltBadge = request.LargerAltBadge;
 
         // Notification toggles
         if (request.NotifyLikes != null) s.NotifyLikes = request.NotifyLikes;
