@@ -14,7 +14,7 @@ interface QuotedPostProps {
 }
 
 const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
-    const { i18n } = useTranslation();
+    const { t, i18n } = useTranslation();
 
     return (
         <div className={`
