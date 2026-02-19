@@ -580,6 +580,59 @@ public class PostService : IPostService
             // Update content
             post.Content = request.Content;
 
+            // Update AltTexts for existing media if provided
+            if (request.AltTexts != null && post.PostMedia != null)
+            {
+                var existingMedia = post.PostMedia.OrderBy(m => m.Position ?? 0).ToList();
+                int existingCount = existingMedia.Count;
+                
+                for (int i = 0; i < existingCount && i < request.AltTexts.Count; i++)
+                {
+                    existingMedia[i].AltText = request.AltTexts[i];
+                }
+
+                // Handle New Images if any
+                if (request.Images != null && request.Images.Any())
+                {
+                    for (int i = 0; i < request.Images.Count; i++)
+                    {
+                        var file = request.Images[i];
+                        var altText = (existingCount + i) < request.AltTexts.Count ? request.AltTexts[existingCount + i] : null;
+                        var imagePath = await SaveFileAsync(file, "posts");
+                        post.PostMedia.Add(new PostMedium
+                        {
+                            Id = Guid.NewGuid(),
+                            PostId = post.Id,
+                            Type = "image",
+                            Url = imagePath,
+                            AltText = altText,
+                            Position = existingCount + i,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+            else if (request.Images != null && request.Images.Any())
+            {
+                // This case handles adding images to a post that had none
+                for (int i = 0; i < request.Images.Count; i++)
+                {
+                    var file = request.Images[i];
+                    var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
+                    var imagePath = await SaveFileAsync(file, "posts");
+                    post.PostMedia.Add(new PostMedium
+                    {
+                        Id = Guid.NewGuid(),
+                        PostId = post.Id,
+                        Type = "image",
+                        Url = imagePath,
+                        AltText = altText,
+                        Position = i,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
             // Handle Link Preview - Safer update logic
             if (!string.IsNullOrEmpty(request.LinkPreviewUrl))
             {

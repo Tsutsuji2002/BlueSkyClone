@@ -62,12 +62,18 @@ const CreatePostModal: React.FC = () => {
     useEffect(() => {
         if (isEditing && postToEdit) {
             setContent(postToEdit.content);
-            if (postToEdit.images && postToEdit.images.length > 0) {
-                setImages(postToEdit.images);
+            if (postToEdit.media && postToEdit.media.length > 0) {
+                const loadedImages = postToEdit.media
+                    .filter(m => m.type === 'image' || !m.type)
+                    .map(m => ({
+                        url: m.url,
+                        alt: m.altText || ''
+                    }));
+                setImages(loadedImages);
             } else if (postToEdit.imageUrls && postToEdit.imageUrls.length > 0) {
                 const loadedImages = postToEdit.imageUrls.map(url => ({
                     url: url,
-                    alt: '' // Alt text might not be available in simple string array
+                    alt: ''
                 }));
                 setImages(loadedImages);
             }
@@ -262,8 +268,8 @@ const CreatePostModal: React.FC = () => {
         images.forEach(img => {
             if (img.file) {
                 formData.append('Images', img.file);
-                formData.append('AltTexts', img.alt || '');
             }
+            formData.append('AltTexts', img.alt || '');
         });
 
         if (videoFile) {
@@ -328,7 +334,7 @@ const CreatePostModal: React.FC = () => {
 
                 const reader = new FileReader();
                 reader.onloadend = () => {
-                    setImages((prev) => [...prev, { url: reader.result as string, file }].slice(0, 4));
+                    setImages((prev) => [...prev, { url: reader.result as string, file, alt: '' }].slice(0, 4));
                 };
                 reader.readAsDataURL(file);
             });
