@@ -58,11 +58,12 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                     </div>
                 )}
 
-                {(post.images?.length || post.imageUrls?.length || post.video || post.videoUrl) && (
+                {(post.images?.length || post.imageUrls?.length || post.media?.length || post.video || post.videoUrl) && (
                     <div className="max-h-[260px] overflow-hidden rounded-lg mt-1 border border-gray-100 dark:border-dark-border">
                         <MediaGrid
                             images={post.images}
                             imageUrls={post.imageUrls}
+                            media={post.media}
                             video={post.video}
                             videoUrl={post.videoUrl}
                         />

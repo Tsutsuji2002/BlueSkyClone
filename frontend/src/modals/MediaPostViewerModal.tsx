@@ -46,7 +46,7 @@ const MediaPostViewerModal: React.FC<MediaPostViewerModalProps> = ({
 
     const allPosts = useAppSelector((state: RootState) => state.posts.posts);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
-    const mediaPosts = allPosts.filter(p => (p.imageUrls && p.imageUrls.length > 0) || p.videoUrl);
+    const mediaPosts = allPosts.filter(p => (p.media && p.media.length > 0) || (p.imageUrls && p.imageUrls.length > 0) || p.videoUrl);
     const currentPostIdx = mediaPosts.findIndex(p => p.id === currentPost?.id);
 
     const replies = allPosts.filter(p => p.replyToPostId === currentPost?.id);
@@ -108,7 +108,7 @@ const MediaPostViewerModal: React.FC<MediaPostViewerModalProps> = ({
         } else if (currentPostIdx > 0) {
             const prevPost = mediaPosts[currentPostIdx - 1];
             setCurrentPost(prevPost);
-            const prevPostMediaCount = (prevPost.imageUrls?.length || 0) + (prevPost.videoUrl ? 1 : 0);
+            const prevPostMediaCount = (prevPost.media?.length || prevPost.imageUrls?.length || 0) + (prevPost.videoUrl ? 1 : 0);
             setCurrentIndex(prevPostMediaCount - 1);
         }
     };
@@ -256,7 +256,7 @@ const MediaPostViewerModal: React.FC<MediaPostViewerModalProps> = ({
                         ) : (
                             <img
                                 src={getMediaUrl(currentMedia?.url || '')}
-                                alt=""
+                                alt={('altText' in currentMedia! ? currentMedia.altText : '') || ''}
                                 className="max-w-full max-h-full object-contain shadow-2xl transition-transform duration-300 ease-out"
                                 style={{ transform: 'translate3d(0,0,0)' }}
                             />

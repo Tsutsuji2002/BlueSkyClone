@@ -40,7 +40,7 @@ const MediaViewerPage: React.FC = () => {
     const currentPost = useMemo(() => allPosts.find((p: Post) => p.id === postId), [allPosts, postId]);
 
     // Media posts for swiping across feed
-    const mediaPosts = useMemo(() => allPosts.filter((p: Post) => (p.imageUrls && p.imageUrls.length > 0) || p.videoUrl), [allPosts]);
+    const mediaPosts = useMemo(() => allPosts.filter((p: Post) => (p.media && p.media.length > 0) || (p.imageUrls && p.imageUrls.length > 0) || p.videoUrl), [allPosts]);
     const currentPostIdx = useMemo(() => mediaPosts.findIndex((p: Post) => p.id === postId), [mediaPosts, postId]);
 
     useEffect(() => {
@@ -90,7 +90,7 @@ const MediaViewerPage: React.FC = () => {
             navigate(`/profile/${currentPost.author.handle}/post/${currentPost.id}/media/${currentIndex - 1}`, { replace: true });
         } else if (currentPostIdx > 0) {
             const prevPost = mediaPosts[currentPostIdx - 1];
-            const prevMediaCount = (prevPost.imageUrls?.length || 0) + (prevPost.videoUrl ? 1 : 0);
+            const prevMediaCount = (prevPost.media?.length || prevPost.imageUrls?.length || 0) + (prevPost.videoUrl ? 1 : 0);
             navigate(`/profile/${prevPost.author.handle}/post/${prevPost.id}/media/${prevMediaCount - 1}`, { replace: true });
         }
     };
@@ -197,7 +197,7 @@ const MediaViewerPage: React.FC = () => {
                         {currentMedia?.type === 'video' ? (
                             <video src={getMediaUrl(currentMedia.url)} className="max-w-full max-h-full object-contain" controls onClick={e => e.stopPropagation()} />
                         ) : (
-                            <img src={getMediaUrl(currentMedia?.url || '')} alt="" className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-300" />
+                            <img src={getMediaUrl(currentMedia?.url || '')} alt={('altText' in currentMedia! ? currentMedia.altText : '') || ''} className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-300" />
                         )}
                     </div>
                 </div>

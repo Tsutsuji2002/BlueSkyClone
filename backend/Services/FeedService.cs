@@ -324,7 +324,14 @@ public class FeedService : IFeedService
             .Take(take)
             .ToListAsync();
 
-        return posts.Select(p => _postService.MapToDto(p));
+        var postDtos = posts.Select(p => _postService.MapToDto(p)).ToList();
+
+        if (userId.HasValue)
+        {
+            return await _postService.EnrichAndFilterPostsAsync(postDtos, userId.Value);
+        }
+
+        return postDtos;
     }
 
     public async Task PreSeedFeedsAsync()

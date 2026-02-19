@@ -8,6 +8,7 @@ interface MediaItem {
     type: 'image' | 'video';
     post: Post;
     mediaIndex: number;
+    altText?: string;
 }
 
 interface MediaGridProps {
@@ -19,16 +20,28 @@ const MediaGrid: React.FC<MediaGridProps> = ({ posts, onMediaClick }) => {
     // Flatten all media from all posts into a single list, ordered by post date
     const allMedia: MediaItem[] = posts.flatMap(post => {
         const items: MediaItem[] = [];
+        const addedUrls = new Set<string>();
 
-        // Add images
-        if (post.imageUrls && post.imageUrls.length > 0) {
-            post.imageUrls.forEach((url, idx) => {
-                items.push({ url, type: 'image', post, mediaIndex: idx });
+        // 1. Handle new media prop
+        if (post.media && post.media.length > 0) {
+            post.media.forEach((m, idx) => {
+                items.push({ url: m.url, type: (m.type === 'video' ? 'video' : 'image'), post, mediaIndex: idx, altText: m.altText });
+                addedUrls.add(m.url);
             });
         }
 
-        // Add video
-        if (post.videoUrl) {
+        // 2. Fallback to images
+        if (post.imageUrls && post.imageUrls.length > 0) {
+            post.imageUrls.forEach((url, idx) => {
+                if (!addedUrls.has(url)) {
+                    items.push({ url, type: 'image', post, mediaIndex: idx });
+                    addedUrls.add(url);
+                }
+            });
+        }
+
+        // 3. Fallback to video
+        if (post.videoUrl && !addedUrls.has(post.videoUrl)) {
             const videoIndex = post.imageUrls ? post.imageUrls.length : 0;
             items.push({ url: post.videoUrl, type: 'video', post, mediaIndex: videoIndex });
         }
@@ -79,6 +92,12 @@ const MediaGrid: React.FC<MediaGridProps> = ({ posts, onMediaClick }) => {
                             className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
                             loading="lazy"
                         />
+                    )}
+
+                    {media.altText && (
+                        <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/60 text-white rounded text-[10px] font-bold">
+                            ALT
+                        </div>
                     )}
 
                     {/* Hover Overlay */}

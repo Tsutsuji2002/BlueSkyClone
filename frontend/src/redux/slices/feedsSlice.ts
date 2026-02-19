@@ -480,7 +480,33 @@ const feedsSlice = createSlice({
             .addCase(fetchFeedPosts.rejected, (state: FeedsState, action: any) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
-            });
+            })
+            // Synchronize interactions across feedPosts
+            .addMatcher(
+                (action) => action.type.endsWith('/toggleLike/fulfilled') ||
+                    action.type.endsWith('/repostPost/fulfilled') ||
+                    action.type.endsWith('/bookmarkPost/fulfilled'),
+                (state: FeedsState, action: any) => {
+                    const updatedPost = action.payload;
+                    if (!updatedPost || !updatedPost.id) return;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        const posts = state.feedPosts[feedId];
+                        const index = posts.findIndex(p => p.id === updatedPost.id);
+                        if (index !== -1) {
+                            posts[index] = {
+                                ...posts[index],
+                                isLiked: updatedPost.isLiked !== undefined ? updatedPost.isLiked : posts[index].isLiked,
+                                isReposted: updatedPost.isReposted !== undefined ? updatedPost.isReposted : posts[index].isReposted,
+                                isBookmarked: updatedPost.isBookmarked !== undefined ? updatedPost.isBookmarked : posts[index].isBookmarked,
+                                likesCount: updatedPost.likesCount !== undefined ? updatedPost.likesCount : posts[index].likesCount,
+                                repostsCount: updatedPost.repostsCount !== undefined ? updatedPost.repostsCount : posts[index].repostsCount,
+                                bookmarksCount: updatedPost.bookmarksCount !== undefined ? updatedPost.bookmarksCount : posts[index].bookmarksCount,
+                            };
+                        }
+                    });
+                }
+            );
     }
 });
 

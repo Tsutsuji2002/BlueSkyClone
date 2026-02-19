@@ -20,6 +20,7 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
+import AltTextModal from '../modals/AltTextModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -56,6 +57,8 @@ const ChatPage: React.FC = () => {
     }, []);
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [altText, setAltText] = useState('');
+    const [isAltModalOpen, setIsAltModalOpen] = useState(false);
 
     // Link Detection
     useEffect(() => {
@@ -225,6 +228,7 @@ const ChatPage: React.FC = () => {
     const removeImage = () => {
         setSelectedImage(null);
         setImagePreview(null);
+        setAltText('');
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -271,9 +275,10 @@ const ChatPage: React.FC = () => {
                 }
 
                 // Pass linkPreview to signalrService if exists
-                await signalrService.sendMessage(conversationId, message.trim() || null, imageUrl || null, replyingTo?.id || null, linkPreview);
+                await signalrService.sendMessage(conversationId, message.trim() || null, imageUrl || null, altText || null, replyingTo?.id || null, linkPreview);
             }
             setMessage('');
+            setAltText('');
             removeImage();
             setShowEmojiPicker(false);
             setReplyingTo(null);
@@ -542,12 +547,12 @@ const ChatPage: React.FC = () => {
                                                         <div className="p-1">
                                                             <img
                                                                 src={msg.imageUrl.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl}
-                                                                alt="Chat"
+                                                                alt={msg.altText || "Chat"}
                                                                 className="rounded-xl w-full max-h-[400px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
                                                                 onClick={() => {
                                                                     const fullUrl = msg.imageUrl!.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl!;
                                                                     dispatch(openImageViewer({
-                                                                        images: [{ url: fullUrl }],
+                                                                        images: [{ url: fullUrl, altText: msg.altText }],
                                                                         index: 0
                                                                     }));
                                                                 }}
@@ -674,6 +679,13 @@ const ChatPage: React.FC = () => {
                                 className="absolute -top-2 -right-2 p-1.5 bg-gray-900/80 hover:bg-gray-900 text-white rounded-full shadow-md backdrop-blur-sm transition-all"
                             >
                                 <FiX size={14} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsAltModalOpen(true)}
+                                className={`absolute bottom-2 left-2 px-1.5 py-0.5 rounded font-bold text-[10px] transition-colors ${altText ? 'bg-primary-500 text-white' : 'bg-black/60 text-white hover:bg-black/80'}`}
+                            >
+                                ALT
                             </button>
                             {isUploading && (
                                 <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
@@ -903,6 +915,19 @@ const ChatPage: React.FC = () => {
                 message={confirmModal.message}
                 variant={confirmModal.variant}
             />
+            {/* Alt Text Modal */}
+            {imagePreview && (
+                <AltTextModal
+                    isOpen={isAltModalOpen}
+                    onClose={() => setIsAltModalOpen(false)}
+                    imageUrl={imagePreview}
+                    initialAlt={altText}
+                    onSave={(newAlt) => {
+                        setAltText(newAlt);
+                        setIsAltModalOpen(false);
+                    }}
+                />
+            )}
         </MainLayout>
     );
 };

@@ -81,7 +81,7 @@ public class PostService : IPostService
         return postDtos;
     }
 
-    private async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId)
+    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId)
     {
         if (!posts.Any()) return posts;
 

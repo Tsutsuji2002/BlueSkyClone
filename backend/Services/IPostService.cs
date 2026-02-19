@@ -20,4 +20,5 @@ public interface IPostService
     Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId);
     Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0);
     PostDto MapToDto(Post post);
+    Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId);
 }
