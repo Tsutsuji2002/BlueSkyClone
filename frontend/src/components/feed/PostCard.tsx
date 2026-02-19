@@ -350,6 +350,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                         <MediaGrid
                             images={post.images}
                             imageUrls={post.imageUrls}
+                            media={post.media}
                             video={post.video}
                             videoUrl={post.videoUrl}
                             onImageClick={(index: number) => {

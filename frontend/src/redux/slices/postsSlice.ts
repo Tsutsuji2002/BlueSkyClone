@@ -414,10 +414,17 @@ const postsSlice = createSlice({
             })
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isLiked: boolean, likesCount: number }>) => {
                 state.actionLoading[action.payload.postId] = false;
+                // Update in timeline/user posts
                 const post = state.posts.find(p => p.id === action.payload.postId);
                 if (post) {
                     post.isLiked = action.payload.isLiked;
                     post.likesCount = action.payload.likesCount;
+                }
+                // Update in trending posts
+                const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
+                if (trendingPost) {
+                    trendingPost.isLiked = action.payload.isLiked;
+                    trendingPost.likesCount = action.payload.likesCount;
                 }
             })
             .addCase(toggleLike.rejected, (state: PostsState, action) => {
@@ -429,10 +436,17 @@ const postsSlice = createSlice({
             })
             .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isReposted: boolean, repostsCount: number }>) => {
                 state.actionLoading[action.payload.postId] = false;
+                // Update in timeline/user posts
                 const post = state.posts.find(p => p.id === action.payload.postId);
                 if (post) {
                     post.isReposted = action.payload.isReposted;
                     post.repostsCount = action.payload.repostsCount;
+                }
+                // Update in trending posts
+                const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
+                if (trendingPost) {
+                    trendingPost.isReposted = action.payload.isReposted;
+                    trendingPost.repostsCount = action.payload.repostsCount;
                 }
             })
             .addCase(repostPost.rejected, (state: PostsState, action) => {
@@ -444,10 +458,17 @@ const postsSlice = createSlice({
             })
             .addCase(bookmarkPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isBookmarked: boolean, bookmarksCount: number }>) => {
                 state.actionLoading[action.payload.postId] = false;
+                // Update in timeline/user posts
                 const post = state.posts.find(p => p.id === action.payload.postId);
                 if (post) {
                     post.isBookmarked = action.payload.isBookmarked;
                     post.bookmarksCount = action.payload.bookmarksCount;
+                }
+                // Update in trending posts
+                const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
+                if (trendingPost) {
+                    trendingPost.isBookmarked = action.payload.isBookmarked;
+                    trendingPost.bookmarksCount = action.payload.bookmarksCount;
                 }
             })
             .addCase(bookmarkPost.rejected, (state: PostsState, action) => {

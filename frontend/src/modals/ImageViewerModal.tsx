@@ -99,19 +99,27 @@ const ImageViewerModal: React.FC = () => {
                 className="relative w-full h-full flex items-center justify-center p-4 md:p-12"
                 onClick={(e) => e.stopPropagation()}
             >
-                {images[currentIndex]?.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) ? (
+                {images[currentIndex]?.url.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) ? (
                     <video
-                        src={resolveUrl(images[currentIndex])}
+                        src={resolveUrl(images[currentIndex].url)}
                         className="max-w-full max-h-full object-contain animate-in fade-in zoom-in duration-300"
                         controls
                         autoPlay
                     />
                 ) : (
-                    <img
-                        src={resolveUrl(images[currentIndex])}
-                        alt={`${t('common.viewed', { defaultValue: 'Viewed content' })} ${currentIndex + 1}`}
-                        className="max-width-full max-height-full object-contain select-none animate-in fade-in zoom-in duration-300"
-                    />
+                    <div className="relative flex flex-col items-center max-w-full max-h-full group">
+                        <img
+                            src={resolveUrl(images[currentIndex].url)}
+                            alt={images[currentIndex].altText || t('common.viewed', { defaultValue: 'Viewed content' })}
+                            className="max-w-full max-h-full object-contain select-none animate-in fade-in zoom-in duration-300 shadow-2xl"
+                        />
+                        {images[currentIndex].altText && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[90%] max-w-md p-3 bg-black/70 backdrop-blur-md rounded-xl text-white text-sm leading-snug border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('post.alt_text')}</div>
+                                {images[currentIndex].altText}
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
 

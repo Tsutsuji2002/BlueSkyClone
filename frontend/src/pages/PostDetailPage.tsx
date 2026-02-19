@@ -11,6 +11,7 @@ import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
 import PostCard from '../components/feed/PostCard';
 import MediaGrid from '../components/feed/MediaGrid';
+import QuotedPost from '../components/feed/QuotedPost';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
 import RichText from '../components/common/RichText';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
@@ -382,6 +383,7 @@ const PostDetailPage: React.FC = () => {
                         <MediaGrid
                             images={post.images}
                             imageUrls={post.imageUrls}
+                            media={post.media}
                             video={post.video}
                             videoUrl={post.videoUrl}
                             isDetailView={true}
@@ -393,6 +395,13 @@ const PostDetailPage: React.FC = () => {
 
                     {/* Link Preview */}
                     {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
+
+                    {/* Quoted Post */}
+                    {post.quotePost && (
+                        <div className="mb-4">
+                            <QuotedPost post={post.quotePost} isCard={true} />
+                        </div>
+                    )}
 
                     {/* Footer Info */}
                     <div className="flex items-center gap-2 text-gray-500 dark:text-dark-text-secondary text-sm mb-4">
@@ -428,7 +437,7 @@ const PostDetailPage: React.FC = () => {
                             <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.reposts')}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                            <span className="font-bold text-gray-900 dark:text-dark-text">0</span>
+                            <span className="font-bold text-gray-900 dark:text-dark-text">{post.quotesCount || 0}</span>
                             <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.quotes')}</span>
                         </div>
                         <div className="flex items-center gap-1">

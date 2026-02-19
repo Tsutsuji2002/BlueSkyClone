@@ -10,6 +10,7 @@ import { API_BASE_URL } from '../../constants';
 interface MediaGridProps {
     images?: PostImage[];
     imageUrls?: string[]; // From backend
+    media?: { url: string; altText?: string; type?: string }[]; // New backend media
     video?: PostVideo | null;
     videoUrl?: string; // From backend
     onImageClick?: (index: number) => void;
@@ -143,7 +144,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     );
 };
 
-const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], video, videoUrl, onImageClick, isDetailView = false }) => {
+const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], media = [], video, videoUrl, onImageClick, isDetailView = false }) => {
     const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
 
     const resolveUrl = (url: string) => {
@@ -182,19 +183,36 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
         // Use a set to track added URLs to avoid duplicates
         const addedUrls = new Set<string>();
 
-        // 1. Handle primary video (prefers video object with thumbnail)
+        // 1. Handle new media prop (highest priority, has alt text from DB)
+        if (media && media.length > 0) {
+            media.forEach(m => {
+                const url = resolveUrl(m.url);
+                if (!addedUrls.has(url)) {
+                    const isVideo = m.type === 'video' || isVideoUrl(url);
+                    const optimized = getOptimizedUrl(m.url, url, isVideo);
+                    list.push({ url: optimized, alt: m.altText, isVideo });
+                    addedUrls.add(url);
+                }
+            });
+        }
+
+        // 2. Handle primary video (prefers video object with thumbnail)
         if (video) {
             const url = resolveUrl(video.url);
             const thumbUrl = video.thumbnail ? resolveUrl(video.thumbnail) : undefined;
-            list.push({ url, isVideo: true, thumbnail: thumbUrl, alt: video.alt });
-            addedUrls.add(url);
+            if (!addedUrls.has(url)) {
+                list.push({ url, isVideo: true, thumbnail: thumbUrl, alt: video.alt });
+                addedUrls.add(url);
+            }
         } else if (videoUrl) {
             const url = resolveUrl(videoUrl);
-            list.push({ url, isVideo: true });
-            addedUrls.add(url);
+            if (!addedUrls.has(url)) {
+                list.push({ url, isVideo: true });
+                addedUrls.add(url);
+            }
         }
 
-        // 2. Add images (with video detection safety)
+        // 3. Add images (fallback)
         images.forEach(img => {
             const resolved = resolveUrl(img.url);
             if (!addedUrls.has(resolved)) {
@@ -215,16 +233,9 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
             }
         });
 
-        // Final sanity check: if we have a videoUrl that wasn't added yet (shouldn't happen but for safety)
-        if (videoUrl && !addedUrls.has(resolveUrl(videoUrl))) {
-            const url = resolveUrl(videoUrl);
-            list.unshift({ url, isVideo: true });
-            addedUrls.add(url);
-        }
-
         return list;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [video, videoUrl, images, imageUrls, isDetailView]);
+    }, [media, video, videoUrl, images, imageUrls, isDetailView]);
 
     const firstMedia = mediaList[0];
     // Use the URL string as dependency instead of the object to avoid infinite loops

@@ -71,10 +71,16 @@ const MediaViewerPage: React.FC = () => {
         );
     }
 
-    const allMedia = [
-        ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' })),
-        ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' }] : [])
-    ];
+    const allMedia = useMemo(() => {
+        if (currentPost.media && currentPost.media.length > 0) {
+            return currentPost.media;
+        }
+        return [
+            ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' as const })),
+            ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' as const }] : [])
+        ];
+    }, [currentPost]);
+
     const currentMedia = allMedia[currentIndex];
 
     // Navigation
@@ -257,7 +263,17 @@ const MediaViewerPage: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-white dark:bg-dark-bg">
                     <RichText content={currentPost.content || ''} className="text-[18px] text-gray-900 dark:text-dark-text leading-relaxed whitespace-pre-wrap mb-4" />
-                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-6">{formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true, locale: dateLocale })}</p>
+                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-4">{formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true, locale: dateLocale })}</p>
+
+                    {/* Alt Text for Current Media */}
+                    {'altText' in currentMedia && currentMedia.altText && (
+                        <div className="mb-6 p-4 bg-gray-50 dark:bg-dark-surface/30 rounded-xl border border-gray-100 dark:border-dark-border">
+                            <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1">{t('post.alt_text')}</h4>
+                            <p className="text-[15px] text-gray-700 dark:text-dark-text leading-snug italic">
+                                "{currentMedia.altText}"
+                            </p>
+                        </div>
+                    )}
 
                     {/* Unified Actions */}
                     <div className="py-6 border-y border-gray-100 dark:border-dark-border flex justify-around items-center">

@@ -547,7 +547,7 @@ const ChatPage: React.FC = () => {
                                                                 onClick={() => {
                                                                     const fullUrl = msg.imageUrl!.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl!;
                                                                     dispatch(openImageViewer({
-                                                                        images: [fullUrl],
+                                                                        images: [{ url: fullUrl }],
                                                                         index: 0
                                                                     }));
                                                                 }}

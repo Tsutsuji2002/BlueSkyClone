@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -88,10 +88,15 @@ const MediaPostViewerModal: React.FC<MediaPostViewerModalProps> = ({
         }
     };
 
-    const allMedia = [
-        ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' })),
-        ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' }] : [])
-    ];
+    const allMedia = useMemo(() => {
+        if (currentPost.media && currentPost.media.length > 0) {
+            return currentPost.media;
+        }
+        return [
+            ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' as const })),
+            ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' as const }] : [])
+        ];
+    }, [currentPost]);
 
     const currentMedia = allMedia[currentIndex];
 
@@ -372,6 +377,16 @@ const MediaPostViewerModal: React.FC<MediaPostViewerModalProps> = ({
                         <div className="mt-3 text-[14px] text-gray-500 dark:text-dark-text-secondary">
                             {formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true, locale: dateLocale })}
                         </div>
+
+                        {/* Alt Text for Current Media */}
+                        {'altText' in currentMedia && currentMedia.altText && (
+                            <div className="mt-4 p-3 bg-gray-50 dark:bg-dark-surface/30 rounded-xl border border-gray-100 dark:border-dark-border">
+                                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">{t('post.alt_text')}</h4>
+                                <p className="text-[14px] text-gray-700 dark:text-dark-text leading-snug italic">
+                                    "{currentMedia.altText}"
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Engagement */}

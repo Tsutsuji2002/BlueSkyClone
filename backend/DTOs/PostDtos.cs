@@ -10,6 +10,7 @@ public class PostDto
     public DateTime? CreatedAt { get; set; }
     public AuthorDto Author { get; set; } = null!;
     public List<string> ImageUrls { get; set; } = new();
+    public List<MediaDto> Media { get; set; } = new();
     public string? VideoUrl { get; set; }
     public int LikesCount { get; set; }
     public int RepostsCount { get; set; }
@@ -33,6 +34,13 @@ public class PostDto
     public string ReplyRestriction { get; set; } = "anyone";
     public bool AllowQuotes { get; set; } = true;
     public bool CanReply { get; set; } = true;
+}
+
+public class MediaDto
+{
+    public string Url { get; set; } = null!;
+    public string? AltText { get; set; }
+    public string? Type { get; set; } // "image", "video"
 }
 
 public class PostMuteDto
@@ -65,6 +73,7 @@ public class CreatePostRequest
 {
     public string? Content { get; set; }
     public List<IFormFile>? Images { get; set; }
+    public List<string>? AltTexts { get; set; }
     public IFormFile? Video { get; set; }
     public Guid? ReplyToPostId { get; set; }
     public Guid? RootPostId { get; set; }

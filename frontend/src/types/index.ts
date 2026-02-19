@@ -107,6 +107,12 @@ export interface PostVideo {
     alt?: string;
 }
 
+export interface PostMedia {
+    url: string;
+    altText?: string;
+    type?: string;
+}
+
 // Post types
 export interface Post {
     id: string;
@@ -114,6 +120,7 @@ export interface Post {
     content: string;
     images?: PostImage[];
     imageUrls?: string[]; // From backend
+    media?: PostMedia[]; // From backend
     videoUrl?: string; // From backend
     video?: PostVideo;
     linkPreview?: LinkPreview;
@@ -346,7 +353,7 @@ export interface ModalsState {
     mobileMenu: boolean;
     imageViewer: {
         isOpen: boolean;
-        images: string[];
+        images: { url: string; altText?: string }[];
         currentIndex: number;
     };
     reply: {

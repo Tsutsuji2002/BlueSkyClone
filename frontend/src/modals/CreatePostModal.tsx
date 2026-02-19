@@ -36,8 +36,8 @@ const CreatePostModal: React.FC = () => {
     const isPostLoading = useAppSelector((state) => state.posts.isLoading);
 
     const [content, setContent] = useState('');
-    const [images, setImages] = useState<PostImage[]>([]);
-    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [images, setImages] = useState<(PostImage & { file?: File })[]>([]);
+    const [imageFiles, setImageFiles] = useState<File[]>([]); // Keep for now but we'll use images[].file
     const [video, setVideo] = useState<PostVideo | null>(null);
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [isVideoProcessing, setIsVideoProcessing] = useState(false);
@@ -259,9 +259,13 @@ const CreatePostModal: React.FC = () => {
         // Media update is not fully implemented in backend yet as noted in PostService.cs.
         // But we should still send what we can.
 
-        imageFiles.forEach(file => {
-            formData.append('Images', file);
+        images.forEach(img => {
+            if (img.file) {
+                formData.append('Images', img.file);
+                formData.append('AltTexts', img.alt || '');
+            }
         });
+
         if (videoFile) {
             formData.append('Video', videoFile);
         }
@@ -322,11 +326,9 @@ const CreatePostModal: React.FC = () => {
 
                 if (images.length >= 4) return; // Limit to 4 images
 
-                setImageFiles(prev => [...prev, file]);
-
                 const reader = new FileReader();
                 reader.onloadend = () => {
-                    setImages((prev) => [...prev, { url: reader.result as string }].slice(0, 4));
+                    setImages((prev) => [...prev, { url: reader.result as string, file }].slice(0, 4));
                 };
                 reader.readAsDataURL(file);
             });

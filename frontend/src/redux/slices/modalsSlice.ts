@@ -51,7 +51,7 @@ const modalsSlice = createSlice({
         closeEditProfile: (state) => {
             state.editProfile = false;
         },
-        openImageViewer: (state, action: PayloadAction<{ images: string[]; index?: number }>) => {
+        openImageViewer: (state, action: PayloadAction<{ images: { url: string; altText?: string }[]; index?: number }>) => {
             state.imageViewer = {
                 isOpen: true,
                 images: action.payload.images,

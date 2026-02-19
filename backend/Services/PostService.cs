@@ -252,8 +252,10 @@ public class PostService : IPostService
 
         if (request.Images != null && request.Images.Any())
         {
-            foreach (var file in request.Images)
+            for (int i = 0; i < request.Images.Count; i++)
             {
+                var file = request.Images[i];
+                var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
                 var imagePath = await SaveFileAsync(file, "posts");
                 post.PostMedia.Add(new PostMedium
                 {
@@ -261,6 +263,8 @@ public class PostService : IPostService
                     PostId = post.Id,
                     Type = "image",
                     Url = imagePath,
+                    AltText = altText,
+                    Position = i,
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -1139,6 +1143,12 @@ public class PostService : IPostService
                 IsFollowing = false // Default
             },
             ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
+            Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
+            {
+                Url = m.Url,
+                AltText = m.AltText,
+                Type = m.Type
+            }).ToList(),
             VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,
             LikesCount = post.LikesCount ?? 0,
             RepostsCount = post.RepostsCount ?? 0,
