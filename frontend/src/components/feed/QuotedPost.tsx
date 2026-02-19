@@ -5,6 +5,8 @@ import { formatPostDate } from '../../utils/formatDate';
 import { useTranslation } from 'react-i18next';
 import RichText from '../common/RichText';
 import MediaGrid from './MediaGrid';
+import LinkPreviewCard from '../common/LinkPreviewCard';
+import { FiRepeat } from 'react-icons/fi';
 
 interface QuotedPostProps {
     post: Post;
@@ -40,11 +42,24 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
 
                 <RichText
                     content={post.content}
-                    className="text-[14px] text-gray-800 dark:text-dark-text mb-2 line-clamp-3 leading-tight"
+                    className="text-[14px] text-gray-800 dark:text-dark-text mb-2 leading-snug break-words"
                 />
 
+                {post.linkPreview && (
+                    <div className="mb-2 mt-1">
+                        <LinkPreviewCard preview={post.linkPreview} isSmall={true} />
+                    </div>
+                )}
+
+                {post.quotePost && (
+                    <div className="flex items-center gap-1.5 mb-2 px-3 py-2 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-dark-border rounded-lg text-[12px] text-gray-500 dark:text-dark-text-secondary">
+                        <FiRepeat size={14} />
+                        <span>{t('post.quote_post', 'Quote post')}</span>
+                    </div>
+                )}
+
                 {(post.images?.length || post.imageUrls?.length || post.video || post.videoUrl) && (
-                    <div className="max-h-[200px] overflow-hidden rounded-lg">
+                    <div className="max-h-[260px] overflow-hidden rounded-lg mt-1 border border-gray-100 dark:border-dark-border">
                         <MediaGrid
                             images={post.images}
                             imageUrls={post.imageUrls}
