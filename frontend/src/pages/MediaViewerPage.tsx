@@ -63,15 +63,8 @@ const MediaViewerPage: React.FC = () => {
         return `${base}${path}`;
     }, []);
 
-    if (!currentPost) {
-        return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-                <LoadingIndicator />
-            </div>
-        );
-    }
-
     const allMedia = useMemo(() => {
+        if (!currentPost) return [];
         if (currentPost.media && currentPost.media.length > 0) {
             return currentPost.media;
         }
@@ -82,6 +75,14 @@ const MediaViewerPage: React.FC = () => {
     }, [currentPost]);
 
     const currentMedia = allMedia[currentIndex];
+
+    if (!currentPost) {
+        return (
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <LoadingIndicator />
+            </div>
+        );
+    }
 
     // Navigation
     const handlePrevMedia = () => {

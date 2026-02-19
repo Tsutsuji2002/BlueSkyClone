@@ -69,7 +69,18 @@ const MediaPostViewerModal: React.FC<MediaPostViewerModalProps> = ({
         }
     }, [isOpen, currentPost?.id, dispatch]);
 
-    if (!isOpen || !currentPost) return null;
+    const allMedia = useMemo(() => {
+        if (!currentPost) return [];
+        if (currentPost.media && currentPost.media.length > 0) {
+            return currentPost.media;
+        }
+        return [
+            ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' as const })),
+            ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' as const }] : [])
+        ];
+    }, [currentPost]);
+
+    const currentMedia = allMedia[currentIndex];
 
     const handleNavigateToPost = (post: Post) => {
         setHistory(prev => [...prev, currentPost!]);
@@ -88,17 +99,7 @@ const MediaPostViewerModal: React.FC<MediaPostViewerModalProps> = ({
         }
     };
 
-    const allMedia = useMemo(() => {
-        if (currentPost.media && currentPost.media.length > 0) {
-            return currentPost.media;
-        }
-        return [
-            ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' as const })),
-            ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' as const }] : [])
-        ];
-    }, [currentPost]);
-
-    const currentMedia = allMedia[currentIndex];
+    if (!isOpen || !currentPost) return null;
 
     const handlePrev = (e?: React.MouseEvent) => {
         e?.stopPropagation();
