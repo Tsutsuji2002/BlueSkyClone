@@ -213,92 +213,131 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<BSkyDbContext>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
         
-        // Apply any pending migrations before manual updates
-        context.Database.Migrate();
-
-        // --- MANUAL SCHEMA UPDATES ---
+        // Try to apply pending migrations, but don't let failures here block manual updates
         try
         {
-                // Ensure Notification Columns exist
-                // This is critical because the code now depends on these columns
-                var modSql = @"
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'Title')
-                    BEGIN
-                        ALTER TABLE Notifications ADD Title NVARCHAR(MAX) NULL;
-                    END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'Content')
-                    BEGIN
-                        ALTER TABLE Notifications ADD Content NVARCHAR(MAX) NULL;
-                    END
-                    
-                    -- Admin properties for Users
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsBanned')
-                    BEGIN
-                        ALTER TABLE Users ADD IsBanned BIT NOT NULL DEFAULT 0;
-                    END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsVerified')
-                    BEGIN
-                        ALTER TABLE Users ADD IsVerified BIT NOT NULL DEFAULT 0;
-                    END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Feeds') AND name = 'IsOfficial')
-                    BEGIN
-                        ALTER TABLE Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
-                    END";
-                context.Database.ExecuteSqlRaw(modSql);
+            context.Database.Migrate();
+            logger.LogInformation("Database migrations applied successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Database migration failed. Attempting manual schema updates as fallback...");
+        }
 
-            // Ensure MutedWords columns
-            var mutedWordsSql = @"
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('MutedWords') AND name = 'MuteBehavior')
+        // --- MANUAL SCHEMA UPDATES ---
+        
+        // 1. Notifications and User Properties
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Title')
+                BEGIN
+                    ALTER TABLE dbo.Notifications ADD Title NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Content')
+                BEGIN
+                    ALTER TABLE dbo.Notifications ADD Content NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'IsBanned')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD IsBanned BIT NOT NULL DEFAULT 0;
+                    PRINT 'Added IsBanned to Users';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'IsVerified')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD IsVerified BIT NOT NULL DEFAULT 0;
+                    PRINT 'Added IsVerified to Users';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Feeds') OR object_id = OBJECT_ID('Feeds')) AND name = 'IsOfficial')
+                BEGIN
+                    ALTER TABLE dbo.Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
+                END";
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied/Verified manual schema updates for Notifications and User properties.");
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 1 failed. This might cause issues with BannedUserMiddleware."); }
+
+        // 2. MutedWords
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'MuteBehavior')
                 BEGIN
                     ALTER TABLE MutedWords ADD MuteBehavior NVARCHAR(20) NOT NULL DEFAULT 'hide';
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('MutedWords') AND name = 'CreatedAt')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'CreatedAt')
                 BEGIN
                     ALTER TABLE MutedWords ADD CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE();
                 END";
-            context.Database.ExecuteSqlRaw(mutedWordsSql);
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied manual schema updates for MutedWords.");
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 2 failed."); }
 
-            // Ensure Post interaction columns exist
-            var postInteractionSql = @"
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'ReplyRestriction')
+        // 3. Post Interaction Columns (Quote Feature)
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'ReplyRestriction')
                 BEGIN
-                    ALTER TABLE Posts ADD ReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                    ALTER TABLE dbo.Posts ADD ReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                    PRINT 'Added ReplyRestriction to Posts';
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'AllowQuotes')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'AllowQuotes')
                 BEGIN
-                    ALTER TABLE Posts ADD AllowQuotes BIT NULL DEFAULT 1;
+                    ALTER TABLE dbo.Posts ADD AllowQuotes BIT NULL DEFAULT 1;
+                    PRINT 'Added AllowQuotes to Posts';
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'QuotesCount')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'QuotesCount')
                 BEGIN
-                    ALTER TABLE Posts ADD QuotesCount INT NULL DEFAULT 0;
+                    ALTER TABLE dbo.Posts ADD QuotesCount INT NULL DEFAULT 0;
+                    PRINT 'Added QuotesCount to Posts';
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'QuotePostId')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'QuotePostId')
                 BEGIN
-                    ALTER TABLE Posts ADD QuotePostId UNIQUEIDENTIFIER NULL;
-                END
-                
-                -- Add Foreign Key for QuotePostId if not exists
+                    ALTER TABLE dbo.Posts ADD QuotePostId UNIQUEIDENTIFIER NULL;
+                    PRINT 'Added QuotePostId to Posts';
+                END";
+            context.Database.ExecuteSqlRaw(sql);
+            
+            // Separate block for the FK to avoid batch issues
+            var fkSql = @"
                 IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_PostQuote')
                 BEGIN
-                    ALTER TABLE Posts ADD CONSTRAINT FK_PostQuote FOREIGN KEY (QuotePostId) REFERENCES Posts(Id);
+                    ALTER TABLE dbo.Posts ADD CONSTRAINT FK_PostQuote FOREIGN KEY (QuotePostId) REFERENCES dbo.Posts(Id);
+                    PRINT 'Added FK_PostQuote to Posts';
                 END";
-            context.Database.ExecuteSqlRaw(postInteractionSql);
+            context.Database.ExecuteSqlRaw(fkSql);
+            logger.LogInformation("Finished checking/applying Post interaction schema updates.");
+        }
+        catch (Exception ex) 
+        { 
+            logger.LogError(ex, "CRITICAL: Manual update for QuotePostId failed! This will cause ISE 500 on Post APIs."); 
+        }
 
-            // Ensure UserSettings interaction columns exist
-            var userSettingsInteractionSql = @"
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('UserSettings') AND name = 'DefaultReplyRestriction')
+        // 4. UserSettings
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultReplyRestriction')
                 BEGIN
                     ALTER TABLE UserSettings ADD DefaultReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('UserSettings') AND name = 'DefaultAllowQuotes')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultAllowQuotes')
                 BEGIN
                     ALTER TABLE UserSettings ADD DefaultAllowQuotes BIT NULL DEFAULT 1;
                 END";
-            context.Database.ExecuteSqlRaw(userSettingsInteractionSql);
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied manual schema updates for UserSettings.");
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 4 failed."); }
 
-            // Ensure Hashtags and PostHashtags tables
-            var hashtagsSql = @"
+        // 5. Hashtags and Other Tables
+        try
+        {
+            var sql = @"
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Hashtags' AND xtype='U')
                 BEGIN
                     CREATE TABLE Hashtags (
@@ -319,11 +358,7 @@ using (var scope = app.Services.CreateScope())
                         CONSTRAINT FK_PH_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
                         CONSTRAINT FK_PH_Hashtag FOREIGN KEY (HashtagId) REFERENCES Hashtags(Id) ON DELETE CASCADE
                     )
-                END";
-            context.Database.ExecuteSqlRaw(hashtagsSql);
-
-            // Manual Table Creation for UserListSubscriptions (since we can't run migrations)
-            var sql = @"
+                END
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserListSubscriptions' AND xtype='U')
                 BEGIN
                     CREATE TABLE UserListSubscriptions (
@@ -336,48 +371,24 @@ using (var scope = app.Services.CreateScope())
                         CONSTRAINT FK_ULS_List FOREIGN KEY (ListId) REFERENCES Lists(Id) ON DELETE CASCADE
                     )
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'ListId')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'ListId')
                 BEGIN
                     ALTER TABLE Notifications ADD ListId UNIQUEIDENTIFIER NULL;
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('ListMembers') AND name = 'Status')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ListMembers') AND name = 'Status')
                 BEGIN
                     ALTER TABLE ListMembers ADD Status INT NOT NULL DEFAULT 0;
                 END
-                -- Always ensure any status-less (0) members are migrated to Accepted (1) 
-                -- for users transitioning to the invitation system.
-                EXEC('IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(''ListMembers'') AND name = ''Status'') UPDATE ListMembers SET Status = 1 WHERE Status = 0');
-
-                -- CLEANUP: Remove old chat notifications from general feed
+                -- Cleanup and Recalculations
+                EXEC('IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(''dbo.ListMembers'') AND name = ''Status'') UPDATE ListMembers SET Status = 1 WHERE Status = 0');
                 DELETE FROM Notifications WHERE Type = 'message';
-
-                -- RECALCULATE: Fix PostsCount for all users based on actual non-deleted posts
-                UPDATE u SET u.PostsCount = sub.ActualCount
-                FROM Users u
-                INNER JOIN (
-                    SELECT AuthorId, COUNT(*) AS ActualCount
-                    FROM Posts
-                    WHERE IsDeleted = 0 OR IsDeleted IS NULL
-                    GROUP BY AuthorId
-                ) sub ON u.Id = sub.AuthorId
-                WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
-
-                -- Also zero out users with no posts
-                UPDATE Users SET PostsCount = 0
-                WHERE PostsCount IS NULL AND Id NOT IN (
-                    SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL
-                );
-
-                -- ADMIN: Set admin role for specific users
-                UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';
-                ";
+                UPDATE u SET u.PostsCount = sub.ActualCount FROM Users u INNER JOIN (SELECT AuthorId, COUNT(*) AS ActualCount FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL GROUP BY AuthorId) sub ON u.Id = sub.AuthorId WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
+                UPDATE Users SET PostsCount = 0 WHERE PostsCount IS NULL AND Id NOT IN (SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL);
+                UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';";
             context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied manual schema updates for Hashtags, Lists, and Cleanup.");
         }
-        catch (Exception ex)
-        {
-            var logger = services.GetRequiredService<ILogger<Program>>();
-            logger.LogWarning(ex, "An error occurred during manual schema updates. Continuing...");
-        }
+        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 5 failed."); }
 
         // --- SEED AI FEEDS AND INTERESTS ---
         try
@@ -387,7 +398,6 @@ using (var scope = app.Services.CreateScope())
         }
         catch (Exception ex)
         {
-            var logger = services.GetRequiredService<ILogger<Program>>();
             logger.LogError(ex, "An error occurred during AI feed seeding.");
         }
     }
