@@ -23,7 +23,6 @@ public record MessageDto(
     Guid SenderId,
     string? Content,
     string? ImageUrl,
-    string? AltText,
     DateTimeOffset CreatedAt,
     bool IsRead,
     bool IsModified = false,
@@ -37,7 +36,6 @@ public record MessageDto(
 public record SendMessageRequest(
     string? Content,
     string? ImageUrl = null,
-    string? ImageAltText = null,
     Guid? ReplyToId = null,
     string? LinkPreviewUrl = null,
     string? LinkPreviewTitle = null,

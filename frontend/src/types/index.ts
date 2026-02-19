@@ -233,7 +233,6 @@ export interface Message {
     senderId: string;
     content?: string;
     imageUrl?: string;
-    altText?: string;
     createdAt: string;
     isRead: boolean;
     isModified?: boolean;

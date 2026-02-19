@@ -15,7 +15,6 @@ public partial class Message
 
     public string? Content { get; set; }
     public string? ImageUrl { get; set; }
-    public string? AltText { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 

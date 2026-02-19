@@ -164,7 +164,7 @@ public class ChatService : IChatService
         return MapToConversationDto(created!, userId, 0);
     }
 
-    public async Task<MessageDto> SendMessageAsync(Guid userId, Guid conversationId, string? content, string? imageUrl = null, string? altText = null, Guid? replyToId = null, LinkPreviewDto? linkPreviewDto = null)
+    public async Task<MessageDto> SendMessageAsync(Guid userId, Guid conversationId, string? content, string? imageUrl = null, Guid? replyToId = null, LinkPreviewDto? linkPreviewDto = null)
     {
         var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
@@ -180,7 +180,6 @@ public class ChatService : IChatService
             SenderId = userId,
             Content = content,
             ImageUrl = imageUrl,
-            AltText = altText,
             ReplyToId = replyToId,
             CreatedAt = DateTime.UtcNow,
             IsRead = false,
@@ -408,7 +407,7 @@ public class ChatService : IChatService
         var forwardedMessages = new List<MessageDto>();
         foreach (var convId in targetConversationIds)
         {
-            var msg = await SendMessageAsync(userId, convId, originalMessage.Content, originalMessage.ImageUrl, originalMessage.AltText);
+            var msg = await SendMessageAsync(userId, convId, originalMessage.Content, originalMessage.ImageUrl);
             forwardedMessages.Add(msg);
         }
 
