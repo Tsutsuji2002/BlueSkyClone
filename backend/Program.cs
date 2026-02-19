@@ -78,7 +78,6 @@ builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
-builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ICategorizationService, CategorizationService>();
 builder.Services.AddScoped<ISearchService, ElasticSearchService>();
 builder.Services.AddSingleton<IMLModelService, MLModelService>();
@@ -87,7 +86,6 @@ builder.Services.AddSingleton<IMLModelService, MLModelService>();
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
-    options.InstanceName = "BSky_";
     options.InstanceName = "BSky_";
 });
 
@@ -270,6 +268,20 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'AllowQuotes')
                 BEGIN
                     ALTER TABLE Posts ADD AllowQuotes BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'QuotesCount')
+                BEGIN
+                    ALTER TABLE Posts ADD QuotesCount INT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Posts') AND name = 'QuotePostId')
+                BEGIN
+                    ALTER TABLE Posts ADD QuotePostId UNIQUEIDENTIFIER NULL;
+                END
+                
+                -- Add Foreign Key for QuotePostId if not exists
+                IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_PostQuote')
+                BEGIN
+                    ALTER TABLE Posts ADD CONSTRAINT FK_PostQuote FOREIGN KEY (QuotePostId) REFERENCES Posts(Id);
                 END";
             context.Database.ExecuteSqlRaw(postInteractionSql);
 
@@ -334,7 +346,7 @@ using (var scope = app.Services.CreateScope())
                 END
                 -- Always ensure any status-less (0) members are migrated to Accepted (1) 
                 -- for users transitioning to the invitation system.
-                EXEC('UPDATE ListMembers SET Status = 1 WHERE Status = 0');
+                EXEC('IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(''ListMembers'') AND name = ''Status'') UPDATE ListMembers SET Status = 1 WHERE Status = 0');
 
                 -- CLEANUP: Remove old chat notifications from general feed
                 DELETE FROM Notifications WHERE Type = 'message';
@@ -355,9 +367,6 @@ using (var scope = app.Services.CreateScope())
                 WHERE PostsCount IS NULL AND Id NOT IN (
                     SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL
                 );
-
-                -- CLEANUP: Remove non-official sample feeds (keep official ones)
-                DELETE FROM Feeds WHERE IsOfficial = 0;
 
                 -- ADMIN: Set admin role for specific users
                 UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';

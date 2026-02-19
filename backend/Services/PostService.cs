@@ -284,6 +284,19 @@ public class PostService : IPostService
             // Use provided preview if available, otherwise fetch
             if (!string.IsNullOrEmpty(request.LinkPreviewUrl))
             {
+                string domain = request.LinkPreviewDomain ?? "unknown";
+                try
+                {
+                    if (Uri.TryCreate(request.LinkPreviewUrl, UriKind.Absolute, out var uri))
+                    {
+                        domain = request.LinkPreviewDomain ?? uri.Host.Replace("www.", "");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[CreatePostAsync] Error parsing LinkPreviewUrl URI: {ex.Message}");
+                }
+
                 post.LinkPreview = new LinkPreview
                 {
                     Id = Guid.NewGuid(),
@@ -292,7 +305,7 @@ public class PostService : IPostService
                     Title = request.LinkPreviewTitle,
                     Description = request.LinkPreviewDescription,
                     Image = request.LinkPreviewImage,
-                    Domain = request.LinkPreviewDomain ?? new Uri(request.LinkPreviewUrl).Host.Replace("www.", ""),
+                    Domain = domain,
                     CreatedAt = DateTime.UtcNow
                 };
             }
@@ -523,6 +536,7 @@ public class PostService : IPostService
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(p => p.Id == post.Id);
 
         // Index in Elasticsearch
@@ -629,6 +643,7 @@ public class PostService : IPostService
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(p => p.Id == postId);
                 
             if (savedPost == null)
@@ -673,9 +688,11 @@ public class PostService : IPostService
                 .Include(p => p.Author)
                 .Include(p => p.PostMedia)
                 .Include(p => p.LinkPreview)
+                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(p => p.Id == postId);
 
             if (post == null) return null;
@@ -1007,11 +1024,13 @@ public class PostService : IPostService
     public async Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null)
     {
         var replies = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .AsSplitQuery()
             .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
             .OrderBy(p => p.CreatedAt)
             .ToListAsync();
@@ -1045,6 +1064,7 @@ public class PostService : IPostService
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                .AsSplitQuery()
                 .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
                 .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
                 .Take(50)
@@ -1099,7 +1119,9 @@ public class PostService : IPostService
         return await EnrichAndFilterPostsAsync(postDtos, userId);
     }
 
-    public PostDto MapToDto(Post post)
+    public PostDto MapToDto(Post post) => MapToDto(post, true);
+
+    private PostDto MapToDto(Post post, bool includeQuote)
     {
         return new PostDto
         {
@@ -1107,7 +1129,7 @@ public class PostService : IPostService
             Tid = post.Tid,
             Content = post.Content,
             CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : null,
-            Author = new AuthorDto
+            Author = post.Author == null ? new AuthorDto { Username = "unknown", Handle = "unknown" } : new AuthorDto
             {
                 Id = post.Author.Id,
                 Username = post.Author.Username,
@@ -1142,7 +1164,7 @@ public class PostService : IPostService
             ReplyRestriction = post.ReplyRestriction ?? "anyone",
             AllowQuotes = post.AllowQuotes ?? true,
             QuotePostId = post.QuotePostId,
-            QuotePost = post.QuotePost == null ? null : MapToDto(post.QuotePost),
+            QuotePost = (includeQuote && post.QuotePost != null) ? MapToDto(post.QuotePost, false) : null,
             CanReply = true // Default
         };
     }
