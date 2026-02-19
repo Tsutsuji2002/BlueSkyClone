@@ -238,6 +238,7 @@
         "reposted_post": "reposted your post",
         "replied_post": "replied to your post",
         "mentioned_you": "mentioned you in a post",
+        "quoted_post": "quoted your post",
         "push": "Push notifications",
         "in_app": "In-app notifications",
         "from": "From",

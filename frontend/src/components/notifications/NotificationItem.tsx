@@ -91,6 +91,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                 return <FiMessageCircle className="text-blue-500" size={18} />;
             case 'mention':
                 return <FiAtSign className="text-purple-500" size={18} />;
+            case 'quote':
+                return <FiRepeat className="text-indigo-500" size={18} />;
             case 'list_invitation':
                 return <FiList className="text-primary-500" size={18} />;
             case 'system':
@@ -113,6 +115,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                 return t('notifications.replied_post');
             case 'mention':
                 return t('notifications.mentioned_you');
+            case 'quote':
+                return t('notifications.quoted_post');
             case 'list_invitation':
                 return t('notifications.list_invitation', 'invited you to a list');
             case 'system':
