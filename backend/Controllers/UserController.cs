@@ -1,4 +1,5 @@
 using BSkyClone.DTOs;
+using BSkyClone.Models;
 using BSkyClone.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
