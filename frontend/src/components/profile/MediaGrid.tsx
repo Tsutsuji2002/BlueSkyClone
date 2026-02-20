@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FiPlay } from 'react-icons/fi';
 import { Post } from '../../types';
 import { API_BASE_URL } from '../../constants';
@@ -13,10 +14,9 @@ interface MediaItem {
 
 interface MediaGridProps {
     posts: Post[];
-    onMediaClick: (post: Post, mediaIndex: number) => void;
 }
 
-const MediaGrid: React.FC<MediaGridProps> = ({ posts, onMediaClick }) => {
+const MediaGrid: React.FC<MediaGridProps> = ({ posts }) => {
     // Flatten all media from all posts into a single list, ordered by post date
     const allMedia: MediaItem[] = posts.flatMap(post => {
         const items: MediaItem[] = [];
@@ -65,10 +65,10 @@ const MediaGrid: React.FC<MediaGridProps> = ({ posts, onMediaClick }) => {
     return (
         <div className="grid grid-cols-3 gap-0.5 bg-gray-100 dark:bg-dark-border">
             {allMedia.map((media, index) => (
-                <button
+                <Link
                     key={`${media.post.id}-${media.mediaIndex}-${index}`}
-                    onClick={() => onMediaClick(media.post, media.mediaIndex)}
-                    className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-dark-surface group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset"
+                    to={`/profile/${media.post.author.handle}/post/${media.post.id}/media/${media.mediaIndex}`}
+                    className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-dark-surface group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset block"
                 >
                     {media.type === 'video' ? (
                         <>
@@ -102,7 +102,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ posts, onMediaClick }) => {
 
                     {/* Hover Overlay */}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
-                </button>
+                </Link>
             ))}
         </div>
     );

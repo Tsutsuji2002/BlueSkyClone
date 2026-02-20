@@ -77,14 +77,7 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                             media={post.media}
                             video={post.video}
                             videoUrl={post.videoUrl}
-                            onImageClick={(index: number) => {
-                                const hasVideo = post.video || post.videoUrl;
-                                if (hasVideo && index === 0) {
-                                    navigate(`/profile/${post.author.handle}/post/${post.id}`);
-                                } else {
-                                    navigate(`/profile/${post.author.handle}/post/${post.id}/media/${index}`);
-                                }
-                            }}
+                            onImageClick={() => navigate(`/profile/${post.author.handle}/post/${post.id}`)}
                         />
                     </div>
                 )}

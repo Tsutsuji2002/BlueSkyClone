@@ -19,7 +19,6 @@ import { RootState } from '../redux/store';
 import { Post, User } from '../types';
 import { API_BASE_URL, PROFILE_TABS, COVER_PLACEHOLDER } from '../constants';
 import MediaGrid from '../components/profile/MediaGrid';
-import MediaPostViewerModal from '../modals/MediaPostViewerModal';
 import ListAvatar from '../components/common/ListAvatar';
 import ConfirmModal from '../components/common/ConfirmModal';
 
@@ -43,9 +42,6 @@ const SampleProfilePage: React.FC = () => {
     // State
     const [activeTab, setActiveTab] = useState('posts');
     const observerTarget = useRef<HTMLDivElement>(null);
-    const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
-    const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-    const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
         type: 'mute' | 'unmute' | 'block' | 'unblock' | null;
@@ -521,11 +517,6 @@ const SampleProfilePage: React.FC = () => {
                                     <>
                                         <MediaGrid
                                             posts={reduxPosts}
-                                            onMediaClick={(post, mediaIndex) => {
-                                                setSelectedPost(post);
-                                                setSelectedMediaIndex(mediaIndex);
-                                                setMediaViewerOpen(true);
-                                            }}
                                         />
                                         <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
                                             {isPostsLoading && hasMore && (
@@ -578,13 +569,6 @@ const SampleProfilePage: React.FC = () => {
                 )}
             </div>
 
-            {/* Media Post Viewer Modal */}
-            <MediaPostViewerModal
-                isOpen={mediaViewerOpen}
-                onClose={() => setMediaViewerOpen(false)}
-                post={selectedPost}
-                initialMediaIndex={selectedMediaIndex}
-            />
 
             <ConfirmModal
                 isOpen={confirmModal.isOpen}
