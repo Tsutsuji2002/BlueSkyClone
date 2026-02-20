@@ -18,6 +18,7 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
             href={preview.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className={cn(
                 "block border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors bg-white dark:bg-dark-bg group max-w-full",
                 isSmall ? "mt-1" : "mt-3"

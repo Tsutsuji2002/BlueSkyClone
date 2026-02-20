@@ -8,6 +8,8 @@ import MediaGrid from './MediaGrid';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { FiRepeat } from 'react-icons/fi';
 
+import { useNavigate } from 'react-router-dom';
+
 interface QuotedPostProps {
     post: Post;
     isCard?: boolean; // If true, rendering inside a PostCard (needs border/padding)
@@ -15,12 +17,21 @@ interface QuotedPostProps {
 
 const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
     const { t, i18n } = useTranslation();
+    const navigate = useNavigate();
+
+    const handleQuoteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigate(`/profile/${post.author.handle}/post/${post.id}`);
+    };
 
     return (
-        <div className={`
-            border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden
-            ${isCard ? 'mt-2 mb-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface/30' : ''}
-        `}>
+        <div
+            onClick={handleQuoteClick}
+            className={`
+                border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden
+                ${isCard ? 'mt-2 mb-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors' : ''}
+            `}
+        >
             <div className="p-3">
                 <div className="flex items-center gap-1.5 mb-1">
                     <Avatar
@@ -66,6 +77,7 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                             media={post.media}
                             video={post.video}
                             videoUrl={post.videoUrl}
+                            onImageClick={() => navigate(`/profile/${post.author.handle}/post/${post.id}`)}
                         />
                     </div>
                 )}
