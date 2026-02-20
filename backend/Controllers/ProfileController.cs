@@ -189,22 +189,14 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> GetFollowers(Guid userId)
     {
         var users = await _userService.GetFollowersAsync(userId);
-        var dtos = users.Select(user => new UserDto(
-            user.Id,
-            user.Username,
-            user.Handle,
-            user.Email,
-            user.DisplayName,
-            user.AvatarUrl,
-            user.CoverImageUrl,
-            user.Bio,
-            user.Location,
-            user.Website,
-            user.DateOfBirth,
-            user.FollowersCount,
-            user.FollowingCount,
-            user.PostsCount
-        ));
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            dtos.Add(await MapUserToDtoWithStatus(user, currentUserId));
+        }
         return Ok(dtos);
     }
 
@@ -212,22 +204,20 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> GetFollowing(Guid userId)
     {
         var users = await _userService.GetFollowingAsync(userId);
-        var dtos = users.Select(user => new UserDto(
-            user.Id,
-            user.Username,
-            user.Handle,
-            user.Email,
-            user.DisplayName,
-            user.AvatarUrl,
-            user.CoverImageUrl,
-            user.Bio,
-            user.Location,
-            user.Website,
-            user.DateOfBirth,
-            user.FollowersCount,
-            user.FollowingCount,
-            user.PostsCount
-        ));
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            // If viewing own following list, we definitely follow everyone in it
+            if (userId == currentUserId && currentUserId.HasValue)
+            {
+                dto = dto with { IsFollowing = true };
+            }
+            dtos.Add(dto);
+        }
         return Ok(dtos);
     }
 
@@ -236,22 +226,14 @@ public class ProfileController : ControllerBase
     {
         var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
         var users = await _userService.GetMutedUsersAsync(currentUserId);
-        var dtos = users.Select(user => new UserDto(
-            user.Id,
-            user.Username,
-            user.Handle,
-            user.Email,
-            user.DisplayName,
-            user.AvatarUrl,
-            user.CoverImageUrl,
-            user.Bio,
-            user.Location,
-            user.Website,
-            user.DateOfBirth,
-            user.FollowersCount,
-            user.FollowingCount,
-            user.PostsCount
-        ));
+        
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            dto = dto with { IsMuted = true };
+            dtos.Add(dto);
+        }
         return Ok(dtos);
     }
 
@@ -260,7 +242,20 @@ public class ProfileController : ControllerBase
     {
         var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
         var users = await _userService.GetBlockedUsersAsync(currentUserId);
-        var dtos = users.Select(user => new UserDto(
+        
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            dto = dto with { IsBlocking = true };
+            dtos.Add(dto);
+        }
+        return Ok(dtos);
+    }
+
+    private async Task<UserDto> MapUserToDtoWithStatus(User user, Guid? viewerId)
+    {
+        var dto = new UserDto(
             user.Id,
             user.Username,
             user.Handle,
@@ -274,9 +269,22 @@ public class ProfileController : ControllerBase
             user.DateOfBirth,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
-        ));
-        return Ok(dtos);
+            user.PostsCount,
+            user.Role
+        );
+
+        if (viewerId.HasValue && viewerId != user.Id)
+        {
+            return dto with
+            {
+                IsFollowing = await _userService.IsFollowingAsync(viewerId.Value, user.Id),
+                IsBlocking = await _userService.IsBlockedAsync(viewerId.Value, user.Id),
+                IsBlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
+                IsMuted = await _userService.IsMutedAsync(viewerId.Value, user.Id)
+            };
+        }
+        
+        return dto;
     }
 
     [HttpGet("muted-words")]

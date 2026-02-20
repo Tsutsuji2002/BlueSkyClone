@@ -166,7 +166,20 @@ public class UserController : ControllerBase
     public async Task<IActionResult> SearchUsers([FromQuery] string q, [FromQuery] int limit = 10)
     {
         var users = await _userService.SearchUsersAsync(q, limit);
-        var dtos = users.Select(user => new UserDto(
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            dtos.Add(await MapUserToDtoWithStatus(user, currentUserId));
+        }
+        return Ok(dtos);
+    }
+
+    private async Task<UserDto> MapUserToDtoWithStatus(User user, Guid? viewerId)
+    {
+        var dto = new UserDto(
             user.Id,
             user.Username,
             user.Handle,
@@ -180,8 +193,21 @@ public class UserController : ControllerBase
             user.DateOfBirth,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
-        ));
-        return Ok(dtos);
+            user.PostsCount,
+            user.Role
+        );
+
+        if (viewerId.HasValue && viewerId != user.Id)
+        {
+            return dto with
+            {
+                IsFollowing = await _userService.IsFollowingAsync(viewerId.Value, user.Id),
+                IsBlocking = await _userService.IsBlockedAsync(viewerId.Value, user.Id),
+                IsBlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
+                IsMuted = await _userService.IsMutedAsync(viewerId.Value, user.Id)
+            };
+        }
+        
+        return dto;
     }
 }

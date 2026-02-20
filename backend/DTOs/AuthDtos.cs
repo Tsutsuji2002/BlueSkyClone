@@ -35,7 +35,20 @@ public record UserDto(
     int? PostsCount,
     string Role = "user",
     int? ListMembershipStatus = null
-);
+)
+{
+    [JsonPropertyName("isFollowing")]
+    public bool? IsFollowing { get; init; }
+    
+    [JsonPropertyName("isBlockedBy")]
+    public bool? IsBlockedBy { get; init; }
+    
+    [JsonPropertyName("isBlocking")]
+    public bool? IsBlocking { get; init; }
+    
+    [JsonPropertyName("isMuted")]
+    public bool? IsMuted { get; init; }
+}
 
 public record UserSettingDto(
     string? AdultContentFilter,
