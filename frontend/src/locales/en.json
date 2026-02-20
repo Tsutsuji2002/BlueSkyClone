@@ -88,7 +88,9 @@
         "new_password": "New password",
         "current_password": "Current password",
         "handle_same": "This is already your current handle",
-        "username_updated_success": "Handle updated successfully"
+        "username_updated_success": "Handle updated successfully",
+        "handle_cannot_be_blank": "Handle cannot be blank",
+        "birthdate_future_error": "Birthday cannot be in the future"
     },
     "moderation": {
         "title": "Moderation",
@@ -627,7 +629,8 @@
         "no_replies": "No replies yet",
         "quote_post": "Quote post",
         "repost": "Repost",
-        "undo_repost": "Undo repost"
+        "undo_repost": "Undo repost",
+        "reposted_by_you": "Reposted by you"
     },
     "sidebar": {
         "trending": "Trending Topics",

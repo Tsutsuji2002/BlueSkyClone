@@ -156,6 +156,11 @@ const ChangeUsernameModal: React.FC<{ isOpen: boolean; onClose: () => void; user
     if (!isOpen) return null;
 
     const handleSave = async () => {
+        if (!newUsername.trim()) {
+            setError(t('settings.handle_cannot_be_blank', 'Handle cannot be blank'));
+            return;
+        }
+
         if (newUsername.trim() === username.trim()) {
             dispatch(showToast({ message: t('settings.handle_same'), type: 'info' }));
             onClose();
@@ -215,9 +220,15 @@ const EditBirthdateModal: React.FC<{ isOpen: boolean; onClose: () => void; birth
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const today = new Date().toISOString().split('T')[0];
+
     if (!isOpen) return null;
 
     const handleSave = async () => {
+        if (date && date > today) {
+            setError(t('settings.birthdate_future_error', 'Birthday cannot be in the future'));
+            return;
+        }
         setIsLoading(true);
         setError('');
         try {
@@ -245,6 +256,7 @@ const EditBirthdateModal: React.FC<{ isOpen: boolean; onClose: () => void; birth
                         <input
                             type="date"
                             value={date}
+                            max={today}
                             onChange={(e) => setDate(e.target.value)}
                             className="bg-transparent border-none focus:outline-none w-full text-gray-900 dark:text-dark-text font-medium"
                         />

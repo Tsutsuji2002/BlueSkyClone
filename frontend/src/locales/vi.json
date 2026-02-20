@@ -81,7 +81,9 @@
         "done": "Xong",
         "current_password": "Mật khẩu hiện tại",
         "handle_same": "Đây là handle hiện tại của bạn",
-        "username_updated_success": "Đã cập nhật handle thành công"
+        "username_updated_success": "Đã cập nhật handle thành công",
+        "handle_cannot_be_blank": "Handle không được để trống",
+        "birthdate_future_error": "Ngày sinh không được ở tương lai"
     },
     "moderation": {
         "title": "Kiểm duyệt",
@@ -603,7 +605,13 @@
         "reply_success": "Đã trả lời thành công",
         "muted_by_word": "Bài viết bị ẩn bởi từ cấm của bạn",
         "show_anyway": "Vẫn hiển thị",
-        "loading": "Đang tải bài đăng..."
+        "loading": "Đang tải bài đăng...",
+        "view_full_post": "Xem bài đăng đầy đủ",
+        "no_replies": "Chưa có trả lời nào",
+        "quote_post": "Trích dẫn bài đăng",
+        "repost": "Đăng lại",
+        "undo_repost": "Bỏ đăng lại",
+        "reposted_by_you": "Đã đăng lại bởi bạn"
     },
     "sidebar": {
         "trending": "Chủ đề nổi bật",

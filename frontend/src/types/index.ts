@@ -403,6 +403,8 @@ export interface InputProps {
     disabled?: boolean;
     className?: string;
     icon?: React.ReactNode;
+    max?: string;
+    min?: string;
 }
 
 export interface AvatarProps {
