@@ -17,7 +17,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Server=sql-server;Database=BlueSkyClone;User Id=sa;Password=${DB_PASSWORD:-YourStrongPassword123!};TrustServerCertificate=True;
-      - Redis__ConnectionString=redis:6379
+      - Redis__ConnectionString=redis:6379,abortConnect=false,connectTimeout=10000,syncTimeout=10000
       - Jwt__Key=${JWT_KEY:-a_very_long_random_secret_string_change_this_for_prod}
     depends_on:
       sql-server:

@@ -11,7 +11,7 @@
       # For VPS: Replace host.docker.internal with your VPS Public IP or use --add-host in docker run
       - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;
       - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
-      - Redis__ConnectionString=redis:6379
+      - Redis__ConnectionString=redis:6379,abortConnect=false,connectTimeout=10000,syncTimeout=10000
       - Elasticsearch__Uri=http://elasticsearch:9200
     depends_on:
       - redis
