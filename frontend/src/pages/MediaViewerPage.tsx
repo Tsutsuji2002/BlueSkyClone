@@ -3,12 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
-import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiBookmark, FiMoreHorizontal, FiShare2 } from 'react-icons/fi';
+import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiBookmark, FiMoreHorizontal, FiShare2, FiLink, FiSend, FiCode } from 'react-icons/fi';
 import { toggleLike, repostPost, bookmarkPost, fetchPostById } from '../redux/slices/postsSlice';
 import { openReply } from '../redux/slices/modalsSlice';
 import { Post } from '../types';
 import Avatar from '../components/common/Avatar';
 import RichText from '../components/common/RichText';
+import Dropdown, { DropdownItem } from '../components/common/Dropdown';
 import { formatDistanceToNow } from 'date-fns';
 import { vi, enUS } from 'date-fns/locale';
 import { API_BASE_URL } from '../constants';
@@ -25,7 +26,7 @@ const MediaViewerPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t, i18n } = useTranslation();
-    const { openShareModal } = usePostActions();
+    const { handleCopyLink, handleEmbedPost, openShareModal } = usePostActions();
 
     const [currentIndex, setCurrentIndex] = useState(parseInt(indexParam || '0', 10));
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
@@ -149,6 +150,27 @@ const MediaViewerPage: React.FC = () => {
         openShareModal(currentPost);
     };
 
+    const shareDropdownItems: DropdownItem[] = [
+        {
+            id: 'copy-link',
+            label: t('post.copy_link'),
+            icon: <FiLink />,
+            onClick: () => handleCopyLink(currentPost.author.handle, currentPost.id),
+        },
+        {
+            id: 'send-message',
+            label: t('post.send_via_message'),
+            icon: <FiSend />,
+            onClick: () => openShareModal(currentPost),
+        },
+        {
+            id: 'embed',
+            label: t('post.embed_post'),
+            icon: <FiCode />,
+            onClick: () => handleEmbedPost(currentPost.author.handle, currentPost.id, currentPost.content || ''),
+        },
+    ];
+
     const formatCount = (count: number) => {
         if (count >= 1000) {
             const unit = t('common.user').startsWith('N') ? 'N' : 'K';
@@ -243,12 +265,17 @@ const MediaViewerPage: React.FC = () => {
                         <FiBookmark size={26} className={currentPost.isBookmarked ? "fill-current" : ""} />
                         <span className="text-[13px] font-bold">{formatCount(currentPost.bookmarksCount || 0)}</span>
                     </button>
-                    <button
-                        onClick={handleShare}
-                        className="flex flex-col items-center gap-1.5 text-white/95 active:scale-75 transition-all p-2 min-w-[60px]"
-                    >
-                        <FiShare2 size={26} />
-                    </button>
+                    <Dropdown
+                        trigger={
+                            <button
+                                className="flex flex-col items-center gap-1.5 text-white/95 active:scale-75 transition-all p-2 min-w-[60px]"
+                            >
+                                <FiShare2 size={26} />
+                            </button>
+                        }
+                        items={shareDropdownItems}
+                        align="center"
+                    />
                 </div>
             </div>
 
@@ -282,7 +309,15 @@ const MediaViewerPage: React.FC = () => {
                         <button onClick={handleRepost} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isReposted ? "text-green-500" : "text-gray-500 hover:text-green-500")}><FiRepeat size={24} className={cn("group-hover:scale-110", currentPost.isReposted ? "stroke-[2.5px]" : "")} /><span className="text-xs font-bold">{currentPost.repostsCount}</span></button>
                         <button onClick={handleLike} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isLiked ? "text-red-500" : "text-gray-500 hover:text-red-500")}><FiHeart size={24} className={cn("group-hover:scale-110", currentPost.isLiked ? "fill-current" : "")} /><span className="text-xs font-bold">{currentPost.likesCount}</span></button>
                         <button onClick={handleBookmark} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isBookmarked ? "text-blue-500" : "text-gray-500 hover:text-blue-500")}><FiBookmark size={24} className={cn("group-hover:scale-110", currentPost.isBookmarked ? "fill-current" : "")} /><span className="text-xs font-bold">{currentPost.bookmarksCount || 0}</span></button>
-                        <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-primary-500 transition-all group"><FiShare2 size={24} className="group-hover:scale-110" /></button>
+                        <Dropdown
+                            trigger={
+                                <button className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-primary-500 transition-all group">
+                                    <FiShare2 size={24} className="group-hover:scale-110" />
+                                </button>
+                            }
+                            items={shareDropdownItems}
+                            align="right"
+                        />
                     </div>
 
 
