@@ -1358,9 +1358,14 @@ public class PostService : IPostService
         var postPool = await _unitOfWork.Posts.Query()
             .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null))
             .Include(p => p.Author)
-            .Include(p => p.PostMedia) // Changed from Media to PostMedia to match Post entity
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .OrderByDescending(p => p.LikesCount + p.RepostsCount)
-            .Take(500) // Large pool for ranking
+            .Take(500)
             .ToListAsync();
 
         // 3. Score and rank posts

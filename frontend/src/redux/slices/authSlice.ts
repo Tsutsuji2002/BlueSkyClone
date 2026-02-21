@@ -104,11 +104,13 @@ export const logoutAsync = createAsyncThunk(
             }
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
+            localStorage.removeItem('home_active_tab');
             return null;
         } catch (error: any) {
             // Even if logout fails on BE, we should clear local state
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
+            localStorage.removeItem('home_active_tab');
             return null;
         }
     }

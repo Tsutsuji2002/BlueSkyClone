@@ -24,7 +24,7 @@ const initialState: FeedsState = {
     searchResults: [],
     pinnedFeedIds: [],
     activeFeedId: null,
-    activeTab: 'following', // Default to following
+    activeTab: localStorage.getItem('home_active_tab') || 'following', // Default to following or persisted tab
     feedPosts: {},
     recommendedFeeds: [],
     isLoading: false,
@@ -296,6 +296,7 @@ const feedsSlice = createSlice({
         },
         setActiveTab: (state: FeedsState, action: PayloadAction<string>) => {
             state.activeTab = action.payload;
+            localStorage.setItem('home_active_tab', action.payload);
             if (action.payload === 'following' || action.payload === 'discover') {
                 state.activeFeedId = null;
             } else {
