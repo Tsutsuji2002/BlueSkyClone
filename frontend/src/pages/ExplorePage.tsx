@@ -15,6 +15,7 @@ import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { fetchTrending, fetchInterestsList } from '../redux/slices/trendingSlice';
 import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds } from '../redux/slices/feedsSlice';
 import api from '../utils/api';
+import InterestsEditor from '../components/feed/InterestsEditor';
 
 const ExplorePage: React.FC = () => {
     const { t } = useTranslation();
@@ -27,18 +28,12 @@ const ExplorePage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
-    const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
     useEffect(() => {
         dispatch(fetchTrending());
         dispatch(fetchInterestsList());
         dispatch(fetchTrendingFeeds());
         dispatch(fetchSubscribedFeeds());
-
-        const stored = localStorage.getItem('selected_interests');
-        if (stored) {
-            setSelectedInterests(JSON.parse(stored));
-        }
     }, [dispatch]);
 
     const handleSearch = useCallback(async (query: string) => {
@@ -95,14 +90,6 @@ const ExplorePage: React.FC = () => {
         setShowResults(false);
     };
 
-    const toggleInterest = (interest: string) => {
-        const newSelection = selectedInterests.includes(interest)
-            ? selectedInterests.filter(i => i !== interest)
-            : [...selectedInterests, interest];
-
-        setSelectedInterests(newSelection);
-        localStorage.setItem('selected_interests', JSON.stringify(newSelection));
-    };
 
     const handlePinToggle = async (e: React.MouseEvent, feed: Feed) => {
         e.stopPropagation();
@@ -210,24 +197,8 @@ const ExplorePage: React.FC = () => {
                             <h2 className="text-lg font-bold">{t('explore.interests')}</h2>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 mb-6">
-                            {interests.map((interest, index) => {
-                                const isSelected = selectedInterests.includes(interest);
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={() => toggleInterest(interest)}
-                                        className={cn(
-                                            "px-4 py-1.5 rounded-full border text-sm font-medium transition-all shadow-sm",
-                                            isSelected
-                                                ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400'
-                                                : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text-secondary hover:border-primary-500 hover:text-primary-500 dark:hover:text-primary-400'
-                                        )}
-                                    >
-                                        {interest}
-                                    </button>
-                                );
-                            })}
+                        <div className="mb-6">
+                            <InterestsEditor variant="condensed" />
                         </div>
 
                         <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-4">
