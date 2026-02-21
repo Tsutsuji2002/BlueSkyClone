@@ -84,9 +84,9 @@ public class PostRepository : Repository<Post>, IPostRepository
                 .Select(l => l.Post)
                 .ToListAsync();
         }
-        else // default to "posts" tab - user's own posts (excluding replies)
+        else // default to "posts" tab - user's own posts (excluding replies) and their reposts
         {
-            query = query.Where(p => p.AuthorId == userId && p.ReplyToPostId == null);
+            query = query.Where(p => (p.AuthorId == userId && p.ReplyToPostId == null) || p.Reposts.Any(r => r.UserId == userId));
         }
 
         return await query
