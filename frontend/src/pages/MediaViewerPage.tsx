@@ -30,6 +30,7 @@ const MediaViewerPage: React.FC = () => {
 
     const [currentIndex, setCurrentIndex] = useState(parseInt(indexParam || '0', 10));
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [showShareMenu, setShowShareMenu] = useState(false);
 
     // Swipe state
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -265,17 +266,12 @@ const MediaViewerPage: React.FC = () => {
                         <FiBookmark size={26} className={currentPost.isBookmarked ? "fill-current" : ""} />
                         <span className="text-[13px] font-bold">{formatCount(currentPost.bookmarksCount || 0)}</span>
                     </button>
-                    <Dropdown
-                        trigger={
-                            <button
-                                className="flex flex-col items-center gap-1.5 text-white/95 active:scale-75 transition-all p-2 min-w-[60px]"
-                            >
-                                <FiShare2 size={26} />
-                            </button>
-                        }
-                        items={shareDropdownItems}
-                        align="center"
-                    />
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowShareMenu(true); }}
+                        className="flex flex-col items-center gap-1.5 text-white/95 active:scale-75 transition-all p-2 min-w-[60px]"
+                    >
+                        <FiShare2 size={26} />
+                    </button>
                 </div>
             </div>
 
@@ -339,6 +335,35 @@ const MediaViewerPage: React.FC = () => {
                             {i18n.language === 'vi' ? 'Xem bài đăng' : 'View post'}
                         </button>
                         <button onClick={() => setShowOptionsMenu(false)} className="w-full py-5 mt-6 text-[19px] font-bold text-gray-700 dark:text-dark-text-secondary bg-gray-100 dark:bg-dark-surface rounded-full">
+                            {i18n.language === 'vi' ? 'Hủy' : 'Cancel'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Mobile Share Sheet */}
+            {showShareMenu && (
+                <div className="fixed inset-0 z-[200] bg-black/70 flex items-end animate-in fade-in duration-200" onClick={() => setShowShareMenu(false)}>
+                    <div className="w-full bg-white dark:bg-dark-bg rounded-t-[32px] p-6 pb-12 animate-in slide-in-from-bottom duration-300 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="w-12 h-1.5 bg-gray-200 dark:bg-dark-border rounded-full mx-auto mb-8" />
+                        <h3 className="text-center font-bold text-[18px] text-gray-900 dark:text-dark-text mb-6">
+                            {t('post.share_post')}
+                        </h3>
+                        {shareDropdownItems.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    item.onClick();
+                                    setShowShareMenu(false);
+                                }}
+                                className="w-full text-left py-4 px-4 flex items-center gap-4 text-[17px] font-semibold text-gray-900 dark:text-dark-text border-b border-gray-50 dark:border-dark-border active:bg-gray-100 dark:active:bg-dark-surface"
+                            >
+                                <span className="text-gray-500">{item.icon}</span>
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                        <button onClick={() => setShowShareMenu(false)} className="w-full py-4 mt-6 text-[17px] font-bold text-gray-700 dark:text-dark-text-secondary bg-gray-100 dark:bg-dark-surface rounded-xl active:scale-95 transition-all">
                             {i18n.language === 'vi' ? 'Hủy' : 'Cancel'}
                         </button>
                     </div>
