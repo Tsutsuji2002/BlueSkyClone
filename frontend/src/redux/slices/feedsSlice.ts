@@ -488,11 +488,11 @@ const feedsSlice = createSlice({
                     action.type.endsWith('/bookmarkPost/fulfilled'),
                 (state: FeedsState, action: any) => {
                     const updatedPost = action.payload;
-                    if (!updatedPost || !updatedPost.id) return;
+                    if (!updatedPost || !updatedPost.postId) return;
 
                     Object.keys(state.feedPosts).forEach(feedId => {
                         const posts = state.feedPosts[feedId];
-                        const index = posts.findIndex(p => p.id === updatedPost.id);
+                        const index = posts.findIndex(p => p.id === updatedPost.postId);
                         if (index !== -1) {
                             posts[index] = {
                                 ...posts[index],

@@ -37,8 +37,9 @@ const SignUpPage: React.FC = () => {
     const handleNext = async () => {
         // Validate step 2: birthday must not be in the future
         if (step === 2 && formData.dateOfBirth) {
-            const today = new Date().toISOString().split('T')[0];
-            if (formData.dateOfBirth > today) {
+            const todayDate = new Date();
+            const localToday = new Date(todayDate.getTime() - todayDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+            if (formData.dateOfBirth > localToday) {
                 setFormErrors({ dateOfBirth: t('settings.birthdate_future_error', 'Birthday cannot be in the future') });
                 return;
             }
@@ -189,7 +190,7 @@ const SignUpPage: React.FC = () => {
                                         type="date"
                                         value={formData.dateOfBirth}
                                         onChange={(e) => { setFormData({ ...formData, dateOfBirth: e.target.value }); setFormErrors({}); }}
-                                        max={new Date().toISOString().split('T')[0]}
+                                        max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}
                                         error={formErrors.dateOfBirth}
                                         icon={
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

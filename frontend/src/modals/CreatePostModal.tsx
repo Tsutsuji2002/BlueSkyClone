@@ -114,29 +114,28 @@ const CreatePostModal: React.FC = () => {
         const isInitialDetection = !linkPreview && addedLink;
 
         if (addedLink && (isPaste || isEnterOrSpace || isInitialDetection)) {
-            const isDifferentLink = !stickyLink || (addedLink !== stickyLink && !stickyLink.startsWith(addedLink) && !addedLink.startsWith(stickyLink));
-            const isRePaste = stickyLink === addedLink && isPaste;
-            const isFallback = linkPreview && !linkPreview.image;
-
-            if (isDifferentLink || isRePaste || (isEnterOrSpace && (addedLink === stickyLink || isFallback))) {
-                const fetchMetadata = async () => {
-                    setIsLinkLoading(true);
-                    const metadata = await getLinkMetadata(addedLink);
-                    if (metadata) {
-                        if (dismissedLinks.has(addedLink)) {
-                            setDismissedLinks(prev => {
-                                const next = new Set(prev);
-                                next.delete(addedLink);
-                                return next;
-                            });
-                        }
-                        setStickyLink(addedLink);
-                        setLinkPreview(metadata);
-                    }
-                    setIsLinkLoading(false);
-                };
-                fetchMetadata();
+            if (linkPreview) {
+                // Do not replace existing link card based on user request
+                return;
             }
+
+            const fetchMetadata = async () => {
+                setIsLinkLoading(true);
+                const metadata = await getLinkMetadata(addedLink);
+                if (metadata) {
+                    if (dismissedLinks.has(addedLink)) {
+                        setDismissedLinks(prev => {
+                            const next = new Set(prev);
+                            next.delete(addedLink);
+                            return next;
+                        });
+                    }
+                    setStickyLink(addedLink);
+                    setLinkPreview(metadata);
+                }
+                setIsLinkLoading(false);
+            };
+            fetchMetadata();
         } else if (!stickyLink && matches.length > 0) {
             const firstLink = matches.find(link => !dismissedLinks.has(link));
             if (firstLink && (isPaste || isEnterOrSpace)) {

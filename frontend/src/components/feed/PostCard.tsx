@@ -60,6 +60,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
     const [showRemoveConfirm, setShowRemoveConfirm] = React.useState(false);
     const [isUnmuted, setIsUnmuted] = React.useState(false);
+    const [isExpanded, setIsExpanded] = React.useState(false);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
 
     const handleCardClick = () => {
@@ -339,11 +340,28 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                         {/* Curated List Caption - Removed to avoid duplication as requested */}
 
                         {/* Post Content */}
-
-                        <RichText
-                            content={post.content}
-                            className="text-[15px] text-gray-900 dark:text-dark-text mb-3 whitespace-pre-wrap break-words break-all leading-normal"
-                        />
+                        {(() => {
+                            const isLongContent = post.content && (post.content.length > 400 || post.content.split('\n').length > 6);
+                            return (
+                                <>
+                                    <div className={cn(
+                                        "text-[15px] text-gray-900 dark:text-dark-text whitespace-pre-wrap break-words break-all leading-normal",
+                                        !isExpanded && isLongContent ? "line-clamp-6" : "",
+                                        isLongContent ? "mb-1" : "mb-3"
+                                    )}>
+                                        <RichText content={post.content} />
+                                    </div>
+                                    {isLongContent && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+                                            className="text-primary-500 hover:underline text-[14px] mb-3 font-medium text-left -mt-1 block"
+                                        >
+                                            {isExpanded ? t('post.show_less', 'Show less') : t('post.show_more', 'Show more')}
+                                        </button>
+                                    )}
+                                </>
+                            );
+                        })()}
 
                         {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
 

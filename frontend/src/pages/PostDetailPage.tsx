@@ -5,7 +5,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post } from '../types';
 import { toggleLike, repostPost, bookmarkPost, deletePost, fetchPostById, fetchPostReplies } from '../redux/slices/postsSlice';
-import { openReply, openMobileMenu } from '../redux/slices/modalsSlice';
+import { openReply, openMobileMenu, openEditPost } from '../redux/slices/modalsSlice';
 import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -240,6 +240,12 @@ const PostDetailPage: React.FC = () => {
             onClick: () => { },
         },
         ...(currentUser?.id === post.author.id ? [
+            {
+                id: 'edit-post',
+                label: t('common.edit_post', 'Edit post'),
+                icon: <FiType />,
+                onClick: () => dispatch(openEditPost(post)),
+            },
             {
                 id: 'delete-post',
                 label: t('common.delete_post'),
