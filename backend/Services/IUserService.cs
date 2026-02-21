@@ -31,4 +31,6 @@ public interface IUserService
     Task<List<MutedWord>> GetMutedWordsAsync(Guid userId);
     Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior);
     Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId);
+    Task<List<string>> GetSelectedInterestsAsync(Guid userId);
+    Task SaveSelectedInterestsAsync(Guid userId, List<string> interests);
 }

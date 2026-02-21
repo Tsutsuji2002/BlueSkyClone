@@ -162,6 +162,27 @@ public class UserController : ControllerBase
         }
     }
 
+    [HttpGet("interests")]
+    public async Task<IActionResult> GetInterests()
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized();
+
+        var interests = await _userService.GetSelectedInterestsAsync(userId);
+        return Ok(interests);
+    }
+
+    [HttpPost("interests")]
+    public async Task<IActionResult> SaveInterests([FromBody] List<string> interests)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized();
+
+        await _userService.SaveSelectedInterestsAsync(userId, interests);
+        return Ok(new { success = true });
+    }
 
     [HttpGet("search")]
     public async Task<IActionResult> SearchUsers([FromQuery] string q, [FromQuery] int limit = 10)

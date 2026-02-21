@@ -289,6 +289,23 @@ export const fetchBookmarkedPosts = createAsyncThunk(
     }
 );
 
+export const fetchDiscoverPosts = createAsyncThunk(
+    'posts/fetchDiscover',
+    async ({ skip = 0, take = 10 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/Feeds/discover?skip=${skip}&take=${take}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch discover posts');
+            return { posts: data, skip };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 const postsSlice = createSlice({
     name: 'posts',
     initialState,
@@ -548,6 +565,26 @@ const postsSlice = createSlice({
                 state.hasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchPostsByTag.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Fetch Discover Posts
+            .addCase(fetchDiscoverPosts.pending, (state: PostsState, action) => {
+                state.isLoading = true;
+                if (action.meta.arg?.skip === 0 || !action.meta.arg) {
+                    state.posts = [];
+                }
+            })
+            .addCase(fetchDiscoverPosts.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], skip: number }>) => {
+                state.isLoading = false;
+                if (action.payload.skip === 0) {
+                    state.posts = action.payload.posts;
+                } else {
+                    state.posts = [...state.posts, ...action.payload.posts];
+                }
+                state.hasMore = action.payload.posts.length > 0;
+            })
+            .addCase(fetchDiscoverPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             });

@@ -7,7 +7,7 @@ import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts } from '../redux/slices/feedsSlice';
-import { fetchTimeline, fetchTrendingPosts } from '../redux/slices/postsSlice';
+import { fetchTimeline, fetchTrendingPosts, fetchDiscoverPosts } from '../redux/slices/postsSlice';
 import { RootState } from '../redux/store';
 import { useNavigate } from 'react-router-dom';
 import { FiHash, FiMenu } from 'react-icons/fi';
@@ -34,7 +34,7 @@ const HomePage: React.FC = () => {
         if (tabId === 'following') {
             dispatch(fetchTimeline());
         } else if (tabId === 'discover') {
-            dispatch(fetchTrendingPosts());
+            dispatch(fetchDiscoverPosts({}));
         } else {
             // It's a custom feed ID
             dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: 20 }));
@@ -56,11 +56,9 @@ const HomePage: React.FC = () => {
     ];
 
     // Get posts for the active feed
-    const currentPosts = activeTab === 'following'
+    const currentPosts = (activeTab === 'following' || activeTab === 'discover')
         ? reduxPosts
-        : activeTab === 'discover'
-            ? trendingPosts
-            : (feedPosts[activeTab] || []);
+        : (feedPosts[activeTab] || []);
 
     return (
         <MainLayout hideTopBar={true} title={t('nav.home')}>

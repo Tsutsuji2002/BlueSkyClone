@@ -110,6 +110,82 @@ public class CategorizationService : ICategorizationService
         return interest?.Id;
     }
 
+    /// <summary>
+    /// Scores a post against all categories using AI + keyword analysis.
+    /// Returns a map of category name → confidence score (0.0 to 1.0).
+    /// Used by the Discover feed ranking algorithm.
+    /// </summary>
+    public async Task<Dictionary<string, float>> ScorePostForDiscoverAsync(string content, List<string>? imageUrls = null)
+    {
+        var scores = new Dictionary<string, float>();
+        if (string.IsNullOrWhiteSpace(content) && (imageUrls == null || !imageUrls.Any()))
+            return scores;
+
+        var interests = await _unitOfWork.Interests.Query()
+            .Where(i => i.IsDeleted == false || i.IsDeleted == null)
+            .ToListAsync();
+
+        var contentLower = content?.ToLower() ?? "";
+
+        // 1. Text AI multi-label scores (0.0-1.0)
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                var textScores = await _mlService.PredictTextMultiLabelAsync(content);
+                foreach (var (category, confidence) in textScores)
+                {
+                    scores[category] = confidence * 0.6f; // Weight: 60% for text AI
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Text scoring error: {ex.Message}");
+        }
+
+        // 2. Keyword matching bonus
+        foreach (var interest in interests)
+        {
+            var keywords = GetKeywordsForInterest(interest.Name);
+            var matchCount = keywords.Count(k => contentLower.Contains(k));
+            if (matchCount > 0)
+            {
+                var keywordScore = Math.Min(matchCount * 0.1f, 0.3f); // Max 30% from keywords
+                if (scores.ContainsKey(interest.Name))
+                    scores[interest.Name] = Math.Min(1.0f, scores[interest.Name] + keywordScore);
+                else
+                    scores[interest.Name] = keywordScore;
+            }
+        }
+
+        // 3. Image AI multi-label scores
+        if (imageUrls != null && imageUrls.Any())
+        {
+            try
+            {
+                foreach (var url in imageUrls)
+                {
+                    var imageScores = await _mlService.PredictImageMultiLabelAsync(url);
+                    foreach (var (category, confidence) in imageScores)
+                    {
+                        var imageWeight = confidence * 0.4f; // Weight: 40% for image AI
+                        if (scores.ContainsKey(category))
+                            scores[category] = Math.Min(1.0f, scores[category] + imageWeight);
+                        else
+                            scores[category] = imageWeight;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Image scoring error: {ex.Message}");
+            }
+        }
+
+        return scores;
+    }
+
     private List<string> GetKeywordsForInterest(string interestName)
     {
         return interestName switch

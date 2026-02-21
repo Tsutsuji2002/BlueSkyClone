@@ -545,4 +545,40 @@ public class UserService : IUserService
         await _unitOfWork.CompleteAsync();
         return true;
     }
+
+    public async Task<List<string>> GetSelectedInterestsAsync(Guid userId)
+    {
+        var settings = await _unitOfWork.Users.Query()
+            .Where(u => u.Id == userId)
+            .Select(u => u.UserSetting)
+            .FirstOrDefaultAsync();
+
+        if (settings?.SelectedInterests == null) return new List<string>();
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(settings.SelectedInterests) ?? new List<string>();
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
+
+    public async Task SaveSelectedInterestsAsync(Guid userId, List<string> interests)
+    {
+        var user = await _unitOfWork.Users.Query()
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null) throw new Exception("User not found");
+
+        if (user.UserSetting == null)
+        {
+            user.UserSetting = new UserSetting { UserId = userId };
+        }
+
+        user.UserSetting.SelectedInterests = System.Text.Json.JsonSerializer.Serialize(interests);
+        await _unitOfWork.CompleteAsync();
+    }
 }

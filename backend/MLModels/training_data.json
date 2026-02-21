@@ -1,0 +1,1490 @@
+[
+    {
+        "text": "I love coding in Python and building AI models",
+        "label": "Tech"
+    },
+    {
+        "text": "Machine learning with PyTorch and TensorFlow",
+        "label": "Tech"
+    },
+    {
+        "text": "Backend development with ASP.NET Core and C#",
+        "label": "Tech"
+    },
+    {
+        "text": "Frontend React component library with TypeScript",
+        "label": "Tech"
+    },
+    {
+        "text": "Docker containerize my application for deployment",
+        "label": "Tech"
+    },
+    {
+        "text": "Kubernetes cluster deployment and scaling",
+        "label": "Tech"
+    },
+    {
+        "text": "JavaScript framework comparison: React vs Vue vs Angular",
+        "label": "Tech"
+    },
+    {
+        "text": "Database optimization for SQL Server performance",
+        "label": "Tech"
+    },
+    {
+        "text": "Building microservices architecture with gRPC",
+        "label": "Tech"
+    },
+    {
+        "text": "Cloud computing with AWS Lambda and serverless",
+        "label": "Tech"
+    },
+    {
+        "text": "Git version control best practices for teams",
+        "label": "Tech"
+    },
+    {
+        "text": "REST API design patterns and OpenAPI specification",
+        "label": "Tech"
+    },
+    {
+        "text": "Neural networks and deep learning fundamentals",
+        "label": "Tech"
+    },
+    {
+        "text": "Cybersecurity best practices for web applications",
+        "label": "Tech"
+    },
+    {
+        "text": "DevOps CI/CD pipeline with GitHub Actions",
+        "label": "Tech"
+    },
+    {
+        "text": "Redis caching strategies for high-traffic apps",
+        "label": "Tech"
+    },
+    {
+        "text": "GraphQL vs REST: choosing the right API paradigm",
+        "label": "Tech"
+    },
+    {
+        "text": "WebSocket real-time communication implementation",
+        "label": "Tech"
+    },
+    {
+        "text": "Natural language processing with transformer models",
+        "label": "Tech"
+    },
+    {
+        "text": "Blockchain and smart contract development in Solidity",
+        "label": "Tech"
+    },
+    {
+        "text": "Lập trình C# cơ bản cho người mới bắt đầu",
+        "label": "Tech"
+    },
+    {
+        "text": "Hướng dẫn học Python cho data science",
+        "label": "Tech"
+    },
+    {
+        "text": "Phát triển web với React và Node.js hiện đại",
+        "label": "Tech"
+    },
+    {
+        "text": "Công nghệ AI đang thay đổi thế giới như thế nào",
+        "label": "Tech"
+    },
+    {
+        "text": "Mã nguồn mở Github rất hữu ích cho developer",
+        "label": "Tech"
+    },
+    {
+        "text": "Cách fix bug hiệu quả trong dự án phần mềm",
+        "label": "Tech"
+    },
+    {
+        "text": "Triển khai Docker cho ứng dụng web production",
+        "label": "Tech"
+    },
+    {
+        "text": "Lập trình viên fullstack nên học công nghệ gì",
+        "label": "Tech"
+    },
+    {
+        "text": "Học máy và trí tuệ nhân tạo chuyên sâu",
+        "label": "Tech"
+    },
+    {
+        "text": "Tối ưu hóa cơ sở dữ liệu để tăng hiệu suất",
+        "label": "Tech"
+    },
+    {
+        "text": "Xu hướng công nghệ phần mềm năm 2025",
+        "label": "Tech"
+    },
+    {
+        "text": "Kiến trúc microservices cho hệ thống lớn",
+        "label": "Tech"
+    },
+    {
+        "text": "Bảo mật ứng dụng web chống tấn công SQL injection",
+        "label": "Tech"
+    },
+    {
+        "text": "Thuật toán sắp xếp và tìm kiếm hiệu quả",
+        "label": "Tech"
+    },
+    {
+        "text": "API gateway và load balancing cho backend",
+        "label": "Tech"
+    },
+    {
+        "text": "Developing a mobile app with React Native and Expo",
+        "label": "Tech"
+    },
+    {
+        "text": "Linux server administration and shell scripting",
+        "label": "Tech"
+    },
+    {
+        "text": "Rust programming language for systems development",
+        "label": "Tech"
+    },
+    {
+        "text": "Computer vision with OpenCV and YOLO detection",
+        "label": "Tech"
+    },
+    {
+        "text": "Quantum computing basics and qubits explained",
+        "label": "Tech"
+    },
+    {
+        "text": "Embedded systems programming with Arduino and ESP32",
+        "label": "Tech"
+    },
+    {
+        "text": "Data engineering with Apache Spark and Kafka",
+        "label": "Tech"
+    },
+    {
+        "text": "Just finished an oil painting on canvas",
+        "label": "Art"
+    },
+    {
+        "text": "Digital art is so much fun with Procreate",
+        "label": "Art"
+    },
+    {
+        "text": "Sketching portrait of a friend in charcoal",
+        "label": "Art"
+    },
+    {
+        "text": "Watercolor landscape tutorial for beginners",
+        "label": "Art"
+    },
+    {
+        "text": "3D modeling with Blender for game assets",
+        "label": "Art"
+    },
+    {
+        "text": "Character design and illustration process",
+        "label": "Art"
+    },
+    {
+        "text": "Concept art for my upcoming video game project",
+        "label": "Art"
+    },
+    {
+        "text": "Abstract art gallery exhibition downtown",
+        "label": "Art"
+    },
+    {
+        "text": "Sculpting with clay and creating ceramic art",
+        "label": "Art"
+    },
+    {
+        "text": "Street art and graffiti murals in the city",
+        "label": "Art"
+    },
+    {
+        "text": "Pixel art animation for indie game development",
+        "label": "Art"
+    },
+    {
+        "text": "Art history: Renaissance masters and their techniques",
+        "label": "Art"
+    },
+    {
+        "text": "Calligraphy and hand lettering workshop",
+        "label": "Art"
+    },
+    {
+        "text": "Mixed media collage with paper and fabric",
+        "label": "Art"
+    },
+    {
+        "text": "Printmaking techniques: woodcut and linocut",
+        "label": "Art"
+    },
+    {
+        "text": "Drawing anatomy for artists: human figure studies",
+        "label": "Art"
+    },
+    {
+        "text": "Color theory and palette selection for designers",
+        "label": "Art"
+    },
+    {
+        "text": "Digital painting workflow in Photoshop",
+        "label": "Art"
+    },
+    {
+        "text": "Art commission: creating custom portraits for clients",
+        "label": "Art"
+    },
+    {
+        "text": "Zentangle patterns and meditative drawing",
+        "label": "Art"
+    },
+    {
+        "text": "Vẽ tranh sơn dầu phong cảnh đẹp thiên nhiên",
+        "label": "Art"
+    },
+    {
+        "text": "Hướng dẫn vẽ digital art cho người mới bắt đầu",
+        "label": "Art"
+    },
+    {
+        "text": "Phác thảo chân dung bằng bút chì than",
+        "label": "Art"
+    },
+    {
+        "text": "Triển lãm nghệ thuật đương đại tại bảo tàng",
+        "label": "Art"
+    },
+    {
+        "text": "Thiết kế nhân vật anime cực chất và sáng tạo",
+        "label": "Art"
+    },
+    {
+        "text": "Mỹ thuật và hội họa truyền thống Việt Nam",
+        "label": "Art"
+    },
+    {
+        "text": "Nghệ thuật gốm sứ và điêu khắc đất sét",
+        "label": "Art"
+    },
+    {
+        "text": "Vẽ tranh màu nước phong cảnh biển đảo",
+        "label": "Art"
+    },
+    {
+        "text": "Nghệ thuật graffiti đường phố sáng tạo",
+        "label": "Art"
+    },
+    {
+        "text": "Thiết kế đồ họa với Adobe Illustrator",
+        "label": "Art"
+    },
+    {
+        "text": "Professional portrait photography with natural light",
+        "label": "Photography"
+    },
+    {
+        "text": "Landscape photography at golden hour sunset",
+        "label": "Photography"
+    },
+    {
+        "text": "Street photography capturing urban life moments",
+        "label": "Photography"
+    },
+    {
+        "text": "Macro photography of insects and tiny flowers",
+        "label": "Photography"
+    },
+    {
+        "text": "Night sky astrophotography with long exposure",
+        "label": "Photography"
+    },
+    {
+        "text": "Wedding photography tips for perfect candid shots",
+        "label": "Photography"
+    },
+    {
+        "text": "Drone aerial photography of stunning landscapes",
+        "label": "Photography"
+    },
+    {
+        "text": "Black and white photography editing techniques",
+        "label": "Photography"
+    },
+    {
+        "text": "Camera lens comparison: 50mm vs 85mm for portraits",
+        "label": "Photography"
+    },
+    {
+        "text": "RAW photo editing in Lightroom and Capture One",
+        "label": "Photography"
+    },
+    {
+        "text": "Food photography styling and composition tips",
+        "label": "Photography"
+    },
+    {
+        "text": "Travel photography gear essentials for backpacking",
+        "label": "Photography"
+    },
+    {
+        "text": "Architecture photography of modern buildings",
+        "label": "Photography"
+    },
+    {
+        "text": "Wildlife photography in national parks",
+        "label": "Photography"
+    },
+    {
+        "text": "Underwater photography with GoPro equipment",
+        "label": "Photography"
+    },
+    {
+        "text": "Film photography: shooting with 35mm analog cameras",
+        "label": "Photography"
+    },
+    {
+        "text": "Photo editing workflow for social media content",
+        "label": "Photography"
+    },
+    {
+        "text": "Studio lighting setup for product photography",
+        "label": "Photography"
+    },
+    {
+        "text": "Panoramic photography and HDR techniques",
+        "label": "Photography"
+    },
+    {
+        "text": "Documentary photography telling real stories",
+        "label": "Photography"
+    },
+    {
+        "text": "Chụp ảnh chân dung với ánh sáng tự nhiên",
+        "label": "Photography"
+    },
+    {
+        "text": "Nhiếp ảnh phong cảnh hoàng hôn tuyệt đẹp",
+        "label": "Photography"
+    },
+    {
+        "text": "Kỹ thuật chụp ảnh đường phố sáng tạo",
+        "label": "Photography"
+    },
+    {
+        "text": "Chụp ảnh macro côn trùng và hoa nhỏ",
+        "label": "Photography"
+    },
+    {
+        "text": "Chụp ảnh thiên văn bầu trời đêm đầy sao",
+        "label": "Photography"
+    },
+    {
+        "text": "Chụp ảnh sản phẩm cho thương mại điện tử",
+        "label": "Photography"
+    },
+    {
+        "text": "So sánh ống kính máy ảnh Canon và Sony",
+        "label": "Photography"
+    },
+    {
+        "text": "Chỉnh sửa ảnh RAW bằng Lightroom chuyên nghiệp",
+        "label": "Photography"
+    },
+    {
+        "text": "Nhiếp ảnh gia nghiệp dư chia sẻ kinh nghiệm",
+        "label": "Photography"
+    },
+    {
+        "text": "Chụp ảnh du lịch đẹp với điện thoại",
+        "label": "Photography"
+    },
+    {
+        "text": "The game graphics on PS5 are absolutely stunning",
+        "label": "Gaming"
+    },
+    {
+        "text": "Xbox Game Pass just added amazing new titles",
+        "label": "Gaming"
+    },
+    {
+        "text": "Steam Deck portable gaming on the go",
+        "label": "Gaming"
+    },
+    {
+        "text": "Esports tournament live stream with huge prizes",
+        "label": "Gaming"
+    },
+    {
+        "text": "League of Legends Worlds Championship matches",
+        "label": "Gaming"
+    },
+    {
+        "text": "RPG games with deep storytelling and choices",
+        "label": "Gaming"
+    },
+    {
+        "text": "FPS competitive gaming tactics and strategies",
+        "label": "Gaming"
+    },
+    {
+        "text": "Nintendo Switch new releases and first impressions",
+        "label": "Gaming"
+    },
+    {
+        "text": "Indie game development with Unity engine",
+        "label": "Gaming"
+    },
+    {
+        "text": "Speedrunning world records in classic games",
+        "label": "Gaming"
+    },
+    {
+        "text": "Open world survival crafting game review",
+        "label": "Gaming"
+    },
+    {
+        "text": "Retro gaming: revisiting SNES and Genesis classics",
+        "label": "Gaming"
+    },
+    {
+        "text": "Virtual reality gaming with Meta Quest headset",
+        "label": "Gaming"
+    },
+    {
+        "text": "Twitch streaming setup and tips for beginners",
+        "label": "Gaming"
+    },
+    {
+        "text": "Mobile gaming: best free-to-play games this month",
+        "label": "Gaming"
+    },
+    {
+        "text": "Game modding community creating amazing content",
+        "label": "Gaming"
+    },
+    {
+        "text": "Soulslike games difficulty and boss fight strategies",
+        "label": "Gaming"
+    },
+    {
+        "text": "Multiplayer co-op games to play with friends",
+        "label": "Gaming"
+    },
+    {
+        "text": "Gaming PC build guide for 4K resolution",
+        "label": "Gaming"
+    },
+    {
+        "text": "Upcoming game releases and trailers this quarter",
+        "label": "Gaming"
+    },
+    {
+        "text": "Trải nghiệm game hành động cực đỉnh trên PS5",
+        "label": "Gaming"
+    },
+    {
+        "text": "Livestream game Liên Quân Mobile rank cao thủ",
+        "label": "Gaming"
+    },
+    {
+        "text": "Giải đấu thể thao điện tử chuyên nghiệp",
+        "label": "Gaming"
+    },
+    {
+        "text": "Review máy chơi game Nintendo Switch OLED",
+        "label": "Gaming"
+    },
+    {
+        "text": "Game nhập vai hay nhất năm nay với cốt truyện hay",
+        "label": "Gaming"
+    },
+    {
+        "text": "Tải game miễn phí trên kho ứng dụng Steam",
+        "label": "Gaming"
+    },
+    {
+        "text": "Hướng dẫn build PC gaming cho người mới",
+        "label": "Gaming"
+    },
+    {
+        "text": "Game indie Việt Nam phát triển đầy tiềm năng",
+        "label": "Gaming"
+    },
+    {
+        "text": "Esports Việt Nam vươn tầm quốc tế",
+        "label": "Gaming"
+    },
+    {
+        "text": "Chiến thuật chơi game chiến lược thời gian thực",
+        "label": "Gaming"
+    },
+    {
+        "text": "Hiking through the beautiful forest trails",
+        "label": "Nature"
+    },
+    {
+        "text": "Check out this stunning sunset over the ocean",
+        "label": "Nature"
+    },
+    {
+        "text": "Mountain landscape with snow-capped peaks",
+        "label": "Nature"
+    },
+    {
+        "text": "Wildlife spotted in the national park today",
+        "label": "Nature"
+    },
+    {
+        "text": "Ocean waves crashing on the sandy beach",
+        "label": "Nature"
+    },
+    {
+        "text": "Camping under the clear starlit sky tonight",
+        "label": "Nature"
+    },
+    {
+        "text": "Beautiful garden with colorful spring flowers",
+        "label": "Nature"
+    },
+    {
+        "text": "Protecting the environment and fighting climate change",
+        "label": "Nature"
+    },
+    {
+        "text": "Bird watching in the wetlands and marshes",
+        "label": "Nature"
+    },
+    {
+        "text": "Tropical rainforest biodiversity exploration",
+        "label": "Nature"
+    },
+    {
+        "text": "Northern lights aurora borealis photography",
+        "label": "Nature"
+    },
+    {
+        "text": "Coral reef conservation and marine biology",
+        "label": "Nature"
+    },
+    {
+        "text": "Desert landscape with sand dunes at dawn",
+        "label": "Nature"
+    },
+    {
+        "text": "Waterfall hiking adventure in the wilderness",
+        "label": "Nature"
+    },
+    {
+        "text": "Planting trees for reforestation project",
+        "label": "Nature"
+    },
+    {
+        "text": "Endangered species protection and wildlife sanctuary",
+        "label": "Nature"
+    },
+    {
+        "text": "Fresh morning dew on green leaves in the park",
+        "label": "Nature"
+    },
+    {
+        "text": "Organic gardening and sustainable farming",
+        "label": "Nature"
+    },
+    {
+        "text": "River kayaking through scenic canyon valleys",
+        "label": "Nature"
+    },
+    {
+        "text": "Weather patterns and storm chasing adventures",
+        "label": "Nature"
+    },
+    {
+        "text": "Khám phá rừng nguyên sinh đại ngàn Việt Nam",
+        "label": "Nature"
+    },
+    {
+        "text": "Leo núi Fansipan ngắm mây mờ và sương sớm",
+        "label": "Nature"
+    },
+    {
+        "text": "Bảo tồn động vật hoang dã quý hiếm tại VQG",
+        "label": "Nature"
+    },
+    {
+        "text": "Vẻ đẹp của biển xanh cát trắng Phú Quốc",
+        "label": "Nature"
+    },
+    {
+        "text": "Hoàng hôn trên sông Mekong rất lãng mạn",
+        "label": "Nature"
+    },
+    {
+        "text": "Môi trường xanh sạch đẹp cho tương lai",
+        "label": "Nature"
+    },
+    {
+        "text": "Thác nước hùng vĩ giữa rừng già nguyên sinh",
+        "label": "Nature"
+    },
+    {
+        "text": "Vườn hoa tulip nở rộ vào mùa xuân",
+        "label": "Nature"
+    },
+    {
+        "text": "Thiên nhiên kỳ vĩ nhìn từ trên cao",
+        "label": "Nature"
+    },
+    {
+        "text": "Trồng cây xanh bảo vệ lá phổi xanh trái đất",
+        "label": "Nature"
+    },
+    {
+        "text": "New album from my favorite artist just dropped",
+        "label": "Music"
+    },
+    {
+        "text": "Piano concerto live performance at the hall",
+        "label": "Music"
+    },
+    {
+        "text": "Guitar solo performance that blew my mind",
+        "label": "Music"
+    },
+    {
+        "text": "Rock bands live in concert amazing energy",
+        "label": "Music"
+    },
+    {
+        "text": "Jazz music for relaxing and studying at night",
+        "label": "Music"
+    },
+    {
+        "text": "Pop star music video premiere with millions of views",
+        "label": "Music"
+    },
+    {
+        "text": "Learning to play ukulele from YouTube tutorials",
+        "label": "Music"
+    },
+    {
+        "text": "Classical symphony orchestra performance review",
+        "label": "Music"
+    },
+    {
+        "text": "Hip hop beats production in FL Studio",
+        "label": "Music"
+    },
+    {
+        "text": "Electronic dance music festival highlights",
+        "label": "Music"
+    },
+    {
+        "text": "Singer songwriter sharing original acoustic tracks",
+        "label": "Music"
+    },
+    {
+        "text": "Vinyl record collection and turntable setup",
+        "label": "Music"
+    },
+    {
+        "text": "Music theory: understanding chord progressions",
+        "label": "Music"
+    },
+    {
+        "text": "K-pop group comeback with new single release",
+        "label": "Music"
+    },
+    {
+        "text": "Country music awards show best performances",
+        "label": "Music"
+    },
+    {
+        "text": "Soundtrack composing for films and video games",
+        "label": "Music"
+    },
+    {
+        "text": "Lo-fi beats playlist for work and concentration",
+        "label": "Music"
+    },
+    {
+        "text": "Choir singing and vocal harmony techniques",
+        "label": "Music"
+    },
+    {
+        "text": "Music streaming platforms comparison: Spotify vs Apple",
+        "label": "Music"
+    },
+    {
+        "text": "Drum practice routine for intermediate players",
+        "label": "Music"
+    },
+    {
+        "text": "Hòa nhạc cổ điển thính phòng cuối tuần",
+        "label": "Music"
+    },
+    {
+        "text": "Ca sĩ trẻ Việt Nam ra mắt MV cực hot",
+        "label": "Music"
+    },
+    {
+        "text": "Học đàn guitar cho người mới bắt đầu",
+        "label": "Music"
+    },
+    {
+        "text": "Nhạc trẻ hot nhất bảng xếp hạng tuần này",
+        "label": "Music"
+    },
+    {
+        "text": "Phòng trà ca nhạc acoustic cuối tuần thư giãn",
+        "label": "Music"
+    },
+    {
+        "text": "Nhạc sĩ sáng tác ca khúc hit triệu view",
+        "label": "Music"
+    },
+    {
+        "text": "Lễ hội âm nhạc lớn nhất năm sắp diễn ra",
+        "label": "Music"
+    },
+    {
+        "text": "Nhạc cụ truyền thống Việt Nam đàn bầu đàn tranh",
+        "label": "Music"
+    },
+    {
+        "text": "Rapper underground và văn hóa hip hop Việt",
+        "label": "Music"
+    },
+    {
+        "text": "Karaoke online hát cùng bạn bè vui nhộn",
+        "label": "Music"
+    },
+    {
+        "text": "Breaking news: major earthquake hits the region",
+        "label": "News"
+    },
+    {
+        "text": "Global economy update and stock market analysis",
+        "label": "News"
+    },
+    {
+        "text": "Election results and political analysis coverage",
+        "label": "News"
+    },
+    {
+        "text": "Health news: new vaccine development breakthrough",
+        "label": "News"
+    },
+    {
+        "text": "Technology industry layoffs and hiring trends",
+        "label": "News"
+    },
+    {
+        "text": "International summit on climate change action",
+        "label": "News"
+    },
+    {
+        "text": "Local community news and city council decisions",
+        "label": "News"
+    },
+    {
+        "text": "Financial markets react to central bank decisions",
+        "label": "News"
+    },
+    {
+        "text": "Investigative journalism exposes corporate fraud",
+        "label": "News"
+    },
+    {
+        "text": "Supreme Court ruling on constitutional matters",
+        "label": "News"
+    },
+    {
+        "text": "Immigration policy debate and reform proposals",
+        "label": "News"
+    },
+    {
+        "text": "Natural disaster relief efforts and donations",
+        "label": "News"
+    },
+    {
+        "text": "Press freedom and media independence report",
+        "label": "News"
+    },
+    {
+        "text": "UN General Assembly addresses global conflicts",
+        "label": "News"
+    },
+    {
+        "text": "Consumer protection laws and new regulations",
+        "label": "News"
+    },
+    {
+        "text": "Trade deals between nations affect markets",
+        "label": "News"
+    },
+    {
+        "text": "Education system reform and policy changes",
+        "label": "News"
+    },
+    {
+        "text": "Public health crisis response and containment",
+        "label": "News"
+    },
+    {
+        "text": "Military conflict updates from war correspondents",
+        "label": "News"
+    },
+    {
+        "text": "Annual report on global human rights progress",
+        "label": "News"
+    },
+    {
+        "text": "Bản tin thời sự tối nay có những gì nổi bật",
+        "label": "News"
+    },
+    {
+        "text": "Tin tức nóng hổi trong 24 giờ qua toàn cầu",
+        "label": "News"
+    },
+    {
+        "text": "Tình hình kinh tế thế giới biến động mạnh",
+        "label": "News"
+    },
+    {
+        "text": "Thông tin mới nhất về chính sách và luật pháp",
+        "label": "News"
+    },
+    {
+        "text": "Báo chí và truyền thông hiện đại phát triển",
+        "label": "News"
+    },
+    {
+        "text": "Tổng hợp tin tức trong nước và quốc tế",
+        "label": "News"
+    },
+    {
+        "text": "Diễn biến mới về tình hình thời tiết bão lũ",
+        "label": "News"
+    },
+    {
+        "text": "Kết quả bầu cử và phân tích chính trị",
+        "label": "News"
+    },
+    {
+        "text": "Tin tức giáo dục: đổi mới chương trình học",
+        "label": "News"
+    },
+    {
+        "text": "Cập nhật thị trường chứng khoán hôm nay",
+        "label": "News"
+    },
+    {
+        "text": "Government policy debate on healthcare reform",
+        "label": "Politics"
+    },
+    {
+        "text": "Presidential election campaign and voter turnout",
+        "label": "Politics"
+    },
+    {
+        "text": "Congressional hearing on tech regulation bills",
+        "label": "Politics"
+    },
+    {
+        "text": "International diplomacy and peace negotiations",
+        "label": "Politics"
+    },
+    {
+        "text": "Political party platform and ideological differences",
+        "label": "Politics"
+    },
+    {
+        "text": "Lobbying and campaign finance transparency",
+        "label": "Politics"
+    },
+    {
+        "text": "State legislature passes new education bill",
+        "label": "Politics"
+    },
+    {
+        "text": "Political activism and grassroots organizing",
+        "label": "Politics"
+    },
+    {
+        "text": "Geopolitical tensions rise between major powers",
+        "label": "Politics"
+    },
+    {
+        "text": "Democracy index and freedom rankings report",
+        "label": "Politics"
+    },
+    {
+        "text": "Tax policy reform and implications for citizens",
+        "label": "Politics"
+    },
+    {
+        "text": "Local mayor election results and new administration",
+        "label": "Politics"
+    },
+    {
+        "text": "Sanctions imposed on countries for human rights",
+        "label": "Politics"
+    },
+    {
+        "text": "Political satire and commentary on current events",
+        "label": "Politics"
+    },
+    {
+        "text": "Voter registration drive and civic engagement",
+        "label": "Politics"
+    },
+    {
+        "text": "Parliament approves controversial new legislation",
+        "label": "Politics"
+    },
+    {
+        "text": "Foreign policy shifts and alliance changes",
+        "label": "Politics"
+    },
+    {
+        "text": "Political debate on social welfare programs",
+        "label": "Politics"
+    },
+    {
+        "text": "Public opinion polls ahead of upcoming elections",
+        "label": "Politics"
+    },
+    {
+        "text": "Prime minister addresses nation on economic crisis",
+        "label": "Politics"
+    },
+    {
+        "text": "Chính trị quốc tế: hội nghị thượng đỉnh G20",
+        "label": "Politics"
+    },
+    {
+        "text": "Bầu cử tổng thống và chính sách mới",
+        "label": "Politics"
+    },
+    {
+        "text": "Chính phủ ban hành nghị định mới về kinh tế",
+        "label": "Politics"
+    },
+    {
+        "text": "Quốc hội thảo luận dự thảo luật quan trọng",
+        "label": "Politics"
+    },
+    {
+        "text": "Ngoại giao và quan hệ quốc tế phát triển",
+        "label": "Politics"
+    },
+    {
+        "text": "Chính sách an sinh xã hội cho người dân",
+        "label": "Politics"
+    },
+    {
+        "text": "Phân tích tình hình chính trị trong nước",
+        "label": "Politics"
+    },
+    {
+        "text": "Cải cách hành chính và hiệu quả quản lý",
+        "label": "Politics"
+    },
+    {
+        "text": "Đảng phái chính trị và cương lĩnh hoạt động",
+        "label": "Politics"
+    },
+    {
+        "text": "Luật pháp và quyền công dân trong xã hội",
+        "label": "Politics"
+    },
+    {
+        "text": "New Marvel superhero movie trailer just released",
+        "label": "Movies"
+    },
+    {
+        "text": "Oscar nominations and ceremony predictions",
+        "label": "Movies"
+    },
+    {
+        "text": "Film review: stunning cinematography and acting",
+        "label": "Movies"
+    },
+    {
+        "text": "Netflix original series binge-worthy recommendations",
+        "label": "Movies"
+    },
+    {
+        "text": "Director interview about upcoming blockbuster film",
+        "label": "Movies"
+    },
+    {
+        "text": "Horror movie marathon for Halloween weekend",
+        "label": "Movies"
+    },
+    {
+        "text": "Animation studio releases behind-the-scenes footage",
+        "label": "Movies"
+    },
+    {
+        "text": "Documentary film about ocean conservation premieres",
+        "label": "Movies"
+    },
+    {
+        "text": "Comedy movie cast interview on late night show",
+        "label": "Movies"
+    },
+    {
+        "text": "Sci-fi film special effects and CGI breakdown",
+        "label": "Movies"
+    },
+    {
+        "text": "Film festival screening schedule and highlights",
+        "label": "Movies"
+    },
+    {
+        "text": "Classic movie restoration in 4K UHD remaster",
+        "label": "Movies"
+    },
+    {
+        "text": "Action thriller box office numbers this weekend",
+        "label": "Movies"
+    },
+    {
+        "text": "Romantic drama filming locations around the world",
+        "label": "Movies"
+    },
+    {
+        "text": "Sequel announced for popular franchise movie",
+        "label": "Movies"
+    },
+    {
+        "text": "Foreign language film wins international award",
+        "label": "Movies"
+    },
+    {
+        "text": "Streaming wars: HBO Max vs Disney Plus content",
+        "label": "Movies"
+    },
+    {
+        "text": "Indie film showing at Sundance Film Festival",
+        "label": "Movies"
+    },
+    {
+        "text": "Movie soundtrack composer talks about creative process",
+        "label": "Movies"
+    },
+    {
+        "text": "Anime movie breaks global box office records",
+        "label": "Movies"
+    },
+    {
+        "text": "Phim bom tấn Marvel mới chiếu rạp tuần này",
+        "label": "Movies"
+    },
+    {
+        "text": "Review phim điện ảnh: kịch bản hay diễn xuất tốt",
+        "label": "Movies"
+    },
+    {
+        "text": "Danh sách phim Netflix đáng xem tháng này",
+        "label": "Movies"
+    },
+    {
+        "text": "Phim hoạt hình anime Nhật Bản mới ra mắt",
+        "label": "Movies"
+    },
+    {
+        "text": "Liên hoan phim quốc tế tại Cannes năm nay",
+        "label": "Movies"
+    },
+    {
+        "text": "Phim truyền hình Hàn Quốc đang gây sốt",
+        "label": "Movies"
+    },
+    {
+        "text": "Đạo diễn chia sẻ hậu trường quay phim mới",
+        "label": "Movies"
+    },
+    {
+        "text": "Phim kinh dị hay nhất cho mùa Halloween",
+        "label": "Movies"
+    },
+    {
+        "text": "Doanh thu phòng vé trong nước tuần qua",
+        "label": "Movies"
+    },
+    {
+        "text": "Phim tài liệu về lịch sử và văn hóa",
+        "label": "Movies"
+    },
+    {
+        "text": "Space telescope discovers new exoplanet system",
+        "label": "Science"
+    },
+    {
+        "text": "Quantum physics breakthrough at research lab",
+        "label": "Science"
+    },
+    {
+        "text": "Biology study reveals new species in deep ocean",
+        "label": "Science"
+    },
+    {
+        "text": "Mars rover sends back stunning photographs",
+        "label": "Science"
+    },
+    {
+        "text": "Gene editing CRISPR technology advances rapidly",
+        "label": "Science"
+    },
+    {
+        "text": "Climate science research on rising temperatures",
+        "label": "Science"
+    },
+    {
+        "text": "Neuroscience study maps brain neural pathways",
+        "label": "Science"
+    },
+    {
+        "text": "Chemistry innovation for renewable energy storage",
+        "label": "Science"
+    },
+    {
+        "text": "Archaeological discovery of ancient civilization ruins",
+        "label": "Science"
+    },
+    {
+        "text": "Astronomy event: rare planetary alignment tonight",
+        "label": "Science"
+    },
+    {
+        "text": "Particle physics experiment at CERN collider",
+        "label": "Science"
+    },
+    {
+        "text": "Paleontology: new dinosaur fossil discovered",
+        "label": "Science"
+    },
+    {
+        "text": "Medical research breakthrough in cancer treatment",
+        "label": "Science"
+    },
+    {
+        "text": "Rocket launch for International Space Station resupply",
+        "label": "Science"
+    },
+    {
+        "text": "Ocean chemistry and acidification study results",
+        "label": "Science"
+    },
+    {
+        "text": "Genetic research reveals human migration patterns",
+        "label": "Science"
+    },
+    {
+        "text": "Nuclear fusion experiment achieves net energy gain",
+        "label": "Science"
+    },
+    {
+        "text": "Telescope images of distant galaxies and nebulae",
+        "label": "Science"
+    },
+    {
+        "text": "Stem cell research progress for organ regeneration",
+        "label": "Science"
+    },
+    {
+        "text": "Vaccine development using mRNA technology platform",
+        "label": "Science"
+    },
+    {
+        "text": "Khoa học vũ trụ phát hiện hành tinh mới",
+        "label": "Science"
+    },
+    {
+        "text": "Nghiên cứu vật lý lượng tử tiến bộ vượt bậc",
+        "label": "Science"
+    },
+    {
+        "text": "Sinh vật học phát hiện loài mới dưới đáy biển",
+        "label": "Science"
+    },
+    {
+        "text": "Tàu thăm dò sao Hỏa gửi về hình ảnh mới",
+        "label": "Science"
+    },
+    {
+        "text": "Công nghệ chỉnh sửa gen CRISPR đạt bước tiến",
+        "label": "Science"
+    },
+    {
+        "text": "Nghiên cứu khí hậu cảnh báo nhiệt độ tăng cao",
+        "label": "Science"
+    },
+    {
+        "text": "Khảo cổ phát hiện di tích nền văn minh cổ đại",
+        "label": "Science"
+    },
+    {
+        "text": "Khoa học thần kinh lập bản đồ não bộ con người",
+        "label": "Science"
+    },
+    {
+        "text": "Hóa học xanh tạo năng lượng tái tạo sạch",
+        "label": "Science"
+    },
+    {
+        "text": "Phóng tên lửa đưa vệ tinh lên quỹ đạo",
+        "label": "Science"
+    },
+    {
+        "text": "Premier League football match highlights and goals",
+        "label": "Sports"
+    },
+    {
+        "text": "NBA basketball playoff series game recap",
+        "label": "Sports"
+    },
+    {
+        "text": "Tennis Grand Slam tournament final results",
+        "label": "Sports"
+    },
+    {
+        "text": "Olympic Games athlete training and preparation",
+        "label": "Sports"
+    },
+    {
+        "text": "World Cup soccer qualification matches schedule",
+        "label": "Sports"
+    },
+    {
+        "text": "Marathon running training plan for beginners",
+        "label": "Sports"
+    },
+    {
+        "text": "Boxing championship fight night live coverage",
+        "label": "Sports"
+    },
+    {
+        "text": "Swimming world record broken at championships",
+        "label": "Sports"
+    },
+    {
+        "text": "Formula One race results and driver standings",
+        "label": "Sports"
+    },
+    {
+        "text": "Cricket test match between rival nations",
+        "label": "Sports"
+    },
+    {
+        "text": "Golf Masters tournament leaderboard updates",
+        "label": "Sports"
+    },
+    {
+        "text": "Rugby World Cup semifinals preview",
+        "label": "Sports"
+    },
+    {
+        "text": "Track and field: 100m sprint new record",
+        "label": "Sports"
+    },
+    {
+        "text": "Volleyball league final match highlights",
+        "label": "Sports"
+    },
+    {
+        "text": "Cycling Tour de France stage results",
+        "label": "Sports"
+    },
+    {
+        "text": "MMA UFC championship fight card announcement",
+        "label": "Sports"
+    },
+    {
+        "text": "Baseball MLB World Series predictions",
+        "label": "Sports"
+    },
+    {
+        "text": "Ice hockey Stanley Cup playoffs coverage",
+        "label": "Sports"
+    },
+    {
+        "text": "Gymnastics competition scoring and routines",
+        "label": "Sports"
+    },
+    {
+        "text": "Surfing world championship at Pipeline Hawaii",
+        "label": "Sports"
+    },
+    {
+        "text": "Trận bóng đá V-League kết quả và bàn thắng",
+        "label": "Sports"
+    },
+    {
+        "text": "Đội tuyển Việt Nam thi đấu vòng loại World Cup",
+        "label": "Sports"
+    },
+    {
+        "text": "Cầu thủ chuyển nhượng giữa mùa giải ngoại hạng",
+        "label": "Sports"
+    },
+    {
+        "text": "Olympic Tokyo: vận động viên Việt Nam thi đấu",
+        "label": "Sports"
+    },
+    {
+        "text": "Giải Marathon quốc tế tại thành phố Hồ Chí Minh",
+        "label": "Sports"
+    },
+    {
+        "text": "Võ thuật MMA đấu trường danh vọng",
+        "label": "Sports"
+    },
+    {
+        "text": "Bóng chuyền nữ Việt Nam vô địch SEA Games",
+        "label": "Sports"
+    },
+    {
+        "text": "Bơi lội phá kỷ lục quốc gia tại giải trẻ",
+        "label": "Sports"
+    },
+    {
+        "text": "Cầu lông Việt Nam vươn tầm quốc tế",
+        "label": "Sports"
+    },
+    {
+        "text": "Đua xe F1 kết quả chặng đua mới nhất",
+        "label": "Sports"
+    },
+    {
+        "text": "Delicious homemade pizza recipe from scratch",
+        "label": "Food"
+    },
+    {
+        "text": "Healthy breakfast ideas with avocado and eggs",
+        "label": "Food"
+    },
+    {
+        "text": "Best restaurants in the city for fine dining",
+        "label": "Food"
+    },
+    {
+        "text": "Street food tour exploring local market stalls",
+        "label": "Food"
+    },
+    {
+        "text": "Baking sourdough bread at home step by step",
+        "label": "Food"
+    },
+    {
+        "text": "Vegan cooking: plant-based protein meal prep",
+        "label": "Food"
+    },
+    {
+        "text": "Coffee brewing methods: pour over vs espresso",
+        "label": "Food"
+    },
+    {
+        "text": "Italian pasta carbonara authentic recipe tutorial",
+        "label": "Food"
+    },
+    {
+        "text": "Sushi making workshop with fresh fish selection",
+        "label": "Food"
+    },
+    {
+        "text": "Meal planning for weight loss and nutrition",
+        "label": "Food"
+    },
+    {
+        "text": "BBQ grilling techniques for perfect steaks",
+        "label": "Food"
+    },
+    {
+        "text": "Dessert recipes: chocolate cake and tiramisu",
+        "label": "Food"
+    },
+    {
+        "text": "Wine and cheese pairing guide for beginners",
+        "label": "Food"
+    },
+    {
+        "text": "Thai cooking class: green curry and pad thai",
+        "label": "Food"
+    },
+    {
+        "text": "Smoothie bowl recipes with tropical fruits",
+        "label": "Food"
+    },
+    {
+        "text": "Farmers market fresh produce and organic shopping",
+        "label": "Food"
+    },
+    {
+        "text": "Cocktail mixing recipes for weekend parties",
+        "label": "Food"
+    },
+    {
+        "text": "Korean kimchi fermentation traditional method",
+        "label": "Food"
+    },
+    {
+        "text": "Pastry chef shares croissant making secrets",
+        "label": "Food"
+    },
+    {
+        "text": "Meal delivery service review and comparison",
+        "label": "Food"
+    },
+    {
+        "text": "Món ngon mỗi ngày cho gia đình thưởng thức",
+        "label": "Food"
+    },
+    {
+        "text": "Hướng dẫn nấu phở bò chuẩn vị Hà Nội",
+        "label": "Food"
+    },
+    {
+        "text": "Địa điểm ăn vặt ngon nhất ở Sài Gòn",
+        "label": "Food"
+    },
+    {
+        "text": "Ẩm thực truyền thống Việt Nam phong phú đa dạng",
+        "label": "Food"
+    },
+    {
+        "text": "Công thức làm bánh ngọt đơn giản tại nhà",
+        "label": "Food"
+    },
+    {
+        "text": "Cà phê sữa đá Việt Nam nổi tiếng thế giới",
+        "label": "Food"
+    },
+    {
+        "text": "Nấu cơm tấm sườn bì chả ngon tuyệt",
+        "label": "Food"
+    },
+    {
+        "text": "Chế biến hải sản tươi sống đúng cách",
+        "label": "Food"
+    },
+    {
+        "text": "Đồ ăn healthy cho người tập gym giảm cân",
+        "label": "Food"
+    },
+    {
+        "text": "Nhà hàng buffet cao cấp nhất thành phố",
+        "label": "Food"
+    }
+]

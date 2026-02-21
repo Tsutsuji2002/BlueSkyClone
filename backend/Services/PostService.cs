@@ -1318,14 +1318,95 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0)
     {
-        var posts = await _unitOfWork.Posts.GetPostsByTagAsync(tag, limit, offset);
-        var postDtos = posts.Select(MapToDto).ToList();
+        var posts = await _unitOfWork.Posts.Query()
+            .Where(p => p.Content.Contains("#" + tag) && (p.IsDeleted == false || p.IsDeleted == null))
+            .Include(p => p.Author)
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
 
-        if (viewerId.HasValue)
+        var dtos = posts.Select(p => MapToDto(p)).ToList();
+        return viewerId.HasValue ? await EnrichAndFilterPostsAsync(dtos, viewerId.Value) : dtos;
+    }
+
+    public async Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0)
+    {
+        // 1. Get user interests
+        var userSettings = await _unitOfWork.Users.Query()
+            .Where(u => u.Id == userId)
+            .Select(u => u.UserSetting)
+            .FirstOrDefaultAsync();
+
+        List<string> userInterests = new();
+        if (userSettings?.SelectedInterests != null)
         {
-            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
+            try {
+                userInterests = System.Text.Json.JsonSerializer.Deserialize<List<string>>(userSettings.SelectedInterests) ?? new();
+            } catch { }
         }
 
-        return postDtos;
+        // Fallback: If no interests, just show trending
+        if (!userInterests.Any())
+        {
+            return await GetTrendingPosts24hAsync(userId, limit);
+        }
+
+        // 2. Fetch a pool of recent posts (past 72h)
+        var poolCutoff = DateTime.UtcNow.AddDays(-3);
+        var postPool = await _unitOfWork.Posts.Query()
+            .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null))
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia) // Changed from Media to PostMedia to match Post entity
+            .OrderByDescending(p => p.LikesCount + p.RepostsCount)
+            .Take(500) // Large pool for ranking
+            .ToListAsync();
+
+        // 3. Score and rank posts
+        var scoredPosts = new List<(Post Post, float Score)>();
+
+        foreach (var post in postPool)
+        {
+            float score = 0;
+
+            // AI Categorization Score
+            var imageUrls = post.PostMedia?.Where(m => m.Type == "image" && !string.IsNullOrEmpty(m.Url))
+                                      .Select(m => m.Url!)
+                                      .ToList();
+            
+            var categoryScores = await _categorizationService.ScorePostForDiscoverAsync(post.Content, imageUrls);
+            
+            // Boost score based on matches with user interests
+            foreach (var interest in userInterests)
+            {
+                if (categoryScores.TryGetValue(interest, out var confidence))
+                {
+                    score += confidence * 10.0f; // Significant boost for interest match
+                }
+            }
+
+            // Engagement Score (scaled)
+            score += (post.LikesCount * 1.0f) + (post.RepostsCount * 2.0f);
+
+            // Recency Score (decay)
+            var hoursOld = (DateTime.UtcNow - (post.CreatedAt ?? DateTime.UtcNow)).TotalHours;
+            var recencyFactor = (float)Math.Exp(-hoursOld / 24.0); // 24h half-life
+            score *= recencyFactor;
+
+            if (score > 0)
+            {
+                scoredPosts.Add((post, score));
+            }
+        }
+
+        // 4. Return top ranked posts
+        var result = scoredPosts
+            .OrderByDescending(x => x.Score)
+            .Skip(skip)
+            .Take(limit)
+            .Select(x => MapToDto(x.Post))
+            .ToList();
+
+        return await EnrichAndFilterPostsAsync(result, userId);
     }
 }

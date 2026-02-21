@@ -51,5 +51,10 @@ public partial class UserSetting
     public bool? RequireLogoutVisibility { get; set; }
     public bool? LargerAltBadge { get; set; }
 
+    /// <summary>
+    /// JSON array of selected interest names, e.g., '["Tech","Art","Food"]'
+    /// </summary>
+    public string? SelectedInterests { get; set; }
+
     public virtual User User { get; set; } = null!;
 }

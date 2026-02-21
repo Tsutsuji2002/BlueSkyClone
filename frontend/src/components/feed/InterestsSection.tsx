@@ -7,6 +7,7 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
 import { fetchInterestsList } from '../../redux/slices/trendingSlice';
 import { cn } from '../../utils/classNames';
+import { API_BASE_URL } from '../../constants';
 
 const InterestsSection: React.FC = () => {
     const { t } = useTranslation();
@@ -20,19 +21,52 @@ const InterestsSection: React.FC = () => {
     useEffect(() => {
         dispatch(fetchInterestsList());
 
-        const stored = localStorage.getItem('selected_interests');
-        if (stored) {
-            setSelectedInterests(JSON.parse(stored));
-        }
+        const fetchSelectedInterests = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE_URL}/user/interests`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setSelectedInterests(data);
+                    localStorage.setItem('selected_interests', JSON.stringify(data));
+                } else {
+                    // Fallback to localStorage if API fails
+                    const stored = localStorage.getItem('selected_interests');
+                    if (stored) setSelectedInterests(JSON.parse(stored));
+                }
+            } catch (error) {
+                const stored = localStorage.getItem('selected_interests');
+                if (stored) setSelectedInterests(JSON.parse(stored));
+            }
+        };
+
+        fetchSelectedInterests();
     }, [dispatch]);
 
-    const toggleInterest = (interest: string) => {
+    const toggleInterest = async (interest: string) => {
         const newSelection = selectedInterests.includes(interest)
             ? selectedInterests.filter(i => i !== interest)
             : [...selectedInterests, interest];
 
         setSelectedInterests(newSelection);
         localStorage.setItem('selected_interests', JSON.stringify(newSelection));
+
+        // Persist to backend
+        try {
+            const token = localStorage.getItem('token');
+            await fetch(`${API_BASE_URL}/user/interests`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newSelection)
+            });
+        } catch (error) {
+            console.error('Failed to save interests to backend:', error);
+        }
     };
 
     if (!isVisible) return null;
