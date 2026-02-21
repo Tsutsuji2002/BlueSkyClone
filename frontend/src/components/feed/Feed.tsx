@@ -6,13 +6,16 @@ import { FiBookmark } from 'react-icons/fi';
 
 interface FeedProps {
     posts?: Post[]; // Optional prop to override Redux posts
+    isLoading?: boolean; // NEW: explicit loading state
 }
 
-const Feed: React.FC<FeedProps> = ({ posts: propPosts }) => {
+const Feed: React.FC<FeedProps> = ({ posts: propPosts, isLoading: propLoading }) => {
     const { t } = useTranslation();
     const reduxPosts = useAppSelector((state) => state.posts.posts);
-    const isLoading = useAppSelector((state) => state.posts.isLoading);
+    const reduxLoading = useAppSelector((state) => state.posts.isLoading);
     const currentUser = useAppSelector((state) => state.auth.user);
+
+    const isLoading = propLoading !== undefined ? propLoading : reduxLoading;
 
     // Use provided posts or fall back to Redux posts, and filter out soft-deleted posts
     const allPosts = propPosts !== undefined ? propPosts : reduxPosts;

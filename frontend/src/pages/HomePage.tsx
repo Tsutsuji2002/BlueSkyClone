@@ -19,9 +19,8 @@ const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { subscribedFeeds, activeTab, feedPosts } = useAppSelector((state: RootState) => state.feeds);
-    const followingPosts = useAppSelector((state: RootState) => state.posts.posts);
-    const discoverPosts = useAppSelector((state: RootState) => state.posts.discoverPosts);
+    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading } = useAppSelector((state: RootState) => state.feeds);
+    const { posts: followingPosts, discoverPosts, timelineLoading, discoverLoading } = useAppSelector((state: RootState) => state.posts);
     const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
 
     useEffect(() => {
@@ -71,6 +70,12 @@ const HomePage: React.FC = () => {
         : activeTab === 'discover'
             ? discoverPosts
             : (feedPosts[activeTab] || []);
+
+    const isCurrentFeedLoading = activeTab === 'following'
+        ? timelineLoading
+        : activeTab === 'discover'
+            ? discoverLoading
+            : feedsLoading;
 
     return (
         <MainLayout hideTopBar={true} title={t('nav.home')}>
@@ -125,7 +130,7 @@ const HomePage: React.FC = () => {
                 {activeTab === 'discover' && <InterestsSection />}
 
                 {/* Feed */}
-                <Feed posts={currentPosts} />
+                <Feed posts={currentPosts} isLoading={isCurrentFeedLoading} />
             </div>
         </MainLayout>
     );

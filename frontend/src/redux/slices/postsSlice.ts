@@ -7,6 +7,8 @@ const initialState: PostsState = {
     discoverPosts: [],
     trendingPosts: [],
     isLoading: false,
+    timelineLoading: false,
+    discoverLoading: false,
     error: null,
     hasMore: true,
     actionLoading: {}, // Map of postId -> boolean
@@ -322,6 +324,7 @@ const postsSlice = createSlice({
             // Fetch Timeline
             .addCase(fetchTimeline.pending, (state: PostsState) => {
                 state.isLoading = true;
+                state.timelineLoading = true;
                 // Only clear if we have no posts yet, otherwise keep them until fetch completes
                 if (state.posts.length === 0) {
                     state.posts = [];
@@ -329,11 +332,13 @@ const postsSlice = createSlice({
             })
             .addCase(fetchTimeline.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
                 state.isLoading = false;
+                state.timelineLoading = false;
                 state.posts = action.payload;
                 state.hasMore = action.payload.length > 0;
             })
             .addCase(fetchTimeline.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
+                state.timelineLoading = false;
                 state.error = action.payload as string;
             })
             // Fetch Trending Posts
@@ -587,12 +592,14 @@ const postsSlice = createSlice({
             // Fetch Discover Posts
             .addCase(fetchDiscoverPosts.pending, (state: PostsState, action) => {
                 state.isLoading = true;
+                state.discoverLoading = true;
                 if (action.meta.arg?.skip === 0 || !action.meta.arg) {
                     state.discoverPosts = [];
                 }
             })
             .addCase(fetchDiscoverPosts.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], skip: number }>) => {
                 state.isLoading = false;
+                state.discoverLoading = false;
                 if (action.payload.skip === 0) {
                     state.discoverPosts = action.payload.posts;
                 } else {
@@ -602,6 +609,7 @@ const postsSlice = createSlice({
             })
             .addCase(fetchDiscoverPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
+                state.discoverLoading = false;
                 state.error = action.payload as string;
             });
 

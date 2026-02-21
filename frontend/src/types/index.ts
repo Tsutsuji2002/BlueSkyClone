@@ -310,6 +310,8 @@ export interface PostsState {
     discoverPosts: Post[];
     trendingPosts: Post[];
     isLoading: boolean;
+    timelineLoading: boolean;
+    discoverLoading: boolean;
     error: string | null;
     hasMore: boolean;
     actionLoading: Record<string, boolean>;

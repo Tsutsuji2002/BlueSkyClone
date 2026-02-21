@@ -11,6 +11,10 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using BSkyClone.Constants;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using BSkyClone.Repositories;
+using BSkyClone.UnitOfWork;
 
 namespace BSkyClone.Services.ML;
 
@@ -22,6 +26,7 @@ public interface IMLModelService
     Task<string> PredictImageLabelAsync(string imageUrl);
     Task<Dictionary<string, float>> PredictImageMultiLabelAsync(string imageUrl);
     Task<bool> IsNsfwImageAsync(string imageUrl);
+    Task<float[]> GenerateEmbeddingAsync(string text);
     void TrainModels();
 }
 
@@ -39,10 +44,17 @@ public class MLModelService : IMLModelService
     private float[][]? _categoryEmbeddings;
     private string[]? _categoryNames;
 
-    public MLModelService(HttpClient httpClient)
+    // Semantic Similarity
+    private readonly IServiceScopeFactory _scopeFactory;
+    private Dictionary<string, float[]>? _interestEmbeddings;
+    private DateTime _lastInterestsUpdate = DateTime.MinValue;
+    private SimpleBertTokenizer? _semanticTokenizer;
+
+    public MLModelService(HttpClient httpClient, IServiceScopeFactory scopeFactory)
     {
         _mlContext = new MLContext(seed: 1);
         _httpClient = httpClient;
+        _scopeFactory = scopeFactory;
         if (!Directory.Exists(_modelPath))
         {
             Directory.CreateDirectory(_modelPath);
@@ -127,6 +139,37 @@ public class MLModelService : IMLModelService
 
         try
         {
+            // 1. Try Semantic Similarity (Dynamic interests) - NEW & BEST
+            var semanticOnnxPath = Path.Combine(_modelPath, "text_semantics.onnx");
+            var semanticVocabPath = Path.Combine(_modelPath, "semantic_vocab.txt");
+
+            if (File.Exists(semanticOnnxPath) && File.Exists(semanticVocabPath))
+            {
+                var textEmbedding = await GenerateEmbeddingAsync(content);
+                if (textEmbedding != null)
+                {
+                    await RefreshInterestEmbeddingsAsync();
+                    if (_interestEmbeddings != null && _interestEmbeddings.Any())
+                    {
+                        foreach (var pair in _interestEmbeddings)
+                        {
+                            var similarity = CosineSimilarity(textEmbedding, pair.Value);
+                            // Rescale from [-1, 1] to [0, 1]
+                            var score = (similarity + 1.0f) / 2.0f;
+                            
+                            // Boost score if it's high enough
+                            if (score > 0.45f) // Threshold for semantic relevance
+                            {
+                                results[pair.Key] = score;
+                            }
+                        }
+                        
+                        if (results.Any()) return results;
+                    }
+                }
+            }
+
+            // 2. Fallback to fine-tuned classification
             var onnxPath = Path.Combine(_modelPath, "text_classifier.onnx");
             var vocabPath = Path.Combine(_modelPath, "bert_vocab.txt");
 
@@ -140,7 +183,7 @@ public class MLModelService : IMLModelService
             Console.WriteLine($"Multi-label text prediction error: {ex.Message}");
         }
 
-        // Fallback: single-label
+        // 3. Fallback: single-label (fine-tuned or ML.NET)
         var (label, prob) = await PredictTextCategoryWithScoreAsync(content);
         if (label != "unknown" && prob > 0.1f)
         {
@@ -286,6 +329,87 @@ public class MLModelService : IMLModelService
         using var vocabStream = File.OpenRead(vocabPath);
         _tokenizer = new SimpleBertTokenizer(vocabStream);
         return Task.FromResult(_tokenizer);
+    }
+
+    public async Task<float[]> GenerateEmbeddingAsync(string text)
+    {
+        try
+        {
+            var modelPath = Path.Combine(_modelPath, "text_semantics.onnx");
+            var vocabPath = Path.Combine(_modelPath, "semantic_vocab.txt");
+
+            if (!File.Exists(modelPath) || !File.Exists(vocabPath)) return null;
+
+            using var session = new InferenceSession(modelPath);
+            
+            if (_semanticTokenizer == null)
+            {
+                using var vocabStream = File.OpenRead(vocabPath);
+                _semanticTokenizer = new SimpleBertTokenizer(vocabStream);
+            }
+
+            var maxLen = 128;
+            var encoded = _semanticTokenizer.Encode(text).Take(maxLen).ToList();
+            while (encoded.Count < maxLen) encoded.Add(0);
+
+            var inputIds = new DenseTensor<long>(new[] { 1, maxLen });
+            var attentionMask = new DenseTensor<long>(new[] { 1, maxLen });
+
+            for (int i = 0; i < maxLen; i++)
+            {
+                inputIds[0, i] = encoded[i];
+                attentionMask[0, i] = encoded[i] > 0 ? 1 : 0;
+            }
+
+            var inputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor("input_ids", inputIds),
+                NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask)
+            };
+
+            using var results = session.Run(inputs);
+            return results.First().AsEnumerable<float>().ToArray();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Embedding generation error: {ex.Message}");
+            return null;
+        }
+    }
+
+    private async Task RefreshInterestEmbeddingsAsync()
+    {
+        if (DateTime.UtcNow - _lastInterestsUpdate < TimeSpan.FromMinutes(30) && _interestEmbeddings != null)
+            return;
+
+        try
+        {
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<BSkyClone.Models.BSkyDbContext>();
+                var interests = await context.Interests
+                    .Where(i => i.IsDeleted != true)
+                    .ToListAsync();
+                
+                var newEmbeddings = new Dictionary<string, float[]>();
+                foreach (var interest in interests)
+                {
+                    var emb = await GenerateEmbeddingAsync(interest.Name);
+                    if (emb != null)
+                    {
+                        newEmbeddings[interest.Name] = emb;
+                    }
+                }
+                
+                _interestEmbeddings = newEmbeddings;
+                _lastInterestsUpdate = DateTime.UtcNow;
+                Console.WriteLine($"[ML] Refreshed semantic embeddings for {newEmbeddings.Count} database interests.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to refresh interest embeddings: {ex.Message}");
+        }
     }
 
     private (string, float) MapBertLogitsToCategory(float[] logits)
