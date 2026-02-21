@@ -16,17 +16,17 @@ const initialState: PostsState = {
 
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
-    async (_, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/timeline`, {
+            const response = await fetch(`${API_BASE_URL}/posts/timeline?skip=${skip}&take=${take}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch timeline');
-            return data;
+            return { posts: data, skip };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -330,11 +330,15 @@ const postsSlice = createSlice({
                     state.posts = [];
                 }
             })
-            .addCase(fetchTimeline.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
+            .addCase(fetchTimeline.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], skip: number }>) => {
                 state.isLoading = false;
                 state.timelineLoading = false;
-                state.posts = action.payload;
-                state.hasMore = action.payload.length > 0;
+                if (action.payload.skip === 0) {
+                    state.posts = action.payload.posts;
+                } else {
+                    state.posts = [...state.posts, ...action.payload.posts];
+                }
+                state.hasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchTimeline.rejected, (state: PostsState, action) => {
                 state.isLoading = false;

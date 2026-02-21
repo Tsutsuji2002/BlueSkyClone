@@ -19,6 +19,8 @@ const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const scrollPositions = React.useRef<Record<string, number>>({});
+    const lastTab = React.useRef<string>('');
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading } = useAppSelector((state: RootState) => state.feeds);
     const { posts: followingPosts, discoverPosts, timelineLoading, discoverLoading } = useAppSelector((state: RootState) => state.posts);
     const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
@@ -29,24 +31,57 @@ const HomePage: React.FC = () => {
 
         // Initial fetch based on persisted activeTab
         if (activeTab === 'following') {
-            dispatch(fetchTimeline());
+            dispatch(fetchTimeline({ skip: 0 }));
         } else if (activeTab === 'discover') {
-            dispatch(fetchDiscoverPosts({}));
+            dispatch(fetchDiscoverPosts({ skip: 0 }));
         } else {
             // Check if it's a custom feed
             dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: 20 }));
         }
-    }, [dispatch]); // Removed activeTab dependency to avoid double trigger, it's handled on mount
+
+        lastTab.current = activeTab;
+    }, [dispatch]);
+
+    // Handle scroll persistence
+    useEffect(() => {
+        const handleTabSwitch = () => {
+            // Save current position of the previous tab
+            if (lastTab.current) {
+                scrollPositions.current[lastTab.current] = window.scrollY;
+            }
+
+            // Update lastTab to the new activeTab
+            lastTab.current = activeTab;
+
+            // Restore position of the new tab in next tick (after DOM update)
+            setTimeout(() => {
+                const targetPos = scrollPositions.current[activeTab] || 0;
+                window.scrollTo({ top: targetPos, behavior: 'auto' });
+            }, 0);
+        };
+
+        handleTabSwitch();
+    }, [activeTab]);
 
     const handleTabChange = (tabId: string) => {
         dispatch(setActiveTab(tabId));
-        if (tabId === 'following') {
-            dispatch(fetchTimeline());
-        } else if (tabId === 'discover') {
-            dispatch(fetchDiscoverPosts({}));
-        } else {
-            // It's a custom feed ID
+        if (tabId === 'following' && followingPosts.length === 0) {
+            dispatch(fetchTimeline({ skip: 0 }));
+        } else if (tabId === 'discover' && discoverPosts.length === 0) {
+            dispatch(fetchDiscoverPosts({ skip: 0 }));
+        } else if (tabId !== 'following' && tabId !== 'discover' && (!feedPosts[tabId] || feedPosts[tabId].length === 0)) {
             dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: 20 }));
+        }
+    };
+
+    const handleLoadMore = () => {
+        if (activeTab === 'following') {
+            dispatch(fetchTimeline({ skip: followingPosts.length }));
+        } else if (activeTab === 'discover') {
+            dispatch(fetchDiscoverPosts({ skip: discoverPosts.length }));
+        } else {
+            const currentFeedPosts = feedPosts[activeTab] || [];
+            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: 20 }));
         }
     };
 
@@ -63,19 +98,6 @@ const HomePage: React.FC = () => {
             label: f.name
         }))
     ];
-
-    // Get posts for the active feed
-    const currentPosts = activeTab === 'following'
-        ? followingPosts
-        : activeTab === 'discover'
-            ? discoverPosts
-            : (feedPosts[activeTab] || []);
-
-    const isCurrentFeedLoading = activeTab === 'following'
-        ? timelineLoading
-        : activeTab === 'discover'
-            ? discoverLoading
-            : feedsLoading;
 
     return (
         <MainLayout hideTopBar={true} title={t('nav.home')}>
@@ -126,11 +148,25 @@ const HomePage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Interests Section - only show on Discover tab */}
-                {activeTab === 'discover' && <InterestsSection />}
+                {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
+                <div style={{ display: activeTab === 'following' ? 'block' : 'none' }}>
+                    <Feed posts={followingPosts} isLoading={timelineLoading} onLoadMore={handleLoadMore} />
+                </div>
 
-                {/* Feed */}
-                <Feed posts={currentPosts} isLoading={isCurrentFeedLoading} />
+                <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>
+                    <InterestsSection />
+                    <Feed posts={discoverPosts} isLoading={discoverLoading} onLoadMore={handleLoadMore} />
+                </div>
+
+                {pinnedFeeds.map((feed: FeedType) => (
+                    <div key={feed.id} style={{ display: activeTab === feed.id ? 'block' : 'none' }}>
+                        <Feed
+                            posts={feedPosts[feed.id] || []}
+                            isLoading={feedsLoading && activeTab === feed.id}
+                            onLoadMore={handleLoadMore}
+                        />
+                    </div>
+                ))}
             </div>
         </MainLayout>
     );

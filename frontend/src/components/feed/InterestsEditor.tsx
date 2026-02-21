@@ -30,6 +30,10 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
         const fetchSelectedInterests = async () => {
             try {
                 const token = localStorage.getItem('token');
+                if (!token) {
+                    setIsLoading(false);
+                    return;
+                }
                 const response = await fetch(`${API_BASE_URL}/user/interests`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -104,7 +108,8 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
     return (
         <div className={cn("flex flex-wrap", variant === 'full' ? "gap-3" : "gap-2")}>
             {displayInterests.map((interest: string, index: number) => {
-                const isSelected = selectedInterests.includes(interest);
+                const isSelected = selectedInterests.some(i => i.toLowerCase() === interest.toLowerCase());
+                const label = t(`interests_tags.${interest.toLowerCase()}`, interest);
 
                 if (variant === 'full') {
                     return (
@@ -118,7 +123,7 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
                                     : 'bg-gray-100 border-transparent text-gray-900 dark:bg-dark-surface dark:text-dark-text hover:bg-gray-200 dark:hover:bg-dark-hover dark:border-dark-border'
                             )}
                         >
-                            {interest}
+                            {label}
                         </button>
                     );
                 }
@@ -134,7 +139,7 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
                                 : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text-secondary hover:border-primary-500 hover:text-primary-500 dark:hover:text-primary-400'
                         )}
                     >
-                        {interest}
+                        {label}
                     </button>
                 );
             })}
