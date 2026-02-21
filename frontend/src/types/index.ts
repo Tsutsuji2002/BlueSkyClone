@@ -307,6 +307,7 @@ export interface ThemeState {
 
 export interface PostsState {
     posts: Post[];
+    discoverPosts: Post[];
     trendingPosts: Post[];
     isLoading: boolean;
     error: string | null;

@@ -4,6 +4,7 @@ import { API_BASE_URL } from '../../constants';
 
 const initialState: PostsState = {
     posts: [],
+    discoverPosts: [],
     trendingPosts: [],
     isLoading: false,
     error: null,
@@ -437,6 +438,11 @@ const postsSlice = createSlice({
                     post.isLiked = action.payload.isLiked;
                     post.likesCount = action.payload.likesCount;
                 }
+                const dPost = state.discoverPosts.find(p => p.id === action.payload.postId);
+                if (dPost) {
+                    dPost.isLiked = action.payload.isLiked;
+                    dPost.likesCount = action.payload.likesCount;
+                }
                 // Update in trending posts
                 const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
                 if (trendingPost) {
@@ -459,6 +465,11 @@ const postsSlice = createSlice({
                     post.isReposted = action.payload.isReposted;
                     post.repostsCount = action.payload.repostsCount;
                 }
+                const dPost = state.discoverPosts.find(p => p.id === action.payload.postId);
+                if (dPost) {
+                    dPost.isReposted = action.payload.isReposted;
+                    dPost.repostsCount = action.payload.repostsCount;
+                }
                 // Update in trending posts
                 const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
                 if (trendingPost) {
@@ -480,6 +491,11 @@ const postsSlice = createSlice({
                 if (post) {
                     post.isBookmarked = action.payload.isBookmarked;
                     post.bookmarksCount = action.payload.bookmarksCount;
+                }
+                const dPost = state.discoverPosts.find(p => p.id === action.payload.postId);
+                if (dPost) {
+                    dPost.isBookmarked = action.payload.isBookmarked;
+                    dPost.bookmarksCount = action.payload.bookmarksCount;
                 }
                 // Update in trending posts
                 const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
@@ -572,15 +588,15 @@ const postsSlice = createSlice({
             .addCase(fetchDiscoverPosts.pending, (state: PostsState, action) => {
                 state.isLoading = true;
                 if (action.meta.arg?.skip === 0 || !action.meta.arg) {
-                    state.posts = [];
+                    state.discoverPosts = [];
                 }
             })
             .addCase(fetchDiscoverPosts.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], skip: number }>) => {
                 state.isLoading = false;
                 if (action.payload.skip === 0) {
-                    state.posts = action.payload.posts;
+                    state.discoverPosts = action.payload.posts;
                 } else {
-                    state.posts = [...state.posts, ...action.payload.posts];
+                    state.discoverPosts = [...state.discoverPosts, ...action.payload.posts];
                 }
                 state.hasMore = action.payload.posts.length > 0;
             })

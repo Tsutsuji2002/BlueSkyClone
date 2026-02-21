@@ -20,14 +20,24 @@ const HomePage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const { subscribedFeeds, activeTab, feedPosts } = useAppSelector((state: RootState) => state.feeds);
-    const reduxPosts = useAppSelector((state: RootState) => state.posts.posts);
+    const followingPosts = useAppSelector((state: RootState) => state.posts.posts);
+    const discoverPosts = useAppSelector((state: RootState) => state.posts.discoverPosts);
     const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
 
     useEffect(() => {
-        dispatch(setActiveTab('following'));
-        dispatch(fetchTimeline());
+        // Fetch feeds first
         dispatch(fetchSubscribedFeeds());
-    }, [dispatch]);
+
+        // Initial fetch based on persisted activeTab
+        if (activeTab === 'following') {
+            dispatch(fetchTimeline());
+        } else if (activeTab === 'discover') {
+            dispatch(fetchDiscoverPosts({}));
+        } else {
+            // Check if it's a custom feed
+            dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: 20 }));
+        }
+    }, [dispatch]); // Removed activeTab dependency to avoid double trigger, it's handled on mount
 
     const handleTabChange = (tabId: string) => {
         dispatch(setActiveTab(tabId));
@@ -56,9 +66,11 @@ const HomePage: React.FC = () => {
     ];
 
     // Get posts for the active feed
-    const currentPosts = (activeTab === 'following' || activeTab === 'discover')
-        ? reduxPosts
-        : (feedPosts[activeTab] || []);
+    const currentPosts = activeTab === 'following'
+        ? followingPosts
+        : activeTab === 'discover'
+            ? discoverPosts
+            : (feedPosts[activeTab] || []);
 
     return (
         <MainLayout hideTopBar={true} title={t('nav.home')}>

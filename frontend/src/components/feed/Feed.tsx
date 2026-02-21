@@ -18,7 +18,7 @@ const Feed: React.FC<FeedProps> = ({ posts: propPosts }) => {
     const allPosts = propPosts !== undefined ? propPosts : reduxPosts;
     const posts = allPosts.filter(post => !post.isDeleted);
 
-    if (isLoading && propPosts === undefined) {
+    if (isLoading && posts.length === 0) {
         return (
             <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
