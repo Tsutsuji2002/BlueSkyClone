@@ -169,7 +169,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             hasDivider: !isComment,
             onClick: () => handleCopyText(post.content),
         },
-        ...(!isComment ? [
+        ...(!isComment && !isOwnPost ? [
             {
                 id: 'show-more',
                 label: t('post.show_more'),
@@ -190,21 +190,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             icon: <FiBellOff />,
             onClick: () => { },
         },
-        {
-            id: 'hide-words',
-            label: t('post.hide_words'),
-            icon: <FiFilter />,
-            hasDivider: true,
-            onClick: () => { },
-        },
-        {
-            id: isComment ? 'hide-reply' : 'hide-post',
-            label: isComment ? t('post.hide_reply') : t('post.hide_post'),
-            icon: <FiEyeOff />,
-            hasDivider: true,
-            onClick: () => { },
-        },
         ...(!isOwnPost ? [
+            {
+                id: 'hide-words',
+                label: t('post.hide_words'),
+                icon: <FiFilter />,
+                hasDivider: true,
+                onClick: () => { },
+            },
+            {
+                id: isComment ? 'hide-reply' : 'hide-post',
+                label: isComment ? t('post.hide_reply') : t('post.hide_post'),
+                icon: <FiEyeOff />,
+                hasDivider: true,
+                onClick: () => { },
+            },
             {
                 id: 'mute-account',
                 label: t('post.mute_account'),

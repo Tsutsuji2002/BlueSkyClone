@@ -188,57 +188,61 @@ const PostDetailPage: React.FC = () => {
             hasDivider: true,
             onClick: () => handleCopyText(post.content),
         },
-        {
-            id: 'show-more',
-            label: t('post.show_more'),
-            icon: <FiSmile />,
-            onClick: () => { },
-        },
-        {
-            id: 'show-less',
-            label: t('post.show_less'),
-            icon: <FiFrown />,
-            hasDivider: true,
-            onClick: () => { },
-        },
+        ...(currentUser?.id !== post.author.id ? [
+            {
+                id: 'show-more',
+                label: t('post.show_more'),
+                icon: <FiSmile />,
+                onClick: () => { },
+            },
+            {
+                id: 'show-less',
+                label: t('post.show_less'),
+                icon: <FiFrown />,
+                hasDivider: true,
+                onClick: () => { },
+            }
+        ] : []),
         {
             id: 'mute-thread',
             label: t('post.mute_thread'),
             icon: <FiBellOff />,
             onClick: () => { },
         },
-        {
-            id: 'hide-words',
-            label: t('post.hide_words'),
-            icon: <FiFilter />,
-            hasDivider: true,
-            onClick: () => { },
-        },
-        {
-            id: 'hide-post',
-            label: t('post.hide_post'),
-            icon: <FiEyeOff />,
-            hasDivider: true,
-            onClick: () => { },
-        },
-        {
-            id: 'mute-account',
-            label: t('post.mute_account'),
-            icon: <FiUserMinus />,
-            onClick: () => { },
-        },
-        {
-            id: 'block-account',
-            label: t('post.block_account'),
-            icon: <FiUserX />,
-            onClick: () => { },
-        },
-        {
-            id: 'report-post',
-            label: t('post.report_post'),
-            icon: <FiAlertTriangle />,
-            onClick: () => { },
-        },
+        ...(currentUser?.id !== post.author.id ? [
+            {
+                id: 'hide-words',
+                label: t('post.hide_words'),
+                icon: <FiFilter />,
+                hasDivider: true,
+                onClick: () => { },
+            },
+            {
+                id: 'hide-post',
+                label: t('post.hide_post'),
+                icon: <FiEyeOff />,
+                hasDivider: true,
+                onClick: () => { },
+            },
+            {
+                id: 'mute-account',
+                label: t('post.mute_account'),
+                icon: <FiUserMinus />,
+                onClick: () => { },
+            },
+            {
+                id: 'block-account',
+                label: t('post.block_account'),
+                icon: <FiUserX />,
+                onClick: () => { },
+            },
+            {
+                id: 'report-post',
+                label: t('post.report_post'),
+                icon: <FiAlertTriangle />,
+                onClick: () => { },
+            }
+        ] : []),
         ...(currentUser?.id === post.author.id ? [
             {
                 id: 'edit-post',
