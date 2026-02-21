@@ -9,7 +9,9 @@ const initialState: UserState = {
     mutedWords: [],
     mutedUsers: [],
     blockedUsers: [],
+    selectedInterests: [],
     isLoading: false,
+    interestsLoading: false,
     error: null,
     actionLoading: {}, // Map of userId -> boolean
 };
@@ -373,6 +375,67 @@ export const deleteMutedWordAsync = createAsyncThunk<
     }
 );
 
+export const fetchSelectedInterests = createAsyncThunk<
+    string[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchInterests',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                const stored = localStorage.getItem('selected_interests');
+                return stored ? JSON.parse(stored) : [];
+            }
+            const response = await fetch(`${API_BASE_URL}/user/interests`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch interests');
+
+            // Sync local storage
+            localStorage.setItem('selected_interests', JSON.stringify(data));
+            return data;
+        } catch (error: any) {
+            const stored = localStorage.getItem('selected_interests');
+            if (stored) return JSON.parse(stored);
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const saveSelectedInterests = createAsyncThunk<
+    string[],
+    string[],
+    { rejectValue: string }
+>(
+    'user/saveInterests',
+    async (interests: string[], { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            // Optimistic update of localStorage
+            localStorage.setItem('selected_interests', JSON.stringify(interests));
+
+            if (!token) return interests;
+
+            const response = await fetch(`${API_BASE_URL}/user/interests`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(interests)
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to save interests');
+            return interests;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 const userSlice = createSlice({
     name: 'user',
     initialState,
@@ -577,6 +640,20 @@ const userSlice = createSlice({
             })
             .addCase(deleteMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<number>) => {
                 state.mutedWords = state.mutedWords.filter(w => w.id !== action.payload);
+            })
+            // Selected Interests
+            .addCase(fetchSelectedInterests.pending, (state: UserState) => {
+                state.interestsLoading = true;
+            })
+            .addCase(fetchSelectedInterests.fulfilled, (state: UserState, action: PayloadAction<string[]>) => {
+                state.interestsLoading = false;
+                state.selectedInterests = action.payload;
+            })
+            .addCase(fetchSelectedInterests.rejected, (state: UserState) => {
+                state.interestsLoading = false;
+            })
+            .addCase(saveSelectedInterests.fulfilled, (state: UserState, action: PayloadAction<string[]>) => {
+                state.selectedInterests = action.payload;
             });
     }
 });

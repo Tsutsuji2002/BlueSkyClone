@@ -4,8 +4,8 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
 import { fetchInterestsList } from '../../redux/slices/trendingSlice';
+import { fetchSelectedInterests, saveSelectedInterests } from '../../redux/slices/userSlice';
 import { cn } from '../../utils/classNames';
-import { API_BASE_URL } from '../../constants';
 
 interface InterestsEditorProps {
     variant?: 'condensed' | 'full';
@@ -21,81 +21,29 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const { interests: availableInterests } = useAppSelector((state: RootState) => state.trending);
-    const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const { selectedInterests, interestsLoading } = useAppSelector((state: RootState) => state.user);
 
     useEffect(() => {
         dispatch(fetchInterestsList());
+        dispatch(fetchSelectedInterests());
+    }, [dispatch]);
 
-        const fetchSelectedInterests = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    setIsLoading(false);
-                    return;
-                }
-                const response = await fetch(`${API_BASE_URL}/user/interests`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setSelectedInterests(data);
-                    // Sync with localStorage for legacy/offline support
-                    localStorage.setItem('selected_interests', JSON.stringify(data));
-                    if (onSelectionChange) onSelectionChange(data);
-                } else {
-                    const stored = localStorage.getItem('selected_interests');
-                    if (stored) {
-                        const parsed = JSON.parse(stored);
-                        setSelectedInterests(parsed);
-                        if (onSelectionChange) onSelectionChange(parsed);
-                    }
-                }
-            } catch (error) {
-                const stored = localStorage.getItem('selected_interests');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    setSelectedInterests(parsed);
-                    if (onSelectionChange) onSelectionChange(parsed);
-                }
-            } finally {
-                setIsLoading(false);
-            }
-        };
+    useEffect(() => {
+        if (onSelectionChange) onSelectionChange(selectedInterests);
+    }, [selectedInterests, onSelectionChange]);
 
-        fetchSelectedInterests();
-    }, [dispatch, onSelectionChange]);
-
-    const toggleInterest = async (interest: string) => {
-        const newSelection = selectedInterests.includes(interest)
-            ? selectedInterests.filter(i => i !== interest)
+    const toggleInterest = (interest: string) => {
+        const isPresent = selectedInterests.some(i => i.toLowerCase() === interest.toLowerCase());
+        const newSelection = isPresent
+            ? selectedInterests.filter(i => i.toLowerCase() !== interest.toLowerCase())
             : [...selectedInterests, interest];
 
-        setSelectedInterests(newSelection);
-        localStorage.setItem('selected_interests', JSON.stringify(newSelection));
-        if (onSelectionChange) onSelectionChange(newSelection);
-
-        // Persist to backend
-        try {
-            const token = localStorage.getItem('token');
-            if (token) {
-                await fetch(`${API_BASE_URL}/user/interests`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(newSelection)
-                });
-            }
-        } catch (error) {
-            console.error('Failed to save interests to backend:', error);
-        }
+        dispatch(saveSelectedInterests(newSelection));
     };
 
     const displayInterests = limit ? availableInterests.slice(0, limit) : availableInterests;
 
-    if (isLoading && availableInterests.length === 0) {
+    if (interestsLoading && availableInterests.length === 0) {
         return (
             <div className="flex flex-wrap gap-2 animate-pulse">
                 {[1, 2, 3, 4, 5, 6].map(i => (

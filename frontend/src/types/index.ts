@@ -324,7 +324,9 @@ export interface UserState {
     mutedWords: MutedWord[];
     mutedUsers: string[]; // User IDs
     blockedUsers: string[]; // User IDs
+    selectedInterests: string[];
     isLoading: boolean;
+    interestsLoading: boolean;
     error: string | null;
     actionLoading: Record<string, boolean>;
 }
