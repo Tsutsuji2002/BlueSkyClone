@@ -4,7 +4,6 @@ namespace BSkyClone.Services.ML;
 public class SimpleBertTokenizer
 {
     private readonly Dictionary<string, int> _vocab;
-    private readonly Dictionary<int, string> _paramsCache; // Not really needed for encoding
     private const string UnknownToken = "[UNK]";
     private const string ClassToken = "[CLS]";
     private const string SeparatorToken = "[SEP]";
@@ -15,7 +14,7 @@ public class SimpleBertTokenizer
         _vocab = new Dictionary<string, int>();
         using (var reader = new StreamReader(vocabStream))
         {
-            string line;
+            string? line;
             int index = 0;
             while ((line = reader.ReadLine()) != null)
             {
@@ -87,7 +86,7 @@ public class SimpleBertTokenizer
         while (start < word.Length)
         {
             int end = word.Length;
-            string curSubStr = null;
+            string curSubStr = "";
             bool found = false;
 
             while (start < end)

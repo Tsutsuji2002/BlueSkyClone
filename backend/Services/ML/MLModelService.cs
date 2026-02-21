@@ -279,13 +279,13 @@ public class MLModelService : IMLModelService
     }
 
     private SimpleBertTokenizer? _tokenizer;
-    private async Task<SimpleBertTokenizer> GetTokenizerAsync(string vocabPath)
+    private Task<SimpleBertTokenizer> GetTokenizerAsync(string vocabPath)
     {
-        if (_tokenizer != null) return _tokenizer;
+        if (_tokenizer != null) return Task.FromResult(_tokenizer);
         
-        var vocabStream = File.OpenRead(vocabPath);
+        using var vocabStream = File.OpenRead(vocabPath);
         _tokenizer = new SimpleBertTokenizer(vocabStream);
-        return _tokenizer;
+        return Task.FromResult(_tokenizer);
     }
 
     private (string, float) MapBertLogitsToCategory(float[] logits)
@@ -405,10 +405,10 @@ public class MLModelService : IMLModelService
         return top.Value > 0.15f ? top.Key : "neutral";
     }
 
-    private async Task<Dictionary<string, float>> PredictImageMultiLabelWithClipAsync(byte[] imageBytes, string modelPath)
+    private Task<Dictionary<string, float>> PredictImageMultiLabelWithClipAsync(byte[] imageBytes, string modelPath)
     {
         var results = new Dictionary<string, float>();
-        if (_categoryEmbeddings == null || _categoryNames == null) return results;
+        if (_categoryEmbeddings == null || _categoryNames == null) return Task.FromResult(results);
         
         try
         {
@@ -457,7 +457,7 @@ public class MLModelService : IMLModelService
             Console.WriteLine($"CLIP inference error: {ex.Message}");
         }
 
-        return results;
+        return Task.FromResult(results);
     }
 
     private float CosineSimilarity(float[] a, float[] b)
@@ -474,7 +474,7 @@ public class MLModelService : IMLModelService
         return denom > 0 ? (float)(dot / denom) : 0f;
     }
 
-    private async Task<string> PredictWithMobileNetAsync(byte[] imageBytes, string modelPath)
+    private Task<string> PredictWithMobileNetAsync(byte[] imageBytes, string modelPath)
     {
         try 
         {
@@ -505,11 +505,11 @@ public class MLModelService : IMLModelService
             var output = results.First().AsEnumerable<float>().ToArray();
             
             var (category, confidence) = ImageNetCategoryMapper.MapWithConfidence(output);
-            return confidence > 0.1f ? category : "neutral";
+            return Task.FromResult(confidence > 0.1f ? category : "neutral");
         }
         catch 
         {
-            return "neutral";
+            return Task.FromResult("neutral");
         }
     }
 
@@ -525,10 +525,10 @@ public class MLModelService : IMLModelService
         }
     }
 
-    public async Task<bool> IsNsfwImageAsync(string imageUrl)
+    public Task<bool> IsNsfwImageAsync(string imageUrl)
     {
         var lowerUrl = imageUrl.ToLower();
-        return lowerUrl.Contains("nsfw") || lowerUrl.Contains("adult") || lowerUrl.Contains("sensitive");
+        return Task.FromResult(lowerUrl.Contains("nsfw") || lowerUrl.Contains("adult") || lowerUrl.Contains("sensitive"));
     }
 
     // ═══════════════════════════════════════════════════════════════

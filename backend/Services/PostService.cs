@@ -620,6 +620,7 @@ public class PostService : IPostService
                     var file = request.Images[i];
                     var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
                     var imagePath = await SaveFileAsync(file, "posts");
+                    post.PostMedia ??= new List<PostMedium>();
                     post.PostMedia.Add(new PostMedium
                     {
                         Id = Guid.NewGuid(),
@@ -1319,7 +1320,7 @@ public class PostService : IPostService
     public async Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0)
     {
         var posts = await _unitOfWork.Posts.Query()
-            .Where(p => p.Content.Contains("#" + tag) && (p.IsDeleted == false || p.IsDeleted == null))
+            .Where(p => p.Content != null && p.Content.Contains("#" + tag) && (p.IsDeleted == false || p.IsDeleted == null))
             .Include(p => p.Author)
             .OrderByDescending(p => p.CreatedAt)
             .Skip(offset)
@@ -1374,7 +1375,7 @@ public class PostService : IPostService
                                       .Select(m => m.Url!)
                                       .ToList();
             
-            var categoryScores = await _categorizationService.ScorePostForDiscoverAsync(post.Content, imageUrls);
+            var categoryScores = await _categorizationService.ScorePostForDiscoverAsync(post.Content ?? "", imageUrls);
             
             // Boost score based on matches with user interests
             foreach (var interest in userInterests)
@@ -1386,7 +1387,7 @@ public class PostService : IPostService
             }
 
             // Engagement Score (scaled)
-            score += (post.LikesCount * 1.0f) + (post.RepostsCount * 2.0f);
+            score += ((post.LikesCount ?? 0) * 1.0f) + ((post.RepostsCount ?? 0) * 2.0f);
 
             // Recency Score (decay)
             var hoursOld = (DateTime.UtcNow - (post.CreatedAt ?? DateTime.UtcNow)).TotalHours;
