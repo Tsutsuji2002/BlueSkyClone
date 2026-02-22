@@ -31,6 +31,7 @@ services:
 
   redis:
     image: redis:alpine
+    command: redis-server --save 60 1 --loglevel warning --stop-writes-on-bgsave-error no
     ports:
       - "6379:6379"
     healthcheck:
@@ -38,6 +39,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    volumes:
+      - redis_data:/data
 
   elasticsearch:
     image: elasticsearch:8.12.0
@@ -82,4 +85,6 @@ services:
 
 volumes:
   elasticsearch_data:
+    driver: local
+  redis_data:
     driver: local

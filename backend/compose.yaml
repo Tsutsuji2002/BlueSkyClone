@@ -21,8 +21,15 @@
 
   redis:
     image: redis:alpine
+    command: redis-server --save 60 1 --loglevel warning --stop-writes-on-bgsave-error no
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
+    driver: local
   # Optional: Uncomment if you want to run Elasticsearch in the same compose
   # elasticsearch:
   #   image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
