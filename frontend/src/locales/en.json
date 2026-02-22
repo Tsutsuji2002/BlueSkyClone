@@ -265,9 +265,7 @@
         "font_size": "Font Size",
         "smaller": "Smaller",
         "default": "Default",
-        "larger": "Larger",
-        "theme_title": "Theme",
-        "typography_title": "Typography"
+        "larger": "Larger"
     },
     "language": {
         "title": "Language",
