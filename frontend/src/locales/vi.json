@@ -258,7 +258,9 @@
         "font_size": "Kích cỡ phông chữ",
         "smaller": "Nhỏ hơn",
         "default": "Mặc định",
-        "larger": "Lớn hơn"
+        "larger": "Lớn hơn",
+        "theme_title": "Chủ đề",
+        "typography_title": "Phông chữ & Kiểu chữ"
     },
     "language": {
         "title": "Ngôn ngữ",
