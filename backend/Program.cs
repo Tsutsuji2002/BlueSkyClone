@@ -81,6 +81,7 @@ builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ICategorizationService, CategorizationService>();
 builder.Services.AddScoped<ISearchService, ElasticSearchService>();
 builder.Services.AddSingleton<IMLModelService, MLModelService>();
+builder.Services.AddScoped<IFileService, FileService>();
 
 // Redis Caching
 builder.Services.AddStackExchangeRedisCache(options =>

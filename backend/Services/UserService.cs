@@ -16,14 +16,16 @@ public class UserService : IUserService
     private readonly IHubContext<ChatHub> _hubContext;
     private readonly ICacheService _cacheService;
     private readonly ISearchService _searchService;
+    private readonly IFileService _fileService;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _hubContext = hubContext;
         _cacheService = cacheService;
         _searchService = searchService;
+        _fileService = fileService;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
@@ -72,10 +74,19 @@ public class UserService : IUserService
         // Handle Avatar: remove, upload new, or keep existing
         if (request.RemoveAvatar)
         {
+            if (!string.IsNullOrEmpty(user.AvatarUrl))
+            {
+                _fileService.DeleteFile(user.AvatarUrl);
+            }
             user.AvatarUrl = null;
         }
         else if (request.Avatar != null)
         {
+            // Delete old one if exists
+            if (!string.IsNullOrEmpty(user.AvatarUrl))
+            {
+                _fileService.DeleteFile(user.AvatarUrl);
+            }
             var avatarPath = await SaveFileAsync(request.Avatar, "avatars");
             user.AvatarUrl = avatarPath;
         }
@@ -83,10 +94,19 @@ public class UserService : IUserService
         // Handle Cover Image: remove, upload new, or keep existing
         if (request.RemoveCoverImage)
         {
+            if (!string.IsNullOrEmpty(user.CoverImageUrl))
+            {
+                _fileService.DeleteFile(user.CoverImageUrl);
+            }
             user.CoverImageUrl = null;
         }
         else if (request.CoverImage != null)
         {
+            // Delete old one if exists
+            if (!string.IsNullOrEmpty(user.CoverImageUrl))
+            {
+                _fileService.DeleteFile(user.CoverImageUrl);
+            }
             var coverPath = await SaveFileAsync(request.CoverImage, "covers");
             user.CoverImageUrl = coverPath;
         }

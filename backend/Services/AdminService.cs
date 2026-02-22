@@ -11,12 +11,14 @@ public class AdminService : IAdminService
     private readonly BSkyDbContext _context;
     private readonly IHubContext<ChatHub> _hubContext;
     private readonly ISearchService _searchService;
+    private readonly IFileService _fileService;
 
-    public AdminService(BSkyDbContext context, IHubContext<ChatHub> hubContext, ISearchService searchService)
+    public AdminService(BSkyDbContext context, IHubContext<ChatHub> hubContext, ISearchService searchService, IFileService fileService)
     {
         _context = context;
         _hubContext = hubContext;
         _searchService = searchService;
+        _fileService = fileService;
     }
 
     public async Task<AdminStatsDto> GetStatsAsync()
@@ -203,8 +205,27 @@ public class AdminService : IAdminService
 
     public async Task<bool> DeletePostPermanentAsync(Guid postId)
     {
-        var post = await _context.Posts.FindAsync(postId);
+        var post = await _context.Posts
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
         if (post == null) return false;
+
+        // Physical deletion of media files
+        if (post.PostMedia != null)
+        {
+            foreach (var media in post.PostMedia)
+            {
+                _fileService.DeleteFile(media.Url);
+            }
+        }
+
+        // Physical deletion of link preview image if it's local (unlikely but safe)
+        if (post.LinkPreview != null && post.LinkPreview.Image != null && post.LinkPreview.Image.StartsWith("/uploads"))
+        {
+             _fileService.DeleteFile(post.LinkPreview.Image);
+        }
 
         _context.Posts.Remove(post);
         await _context.SaveChangesAsync();
@@ -334,12 +355,7 @@ public class AdminService : IAdminService
 
     public async Task<bool> DeletePostAsync(Guid postId)
     {
-        var post = await _context.Posts.FindAsync(postId);
-        if (post == null) return false;
-
-        _context.Posts.Remove(post);
-        await _context.SaveChangesAsync();
-        return true;
+        return await DeletePostPermanentAsync(postId);
     }
 
     public async Task<PaginatedResult<AdminFeedDto>> GetFeedsAsync(int skip, int take, string? searchQuery)
@@ -381,6 +397,11 @@ public class AdminService : IAdminService
     {
         var feed = await _context.Feeds.FindAsync(feedId);
         if (feed == null) return false;
+
+        if (!string.IsNullOrEmpty(feed.AvatarUrl))
+        {
+            _fileService.DeleteFile(feed.AvatarUrl);
+        }
 
         _context.Feeds.Remove(feed);
         await _context.SaveChangesAsync();
