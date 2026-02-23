@@ -14,7 +14,7 @@ import {
 } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { updateNotificationSettings, updateSettings } from '../redux/slices/authSlice';
 import { RootState } from '../redux/store';
 
 const ContentSettingsPage: React.FC = () => {
@@ -25,6 +25,7 @@ const ContentSettingsPage: React.FC = () => {
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
     const handleToggle = (key: string, value: boolean) => {
+        dispatch(updateSettings({ [key]: value })); // Optimistic UI update
         dispatch(updateNotificationSettings({ [key]: value }));
     };
 

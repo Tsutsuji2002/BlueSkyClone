@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiMessageSquare } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { updateNotificationSettings, updateSettings } from '../redux/slices/authSlice';
 import { RootState } from '../redux/store';
 
 const DiscussionSettingsPage: React.FC = () => {
@@ -16,6 +16,7 @@ const DiscussionSettingsPage: React.FC = () => {
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
     const handleToggle = (key: string, value: any) => {
+        dispatch(updateSettings({ [key]: value })); // Optimistic UI update
         dispatch(updateNotificationSettings({ [key]: value }));
     };
 
