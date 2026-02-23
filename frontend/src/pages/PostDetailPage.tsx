@@ -663,7 +663,16 @@ const PostDetailPage: React.FC = () => {
                                         const subReplies = sortPosts(posts.filter(p => p.replyToPostId === reply.id));
                                         const hasSubReplies = subReplies.length > 0;
                                         const isLast = idx === replyList.length - 1;
-                                        const nextActiveLines = [...activeLines, !isLast];
+
+                                        // The activeLines array keeps track of which ancestor vertical lines should continue downward.
+                                        // When passing this state to our children:
+                                        const nextActiveLines = [...activeLines];
+                                        if (depth > 0) {
+                                            // Our immediate parent's line stops if we are the last child.
+                                            nextActiveLines[depth - 1] = nextActiveLines[depth - 1] && !isLast;
+                                        }
+                                        // We append 'true' because our OWN vertical line will always drop into our immediate children.
+                                        nextActiveLines.push(true);
 
                                         const indent = depth * DEPTH_STEP;
 
