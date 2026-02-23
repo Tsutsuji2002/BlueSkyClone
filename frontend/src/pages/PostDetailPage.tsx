@@ -663,39 +663,40 @@ const PostDetailPage: React.FC = () => {
                                     currentId = subReplies[0].id;
                                 }
 
+                                // ONE "Read more" at the bottom of the entire group
+                                // If chain extended (we followed 1 sub-reply path), remaining = repliesCount - 1
+                                // If chain didn't extend (no sub-replies loaded), remaining = repliesCount
+                                const chainExtended = chain.length > 1;
+                                const remainingCount = chainExtended
+                                    ? reply.repliesCount - 1
+                                    : reply.repliesCount;
+                                const showReadMore = remainingCount > 0;
+
                                 return (
                                     <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
                                         {chain.map((chainItem, idx) => {
                                             const isFirstInChain = idx === 0;
                                             const isLastInChain = idx === chain.length - 1;
-
-                                            // Show "Read more" if:
-                                            // 1. Middle of chain: there are sibling replies we're skipping (repliesCount > 1)
-                                            // 2. End of chain: there are further sub-replies (repliesCount > 0)
-                                            const hasSubRepliesSkipped = !isLastInChain && chainItem.repliesCount > 1;
-                                            const hasSubRepliesAtEnd = isLastInChain && chainItem.repliesCount > 0;
-                                            const showMoreReplies = hasSubRepliesSkipped || hasSubRepliesAtEnd;
-                                            const skipCount = hasSubRepliesSkipped ? chainItem.repliesCount - 1 : chainItem.repliesCount;
+                                            const hasNextInChain = !isLastInChain;
 
                                             return (
-                                                <React.Fragment key={chainItem.id}>
-                                                    <PostCard
-                                                        post={chainItem}
-                                                        isComment={true}
-                                                        hasTopLine={!isFirstInChain}
-                                                        hasBottomLine={!isLastInChain}
-                                                        hideBorder={!isLastInChain || showMoreReplies}
-                                                    />
-                                                    {showMoreReplies && (
-                                                        <ThreadMoreReplies
-                                                            count={skipCount}
-                                                            onClick={() => navigate(`/profile/${chainItem.author.handle}/post/${chainItem.id}`)}
-                                                            t={t}
-                                                        />
-                                                    )}
-                                                </React.Fragment>
+                                                <PostCard
+                                                    key={chainItem.id}
+                                                    post={chainItem}
+                                                    isComment={true}
+                                                    hasTopLine={!isFirstInChain}
+                                                    hasBottomLine={hasNextInChain}
+                                                    hideBorder={hasNextInChain || (isLastInChain && showReadMore)}
+                                                />
                                             );
                                         })}
+                                        {showReadMore && (
+                                            <ThreadMoreReplies
+                                                count={remainingCount}
+                                                onClick={() => navigate(`/profile/${reply.author.handle}/post/${reply.id}`)}
+                                                t={t}
+                                            />
+                                        )}
                                     </div>
                                 );
                             })}
