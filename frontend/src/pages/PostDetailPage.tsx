@@ -315,9 +315,8 @@ const PostDetailPage: React.FC = () => {
 
                 {/* Thread Parent */}
                 {parentPost && (
-                    <div className="border-b border-gray-100 dark:border-dark-border/50">
-                        <PostCard post={parentPost} />
-                        <div className="ml-9 h-4 border-l-2 border-gray-200 dark:border-dark-border" />
+                    <div className="border-b-0">
+                        <PostCard post={parentPost} hasBottomLine={true} hideBorder={true} />
                     </div>
                 )}
 
@@ -326,7 +325,7 @@ const PostDetailPage: React.FC = () => {
                     {/* Author Info */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="cursor-pointer" onClick={(e) => {
+                            <div className="cursor-pointer relative flex flex-col items-center flex-shrink-0" onClick={(e) => {
                                 e.stopPropagation();
                                 if (currentUser?.id === post.author.id) {
                                     navigate(`/profile/${post.author.handle}`);
@@ -334,11 +333,16 @@ const PostDetailPage: React.FC = () => {
                                     navigate(`/profile/user/${post.author.id}`);
                                 }
                             }}>
-                                <Avatar
-                                    src={post.author.avatarUrl || post.author.avatar}
-                                    alt={post.author.displayName}
-                                    size="lg"
-                                />
+                                {parentPost && (
+                                    <div className="absolute top-[-16px] bottom-[auto] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border z-0" />
+                                )}
+                                <div className="z-10 bg-white dark:bg-dark-bg rounded-full">
+                                    <Avatar
+                                        src={post.author.avatarUrl || post.author.avatar}
+                                        alt={post.author.displayName}
+                                        size="md"
+                                    />
+                                </div>
                             </div>
                             <div className="flex flex-col cursor-pointer" onClick={(e) => {
                                 e.stopPropagation();
@@ -539,26 +543,58 @@ const PostDetailPage: React.FC = () => {
 
                 <div className="pb-20">
                     {treeViewEnabled ? (
-                        <div className="divide-y divide-gray-100 dark:divide-dark-border/30">
-                            {replies.map((reply: Post) => (
-                                <div key={reply.id} className="relative">
-                                    <PostCard post={reply} isComment={true} />
-                                    {/* Sub-replies (Simple 1-level for now) */}
-                                    <div className="ml-8 border-l-2 border-gray-100 dark:border-dark-border/30">
-                                        {posts
-                                            .filter(p => p.replyToPostId === reply.id)
-                                            .map(subReply => (
-                                                <PostCard key={subReply.id} post={subReply} isComment={true} />
-                                            ))
-                                        }
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="divide-y-0">
+                            {(() => {
+                                const renderTree = (replyList: Post[], depth: number = 0): React.ReactNode => {
+                                    return replyList.map(reply => {
+                                        const subReplies = posts.filter(p => p.replyToPostId === reply.id);
+                                        const hasSubReplies = subReplies.length > 0;
+                                        return (
+                                            <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
+                                                <PostCard
+                                                    post={reply}
+                                                    isComment={true}
+                                                    hideBorder={hasSubReplies}
+                                                    indentFactor={depth}
+                                                />
+                                                {hasSubReplies && (
+                                                    <div className="relative">
+                                                        {renderTree(subReplies, depth + 1)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    });
+                                };
+                                return renderTree(replies);
+                            })()}
                         </div>
                     ) : (
-                        replies.map((reply: Post) => (
-                            <PostCard key={reply.id} post={reply} isComment={true} />
-                        ))
+                        <div className="divide-y-0">
+                            {replies.map((reply: Post) => {
+                                const subRepliesCount = posts.filter(p => p.replyToPostId === reply.id).length || reply.repliesCount;
+                                const hasMore = subRepliesCount > 0;
+                                return (
+                                    <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
+                                        <PostCard post={reply} isComment={true} hasBottomLine={hasMore} hideBorder={hasMore} />
+                                        {hasMore && (
+                                            <div
+                                                className="flex pl-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer border-b border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg z-10"
+                                                onClick={() => navigate(`/profile/${reply.author.handle}/post/${reply.id}`)}
+                                            >
+                                                <div className="w-[40px] flex justify-center relative flex-shrink-0">
+                                                    <div className="absolute top-[-12px] h-[12px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
+                                                    <FiPlus className="text-gray-400 bg-gray-50 dark:bg-dark-surface z-10 w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-dark-border text-xs flex items-center justify-center p-0.5" />
+                                                </div>
+                                                <div className="ml-3 text-primary-500 text-[14px] font-medium pt-0.5">
+                                                    Read {subRepliesCount} more repl{subRepliesCount > 1 ? 'ies' : 'y'}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     )}
                 </div>
 

@@ -48,9 +48,14 @@ interface PostCardProps {
     isComment?: boolean;
     isInListContext?: boolean;
     onRemoveFromList?: () => void;
+    // Thread UI
+    hasTopLine?: boolean;
+    hasBottomLine?: boolean;
+    hideBorder?: boolean;
+    indentFactor?: number;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList, hasTopLine, hasBottomLine, hideBorder, indentFactor }) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
@@ -282,7 +287,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
 
     return (
         <div
-            className="border-b border-gray-200 dark:border-dark-border hover:bg-gray-100/50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer"
+            className={cn(
+                "hover:bg-gray-100/50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer",
+                hideBorder ? "" : "border-b border-gray-200 dark:border-dark-border"
+            )}
             onClick={handleCardClick}
         >
             {/* Repost Banner */}
@@ -292,15 +300,26 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                     <span>{t('post.reposted_by_you', 'Reposted by you')}</span>
                 </div>
             )}
-            <div className="p-4 pt-3">
+            <div
+                className={cn("p-4 pt-3", isComment && "pb-3")}
+                style={{ paddingLeft: indentFactor ? `${16 + indentFactor * 32}px` : undefined }}
+            >
                 <div className="flex gap-3">
                     {/* Avatar */}
-                    <div className="flex-shrink-0" onClick={handleAvatarClick}>
-                        <Avatar
-                            src={post.author.avatarUrl || post.author.avatar}
-                            alt={post.author.displayName}
-                            size="md"
-                        />
+                    <div className="flex-shrink-0 relative flex flex-col items-center">
+                        {hasTopLine && (
+                            <div className="absolute top-[-12px] bottom-[auto] w-[2px] h-[12px] bg-gray-200 dark:bg-dark-border z-0" />
+                        )}
+                        <div className="z-10 bg-white dark:bg-dark-bg cursor-pointer rounded-full flex-shrink-0" onClick={handleAvatarClick}>
+                            <Avatar
+                                src={post.author.avatarUrl || post.author.avatar}
+                                alt={post.author.displayName}
+                                size="md"
+                            />
+                        </div>
+                        {hasBottomLine && (
+                            <div className="absolute top-[40px] bottom-[-16px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
+                        )}
                     </div>
 
                     {/* Content */}
