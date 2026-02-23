@@ -677,7 +677,7 @@ const PostDetailPage: React.FC = () => {
                                         const indent = depth * DEPTH_STEP;
 
                                         return (
-                                            <React.Fragment key={reply.id}>
+                                            <div key={reply.id} className={depth === 0 ? "border-b border-gray-200 dark:border-dark-border" : ""}>
                                                 {/* Parent's own block - bounds its absolute line heights exclusively to itself */}
                                                 <div className="relative bg-white dark:bg-dark-bg group">
                                                     {/* Left structural lines for all depth levels */}
@@ -731,7 +731,7 @@ const PostDetailPage: React.FC = () => {
                                                             isComment={true}
                                                             hasBottomLine={false}
                                                             hasTopLine={false}
-                                                            hideBorder={hasSubReplies || (!isLast && depth > 0)}
+                                                            hideBorder={true}
                                                         />
                                                     </div>
 
@@ -755,7 +755,7 @@ const PostDetailPage: React.FC = () => {
                                                         {renderTree(subReplies, depth + 1, nextActiveLines)}
                                                     </div>
                                                 )}
-                                            </React.Fragment>
+                                            </div>
                                         );
                                     });
                                 };
