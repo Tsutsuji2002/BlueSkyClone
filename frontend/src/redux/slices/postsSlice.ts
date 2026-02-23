@@ -11,6 +11,7 @@ const initialState: PostsState = {
     discoverLoading: false,
     error: null,
     hasMore: true,
+    discoverHasMore: true,
     actionLoading: {}, // Map of postId -> boolean
 };
 
@@ -609,7 +610,7 @@ const postsSlice = createSlice({
                 } else {
                     state.discoverPosts = [...state.discoverPosts, ...action.payload.posts];
                 }
-                state.hasMore = action.payload.posts.length > 0;
+                state.discoverHasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchDiscoverPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;

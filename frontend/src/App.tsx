@@ -89,6 +89,30 @@ const AppContent: React.FC = () => {
     }
   }, [isAuthenticated, dispatch]);
 
+  const theme = useAppSelector((state: RootState) => state.theme);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    // Apply dark mode and variants
+    if (theme.mode === 'dark') {
+      root.classList.add('dark');
+      if (theme.darkVariant === 'dark') {
+        root.classList.add('lights-out');
+        root.classList.remove('dim');
+      } else {
+        root.classList.add('dim');
+        root.classList.remove('lights-out');
+      }
+    } else {
+      root.classList.remove('dark');
+      root.classList.remove('lights-out');
+      root.classList.remove('dim');
+    }
+
+    // Apply font size
+    root.setAttribute('data-font-size', theme.fontSize);
+  }, [theme.mode, theme.darkVariant, theme.fontSize]);
+
   useEffect(() => {
     if (appLanguage) {
       i18n.changeLanguage(appLanguage);

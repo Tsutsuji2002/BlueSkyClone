@@ -259,6 +259,7 @@
         "dark": "Dark",
         "dark_variant": "Dark Mode Variant",
         "dim": "Dim",
+        "lights_out": "Lights Out",
         "font_family": "Font Family",
         "font_family_desc": "We recommend using theme fonts for the best experience.",
         "ui_font": "UI Font",

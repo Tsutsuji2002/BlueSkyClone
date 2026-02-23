@@ -16,6 +16,7 @@ interface FeedsState {
     error: string | null;
     hasMoreSearch: boolean;
     actionLoading: Record<string, boolean>;
+    feedHasMore: Record<string, boolean>;
 }
 
 const initialState: FeedsState = {
@@ -32,6 +33,7 @@ const initialState: FeedsState = {
     error: null,
     hasMoreSearch: true,
     actionLoading: {},
+    feedHasMore: {},
 };
 
 export const fetchTrendingFeeds = createAsyncThunk<
@@ -471,12 +473,13 @@ const feedsSlice = createSlice({
             })
             .addCase(fetchFeedPosts.fulfilled, (state: FeedsState, action: any) => {
                 state.isLoading = false;
-                const { feedId, posts } = action.payload;
+                const { feedId, posts, isMore } = action.payload;
                 if (!state.feedPosts[feedId] || action.meta.arg.skip === 0) {
                     state.feedPosts[feedId] = posts;
                 } else {
                     state.feedPosts[feedId] = [...state.feedPosts[feedId], ...posts];
                 }
+                state.feedHasMore[feedId] = isMore !== undefined ? isMore : posts.length > 0;
             })
             .addCase(fetchFeedPosts.rejected, (state: FeedsState, action: any) => {
                 state.isLoading = false;

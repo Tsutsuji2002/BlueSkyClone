@@ -17,7 +17,7 @@
     --border-color: #eff3f4;
   }
 
-  /* Dark theme */
+  /* Dark theme (Default: Dim/Blue-dark) */
   .dark {
     --bg-primary: #15202b;
     --bg-secondary: #192734;
@@ -25,6 +25,16 @@
     --text-primary: #e7e9ea;
     --text-secondary: #8b98a5;
     --border-color: #38444d;
+  }
+
+  /* Lights out (Pure black) override */
+  .dark.lights-out {
+    --bg-primary: #000000;
+    --bg-secondary: #16181c;
+    --bg-hover: #1c1f23;
+    --text-primary: #e7e9ea;
+    --text-secondary: #71767b;
+    --border-color: #2f3336;
   }
 
   body {
@@ -46,13 +56,27 @@
   }
 
   @keyframes flap-left {
-    0%, 100% { transform: rotateY(0deg); }
-    50% { transform: rotateY(-60deg); }
+
+    0%,
+    100% {
+      transform: rotateY(0deg);
+    }
+
+    50% {
+      transform: rotateY(-60deg);
+    }
   }
 
   @keyframes flap-right {
-    0%, 100% { transform: rotateY(0deg); }
-    50% { transform: rotateY(60deg); }
+
+    0%,
+    100% {
+      transform: rotateY(0deg);
+    }
+
+    50% {
+      transform: rotateY(60deg);
+    }
   }
 
   .butterfly-wing-left {

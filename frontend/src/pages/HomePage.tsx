@@ -21,8 +21,8 @@ const HomePage: React.FC = () => {
     const dispatch = useAppDispatch();
     const scrollPositions = React.useRef<Record<string, number>>({});
     const lastTab = React.useRef<string>('');
-    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading } = useAppSelector((state: RootState) => state.feeds);
-    const { posts: followingPosts, discoverPosts, timelineLoading, discoverLoading } = useAppSelector((state: RootState) => state.posts);
+    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedHasMore } = useAppSelector((state: RootState) => state.feeds);
+    const { posts: followingPosts, discoverPosts, timelineLoading, discoverLoading, hasMore: timelineHasMore, discoverHasMore } = useAppSelector((state: RootState) => state.posts);
     const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
 
     useEffect(() => {
@@ -150,12 +150,12 @@ const HomePage: React.FC = () => {
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
                 <div style={{ display: activeTab === 'following' ? 'block' : 'none' }}>
-                    <Feed posts={followingPosts} isLoading={timelineLoading} onLoadMore={handleLoadMore} />
+                    <Feed posts={followingPosts} isLoading={timelineLoading} hasMore={timelineHasMore} onLoadMore={handleLoadMore} />
                 </div>
 
                 <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>
                     <InterestsSection />
-                    <Feed posts={discoverPosts} isLoading={discoverLoading} onLoadMore={handleLoadMore} />
+                    <Feed posts={discoverPosts} isLoading={discoverLoading} hasMore={discoverHasMore} onLoadMore={handleLoadMore} />
                 </div>
 
                 {pinnedFeeds.map((feed: FeedType) => (
@@ -163,6 +163,7 @@ const HomePage: React.FC = () => {
                         <Feed
                             posts={feedPosts[feed.id] || []}
                             isLoading={feedsLoading && activeTab === feed.id}
+                            hasMore={feedHasMore[feed.id] !== false}
                             onLoadMore={handleLoadMore}
                         />
                     </div>

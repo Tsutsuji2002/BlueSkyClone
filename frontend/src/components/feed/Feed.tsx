@@ -80,9 +80,16 @@ const Feed: React.FC<FeedProps> = ({
             ))}
 
             {/* Infinite Scroll Trigger */}
-            <div ref={observerTarget} className="h-10 flex items-center justify-center">
+            <div ref={observerTarget} className="h-20 flex items-center justify-center">
                 {isLoading && posts.length > 0 && (
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+                )}
+                {!isLoading && !hasMore && posts.length > 0 && (
+                    <div className="flex items-center gap-3 text-gray-400 dark:text-dark-text-secondary select-none">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
+                        <span className="text-sm font-medium">{t('feeds.end', 'End of feed')}</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
+                    </div>
                 )}
             </div>
         </div>

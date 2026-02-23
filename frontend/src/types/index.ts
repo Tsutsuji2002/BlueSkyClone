@@ -314,6 +314,7 @@ export interface PostsState {
     discoverLoading: boolean;
     error: string | null;
     hasMore: boolean;
+    discoverHasMore: boolean;
     actionLoading: Record<string, boolean>;
 }
 
