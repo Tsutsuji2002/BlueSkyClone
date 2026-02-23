@@ -668,73 +668,85 @@ const PostDetailPage: React.FC = () => {
                                         const indent = depth * DEPTH_STEP;
 
                                         return (
-                                            <div key={reply.id} className="relative bg-white dark:bg-dark-bg group">
-                                                {/* Left structural lines for all depth levels */}
-                                                <div className="absolute top-0 bottom-0 left-0 pointer-events-none">
-                                                    {/* Draw continuous vertical lines for active ancestor depths */}
-                                                    {activeLines.map((isActive, level) => {
-                                                        if (!isActive) return null;
-                                                        // Stop the line at the elbow point if this is the immediate parent's line and we're the last child
-                                                        const isImmediateParent = level === depth - 1;
-                                                        return (
+                                            <React.Fragment key={reply.id}>
+                                                {/* Parent's own block - bounds its absolute line heights exclusively to itself */}
+                                                <div className="relative bg-white dark:bg-dark-bg group">
+                                                    {/* Left structural lines for all depth levels */}
+                                                    <div className="absolute top-0 bottom-0 left-0 pointer-events-none">
+                                                        {/* Draw continuous vertical lines for active ancestor depths */}
+                                                        {activeLines.map((isActive, level) => {
+                                                            if (!isActive) return null;
+                                                            // For the immediate parent line connecting to this exact post:
+                                                            const isImmediateParent = level === depth - 1;
+                                                            // If we are the LAST child, DO NOT draw the straight continuous line.
+                                                            // We will let the elbow pure curve handle it, stopping cleanly without ugly overhangs!
+                                                            if (isImmediateParent && isLast) return null;
+
+                                                            return (
+                                                                <div
+                                                                    key={level}
+                                                                    className="absolute bg-gray-200 dark:bg-dark-border"
+                                                                    style={{
+                                                                        left: AVATAR_CENTER + (level * DEPTH_STEP) - 1,
+                                                                        width: 2,
+                                                                        top: 0,
+                                                                        bottom: 0 // Perfectly spans the block downwards
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })}
+
+                                                        {/* The elbow connector from immediate parent up to this child's avatar */}
+                                                        {depth > 0 && (
                                                             <div
-                                                                key={level}
-                                                                className="absolute bg-gray-200 dark:bg-dark-border"
+                                                                className={cn(
+                                                                    "absolute border-b-2 border-gray-200 dark:border-dark-border",
+                                                                    // Only give it a rounded left curve if it's the last child!
+                                                                    // Intermediate children get a sharp T-branch connection like Bluesky
+                                                                    isLast ? "border-l-2 rounded-bl-[12px]" : ""
+                                                                )}
                                                                 style={{
-                                                                    left: AVATAR_CENTER + (level * DEPTH_STEP) - 1,
-                                                                    width: 2,
-                                                                    top: 0,
-                                                                    bottom: isImmediateParent && isLast ? 'calc(100% - 33px)' : 0 // End exactly at the elbow's bottom
+                                                                    left: AVATAR_CENTER + ((depth - 1) * DEPTH_STEP) - 1,
+                                                                    top: isLast ? 0 : 31, // T-branches just draw a horizontal line at 31px top right into the avatar
+                                                                    width: 14,
+                                                                    height: isLast ? 33 : 2 // Height is 2 if just a horizontal line
                                                                 }}
                                                             />
-                                                        );
-                                                    })}
+                                                        )}
+                                                    </div>
 
-                                                    {/* The elbow connector from immediate parent (depth - 1) up to this child's avatar */}
-                                                    {depth > 0 && (
+                                                    {/* The post card itself, indented. Disabling internal PostCard lines completely. */}
+                                                    <div style={{ paddingLeft: indent }}>
+                                                        <PostCard
+                                                            post={reply}
+                                                            isComment={true}
+                                                            hasBottomLine={false}
+                                                            hasTopLine={false}
+                                                            hideBorder={hasSubReplies || (!isLast && depth > 0)}
+                                                        />
+                                                    </div>
+
+                                                    {/* Vertical connector line going from THIS post's avatar DOWN strictly linking to its children */}
+                                                    {hasSubReplies && (
                                                         <div
-                                                            className="absolute border-l-2 border-b-2 border-gray-200 dark:border-dark-border rounded-bl-[12px]"
+                                                            className="absolute bg-gray-200 dark:bg-dark-border pointer-events-none"
                                                             style={{
-                                                                left: AVATAR_CENTER + ((depth - 1) * DEPTH_STEP) - 1,
-                                                                top: 0,
-                                                                width: 14, // Leg points right towards avatar, leaves a gap
-                                                                height: 33 // Exactly matches center of 40px avatar (12px top padding + 20px half-height + 1px center adjust)
+                                                                left: AVATAR_CENTER + (depth * DEPTH_STEP) - 1,
+                                                                width: 2,
+                                                                top: 54, // Starts below avatar
+                                                                bottom: 0  // Ends precisely at bottom of this wrapper, handing off to child blocks
                                                             }}
                                                         />
                                                     )}
                                                 </div>
 
-                                                {/* The post card itself, indented. We disable internal PostCard lines entirely */}
-                                                <div style={{ paddingLeft: indent }}>
-                                                    <PostCard
-                                                        post={reply}
-                                                        isComment={true}
-                                                        hasBottomLine={false}
-                                                        hasTopLine={false}
-                                                        hideBorder={hasSubReplies || (!isLast && depth > 0)}
-                                                    />
-                                                </div>
-
-                                                {/* Vertical connector line going from THIS post's avatar DOWN to its children */}
-                                                {hasSubReplies && (
-                                                    <div
-                                                        className="absolute bg-gray-200 dark:bg-dark-border pointer-events-none"
-                                                        style={{
-                                                            left: AVATAR_CENTER + (depth * DEPTH_STEP) - 1,
-                                                            width: 2,
-                                                            top: 54, // Underneath 40px avatar + 12px padding + 2px gap
-                                                            bottom: 0
-                                                        }}
-                                                    />
-                                                )}
-
-                                                {/* Recursively render children */}
+                                                {/* Render Children separately so their heights don't distort their parent's background layout wrappers */}
                                                 {hasSubReplies && (
                                                     <div>
                                                         {renderTree(subReplies, depth + 1, nextActiveLines)}
                                                     </div>
                                                 )}
-                                            </div>
+                                            </React.Fragment>
                                         );
                                     });
                                 };
