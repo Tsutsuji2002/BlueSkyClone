@@ -363,23 +363,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                             </span>
                         </div>
 
-                        {/* Replying to Context */}
-                        {post.replyToHandle && (
-                            <div className="flex items-center gap-2 mb-1 text-[15px] text-gray-500 dark:text-dark-text-secondary">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                    <path d="M12.015 7c0-1.93-1.57-3.5-3.5-3.5h-1v2h1c.827 0 1.5.673 1.5 1.5v3.172l-1.586-1.586-1.414 1.414L10.515 13.5l3.5-3.5-1.414-1.414-1.586 1.586V7z" />
-                                    <path d="M3 20h18v-2H3v2z" opacity=".3" />
-                                </svg>
-                                <span>{t('messages.replying_to_prefix')}</span>
-                                <Link
-                                    to={`/profile/${post.replyToHandle}`}
-                                    className="text-primary-500 hover:underline"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    @{post.replyToHandle}
-                                </Link>
-                            </div>
-                        )}
+
 
                         {/* Curated List Caption - Removed to avoid duplication as requested */}
 
@@ -561,8 +545,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                     }}
                     onClose={() => setShowRemoveConfirm(false)}
                 />
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

@@ -103,7 +103,23 @@ const PostDetailPage: React.FC = () => {
         const filtered = posts.filter((p: Post) => p.replyToPostId === postId);
         return sortPosts(filtered);
     }, [posts, postId, sortPosts]);
-    const parentPost = post?.replyToPostId ? posts.find(p => p.id === post.replyToPostId) : null;
+    const ancestors = React.useMemo(() => {
+        const list: Post[] = [];
+        if (!post) return list;
+        let current: Post | undefined = post;
+        while (current?.replyToPostId) {
+            const replyToId: string = current.replyToPostId!;
+            const found: Post | undefined = posts.find((p: Post) => p.id === replyToId);
+            if (found) {
+                list.unshift(found);
+                current = found;
+            } else {
+                break;
+            }
+        }
+        return list;
+    }, [posts, post]);
+    const parentPost = ancestors.length > 0 ? ancestors[ancestors.length - 1] : null;
 
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
@@ -120,11 +136,15 @@ const PostDetailPage: React.FC = () => {
         }
     }, [dispatch, postId, post]);
 
+    const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
     React.useEffect(() => {
-        if (post?.replyToPostId && !parentPost) {
-            dispatch(fetchPostById(post.replyToPostId));
+        if (oldestKnown?.replyToPostId) {
+            const hasParent = posts.some(p => p.id === oldestKnown?.replyToPostId);
+            if (!hasParent) {
+                dispatch(fetchPostById(oldestKnown.replyToPostId));
+            }
         }
-    }, [dispatch, post?.replyToPostId, parentPost]);
+    }, [dispatch, oldestKnown?.id, oldestKnown?.replyToPostId, posts]);
 
     // Fetch sub-replies for chain building
     React.useEffect(() => {
@@ -406,12 +426,22 @@ const PostDetailPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Parent Post */}
-                {parentPost && (
-                    <div className="border-b-0 bg-white dark:bg-dark-bg cursor-pointer" onClick={() => navigate(`/profile/${parentPost.author.handle}/post/${parentPost.id}`)}>
-                        <PostCard post={parentPost} isComment={true} hasBottomLine={true} hideBorder={true} />
+                {/* Parent Post Chain */}
+                {ancestors.map((ancestor, index) => (
+                    <div
+                        key={ancestor.id}
+                        className="bg-white dark:bg-dark-bg cursor-pointer"
+                        onClick={() => navigate(`/profile/${ancestor.author.handle}/post/${ancestor.id}`)}
+                    >
+                        <PostCard
+                            post={ancestor}
+                            isComment={true}
+                            hasTopLine={index > 0}
+                            hasBottomLine={true}
+                            hideBorder={true}
+                        />
                     </div>
-                )}
+                ))}
 
                 {/* Main Post */}
                 <div ref={mainPostRef} className="p-4 border-b border-gray-200 dark:border-dark-border relative bg-white dark:bg-dark-bg">
