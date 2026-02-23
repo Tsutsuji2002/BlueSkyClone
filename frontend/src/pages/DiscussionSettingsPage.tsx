@@ -114,7 +114,10 @@ const DiscussionSettingsPage: React.FC = () => {
                                 </h2>
                             </div>
                             <button
-                                onClick={() => handleToggle('treeView', !settings?.treeView)}
+                                onClick={() => {
+                                    dispatch(updateSettings({ treeView: !settings?.treeView })); // Optimistic UI
+                                    dispatch(updateNotificationSettings({ enableTreeView: !settings?.treeView } as any));
+                                }}
                                 className={cn(
                                     "w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out",
                                     settings?.treeView ? "bg-blue-500" : "bg-gray-200 dark:bg-dark-surface"

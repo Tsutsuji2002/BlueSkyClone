@@ -4,6 +4,22 @@ import { isTokenExpired } from '../../utils/authUtils';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+/**
+ * Normalizes settings from the backend (PascalCase / different field names)
+ * to the frontend camelCase UserSettings shape.
+ */
+function normalizeSettings(raw: any): UserSettings {
+    return {
+        ...raw,
+        // Map backend's enableTreeView -> frontend's treeView
+        treeView: raw.treeView ?? raw.enableTreeView ?? false,
+        // Map backend's sortReplies (already camelCase) - keep as is
+        sortReplies: raw.sortReplies ?? 'top',
+        // Map backend's enableDiscoverVideo -> frontend's enableVideoDiscover
+        enableVideoDiscover: raw.enableVideoDiscover ?? raw.enableDiscoverVideo ?? false,
+    } as UserSettings;
+}
+
 const token = localStorage.getItem('token');
 
 const initialState: AuthState = {
@@ -217,7 +233,7 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.isAuthenticated = true;
                 state.user = action.payload.user;
-                state.settings = action.payload.settings;
+                state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
                 if (action.payload.token) {
                     localStorage.setItem('token', action.payload.token);
@@ -239,7 +255,7 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.isAuthenticated = true;
                 state.user = action.payload.user;
-                state.settings = action.payload.settings;
+                state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
                 if (action.payload.token) {
                     localStorage.setItem('token', action.payload.token);
@@ -260,7 +276,7 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.isAuthenticated = true;
                 state.user = action.payload.user;
-                state.settings = action.payload.settings;
+                state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
             })
             .addCase(getMe.rejected, (state) => {
@@ -306,7 +322,7 @@ const authSlice = createSlice({
             })
             // Update Settings
             .addCase(updateNotificationSettings.fulfilled, (state, action: PayloadAction<UserSettings>) => {
-                state.settings = { ...state.settings, ...action.payload } as UserSettings;
+                state.settings = normalizeSettings({ ...state.settings, ...action.payload });
             });
     },
 });
