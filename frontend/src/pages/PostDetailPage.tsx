@@ -670,7 +670,7 @@ const PostDetailPage: React.FC = () => {
                                         return (
                                             <div key={reply.id} className="relative bg-white dark:bg-dark-bg group">
                                                 {/* Left structural lines for all depth levels */}
-                                                <div className="absolute top-0 bottom-0 left-0 pointer-events-none z-10">
+                                                <div className="absolute top-0 bottom-0 left-0 pointer-events-none">
                                                     {/* Draw continuous vertical lines for active ancestor depths */}
                                                     {activeLines.map((isActive, level) => {
                                                         if (!isActive) return null;
@@ -705,7 +705,7 @@ const PostDetailPage: React.FC = () => {
                                                 </div>
 
                                                 {/* The post card itself, indented. We disable internal PostCard lines entirely */}
-                                                <div style={{ paddingLeft: indent }} className="relative z-20">
+                                                <div style={{ paddingLeft: indent }}>
                                                     <PostCard
                                                         post={reply}
                                                         isComment={true}
@@ -718,7 +718,7 @@ const PostDetailPage: React.FC = () => {
                                                 {/* Vertical connector line going from THIS post's avatar DOWN to its children */}
                                                 {hasSubReplies && (
                                                     <div
-                                                        className="absolute bg-gray-200 dark:bg-dark-border pointer-events-none z-10"
+                                                        className="absolute bg-gray-200 dark:bg-dark-border pointer-events-none"
                                                         style={{
                                                             left: AVATAR_CENTER + (depth * DEPTH_STEP) - 1,
                                                             width: 2,
