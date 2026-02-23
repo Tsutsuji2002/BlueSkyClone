@@ -106,7 +106,7 @@ const PostDetailPage: React.FC = () => {
         }
     }, [dispatch, post?.replyToPostId, parentPost]);
 
-    // Fetch sub-replies for replies that have them (for chaining in non-tree view and tree view)
+    // Fetch sub-replies for chain building
     React.useEffect(() => {
         replies.forEach(reply => {
             if (reply.repliesCount > 0 && !fetchedRepliesRef.current.has(reply.id)) {
@@ -116,13 +116,12 @@ const PostDetailPage: React.FC = () => {
         });
     }, [dispatch, replies]);
 
-    // For non-tree view: also fetch sub-replies of sub-replies (chain depth)
+    // Build chain depth for non-tree view
     React.useEffect(() => {
-        if (treeViewEnabled) return; // tree view handles all levels already
+        if (treeViewEnabled) return;
         replies.forEach(reply => {
-            // Build chain: get top sub-reply, then its top sub-reply, etc.
             let currentId = reply.id;
-            for (let depth = 0; depth < 4; depth++) {
+            for (let depth = 0; depth < 5; depth++) {
                 const subReplies = posts.filter(p => p.replyToPostId === currentId);
                 if (subReplies.length === 0) break;
                 const topSub = sortPosts(subReplies)[0];
@@ -156,6 +155,25 @@ const PostDetailPage: React.FC = () => {
         fetchNested();
     }, [dispatch, posts, postId, treeViewEnabled]);
 
+    const mainPostRef = React.useRef<HTMLDivElement>(null);
+    const hasScrolledRef = React.useRef(false);
+
+    // Auto scroll to main post if it has a parent
+    React.useEffect(() => {
+        if (parentPost && post?.replyToPostId && mainPostRef.current && !isLoading && !hasScrolledRef.current) {
+            const rect = mainPostRef.current.getBoundingClientRect();
+            window.scrollTo({
+                top: rect.top + window.scrollY - 60,
+                behavior: 'smooth'
+            });
+            hasScrolledRef.current = true;
+        }
+    }, [parentPost, post, isLoading]);
+
+    // Reset scroll ref when post changes
+    React.useEffect(() => {
+        hasScrolledRef.current = false;
+    }, [postId]);
 
     if (!post) {
         if (isLoading) {
@@ -368,30 +386,23 @@ const PostDetailPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Thread Parent */}
+                {/* Parent Post */}
                 {parentPost && (
-                    <div className="border-b-0">
-                        <PostCard post={parentPost} hasBottomLine={true} hideBorder={true} />
+                    <div className="border-b-0 bg-white dark:bg-dark-bg cursor-pointer" onClick={() => navigate(`/profile/${parentPost.author.handle}/post/${parentPost.id}`)}>
+                        <PostCard post={parentPost} isComment={true} hasBottomLine={true} hideBorder={true} />
                     </div>
                 )}
 
                 {/* Main Post */}
-                <div className="p-4 border-b border-gray-200 dark:border-dark-border">
-                    {/* Author Info */}
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="cursor-pointer relative flex flex-col items-center flex-shrink-0" onClick={(e) => {
-                                e.stopPropagation();
-                                if (currentUser?.id === post.author.id) {
-                                    navigate(`/profile/${post.author.handle}`);
-                                } else {
-                                    navigate(`/profile/user/${post.author.id}`);
-                                }
-                            }}>
+                <div ref={mainPostRef} className="p-4 border-b border-gray-200 dark:border-dark-border relative bg-white dark:bg-dark-bg">
+                    <div className="flex justify-between items-start">
+                        <div className="flex gap-3 mb-4">
+                            <div className="flex-shrink-0 relative flex flex-col items-center">
+                                {/* Connection line to parent if this post is a reply */}
                                 {parentPost && (
-                                    <div className="absolute top-[-16px] bottom-[auto] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border z-0" />
+                                    <div className="absolute top-[-16px] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border z-0" />
                                 )}
-                                <div className="z-10 bg-white dark:bg-dark-bg rounded-full">
+                                <div className="z-10 bg-white dark:bg-dark-bg rounded-full" onClick={() => navigate(`/profile/${post.author.handle}`)} style={{ cursor: 'pointer' }}>
                                     <Avatar
                                         src={post.author.avatarUrl || post.author.avatar}
                                         alt={post.author.displayName}
@@ -399,18 +410,11 @@ const PostDetailPage: React.FC = () => {
                                     />
                                 </div>
                             </div>
-                            <div className="flex flex-col cursor-pointer" onClick={(e) => {
-                                e.stopPropagation();
-                                if (currentUser?.id === post.author.id) {
-                                    navigate(`/profile/${post.author.handle}`);
-                                } else {
-                                    navigate(`/profile/user/${post.author.id}`);
-                                }
-                            }}>
-                                <span className="font-bold text-gray-900 dark:text-dark-text hover:underline">
+                            <div className="flex flex-col">
+                                <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
                                     {post.author.displayName}
                                 </span>
-                                <span className="text-gray-500 dark:text-dark-text-secondary hover:underline">
+                                <span className="text-gray-500 dark:text-dark-text-secondary hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
                                     @{post.author.handle}
                                 </span>
                             </div>
@@ -598,24 +602,43 @@ const PostDetailPage: React.FC = () => {
 
                 <div className="pb-20">
                     {treeViewEnabled ? (
-                        /* ===== TREE VIEW: All replies shown with indentation ===== */
-                        <div>
+                        /* ===== TREE VIEW: All replies shown sequentially, connected by flat lines ===== */
+                        <div className="divide-y-0">
                             {(() => {
-                                const renderTree = (parentId: string, depth: number = 0): React.ReactNode => {
+                                const renderTree = (parentId: string): React.ReactNode => {
                                     const children = sortPosts(posts.filter(p => p.replyToPostId === parentId));
                                     return children.map((reply, index) => {
                                         const subReplies = posts.filter(p => p.replyToPostId === reply.id);
-                                        const hasSubReplies = subReplies.length > 0;
+                                        const hasFetchedSubReplies = subReplies.length > 0;
+                                        const hasUnfetchedSubReplies = !hasFetchedSubReplies && reply.repliesCount > 0;
+                                        const showBottomLine = hasFetchedSubReplies || hasUnfetchedSubReplies || index < children.length - 1;
+
                                         return (
-                                            <div key={reply.id}>
+                                            <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
                                                 <PostCard
                                                     post={reply}
                                                     isComment={true}
-                                                    hasBottomLine={hasSubReplies}
-                                                    hideBorder={hasSubReplies}
-                                                    indentFactor={depth}
+                                                    hasTopLine={parentId !== postId || index > 0}
+                                                    hasBottomLine={showBottomLine}
+                                                    hideBorder={showBottomLine}
                                                 />
-                                                {hasSubReplies && renderTree(reply.id, depth + 1)}
+                                                {hasFetchedSubReplies && renderTree(reply.id)}
+                                                {hasUnfetchedSubReplies && (
+                                                    <div
+                                                        className="flex pl-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer border-b border-gray-200 dark:border-dark-border"
+                                                        onClick={() => navigate(`/profile/${reply.author.handle}/post/${reply.id}`)}
+                                                    >
+                                                        <div className="w-[40px] flex justify-center relative flex-shrink-0">
+                                                            <div className="absolute top-[-12px] bottom-0 w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
+                                                            <FiPlus className="text-gray-400 bg-gray-100 dark:bg-dark-surface z-10 w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-dark-border flex items-center justify-center p-0.5 mt-0.5" />
+                                                        </div>
+                                                        <div className="ml-3 text-primary-500 text-[14px] font-medium pt-0.5">
+                                                            {reply.repliesCount === 1
+                                                                ? t('post.read_more_reply')
+                                                                : t('post.read_more_replies', { count: reply.repliesCount })}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     });
@@ -624,8 +647,8 @@ const PostDetailPage: React.FC = () => {
                             })()}
                         </div>
                     ) : (
-                        /* ===== NON-TREE VIEW: Chain of top sub-replies with vertical lines ===== */
-                        <div>
+                        /* ===== NON-TREE VIEW: Flat chains of top sub-replies with continuous vertical lines ===== */
+                        <div className="divide-y-0">
                             {replies.map((reply: Post) => {
                                 // Build chain: reply → top sub-reply → top sub-sub-reply...
                                 const chain: Post[] = [reply];
@@ -637,13 +660,12 @@ const PostDetailPage: React.FC = () => {
                                     currentId = subReplies[0].id;
                                 }
 
-                                // The last item in chain: check if it has more replies for "Read more"
                                 const lastInChain = chain[chain.length - 1];
                                 const lastSubRepliesCount = posts.filter(p => p.replyToPostId === lastInChain.id).length || lastInChain.repliesCount;
                                 const hasReadMore = lastSubRepliesCount > 0;
 
                                 return (
-                                    <div key={reply.id}>
+                                    <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
                                         {chain.map((chainItem, idx) => {
                                             const isFirst = idx === 0;
                                             const isLast = idx === chain.length - 1;
@@ -665,8 +687,8 @@ const PostDetailPage: React.FC = () => {
                                                 onClick={() => navigate(`/profile/${lastInChain.author.handle}/post/${lastInChain.id}`)}
                                             >
                                                 <div className="w-[40px] flex justify-center relative flex-shrink-0">
-                                                    <div className="absolute top-[-12px] h-[12px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
-                                                    <FiPlus className="text-gray-400 bg-gray-100 dark:bg-dark-surface z-10 w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-dark-border flex items-center justify-center p-0.5" />
+                                                    <div className="absolute top-[-12px] bottom-0 w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
+                                                    <FiPlus className="text-gray-400 bg-gray-100 dark:bg-dark-surface z-10 w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-dark-border flex items-center justify-center p-0.5 mt-0.5" />
                                                 </div>
                                                 <div className="ml-3 text-primary-500 text-[14px] font-medium pt-0.5">
                                                     {lastSubRepliesCount === 1

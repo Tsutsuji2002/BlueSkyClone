@@ -318,7 +318,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                             />
                         </div>
                         {hasBottomLine && (
-                            <div className="absolute top-[40px] bottom-[-16px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
+                            <div className="absolute top-[40px] bottom-[-12px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
                         )}
                     </div>
 
