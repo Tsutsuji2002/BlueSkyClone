@@ -48,6 +48,32 @@ import ConfirmModal from '../components/common/ConfirmModal';
 
 import LoadingIndicator from '../components/common/LoadingIndicator';
 
+const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () => void, t: any }) => (
+    <div
+        className="flex p-4 pt-1 pb-1 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer relative z-10 bg-white dark:bg-dark-bg group items-center"
+        onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+        }}
+    >
+        <div className="flex gap-3 w-full">
+            <div className="w-[40px] flex-shrink-0 relative flex flex-col items-center">
+                <div className="absolute top-[-4px] bottom-[-4px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
+                <div className="absolute top-[10px] bg-white dark:bg-dark-bg z-10 group-hover:bg-gray-50 dark:group-hover:bg-dark-surface/50 rounded-full flex items-center justify-center">
+                    <FiPlus className="text-gray-400 w-5 h-5 rounded-full ring-[1.5px] ring-gray-200 dark:ring-dark-border flex items-center justify-center p-0.5" strokeWidth={3} />
+                </div>
+            </div>
+            <div className="flex-1 min-w-0 flex items-center h-[40px]">
+                <div className="text-primary-500 text-[14px] font-medium">
+                    {count === 1
+                        ? t('post.read_more_reply')
+                        : t('post.read_more_replies', { count })}
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
 const PostDetailPage: React.FC = () => {
     const { postId } = useParams<{ postId: string }>();
     const navigate = useNavigate();
@@ -392,6 +418,13 @@ const PostDetailPage: React.FC = () => {
                         <PostCard post={parentPost} isComment={true} hasBottomLine={true} hideBorder={true} />
                     </div>
                 )}
+                {parentPost && parentPost.repliesCount > 1 && (
+                    <ThreadMoreReplies
+                        count={parentPost.repliesCount - 1}
+                        onClick={() => navigate(`/profile/${parentPost.author.handle}/post/${parentPost.id}`)}
+                        t={t}
+                    />
+                )}
 
                 {/* Main Post */}
                 <div ref={mainPostRef} className="p-4 border-b border-gray-200 dark:border-dark-border relative bg-white dark:bg-dark-bg">
@@ -602,48 +635,31 @@ const PostDetailPage: React.FC = () => {
 
                 <div className="pb-20">
                     {treeViewEnabled ? (
-                        /* ===== TREE VIEW: All replies shown sequentially, connected by flat lines ===== */
+                        /* ===== TREE VIEW: All replies shown with indentation ===== */
                         <div className="divide-y-0">
                             {(() => {
-                                const renderTree = (parentId: string): React.ReactNode => {
-                                    const children = sortPosts(posts.filter(p => p.replyToPostId === parentId));
-                                    return children.map((reply, index) => {
+                                const renderTree = (replyList: Post[], depth: number = 0): React.ReactNode => {
+                                    return replyList.map(reply => {
                                         const subReplies = posts.filter(p => p.replyToPostId === reply.id);
-                                        const hasFetchedSubReplies = subReplies.length > 0;
-                                        const hasUnfetchedSubReplies = !hasFetchedSubReplies && reply.repliesCount > 0;
-                                        const showBottomLine = hasFetchedSubReplies || hasUnfetchedSubReplies || index < children.length - 1;
-
+                                        const hasSubReplies = subReplies.length > 0;
                                         return (
                                             <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
                                                 <PostCard
                                                     post={reply}
                                                     isComment={true}
-                                                    hasTopLine={parentId !== postId || index > 0}
-                                                    hasBottomLine={showBottomLine}
-                                                    hideBorder={showBottomLine}
+                                                    hideBorder={hasSubReplies}
+                                                    indentFactor={depth}
                                                 />
-                                                {hasFetchedSubReplies && renderTree(reply.id)}
-                                                {hasUnfetchedSubReplies && (
-                                                    <div
-                                                        className="flex pl-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer border-b border-gray-200 dark:border-dark-border"
-                                                        onClick={() => navigate(`/profile/${reply.author.handle}/post/${reply.id}`)}
-                                                    >
-                                                        <div className="w-[40px] flex justify-center relative flex-shrink-0">
-                                                            <div className="absolute top-[-12px] bottom-0 w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
-                                                            <FiPlus className="text-gray-400 bg-gray-100 dark:bg-dark-surface z-10 w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-dark-border flex items-center justify-center p-0.5 mt-0.5" />
-                                                        </div>
-                                                        <div className="ml-3 text-primary-500 text-[14px] font-medium pt-0.5">
-                                                            {reply.repliesCount === 1
-                                                                ? t('post.read_more_reply')
-                                                                : t('post.read_more_replies', { count: reply.repliesCount })}
-                                                        </div>
+                                                {hasSubReplies && (
+                                                    <div className="relative">
+                                                        {renderTree(subReplies, depth + 1)}
                                                     </div>
                                                 )}
                                             </div>
                                         );
                                     });
                                 };
-                                return renderTree(postId!);
+                                return renderTree(replies);
                             })()}
                         </div>
                     ) : (
@@ -660,43 +676,32 @@ const PostDetailPage: React.FC = () => {
                                     currentId = subReplies[0].id;
                                 }
 
-                                const lastInChain = chain[chain.length - 1];
-                                const lastSubRepliesCount = posts.filter(p => p.replyToPostId === lastInChain.id).length || lastInChain.repliesCount;
-                                const hasReadMore = lastSubRepliesCount > 0;
-
                                 return (
                                     <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
                                         {chain.map((chainItem, idx) => {
                                             const isFirst = idx === 0;
                                             const isLast = idx === chain.length - 1;
-                                            const showBottomLine = !isLast || hasReadMore;
+                                            const showMoreReplies = !isLast && chainItem.repliesCount > 1;
+
                                             return (
-                                                <PostCard
-                                                    key={chainItem.id}
-                                                    post={chainItem}
-                                                    isComment={true}
-                                                    hasTopLine={!isFirst}
-                                                    hasBottomLine={showBottomLine}
-                                                    hideBorder={showBottomLine}
-                                                />
+                                                <React.Fragment key={chainItem.id}>
+                                                    <PostCard
+                                                        post={chainItem}
+                                                        isComment={true}
+                                                        hasTopLine={!isFirst}
+                                                        hasBottomLine={!isLast}
+                                                        hideBorder={!isLast}
+                                                    />
+                                                    {showMoreReplies && (
+                                                        <ThreadMoreReplies
+                                                            count={chainItem.repliesCount - 1}
+                                                            onClick={() => navigate(`/profile/${chainItem.author.handle}/post/${chainItem.id}`)}
+                                                            t={t}
+                                                        />
+                                                    )}
+                                                </React.Fragment>
                                             );
                                         })}
-                                        {hasReadMore && (
-                                            <div
-                                                className="flex pl-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer border-b border-gray-200 dark:border-dark-border"
-                                                onClick={() => navigate(`/profile/${lastInChain.author.handle}/post/${lastInChain.id}`)}
-                                            >
-                                                <div className="w-[40px] flex justify-center relative flex-shrink-0">
-                                                    <div className="absolute top-[-12px] bottom-0 w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
-                                                    <FiPlus className="text-gray-400 bg-gray-100 dark:bg-dark-surface z-10 w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-dark-border flex items-center justify-center p-0.5 mt-0.5" />
-                                                </div>
-                                                <div className="ml-3 text-primary-500 text-[14px] font-medium pt-0.5">
-                                                    {lastSubRepliesCount === 1
-                                                        ? t('post.read_more_reply')
-                                                        : t('post.read_more_replies', { count: lastSubRepliesCount })}
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 );
                             })}
