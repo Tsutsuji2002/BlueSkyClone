@@ -827,8 +827,11 @@ public class PostService : IPostService
             .Include(p => p.Author)
             .FirstOrDefaultAsync(p => p.Id == postId);
 
-        if (rootPost == null || rootPost.AuthorId != userId || rootPost.IsDeleted == true)
+        if (rootPost == null || rootPost.AuthorId != userId)
             return null;
+
+        if (rootPost.IsDeleted == true)
+            return new List<Guid> { postId };
 
         var affectedIds = new List<Guid>();
         var queue = new Queue<Guid>();
@@ -870,15 +873,19 @@ public class PostService : IPostService
             var notifications = await _unitOfWork.Notifications.Query().Where(n => n.PostId == currentId).ToListAsync();
             foreach (var n in notifications) _unitOfWork.Notifications.Remove(n);
 
-            // 4. Cascade to all replies and quotes
+            // 4. Cascade to all replies and quotes and descendants
             var relatedIds = await _unitOfWork.Posts.Query()
-                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && (p.ReplyToPostId == currentId || p.QuotePostId == currentId))
+                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                           (p.ReplyToPostId == currentId || p.RootPostId == currentId || p.QuotePostId == currentId))
                 .Select(p => p.Id)
                 .ToListAsync();
 
             foreach (var rid in relatedIds)
             {
-                queue.Enqueue(rid);
+                if (!affectedIds.Contains(rid))
+                {
+                    queue.Enqueue(rid);
+                }
             }
         }
 
