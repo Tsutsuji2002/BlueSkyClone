@@ -140,6 +140,7 @@ export interface Post {
     rootPostId?: string;
     quotePostId?: string;
     quotePost?: Post;
+    parentPost?: Post;
     addedByUserId?: string; // For curated lists
     tags?: string[];
     muteInfo?: {

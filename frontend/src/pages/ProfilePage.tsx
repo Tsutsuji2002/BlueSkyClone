@@ -505,7 +505,19 @@ const ProfilePage: React.FC = () => {
                                     {reduxPosts.length > 0 ? (
                                         <>
                                             {reduxPosts.map((post: Post) => (
-                                                <PostCard key={post.id} post={post} />
+                                                <div key={post.id} className="relative z-10 bg-white dark:bg-dark-bg">
+                                                    {post.parentPost && (
+                                                        <PostCard
+                                                            post={post.parentPost}
+                                                            hasBottomLine={true}
+                                                            hideBorder={true}
+                                                        />
+                                                    )}
+                                                    <PostCard
+                                                        post={post}
+                                                        hasTopLine={!!post.parentPost}
+                                                    />
+                                                </div>
                                             ))}
                                             <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
                                                 {isPostsLoading && hasMore && (

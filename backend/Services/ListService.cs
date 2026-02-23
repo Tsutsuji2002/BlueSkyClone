@@ -359,6 +359,12 @@ public class ListService : IListService
             .Include(lp => lp.Post).ThenInclude(p => p.Author)
             .Include(lp => lp.Post).ThenInclude(p => p.PostMedia)
             .Include(lp => lp.Post).ThenInclude(p => p.LinkPreview)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Where(lp => lp.ListId == listId)
             .OrderByDescending(lp => lp.AddedAt)
             .Skip(offset)
@@ -378,7 +384,9 @@ public class ListService : IListService
     }
 
     // Helper from PostService
-    private PostDto MapToPostDto(Post post)
+    private PostDto MapToPostDto(Post post) => MapToPostDto(post, true, true);
+
+    private PostDto MapToPostDto(Post post, bool includeQuote, bool includeParent)
     {
         return new PostDto
         {
@@ -386,7 +394,7 @@ public class ListService : IListService
             Tid = post.Tid,
             Content = post.Content,
             CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : null,
-            Author = new AuthorDto
+            Author = post.Author == null ? new AuthorDto { Username = "unknown", Handle = "unknown" } : new AuthorDto
             {
                 Id = post.Author.Id,
                 Username = post.Author.Username,
@@ -395,10 +403,19 @@ public class ListService : IListService
                 AvatarUrl = post.Author.AvatarUrl,
                 IsFollowing = false
             },
-            ImageUrls = post.PostMedia.Select(m => m.Url).ToList(),
+            ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
+            Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
+            {
+                Url = m.Url,
+                AltText = m.AltText,
+                Type = m.Type
+            }).ToList(),
+            VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,
             LikesCount = post.LikesCount ?? 0,
             RepostsCount = post.RepostsCount ?? 0,
             RepliesCount = post.RepliesCount ?? 0,
+            QuotesCount = post.QuotesCount ?? 0,
+            BookmarksCount = post.BookmarksCount ?? 0,
             ReplyToPostId = post.ReplyToPostId,
             ReplyToHandle = post.ReplyToPost?.Author?.Handle,
             RootPostId = post.RootPostId,
@@ -412,7 +429,11 @@ public class ListService : IListService
                 Description = post.LinkPreview.Description,
                 Image = post.LinkPreview.Image,
                 Domain = post.LinkPreview.Domain
-            }
+            },
+            QuotePostId = post.QuotePostId,
+            QuotePost = (includeQuote && post.QuotePost != null) ? MapToPostDto(post.QuotePost, false, false) : null,
+            ParentPost = (includeParent && post.ReplyToPost != null) ? MapToPostDto(post.ReplyToPost, false, false) : null,
+            CanReply = true
         };
     }
 

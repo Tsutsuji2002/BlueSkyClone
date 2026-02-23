@@ -71,12 +71,21 @@ const Feed: React.FC<FeedProps> = ({
     }
 
     return (
-        <div>
+        <div className="divide-y-0">
             {posts.map((post) => (
-                <PostCard
-                    key={post.id}
-                    post={post}
-                />
+                <div key={post.id} className="relative z-10 bg-white dark:bg-dark-bg">
+                    {post.parentPost && (
+                        <PostCard
+                            post={post.parentPost}
+                            hasBottomLine={true}
+                            hideBorder={true}
+                        />
+                    )}
+                    <PostCard
+                        post={post}
+                        hasTopLine={!!post.parentPost}
+                    />
+                </div>
             ))}
 
             {/* Infinite Scroll Trigger */}

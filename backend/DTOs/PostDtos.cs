@@ -22,6 +22,7 @@ public class PostDto
     public Guid? RootPostId { get; set; }
     public Guid? QuotePostId { get; set; }
     public PostDto? QuotePost { get; set; }
+    public PostDto? ParentPost { get; set; }
     public bool IsLiked { get; set; }
     public bool IsBookmarked { get; set; }
     public bool IsReposted { get; set; }

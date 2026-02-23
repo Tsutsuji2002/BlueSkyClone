@@ -1177,9 +1177,9 @@ public class PostService : IPostService
         return await EnrichAndFilterPostsAsync(postDtos, userId);
     }
 
-    public PostDto MapToDto(Post post) => MapToDto(post, true);
+    public PostDto MapToDto(Post post) => MapToDto(post, true, true);
 
-    private PostDto MapToDto(Post post, bool includeQuote)
+    private PostDto MapToDto(Post post, bool includeQuote, bool includeParent)
     {
         return new PostDto
         {
@@ -1228,7 +1228,8 @@ public class PostService : IPostService
             ReplyRestriction = post.ReplyRestriction ?? "anyone",
             AllowQuotes = post.AllowQuotes ?? true,
             QuotePostId = post.QuotePostId,
-            QuotePost = (includeQuote && post.QuotePost != null) ? MapToDto(post.QuotePost, false) : null,
+            QuotePost = (includeQuote && post.QuotePost != null) ? MapToDto(post.QuotePost, false, false) : null,
+            ParentPost = (includeParent && post.ReplyToPost != null) ? MapToDto(post.ReplyToPost, false, false) : null,
             CanReply = true // Default
         };
     }
@@ -1356,7 +1357,7 @@ public class PostService : IPostService
         // 2. Fetch a pool of recent posts (past 72h)
         var poolCutoff = DateTime.UtcNow.AddDays(-3);
         var postPool = await _unitOfWork.Posts.Query()
-            .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null))
+            .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
