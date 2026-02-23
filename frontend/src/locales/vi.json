@@ -612,7 +612,9 @@
         "quote_post": "Trích dẫn bài đăng",
         "repost": "Đăng lại",
         "undo_repost": "Bỏ đăng lại",
-        "reposted_by_you": "Đã đăng lại bởi bạn"
+        "reposted_by_you": "Đã đăng lại bởi bạn",
+        "read_more_replies": "Đọc thêm {{count}} phản hồi",
+        "read_more_reply": "Đọc thêm 1 phản hồi"
     },
     "sidebar": {
         "trending": "Chủ đề nổi bật",

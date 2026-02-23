@@ -631,7 +631,9 @@
         "quote_post": "Quote post",
         "repost": "Repost",
         "undo_repost": "Undo repost",
-        "reposted_by_you": "Reposted by you"
+        "reposted_by_you": "Reposted by you",
+        "read_more_replies": "Read {{count}} more replies",
+        "read_more_reply": "Read 1 more reply"
     },
     "sidebar": {
         "trending": "Trending Topics",

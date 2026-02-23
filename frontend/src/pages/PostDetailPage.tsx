@@ -65,26 +65,30 @@ const PostDetailPage: React.FC = () => {
     const treeViewEnabled = settings?.treeView || false;
     const post = posts.find((p: Post) => p.id === postId);
 
-    const replies = React.useMemo(() => {
-        const filtered = posts.filter((p: Post) => p.replyToPostId === postId);
-
-        return [...filtered].sort((a, b) => {
+    // Helper to sort a list of posts by current sortOrder
+    const sortPosts = React.useCallback((arr: Post[]) => {
+        return [...arr].sort((a, b) => {
             if (sortOrder === 'oldest') {
                 return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
             } else if (sortOrder === 'newest') {
                 return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             } else {
-                // 'top' - Sort by likesCount descending, then by date descending
-                if (b.likesCount !== a.likesCount) {
-                    return b.likesCount - a.likesCount;
-                }
+                if (b.likesCount !== a.likesCount) return b.likesCount - a.likesCount;
                 return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             }
         });
-    }, [posts, postId, sortOrder]);
+    }, [sortOrder]);
+
+    const replies = React.useMemo(() => {
+        const filtered = posts.filter((p: Post) => p.replyToPostId === postId);
+        return sortPosts(filtered);
+    }, [posts, postId, sortPosts]);
     const parentPost = post?.replyToPostId ? posts.find(p => p.id === post.replyToPostId) : null;
 
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+
+    // Track which post IDs we've already fetched replies for to avoid re-fetching
+    const fetchedRepliesRef = React.useRef<Set<string>>(new Set());
 
     React.useEffect(() => {
         if (postId) {
@@ -92,6 +96,7 @@ const PostDetailPage: React.FC = () => {
                 dispatch(fetchPostById(postId));
             }
             dispatch(fetchPostReplies(postId));
+            fetchedRepliesRef.current.add(postId);
         }
     }, [dispatch, postId, post]);
 
@@ -100,6 +105,56 @@ const PostDetailPage: React.FC = () => {
             dispatch(fetchPostById(post.replyToPostId));
         }
     }, [dispatch, post?.replyToPostId, parentPost]);
+
+    // Fetch sub-replies for replies that have them (for chaining in non-tree view and tree view)
+    React.useEffect(() => {
+        replies.forEach(reply => {
+            if (reply.repliesCount > 0 && !fetchedRepliesRef.current.has(reply.id)) {
+                fetchedRepliesRef.current.add(reply.id);
+                dispatch(fetchPostReplies(reply.id));
+            }
+        });
+    }, [dispatch, replies]);
+
+    // For non-tree view: also fetch sub-replies of sub-replies (chain depth)
+    React.useEffect(() => {
+        if (treeViewEnabled) return; // tree view handles all levels already
+        replies.forEach(reply => {
+            // Build chain: get top sub-reply, then its top sub-reply, etc.
+            let currentId = reply.id;
+            for (let depth = 0; depth < 4; depth++) {
+                const subReplies = posts.filter(p => p.replyToPostId === currentId);
+                if (subReplies.length === 0) break;
+                const topSub = sortPosts(subReplies)[0];
+                if (!topSub) break;
+                if (topSub.repliesCount > 0 && !fetchedRepliesRef.current.has(topSub.id)) {
+                    fetchedRepliesRef.current.add(topSub.id);
+                    dispatch(fetchPostReplies(topSub.id));
+                }
+                currentId = topSub.id;
+            }
+        });
+    }, [dispatch, replies, posts, treeViewEnabled, sortPosts]);
+
+    // For tree view: fetch sub-replies recursively for all loaded posts
+    React.useEffect(() => {
+        if (!treeViewEnabled) return;
+        const fetchNested = () => {
+            posts.forEach(p => {
+                if (p.repliesCount > 0 && !fetchedRepliesRef.current.has(p.id)) {
+                    // Only fetch if this post is a descendant of the main post
+                    const isDescendant = p.replyToPostId === postId ||
+                        posts.some(ancestor => ancestor.id === p.replyToPostId && ancestor.replyToPostId === postId) ||
+                        posts.some(a1 => a1.id === p.replyToPostId && posts.some(a2 => a2.id === a1.replyToPostId));
+                    if (isDescendant) {
+                        fetchedRepliesRef.current.add(p.id);
+                        dispatch(fetchPostReplies(p.id));
+                    }
+                }
+            });
+        };
+        fetchNested();
+    }, [dispatch, posts, postId, treeViewEnabled]);
 
 
     if (!post) {
@@ -543,51 +598,80 @@ const PostDetailPage: React.FC = () => {
 
                 <div className="pb-20">
                     {treeViewEnabled ? (
-                        <div className="divide-y-0">
+                        /* ===== TREE VIEW: All replies shown with indentation ===== */
+                        <div>
                             {(() => {
-                                const renderTree = (replyList: Post[], depth: number = 0): React.ReactNode => {
-                                    return replyList.map(reply => {
+                                const renderTree = (parentId: string, depth: number = 0): React.ReactNode => {
+                                    const children = sortPosts(posts.filter(p => p.replyToPostId === parentId));
+                                    return children.map((reply, index) => {
                                         const subReplies = posts.filter(p => p.replyToPostId === reply.id);
                                         const hasSubReplies = subReplies.length > 0;
                                         return (
-                                            <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
+                                            <div key={reply.id}>
                                                 <PostCard
                                                     post={reply}
                                                     isComment={true}
+                                                    hasBottomLine={hasSubReplies}
                                                     hideBorder={hasSubReplies}
                                                     indentFactor={depth}
                                                 />
-                                                {hasSubReplies && (
-                                                    <div className="relative">
-                                                        {renderTree(subReplies, depth + 1)}
-                                                    </div>
-                                                )}
+                                                {hasSubReplies && renderTree(reply.id, depth + 1)}
                                             </div>
                                         );
                                     });
                                 };
-                                return renderTree(replies);
+                                return renderTree(postId!);
                             })()}
                         </div>
                     ) : (
-                        <div className="divide-y-0">
+                        /* ===== NON-TREE VIEW: Chain of top sub-replies with vertical lines ===== */
+                        <div>
                             {replies.map((reply: Post) => {
-                                const subRepliesCount = posts.filter(p => p.replyToPostId === reply.id).length || reply.repliesCount;
-                                const hasMore = subRepliesCount > 0;
+                                // Build chain: reply → top sub-reply → top sub-sub-reply...
+                                const chain: Post[] = [reply];
+                                let currentId = reply.id;
+                                for (let depth = 0; depth < 5; depth++) {
+                                    const subReplies = sortPosts(posts.filter(p => p.replyToPostId === currentId));
+                                    if (subReplies.length === 0) break;
+                                    chain.push(subReplies[0]);
+                                    currentId = subReplies[0].id;
+                                }
+
+                                // The last item in chain: check if it has more replies for "Read more"
+                                const lastInChain = chain[chain.length - 1];
+                                const lastSubRepliesCount = posts.filter(p => p.replyToPostId === lastInChain.id).length || lastInChain.repliesCount;
+                                const hasReadMore = lastSubRepliesCount > 0;
+
                                 return (
-                                    <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
-                                        <PostCard post={reply} isComment={true} hasBottomLine={hasMore} hideBorder={hasMore} />
-                                        {hasMore && (
+                                    <div key={reply.id}>
+                                        {chain.map((chainItem, idx) => {
+                                            const isFirst = idx === 0;
+                                            const isLast = idx === chain.length - 1;
+                                            const showBottomLine = !isLast || hasReadMore;
+                                            return (
+                                                <PostCard
+                                                    key={chainItem.id}
+                                                    post={chainItem}
+                                                    isComment={true}
+                                                    hasTopLine={!isFirst}
+                                                    hasBottomLine={showBottomLine}
+                                                    hideBorder={showBottomLine}
+                                                />
+                                            );
+                                        })}
+                                        {hasReadMore && (
                                             <div
-                                                className="flex pl-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer border-b border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg z-10"
-                                                onClick={() => navigate(`/profile/${reply.author.handle}/post/${reply.id}`)}
+                                                className="flex pl-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer border-b border-gray-200 dark:border-dark-border"
+                                                onClick={() => navigate(`/profile/${lastInChain.author.handle}/post/${lastInChain.id}`)}
                                             >
                                                 <div className="w-[40px] flex justify-center relative flex-shrink-0">
                                                     <div className="absolute top-[-12px] h-[12px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
-                                                    <FiPlus className="text-gray-400 bg-gray-50 dark:bg-dark-surface z-10 w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-dark-border text-xs flex items-center justify-center p-0.5" />
+                                                    <FiPlus className="text-gray-400 bg-gray-100 dark:bg-dark-surface z-10 w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-dark-border flex items-center justify-center p-0.5" />
                                                 </div>
                                                 <div className="ml-3 text-primary-500 text-[14px] font-medium pt-0.5">
-                                                    Read {subRepliesCount} more repl{subRepliesCount > 1 ? 'ies' : 'y'}
+                                                    {lastSubRepliesCount === 1
+                                                        ? t('post.read_more_reply')
+                                                        : t('post.read_more_replies', { count: lastSubRepliesCount })}
                                                 </div>
                                             </div>
                                         )}
