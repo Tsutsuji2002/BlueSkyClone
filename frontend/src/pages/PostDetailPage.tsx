@@ -653,75 +653,92 @@ const PostDetailPage: React.FC = () => {
                 <div className="pb-20">
                     {treeViewEnabled ? (
                         /* ===== TREE VIEW: Bluesky-style connector lines ===== */
-                        <div className="divide-y-0">
+                        <div className="divide-y-0 relative">
                             {(() => {
-                                /**
-                                 * Each top-level reply is rendered at full width.
-                                 * Sub-replies are rendered below with a curved connector line.
-                                 * The connector: a vertical line runs from parent avatar bottom,
-                                 * then an elbow curves to the child avatar position (same left as parent avatar).
-                                 * All sub-replies appear at same horizontal zone, just indented slightly with the connector.
-                                 */
-                                const AVATAR_LEFT = 16; // px, matches p-4 padding
-                                const AVATAR_W = 40;   // px, size-md avatar
+                                const DEPTH_STEP = 36; // Indentation per depth level
+                                const AVATAR_CENTER = 36; // Center of depth=0 avatar (16px padding + 20px half-avatar)
 
-                                const renderTree = (replyList: Post[], depth: number = 0): React.ReactNode => {
+                                const renderTree = (replyList: Post[], depth: number = 0, activeLines: boolean[] = []): React.ReactNode => {
                                     return replyList.map((reply, idx) => {
                                         const subReplies = sortPosts(posts.filter(p => p.replyToPostId === reply.id));
                                         const hasSubReplies = subReplies.length > 0;
                                         const isLast = idx === replyList.length - 1;
-                                        // indent: each depth level indents 20px on the left
-                                        const indent = depth * 20;
+                                        const nextActiveLines = [...activeLines, !isLast];
+
+                                        const indent = depth * DEPTH_STEP;
 
                                         return (
-                                            <div key={reply.id} className="relative bg-white dark:bg-dark-bg">
-                                                {/* Connector from parent above: curved elbow */}
-                                                {depth > 0 && (
-                                                    <div
-                                                        className="absolute top-0 pointer-events-none"
-                                                        style={{ left: AVATAR_LEFT + indent - 20, width: 20, height: 28 }}
-                                                    >
-                                                        {/* Vertical part */}
-                                                        <div
-                                                            className="absolute bg-gray-200 dark:bg-dark-border"
-                                                            style={{ left: 9, top: 0, width: 2, height: 16 }}
-                                                        />
-                                                        {/* Elbow arc drawn via border-radius on a corner div */}
-                                                        <div
-                                                            className="absolute border-l-2 border-b-2 border-gray-200 dark:border-dark-border rounded-bl-[10px]"
-                                                            style={{ left: 9, top: 14, width: 12, height: 12 }}
-                                                        />
-                                                    </div>
-                                                )}
+                                            <div key={reply.id} className="relative bg-white dark:bg-dark-bg group">
+                                                {/* Left structural lines for all depth levels */}
+                                                <div className="absolute top-0 bottom-0 left-0 pointer-events-none z-10">
+                                                    {/* Draw continuous vertical lines for active ancestor depths */}
+                                                    {activeLines.map((isActive, level) => {
+                                                        if (!isActive) return null;
+                                                        // Stop the line at the elbow point if this is the immediate parent's line and we're the last child
+                                                        const isImmediateParent = level === depth - 1;
+                                                        return (
+                                                            <div
+                                                                key={level}
+                                                                className="absolute bg-gray-200 dark:bg-dark-border"
+                                                                style={{
+                                                                    left: AVATAR_CENTER + (level * DEPTH_STEP) - 1,
+                                                                    width: 2,
+                                                                    top: 0,
+                                                                    bottom: isImmediateParent && isLast ? 'calc(100% - 33px)' : 0 // End exactly at the elbow's bottom
+                                                                }}
+                                                            />
+                                                        );
+                                                    })}
 
-                                                {/* The post card, with left padding to "indent" at the right depth */}
-                                                <div style={{ paddingLeft: depth > 0 ? indent : 0 }}>
+                                                    {/* The elbow connector from immediate parent (depth - 1) up to this child's avatar */}
+                                                    {depth > 0 && (
+                                                        <div
+                                                            className="absolute border-l-2 border-b-2 border-gray-200 dark:border-dark-border rounded-bl-[12px]"
+                                                            style={{
+                                                                left: AVATAR_CENTER + ((depth - 1) * DEPTH_STEP) - 1,
+                                                                top: 0,
+                                                                width: 14, // Leg points right towards avatar, leaves a gap
+                                                                height: 33 // Exactly matches center of 40px avatar (12px top padding + 20px half-height + 1px center adjust)
+                                                            }}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                {/* The post card itself, indented. We disable internal PostCard lines entirely */}
+                                                <div style={{ paddingLeft: indent }} className="relative z-20">
                                                     <PostCard
                                                         post={reply}
                                                         isComment={true}
-                                                        hasBottomLine={hasSubReplies}
+                                                        hasBottomLine={false}
+                                                        hasTopLine={false}
                                                         hideBorder={hasSubReplies || (!isLast && depth > 0)}
                                                     />
                                                 </div>
 
-                                                {/* Vertical connector line from this post's avatar column downward, when it has siblings below */}
-                                                {!isLast && depth > 0 && (
+                                                {/* Vertical connector line going from THIS post's avatar DOWN to its children */}
+                                                {hasSubReplies && (
                                                     <div
-                                                        className="absolute bg-gray-200 dark:bg-dark-border pointer-events-none"
-                                                        style={{ left: AVATAR_LEFT + indent - 11, top: 28, bottom: 0, width: 2 }}
+                                                        className="absolute bg-gray-200 dark:bg-dark-border pointer-events-none z-10"
+                                                        style={{
+                                                            left: AVATAR_CENTER + (depth * DEPTH_STEP) - 1,
+                                                            width: 2,
+                                                            top: 54, // Underneath 40px avatar + 12px padding + 2px gap
+                                                            bottom: 0
+                                                        }}
                                                     />
                                                 )}
 
+                                                {/* Recursively render children */}
                                                 {hasSubReplies && (
-                                                    <div style={{ paddingLeft: depth > 0 ? indent : 0 }}>
-                                                        {renderTree(subReplies, depth + 1)}
+                                                    <div>
+                                                        {renderTree(subReplies, depth + 1, nextActiveLines)}
                                                     </div>
                                                 )}
                                             </div>
                                         );
                                     });
                                 };
-                                return renderTree(replies, 0);
+                                return renderTree(replies, 0, []);
                             })()}
                         </div>
                     ) : (
@@ -789,7 +806,7 @@ const PostDetailPage: React.FC = () => {
                     variant="danger"
                 />
             </div>
-        </MainLayout>
+        </MainLayout >
     );
 };
 
