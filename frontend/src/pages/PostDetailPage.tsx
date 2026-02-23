@@ -652,23 +652,68 @@ const PostDetailPage: React.FC = () => {
 
                 <div className="pb-20">
                     {treeViewEnabled ? (
-                        /* ===== TREE VIEW: All replies shown with indentation ===== */
+                        /* ===== TREE VIEW: Bluesky-style connector lines ===== */
                         <div className="divide-y-0">
                             {(() => {
+                                /**
+                                 * Each top-level reply is rendered at full width.
+                                 * Sub-replies are rendered below with a curved connector line.
+                                 * The connector: a vertical line runs from parent avatar bottom,
+                                 * then an elbow curves to the child avatar position (same left as parent avatar).
+                                 * All sub-replies appear at same horizontal zone, just indented slightly with the connector.
+                                 */
+                                const AVATAR_LEFT = 16; // px, matches p-4 padding
+                                const AVATAR_W = 40;   // px, size-md avatar
+
                                 const renderTree = (replyList: Post[], depth: number = 0): React.ReactNode => {
-                                    return replyList.map(reply => {
-                                        const subReplies = posts.filter(p => p.replyToPostId === reply.id);
+                                    return replyList.map((reply, idx) => {
+                                        const subReplies = sortPosts(posts.filter(p => p.replyToPostId === reply.id));
                                         const hasSubReplies = subReplies.length > 0;
+                                        const isLast = idx === replyList.length - 1;
+                                        // indent: each depth level indents 20px on the left
+                                        const indent = depth * 20;
+
                                         return (
-                                            <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
-                                                <PostCard
-                                                    post={reply}
-                                                    isComment={true}
-                                                    hideBorder={hasSubReplies}
-                                                    indentFactor={depth}
-                                                />
+                                            <div key={reply.id} className="relative bg-white dark:bg-dark-bg">
+                                                {/* Connector from parent above: curved elbow */}
+                                                {depth > 0 && (
+                                                    <div
+                                                        className="absolute top-0 pointer-events-none"
+                                                        style={{ left: AVATAR_LEFT + indent - 20, width: 20, height: 28 }}
+                                                    >
+                                                        {/* Vertical part */}
+                                                        <div
+                                                            className="absolute bg-gray-200 dark:bg-dark-border"
+                                                            style={{ left: 9, top: 0, width: 2, height: 16 }}
+                                                        />
+                                                        {/* Elbow arc drawn via border-radius on a corner div */}
+                                                        <div
+                                                            className="absolute border-l-2 border-b-2 border-gray-200 dark:border-dark-border rounded-bl-[10px]"
+                                                            style={{ left: 9, top: 14, width: 12, height: 12 }}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {/* The post card, with left padding to "indent" at the right depth */}
+                                                <div style={{ paddingLeft: depth > 0 ? indent : 0 }}>
+                                                    <PostCard
+                                                        post={reply}
+                                                        isComment={true}
+                                                        hasBottomLine={hasSubReplies}
+                                                        hideBorder={hasSubReplies || (!isLast && depth > 0)}
+                                                    />
+                                                </div>
+
+                                                {/* Vertical connector line from this post's avatar column downward, when it has siblings below */}
+                                                {!isLast && depth > 0 && (
+                                                    <div
+                                                        className="absolute bg-gray-200 dark:bg-dark-border pointer-events-none"
+                                                        style={{ left: AVATAR_LEFT + indent - 11, top: 28, bottom: 0, width: 2 }}
+                                                    />
+                                                )}
+
                                                 {hasSubReplies && (
-                                                    <div className="relative">
+                                                    <div style={{ paddingLeft: depth > 0 ? indent : 0 }}>
                                                         {renderTree(subReplies, depth + 1)}
                                                     </div>
                                                 )}
@@ -676,7 +721,7 @@ const PostDetailPage: React.FC = () => {
                                         );
                                     });
                                 };
-                                return renderTree(replies);
+                                return renderTree(replies, 0);
                             })()}
                         </div>
                     ) : (
