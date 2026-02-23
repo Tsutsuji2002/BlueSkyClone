@@ -86,9 +86,9 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> DeletePost(Guid id)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var result = await _postService.DeletePostAsync(userId, id);
-        if (!result) return BadRequest("Could not delete post");
-        return Ok();
+        var deletedIds = await _postService.DeletePostAsync(userId, id);
+        if (deletedIds == null) return BadRequest("Could not delete post");
+        return Ok(deletedIds);
     }
 
     [HttpPost("{id:guid}/like")]

@@ -164,7 +164,7 @@ export const bookmarkPost = createAsyncThunk(
     }
 );
 
-export const deletePost = createAsyncThunk(
+export const deletePost = createAsyncThunk<string[], string>(
     'posts/delete',
     async (postId: string, { rejectWithValue }) => {
         try {
@@ -179,7 +179,8 @@ export const deletePost = createAsyncThunk(
                 const data = await response.json();
                 return rejectWithValue(data.message || 'Failed to delete post');
             }
-            return postId;
+            const data = await response.json();
+            return data; // Array of affected IDs
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -521,10 +522,11 @@ const postsSlice = createSlice({
                 state.actionLoading[action.meta.arg] = false;
             })
             // Delete Post
-            .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string>) => {
-                state.posts = state.posts.filter(p => p.id !== action.payload);
-                state.discoverPosts = state.discoverPosts.filter(p => p.id !== action.payload);
-                state.trendingPosts = state.trendingPosts.filter(p => p.id !== action.payload);
+            .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string[]>) => {
+                const deletedIds = new Set(action.payload);
+                state.posts = state.posts.filter(p => !deletedIds.has(p.id));
+                state.discoverPosts = state.discoverPosts.filter(p => !deletedIds.has(p.id));
+                state.trendingPosts = state.trendingPosts.filter(p => !deletedIds.has(p.id));
             })
             // Fetch Post By ID
             .addCase(fetchPostById.pending, (state: PostsState) => {

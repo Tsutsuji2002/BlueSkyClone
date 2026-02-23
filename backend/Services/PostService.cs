@@ -821,35 +821,81 @@ public class PostService : IPostService
         return postDto;
     }
 
-    public async Task<bool> DeletePostAsync(Guid userId, Guid postId)
+    public async Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId)
     {
-        var post = await _unitOfWork.Posts.GetByIdAsync(postId);
-        if (post == null || post.AuthorId != userId) return false;
+        var rootPost = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .FirstOrDefaultAsync(p => p.Id == postId);
 
-        post.IsDeleted = true;
-        _unitOfWork.Posts.Update(post);
+        if (rootPost == null || rootPost.AuthorId != userId || rootPost.IsDeleted == true)
+            return null;
 
-        // Update User PostsCount
-        var author = await _unitOfWork.Users.GetByIdAsync(userId);
-        if (author != null)
+        var affectedIds = new List<Guid>();
+        var queue = new Queue<Guid>();
+        queue.Enqueue(postId);
+
+        while (queue.Count > 0)
         {
-            author.PostsCount = Math.Max(0, (author.PostsCount ?? 0) - 1);
-            _unitOfWork.Users.Update(author);
+            var currentId = queue.Dequeue();
+            var post = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .FirstOrDefaultAsync(p => p.Id == currentId);
+
+            if (post == null || post.IsDeleted == true)
+                continue;
+
+            affectedIds.Add(currentId);
+
+            // 1. Soft delete the post
+            post.IsDeleted = true;
+            _unitOfWork.Posts.Update(post);
+
+            // 2. Decrement Author's PostsCount
+            if (post.Author != null)
+            {
+                post.Author.PostsCount = Math.Max(0, (post.Author.PostsCount ?? 0) - 1);
+                _unitOfWork.Users.Update(post.Author);
+            }
+
+            // 3. Purge physical relations (Reposts, Bookmarks, Likes)
+            var reposts = await _unitOfWork.Reposts.Query().Where(r => r.PostId == currentId).ToListAsync();
+            foreach (var r in reposts) _unitOfWork.Reposts.Remove(r);
+
+            var bookmarks = await _unitOfWork.Bookmarks.Query().Where(b => b.PostId == currentId).ToListAsync();
+            foreach (var b in bookmarks) _unitOfWork.Bookmarks.Remove(b);
+
+            var likes = await _unitOfWork.Likes.Query().Where(l => l.PostId == currentId).ToListAsync();
+            foreach (var l in likes) _unitOfWork.Likes.Remove(l);
+
+            var notifications = await _unitOfWork.Notifications.Query().Where(n => n.PostId == currentId).ToListAsync();
+            foreach (var n in notifications) _unitOfWork.Notifications.Remove(n);
+
+            // 4. Cascade to all replies and quotes
+            var relatedIds = await _unitOfWork.Posts.Query()
+                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && (p.ReplyToPostId == currentId || p.QuotePostId == currentId))
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            foreach (var rid in relatedIds)
+            {
+                queue.Enqueue(rid);
+            }
         }
 
         await _unitOfWork.CompleteAsync();
 
-        // Invalidate caches
-        await _cacheService.RemoveAsync($"post:{postId}");
+        // Cleanup caches and search index for all affected posts
+        foreach (var id in affectedIds)
+        {
+            await _cacheService.RemoveAsync($"post:{id}");
+            await _searchService.DeletePostAsync(id);
+        }
+
+        // Broad timeline/trending invalidation
         await _cacheService.RemoveAsync($"user:{userId}:timeline");
         await _cacheService.RemoveAsync("posts:trending");
 
-        await _cacheService.RemoveAsync("posts:trending");
-
-        // Remove from Elasticsearch
-        await _searchService.DeletePostAsync(postId);
-
-        return true;
+        return affectedIds;
     }
 
     public async Task<object> ToggleLikeAsync(Guid userId, Guid postId)
