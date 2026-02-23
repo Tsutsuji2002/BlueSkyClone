@@ -48,26 +48,29 @@ import ConfirmModal from '../components/common/ConfirmModal';
 
 import LoadingIndicator from '../components/common/LoadingIndicator';
 
-const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () => void, t: any }) => (
+const ThreadMoreReplies = ({ count, onClick, t, indentFactor = 0 }: { count: number, onClick: () => void, t: any, indentFactor?: number }) => (
     <div
-        className="flex px-4 py-2 hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 cursor-pointer relative z-10 bg-white dark:bg-dark-bg group items-center"
+        className="flex py-0.5 hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 cursor-pointer relative z-10 bg-white dark:bg-dark-bg group items-center"
         onClick={(e) => {
             e.stopPropagation();
             onClick();
         }}
     >
-        <div className="flex gap-3 w-full">
-            <div className="w-[40px] flex-shrink-0 relative flex flex-col items-center">
-                <div className="absolute top-0 bottom-0 w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
-                <div className="absolute top-1/2 -translate-y-1/2 bg-white dark:bg-dark-bg z-10 group-hover:bg-gray-50 dark:group-hover:bg-dark-surface/50 rounded-full flex items-center justify-center p-0.5">
-                    <FiPlus
-                        className="text-gray-400 w-[18px] h-[18px] rounded-full ring-[2px] ring-gray-200 dark:ring-dark-border bg-gray-50 dark:bg-dark-surface"
-                        strokeWidth={4}
-                    />
+        <div className="flex w-full" style={{ paddingLeft: `${16 + indentFactor * 32}px` }}>
+            <div className="w-[40px] flex-shrink-0 relative h-10">
+                {/* L-shaped connection line */}
+                <div className="absolute top-0 left-[19.5px] w-[2px] h-[20px] bg-gray-200 dark:bg-dark-border" />
+                <div className="absolute top-[20px] left-[19.5px] w-[14px] h-[2px] bg-gray-200 dark:bg-dark-border" />
+
+                {/* Small (+) Icon at the elbow corner area */}
+                <div className="absolute top-[10px] left-[28px] bg-white dark:bg-dark-bg z-10 rounded-full flex items-center justify-center p-0.5 group-hover:bg-gray-50/50 dark:group-hover:bg-dark-surface/30 transition-colors">
+                    <div className="w-[18px] h-[18px] rounded-full ring-[1.6px] ring-gray-200 dark:ring-dark-border flex items-center justify-center bg-gray-50 dark:bg-dark-surface">
+                        <FiPlus className="text-gray-500 dark:text-gray-400 w-3 h-3" strokeWidth={5} />
+                    </div>
                 </div>
             </div>
-            <div className="flex-1 min-w-0 flex items-center h-[32px]">
-                <div className="text-primary-500 text-[14.5px] font-semibold hover:underline">
+            <div className="flex-1 min-w-0 flex items-center h-10 ml-3">
+                <div className="text-primary-500 text-[14px] font-semibold hover:underline">
                     {count === 1
                         ? t('post.read_more_reply')
                         : t('post.read_more_replies', { count })}
@@ -694,12 +697,14 @@ const PostDetailPage: React.FC = () => {
                                                         hasTopLine={!isFirst}
                                                         hasBottomLine={!isLast || hasSubRepliesAtEnd}
                                                         hideBorder={!isLast || hasSubRepliesAtEnd}
+                                                        indentFactor={1}
                                                     />
                                                     {showMoreReplies && (
                                                         <ThreadMoreReplies
                                                             count={skipCount}
                                                             onClick={() => navigate(`/profile/${chainItem.author.handle}/post/${chainItem.id}`)}
                                                             t={t}
+                                                            indentFactor={1}
                                                         />
                                                     )}
                                                 </React.Fragment>
