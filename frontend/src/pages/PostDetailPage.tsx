@@ -421,13 +421,6 @@ const PostDetailPage: React.FC = () => {
                         <PostCard post={parentPost} isComment={true} hasBottomLine={true} hideBorder={true} />
                     </div>
                 )}
-                {parentPost && parentPost.repliesCount > 1 && (
-                    <ThreadMoreReplies
-                        count={parentPost.repliesCount - 1}
-                        onClick={() => navigate(`/profile/${parentPost.author.handle}/post/${parentPost.id}`)}
-                        t={t}
-                    />
-                )}
 
                 {/* Main Post */}
                 <div ref={mainPostRef} className="p-4 border-b border-gray-200 dark:border-dark-border relative bg-white dark:bg-dark-bg">
@@ -684,6 +677,10 @@ const PostDetailPage: React.FC = () => {
                                         {chain.map((chainItem, idx) => {
                                             const isFirst = idx === 0;
                                             const isLast = idx === chain.length - 1;
+
+                                            // Show "Read more" if:
+                                            // 1. We are in the middle of a chain and there are sibling replies we are skipping (repliesCount > 1)
+                                            // 2. We are at the end of a chain and there are further sub-replies (repliesCount > 0)
                                             const hasSubRepliesSkipped = !isLast && chainItem.repliesCount > 1;
                                             const hasSubRepliesAtEnd = isLast && chainItem.repliesCount > 0;
                                             const showMoreReplies = hasSubRepliesSkipped || hasSubRepliesAtEnd;
