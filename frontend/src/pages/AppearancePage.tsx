@@ -45,16 +45,16 @@ const AppearancePage: React.FC = () => {
         value: string,
         onChange: (val: any) => void
     }) => (
-        <div className="flex bg-gray-100 dark:bg-dark-surface p-1 rounded-xl w-full">
+        <div className="flex bg-gray-100 dark:bg-dark-surface p-1 rounded-[14px] w-full border border-gray-200 dark:border-dark-border/40">
             {options.map((opt) => (
                 <button
                     key={opt.value}
                     onClick={() => onChange(opt.value)}
                     className={cn(
-                        "flex-1 py-2 text-[13px] font-bold rounded-lg transition-all",
+                        "flex-1 py-[9px] text-[15px] font-bold rounded-[10px] transition-all border border-transparent",
                         value === opt.value
-                            ? "bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text shadow-sm"
-                            : "text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text"
+                            ? "bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text shadow-[0_1px_3px_rgba(0,0,0,0.1)] dark:shadow-none dark:border-dark-border border-gray-200"
+                            : "text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text border-transparent"
                     )}
                 >
                     {opt.label}

@@ -22,19 +22,19 @@ module.exports = {
         },
         // Dark theme colors
         dark: {
-          bg: '#15202b',
-          surface: '#192734',
-          border: '#38444d',
-          text: '#e7e9ea',
-          'text-secondary': '#8b98a5',
+          bg: 'var(--bg-primary)',
+          surface: 'var(--bg-secondary)',
+          border: 'var(--border-color)',
+          text: 'var(--text-primary)',
+          'text-secondary': 'var(--text-secondary)',
         },
         // Light theme colors
         light: {
-          bg: '#ffffff',
-          surface: '#f7f9f9',
-          border: '#eff3f4',
-          text: '#0f1419',
-          'text-secondary': '#536471',
+          bg: 'var(--bg-primary)',
+          surface: 'var(--bg-secondary)',
+          border: 'var(--border-color)',
+          text: 'var(--text-primary)',
+          'text-secondary': 'var(--text-secondary)',
         },
       },
       fontFamily: {
