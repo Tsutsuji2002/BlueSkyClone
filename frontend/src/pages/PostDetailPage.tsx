@@ -48,21 +48,22 @@ import ConfirmModal from '../components/common/ConfirmModal';
 
 import LoadingIndicator from '../components/common/LoadingIndicator';
 
-const ThreadMoreReplies = ({ count, onClick, t, indentFactor = 0 }: { count: number, onClick: () => void, t: any, indentFactor?: number }) => (
+const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () => void, t: any }) => (
     <div
-        className="flex py-0.5 hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 cursor-pointer relative z-10 bg-white dark:bg-dark-bg group items-center"
+        className="flex hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 cursor-pointer relative z-10 bg-white dark:bg-dark-bg group items-center border-b border-gray-200 dark:border-dark-border"
         onClick={(e) => {
             e.stopPropagation();
             onClick();
         }}
     >
-        <div className="flex w-full" style={{ paddingLeft: `${16 + indentFactor * 32}px` }}>
+        <div className="flex w-full px-4">
+            {/* Vertical line leading down from avatar + L-elbow */}
             <div className="w-[40px] flex-shrink-0 relative h-10">
-                {/* L-shaped connection line */}
-                <div className="absolute top-0 left-[19.5px] w-[2px] h-[20px] bg-gray-200 dark:bg-dark-border" />
+                {/* Vertical segment from top to elbow */}
+                <div className="absolute left-[19.5px] top-0 h-[20px] w-[2px] bg-gray-200 dark:bg-dark-border" />
+                {/* Horizontal elbow */}
                 <div className="absolute top-[20px] left-[19.5px] w-[14px] h-[2px] bg-gray-200 dark:bg-dark-border" />
-
-                {/* Small (+) Icon at the elbow corner area */}
+                {/* Plus circle */}
                 <div className="absolute top-[10px] left-[28px] bg-white dark:bg-dark-bg z-10 rounded-full flex items-center justify-center p-0.5 group-hover:bg-gray-50/50 dark:group-hover:bg-dark-surface/30 transition-colors">
                     <div className="w-[18px] h-[18px] rounded-full ring-[1.6px] ring-gray-200 dark:ring-dark-border flex items-center justify-center bg-gray-50 dark:bg-dark-surface">
                         <FiPlus className="text-gray-500 dark:text-gray-400 w-3 h-3" strokeWidth={5} />
@@ -70,11 +71,11 @@ const ThreadMoreReplies = ({ count, onClick, t, indentFactor = 0 }: { count: num
                 </div>
             </div>
             <div className="flex-1 min-w-0 flex items-center h-10 ml-3">
-                <div className="text-primary-500 text-[14px] font-semibold hover:underline">
+                <span className="text-primary-500 text-[14px] font-semibold hover:underline">
                     {count === 1
                         ? t('post.read_more_reply')
                         : t('post.read_more_replies', { count })}
-                </div>
+                </span>
             </div>
         </div>
     </div>
@@ -662,54 +663,28 @@ const PostDetailPage: React.FC = () => {
                             })()}
                         </div>
                     ) : (
-                        /* ===== NON-TREE VIEW: Flat chains of top sub-replies with continuous vertical lines ===== */
+                        /* ===== NON-TREE VIEW: Each top-level reply shown flat; "Read more" at the bottom ===== */
                         <div className="divide-y-0">
                             {replies.map((reply: Post) => {
-                                // Build chain: reply → top sub-reply → top sub-sub-reply...
-                                const chain: Post[] = [reply];
-                                let currentId = reply.id;
-                                for (let depth = 0; depth < 5; depth++) {
-                                    const subReplies = sortPosts(posts.filter(p => p.replyToPostId === currentId));
-                                    if (subReplies.length === 0) break;
-                                    chain.push(subReplies[0]);
-                                    currentId = subReplies[0].id;
-                                }
+                                // Show only the top-level reply. If it has sub-replies, show "Read more" below.
+                                const hasMoreReplies = reply.repliesCount > 0;
 
                                 return (
                                     <div key={reply.id} className="relative z-10 bg-white dark:bg-dark-bg">
-                                        {chain.map((chainItem, idx) => {
-                                            const isFirst = idx === 0;
-                                            const isLast = idx === chain.length - 1;
-
-                                            // Show "Read more" if:
-                                            // 1. We are in the middle of a chain and there are sibling replies we are skipping (repliesCount > 1)
-                                            // 2. We are at the end of a chain and there are further sub-replies (repliesCount > 0)
-                                            const hasSubRepliesSkipped = !isLast && chainItem.repliesCount > 1;
-                                            const hasSubRepliesAtEnd = isLast && chainItem.repliesCount > 0;
-                                            const showMoreReplies = hasSubRepliesSkipped || hasSubRepliesAtEnd;
-                                            const skipCount = hasSubRepliesSkipped ? chainItem.repliesCount - 1 : chainItem.repliesCount;
-
-                                            return (
-                                                <React.Fragment key={chainItem.id}>
-                                                    <PostCard
-                                                        post={chainItem}
-                                                        isComment={true}
-                                                        hasTopLine={!isFirst}
-                                                        hasBottomLine={!isLast || hasSubRepliesAtEnd}
-                                                        hideBorder={!isLast || hasSubRepliesAtEnd}
-                                                        indentFactor={1}
-                                                    />
-                                                    {showMoreReplies && (
-                                                        <ThreadMoreReplies
-                                                            count={skipCount}
-                                                            onClick={() => navigate(`/profile/${chainItem.author.handle}/post/${chainItem.id}`)}
-                                                            t={t}
-                                                            indentFactor={1}
-                                                        />
-                                                    )}
-                                                </React.Fragment>
-                                            );
-                                        })}
+                                        <PostCard
+                                            post={reply}
+                                            isComment={true}
+                                            hasTopLine={false}
+                                            hasBottomLine={hasMoreReplies}
+                                            hideBorder={hasMoreReplies}
+                                        />
+                                        {hasMoreReplies && (
+                                            <ThreadMoreReplies
+                                                count={reply.repliesCount}
+                                                onClick={() => navigate(`/profile/${reply.author.handle}/post/${reply.id}`)}
+                                                t={t}
+                                            />
+                                        )}
                                     </div>
                                 );
                             })}
