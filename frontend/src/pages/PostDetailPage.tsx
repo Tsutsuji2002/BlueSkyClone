@@ -50,34 +50,21 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 
 const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () => void, t: any }) => (
     <div
-        className="flex hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 cursor-pointer relative z-10 bg-white dark:bg-dark-bg group items-center border-b border-gray-200 dark:border-dark-border"
+        className="flex items-center gap-1.5 px-4 pb-3 pt-0 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 border-b border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg group transition-colors"
         onClick={(e) => {
             e.stopPropagation();
             onClick();
         }}
     >
-        <div className="flex w-full px-4">
-            {/* Vertical line leading down from avatar + L-elbow */}
-            <div className="w-[40px] flex-shrink-0 relative h-10">
-                {/* Vertical segment from top to elbow */}
-                <div className="absolute left-[19.5px] top-0 h-[20px] w-[2px] bg-gray-200 dark:bg-dark-border" />
-                {/* Horizontal elbow */}
-                <div className="absolute top-[20px] left-[19.5px] w-[14px] h-[2px] bg-gray-200 dark:bg-dark-border" />
-                {/* Plus circle */}
-                <div className="absolute top-[10px] left-[28px] bg-white dark:bg-dark-bg z-10 rounded-full flex items-center justify-center p-0.5 group-hover:bg-gray-50/50 dark:group-hover:bg-dark-surface/30 transition-colors">
-                    <div className="w-[18px] h-[18px] rounded-full ring-[1.6px] ring-gray-200 dark:ring-dark-border flex items-center justify-center bg-gray-50 dark:bg-dark-surface">
-                        <FiPlus className="text-gray-500 dark:text-gray-400 w-3 h-3" strokeWidth={5} />
-                    </div>
-                </div>
-            </div>
-            <div className="flex-1 min-w-0 flex items-center h-10 ml-3">
-                <span className="text-primary-500 text-[14px] font-semibold hover:underline">
-                    {count === 1
-                        ? t('post.read_more_reply')
-                        : t('post.read_more_replies', { count })}
-                </span>
-            </div>
+        {/* ⊕ circle icon matching Bluesky style */}
+        <div className="w-[18px] h-[18px] rounded-full border-[1.5px] border-gray-400 dark:border-gray-500 flex items-center justify-center flex-shrink-0 ml-[11px]">
+            <FiPlus className="text-gray-400 dark:text-gray-500 w-2.5 h-2.5" strokeWidth={3} />
         </div>
+        <span className="text-gray-500 dark:text-gray-400 text-[13px] group-hover:underline">
+            {count === 1
+                ? t('post.read_more_reply')
+                : t('post.read_more_replies', { count })}
+        </span>
     </div>
 );
 
@@ -675,7 +662,7 @@ const PostDetailPage: React.FC = () => {
                                             post={reply}
                                             isComment={true}
                                             hasTopLine={false}
-                                            hasBottomLine={hasMoreReplies}
+                                            hasBottomLine={false}
                                             hideBorder={hasMoreReplies}
                                         />
                                         {hasMoreReplies && (
