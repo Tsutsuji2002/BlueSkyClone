@@ -50,7 +50,7 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 
 const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () => void, t: any }) => (
     <div
-        className="flex p-4 pt-1 pb-1 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer relative z-10 bg-white dark:bg-dark-bg group items-center"
+        className="flex px-4 py-2 hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 cursor-pointer relative z-10 bg-white dark:bg-dark-bg group items-center"
         onClick={(e) => {
             e.stopPropagation();
             onClick();
@@ -58,13 +58,16 @@ const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () =
     >
         <div className="flex gap-3 w-full">
             <div className="w-[40px] flex-shrink-0 relative flex flex-col items-center">
-                <div className="absolute top-[-4px] bottom-[-4px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
-                <div className="absolute top-[10px] bg-white dark:bg-dark-bg z-10 group-hover:bg-gray-50 dark:group-hover:bg-dark-surface/50 rounded-full flex items-center justify-center">
-                    <FiPlus className="text-gray-400 w-5 h-5 rounded-full ring-[1.5px] ring-gray-200 dark:ring-dark-border flex items-center justify-center p-0.5" strokeWidth={3} />
+                <div className="absolute top-0 bottom-0 w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
+                <div className="absolute top-1/2 -translate-y-1/2 bg-white dark:bg-dark-bg z-10 group-hover:bg-gray-50 dark:group-hover:bg-dark-surface/50 rounded-full flex items-center justify-center p-0.5">
+                    <FiPlus
+                        className="text-gray-400 w-[18px] h-[18px] rounded-full ring-[2px] ring-gray-200 dark:ring-dark-border bg-gray-50 dark:bg-dark-surface"
+                        strokeWidth={4}
+                    />
                 </div>
             </div>
-            <div className="flex-1 min-w-0 flex items-center h-[40px]">
-                <div className="text-primary-500 text-[14px] font-medium">
+            <div className="flex-1 min-w-0 flex items-center h-[32px]">
+                <div className="text-primary-500 text-[14.5px] font-semibold hover:underline">
                     {count === 1
                         ? t('post.read_more_reply')
                         : t('post.read_more_replies', { count })}
@@ -681,7 +684,10 @@ const PostDetailPage: React.FC = () => {
                                         {chain.map((chainItem, idx) => {
                                             const isFirst = idx === 0;
                                             const isLast = idx === chain.length - 1;
-                                            const showMoreReplies = !isLast && chainItem.repliesCount > 1;
+                                            const hasSubRepliesSkipped = !isLast && chainItem.repliesCount > 1;
+                                            const hasSubRepliesAtEnd = isLast && chainItem.repliesCount > 0;
+                                            const showMoreReplies = hasSubRepliesSkipped || hasSubRepliesAtEnd;
+                                            const skipCount = hasSubRepliesSkipped ? chainItem.repliesCount - 1 : chainItem.repliesCount;
 
                                             return (
                                                 <React.Fragment key={chainItem.id}>
@@ -689,12 +695,12 @@ const PostDetailPage: React.FC = () => {
                                                         post={chainItem}
                                                         isComment={true}
                                                         hasTopLine={!isFirst}
-                                                        hasBottomLine={!isLast}
-                                                        hideBorder={!isLast}
+                                                        hasBottomLine={!isLast || hasSubRepliesAtEnd}
+                                                        hideBorder={!isLast || hasSubRepliesAtEnd}
                                                     />
                                                     {showMoreReplies && (
                                                         <ThreadMoreReplies
-                                                            count={chainItem.repliesCount - 1}
+                                                            count={skipCount}
                                                             onClick={() => navigate(`/profile/${chainItem.author.handle}/post/${chainItem.id}`)}
                                                             t={t}
                                                         />
