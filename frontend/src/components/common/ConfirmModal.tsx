@@ -28,24 +28,24 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200">
             <div
-                className="bg-white dark:bg-dark-surface rounded-[24px] w-full max-w-[400px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
+                className="bg-white dark:bg-[#161e27] rounded-[24px] w-full max-w-[340px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="p-8 pb-6">
-                    <h2 className="text-[22px] font-bold text-gray-900 dark:text-dark-text mb-2 leading-tight">
+                <div className="p-6 pb-4">
+                    <h2 className="text-[20px] font-bold text-gray-900 dark:text-white mb-2 leading-tight">
                         {title}
                     </h2>
-                    <p className="text-[17px] text-gray-600 dark:text-dark-text-secondary leading-normal">
+                    <p className="text-[15px] text-gray-600 dark:text-gray-400 leading-snug">
                         {message}
                     </p>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 px-6 pb-6">
+                <div className="flex items-center justify-end gap-2 p-6 pt-2">
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 rounded-full text-[15px] font-bold text-gray-700 dark:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors"
+                        className="px-4 py-2 rounded-full text-[15px] font-bold text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                         {cancelLabel || t('common.cancel')}
                     </button>
@@ -55,7 +55,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             onClose();
                         }}
                         className={cn(
-                            "px-6 py-2.5 rounded-full text-[15px] font-bold text-white transition-opacity hover:opacity-90",
+                            "px-6 py-2 rounded-full text-[15px] font-bold text-white transition-opacity hover:opacity-90",
                             variant === 'danger' ? "bg-[#f41e3b]" : "bg-primary-500"
                         )}
                     >

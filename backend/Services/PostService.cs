@@ -129,8 +129,9 @@ public class PostService : IPostService
         var filteredPosts = new List<PostDto>();
         foreach (var post in posts)
         {
-            // Filter out muted or blocked users
-            if (mutedUserIds.Contains(post.Author.Id) || 
+            // Filter out deleted, muted or blocked users
+            if (post.IsDeleted ||
+                mutedUserIds.Contains(post.Author.Id) || 
                 blockedUserIds.Contains(post.Author.Id) || 
                 blockedByUserIds.Contains(post.Author.Id))
             {
@@ -564,7 +565,7 @@ public class PostService : IPostService
                 .Include(p => p.LinkPreview)
                 .Include(p => p.Hashtags)
                 .Include(p => p.Interests)
-                .FirstOrDefaultAsync(p => p.Id == postId);
+                .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
 
             if (post == null)
             {
@@ -751,7 +752,7 @@ public class PostService : IPostService
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                 .AsSplitQuery()
-                .FirstOrDefaultAsync(p => p.Id == postId);
+                .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
 
             if (post == null) return null;
 
@@ -867,7 +868,7 @@ public class PostService : IPostService
         bool isLiked;
         var post = await _unitOfWork.Posts.Query()
             .Include(p => p.Author)
-            .FirstOrDefaultAsync(p => p.Id == postId);
+            .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
         if (post == null) return new { isLiked = false, likesCount = 0 };
 
         if (existingLike != null)
@@ -950,7 +951,7 @@ public class PostService : IPostService
                  .FirstOrDefaultAsync(b => b.PostId == postId && b.UserId == userId);
         
         var post = await _unitOfWork.Posts.Query()
-            .FirstOrDefaultAsync(p => p.Id == postId);
+            .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
 
         if (post == null) return new { isBookmarked = false, bookmarksCount = 0 };
 
@@ -1008,7 +1009,7 @@ public class PostService : IPostService
         bool isReposted;
         var post = await _unitOfWork.Posts.Query()
             .Include(p => p.Author)
-            .FirstOrDefaultAsync(p => p.Id == postId);
+            .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
 
         if (post == null) return new { isReposted = false, repostsCount = 0 };
 
@@ -1227,6 +1228,7 @@ public class PostService : IPostService
             Interests = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>(),
             ReplyRestriction = post.ReplyRestriction ?? "anyone",
             AllowQuotes = post.AllowQuotes ?? true,
+            IsDeleted = post.IsDeleted ?? false,
             QuotePostId = post.QuotePostId,
             QuotePost = (includeQuote && post.QuotePost != null) ? MapToDto(post.QuotePost, false, false) : null,
             ParentPost = (includeParent && post.ReplyToPost != null) ? MapToDto(post.ReplyToPost, false, false) : null,

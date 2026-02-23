@@ -285,6 +285,28 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
         );
     }
 
+    if (post.isDeleted) {
+        return (
+            <div className={cn(
+                "p-4 flex items-center gap-3 bg-gray-50/50 dark:bg-dark-surface/10",
+                hideBorder ? "" : "border-b border-gray-200 dark:border-dark-border"
+            )}>
+                <div className="w-10 flex flex-col items-center relative">
+                    {hasTopLine && <div className="absolute top-[-16px] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border" />}
+                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-dark-surface flex items-center justify-center z-10">
+                        <FiTrash2 className="text-gray-400" size={20} />
+                    </div>
+                    {hasBottomLine && <div className="absolute top-[40px] bottom-[-16px] w-[2px] bg-gray-200 dark:bg-dark-border" />}
+                </div>
+                <div className="flex-1 py-2">
+                    <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary italic">
+                        {t('post.removed_post_notice', 'Post removed')}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div
             className={cn(
@@ -342,9 +364,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                         </div>
 
                         {/* Replying to Context */}
-                        {post.replyToHandle && !isComment && (
-                            <div className="flex items-center gap-1 mb-1 text-[15px] text-gray-500 dark:text-dark-text-secondary">
-                                <FiMessageCircle size={14} className="mt-0.5" />
+                        {post.replyToHandle && (
+                            <div className="flex items-center gap-2 mb-1 text-[15px] text-gray-500 dark:text-dark-text-secondary">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M12.015 7c0-1.93-1.57-3.5-3.5-3.5h-1v2h1c.827 0 1.5.673 1.5 1.5v3.172l-1.586-1.586-1.414 1.414L10.515 13.5l3.5-3.5-1.414-1.414-1.586 1.586V7z" />
+                                    <path d="M3 20h18v-2H3v2z" opacity=".3" />
+                                </svg>
                                 <span>{t('messages.replying_to_prefix')}</span>
                                 <Link
                                     to={`/profile/${post.replyToHandle}`}

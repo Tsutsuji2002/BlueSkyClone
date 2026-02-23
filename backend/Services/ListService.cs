@@ -433,6 +433,7 @@ public class ListService : IListService
             QuotePostId = post.QuotePostId,
             QuotePost = (includeQuote && post.QuotePost != null) ? MapToPostDto(post.QuotePost, false, false) : null,
             ParentPost = (includeParent && post.ReplyToPost != null) ? MapToPostDto(post.ReplyToPost, false, false) : null,
+            IsDeleted = post.IsDeleted ?? false,
             CanReply = true
         };
     }

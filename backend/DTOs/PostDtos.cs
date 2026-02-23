@@ -35,6 +35,7 @@ public class PostDto
     public string ReplyRestriction { get; set; } = "anyone";
     public bool AllowQuotes { get; set; } = true;
     public bool CanReply { get; set; } = true;
+    public bool IsDeleted { get; set; }
 }
 
 public class MediaDto

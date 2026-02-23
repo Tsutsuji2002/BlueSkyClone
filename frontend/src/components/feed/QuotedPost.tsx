@@ -21,8 +21,19 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
 
     const handleQuoteClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (post.isDeleted) return;
         navigate(`/profile/${post.author.handle}/post/${post.id}`);
     };
+
+    if (post.isDeleted) {
+        return (
+            <div className={`border border-gray-200 dark:border-dark-border rounded-xl bg-gray-50 dark:bg-dark-surface/30 p-4 ${isCard ? 'mt-2 mb-1' : ''}`}>
+                <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary italic">
+                    {t('post.removed_post_notice', 'Post removed')}
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div

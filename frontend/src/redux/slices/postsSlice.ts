@@ -427,10 +427,13 @@ const postsSlice = createSlice({
             })
             .addCase(updatePost.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
                 state.isLoading = false;
-                const index = state.posts.findIndex(p => p.id === action.payload.id);
-                if (index !== -1) {
-                    state.posts[index] = action.payload;
-                }
+                const updateInArray = (arr: Post[]) => {
+                    const idx = arr.findIndex(p => p.id === action.payload.id);
+                    if (idx !== -1) arr[idx] = action.payload;
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             .addCase(updatePost.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -520,6 +523,8 @@ const postsSlice = createSlice({
             // Delete Post
             .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string>) => {
                 state.posts = state.posts.filter(p => p.id !== action.payload);
+                state.discoverPosts = state.discoverPosts.filter(p => p.id !== action.payload);
+                state.trendingPosts = state.trendingPosts.filter(p => p.id !== action.payload);
             })
             // Fetch Post By ID
             .addCase(fetchPostById.pending, (state: PostsState) => {
