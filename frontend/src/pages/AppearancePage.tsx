@@ -106,7 +106,7 @@ const AppearancePage: React.FC = () => {
                         <SegmentedControl
                             options={[
                                 { label: t('appearance.dim'), value: 'dim' },
-                                { label: t('appearance.lights_out'), value: 'dark' },
+                                { label: t('appearance.dark'), value: 'dark' },
                             ]}
                             value={darkVariant}
                             onChange={handleDarkVariantChange}
