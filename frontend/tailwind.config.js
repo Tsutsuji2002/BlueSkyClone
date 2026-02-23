@@ -22,19 +22,19 @@ module.exports = {
         },
         // Dark theme colors
         dark: {
-          bg: 'var(--bg-primary)',
-          surface: 'var(--bg-secondary)',
-          border: 'var(--border-color)',
-          text: 'var(--text-primary)',
-          'text-secondary': 'var(--text-secondary)',
+          bg: 'rgb(var(--bg-primary) / <alpha-value>)',
+          surface: 'rgb(var(--bg-secondary) / <alpha-value>)',
+          border: 'rgb(var(--border-color) / <alpha-value>)',
+          text: 'rgb(var(--text-primary) / <alpha-value>)',
+          'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
         },
         // Light theme colors
         light: {
-          bg: 'var(--bg-primary)',
-          surface: 'var(--bg-secondary)',
-          border: 'var(--border-color)',
-          text: 'var(--text-primary)',
-          'text-secondary': 'var(--text-secondary)',
+          bg: 'rgb(var(--bg-primary) / <alpha-value>)',
+          surface: 'rgb(var(--bg-secondary) / <alpha-value>)',
+          border: 'rgb(var(--border-color) / <alpha-value>)',
+          text: 'rgb(var(--text-primary) / <alpha-value>)',
+          'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
         },
       },
       fontFamily: {

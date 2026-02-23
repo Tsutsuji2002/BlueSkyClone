@@ -9,37 +9,37 @@
 
   /* Light theme (default) */
   :root {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f7f9f9;
-    --bg-hover: #eff3f4;
-    --text-primary: #0f1419;
-    --text-secondary: #536471;
-    --border-color: #eff3f4;
+    --bg-primary: 255 255 255;
+    --bg-secondary: 247 249 249;
+    --bg-hover: 239 243 244;
+    --text-primary: 15 20 25;
+    --text-secondary: 83 100 113;
+    --border-color: 239 243 244;
   }
 
   /* Dark theme (Default: Dim/Blue-dark) */
   .dark {
-    --bg-primary: #15202b;
-    --bg-secondary: #192734;
-    --bg-hover: #1c2732;
-    --text-primary: #e7e9ea;
-    --text-secondary: #8b98a5;
-    --border-color: #38444d;
+    --bg-primary: 21 32 43;
+    --bg-secondary: 25 39 52;
+    --bg-hover: 28 39 50;
+    --text-primary: 231 233 234;
+    --text-secondary: 139 152 165;
+    --border-color: 56 68 77;
   }
 
   /* Lights out (Pure black) override */
   .dark.lights-out {
-    --bg-primary: #000000;
-    --bg-secondary: #16181c;
-    --bg-hover: #1c1f23;
-    --text-primary: #e7e9ea;
-    --text-secondary: #71767b;
-    --border-color: #2f3336;
+    --bg-primary: 0 0 0;
+    --bg-secondary: 22 24 28;
+    --bg-hover: 28 31 35;
+    --text-primary: 231 233 234;
+    --text-secondary: 113 118 123;
+    --border-color: 47 51 54;
   }
 
   body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
+    background-color: rgb(var(--bg-primary));
+    color: rgb(var(--text-primary));
   }
 
   /* Font sizes */
@@ -102,12 +102,12 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: rgb(var(--border-color));
     border-radius: 3px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
+    background: rgb(var(--text-secondary));
   }
 
   /* No scrollbar */
