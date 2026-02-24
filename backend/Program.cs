@@ -349,6 +349,26 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'LargerAltBadge')
                 BEGIN
                     ALTER TABLE UserSettings ADD LargerAltBadge BIT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReplies')
+                BEGIN
+                    ALTER TABLE UserSettings ADD ShowReplies BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD ShowReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowQuotePosts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD ShowQuotePosts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowSampleSavedFeeds')
+                BEGIN
+                    ALTER TABLE UserSettings ADD ShowSampleSavedFeeds BIT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'SelectedInterests')
+                BEGIN
+                    ALTER TABLE UserSettings ADD SelectedInterests NVARCHAR(MAX) NULL;
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied manual schema updates for UserSettings.");
