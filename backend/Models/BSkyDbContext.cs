@@ -555,6 +555,10 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.RequireLogoutVisibility).HasDefaultValue(false);
             entity.Property(e => e.LargerAltBadge).HasDefaultValue(false);
             entity.Property(e => e.SelectedInterests).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.ShowReplies).HasDefaultValue(true);
+            entity.Property(e => e.ShowReposts).HasDefaultValue(true);
+            entity.Property(e => e.ShowQuotePosts).HasDefaultValue(true);
+            entity.Property(e => e.ShowSampleSavedFeeds).HasDefaultValue(false);
 
             entity.HasOne(d => d.User).WithOne(p => p.UserSetting)
                 .HasForeignKey<UserSetting>(d => d.UserId)
