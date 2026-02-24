@@ -10,7 +10,7 @@ import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts } from '../redux/sli
 import { fetchTimeline, fetchTrendingPosts, fetchDiscoverPosts } from '../redux/slices/postsSlice';
 import { RootState } from '../redux/store';
 import { useNavigate } from 'react-router-dom';
-import { FiHash, FiMenu } from 'react-icons/fi';
+import { FiHash, FiMenu, FiSettings } from 'react-icons/fi';
 import { Feed as FeedType } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import ButterflyLogo from '../components/common/ButterflyLogo';
@@ -127,24 +127,34 @@ const HomePage: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="flex px-2 overflow-x-auto no-scrollbar">
-                        {tabs.map((tab) => (
+                    <div className="flex px-2 overflow-x-auto no-scrollbar justify-between items-center">
+                        <div className="flex">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => handleTabChange(tab.id)}
+                                    className={cn(
+                                        "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap",
+                                        activeTab === tab.id
+                                            ? "text-gray-900 dark:text-dark-text"
+                                            : "text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50"
+                                    )}
+                                >
+                                    {tab.label}
+                                    {activeTab === tab.id && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary-500 rounded-full mx-3" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                        {activeTab === 'following' && (
                             <button
-                                key={tab.id}
-                                onClick={() => handleTabChange(tab.id)}
-                                className={cn(
-                                    "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap",
-                                    activeTab === tab.id
-                                        ? "text-gray-900 dark:text-dark-text"
-                                        : "text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50"
-                                )}
+                                onClick={() => navigate('/settings/following-feed')}
+                                className="p-2 mr-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-dark-text-secondary dark:hover:text-dark-text dark:hover:bg-dark-surface rounded-full transition-colors"
                             >
-                                {tab.label}
-                                {activeTab === tab.id && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary-500 rounded-full mx-3" />
-                                )}
+                                <FiSettings size={18} />
                             </button>
-                        ))}
+                        )}
                     </div>
                 </div>
 

@@ -35,13 +35,89 @@ public class PostService : IPostService
         var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
         if (cached != null)
         {
-            return await EnrichAndFilterPostsAsync(cached, userId);
+            return await EnrichAndFilterPostsAsync(cached, userId, true);
         }
 
+        var userSettings = await _unitOfWork.UserSettings.Query()
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        var followedUserIds = await _unitOfWork.Follows.Query()
+            .Where(f => f.FollowerId == userId)
+            .Select(f => f.FollowingId)
+            .ToListAsync();
+        followedUserIds.Add(userId);
+
         var posts = await _unitOfWork.Posts.GetTimelinePostsAsync(userId);
-        var postDtos = posts.Select(MapToDto).ToList();
+        
+        var postDtos = new List<PostDto>();
+        foreach (var post in posts)
+        {
+            var dto = MapToDto(post);
+            
+            // If the author is not followed (and not the viewer), find who reposted it
+            // Only if it's not a reply (reposts of replies are rare in standard timeline UI but possible)
+            if (!followedUserIds.Contains(post.AuthorId))
+            {
+                var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId));
+                if (reposter != null && reposter.User != null)
+                {
+                    dto.RepostedBy = new AuthorDto 
+                    {
+                        Id = reposter.User.Id,
+                        Username = reposter.User.Username,
+                        Handle = reposter.User.Handle,
+                        DisplayName = reposter.User.DisplayName,
+                        AvatarUrl = reposter.User.AvatarUrl
+                    };
+                }
+            }
+            postDtos.Add(dto);
+        }
+
+        // --- Interleave Samples from Saved Feeds ---
+        if (userSettings?.ShowSampleSavedFeeds == true)
+        {
+            var savedFeeds = await _unitOfWork.UserFeedSubscriptions.Query()
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.IsPinned)
+                .ThenBy(s => s.PinnedOrder)
+                .Include(s => s.Feed)
+                .Take(5) // Limit to top 5 feeds
+                .ToListAsync();
+
+            foreach (var sub in savedFeeds)
+            {
+                var feed = sub.Feed;
+                if (feed == null || feed.Name == "Trending" || feed.IsOfficial && feed.Tid.Contains("official-trending"))
+                    continue;
+
+                // Simple logic for feed posts: matching Interests
+                var feedPosts = await _unitOfWork.Posts.Query()
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                                p.Interests.Any(i => i.Name == feed.Name))
+                    // Avoid adding posts already in the timeline
+                    .Where(p => !postDtos.Any(pd => pd.Id == p.Id))
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Take(2) // Sample 2 posts per feed
+                    .ToListAsync();
+
+                foreach (var fp in feedPosts)
+                {
+                    var dto = MapToDto(fp);
+                    dto.ListCaption = $"From {feed.Name}";
+                    postDtos.Add(dto);
+                }
+            }
+            
+            // Re-sort if we added items
+            postDtos = postDtos.OrderByDescending(p => p.CreatedAt).ToList();
+        }
+
         await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(2));
-        var filteredDtos = await EnrichAndFilterPostsAsync(postDtos, userId);
+        var filteredDtos = await EnrichAndFilterPostsAsync(postDtos, userId, true);
         return filteredDtos;
     }
 
@@ -81,7 +157,7 @@ public class PostService : IPostService
         return postDtos;
     }
 
-    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId)
+    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
     {
         if (!posts.Any()) return posts;
 
@@ -126,9 +202,38 @@ public class PostService : IPostService
         var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
         var viewerHandle = viewerUser?.Handle?.ToLower();
 
+        // Fetch user settings for timeline filtering
+        UserSetting? userSettings = null;
+        if (isTimeline)
+        {
+            userSettings = await _unitOfWork.UserSettings.Query()
+                .FirstOrDefaultAsync(s => s.UserId == viewerId);
+        }
+
         var filteredPosts = new List<PostDto>();
         foreach (var post in posts)
         {
+            // Apply Timeline Filtering
+            if (isTimeline && userSettings != null)
+            {
+                // Filter Replies
+                if (userSettings.ShowReplies == false && post.ReplyToPostId != null)
+                {
+                    continue;
+                }
+
+                // Filter Quote Posts
+                if (userSettings.ShowQuotePosts == false && post.QuotePostId != null)
+                {
+                    continue;
+                }
+
+                // Filter Reposts
+                if (userSettings.ShowReposts == false && post.RepostedBy != null)
+                {
+                    continue;
+                }
+            }
             // Filter out deleted, muted or blocked users
             if (post.IsDeleted ||
                 mutedUserIds.Contains(post.Author.Id) || 

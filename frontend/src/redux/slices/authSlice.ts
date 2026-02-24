@@ -17,6 +17,10 @@ function normalizeSettings(raw: any): UserSettings {
         sortReplies: raw.sortReplies ?? 'top',
         // Map backend's enableDiscoverVideo -> frontend's enableVideoDiscover
         enableVideoDiscover: raw.enableVideoDiscover ?? raw.enableDiscoverVideo ?? false,
+        showReplies: raw.showReplies ?? raw.ShowReplies ?? true,
+        showReposts: raw.showReposts ?? raw.ShowReposts ?? true,
+        showQuotePosts: raw.showQuotePosts ?? raw.ShowQuotePosts ?? true,
+        showSampleSavedFeeds: raw.showSampleSavedFeeds ?? raw.ShowSampleSavedFeeds ?? false,
     } as UserSettings;
 }
 

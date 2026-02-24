@@ -36,6 +36,7 @@ public class PostDto
     public bool AllowQuotes { get; set; } = true;
     public bool CanReply { get; set; } = true;
     public bool IsDeleted { get; set; }
+    public AuthorDto? RepostedBy { get; set; }
 }
 
 public class MediaDto

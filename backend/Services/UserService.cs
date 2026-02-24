@@ -220,6 +220,11 @@ public class UserService : IUserService
         if (request.EnableTreeView != null) s.EnableTreeView = request.EnableTreeView;
         if (request.RequireLogoutVisibility != null) s.RequireLogoutVisibility = request.RequireLogoutVisibility;
         if (request.LargerAltBadge != null) s.LargerAltBadge = request.LargerAltBadge;
+        
+        if (request.ShowReplies != null) s.ShowReplies = request.ShowReplies;
+        if (request.ShowReposts != null) s.ShowReposts = request.ShowReposts;
+        if (request.ShowQuotePosts != null) s.ShowQuotePosts = request.ShowQuotePosts;
+        if (request.ShowSampleSavedFeeds != null) s.ShowSampleSavedFeeds = request.ShowSampleSavedFeeds;
 
         // Notification toggles
         if (request.NotifyLikes != null) s.NotifyLikes = request.NotifyLikes;

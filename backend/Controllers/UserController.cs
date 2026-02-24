@@ -151,7 +151,11 @@ public class UserController : ControllerBase
                 settings.EnableDiscoverVideo,
                 settings.EnableTreeView,
                 settings.RequireLogoutVisibility,
-                settings.LargerAltBadge
+                settings.LargerAltBadge,
+                settings.ShowReplies,
+                settings.ShowReposts,
+                settings.ShowQuotePosts,
+                settings.ShowSampleSavedFeeds
             );
 
             return Ok(settingsDto);

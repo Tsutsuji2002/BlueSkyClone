@@ -30,8 +30,9 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .Include(p => p.Reposts).ThenInclude(r => r.User)
             .AsSplitQuery()
-            .Where(p => followedUserIds.Contains(p.AuthorId) 
+            .Where(p => (followedUserIds.Contains(p.AuthorId) || p.Reposts.Any(r => followedUserIds.Contains(r.UserId)))
                 && (p.IsDeleted == false || p.IsDeleted == null)) // Allow replies in timeline
             .OrderByDescending(p => p.CreatedAt)
             .Take(limit)

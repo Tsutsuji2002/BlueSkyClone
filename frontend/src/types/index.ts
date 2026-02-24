@@ -150,6 +150,7 @@ export interface Post {
     };
     canReply?: boolean;
     replyRestriction?: string;
+    repostedBy?: Partial<User>;
 }
 
 // Comment/Reply types

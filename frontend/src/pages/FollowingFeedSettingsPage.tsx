@@ -1,18 +1,30 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiInfo, FiMessageSquare, FiRepeat, FiMessageCircle, FiActivity } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
+import { useAppDispatch } from '../hooks/useAppDispatch';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { RootState } from '../redux/store';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
 
 const FollowingFeedSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const dispatch = useAppDispatch();
 
-    const [showReplies, setShowReplies] = useState(true);
-    const [showReposts, setShowReposts] = useState(true);
-    const [showQuotes, setShowQuotes] = useState(true);
-    const [experimental, setExperimental] = useState(false);
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+
+    // Fallback defaults if settings object is missing
+    const showReplies = settings?.showReplies ?? true;
+    const showReposts = settings?.showReposts ?? true;
+    const showQuotes = settings?.showQuotePosts ?? true;
+    const experimental = settings?.showSampleSavedFeeds ?? false;
+
+    const handleUpdate = (key: string, value: boolean) => {
+        dispatch(updateNotificationSettings({ [key]: value }));
+    };
 
     const SettingsItem = ({
         icon,
@@ -78,19 +90,19 @@ const FollowingFeedSettingsPage: React.FC = () => {
                             icon={<FiMessageSquare size={20} />}
                             label={t('content.show_replies')}
                             value={showReplies}
-                            onChange={setShowReplies}
+                            onChange={(v) => handleUpdate('showReplies', v)}
                         />
                         <SettingsItem
                             icon={<FiRepeat size={20} />}
                             label={t('content.show_reposts')}
                             value={showReposts}
-                            onChange={setShowReposts}
+                            onChange={(v) => handleUpdate('showReposts', v)}
                         />
                         <SettingsItem
                             icon={<FiMessageCircle size={20} />}
                             label={t('content.show_quote_posts')}
                             value={showQuotes}
-                            onChange={setShowQuotes}
+                            onChange={(v) => handleUpdate('showQuotePosts', v)}
                         />
                     </div>
 
@@ -102,12 +114,12 @@ const FollowingFeedSettingsPage: React.FC = () => {
                                 {t('content.experimental')}
                             </h2>
                         </div>
-                        <div className="px-4 py-4 flex items-start justify-between border-t border-gray-100 dark:border-dark-border">
+                        <div className="px-4 py-4 flex items-start justify-between border-t border-gray-100 dark:border-dark-border cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
+                            onClick={() => handleUpdate('showSampleSavedFeeds', !experimental)}>
                             <p className="text-sm text-gray-700 dark:text-dark-text-secondary flex-1 mr-4">
                                 {t('content.show_sample_saved_feeds')}
                             </p>
                             <button
-                                onClick={() => setExperimental(!experimental)}
                                 className={cn(
                                     "w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out shrink-0",
                                     experimental ? "bg-blue-500" : "bg-gray-200 dark:bg-dark-surface"

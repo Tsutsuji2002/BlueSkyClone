@@ -38,7 +38,8 @@ import {
     FiUserMinus,
     FiUserX,
     FiAlertTriangle,
-    FiTrash2
+    FiTrash2,
+    FiHash
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 
@@ -316,10 +317,30 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             onClick={handleCardClick}
         >
             {/* Repost Banner */}
-            {post.isReposted && (
-                <div className="flex items-center gap-2 px-4 pt-3 pb-0 ml-8 text-[13px] text-gray-500 dark:text-dark-text-secondary font-semibold">
-                    <FiRepeat size={14} className="text-green-500" />
-                    <span>{t('post.reposted_by_you', 'Reposted by you')}</span>
+            {(post.isReposted || post.repostedBy) && (
+                <div
+                    className="flex items-center gap-2 px-4 pt-3 pb-0 ml-8 text-[13px] text-gray-500 dark:text-dark-text-secondary font-semibold hover:underline cursor-pointer transition-colors"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        const handle = post.repostedBy?.handle || currentUser?.handle;
+                        if (handle) navigate(`/profile/${handle}`);
+                    }}
+                >
+                    <FiRepeat size={14} className={post.isReposted ? "text-green-500" : "text-gray-500"} />
+                    <span>
+                        {post.repostedBy
+                            ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle })
+                            : t('post.reposted_by_you', 'Reposted by you')}
+                    </span>
+                </div>
+            )}
+            {/* Feed Banner */}
+            {post.listCaption && (
+                <div
+                    className="flex items-center gap-2 px-4 pt-3 pb-0 ml-8 text-[13px] text-gray-500 dark:text-dark-text-secondary font-semibold transition-colors"
+                >
+                    <FiHash size={14} className="text-gray-500" />
+                    <span>{post.listCaption}</span>
                 </div>
             )}
             <div

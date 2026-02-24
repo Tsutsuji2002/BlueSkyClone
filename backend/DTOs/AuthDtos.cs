@@ -83,7 +83,11 @@ public record UserSettingDto(
     bool? EnableDiscoverVideo,
     bool? EnableTreeView,
     bool? RequireLogoutVisibility,
-    bool? LargerAltBadge
+    bool? LargerAltBadge,
+    bool? ShowReplies,
+    bool? ShowReposts,
+    bool? ShowQuotePosts,
+    bool? ShowSampleSavedFeeds
 );
 
 public record AuthResponse(

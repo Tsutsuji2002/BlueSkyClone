@@ -56,5 +56,10 @@ public partial class UserSetting
     /// </summary>
     public string? SelectedInterests { get; set; }
 
+    public bool? ShowReplies { get; set; }
+    public bool? ShowReposts { get; set; }
+    public bool? ShowQuotePosts { get; set; }
+    public bool? ShowSampleSavedFeeds { get; set; }
+
     public virtual User User { get; set; } = null!;
 }
