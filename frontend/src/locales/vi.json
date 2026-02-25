@@ -613,6 +613,7 @@
         "repost": "Đăng lại",
         "undo_repost": "Bỏ đăng lại",
         "reposted_by_you": "Đã đăng lại bởi bạn",
+        "reposted_by": "Báo cáo bởi {{name}}",
         "read_more_replies": "Đọc thêm {{count}} phản hồi",
         "read_more_reply": "Đọc thêm 1 phản hồi"
     },
