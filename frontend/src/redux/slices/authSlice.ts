@@ -9,6 +9,15 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
  * to the frontend camelCase UserSettings shape.
  */
 function normalizeSettings(raw: any): UserSettings {
+    let parsedProviders: string[] = [];
+    try {
+        if (typeof raw.enabledMediaProviders === 'string') parsedProviders = JSON.parse(raw.enabledMediaProviders);
+        else if (typeof raw.EnabledMediaProviders === 'string') parsedProviders = JSON.parse(raw.EnabledMediaProviders);
+        else if (Array.isArray(raw.enabledMediaProviders)) parsedProviders = raw.enabledMediaProviders;
+    } catch (e) {
+        parsedProviders = [];
+    }
+
     return {
         ...raw,
         // Map backend's enableTreeView -> frontend's treeView
@@ -21,6 +30,7 @@ function normalizeSettings(raw: any): UserSettings {
         showReposts: raw.showReposts ?? raw.ShowReposts ?? true,
         showQuotePosts: raw.showQuotePosts ?? raw.ShowQuotePosts ?? true,
         showSampleSavedFeeds: raw.showSampleSavedFeeds ?? raw.ShowSampleSavedFeeds ?? false,
+        enabledMediaProviders: parsedProviders,
     } as UserSettings;
 }
 
@@ -188,13 +198,20 @@ export const updateNotificationSettings = createAsyncThunk(
     async (settings: Partial<UserSettings>, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const payload = {
+                ...settings,
+                enabledMediaProviders: Array.isArray(settings.enabledMediaProviders)
+                    ? JSON.stringify(settings.enabledMediaProviders)
+                    : settings.enabledMediaProviders
+            };
+
             const response = await fetch(`${API_URL}/user/settings`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(settings),
+                body: JSON.stringify(payload),
             });
             const data = await response.json();
             if (!response.ok) {

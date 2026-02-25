@@ -87,7 +87,8 @@ public record UserSettingDto(
     bool? ShowReplies,
     bool? ShowReposts,
     bool? ShowQuotePosts,
-    bool? ShowSampleSavedFeeds
+    bool? ShowSampleSavedFeeds,
+    string? EnabledMediaProviders
 );
 
 public record AuthResponse(

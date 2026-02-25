@@ -225,6 +225,7 @@ public class UserService : IUserService
         if (request.ShowReposts != null) s.ShowReposts = request.ShowReposts;
         if (request.ShowQuotePosts != null) s.ShowQuotePosts = request.ShowQuotePosts;
         if (request.ShowSampleSavedFeeds != null) s.ShowSampleSavedFeeds = request.ShowSampleSavedFeeds;
+        if (request.EnabledMediaProviders != null) s.EnabledMediaProviders = request.EnabledMediaProviders;
 
         // Notification toggles
         if (request.NotifyLikes != null) s.NotifyLikes = request.NotifyLikes;

@@ -224,8 +224,9 @@ public class AuthService : IAuthService
             user.UserSetting.ShowReplies,
             user.UserSetting.ShowReposts,
             user.UserSetting.ShowQuotePosts,
-            user.UserSetting.ShowSampleSavedFeeds
-        ) : new UserSettingDto(null, null, null, null, null, "en", "system", true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, "anyone", true, 15, true, true, false, false, false, true, true, true, false);
+            user.UserSetting.ShowSampleSavedFeeds,
+            user.UserSetting.EnabledMediaProviders
+        ) : new UserSettingDto(null, null, null, null, null, "en", "system", true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, "anyone", true, 15, true, true, false, false, false, true, true, true, false, null);
 
         return new AuthResponse(userDto, settingsDto, token, refreshToken);
     }

@@ -61,5 +61,10 @@ public partial class UserSetting
     public bool? ShowQuotePosts { get; set; }
     public bool? ShowSampleSavedFeeds { get; set; }
 
+    /// <summary>
+    /// JSON array of enabled media providers, e.g., '["YouTube","Spotify"]'
+    /// </summary>
+    public string? EnabledMediaProviders { get; set; }
+
     public virtual User User { get; set; } = null!;
 }

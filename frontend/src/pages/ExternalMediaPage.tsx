@@ -1,26 +1,34 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiInfo } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { useAppDispatch } from '../hooks/useAppDispatch';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
 
 const ExternalMediaPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const dispatch = useAppDispatch();
+    const settings = useAppSelector(state => state.auth.settings);
 
     const mediaProviders = [
         'YouTube', 'YouTube Shorts', 'Vimeo', 'Twitch', 'GIPHY', 'Spotify', 'Apple Music', 'SoundCloud', 'Flickr'
     ];
 
-    const [enabledProviders, setEnabledProviders] = useState<string[]>([]);
+    const enabledProviders = settings?.enabledMediaProviders || [];
 
     const toggleProvider = (provider: string) => {
-        setEnabledProviders(prev =>
-            prev.includes(provider)
-                ? prev.filter(p => p !== provider)
-                : [...prev, provider]
-        );
+        const newProviders = enabledProviders.includes(provider)
+            ? enabledProviders.filter(p => p !== provider)
+            : [...enabledProviders, provider];
+
+        dispatch(updateNotificationSettings({
+            ...settings,
+            enabledMediaProviders: newProviders
+        }));
     };
 
     return (

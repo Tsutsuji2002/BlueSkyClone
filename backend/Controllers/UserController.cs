@@ -155,7 +155,8 @@ public class UserController : ControllerBase
                 settings.ShowReplies,
                 settings.ShowReposts,
                 settings.ShowQuotePosts,
-                settings.ShowSampleSavedFeeds
+                settings.ShowSampleSavedFeeds,
+                settings.EnabledMediaProviders
             );
 
             return Ok(settingsDto);
