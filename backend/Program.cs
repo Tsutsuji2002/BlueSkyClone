@@ -369,6 +369,10 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'SelectedInterests')
                 BEGIN
                     ALTER TABLE UserSettings ADD SelectedInterests NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnabledMediaProviders')
+                BEGIN
+                    ALTER TABLE UserSettings ADD EnabledMediaProviders NVARCHAR(MAX) NULL;
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied manual schema updates for UserSettings.");
