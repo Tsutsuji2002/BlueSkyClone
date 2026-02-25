@@ -38,6 +38,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const { t } = useTranslation();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [imageError, setImageError] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const autoplayEnabled = settings?.autoplayVideoGif ?? true;
@@ -72,6 +73,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     // Reset error state when URL changes
     useEffect(() => {
         setImageError(false);
+        setIsPlaying(false);
     }, [item.url]);
 
     if (imageError && !item.isVideo) {
@@ -113,13 +115,21 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         muted
                         playsInline
                         loop
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
                         onError={(e) => {
                             // On video error, we'll just show a generic indicator or nothing
                             console.error('Video load error:', item.url);
                         }}
                     />
-                    <div className="absolute inset-0 bg-black/10 group-hover/video:bg-transparent transition-colors flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white opacity-80 group-hover/video:opacity-0 transition-opacity">
+                    <div className={cn(
+                        "absolute inset-0 bg-black/10 transition-colors flex items-center justify-center",
+                        isPlaying ? "opacity-0" : "group-hover/video:bg-transparent"
+                    )}>
+                        <div className={cn(
+                            "w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white transition-opacity",
+                            isPlaying ? "opacity-0" : "opacity-80 group-hover/video:opacity-0"
+                        )}>
                             <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z" />
                             </svg>
