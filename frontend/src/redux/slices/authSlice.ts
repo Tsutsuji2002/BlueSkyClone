@@ -25,7 +25,10 @@ function normalizeSettings(raw: any): UserSettings {
         // Map backend's sortReplies (already camelCase) - keep as is
         sortReplies: raw.sortReplies ?? 'top',
         // Map backend's enableDiscoverVideo -> frontend's enableVideoDiscover
-        enableVideoDiscover: raw.enableVideoDiscover ?? raw.enableDiscoverVideo ?? false,
+        enableVideoDiscover: raw.enableVideoDiscover ?? raw.enableDiscoverVideo ?? raw.EnableDiscoverVideo ?? false,
+        autoplayVideoGif: raw.autoplayVideoGif ?? raw.AutoplayVideoGif ?? true,
+        appLanguage: raw.appLanguage ?? raw.AppLanguage ?? 'en',
+        themeMode: raw.themeMode ?? raw.ThemeMode ?? 'system',
         showReplies: raw.showReplies ?? raw.ShowReplies ?? true,
         showReposts: raw.showReposts ?? raw.ShowReposts ?? true,
         showQuotePosts: raw.showQuotePosts ?? raw.ShowQuotePosts ?? true,

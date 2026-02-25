@@ -42,17 +42,31 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const autoplayEnabled = settings?.autoplayVideoGif ?? true;
 
+    useEffect(() => {
+        if (!item.isVideo || !videoRef.current || !autoplayEnabled) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    videoRef.current?.play().catch(() => { });
+                } else {
+                    videoRef.current?.pause();
+                    videoRef.current!.currentTime = 0;
+                }
+            },
+            { threshold: 0.5 } // Play when at least 50% visible
+        );
+
+        observer.observe(videoRef.current);
+        return () => observer.disconnect();
+    }, [item.isVideo, autoplayEnabled]);
+
     const handleMouseEnter = () => {
-        if (item.isVideo && videoRef.current && autoplayEnabled) {
-            videoRef.current.play().catch(() => { });
-        }
+        // Already handled by observer, but could be used for unmute or something in future
     };
 
     const handleMouseLeave = () => {
-        if (item.isVideo && videoRef.current && autoplayEnabled) {
-            videoRef.current.pause();
-            videoRef.current.currentTime = 0;
-        }
+        // Already handled by observer
     };
 
     // Reset error state when URL changes
