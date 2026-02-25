@@ -54,22 +54,26 @@ public class PostService : IPostService
         {
             var dto = MapToDto(post);
             
-            // If the author is not followed (and not the viewer), find who reposted it
-            // Only if it's not a reply (reposts of replies are rare in standard timeline UI but possible)
-            if (!followedUserIds.Contains(post.AuthorId))
+            // Find who among the followed users (including the viewer) reposted it
+            // Prefer people other than the author if it's a repost
+            var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId) && r.UserId != post.AuthorId);
+            
+            // Fallback to searching for the viewer themselves if they reposted their own post
+            if (reposter == null)
             {
-                var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId));
-                if (reposter != null && reposter.User != null)
+                reposter = post.Reposts?.FirstOrDefault(r => r.UserId == userId);
+            }
+
+            if (reposter != null && reposter.User != null)
+            {
+                dto.RepostedBy = new AuthorDto 
                 {
-                    dto.RepostedBy = new AuthorDto 
-                    {
-                        Id = reposter.User.Id,
-                        Username = reposter.User.Username,
-                        Handle = reposter.User.Handle,
-                        DisplayName = reposter.User.DisplayName,
-                        AvatarUrl = reposter.User.AvatarUrl
-                    };
-                }
+                    Id = reposter.User.Id,
+                    Username = reposter.User.Username,
+                    Handle = reposter.User.Handle,
+                    DisplayName = reposter.User.DisplayName,
+                    AvatarUrl = reposter.User.AvatarUrl
+                };
             }
             postDtos.Add(dto);
         }
@@ -144,7 +148,40 @@ public class PostService : IPostService
         }
 
         var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type, limit, offset);
-        var postDtos = posts.Select(MapToDto).ToList();
+        
+        var profileUser = await _unitOfWork.Users.GetByIdAsync(userId);
+        var profileUserDto = profileUser == null ? null : new AuthorDto
+        {
+            Id = profileUser.Id,
+            Username = profileUser.Username,
+            Handle = profileUser.Handle,
+            DisplayName = profileUser.DisplayName,
+            AvatarUrl = profileUser.AvatarUrl
+        };
+
+        var postDtos = posts.Select(p => {
+            var dto = MapToDto(p);
+            
+            // Check if the post is shown because it was reposted by the profile owner
+            // In the "posts" tab, we show own posts AND reposts.
+            // If it's another person's post, it's definitely a repost.
+            // If it's own post, it's shown as a repost only if there's a repost record.
+            bool isRepost = p.AuthorId != userId || p.Reposts.Any(r => r.UserId == userId);
+
+            if (isRepost && profileUserDto != null && (type == null || type == "posts"))
+            {
+                // For own posts, we only show the banner if it's NOT the primary authoring event
+                // This is slightly tricky without a separate FeedItem table, but for now 
+                // let's show it if it's not their own post, OR if we want to be explicit.
+                if (p.AuthorId != userId)
+                {
+                    dto.RepostedBy = profileUserDto;
+                }
+                // If it's their own post, BlueSky usually doesn't show "Reposted by you" in your own "Posts" tab
+                // unless it's a separate entity in the feed. Our current query returns it once.
+            }
+            return dto;
+        }).ToList();
         
         // Cache for 1 minute
         await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(1));
