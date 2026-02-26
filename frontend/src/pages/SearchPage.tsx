@@ -1,0 +1,137 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import MainLayout from '../components/layout/MainLayout';
+import Feed from '../components/feed/Feed';
+import { FiArrowLeft, FiSearch, FiX } from 'react-icons/fi';
+import { useAppDispatch } from '../hooks/useAppDispatch';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { fetchPostsSearch } from '../redux/slices/postsSlice';
+import { RootState } from '../redux/store';
+import LoadingIndicator from '../components/common/LoadingIndicator';
+
+const SearchPage: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const query = searchParams.get('q') || '';
+    const navigate = useNavigate();
+    const { t } = useTranslation();
+    const dispatch = useAppDispatch();
+
+    const { posts, isLoading, hasMore } = useAppSelector((state: RootState) => state.posts);
+    const [inputValue, setInputValue] = useState(query);
+    const [offset, setOffset] = useState(0);
+    const limit = 20;
+
+    useEffect(() => {
+        setInputValue(query);
+        if (query) {
+            dispatch(fetchPostsSearch({ query, skip: 0, take: limit }));
+            setOffset(0);
+        }
+    }, [dispatch, query]);
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (inputValue.trim()) {
+            setSearchParams({ q: inputValue.trim() });
+        }
+    };
+
+    const handleLoadMore = () => {
+        if (query) {
+            const nextOffset = offset + limit;
+            dispatch(fetchPostsSearch({ query, skip: nextOffset, take: limit }));
+            setOffset(nextOffset);
+        }
+    };
+
+    return (
+        <MainLayout title={`${query} - ${t('nav.search', { defaultValue: 'Search' })}`}>
+            <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
+                {/* Header */}
+                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
+                    <div className="flex items-center gap-3 px-3 py-2">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
+                        >
+                            <FiArrowLeft size={20} className="text-gray-900 dark:text-dark-text" />
+                        </button>
+
+                        <form onSubmit={handleSearch} className="flex-1 relative group">
+                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
+                            <input
+                                type="text"
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                placeholder={t('explore.search_placeholder', { defaultValue: 'Search' })}
+                                className="w-full bg-gray-100 dark:bg-dark-surface py-2 pl-12 pr-10 rounded-full text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
+                            />
+                            {inputValue && (
+                                <button
+                                    type="button"
+                                    onClick={() => setInputValue('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text p-1"
+                                >
+                                    <FiX size={16} />
+                                </button>
+                            )}
+                        </form>
+                    </div>
+
+                    {/* Tabs / Filters could go here */}
+                    <div className="flex border-b border-gray-100 dark:border-dark-border overflow-x-auto no-scrollbar">
+                        <button className="flex-1 py-3 text-[15px] font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500">
+                            {t('search.top', { defaultValue: 'Top' })}
+                        </button>
+                        <button className="flex-1 py-3 text-[15px] font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors">
+                            {t('search.latest', { defaultValue: 'Latest' })}
+                        </button>
+                        <button className="flex-1 py-3 text-[15px] font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors">
+                            {t('search.people', { defaultValue: 'People' })}
+                        </button>
+                        <button className="flex-1 py-3 text-[15px] font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors">
+                            {t('search.media', { defaultValue: 'Media' })}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Posts Feed */}
+                <div className="pb-20">
+                    {isLoading && offset === 0 ? (
+                        <div className="flex justify-center py-20">
+                            <LoadingIndicator size="lg" />
+                        </div>
+                    ) : posts.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                            <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
+                                <FiSearch className="text-gray-300" size={40} />
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                                {t('search.no_results_title', { defaultValue: 'No results' })}
+                            </h2>
+                            <p className="text-gray-500 dark:text-dark-text-secondary">
+                                {t('search.no_results_desc', { defaultValue: 'We couldn\'t find anything for "{{query}}"', query })}
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <Feed posts={posts} />
+                            {hasMore && posts.length >= limit && (
+                                <button
+                                    onClick={handleLoadMore}
+                                    className="w-full py-4 text-primary-500 font-bold hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors disabled:opacity-50"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? t('common.loading') : t('common.load_more')}
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+        </MainLayout>
+    );
+};
+
+export default SearchPage;

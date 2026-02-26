@@ -219,7 +219,7 @@ const ExplorePage: React.FC = () => {
                             <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text mt-2">{t('nav.trending')}</h2>
                             {feeds.find(f => f.name === 'Trending') && (
                                 <button
-                                    onClick={() => navigate(`/ feeds / ${feeds.find(f => f.name === 'Trending')?.id} `)}
+                                    onClick={() => navigate(`/feeds/${feeds.find(f => f.name === 'Trending')?.id}`)}
                                     className="text-primary-500 hover:underline text-sm font-bold mt-2"
                                 >
                                     {t('common.show_more')}
@@ -231,7 +231,7 @@ const ExplorePage: React.FC = () => {
                         ) : accounts.map((item, index) => (
                             <div
                                 key={item.id}
-                                onClick={() => navigate(`/ profile / user / ${item.id} `)}
+                                onClick={() => navigate(`/profile/user/${item.id}`)}
                                 className="flex items-center gap-4 py-4 px-2 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer border-b border-gray-100 dark:border-dark-border last:border-0"
                             >
                                 <span className="text-lg font-bold text-gray-400 w-6">
@@ -284,7 +284,7 @@ const ExplorePage: React.FC = () => {
                             {feeds.map((feed: Feed) => (
                                 <div
                                     key={feed.id}
-                                    onClick={() => navigate(`/ feeds / ${feed.id} `)}
+                                    onClick={() => navigate(`/feeds/${feed.id}`)}
                                     className="flex flex-col gap-3 p-4 rounded-2xl border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-all cursor-pointer shadow-sm group"
                                 >
                                     <div className="flex items-start justify-between gap-3">

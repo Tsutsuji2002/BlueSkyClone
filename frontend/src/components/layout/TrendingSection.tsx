@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiTrendingUp, FiX, FiChevronRight } from 'react-icons/fi';
+import { FiTrendingUp, FiX, FiChevronRight, FiMoreHorizontal } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
@@ -40,12 +40,17 @@ const TrendingSection: React.FC = () => {
                         {t('sidebar.trending_header', { defaultValue: 'Trending Topics' })}
                     </h2>
                 </div>
-                <button
-                    onClick={() => setIsVisible(false)}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-dark-hover rounded-full text-gray-400 transition-colors"
-                >
-                    <FiX size={18} />
-                </button>
+                <div className="flex items-center gap-1">
+                    <button className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-hover rounded-full text-gray-500 transition-colors">
+                        <FiMoreHorizontal size={18} />
+                    </button>
+                    <button
+                        onClick={() => setIsVisible(false)}
+                        className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-hover rounded-full text-gray-500 transition-colors"
+                    >
+                        <FiX size={18} />
+                    </button>
+                </div>
             </div>
 
             <div className="flex flex-col">
@@ -54,20 +59,25 @@ const TrendingSection: React.FC = () => {
                         <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : (
-                    trendingTopics.slice(0, 5).map((topic: TrendingTopic) => (
+                    trendingTopics.slice(0, 5).map((topic: TrendingTopic, index) => (
                         <button
                             key={topic.id}
                             onClick={() => navigate(`/search?q=${encodeURIComponent(topic.hashtag)}`)}
-                            className="flex flex-col px-4 py-3 hover:bg-gray-200/50 dark:hover:bg-dark-hover transition-colors text-left group"
+                            className="flex items-start gap-4 px-4 py-3 hover:bg-gray-200/50 dark:hover:bg-dark-hover transition-colors text-left group"
                         >
-                            <span className="text-[15px] font-bold text-primary-500 group-hover:underline leading-tight">
-                                {topic.hashtag}
+                            <span className="text-[15px] font-bold text-gray-400 mt-0.5">
+                                {index + 1}.
                             </span>
-                            {topic.postsCount !== undefined && (
-                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary mt-0.5">
-                                    {topic.postsCount} {t('common.posts', { defaultValue: 'posts' })}
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[15px] font-bold text-gray-900 dark:text-dark-text leading-tight group-hover:text-primary-500 transition-colors truncate">
+                                    {topic.hashtag}
                                 </span>
-                            )}
+                                {topic.postsCount !== undefined && (
+                                    <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary mt-0.5">
+                                        {topic.postsCount} {t('common.posts', { defaultValue: 'posts' })}
+                                    </span>
+                                )}
+                            </div>
                         </button>
                     ))
                 )}

@@ -204,6 +204,23 @@ export const fetchPostsByTag = createAsyncThunk(
     }
 );
 
+export const fetchPostsSearch = createAsyncThunk(
+    'posts/fetchSearch',
+    async ({ query, skip = 0, take = 20 }: { query: string; skip?: number; take?: number }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/search/posts?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to search posts');
+            return { posts: data, skip };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const fetchPostById = createAsyncThunk(
     'posts/fetchPostById',
     async (postId: string, { rejectWithValue }) => {
@@ -598,6 +615,26 @@ const postsSlice = createSlice({
                 state.hasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchPostsByTag.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Fetch Posts Search
+            .addCase(fetchPostsSearch.pending, (state: PostsState, action) => {
+                state.isLoading = true;
+                if (action.meta.arg.skip === 0) {
+                    state.posts = [];
+                }
+            })
+            .addCase(fetchPostsSearch.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], skip: number }>) => {
+                state.isLoading = false;
+                if (action.payload.skip === 0) {
+                    state.posts = action.payload.posts;
+                } else {
+                    state.posts = [...state.posts, ...action.payload.posts];
+                }
+                state.hasMore = action.payload.posts.length > 0;
+            })
+            .addCase(fetchPostsSearch.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
