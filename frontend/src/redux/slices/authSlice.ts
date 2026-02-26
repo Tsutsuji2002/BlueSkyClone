@@ -26,6 +26,7 @@ function normalizeSettings(raw: any): UserSettings {
         sortReplies: raw.sortReplies ?? 'top',
         // Map backend's enableDiscoverVideo -> frontend's enableVideoDiscover
         enableVideoDiscover: raw.enableVideoDiscover ?? raw.enableDiscoverVideo ?? raw.EnableDiscoverVideo ?? false,
+        openTrendingTopics: raw.openTrendingTopics ?? raw.enableTrending ?? raw.EnableTrending ?? true,
         autoplayVideoGif: raw.autoplayVideoGif ?? raw.AutoplayVideoGif ?? true,
         appLanguage: raw.appLanguage ?? raw.AppLanguage ?? 'en',
         themeMode: raw.themeMode ?? raw.ThemeMode ?? 'system',
@@ -203,6 +204,7 @@ export const updateNotificationSettings = createAsyncThunk(
             const token = localStorage.getItem('token');
             const payload = {
                 ...settings,
+                enableTrending: settings.openTrendingTopics,
                 enabledMediaProviders: Array.isArray(settings.enabledMediaProviders)
                     ? JSON.stringify(settings.enabledMediaProviders)
                     : settings.enabledMediaProviders
