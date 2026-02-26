@@ -13,6 +13,8 @@ const initialState: PostsState = {
     hasMore: true,
     discoverHasMore: true,
     actionLoading: {}, // Map of postId -> boolean
+    lastTimelineFetch: 0,
+    lastDiscoverFetch: 0,
 };
 
 export const fetchTimeline = createAsyncThunk(
@@ -354,6 +356,7 @@ const postsSlice = createSlice({
                 state.timelineLoading = false;
                 if (action.payload.skip === 0) {
                     state.posts = action.payload.posts;
+                    state.lastTimelineFetch = Date.now();
                 } else {
                     state.posts = [...state.posts, ...action.payload.posts];
                 }
@@ -651,6 +654,7 @@ const postsSlice = createSlice({
                 state.discoverLoading = false;
                 if (action.payload.skip === 0) {
                     state.discoverPosts = action.payload.posts;
+                    state.lastDiscoverFetch = Date.now();
                 } else {
                     state.discoverPosts = [...state.discoverPosts, ...action.payload.posts];
                 }

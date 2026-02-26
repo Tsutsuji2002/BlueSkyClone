@@ -17,6 +17,7 @@ interface FeedsState {
     hasMoreSearch: boolean;
     actionLoading: Record<string, boolean>;
     feedHasMore: Record<string, boolean>;
+    feedLastFetch: Record<string, number>;
 }
 
 const initialState: FeedsState = {
@@ -34,6 +35,7 @@ const initialState: FeedsState = {
     hasMoreSearch: true,
     actionLoading: {},
     feedHasMore: {},
+    feedLastFetch: {},
 };
 
 export const fetchTrendingFeeds = createAsyncThunk<
@@ -476,6 +478,7 @@ const feedsSlice = createSlice({
                 const { feedId, posts, isMore } = action.payload;
                 if (!state.feedPosts[feedId] || action.meta.arg.skip === 0) {
                     state.feedPosts[feedId] = posts;
+                    state.feedLastFetch[feedId] = Date.now();
                 } else {
                     state.feedPosts[feedId] = [...state.feedPosts[feedId], ...posts];
                 }

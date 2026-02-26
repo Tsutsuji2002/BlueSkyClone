@@ -10,13 +10,15 @@ interface FeedProps {
     isLoading?: boolean; // NEW: explicit loading state
     onLoadMore?: () => void; // Optional infinite scroll trigger
     hasMore?: boolean; // Whether more posts can be loaded
+    endMessage?: string; // NEW: custom end of feed message
 }
 
 const Feed: React.FC<FeedProps> = ({
     posts: propPosts,
     isLoading: propLoading,
     onLoadMore,
-    hasMore = true
+    hasMore = true,
+    endMessage
 }) => {
     const { t } = useTranslation();
     const reduxPosts = useAppSelector((state) => state.posts.posts);
@@ -94,10 +96,12 @@ const Feed: React.FC<FeedProps> = ({
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
                 )}
                 {!isLoading && !hasMore && posts.length > 0 && (
-                    <div className="flex items-center gap-3 text-gray-400 dark:text-dark-text-secondary select-none">
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
-                        <span className="text-sm font-medium">{t('feeds.end', 'End of feed')}</span>
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
+                    <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-dark-text-secondary select-none px-6 text-center">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
+                            <span className="text-sm font-medium">{endMessage || t('feeds.end', 'End of feed')}</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
+                        </div>
                     </div>
                 )}
             </div>

@@ -373,6 +373,8 @@
         "no_pinned": "You don't have any pinned feeds.",
         "search_results": "Search Results",
         "recommended_for_you": "Recommended for you",
+        "following_end": "Follow more people to get more content...",
+        "end": "No more posts to load.",
         "pin_feed": "Pin Feed",
         "pin": "Pin",
         "unpin": "Unpin",

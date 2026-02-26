@@ -15,28 +15,52 @@ import { Feed as FeedType } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import ButterflyLogo from '../components/common/ButterflyLogo';
 
+const RELOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const scrollPositions = React.useRef<Record<string, number>>({});
     const lastTab = React.useRef<string>('');
-    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedHasMore } = useAppSelector((state: RootState) => state.feeds);
-    const { posts: followingPosts, discoverPosts, timelineLoading, discoverLoading, hasMore: timelineHasMore, discoverHasMore } = useAppSelector((state: RootState) => state.posts);
+    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
+    const {
+        posts: followingPosts,
+        discoverPosts,
+        timelineLoading,
+        discoverLoading,
+        hasMore: timelineHasMore,
+        discoverHasMore,
+        lastTimelineFetch,
+        lastDiscoverFetch
+    } = useAppSelector((state: RootState) => state.posts);
     const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
 
     useEffect(() => {
         // Fetch feeds first
         dispatch(fetchSubscribedFeeds());
 
-        // Initial fetch based on persisted activeTab
+        const now = Date.now();
+
+        // Initial fetch based on persisted activeTab - ONLY if empty or stale
         if (activeTab === 'following') {
-            dispatch(fetchTimeline({ skip: 0 }));
+            const isStale = (now - lastTimelineFetch) > RELOAD_TIMEOUT;
+            if (followingPosts.length === 0 || isStale) {
+                dispatch(fetchTimeline({ skip: 0 }));
+            }
         } else if (activeTab === 'discover') {
-            dispatch(fetchDiscoverPosts({ skip: 0 }));
+            const isStale = (now - lastDiscoverFetch) > RELOAD_TIMEOUT;
+            if (discoverPosts.length === 0 || isStale) {
+                dispatch(fetchDiscoverPosts({ skip: 0 }));
+            }
         } else {
             // Check if it's a custom feed
-            dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: 20 }));
+            const lastFetch = feedLastFetch[activeTab] || 0;
+            const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
+            const currentFeedPosts = feedPosts[activeTab] || [];
+            if (currentFeedPosts.length === 0 || isStale) {
+                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: 20 }));
+            }
         }
 
         lastTab.current = activeTab;
@@ -65,12 +89,25 @@ const HomePage: React.FC = () => {
 
     const handleTabChange = (tabId: string) => {
         dispatch(setActiveTab(tabId));
-        if (tabId === 'following' && followingPosts.length === 0) {
-            dispatch(fetchTimeline({ skip: 0 }));
-        } else if (tabId === 'discover' && discoverPosts.length === 0) {
-            dispatch(fetchDiscoverPosts({ skip: 0 }));
-        } else if (tabId !== 'following' && tabId !== 'discover' && (!feedPosts[tabId] || feedPosts[tabId].length === 0)) {
-            dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: 20 }));
+        const now = Date.now();
+
+        if (tabId === 'following') {
+            const isStale = (now - lastTimelineFetch) > RELOAD_TIMEOUT;
+            if (followingPosts.length === 0 || isStale) {
+                dispatch(fetchTimeline({ skip: 0 }));
+            }
+        } else if (tabId === 'discover') {
+            const isStale = (now - lastDiscoverFetch) > RELOAD_TIMEOUT;
+            if (discoverPosts.length === 0 || isStale) {
+                dispatch(fetchDiscoverPosts({ skip: 0 }));
+            }
+        } else {
+            const lastFetch = feedLastFetch[tabId] || 0;
+            const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
+            const currentFeedPosts = feedPosts[tabId] || [];
+            if (currentFeedPosts.length === 0 || isStale) {
+                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: 20 }));
+            }
         }
     };
 
@@ -160,7 +197,13 @@ const HomePage: React.FC = () => {
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
                 <div style={{ display: activeTab === 'following' ? 'block' : 'none' }}>
-                    <Feed posts={followingPosts} isLoading={timelineLoading} hasMore={timelineHasMore} onLoadMore={handleLoadMore} />
+                    <Feed
+                        posts={followingPosts}
+                        isLoading={timelineLoading}
+                        hasMore={timelineHasMore}
+                        onLoadMore={handleLoadMore}
+                        endMessage={t('feeds.following_end', 'Follow more people to get more content...')}
+                    />
                 </div>
 
                 <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>

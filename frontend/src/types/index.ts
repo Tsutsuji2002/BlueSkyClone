@@ -318,6 +318,8 @@ export interface PostsState {
     hasMore: boolean;
     discoverHasMore: boolean;
     actionLoading: Record<string, boolean>;
+    lastTimelineFetch: number;
+    lastDiscoverFetch: number;
 }
 
 export interface UserState {

@@ -38,27 +38,32 @@ public class PostService : IPostService
             return await EnrichAndFilterPostsAsync(cached, userId, true);
         }
 
-        var userSettings = await _unitOfWork.UserSettings.Query()
-            .FirstOrDefaultAsync(s => s.UserId == userId);
-
         var followedUserIds = await _unitOfWork.Follows.Query()
             .Where(f => f.FollowerId == userId)
             .Select(f => f.FollowingId)
             .ToListAsync();
+        
+        // Include the user's own posts in the Following feed
         followedUserIds.Add(userId);
 
-        var posts = await _unitOfWork.Posts.GetTimelinePostsAsync(userId);
+        var posts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Include(p => p.Hashtags)
+            .Include(p => p.Reposts).ThenInclude(r => r.User)
+            .Where(p => followedUserIds.Contains(p.AuthorId) && (p.IsDeleted == false || p.IsDeleted == null))
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(100)
+            .ToListAsync();
         
         var postDtos = new List<PostDto>();
         foreach (var post in posts)
         {
             var dto = MapToDto(post);
             
-            // Find who among the followed users (including the viewer) reposted it
-            // Prefer people other than the author if it's a repost
+            // Repost banner logic
             var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId) && r.UserId != post.AuthorId);
-            
-            // Fallback to searching for the viewer themselves if they reposted their own post
             if (reposter == null)
             {
                 reposter = post.Reposts?.FirstOrDefault(r => r.UserId == userId);
@@ -78,51 +83,8 @@ public class PostService : IPostService
             postDtos.Add(dto);
         }
 
-        // --- Interleave Samples from Saved Feeds ---
-        if (userSettings?.ShowSampleSavedFeeds == true)
-        {
-            var savedFeeds = await _unitOfWork.UserFeedSubscriptions.Query()
-                .Where(s => s.UserId == userId)
-                .OrderByDescending(s => s.IsPinned)
-                .ThenBy(s => s.PinnedOrder)
-                .Include(s => s.Feed)
-                .Take(5) // Limit to top 5 feeds
-                .ToListAsync();
-
-            foreach (var sub in savedFeeds)
-            {
-                var feed = sub.Feed;
-                if (feed == null || feed.Name == "Trending" || feed.IsOfficial && feed.Tid.Contains("official-trending"))
-                    continue;
-
-                // Simple logic for feed posts: matching Interests
-                var feedPosts = await _unitOfWork.Posts.Query()
-                    .Include(p => p.Author)
-                    .Include(p => p.PostMedia)
-                    .Include(p => p.LinkPreview)
-                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
-                                p.Interests.Any(i => i.Name == feed.Name))
-                    // Avoid adding posts already in the timeline
-                    .Where(p => !postDtos.Any(pd => pd.Id == p.Id))
-                    .OrderByDescending(p => p.CreatedAt)
-                    .Take(2) // Sample 2 posts per feed
-                    .ToListAsync();
-
-                foreach (var fp in feedPosts)
-                {
-                    var dto = MapToDto(fp);
-                    dto.ListCaption = $"From {feed.Name}";
-                    postDtos.Add(dto);
-                }
-            }
-            
-            // Re-sort if we added items
-            postDtos = postDtos.OrderByDescending(p => p.CreatedAt).ToList();
-        }
-
         await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(2));
-        var filteredDtos = await EnrichAndFilterPostsAsync(postDtos, userId, true);
-        return filteredDtos;
+        return await EnrichAndFilterPostsAsync(postDtos, userId, true);
     }
 
     public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 3, int offset = 0)
@@ -1579,6 +1541,7 @@ public class PostService : IPostService
         var poolCutoff = DateTime.UtcNow.AddDays(-3);
         var postPool = await _unitOfWork.Posts.Query()
             .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
+            .Where(p => p.AuthorId != userId) // EXCLUDE USER'S OWN POSTS FROM DISCOVER
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
