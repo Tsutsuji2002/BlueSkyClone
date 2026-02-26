@@ -112,7 +112,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             "w-full h-full",
                             isDetailView ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover"
                         )}
-                        muted
+                        muted={!isDetailView}
                         playsInline
                         loop
                         onPlay={() => setIsPlaying(true)}
