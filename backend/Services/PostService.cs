@@ -1373,6 +1373,30 @@ public class PostService : IPostService
         return await EnrichAndFilterPostsAsync(postDtos, userId);
     }
 
+    public async Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0)
+    {
+        var lowerQuery = query.ToLower();
+        var posts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Include(p => p.Hashtags)
+            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
+                        (p.Content.ToLower().Contains(lowerQuery) || 
+                         p.Hashtags.Any(h => h.Name.ToLower().Contains(lowerQuery))))
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
+
+        var postDtos = posts.Select(MapToDto).ToList();
+        if (viewerId.HasValue)
+        {
+            return await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
+        }
+        return postDtos;
+    }
+
     public PostDto MapToDto(Post post) => MapToDto(post, true, true);
 
     private PostDto MapToDto(Post post, bool includeQuote, bool includeParent)

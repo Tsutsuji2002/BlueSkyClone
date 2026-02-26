@@ -25,13 +25,20 @@ public class SearchController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
 
-        var postIds = await _searchService.SearchPostsAsync(q, skip, take);
-        
-        // Hydrate posts from DB/Service to return full DTOs
-        var posts = new List<object>();
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         Guid? currentUserId = userId != null ? Guid.Parse(userId) : null;
 
+        var postIds = (await _searchService.SearchPostsAsync(q, skip, take)).ToList();
+        
+        // Fallback to DB search if no results from ElasticSearch
+        if (postIds.Count == 0)
+        {
+            var dbPosts = await _postService.SearchPostsDBAsync(q, currentUserId, take, skip);
+            return Ok(dbPosts);
+        }
+
+        // Hydrate posts from DB/Service to return full DTOs
+        var posts = new List<object>();
         foreach (var id in postIds)
         {
             var post = await _postService.GetPostByIdAsync(id, currentUserId);
