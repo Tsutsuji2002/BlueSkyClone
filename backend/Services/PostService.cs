@@ -29,9 +29,9 @@ public class PostService : IPostService
         _searchService = searchService;
     }
 
-    public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId)
+    public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)
     {
-        var cacheKey = $"user:{userId}:timeline";
+        var cacheKey = $"user:{userId}:timeline:{skip}:{take}";
         var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
         if (cached != null)
         {
@@ -54,7 +54,8 @@ public class PostService : IPostService
             .Include(p => p.Reposts).ThenInclude(r => r.User)
             .Where(p => followedUserIds.Contains(p.AuthorId) && (p.IsDeleted == false || p.IsDeleted == null))
             .OrderByDescending(p => p.CreatedAt)
-            .Take(100)
+            .Skip(skip) // APPLY SKIP!
+            .Take(take) // APPLY TAKE!
             .ToListAsync();
         
         var postDtos = new List<PostDto>();

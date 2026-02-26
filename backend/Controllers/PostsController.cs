@@ -19,10 +19,10 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("timeline")]
-    public async Task<IActionResult> GetTimeline()
+    public async Task<IActionResult> GetTimeline([FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var posts = await _postService.GetTimelineAsync(userId);
+        var posts = await _postService.GetTimelineAsync(userId, skip, take);
         return Ok(posts);
     }
 
