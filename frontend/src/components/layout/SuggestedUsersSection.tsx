@@ -12,7 +12,13 @@ const SuggestedUsersSection: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
+    const { user } = useAppSelector((state: RootState) => state.auth);
     const { feeds, pinnedFeedIds } = useAppSelector((state: RootState) => state.feeds);
+    const [isHidden, setIsHidden] = React.useState(false);
+
+    if (isHidden || (user && user.followingCount > 10)) {
+        return null;
+    }
 
     const handleFeedClick = (feedId: string) => {
         dispatch(setActiveTab(feedId));
@@ -31,7 +37,10 @@ const SuggestedUsersSection: React.FC = () => {
                 <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text uppercase text-[13px] tracking-wider">
                     {t('sidebar.start_header', { defaultValue: 'BẮT ĐẦU' })}
                 </h2>
-                <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <button
+                    onClick={() => setIsHidden(true)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
                     <FiX size={18} />
                 </button>
             </div>
