@@ -184,14 +184,6 @@ const HomePage: React.FC = () => {
                                 </button>
                             ))}
                         </div>
-                        {activeTab === 'following' && (
-                            <button
-                                onClick={() => navigate('/settings/following-feed')}
-                                className="p-2 mr-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-dark-text-secondary dark:hover:text-dark-text dark:hover:bg-dark-surface rounded-full transition-colors"
-                            >
-                                <FiSettings size={18} />
-                            </button>
-                        )}
                     </div>
                 </div>
 
