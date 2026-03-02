@@ -306,9 +306,9 @@ public class FeedService : IFeedService
         if (feed == null) return new List<PostDto>();
 
         // 1. Special handling for Trending (still logic-based)
-        if (feed.IsOfficial && feed.Name == "Trending")
+        if (feed.IsOfficial && (feed.Name == "Trending" || feed.Tid == "official-trending"))
         {
-            return await _postService.GetTrendingPosts24hAsync(userId, take);
+            return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
         }
 
         // 2. Generic AI/Category Sort: Fetch posts tagged with an interest matching the feed name or handle

@@ -102,7 +102,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<Post>> GetTrendingPosts24hAsync(int limit = 50)
+    public async Task<IEnumerable<Post>> GetTrendingPosts24hAsync(int limit = 50, int offset = 0)
     {
         var dayAgo = DateTime.UtcNow.AddHours(-24);
         return await _dbSet
@@ -121,6 +121,7 @@ public class PostRepository : Repository<Post>, IPostRepository
                         && p.CreatedAt >= dayAgo)
             .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
             .ThenByDescending(p => p.CreatedAt)
+            .Skip(offset)
             .Take(limit)
             .ToListAsync();
     }

@@ -61,7 +61,7 @@ const ProfilePage: React.FC = () => {
                 dispatch(fetchUserLists(profileUser.id));
             } else {
                 dispatch(clearPosts());
-                dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 3, offset: 0 }));
+                dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20, offset: 0 }));
             }
         }
     }, [dispatch, profileUser?.id, activeTab]);
@@ -70,12 +70,7 @@ const ProfilePage: React.FC = () => {
         const observer = new IntersectionObserver(
             entries => {
                 if (entries[0].isIntersecting && hasMore && !isPostsLoading && profileUser?.id) {
-                    dispatch(fetchUserPosts({
-                        userId: profileUser.id,
-                        type: activeTab,
-                        limit: 3,
-                        offset: reduxPosts.length
-                    }));
+                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20, offset: reduxPosts.length }));
                 }
             },
             { threshold: 0.1 }

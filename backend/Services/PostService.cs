@@ -88,7 +88,7 @@ public class PostService : IPostService
         return await EnrichAndFilterPostsAsync(postDtos, userId, true);
     }
 
-    public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 3, int offset = 0)
+    public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 30, int offset = 0)
     {
         if (viewerId.HasValue)
         {
@@ -1299,9 +1299,9 @@ public class PostService : IPostService
         return postDtos;
     }
 
-    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50)
+    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0)
     {
-        var posts = await _unitOfWork.Posts.GetTrendingPosts24hAsync(limit);
+        var posts = await _unitOfWork.Posts.GetTrendingPosts24hAsync(limit, skip);
         var postDtos = posts.Select(MapToDto).ToList();
 
         if (viewerId.HasValue)
@@ -1551,7 +1551,7 @@ public class PostService : IPostService
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .OrderByDescending(p => p.LikesCount + p.RepostsCount)
-            .Take(500)
+            .Take(2000)
             .ToListAsync();
 
         // 3. Score and rank posts

@@ -38,7 +38,7 @@ export const fetchTimeline = createAsyncThunk(
 
 export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
-    async ({ userId, type, limit = 3, offset = 0 }: { userId: string; type?: string; limit?: number; offset?: number }, { rejectWithValue }) => {
+    async ({ userId, type, limit = 20, offset = 0 }: { userId: string; type?: string; limit?: number; offset?: number }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             let url = `${API_BASE_URL}/posts/user/${userId}?limit=${limit}&offset=${offset}`;
@@ -410,7 +410,7 @@ const postsSlice = createSlice({
                 } else {
                     state.posts = [...state.posts, ...action.payload.posts];
                 }
-                state.hasMore = action.payload.posts.length === 3; // Assuming limit is 3
+                state.hasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchUserPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
