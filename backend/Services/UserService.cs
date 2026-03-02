@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using BSkyClone.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace BSkyClone.Services;
 
@@ -152,6 +153,11 @@ public class UserService : IUserService
         // Update Username / Handle
         if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.Username)
         {
+            if (request.Username.Length > 16 || !Regex.IsMatch(request.Username, @"^[a-zA-Z0-9.]+$"))
+            {
+                throw new Exception("Handle can only contain Latin characters, numbers, and dots, and be maximum 16 characters long.");
+            }
+
             var newHandle = $"{request.Username.Trim().ToLower()}.bsky.social";
             var existing = await _unitOfWork.Users.GetByHandleAsync(newHandle);
             if (existing != null) throw new Exception("Username already in use");

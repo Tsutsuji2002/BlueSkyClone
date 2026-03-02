@@ -9,6 +9,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace BSkyClone.Services;
 
@@ -36,6 +37,13 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Username) || 
+            request.Username.Length > 16 || 
+            !Regex.IsMatch(request.Username, @"^[a-zA-Z0-9.]+$"))
+        {
+            return null;
+        }
+
         var handle = $"{request.Username.ToLower()}.{request.HostingProvider.ToLower()}";
 
         if (await _unitOfWork.Users.GetByEmailAsync(request.Email) != null ||

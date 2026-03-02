@@ -49,9 +49,19 @@ const SignUpPage: React.FC = () => {
             setFormErrors({});
             setStep(step + 1);
         } else {
-            // Validate step 3: username must not be blank
+            // Validate step 3: username must not be blank and follow rules
             if (!formData.username.trim()) {
                 setFormErrors({ username: t('settings.handle_cannot_be_blank', 'Handle cannot be blank') });
+                return;
+            }
+
+            const handleRegex = /^[a-zA-Z0-9.]+$/;
+            if (formData.username.length > 16) {
+                setFormErrors({ username: t('settings.handle_too_long', 'Handle must be at most 16 characters') });
+                return;
+            }
+            if (!handleRegex.test(formData.username)) {
+                setFormErrors({ username: t('settings.handle_invalid_chars', 'Handle can only contain letters, numbers, and dots') });
                 return;
             }
 

@@ -161,6 +161,16 @@ const ChangeUsernameModal: React.FC<{ isOpen: boolean; onClose: () => void; user
             return;
         }
 
+        const handleRegex = /^[a-zA-Z0-9.]+$/;
+        if (newUsername.length > 16) {
+            setError(t('settings.handle_too_long', 'Handle must be at most 16 characters'));
+            return;
+        }
+        if (!handleRegex.test(newUsername)) {
+            setError(t('settings.handle_invalid_chars', 'Handle can only contain letters, numbers, and dots'));
+            return;
+        }
+
         if (newUsername.trim() === username.trim()) {
             dispatch(showToast({ message: t('settings.handle_same'), type: 'info' }));
             onClose();
