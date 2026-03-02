@@ -62,7 +62,7 @@ const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-4 pb-24">
+                <div className="flex-1 overflow-y-auto p-2 space-y-4">
                     {!searchQuery && recentlyUsed.length > 0 && (
                         <div>
                             <h3 className="px-4 py-2 text-xs font-bold text-gray-400 dark:text-dark-text-secondary uppercase tracking-wider">Recently used</h3>
@@ -118,7 +118,7 @@ const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose
                 </div>
 
                 {/* Footer Action */}
-                <div className="p-5 border-t border-gray-100 dark:border-dark-border bg-white dark:bg-dark-bg absolute bottom-0 left-0 right-0">
+                <div className="p-5 border-t border-gray-100 dark:border-dark-border bg-white dark:bg-dark-bg">
                     <button
                         onClick={onClose}
                         className="w-full bg-primary-500 hover:bg-primary-600 active:scale-[0.98] text-white font-bold py-4 rounded-full transition-all shadow-lg shadow-primary-500/20"
