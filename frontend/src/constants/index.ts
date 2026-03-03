@@ -66,3 +66,5 @@ export const HOSTING_PROVIDERS = [
 // Date format
 export const DATE_FORMAT = 'dd/MM/yyyy';
 export const DATETIME_FORMAT = 'dd/MM/yyyy HH:mm';
+
+export * from './languages';
