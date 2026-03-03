@@ -134,4 +134,13 @@ public class PostsController : ControllerBase
         var posts = await _postService.GetPostsByTagAsync(tag, viewerId, limit, offset);
         return Ok(posts);
     }
+
+    [HttpPost("{id:guid}/interaction-settings")]
+    public async Task<IActionResult> UpdateInteractionSettings(Guid id, [FromBody] UpdateInteractionSettingsRequest request)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var result = await _postService.UpdateInteractionSettingsAsync(userId, id, request);
+        if (!result) return NotFound("Post not found or you are not authorized to edit it.");
+        return Ok();
+    }
 }

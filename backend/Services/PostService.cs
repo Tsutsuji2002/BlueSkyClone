@@ -1607,4 +1607,23 @@ public class PostService : IPostService
 
         return await EnrichAndFilterPostsAsync(result, userId);
     }
+
+    public async Task<bool> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request)
+    {
+        var post = await _unitOfWork.Posts.GetByIdAsync(postId);
+        if (post == null || post.AuthorId != userId) return false;
+
+        if (request.ReplyRestriction != null)
+        {
+            post.ReplyRestriction = request.ReplyRestriction;
+        }
+
+        if (request.AllowQuotes != null)
+        {
+            post.AllowQuotes = request.AllowQuotes;
+        }
+
+        _unitOfWork.Posts.Update(post);
+        return await _unitOfWork.CompleteAsync() > 0;
+    }
 }
