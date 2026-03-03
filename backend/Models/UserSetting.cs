@@ -42,6 +42,23 @@ public partial class UserSetting
     public bool? InAppNotifyQuotes { get; set; }
     public bool? InAppNotifyReposts { get; set; }
 
+    // Extended notification settings
+    public bool? NotifyActivity { get; set; }
+    public bool? PushNotifyActivity { get; set; }
+    public bool? InAppNotifyActivity { get; set; }
+
+    public bool? NotifyLikesOfReposts { get; set; }
+    public bool? PushNotifyLikesOfReposts { get; set; }
+    public bool? InAppNotifyLikesOfReposts { get; set; }
+
+    public bool? NotifyRepostsOfReposts { get; set; }
+    public bool? PushNotifyRepostsOfReposts { get; set; }
+    public bool? InAppNotifyRepostsOfReposts { get; set; }
+
+    public bool? NotifyOthers { get; set; }
+    public bool? PushNotifyOthers { get; set; }
+    public bool? InAppNotifyOthers { get; set; }
+
     public string? DefaultReplyRestriction { get; set; }
     public bool? DefaultAllowQuotes { get; set; }
     public int? FontSize { get; set; }

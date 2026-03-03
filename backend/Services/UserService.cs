@@ -257,6 +257,20 @@ public class UserService : IUserService
         if (request.InAppNotifyQuotes != null) s.InAppNotifyQuotes = request.InAppNotifyQuotes;
         if (request.InAppNotifyReposts != null) s.InAppNotifyReposts = request.InAppNotifyReposts;
 
+        // Extended notification settings
+        if (request.NotifyActivity != null) s.NotifyActivity = request.NotifyActivity;
+        if (request.PushNotifyActivity != null) s.PushNotifyActivity = request.PushNotifyActivity;
+        if (request.InAppNotifyActivity != null) s.InAppNotifyActivity = request.InAppNotifyActivity;
+        if (request.NotifyLikesOfReposts != null) s.NotifyLikesOfReposts = request.NotifyLikesOfReposts;
+        if (request.PushNotifyLikesOfReposts != null) s.PushNotifyLikesOfReposts = request.PushNotifyLikesOfReposts;
+        if (request.InAppNotifyLikesOfReposts != null) s.InAppNotifyLikesOfReposts = request.InAppNotifyLikesOfReposts;
+        if (request.NotifyRepostsOfReposts != null) s.NotifyRepostsOfReposts = request.NotifyRepostsOfReposts;
+        if (request.PushNotifyRepostsOfReposts != null) s.PushNotifyRepostsOfReposts = request.PushNotifyRepostsOfReposts;
+        if (request.InAppNotifyRepostsOfReposts != null) s.InAppNotifyRepostsOfReposts = request.InAppNotifyRepostsOfReposts;
+        if (request.NotifyOthers != null) s.NotifyOthers = request.NotifyOthers;
+        if (request.PushNotifyOthers != null) s.PushNotifyOthers = request.PushNotifyOthers;
+        if (request.InAppNotifyOthers != null) s.InAppNotifyOthers = request.InAppNotifyOthers;
+
         if (request.DefaultReplyRestriction != null)
         {
             s.DefaultReplyRestriction = request.DefaultReplyRestriction;
@@ -323,58 +337,60 @@ public class UserService : IUserService
         following.FollowersCount++;
 
         // Create notification
-        var notification = new Notification
+        if (await ShouldCreateNotificationAsync(followingId, "follow"))
         {
-            Id = Guid.NewGuid(),
-            Tid = DateTime.UtcNow.Ticks.ToString(),
-            Type = "follow",
-            RecipientId = followingId,
-            SenderId = followerId,
-            CreatedAt = DateTime.UtcNow,
-            IsRead = false,
-            IsDeleted = false
-        };
-        await _unitOfWork.Notifications.AddAsync(notification);
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                Tid = Guid.NewGuid().ToString().Substring(0, 20),
+                Type = "follow",
+                SenderId = followerId,
+                RecipientId = followingId,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
+            };
+            await _unitOfWork.Notifications.AddAsync(notification);
+            await _unitOfWork.CompleteAsync();
 
-        await _unitOfWork.CompleteAsync();
+            // Broadcast notification via SignalR
+            // Need to fetch notification with sender for DTO
+            var savedNotification = await _unitOfWork.Notifications.Query()
+                .Include(n => n.Sender)
+                .FirstOrDefaultAsync(n => n.Id == notification.Id);
 
-        // Broadcast notification via SignalR
-        // Need to fetch notification with sender for DTO
-        var savedNotification = await _unitOfWork.Notifications.Query()
-            .Include(n => n.Sender)
-            .FirstOrDefaultAsync(n => n.Id == notification.Id);
+            if (savedNotification != null)
+            {
+                var notificationDto = new NotificationDto(
+                    savedNotification.Id,
+                    savedNotification.Type ?? "follow",
+                    new UserDto(
+                        savedNotification.Sender.Id,
+                        savedNotification.Sender.Username,
+                        savedNotification.Sender.Handle,
+                        savedNotification.Sender.Email,
+                        savedNotification.Sender.DisplayName,
+                        savedNotification.Sender.AvatarUrl,
+                        savedNotification.Sender.CoverImageUrl,
+                        savedNotification.Sender.Bio,
+                        savedNotification.Sender.Location,
+                        savedNotification.Sender.Website,
+                        savedNotification.Sender.DateOfBirth,
+                        savedNotification.Sender.FollowersCount,
+                        savedNotification.Sender.FollowingCount,
+                        savedNotification.Sender.PostsCount
+                    ),
+                    savedNotification.PostId,
+                    savedNotification.ListId,
+                    savedNotification.Title,
+                    savedNotification.Content,
+                    savedNotification.IsRead ?? false,
+                    DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
+                );
 
-        if (savedNotification != null)
-        {
-            var notificationDto = new NotificationDto(
-                savedNotification.Id,
-                savedNotification.Type ?? "follow",
-                new UserDto(
-                    savedNotification.Sender.Id,
-                    savedNotification.Sender.Username,
-                    savedNotification.Sender.Handle,
-                    savedNotification.Sender.Email,
-                    savedNotification.Sender.DisplayName,
-                    savedNotification.Sender.AvatarUrl,
-                    savedNotification.Sender.CoverImageUrl,
-                    savedNotification.Sender.Bio,
-                    savedNotification.Sender.Location,
-                    savedNotification.Sender.Website,
-                    savedNotification.Sender.DateOfBirth,
-                    savedNotification.Sender.FollowersCount,
-                    savedNotification.Sender.FollowingCount,
-                    savedNotification.Sender.PostsCount
-                ),
-                savedNotification.PostId,
-                savedNotification.ListId,
-                savedNotification.Title,
-                savedNotification.Content,
-                savedNotification.IsRead ?? false,
-                DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
-            );
-
-            await _hubContext.Clients.Group($"user-{followingId}")
-                .SendAsync("ReceiveNotification", notificationDto);
+                await _hubContext.Clients.Group($"user-{followingId}")
+                    .SendAsync("ReceiveNotification", notificationDto);
+            }
         }
 
         return true;
@@ -612,5 +628,20 @@ public class UserService : IUserService
 
         user.UserSetting.SelectedInterests = System.Text.Json.JsonSerializer.Serialize(interests);
         await _unitOfWork.CompleteAsync();
+    }
+
+    private async Task<bool> ShouldCreateNotificationAsync(Guid userId, string type)
+    {
+        var settings = await _unitOfWork.UserSettings.Query()
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+            
+        if (settings == null) return true;
+
+        return type.ToLower() switch
+        {
+            "follow" => (settings.NotifyFollowers ?? true) && (settings.InAppNotifyFollowers ?? true),
+            "activity" => (settings.NotifyActivity ?? true) && (settings.InAppNotifyActivity ?? true),
+            _ => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true)
+        };
     }
 }

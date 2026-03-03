@@ -84,11 +84,18 @@ builder.Services.AddSingleton<IMLModelService, MLModelService>();
 builder.Services.AddScoped<IFileService, FileService>();
 
 // Redis Caching
-builder.Services.AddStackExchangeRedisCache(options =>
+if (builder.Environment.IsDevelopment())
 {
-    options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
-    options.InstanceName = "BSky_";
-});
+    builder.Services.AddDistributedMemoryCache();
+}
+else
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
+        options.InstanceName = "BSky_";
+    });
+}
 
 // Elasticsearch
 var esUri = new Uri(builder.Configuration["Elasticsearch:Uri"] ?? "http://elasticsearch:9200");

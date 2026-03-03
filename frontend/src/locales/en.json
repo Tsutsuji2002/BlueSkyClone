@@ -258,7 +258,14 @@
         "setting_summary": "In-app, Push, Everyone",
         "setting_summary_simple": "In-app, Everyone",
         "setting_summary_push": "In-app, Push",
-        "system_announcement": "System Announcement"
+        "system_announcement": "System Announcement",
+        "channels": "Channels",
+        "enabled": "Enabled",
+        "enabled_desc": "Allow receiving notifications for this type",
+        "in_app_desc": "Show inside the app",
+        "push_desc": "Get push notifications on your device",
+        "mobile_only": "Mobile only",
+        "settings_saved_locally": "Settings saved successfully"
     },
     "appearance": {
         "title": "Appearance",

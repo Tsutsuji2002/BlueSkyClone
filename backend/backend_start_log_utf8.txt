@@ -1,0 +1,489 @@
+﻿Using launch settings from C:\Projects\BlueSky\backend\Properties\launchSettings.json...
+Building...
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (69ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Migrations[20411]
+      Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (771ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DECLARE @result int;
+      EXEC @result = sp_getapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session', @LockMode = 'Exclusive';
+      SELECT @result
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (35ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+      BEGIN
+          CREATE TABLE [__EFMigrationsHistory] (
+              [MigrationId] nvarchar(150) NOT NULL,
+              [ProductVersion] nvarchar(32) NOT NULL,
+              CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+          );
+      END;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (7ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT OBJECT_ID(N'[__EFMigrationsHistory]');
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (79ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [MigrationId], [ProductVersion]
+      FROM [__EFMigrationsHistory]
+      ORDER BY [MigrationId];
+info: Microsoft.EntityFrameworkCore.Migrations[20402]
+      Applying migration '20260303192104_AddExtendedNotificationSettings'.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (62ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [InAppNotifyActivity] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [InAppNotifyLikesOfReposts] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [InAppNotifyOthers] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [InAppNotifyRepostsOfReposts] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [NotifyActivity] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (5ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [NotifyLikesOfReposts] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [NotifyOthers] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [NotifyRepostsOfReposts] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [PushNotifyActivity] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [PushNotifyLikesOfReposts] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [PushNotifyOthers] bit NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [UserSettings] ADD [PushNotifyRepostsOfReposts] bit NULL;
+fail: Microsoft.EntityFrameworkCore.Database.Command[20102]
+      Failed executing DbCommand (34ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE [Posts] ADD [Language] nvarchar(max) NULL;
+fail: Program[0]
+      Database migration failed. Attempting manual schema updates as fallback...
+      Microsoft.Data.SqlClient.SqlException (0x80131904): Column names in each table must be unique. Column name 'Language' in table 'Posts' is specified more than once.
+         at Microsoft.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+         at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+         at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, Boolean callerHasConnectionLock, Boolean asyncClose)
+         at Microsoft.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+         at Microsoft.Data.SqlClient.SqlCommand.RunExecuteNonQueryTds(String methodName, Boolean isAsync, Int32 timeout, Boolean asyncWrite)
+         at Microsoft.Data.SqlClient.SqlCommand.InternalExecuteNonQuery(TaskCompletionSource`1 completion, Boolean sendToPipe, Int32 timeout, Boolean& usedCache, Boolean asyncWrite, Boolean inRetry, String methodName)
+         at Microsoft.Data.SqlClient.SqlCommand.ExecuteNonQuery()
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQuery(RelationalCommandParameterObject parameterObject)
+         at Microsoft.EntityFrameworkCore.Migrations.MigrationCommand.ExecuteNonQuery(IRelationalConnection connection, IReadOnlyDictionary`2 parameterValues)
+         at Microsoft.EntityFrameworkCore.Migrations.Internal.MigrationCommandExecutor.Execute(IReadOnlyList`1 migrationCommands, IRelationalConnection connection, MigrationExecutionState executionState, Boolean beginTransaction, Boolean commitTransaction, Nullable`1 isolationLevel)
+         at Microsoft.EntityFrameworkCore.Migrations.Internal.MigrationCommandExecutor.<>c.<ExecuteNonQuery>b__3_1(DbContext _, ValueTuple`6 s)
+         at Microsoft.EntityFrameworkCore.Storage.ExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+         at Microsoft.EntityFrameworkCore.Migrations.Internal.MigrationCommandExecutor.ExecuteNonQuery(IReadOnlyList`1 migrationCommands, IRelationalConnection connection, MigrationExecutionState executionState, Boolean commitTransaction, Nullable`1 isolationLevel)
+         at Microsoft.EntityFrameworkCore.Migrations.Internal.Migrator.MigrateImplementation(DbContext context, String targetMigration, MigrationExecutionState state, Boolean useTransaction)
+         at Microsoft.EntityFrameworkCore.Migrations.Internal.Migrator.<>c.<Migrate>b__20_1(DbContext c, ValueTuple`4 s)
+         at Microsoft.EntityFrameworkCore.Storage.ExecutionStrategy.<>c__DisplayClass28_0`2.<Execute>b__0(DbContext context, TState state)
+         at Microsoft.EntityFrameworkCore.Storage.ExecutionStrategy.ExecuteImplementation[TState,TResult](Func`3 operation, Func`3 verifySucceeded, TState state)
+         at Microsoft.EntityFrameworkCore.Storage.ExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+         at Microsoft.EntityFrameworkCore.Migrations.Internal.Migrator.Migrate(String targetMigration)
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.Migrate(DatabaseFacade databaseFacade)
+         at Program.<Main>$(String[] args) in C:\Projects\BlueSky\backend\Program.cs:line 223
+      ClientConnectionId:d7d0c35c-0f14-45cf-b3a4-997d71e91a9d
+      Error Number:2705,State:4,Class:16
+info: Program[0]
+      Applied/Verified manual schema updates for Notifications and User properties.
+info: Program[0]
+      Applied manual schema updates for MutedWords.
+info: Program[0]
+      Finished checking/applying Post interaction schema updates.
+info: Program[0]
+      Applied manual schema updates for UserSettings.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (321ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Hashtags' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Hashtags (
+                              Id INT IDENTITY(1,1) PRIMARY KEY,
+                              Name NVARCHAR(100) NOT NULL,
+                              Slug NVARCHAR(100) NOT NULL UNIQUE,
+                              PostsCount INT NOT NULL DEFAULT 0,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              IsDeleted BIT NOT NULL DEFAULT 0
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostHashtags' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE PostHashtags (
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              HashtagId INT NOT NULL,
+                              PRIMARY KEY (PostId, HashtagId),
+                              CONSTRAINT FK_PH_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                              CONSTRAINT FK_PH_Hashtag FOREIGN KEY (HashtagId) REFERENCES Hashtags(Id) ON DELETE CASCADE
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserListSubscriptions' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE UserListSubscriptions (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              ListId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              PinnedOrder INT NOT NULL DEFAULT 0,
+                              CONSTRAINT PK_UserListSubscription PRIMARY KEY (UserId, ListId),
+                              CONSTRAINT FK_ULS_User FOREIGN KEY (UserId) REFERENCES Users(Id),
+                              CONSTRAINT FK_ULS_List FOREIGN KEY (ListId) REFERENCES Lists(Id) ON DELETE CASCADE
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'ListId')
+                      BEGIN
+                          ALTER TABLE Notifications ADD ListId UNIQUEIDENTIFIER NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ListMembers') AND name = 'Status')
+                      BEGIN
+                          ALTER TABLE ListMembers ADD Status INT NOT NULL DEFAULT 0;
+                      END
+                      -- Cleanup and Recalculations
+                      EXEC('IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(''dbo.ListMembers'') AND name = ''Status'') UPDATE ListMembers SET Status = 1 WHERE Status = 0');
+                      DELETE FROM Notifications WHERE Type = 'message';
+                      UPDATE u SET u.PostsCount = sub.ActualCount FROM Users u INNER JOIN (SELECT AuthorId, COUNT(*) AS ActualCount FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL GROUP BY AuthorId) sub ON u.Id = sub.AuthorId WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
+                      UPDATE Users SET PostsCount = 0 WHERE PostsCount IS NULL AND Id NOT IN (SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL);
+                      UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';
+info: Program[0]
+      Applied manual schema updates for Hashtags, Lists, and Cleanup.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (35ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = N'Trending'
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (54ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (19ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (11ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+fail: Microsoft.Extensions.Hosting.Internal.Host[11]
+      Hosting failed to start
+      System.IO.IOException: Failed to bind to address http://127.0.0.1:5138: address already in use.
+       ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+       ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+         at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+         at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+         at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+         at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+         at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+         --- End of inner exception stack trace ---
+         at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+         at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+      --- End of stack trace from previous location ---
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+         at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+         at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+dotnet : Unhandled 
+exception. 
+System.IO.IOException: 
+Failed to bind to address 
+http://127.0.0.1:5138: 
+address already in use.
+At line:1 char:1
++ dotnet run > 
+backend_start_log.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
+    + CategoryInfo         
+     : NotSpecifi    ed: 
+(Unhandled exc    
+ep...already in us    
+e.:String) [], Rem    
+oteException
+    + FullyQualifiedEr    
+rorId : NativeComm    
+andError
+ 
+ ---> Microsoft.AspNetCore.
+Connections.AddressInUseExc
+eption: Only one usage of 
+each socket address 
+(protocol/network 
+address/port) is normally 
+permitted.
+ ---> System.Net.Sockets.So
+cketException (10048): 
+Only one usage of each 
+socket address 
+(protocol/network 
+address/port) is normally 
+permitted.
+   at System.Net.Sockets.So
+cket.UpdateStatusAfterSocke
+tErrorAndThrowException(Soc
+ketError error, Boolean 
+disconnectOnFailure, 
+String callerName)
+   at System.Net.Sockets.So
+cket.DoBind(EndPoint 
+endPointSnapshot, 
+SocketAddress 
+socketAddress)
+   at System.Net.Sockets.So
+cket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.
+Server.Kestrel.Transport.So
+ckets.SocketTransportOption
+s.CreateDefaultBoundListenS
+ocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.
+Server.Kestrel.Transport.So
+ckets.SocketConnectionListe
+ner.Bind()
+   --- End of inner 
+exception stack trace ---
+   at Microsoft.AspNetCore.
+Server.Kestrel.Transport.So
+ckets.SocketConnectionListe
+ner.Bind()
+   at Microsoft.AspNetCore.
+Server.Kestrel.Transport.So
+ckets.SocketTransportFactor
+y.BindAsync(EndPoint 
+endpoint, 
+CancellationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.
+Server.Kestrel.Core.Interna
+l.Infrastructure.TransportM
+anager.BindAsync(EndPoint 
+endPoint, 
+ConnectionDelegate 
+connectionDelegate, 
+EndpointConfig 
+endpointConfig, 
+CancellationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.
+Server.Kestrel.Core.Kestrel
+ServerImpl.<>c__DisplayClas
+s28_0`1.<<StartAsync>g__OnB
+ind|0>d.MoveNext()
+--- End of stack trace 
+from previous location ---
+   at Microsoft.AspNetCore.
+Server.Kestrel.Core.Interna
+l.AddressBinder.BindEndpoin
+tAsync(ListenOptions 
+endpoint, 
+AddressBindContext 
+context, CancellationToken 
+cancellationToken)
+   --- End of inner 
+exception stack trace ---
+   at Microsoft.AspNetCore.
+Server.Kestrel.Core.Interna
+l.AddressBinder.BindEndpoin
+tAsync(ListenOptions 
+endpoint, 
+AddressBindContext 
+context, CancellationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.
+Server.Kestrel.Core.Localho
+stListenOptions.BindAsync(A
+ddressBindContext context, 
+CancellationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.
+Server.Kestrel.Core.Interna
+l.AddressBinder.AddressesSt
+rategy.BindAsync(AddressBin
+dContext context, 
+CancellationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.
+Server.Kestrel.Core.Kestrel
+ServerImpl.BindAsync(Cancel
+lationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.
+Server.Kestrel.Core.Kestrel
+ServerImpl.StartAsync[TCont
+ext](IHttpApplication`1 
+application, 
+CancellationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.
+Hosting.GenericWebHostServi
+ce.StartAsync(CancellationT
+oken cancellationToken)
+   at Microsoft.Extensions.
+Hosting.Internal.Host.<Star
+tAsync>b__14_1(IHostedServi
+ce service, 
+CancellationToken token)
+   at Microsoft.Extensions.
+Hosting.Internal.Host.Forea
+chService[T](IEnumerable`1 
+services, 
+CancellationToken token, 
+Boolean concurrent, 
+Boolean 
+abortOnFirstException, 
+List`1 exceptions, Func`3 
+operation)
+   at Microsoft.Extensions.
+Hosting.Internal.Host.Start
+Async(CancellationToken 
+cancellationToken)
+   at Microsoft.Extensions.
+Hosting.HostingAbstractions
+HostExtensions.RunAsync(IHo
+st host, CancellationToken 
+token)
+   at Microsoft.Extensions.
+Hosting.HostingAbstractions
+HostExtensions.RunAsync(IHo
+st host, CancellationToken 
+token)
+   at Microsoft.Extensions.
+Hosting.HostingAbstractions
+HostExtensions.Run(IHost 
+host)
+   at 
+Program.<Main>$(String[] 
+args) in C:\Projects\BlueSk
+y\backend\Program.cs:line 
+483
+   at 
+Program.<Main>(String[] 
+args)

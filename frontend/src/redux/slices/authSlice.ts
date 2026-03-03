@@ -37,6 +37,42 @@ function normalizeSettings(raw: any): UserSettings {
         enabledMediaProviders: parsedProviders,
         defaultReplyRestriction: raw.defaultReplyRestriction ?? raw.DefaultReplyRestriction ?? 'anyone',
         defaultAllowQuotes: raw.defaultAllowQuotes ?? raw.DefaultAllowQuotes ?? true,
+
+        // Notification master toggles
+        notifyLikes: raw.notifyLikes ?? raw.NotifyLikes ?? true,
+        notifyReposts: raw.notifyReposts ?? raw.NotifyReposts ?? true,
+        notifyFollowers: raw.notifyFollowers ?? raw.NotifyFollowers ?? true,
+        notifyReplies: raw.notifyReplies ?? raw.NotifyReplies ?? true,
+        notifyMentions: raw.notifyMentions ?? raw.NotifyMentions ?? true,
+        notifyQuotes: raw.notifyQuotes ?? raw.NotifyQuotes ?? true,
+        notifyActivity: raw.notifyActivity ?? raw.NotifyActivity ?? true,
+        notifyLikesOfReposts: raw.notifyLikesOfReposts ?? raw.NotifyLikesOfReposts ?? true,
+        notifyRepostsOfReposts: raw.notifyRepostsOfReposts ?? raw.NotifyRepostsOfReposts ?? true,
+        notifyOthers: raw.notifyOthers ?? raw.NotifyOthers ?? true,
+
+        // Push notification toggles
+        pushNotifyLikes: raw.pushNotifyLikes ?? raw.PushNotifyLikes ?? true,
+        pushNotifyReposts: raw.pushNotifyReposts ?? raw.PushNotifyReposts ?? true,
+        pushNotifyFollowers: raw.pushNotifyFollowers ?? raw.PushNotifyFollowers ?? true,
+        pushNotifyReplies: raw.pushNotifyReplies ?? raw.PushNotifyReplies ?? true,
+        pushNotifyMentions: raw.pushNotifyMentions ?? raw.PushNotifyMentions ?? true,
+        pushNotifyQuotes: raw.pushNotifyQuotes ?? raw.PushNotifyQuotes ?? true,
+        pushNotifyActivity: raw.pushNotifyActivity ?? raw.PushNotifyActivity ?? true,
+        pushNotifyLikesOfReposts: raw.pushNotifyLikesOfReposts ?? raw.PushNotifyLikesOfReposts ?? true,
+        pushNotifyRepostsOfReposts: raw.pushNotifyRepostsOfReposts ?? raw.PushNotifyRepostsOfReposts ?? true,
+        pushNotifyOthers: raw.pushNotifyOthers ?? raw.PushNotifyOthers ?? true,
+
+        // In-app notification toggles
+        inAppNotifyLikes: raw.inAppNotifyLikes ?? raw.InAppNotifyLikes ?? true,
+        inAppNotifyReposts: raw.inAppNotifyReposts ?? raw.InAppNotifyReposts ?? true,
+        inAppNotifyFollowers: raw.inAppNotifyFollowers ?? raw.InAppNotifyFollowers ?? true,
+        inAppNotifyReplies: raw.inAppNotifyReplies ?? raw.InAppNotifyReplies ?? true,
+        inAppNotifyMentions: raw.inAppNotifyMentions ?? raw.InAppNotifyMentions ?? true,
+        inAppNotifyQuotes: raw.inAppNotifyQuotes ?? raw.InAppNotifyQuotes ?? true,
+        inAppNotifyActivity: raw.inAppNotifyActivity ?? raw.InAppNotifyActivity ?? true,
+        inAppNotifyLikesOfReposts: raw.inAppNotifyLikesOfReposts ?? raw.InAppNotifyLikesOfReposts ?? true,
+        inAppNotifyRepostsOfReposts: raw.inAppNotifyRepostsOfReposts ?? raw.InAppNotifyRepostsOfReposts ?? true,
+        inAppNotifyOthers: raw.inAppNotifyOthers ?? raw.InAppNotifyOthers ?? true
     } as UserSettings;
 }
 

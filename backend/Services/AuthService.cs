@@ -221,6 +221,18 @@ public class AuthService : IAuthService
             user.UserSetting.InAppNotifyMentions,
             user.UserSetting.InAppNotifyQuotes,
             user.UserSetting.InAppNotifyReposts,
+            user.UserSetting.NotifyActivity,
+            user.UserSetting.PushNotifyActivity,
+            user.UserSetting.InAppNotifyActivity,
+            user.UserSetting.NotifyLikesOfReposts,
+            user.UserSetting.PushNotifyLikesOfReposts,
+            user.UserSetting.InAppNotifyLikesOfReposts,
+            user.UserSetting.NotifyRepostsOfReposts,
+            user.UserSetting.PushNotifyRepostsOfReposts,
+            user.UserSetting.InAppNotifyRepostsOfReposts,
+            user.UserSetting.NotifyOthers,
+            user.UserSetting.PushNotifyOthers,
+            user.UserSetting.InAppNotifyOthers,
             user.UserSetting.DefaultReplyRestriction,
             user.UserSetting.DefaultAllowQuotes,
             user.UserSetting.FontSize,
@@ -234,7 +246,20 @@ public class AuthService : IAuthService
             user.UserSetting.ShowQuotePosts,
             user.UserSetting.ShowSampleSavedFeeds,
             user.UserSetting.EnabledMediaProviders
-        ) : new UserSettingDto(null, null, null, null, null, "en", "system", true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, "anyone", true, 15, true, true, false, false, false, true, true, true, false, null);
+        ) : new UserSettingDto(
+            null, null, null, null, null, "en", "system",
+            true, true, true, true, true, true,  // Notify* (6)
+            true, true, true, true, true, true,  // PushNotify* (6)
+            true, true, true, true, true, true,  // InAppNotify* (6)
+            true, true, true,                    // Activity (3)
+            true, true, true,                    // LikesOfReposts (3)
+            true, true, true,                    // RepostsOfReposts (3)
+            true, true, true,                    // Others (3)
+            "anyone", true, 15,                  // ReplyRestriction, AllowQuotes, FontSize
+            true, true, false, false, false,     // Trending, Video, TreeView, Logout, AltBadge
+            true, true, true, false,             // ShowReplies, ShowReposts, ShowQuotes, ShowSampleFeeds
+            null                                 // EnabledMediaProviders
+        );
 
         return new AuthResponse(userDto, settingsDto, token, refreshToken);
     }

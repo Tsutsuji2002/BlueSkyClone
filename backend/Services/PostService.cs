@@ -548,7 +548,7 @@ public class PostService : IPostService
                 parentPost.RepliesCount = (parentPost.RepliesCount ?? 0) + 1;
                 _unitOfWork.Posts.Update(parentPost);
 
-                if (parentPost.AuthorId != userId)
+                if (parentPost.AuthorId != userId && await ShouldCreateNotificationAsync(parentPost.AuthorId, "reply"))
                 {
                     replyNotification = new Notification
                     {
@@ -575,7 +575,7 @@ public class PostService : IPostService
                 quotedPost.QuotesCount = (quotedPost.QuotesCount ?? 0) + 1;
                 _unitOfWork.Posts.Update(quotedPost);
 
-                if (quotedPost.AuthorId != userId)
+                if (quotedPost.AuthorId != userId && await ShouldCreateNotificationAsync(quotedPost.AuthorId, "quote"))
                 {
                     quoteNotification = new Notification
                     {
@@ -606,7 +606,7 @@ public class PostService : IPostService
         foreach (var handle in mentions)
         {
             var mentionedUser = await _unitOfWork.Users.GetByHandleAsync($"{handle}.bsky.social");
-            if (mentionedUser != null && mentionedUser.Id != userId)
+            if (mentionedUser != null && mentionedUser.Id != userId && await ShouldCreateNotificationAsync(mentionedUser.Id, "mention"))
             {
                 var mentionNotification = new Notification
                 {
@@ -1101,7 +1101,7 @@ public class PostService : IPostService
             post.LikesCount = (post.LikesCount ?? 0) + 1;
 
             // Create notification for post author (only if liker is not the author)
-            if (userId != post.AuthorId)
+            if (userId != post.AuthorId && await ShouldCreateNotificationAsync(post.AuthorId, "like"))
             {
                 var notification = new Notification
                 {
@@ -1119,6 +1119,34 @@ public class PostService : IPostService
                 await _unitOfWork.Notifications.AddAsync(notification);
                 await _unitOfWork.CompleteAsync();
                 await SendNotificationAsync(notification.Id);
+            }
+
+            // [NEW] Notification for "Likes of your reposts"
+            var reposterIds = await _unitOfWork.Reposts.Query()
+                .Where(r => r.PostId == postId && r.UserId != userId && r.UserId != post.AuthorId)
+                .Select(r => r.UserId)
+                .ToListAsync();
+
+            foreach (var reposterId in reposterIds)
+            {
+                if (await ShouldCreateNotificationAsync(reposterId, "like_of_repost"))
+                {
+                    var notification = new Notification
+                    {
+                        Id = Guid.NewGuid(),
+                        Tid = GenerateTid(),
+                        Type = "like_of_repost",
+                        SenderId = userId,
+                        RecipientId = reposterId,
+                        PostId = postId,
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow,
+                        IsDeleted = false
+                    };
+                    await _unitOfWork.Notifications.AddAsync(notification);
+                    await _unitOfWork.CompleteAsync();
+                    await SendNotificationAsync(notification.Id);
+                }
             }
         }
 
@@ -1287,7 +1315,7 @@ public class PostService : IPostService
             post.RepostsCount = (post.RepostsCount ?? 0) + 1;
 
             // Create notification for post author (only if reposter is not the author)
-            if (userId != post.AuthorId)
+            if (userId != post.AuthorId && await ShouldCreateNotificationAsync(post.AuthorId, "repost"))
             {
                 var notification = new Notification
                 {
@@ -1305,6 +1333,34 @@ public class PostService : IPostService
                 await _unitOfWork.Notifications.AddAsync(notification);
                 await _unitOfWork.CompleteAsync();
                 await SendNotificationAsync(notification.Id);
+            }
+
+            // [NEW] Notification for "Reposts of your reposts"
+            var reposterIds = await _unitOfWork.Reposts.Query()
+                .Where(r => r.PostId == postId && r.UserId != userId && r.UserId != post.AuthorId)
+                .Select(r => r.UserId)
+                .ToListAsync();
+
+            foreach (var reposterId in reposterIds)
+            {
+                if (await ShouldCreateNotificationAsync(reposterId, "repost_of_repost"))
+                {
+                    var notification = new Notification
+                    {
+                        Id = Guid.NewGuid(),
+                        Tid = GenerateTid(),
+                        Type = "repost_of_repost",
+                        SenderId = userId,
+                        RecipientId = reposterId,
+                        PostId = postId,
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow,
+                        IsDeleted = false
+                    };
+                    await _unitOfWork.Notifications.AddAsync(notification);
+                    await _unitOfWork.CompleteAsync();
+                    await SendNotificationAsync(notification.Id);
+                }
             }
         }
 
@@ -1572,6 +1628,29 @@ public class PostService : IPostService
         }
 
         return $"/uploads/{folder}/{fileName}";
+    }
+
+    private async Task<bool> ShouldCreateNotificationAsync(Guid userId, string type)
+    {
+        var settings = await _unitOfWork.UserSettings.Query()
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        if (settings == null) return true;
+
+        return type switch
+        {
+            "like" => (settings.NotifyLikes ?? true) && (settings.InAppNotifyLikes ?? true),
+            "repost" => (settings.NotifyReposts ?? true) && (settings.InAppNotifyReposts ?? true),
+            "reply" => (settings.NotifyReplies ?? true) && (settings.InAppNotifyReplies ?? true),
+            "mention" => (settings.NotifyMentions ?? true) && (settings.InAppNotifyMentions ?? true),
+            "quote" => (settings.NotifyQuotes ?? true) && (settings.InAppNotifyQuotes ?? true),
+            "follow" => (settings.NotifyFollowers ?? true) && (settings.InAppNotifyFollowers ?? true),
+            "activity" => (settings.NotifyActivity ?? true) && (settings.InAppNotifyActivity ?? true),
+            "like_of_repost" => (settings.NotifyLikesOfReposts ?? true) && (settings.InAppNotifyLikesOfReposts ?? true),
+            "repost_of_repost" => (settings.NotifyRepostsOfReposts ?? true) && (settings.InAppNotifyRepostsOfReposts ?? true),
+            "others" => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true),
+            _ => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true)
+        };
     }
 
     private async Task SendNotificationAsync(Guid notificationId)

@@ -78,6 +78,19 @@ export interface UserSettings {
     inAppNotifyMentions: boolean;
     inAppNotifyQuotes: boolean;
     inAppNotifyReposts: boolean;
+    // Extended notification types
+    notifyActivity: boolean;
+    pushNotifyActivity: boolean;
+    inAppNotifyActivity: boolean;
+    notifyLikesOfReposts: boolean;
+    pushNotifyLikesOfReposts: boolean;
+    inAppNotifyLikesOfReposts: boolean;
+    notifyRepostsOfReposts: boolean;
+    pushNotifyRepostsOfReposts: boolean;
+    inAppNotifyRepostsOfReposts: boolean;
+    notifyOthers: boolean;
+    pushNotifyOthers: boolean;
+    inAppNotifyOthers: boolean;
     // Branding/UI
     appLanguage: string;
     primaryLanguage: string;
