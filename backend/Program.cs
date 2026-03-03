@@ -300,6 +300,11 @@ using (var scope = app.Services.CreateScope())
                 BEGIN
                     ALTER TABLE dbo.Posts ADD QuotePostId UNIQUEIDENTIFIER NULL;
                     PRINT 'Added QuotePostId to Posts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'Language')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD Language NVARCHAR(MAX) NULL;
+                    PRINT 'Added Language to Posts';
                 END";
             context.Database.ExecuteSqlRaw(sql);
             
