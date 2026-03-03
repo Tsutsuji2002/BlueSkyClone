@@ -23,6 +23,7 @@ interface PostInteractionSettingsModalProps {
     setReplyRestriction: (val: string) => void;
     allowQuotes: boolean;
     setAllowQuotes: (val: boolean) => void;
+    postId?: string; // Optional: if provided, will update the post on the backend
 }
 
 const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> = ({
@@ -31,7 +32,8 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
     replyRestriction,
     setReplyRestriction,
     allowQuotes,
-    setAllowQuotes
+    setAllowQuotes,
+    postId
 }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
@@ -83,6 +85,19 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
             const parts = [...localCustomRestrictions];
             selectedLists.forEach(id => parts.push(`list:${id}`));
             finalRestriction = parts.join(',') || 'anyone';
+        }
+
+        if (postId) {
+            try {
+                await axios.post(`${API_BASE_URL}/posts/${postId}/interaction-settings`, {
+                    replyRestriction: finalRestriction,
+                    allowQuotes: localQuotes
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } catch (error) {
+                console.error('Failed to update post interaction settings', error);
+            }
         }
 
         setReplyRestriction(finalRestriction);

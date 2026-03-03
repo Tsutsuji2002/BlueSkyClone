@@ -460,86 +460,148 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            // Toggle Like
             .addCase(toggleLike.pending, (state: PostsState, action) => {
-                state.actionLoading[action.meta.arg] = true;
+                const postId = action.meta.arg;
+                state.actionLoading[postId] = true;
+
+                // Optimistic Update
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === postId);
+                    if (post) {
+                        const wasLiked = post.isLiked;
+                        post.isLiked = !wasLiked;
+                        post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isLiked: boolean, likesCount: number }>) => {
                 state.actionLoading[action.payload.postId] = false;
-                // Update in timeline/user posts
-                const post = state.posts.find(p => p.id === action.payload.postId);
-                if (post) {
-                    post.isLiked = action.payload.isLiked;
-                    post.likesCount = action.payload.likesCount;
-                }
-                const dPost = state.discoverPosts.find(p => p.id === action.payload.postId);
-                if (dPost) {
-                    dPost.isLiked = action.payload.isLiked;
-                    dPost.likesCount = action.payload.likesCount;
-                }
-                // Update in trending posts
-                const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
-                if (trendingPost) {
-                    trendingPost.isLiked = action.payload.isLiked;
-                    trendingPost.likesCount = action.payload.likesCount;
-                }
+                // Update in timeline/user posts with actual server data
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === action.payload.postId);
+                    if (post) {
+                        post.isLiked = action.payload.isLiked;
+                        post.likesCount = action.payload.likesCount;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             .addCase(toggleLike.rejected, (state: PostsState, action) => {
-                state.actionLoading[action.meta.arg] = false;
+                const postId = action.meta.arg;
+                state.actionLoading[postId] = false;
+
+                // Rollback on Error
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === postId);
+                    if (post) {
+                        const wasLiked = post.isLiked;
+                        post.isLiked = !wasLiked;
+                        post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
+                state.error = action.payload as string;
             })
-            // Repost
             .addCase(repostPost.pending, (state: PostsState, action) => {
-                state.actionLoading[action.meta.arg] = true;
+                const postId = action.meta.arg;
+                state.actionLoading[postId] = true;
+
+                // Optimistic Update
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === postId);
+                    if (post) {
+                        const wasReposted = post.isReposted;
+                        post.isReposted = !wasReposted;
+                        post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isReposted: boolean, repostsCount: number }>) => {
                 state.actionLoading[action.payload.postId] = false;
-                // Update in timeline/user posts
-                const post = state.posts.find(p => p.id === action.payload.postId);
-                if (post) {
-                    post.isReposted = action.payload.isReposted;
-                    post.repostsCount = action.payload.repostsCount;
-                }
-                const dPost = state.discoverPosts.find(p => p.id === action.payload.postId);
-                if (dPost) {
-                    dPost.isReposted = action.payload.isReposted;
-                    dPost.repostsCount = action.payload.repostsCount;
-                }
-                // Update in trending posts
-                const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
-                if (trendingPost) {
-                    trendingPost.isReposted = action.payload.isReposted;
-                    trendingPost.repostsCount = action.payload.repostsCount;
-                }
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === action.payload.postId);
+                    if (post) {
+                        post.isReposted = action.payload.isReposted;
+                        post.repostsCount = action.payload.repostsCount;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             .addCase(repostPost.rejected, (state: PostsState, action) => {
-                state.actionLoading[action.meta.arg] = false;
+                const postId = action.meta.arg;
+                state.actionLoading[postId] = false;
+
+                // Rollback
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === postId);
+                    if (post) {
+                        const wasReposted = post.isReposted;
+                        post.isReposted = !wasReposted;
+                        post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
-            // Bookmark
             .addCase(bookmarkPost.pending, (state: PostsState, action) => {
-                state.actionLoading[action.meta.arg] = true;
+                const postId = action.meta.arg;
+                state.actionLoading[postId] = true;
+
+                // Optimistic Update
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === postId);
+                    if (post) {
+                        const wasBookmarked = post.isBookmarked;
+                        post.isBookmarked = !wasBookmarked;
+                        post.bookmarksCount = wasBookmarked ? Math.max(0, (post.bookmarksCount || 0) - 1) : (post.bookmarksCount || 0) + 1;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             .addCase(bookmarkPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isBookmarked: boolean, bookmarksCount: number }>) => {
                 state.actionLoading[action.payload.postId] = false;
-                // Update in timeline/user posts
-                const post = state.posts.find(p => p.id === action.payload.postId);
-                if (post) {
-                    post.isBookmarked = action.payload.isBookmarked;
-                    post.bookmarksCount = action.payload.bookmarksCount;
-                }
-                const dPost = state.discoverPosts.find(p => p.id === action.payload.postId);
-                if (dPost) {
-                    dPost.isBookmarked = action.payload.isBookmarked;
-                    dPost.bookmarksCount = action.payload.bookmarksCount;
-                }
-                // Update in trending posts
-                const trendingPost = state.trendingPosts.find(p => p.id === action.payload.postId);
-                if (trendingPost) {
-                    trendingPost.isBookmarked = action.payload.isBookmarked;
-                    trendingPost.bookmarksCount = action.payload.bookmarksCount;
-                }
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === action.payload.postId);
+                    if (post) {
+                        post.isBookmarked = action.payload.isBookmarked;
+                        post.bookmarksCount = action.payload.bookmarksCount;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             .addCase(bookmarkPost.rejected, (state: PostsState, action) => {
-                state.actionLoading[action.meta.arg] = false;
+                const postId = action.meta.arg;
+                state.actionLoading[postId] = false;
+
+                // Rollback
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === postId);
+                    if (post) {
+                        const wasBookmarked = post.isBookmarked;
+                        post.isBookmarked = !wasBookmarked;
+                        post.bookmarksCount = wasBookmarked ? Math.max(0, (post.bookmarksCount || 0) - 1) : (post.bookmarksCount || 0) + 1;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             // Delete Post
             .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string[]>) => {

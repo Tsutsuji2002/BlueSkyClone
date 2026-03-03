@@ -43,14 +43,23 @@ import {
     FiPlus,
     FiTrash2,
     FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiShield,
-    FiX, FiMessageSquare
+    FiX, FiMessageSquare,
+    FiChevronDown
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
 import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
+import LoadingIndicator from '../components/common/LoadingIndicator';
+import PostInteractionSettingsModal from '../modals/PostInteractionSettingsModal';
 import ConfirmModal from '../components/common/ConfirmModal';
 
-import LoadingIndicator from '../components/common/LoadingIndicator';
+import {
+    FiAnchor,
+    FiClipboard,
+    FiVolumeX,
+    FiSettings,
+    FiExternalLink
+} from 'react-icons/fi';
 
 const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () => void, t: any }) => (
     <div
@@ -126,6 +135,7 @@ const PostDetailPage: React.FC = () => {
     const parentPost = ancestors.length > 0 ? ancestors[ancestors.length - 1] : null;
 
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+    const [isInteractionModalOpen, setIsInteractionModalOpen] = React.useState(false);
 
     // Track which post IDs we've already fetched replies for to avoid re-fetching
     const fetchedRepliesRef = React.useRef<Set<string>>(new Set());
@@ -292,90 +302,80 @@ const PostDetailPage: React.FC = () => {
     ];
 
     const moreDropdownItems: DropdownItem[] = [
-        {
-            id: 'translate',
-            label: `${t('post.translate')} → ${primaryLangName}`,
-            icon: <FiHelpCircle />,
-            onClick: () => handleTranslate(post.content),
-        },
-        {
-            id: 'copy-text',
-            label: t('post.copy_text'),
-            icon: <FiType />,
-            hasDivider: true,
-            onClick: () => handleCopyText(post.content),
-        },
-        ...(currentUser?.id !== post.author.id ? [
-            {
-                id: 'show-more',
-                label: t('post.show_more'),
-                icon: <FiSmile />,
-                onClick: () => { },
-            },
-            {
-                id: 'show-less',
-                label: t('post.show_less'),
-                icon: <FiFrown />,
-                hasDivider: true,
-                onClick: () => { },
-            }
-        ] : []),
-        {
-            id: 'mute-thread',
-            label: t('post.mute_thread'),
-            icon: <FiBellOff />,
-            onClick: () => { },
-        },
-        ...(currentUser?.id !== post.author.id ? [
-            {
-                id: 'hide-words',
-                label: t('post.hide_words'),
-                icon: <FiFilter />,
-                hasDivider: true,
-                onClick: () => { },
-            },
-            {
-                id: 'hide-post',
-                label: t('post.hide_post'),
-                icon: <FiEyeOff />,
-                hasDivider: true,
-                onClick: () => { },
-            },
-            {
-                id: 'mute-account',
-                label: t('post.mute_account'),
-                icon: <FiUserMinus />,
-                onClick: () => { },
-            },
-            {
-                id: 'block-account',
-                label: t('post.block_account'),
-                icon: <FiUserX />,
-                onClick: () => { },
-            },
-            {
-                id: 'report-post',
-                label: t('post.report_post'),
-                icon: <FiAlertTriangle />,
-                onClick: () => { },
-            }
-        ] : []),
         ...(currentUser?.id === post.author.id ? [
             {
-                id: 'edit-post',
-                label: t('common.edit_post', 'Edit post'),
-                icon: <FiType />,
-                onClick: () => dispatch(openEditPost(post)),
+                id: 'pin-post',
+                label: t('post.pin_to_profile', 'Pin to your profile'),
+                icon: <FiAnchor />,
+                onClick: () => { },
+            },
+            {
+                id: 'translate',
+                label: t('post.translate'),
+                icon: <FiMessageSquare />,
+                onClick: () => handleTranslate(post.content),
+            },
+            {
+                id: 'copy-text',
+                label: t('post.copy_text'),
+                icon: <FiClipboard />,
+                onClick: () => handleCopyText(post.content),
+            },
+            { id: 'divider-mute', label: '', icon: null, onClick: () => { }, hasDivider: true },
+            {
+                id: 'mute-thread',
+                label: t('post.mute_thread'),
+                icon: <FiVolumeX />,
+                onClick: () => { },
+            },
+            {
+                id: 'mute-words',
+                label: t('post.mute_words_tags', 'Mute words & tags'),
+                icon: <FiFilter />,
+                onClick: () => { },
+                hasDivider: true,
+            },
+            {
+                id: 'edit-settings',
+                label: t('post.edit_interaction', 'Edit interaction settings'),
+                icon: <FiSettings />,
+                onClick: () => setIsInteractionModalOpen(true),
             },
             {
                 id: 'delete-post',
                 label: t('common.delete_post'),
                 icon: <FiTrash2 />,
                 danger: true,
-                hasDivider: true,
                 onClick: () => setShowDeleteConfirm(true),
             }
-        ] : []),
+        ] : [
+            {
+                id: 'translate',
+                label: t('post.translate'),
+                icon: <FiMessageSquare />,
+                onClick: () => handleTranslate(post.content),
+            },
+            {
+                id: 'copy-text',
+                label: t('post.copy_text'),
+                icon: <FiClipboard />,
+                hasDivider: true,
+                onClick: () => handleCopyText(post.content),
+            },
+            {
+                id: 'mute-thread',
+                label: t('post.mute_thread'),
+                icon: <FiVolumeX />,
+                onClick: () => { },
+            },
+            {
+                id: 'report-post',
+                label: t('post.report_post'),
+                icon: <FiAlertTriangle />,
+                danger: true,
+                onClick: () => { },
+            }
+        ]),
     ];
 
     const dateLocale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
@@ -544,19 +544,32 @@ const PostDetailPage: React.FC = () => {
                         <span>·</span>
                         <span>{new Date(post.createdAt).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                         <span>·</span>
-                        <div className="flex items-center gap-1">
+                        <div
+                            className={cn(
+                                "flex items-center gap-1 cursor-default",
+                                currentUser?.id === post.author.id && "text-[#0085FF] cursor-pointer hover:underline"
+                            )}
+                            onClick={() => {
+                                if (currentUser?.id === post.author.id) {
+                                    setIsInteractionModalOpen(true);
+                                }
+                            }}
+                        >
                             <FiMessageSquare size={14} />
                             <span>{
                                 post.replyRestriction === 'nobody'
-                                    ? t('post.reply_nobody', 'Nobody')
+                                    ? t('post.reply_nobody', 'Replies disabled')
                                     : post.replyRestriction === 'following'
                                         ? t('post.reply_following', 'People you follow')
                                         : post.replyRestriction === 'followers'
                                             ? t('post.reply_followers', 'Followers')
                                             : post.replyRestriction === 'mentioned'
                                                 ? t('post.reply_mentioned', 'People you mention')
-                                                : t('post.anyone_can_reply', 'Anyone can reply')
+                                                : post.replyRestriction === 'custom' || (post.replyRestriction && post.replyRestriction.includes(','))
+                                                    ? t('post.interaction_limited', 'Interaction limited')
+                                                    : t('post.anyone_can_reply', 'Everybody can reply')
                             }</span>
+                            {currentUser?.id === post.author.id && <FiChevronDown size={14} />}
                         </div>
                         <span>·</span>
                         <button
@@ -840,6 +853,22 @@ const PostDetailPage: React.FC = () => {
                     confirmLabel={t('common.delete', { defaultValue: 'Delete' })}
                     variant="danger"
                 />
+
+                {currentUser && (
+                    <PostInteractionSettingsModal
+                        isOpen={isInteractionModalOpen}
+                        onClose={() => setIsInteractionModalOpen(false)}
+                        replyRestriction={post.replyRestriction || 'anyone'}
+                        setReplyRestriction={(val) => {
+                            dispatch(fetchPostById(post.id));
+                        }}
+                        allowQuotes={post.allowQuotes !== false}
+                        setAllowQuotes={(val) => {
+                            dispatch(fetchPostById(post.id));
+                        }}
+                        postId={post.id}
+                    />
+                )}
             </div>
         </MainLayout >
     );
