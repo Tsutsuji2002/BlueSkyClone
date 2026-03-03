@@ -23,6 +23,7 @@ import RichText from '../components/common/RichText';
 import { User } from '../types';
 import QuotedPost from '../components/feed/QuotedPost';
 import PostInteractionSettingsModal from './PostInteractionSettingsModal';
+import LanguagePickerModal from '../components/modals/LanguagePickerModal';
 
 const CreatePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -62,6 +63,7 @@ const CreatePostModal: React.FC = () => {
     const [isLanguageManual, setIsLanguageManual] = useState(false);
     const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
     const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+    const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
 
     const { results: mentionResults, isLoading: isMentionLoading } = useUserSearch(mentionSearch);
 
@@ -485,7 +487,7 @@ const CreatePostModal: React.FC = () => {
                                         )}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            {replyRestriction === 'anyone' ? <FiSmile size={14} /> : <FiX size={14} />}
+                                            {replyRestriction === 'anyone' && allowQuotes ? <FiSmile size={14} /> : <FiX size={14} />}
                                             <span>
                                                 {replyRestriction === 'anyone' && allowQuotes
                                                     ? t('post.anyone_can_interact', 'Anyone can interact')
@@ -710,8 +712,8 @@ const CreatePostModal: React.FC = () => {
                                             <div className="h-px bg-gray-100 dark:bg-dark-border my-1.5" />
                                             <button
                                                 onClick={() => {
-                                                    // Open full language modal if needed, but for now let's just show a few options
                                                     setIsLanguageDropdownOpen(false);
+                                                    setIsLanguageModalOpen(true);
                                                 }}
                                                 className="w-full text-left px-4 py-2.5 rounded-xl text-sm text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors flex items-center justify-between"
                                             >
@@ -779,6 +781,16 @@ const CreatePostModal: React.FC = () => {
                 setReplyRestriction={setReplyRestriction}
                 allowQuotes={allowQuotes}
                 setAllowQuotes={setAllowQuotes}
+            />
+
+            <LanguagePickerModal
+                isOpen={isLanguageModalOpen}
+                onClose={() => setIsLanguageModalOpen(false)}
+                selectedCode={postLanguage}
+                onSelect={(code) => {
+                    setPostLanguage(code);
+                    setIsLanguageManual(true);
+                }}
             />
 
             {/* Discard Confirmation Modal */}
