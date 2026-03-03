@@ -130,7 +130,7 @@ builder.Services.AddAuthentication(x =>
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             if (!string.IsNullOrEmpty(accessToken) && 
-                (path.StartsWithSegments("/hubs/chat")))
+                (path.StartsWithSegments("/hubs/chat") || path.StartsWithSegments("/hubs/posts")))
             {
                 context.Token = accessToken;
             }
@@ -206,6 +206,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<BSkyClone.Hubs.ChatHub>("/hubs/chat");
+app.MapHub<BSkyClone.Hubs.PostHub>("/hubs/posts");
 
 // Apply database migrations automatically
 using (var scope = app.Services.CreateScope())

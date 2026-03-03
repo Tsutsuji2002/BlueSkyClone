@@ -24,6 +24,7 @@ import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
 import { isTokenExpired } from './utils/authUtils';
 import signalrService, { HubStatus } from './services/signalrService';
+import postSignalrService from './services/postSignalrService';
 
 import LoadingScreen from './components/common/LoadingScreen';
 
@@ -60,6 +61,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       signalrService.startConnection();
+      postSignalrService.startConnection();
 
       // Monitor SignalR connection status
       signalrService.onStatusChange((status) => {
@@ -86,6 +88,7 @@ const AppContent: React.FC = () => {
       dispatch(fetchConversations());
     } else {
       signalrService.stopConnection();
+      postSignalrService.stopConnection();
     }
   }, [isAuthenticated, dispatch]);
 

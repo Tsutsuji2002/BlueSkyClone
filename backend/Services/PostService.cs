@@ -13,16 +13,18 @@ public class PostService : IPostService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;
     private readonly IHubContext<ChatHub> _hubContext;
+    private readonly IHubContext<PostHub> _postHubContext;
     private readonly ILinkService _linkService;
     private readonly ICacheService _cacheService;
     private readonly ICategorizationService _categorizationService;
     private readonly ISearchService _searchService;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _hubContext = hubContext;
+        _postHubContext = postHubContext;
         _linkService = linkService;
         _cacheService = cacheService;
         _categorizationService = categorizationService;
@@ -654,6 +656,40 @@ public class PostService : IPostService
         // Index in Elasticsearch
         await _searchService.IndexPostAsync(savedPost!);
 
+        // Broadcast Real-time Updates for parents
+        if (request.ReplyToPostId.HasValue)
+        {
+            var parent = await _unitOfWork.Posts.GetByIdAsync(request.ReplyToPostId.Value);
+            if (parent != null)
+            {
+                await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+                { 
+                    postId = parent.Id, 
+                    likesCount = parent.LikesCount,
+                    repostsCount = parent.RepostsCount,
+                    bookmarksCount = parent.BookmarksCount,
+                    repliesCount = parent.RepliesCount,
+                    quotesCount = parent.QuotesCount
+                });
+            }
+        }
+        if (request.QuotePostId.HasValue)
+        {
+            var quoted = await _unitOfWork.Posts.GetByIdAsync(request.QuotePostId.Value);
+            if (quoted != null)
+            {
+                await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+                { 
+                    postId = quoted.Id, 
+                    likesCount = quoted.LikesCount,
+                    repostsCount = quoted.RepostsCount,
+                    bookmarksCount = quoted.BookmarksCount,
+                    repliesCount = quoted.RepliesCount,
+                    quotesCount = quoted.QuotesCount
+                });
+            }
+        }
+
         return MapToDto(savedPost!);
     }
     finally
@@ -1006,6 +1042,7 @@ public class PostService : IPostService
         {
             await _cacheService.RemoveAsync($"post:{id}");
             await _searchService.DeletePostAsync(id);
+            await _postHubContext.Clients.All.SendAsync("PostDeleted", id);
         }
 
         // Broad timeline/trending invalidation
@@ -1088,6 +1125,25 @@ public class PostService : IPostService
         // Invalidate post cache
         await _cacheService.RemoveAsync($"post:{postId}");
 
+        // Broadcast Real-time Updates
+        await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+        { 
+            postId, 
+            likesCount = post.LikesCount,
+            repostsCount = post.RepostsCount,
+            bookmarksCount = post.BookmarksCount,
+            repliesCount = post.RepliesCount,
+            quotesCount = post.QuotesCount
+        });
+
+        await _postHubContext.Clients.Group($"user-{userId}").SendAsync("UpdateUserPostStatus", new
+        {
+            postId,
+            isLiked,
+            isReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == userId),
+            isBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(b => b.PostId == postId && b.UserId == userId)
+        });
+
         return new 
         { 
             isLiked, 
@@ -1144,7 +1200,26 @@ public class PostService : IPostService
         // Invalidate post cache
         await _cacheService.RemoveAsync($"post:{postId}");
 
-         return new 
+        // Broadcast Real-time Updates
+        await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+        { 
+            postId, 
+            likesCount = post.LikesCount,
+            repostsCount = post.RepostsCount,
+            bookmarksCount = post.BookmarksCount,
+            repliesCount = post.RepliesCount,
+            quotesCount = post.QuotesCount
+        });
+
+        await _postHubContext.Clients.Group($"user-{userId}").SendAsync("UpdateUserPostStatus", new
+        {
+            postId,
+            isBookmarked,
+            isLiked = await _unitOfWork.Likes.Query().AnyAsync(l => l.PostId == postId && l.UserId == userId),
+            isReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == userId)
+        });
+
+        return new 
         { 
             isBookmarked,
             bookmarksCount = post.BookmarksCount
@@ -1230,6 +1305,25 @@ public class PostService : IPostService
         // Invalidate caches
         await _cacheService.RemoveAsync($"post:{postId}");
         await _cacheService.RemoveAsync($"user:{userId}:timeline");
+
+        // Broadcast Real-time Updates
+        await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+        { 
+            postId, 
+            likesCount = post.LikesCount,
+            repostsCount = post.RepostsCount,
+            bookmarksCount = post.BookmarksCount,
+            repliesCount = post.RepliesCount,
+            quotesCount = post.QuotesCount
+        });
+
+        await _postHubContext.Clients.Group($"user-{userId}").SendAsync("UpdateUserPostStatus", new
+        {
+            postId,
+            isReposted,
+            isLiked = await _unitOfWork.Likes.Query().AnyAsync(l => l.PostId == postId && l.UserId == userId),
+            isBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(b => b.PostId == postId && b.UserId == userId)
+        });
 
         return new
         {
