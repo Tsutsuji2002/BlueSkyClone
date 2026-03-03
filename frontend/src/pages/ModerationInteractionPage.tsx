@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiInfo, FiGlobe, FiUsers, FiAtSign, FiXCircle, FiCheck, FiChevronDown, FiRepeat } from 'react-icons/fi';
+import { FiArrowLeft, FiInfo, FiGlobe, FiUsers, FiAtSign, FiXCircle, FiCheck, FiChevronDown, FiRepeat, FiUserCheck } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
