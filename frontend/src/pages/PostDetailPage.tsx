@@ -73,7 +73,7 @@ const PostDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t, i18n } = useTranslation();
-    const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal } = usePostActions();
+    const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
     const posts = useAppSelector((state: RootState) => state.posts.posts);
     const isLoading = useAppSelector((state: RootState) => state.posts.isLoading);
@@ -290,7 +290,7 @@ const PostDetailPage: React.FC = () => {
     const moreDropdownItems: DropdownItem[] = [
         {
             id: 'translate',
-            label: t('post.translate'),
+            label: `${t('post.translate')} → ${primaryLangName}`,
             icon: <FiHelpCircle />,
             onClick: () => handleTranslate(post.content),
         },
@@ -549,7 +549,7 @@ const PostDetailPage: React.FC = () => {
                             onClick={() => handleTranslate(post.content)}
                             className="text-primary-500 hover:underline"
                         >
-                            {t('post.translate')}
+                            {`${t('post.translate')} → ${primaryLangName}`}
                         </button>
                     </div>
 

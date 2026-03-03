@@ -60,7 +60,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
-    const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal } = usePostActions();
+    const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const isOwnPost = isOwnPostProp ?? (currentUser?.id === post.author.id);
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
@@ -134,7 +134,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
         // Simplified options for list context
         {
             id: 'translate',
-            label: t('post.translate'),
+            label: `${t('post.translate')} → ${primaryLangName}`,
             icon: <FiHelpCircle />,
             onClick: () => handleTranslate(post.content),
         },
@@ -164,7 +164,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
         // Full options for normal context
         {
             id: 'translate',
-            label: t('post.translate'),
+            label: `${t('post.translate')} → ${primaryLangName}`,
             icon: <FiHelpCircle />,
             onClick: () => handleTranslate(post.content),
         },

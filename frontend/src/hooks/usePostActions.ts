@@ -3,14 +3,38 @@ import { useAppDispatch } from './useAppDispatch';
 import { showToast } from '../redux/slices/toastSlice';
 import { openSharePost } from '../redux/slices/modalsSlice';
 import { Post } from '../types';
+import { useAppSelector } from './useAppSelector';
+import { RootState } from '../redux/store';
+import { ALL_LANGUAGES } from '../constants/languages';
+
+/**
+ * Map our internal language codes to Google Translate's `tl` parameter codes.
+ * Most codes match, but a few regional variants need mapping.
+ */
+const toGoogleTranslateLang = (code: string): string => {
+    const mapping: Record<string, string> = {
+        'zh-CN': 'zh-CN',
+        'zh-TW': 'zh-TW',
+        'zh-HK': 'zh-TW', // Cantonese – closest supported variant
+        'pt-BR': 'pt',
+        'pt-PT': 'pt',
+        'en-GB': 'en',
+    };
+    return mapping[code] ?? code.split('-')[0];
+};
 
 export const usePostActions = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const primaryLanguage = useAppSelector((state: RootState) => state.language.primaryLanguage);
+
+    // Friendly display name for the primary language
+    const primaryLangMeta = ALL_LANGUAGES.find(l => l.code === primaryLanguage);
+    const primaryLangName = primaryLangMeta?.nativeName || primaryLangMeta?.englishName || primaryLanguage;
 
     const handleTranslate = (content: string) => {
         if (!content) return;
-        const targetLang = i18n.language || 'en';
+        const targetLang = toGoogleTranslateLang(primaryLanguage || 'en');
         const url = `https://translate.google.com/?sl=auto&tl=${targetLang}&text=${encodeURIComponent(content)}&op=translate`;
         window.open(url, '_blank');
     };
@@ -46,5 +70,7 @@ export const usePostActions = () => {
         handleCopyLink,
         handleEmbedPost,
         openShareModal,
+        primaryLanguage,
+        primaryLangName,
     };
 };
