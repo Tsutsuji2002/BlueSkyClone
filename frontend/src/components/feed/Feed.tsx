@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import PostCard from './PostCard';
 import { Post } from '../../types';
 import { FiBookmark } from 'react-icons/fi';
+import { detectLanguage } from '../../utils/languageDetector';
 
 interface FeedProps {
     posts?: Post[]; // Optional prop to override Redux posts
@@ -23,13 +24,46 @@ const Feed: React.FC<FeedProps> = ({
     const { t } = useTranslation();
     const reduxPosts = useAppSelector((state) => state.posts.posts);
     const reduxLoading = useAppSelector((state) => state.posts.isLoading);
+    const contentLanguages = useAppSelector((state) => state.language.contentLanguages);
     const observerTarget = useRef<HTMLDivElement>(null);
 
     const isLoading = propLoading !== undefined ? propLoading : reduxLoading;
 
     // Use provided posts or fall back to Redux posts, and filter out soft-deleted posts
     const allPosts = propPosts !== undefined ? propPosts : reduxPosts;
-    const posts = allPosts.filter(post => !post.isDeleted);
+
+    const posts = useMemo(() => {
+        // 1. Initial filter for deleted posts
+        const basePosts = allPosts.filter(post => !post.isDeleted);
+
+        // 2. Content Language filtering/prioritization logic
+        if (!contentLanguages || contentLanguages.length === 0) {
+            return basePosts;
+        }
+
+        // Detect language and sort
+        const matchingPosts: Post[] = [];
+        const otherPosts: Post[] = [];
+
+        basePosts.forEach(post => {
+            const lang = detectLanguage(post.content);
+            if (contentLanguages.includes(lang)) {
+                matchingPosts.push(post);
+            } else {
+                otherPosts.push(post);
+            }
+        });
+
+        // "also extra if no post of selected language are able in that feed, show all as normal."
+        if (matchingPosts.length === 0) {
+            return otherPosts;
+        }
+
+        // "If too littie post of selected languages is available, show as much as able, 
+        // then show the rest as normal after them."
+        // Concatenating them ensures selected languages are at the top.
+        return [...matchingPosts, ...otherPosts];
+    }, [allPosts, contentLanguages]);
 
     useEffect(() => {
         if (!onLoadMore || !hasMore || isLoading) return;
