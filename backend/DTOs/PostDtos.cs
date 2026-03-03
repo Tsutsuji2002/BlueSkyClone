@@ -33,7 +33,8 @@ public class PostDto
     public Guid? AddedByUserId { get; set; } // For Curated Lists
     public PostMuteDto MuteInfo { get; set; } = new();
     public string ReplyRestriction { get; set; } = "anyone";
-    public bool AllowQuotes { get; set; } = true;
+    public bool? AllowQuotes { get; set; } = true;
+    public string? Language { get; set; }
     public bool CanReply { get; set; } = true;
     public bool IsDeleted { get; set; }
     public AuthorDto? RepostedBy { get; set; }
@@ -88,6 +89,11 @@ public class CreatePostRequest
     public string? LinkPreviewDescription { get; set; }
     public string? LinkPreviewImage { get; set; }
     public string? LinkPreviewDomain { get; set; }
+
+    // Per-post settings
+    public string? ReplyRestriction { get; set; }
+    public bool? AllowQuotes { get; set; }
+    public string? Language { get; set; }
 }
 
 public class FeedDto

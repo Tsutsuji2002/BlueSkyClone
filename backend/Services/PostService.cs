@@ -329,8 +329,9 @@ public class PostService : IPostService
         }
 
         var userSettings = await _unitOfWork.UserSettings.GetByIdAsync(userId);
-        var replyRestriction = userSettings?.DefaultReplyRestriction ?? "anyone";
-        var allowQuotes = userSettings?.DefaultAllowQuotes ?? true;
+        var replyRestriction = request.ReplyRestriction ?? userSettings?.DefaultReplyRestriction ?? "anyone";
+        var allowQuotes = request.AllowQuotes ?? userSettings?.DefaultAllowQuotes ?? true;
+        var language = request.Language;
 
         try
         {
@@ -351,7 +352,8 @@ public class PostService : IPostService
                 BookmarksCount = 0,
                 IsDeleted = false,
                 ReplyRestriction = replyRestriction,
-                AllowQuotes = allowQuotes
+                AllowQuotes = allowQuotes,
+                Language = language
             };
 
 
@@ -683,8 +685,11 @@ public class PostService : IPostService
                 return null;
             }
 
-            // Update content
+            // Update fields
             post.Content = request.Content;
+            post.Language = request.Language ?? post.Language;
+            post.ReplyRestriction = request.ReplyRestriction ?? post.ReplyRestriction;
+            post.AllowQuotes = request.AllowQuotes ?? post.AllowQuotes;
 
             // Update AltTexts for existing media if provided
             if (request.AltTexts != null && post.PostMedia != null)
@@ -1410,6 +1415,7 @@ public class PostService : IPostService
             Interests = post.Interests?.Select(i => i.Name).ToList() ?? new List<string>(),
             ReplyRestriction = post.ReplyRestriction ?? "anyone",
             AllowQuotes = post.AllowQuotes ?? true,
+            Language = post.Language,
             IsDeleted = post.IsDeleted ?? false,
             QuotePostId = post.QuotePostId,
             QuotePost = (includeQuote && post.QuotePost != null) ? MapToDto(post.QuotePost, false, false) : null,

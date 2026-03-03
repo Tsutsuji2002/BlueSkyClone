@@ -150,6 +150,8 @@ export interface Post {
     };
     canReply?: boolean;
     replyRestriction?: string;
+    allowQuotes?: boolean;
+    language?: string;
     repostedBy?: Partial<User>;
 }
 

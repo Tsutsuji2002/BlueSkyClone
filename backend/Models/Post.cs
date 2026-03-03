@@ -33,7 +33,7 @@ public partial class Post
     public string? ReplyRestriction { get; set; }
 
     public bool? AllowQuotes { get; set; }
-
+    public string? Language { get; set; }
     public bool? IsDeleted { get; set; }
 
     public virtual User Author { get; set; } = null!;

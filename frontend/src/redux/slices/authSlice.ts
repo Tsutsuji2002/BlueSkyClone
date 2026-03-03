@@ -35,6 +35,8 @@ function normalizeSettings(raw: any): UserSettings {
         showQuotePosts: raw.showQuotePosts ?? raw.ShowQuotePosts ?? true,
         showSampleSavedFeeds: raw.showSampleSavedFeeds ?? raw.ShowSampleSavedFeeds ?? false,
         enabledMediaProviders: parsedProviders,
+        defaultReplyRestriction: raw.defaultReplyRestriction ?? raw.DefaultReplyRestriction ?? 'anyone',
+        defaultAllowQuotes: raw.defaultAllowQuotes ?? raw.DefaultAllowQuotes ?? true,
     } as UserSettings;
 }
 

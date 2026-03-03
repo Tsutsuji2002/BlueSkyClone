@@ -38,12 +38,16 @@ import {
     FiEyeOff,
     FiUserMinus,
     FiUserX,
-    FiAlertTriangle
+    FiAlertTriangle,
+    FiCheck,
+    FiPlus,
+    FiTrash2,
+    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiShield,
+    FiX, FiMessageSquare
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
 import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
-import { FiCheck, FiPlus, FiTrash2 } from 'react-icons/fi';
 import ConfirmModal from '../components/common/ConfirmModal';
 
 import LoadingIndicator from '../components/common/LoadingIndicator';
@@ -526,6 +530,14 @@ const PostDetailPage: React.FC = () => {
                         </div>
                     )}
 
+                    {/* Interaction Status & Details */}
+                    {(post.replyRestriction && post.replyRestriction !== 'anyone' || post.allowQuotes === false) && (
+                        <div className="flex items-center gap-1.5 text-[13px] font-bold text-primary-500 mb-4 px-3 py-1 bg-primary-500/5 rounded-full w-fit border border-primary-500/10">
+                            <FiX size={14} />
+                            <span>{t('post.interaction_limited', 'Interaction limited')}</span>
+                        </div>
+                    )}
+
                     {/* Footer Info */}
                     <div className="flex items-center gap-2 text-gray-500 dark:text-dark-text-secondary text-sm mb-4">
                         <span>{new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -533,15 +545,17 @@ const PostDetailPage: React.FC = () => {
                         <span>{new Date(post.createdAt).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                         <span>·</span>
                         <div className="flex items-center gap-1">
-                            <FiShare2 size={14} />
+                            <FiMessageSquare size={14} />
                             <span>{
-                                post.replyRestriction?.toLowerCase() === 'none' || post.replyRestriction?.toLowerCase() === 'no_one'
-                                    ? t('privacy.no_one')
-                                    : post.replyRestriction?.toLowerCase() === 'followed'
-                                        ? t('moderation.following')
-                                        : post.replyRestriction?.toLowerCase() === 'mentioned'
-                                            ? t('moderation.mentioned')
-                                            : t('post.everyone_can_reply')
+                                post.replyRestriction === 'nobody'
+                                    ? t('post.reply_nobody', 'Nobody')
+                                    : post.replyRestriction === 'following'
+                                        ? t('post.reply_following', 'People you follow')
+                                        : post.replyRestriction === 'followers'
+                                            ? t('post.reply_followers', 'Followers')
+                                            : post.replyRestriction === 'mentioned'
+                                                ? t('post.reply_mentioned', 'People you mention')
+                                                : t('post.anyone_can_reply', 'Anyone can reply')
                             }</span>
                         </div>
                         <span>·</span>

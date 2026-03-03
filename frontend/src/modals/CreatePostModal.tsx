@@ -7,9 +7,10 @@ import { showToast } from '../redux/slices/toastSlice';
 
 import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
-import { FiX, FiImage, FiSmile } from 'react-icons/fi';
+import { FiX, FiImage, FiSmile, FiChevronRight, FiCheck } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
-import { POST_CHARACTER_LIMIT } from '../constants';
+import { POST_CHARACTER_LIMIT, ALL_LANGUAGES } from '../constants';
+import { detectLanguage } from '../utils/languageDetector';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { PostImage, PostVideo, LinkPreview } from '../types';
 import AltTextModal from '../modals/AltTextModal';
@@ -21,6 +22,7 @@ import MentionSuggester from '../components/common/MentionSuggester';
 import RichText from '../components/common/RichText';
 import { User } from '../types';
 import QuotedPost from '../components/feed/QuotedPost';
+import PostInteractionSettingsModal from './PostInteractionSettingsModal';
 
 const CreatePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -51,6 +53,15 @@ const CreatePostModal: React.FC = () => {
     const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
     const [mentionSearch, setMentionSearch] = useState('');
     const [mentionRange, setMentionRange] = useState<{ start: number, end: number } | null>(null);
+
+    // Interaction & Language Settings
+    const authSettings = useAppSelector((state) => state.auth.settings);
+    const [replyRestriction, setReplyRestriction] = useState<string>(authSettings?.defaultReplyRestriction || 'anyone');
+    const [allowQuotes, setAllowQuotes] = useState<boolean>(authSettings?.defaultAllowQuotes ?? true);
+    const [postLanguage, setPostLanguage] = useState<string>('');
+    const [isLanguageManual, setIsLanguageManual] = useState(false);
+    const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
+    const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
 
     const { results: mentionResults, isLoading: isMentionLoading } = useUserSearch(mentionSearch);
 
@@ -88,8 +99,21 @@ const CreatePostModal: React.FC = () => {
                 setLinkPreview(postToEdit.linkPreview);
                 setStickyLink(postToEdit.linkPreview.url);
             }
+
+            // Language & Interaction Settings
+            setReplyRestriction(postToEdit.replyRestriction || authSettings?.defaultReplyRestriction || 'anyone');
+            setAllowQuotes(postToEdit.allowQuotes ?? authSettings?.defaultAllowQuotes ?? true);
+
+            if (postToEdit.language) {
+                setPostLanguage(postToEdit.language);
+                setIsLanguageManual(true);
+            } else {
+                const detected = detectLanguage(postToEdit.content);
+                setPostLanguage(detected || '');
+                setIsLanguageManual(false);
+            }
         }
-    }, [isEditing, postToEdit]);
+    }, [isEditing, postToEdit, authSettings]);
 
     // Link Detection logic
     useEffect(() => {
@@ -154,6 +178,24 @@ const CreatePostModal: React.FC = () => {
 
         prevContentRef.current = content;
     }, [content, stickyLink, dismissedLinks, isOpen, linkPreview, setIsLinkLoading]);
+
+    // Language Detection for current post
+    useEffect(() => {
+        if (!isOpen || isLanguageManual || content.trim().length < 5) return;
+
+        const detected = detectLanguage(content);
+        if (detected && detected !== postLanguage) {
+            setPostLanguage(detected);
+        }
+    }, [content, isOpen, isLanguageManual, postLanguage]);
+
+    // Update defaults if they change in settings
+    useEffect(() => {
+        if (!isEditing && authSettings) {
+            setReplyRestriction(authSettings.defaultReplyRestriction || 'anyone');
+            setAllowQuotes(authSettings.defaultAllowQuotes ?? true);
+        }
+    }, [authSettings, isEditing]);
 
     const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newValue = e.target.value;
@@ -251,6 +293,9 @@ const CreatePostModal: React.FC = () => {
 
         const formData = new FormData();
         formData.append('Content', content);
+        formData.append('ReplyRestriction', replyRestriction);
+        formData.append('AllowQuotes', allowQuotes.toString());
+        if (postLanguage) formData.append('Language', postLanguage);
 
         if (isQuoting && postToQuote) {
             formData.append('QuotePostId', postToQuote.id);
@@ -428,6 +473,29 @@ const CreatePostModal: React.FC = () => {
                                     autoFocus
                                 />
 
+                                {/* Interaction Settings Button */}
+                                <div className="mt-2 mb-4">
+                                    <button
+                                        onClick={() => setIsInteractionModalOpen(true)}
+                                        className={cn(
+                                            "flex items-center gap-2 px-3 py-1.5 rounded-full text-[14px] font-bold transition-all border",
+                                            replyRestriction === 'anyone' && allowQuotes
+                                                ? "text-gray-500 dark:text-dark-text-secondary border-gray-200 dark:border-dark-border hover:bg-gray-100 dark:hover:bg-dark-surface"
+                                                : "text-primary-500 border-primary-500/30 bg-primary-500/5 hover:bg-primary-500/10"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            {replyRestriction === 'anyone' ? <FiSmile size={14} /> : <FiX size={14} />}
+                                            <span>
+                                                {replyRestriction === 'anyone' && allowQuotes
+                                                    ? t('post.anyone_can_interact', 'Anyone can interact')
+                                                    : t('post.interaction_limited', 'Interaction limited')}
+                                            </span>
+                                        </div>
+                                        <FiChevronRight size={14} className="rotate-90 opacity-50" />
+                                    </button>
+                                </div>
+
                                 {content.trim().length > 0 && (content.includes('@') || content.includes('http')) && (
                                     <div className="mt-2 mb-4 p-3 bg-blue-50/30 dark:bg-primary-900/5 rounded-xl border border-blue-100/50 dark:border-primary-800/20">
                                         <div className="text-[11px] font-bold text-primary-500 uppercase tracking-wider mb-2 opacity-70">
@@ -580,39 +648,117 @@ const CreatePostModal: React.FC = () => {
                     </div>
 
                     {/* Footer Toolbar */}
-                    <div className="px-4 py-3 border-t border-gray-100 dark:border-dark-border flex items-center gap-2 relative">
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            className="hidden"
-                            accept="image/*,video/*"
-                            multiple
-                        />
-                        <button
-                            onClick={handleImageClick}
-                            disabled={images.length >= 20 || !!video}
-                            className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors disabled:opacity-50"
-                        >
-                            <FiImage size={22} />
-                        </button>
-                        <button
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                            className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors"
-                        >
-                            <FiSmile size={22} />
-                        </button>
-                        {showEmojiPicker && (
-                            <div className="absolute bottom-full left-0 lg:left-0 z-50 mb-2 w-full sm:w-auto">
-                                <EmojiPicker
-                                    onEmojiClick={onEmojiClick}
-                                    theme={Theme.AUTO}
-                                    width="100%"
-                                    searchDisabled={window.innerWidth < 640}
-                                    skinTonesDisabled={window.innerWidth < 640}
-                                />
+                    <div className="px-4 py-3 border-t border-gray-100 dark:border-dark-border flex items-center justify-between relative">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept="image/*,video/*"
+                                multiple
+                            />
+                            <button
+                                onClick={handleImageClick}
+                                disabled={images.length >= 20 || !!video}
+                                className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors disabled:opacity-50"
+                            >
+                                <FiImage size={22} />
+                            </button>
+                            <button
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors"
+                            >
+                                <FiSmile size={22} />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            {/* Language Selector */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+                                    className="text-[13px] font-bold text-primary-500 hover:opacity-80 transition-opacity"
+                                >
+                                    {ALL_LANGUAGES.find(l => l.code === postLanguage)?.englishName || t('post.detect_language', 'Detect language')}
+                                </button>
+
+                                {isLanguageDropdownOpen && (
+                                    <div className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-2xl shadow-xl overflow-hidden z-50 animate-in slide-in-from-bottom-2 duration-200">
+                                        <div className="max-h-[300px] overflow-y-auto p-1.5 space-y-0.5">
+                                            {['en', 'vi', 'ja', 'fr'].map(code => {
+                                                const lang = ALL_LANGUAGES.find(l => l.code === code);
+                                                if (!lang) return null;
+                                                return (
+                                                    <button
+                                                        key={code}
+                                                        onClick={() => {
+                                                            setPostLanguage(code);
+                                                            setIsLanguageManual(true);
+                                                            setIsLanguageDropdownOpen(false);
+                                                        }}
+                                                        className={cn(
+                                                            "w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-colors",
+                                                            postLanguage === code ? "bg-primary-500 text-white font-bold" : "hover:bg-gray-50 dark:hover:bg-dark-hover dark:text-dark-text"
+                                                        )}
+                                                    >
+                                                        <span>{lang.englishName}</span>
+                                                        {postLanguage === code && <FiCheck size={14} />}
+                                                    </button>
+                                                );
+                                            })}
+                                            <div className="h-px bg-gray-100 dark:bg-dark-border my-1.5" />
+                                            <button
+                                                onClick={() => {
+                                                    // Open full language modal if needed, but for now let's just show a few options
+                                                    setIsLanguageDropdownOpen(false);
+                                                }}
+                                                className="w-full text-left px-4 py-2.5 rounded-xl text-sm text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors flex items-center justify-between"
+                                            >
+                                                <span>{t('language.more_languages', 'More languages...')}</span>
+                                                <FiChevronRight size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            <div className="flex items-center gap-3">
+                                <span className={cn(
+                                    "text-[13px] font-medium transition-colors",
+                                    isOverLimit ? "text-red-500" : "text-gray-500 dark:text-dark-text-secondary"
+                                )}>
+                                    {remainingChars}
+                                </span>
+                                <div className="w-5 h-5 relative">
+                                    <svg className="w-full h-full -rotate-90 transform">
+                                        <circle
+                                            cx="10"
+                                            cy="10"
+                                            r="8"
+                                            fill="transparent"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            className="text-gray-200 dark:text-dark-border"
+                                        />
+                                        <circle
+                                            cx="10"
+                                            cy="10"
+                                            r="8"
+                                            fill="transparent"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeDasharray={50.26}
+                                            strokeDashoffset={50.26 * (1 - Math.max(0, Math.min(1, content.length / POST_CHARACTER_LIMIT)))}
+                                            className={cn(
+                                                "transition-all duration-300",
+                                                isOverLimit ? "text-red-500" : remainingChars <= 20 ? "text-amber-500" : "text-primary-500"
+                                            )}
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -624,6 +770,15 @@ const CreatePostModal: React.FC = () => {
                 imageUrl={(editingImageIndex !== null && images[editingImageIndex]) ? images[editingImageIndex].url : ''}
                 initialAlt={(editingImageIndex !== null && images[editingImageIndex]) ? (images[editingImageIndex].alt || '') : ''}
                 onSave={saveAltText}
+            />
+
+            <PostInteractionSettingsModal
+                isOpen={isInteractionModalOpen}
+                onClose={() => setIsInteractionModalOpen(false)}
+                replyRestriction={replyRestriction}
+                setReplyRestriction={setReplyRestriction}
+                allowQuotes={allowQuotes}
+                setAllowQuotes={setAllowQuotes}
             />
 
             {/* Discard Confirmation Modal */}

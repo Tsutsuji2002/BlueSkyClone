@@ -46,7 +46,7 @@ const Feed: React.FC<FeedProps> = ({
         const otherPosts: Post[] = [];
 
         basePosts.forEach(post => {
-            const lang = detectLanguage(post.content);
+            const lang = post.language || detectLanguage(post.content);
             if (contentLanguages.includes(lang)) {
                 matchingPosts.push(post);
             } else {
