@@ -860,11 +860,11 @@ const PostDetailPage: React.FC = () => {
                         onClose={() => setIsInteractionModalOpen(false)}
                         replyRestriction={post.replyRestriction || 'anyone'}
                         setReplyRestriction={(val) => {
-                            dispatch(fetchPostById(post.id));
+                            // Handled by updateInteractionSettings thunk if postId is present
                         }}
                         allowQuotes={post.allowQuotes !== false}
                         setAllowQuotes={(val) => {
-                            dispatch(fetchPostById(post.id));
+                            // Handled by updateInteractionSettings thunk if postId is present
                         }}
                         postId={post.id}
                     />

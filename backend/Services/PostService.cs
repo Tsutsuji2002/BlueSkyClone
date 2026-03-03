@@ -1608,10 +1608,15 @@ public class PostService : IPostService
         return await EnrichAndFilterPostsAsync(result, userId);
     }
 
-    public async Task<bool> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request)
+    public async Task<PostDto?> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request)
     {
-        var post = await _unitOfWork.Posts.GetByIdAsync(postId);
-        if (post == null || post.AuthorId != userId) return false;
+        var post = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
+        if (post == null || post.AuthorId != userId) return null;
 
         if (request.ReplyRestriction != null)
         {
@@ -1620,10 +1625,13 @@ public class PostService : IPostService
 
         if (request.AllowQuotes != null)
         {
-            post.AllowQuotes = request.AllowQuotes;
+            post.AllowQuotes = request.AllowQuotes.Value;
         }
 
         _unitOfWork.Posts.Update(post);
-        return await _unitOfWork.CompleteAsync() > 0;
+        await _unitOfWork.CompleteAsync();
+
+        var dto = MapToDto(post);
+        return await EnrichAndFilterPostsAsync(new List<PostDto> { dto }, userId).ContinueWith(t => t.Result.First());
     }
 }

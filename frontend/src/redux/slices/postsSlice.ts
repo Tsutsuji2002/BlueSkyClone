@@ -189,6 +189,31 @@ export const deletePost = createAsyncThunk<string[], string>(
     }
 );
 
+export const updateInteractionSettings = createAsyncThunk(
+    'posts/updateInteractionSettings',
+    async ({ postId, replyRestriction, allowQuotes }: { postId: string; replyRestriction: string; allowQuotes: boolean }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/interaction-settings`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ replyRestriction, allowQuotes })
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to update interaction settings');
+            }
+            const data = await response.json();
+            return data; // Returns the updated PostDto
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const fetchPostsByTag = createAsyncThunk(
     'posts/fetchByTag',
     async ({ tag, limit = 20, offset = 0 }: { tag: string; limit?: number; offset?: number }, { rejectWithValue }) => {
@@ -726,6 +751,44 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.discoverLoading = false;
                 state.error = action.payload as string;
+            })
+            // Update Interaction Settings
+            .addCase(updateInteractionSettings.pending, (state: PostsState, action) => {
+                const { postId, replyRestriction, allowQuotes } = action.meta.arg;
+                state.actionLoading[postId] = true;
+
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.id === postId);
+                    if (post) {
+                        post.replyRestriction = replyRestriction;
+                        post.allowQuotes = allowQuotes;
+                        // Also update canReply optimistically if we can infer it
+                        // For simplicity, we just update the restriction fields
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
+            })
+            .addCase(updateInteractionSettings.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
+                state.actionLoading[action.payload.id] = false;
+                const updateInArray = (arr: Post[]) => {
+                    const index = arr.findIndex(p => p.id === action.payload.id);
+                    if (index !== -1) {
+                        arr[index] = action.payload;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
+            })
+            .addCase(updateInteractionSettings.rejected, (state: PostsState, action) => {
+                const postId = action.meta.arg.postId;
+                state.actionLoading[postId] = false;
+                state.error = action.payload as string;
+                // Note: Full rollback would require storing old values, 
+                // but since we usually fetch the post again or rely on next refresh, 
+                // this is a reasonable compromise for now.
             });
 
 

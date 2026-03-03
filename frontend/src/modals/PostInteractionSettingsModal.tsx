@@ -6,6 +6,7 @@ import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { updateInteractionSettings } from '../redux/slices/postsSlice';
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
 
@@ -88,16 +89,11 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
         }
 
         if (postId) {
-            try {
-                await axios.post(`${API_BASE_URL}/posts/${postId}/interaction-settings`, {
-                    replyRestriction: finalRestriction,
-                    allowQuotes: localQuotes
-                }, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-            } catch (error) {
-                console.error('Failed to update post interaction settings', error);
-            }
+            dispatch(updateInteractionSettings({
+                postId,
+                replyRestriction: finalRestriction,
+                allowQuotes: localQuotes
+            }));
         }
 
         setReplyRestriction(finalRestriction);
