@@ -36,7 +36,7 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const authSettings = useAppSelector((state) => state.auth.settings);
-    const token = useAppSelector(state => state.auth.token);
+    const token = localStorage.getItem('token');
 
     const [localReply, setLocalReply] = useState(replyRestriction);
     const [localQuotes, setLocalQuotes] = useState(allowQuotes);
