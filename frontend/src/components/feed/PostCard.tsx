@@ -442,12 +442,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                         </div>
 
                         {/* Interaction Status */}
-                        {(post.replyRestriction && post.replyRestriction !== 'anyone' || post.allowQuotes === false) && (
-                            <div className="flex items-center gap-1.5 text-[12px] font-bold text-primary-500 mb-2 px-2 py-0.5 bg-primary-500/5 rounded-md w-fit">
-                                <FiX size={12} />
-                                <span>{t('post.interaction_limited', 'Interaction limited')}</span>
-                            </div>
-                        )}
 
                         {/* Actions */}
                         <div className="flex items-center justify-between mt-1">

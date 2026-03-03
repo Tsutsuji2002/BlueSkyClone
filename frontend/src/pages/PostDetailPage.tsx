@@ -531,12 +531,6 @@ const PostDetailPage: React.FC = () => {
                     )}
 
                     {/* Interaction Status & Details */}
-                    {(post.replyRestriction && post.replyRestriction !== 'anyone' || post.allowQuotes === false) && (
-                        <div className="flex items-center gap-1.5 text-[13px] font-bold text-primary-500 mb-4 px-3 py-1 bg-primary-500/5 rounded-full w-fit border border-primary-500/10">
-                            <FiX size={14} />
-                            <span>{t('post.interaction_limited', 'Interaction limited')}</span>
-                        </div>
-                    )}
 
                     {/* Footer Info */}
                     <div className="flex items-center gap-2 text-gray-500 dark:text-dark-text-secondary text-sm mb-4">
