@@ -363,24 +363,31 @@ const postsSlice = createSlice({
             state.posts = [];
             state.hasMore = true;
         },
-        updatePostStats: (state, action: PayloadAction<{ postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number }>) => {
-            const { postId, ...stats } = action.payload;
+        updatePostStats: (state, action: PayloadAction<{ postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
+            const { postId, timestamp, ...stats } = action.payload;
             const updateInArray = (arr: Post[]) => {
                 const post = arr.find(p => p.id === postId);
                 if (post) {
-                    Object.assign(post, stats);
+                    // Only update if no timestamp or if the incoming timestamp is newer
+                    if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
+                        Object.assign(post, stats);
+                        if (timestamp) post.lastUpdated = timestamp;
+                    }
                 }
             };
             updateInArray(state.posts);
             updateInArray(state.discoverPosts);
             updateInArray(state.trendingPosts);
         },
-        updateUserPostStatus: (state, action: PayloadAction<{ postId: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean }>) => {
-            const { postId, ...status } = action.payload;
+        updateUserPostStatus: (state, action: PayloadAction<{ postId: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
+            const { postId, timestamp, ...status } = action.payload;
             const updateInArray = (arr: Post[]) => {
                 const post = arr.find(p => p.id === postId);
                 if (post) {
-                    Object.assign(post, status);
+                    if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
+                        Object.assign(post, status);
+                        if (timestamp) post.lastUpdated = timestamp;
+                    }
                 }
             };
             updateInArray(state.posts);
@@ -534,12 +541,14 @@ const postsSlice = createSlice({
             })
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isLiked: boolean, likesCount: number }>) => {
                 state.actionLoading[action.payload.postId] = false;
-                // Update in timeline/user posts with actual server data
                 const updateInArray = (arr: Post[]) => {
                     const post = arr.find(p => p.id === action.payload.postId);
                     if (post) {
                         post.isLiked = action.payload.isLiked;
+                        // Don't overwrite count if it was updated by something newer (SignalR)
+                        // If we don't have a timestamp from the thunk, we just trust the thunk for the initiator
                         post.likesCount = action.payload.likesCount;
+                        post.lastUpdated = new Date().toISOString();
                     }
                 };
                 updateInArray(state.posts);
@@ -588,6 +597,7 @@ const postsSlice = createSlice({
                     if (post) {
                         post.isReposted = action.payload.isReposted;
                         post.repostsCount = action.payload.repostsCount;
+                        post.lastUpdated = new Date().toISOString();
                     }
                 };
                 updateInArray(state.posts);
@@ -635,6 +645,7 @@ const postsSlice = createSlice({
                     if (post) {
                         post.isBookmarked = action.payload.isBookmarked;
                         post.bookmarksCount = action.payload.bookmarksCount;
+                        post.lastUpdated = new Date().toISOString();
                     }
                 };
                 updateInArray(state.posts);

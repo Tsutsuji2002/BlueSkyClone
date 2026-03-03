@@ -18,11 +18,11 @@ class PostSignalRService {
             .withAutomaticReconnect()
             .build();
 
-        this.connection.on('UpdatePostStats', (stats: { postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number }) => {
+        this.connection.on('UpdatePostStats', (stats: { postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number, timestamp?: string }) => {
             store.dispatch(updatePostStats(stats));
         });
 
-        this.connection.on('UpdateUserPostStatus', (status: { postId: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean }) => {
+        this.connection.on('UpdateUserPostStatus', (status: { postId: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean, timestamp?: string }) => {
             store.dispatch(updateUserPostStatus(status));
         });
 

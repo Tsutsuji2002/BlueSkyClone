@@ -153,6 +153,7 @@ export interface Post {
     allowQuotes?: boolean;
     language?: string;
     repostedBy?: Partial<User>;
+    lastUpdated?: string; // ISO string for local cross-event ordering
 }
 
 // Comment/Reply types

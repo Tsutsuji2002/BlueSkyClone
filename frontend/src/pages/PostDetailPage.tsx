@@ -145,10 +145,13 @@ const PostDetailPage: React.FC = () => {
             if (!post) {
                 dispatch(fetchPostById(postId));
             }
-            dispatch(fetchPostReplies(postId));
-            fetchedRepliesRef.current.add(postId);
+            // Only fetch replies if we haven't already for this specific postId in this mount
+            if (!fetchedRepliesRef.current.has(postId)) {
+                dispatch(fetchPostReplies(postId));
+                fetchedRepliesRef.current.add(postId);
+            }
         }
-    }, [dispatch, postId, post]);
+    }, [dispatch, postId]); // Removed post from dependencies
 
     const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
     React.useEffect(() => {
