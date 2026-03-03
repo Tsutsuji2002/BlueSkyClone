@@ -374,9 +374,6 @@ const postsSlice = createSlice({
             updateInArray(state.posts);
             updateInArray(state.discoverPosts);
             updateInArray(state.trendingPosts);
-            if (state.currentPost?.id === postId) {
-                Object.assign(state.currentPost, stats);
-            }
         },
         updateUserPostStatus: (state, action: PayloadAction<{ postId: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean }>) => {
             const { postId, ...status } = action.payload;
@@ -389,18 +386,12 @@ const postsSlice = createSlice({
             updateInArray(state.posts);
             updateInArray(state.discoverPosts);
             updateInArray(state.trendingPosts);
-            if (state.currentPost?.id === postId) {
-                Object.assign(state.currentPost, status);
-            }
         },
         removePost: (state, action: PayloadAction<string>) => {
             const postId = action.payload;
             state.posts = state.posts.filter(p => p.id !== postId);
             state.discoverPosts = state.discoverPosts.filter(p => p.id !== postId);
             state.trendingPosts = state.trendingPosts.filter(p => p.id !== postId);
-            if (state.currentPost?.id === postId) {
-                state.currentPost = null;
-            }
         }
     },
 
