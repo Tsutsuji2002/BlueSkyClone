@@ -82,6 +82,7 @@ builder.Services.AddScoped<ICategorizationService, CategorizationService>();
 builder.Services.AddScoped<ISearchService, ElasticSearchService>();
 builder.Services.AddSingleton<IMLModelService, MLModelService>();
 builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
 
 // Redis Caching
 if (builder.Environment.IsDevelopment())
@@ -492,8 +493,23 @@ using (var scope = app.Services.CreateScope())
                 UPDATE u SET u.PostsCount = sub.ActualCount FROM Users u INNER JOIN (SELECT AuthorId, COUNT(*) AS ActualCount FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL GROUP BY AuthorId) sub ON u.Id = sub.AuthorId WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
                 UPDATE Users SET PostsCount = 0 WHERE PostsCount IS NULL AND Id NOT IN (SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL);
                 UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';";
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='SupportRequests' AND xtype='U')
+                BEGIN
+                    CREATE TABLE SupportRequests (
+                        Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                        Email NVARCHAR(256) NOT NULL,
+                        Description NVARCHAR(MAX) NOT NULL,
+                        Username NVARCHAR(256) NULL,
+                        Category NVARCHAR(50) NOT NULL,
+                        DeviceType NVARCHAR(20) NOT NULL,
+                        Status NVARCHAR(20) NOT NULL DEFAULT 'pending',
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        UserId UNIQUEIDENTIFIER NULL,
+                        CONSTRAINT FK_Support_User FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE SET NULL
+                    )
+                END";
             context.Database.ExecuteSqlRaw(sql);
-            logger.LogInformation("Applied manual schema updates for Hashtags, Lists, and Cleanup.");
+            logger.LogInformation("Applied manual schema updates for Hashtags, Lists, SupportRequests, and Cleanup.");
         }
         catch (Exception ex) { logger.LogWarning(ex, "Manual update block 5 failed."); }
 

@@ -67,6 +67,7 @@ const ListManagementPage = React.lazy(() => import('../pages/admin/ListManagemen
 const ConversationManagementPage = React.lazy(() => import('../pages/admin/ConversationManagementPage'));
 const ModerationPage = React.lazy(() => import('../pages/admin/ModerationPage'));
 const NotificationManagementPage = React.lazy(() => import('../pages/admin/NotificationManagementPage'));
+const SupportManagementPage = React.lazy(() => import('../pages/admin/SupportManagementPage'));
 
 const AppRoutes: React.FC = () => {
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
@@ -143,6 +144,7 @@ const AppRoutes: React.FC = () => {
                         <Route path="conversations" element={<ConversationManagementPage />} />
                         <Route path="moderation" element={<ModerationPage />} />
                         <Route path="notifications" element={<NotificationManagementPage />} />
+                        <Route path="support" element={<SupportManagementPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

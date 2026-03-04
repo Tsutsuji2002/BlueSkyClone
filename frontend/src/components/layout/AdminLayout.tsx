@@ -50,6 +50,7 @@ const AdminLayout: React.FC = () => {
             items: [
                 { path: '/admin/moderation', icon: <FiShield size={20} />, label: t('admin.moderation.title') },
                 { path: '/admin/notifications', icon: <FiBell size={20} />, label: t('admin.notifications.title') },
+                { path: '/admin/support', icon: <FiMessageSquare size={20} />, label: t('admin.support.title') },
             ]
         }
     ];

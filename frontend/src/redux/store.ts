@@ -11,6 +11,7 @@ import toastReducer from './slices/toastSlice';
 import feedsReducer from './slices/feedsSlice';
 import trendingReducer from './slices/trendingSlice';
 import listsReducer from './slices/listsSlice';
+import supportReducer from './slices/supportSlice';
 
 const appReducer = combineReducers({
     theme: themeReducer,
@@ -25,6 +26,7 @@ const appReducer = combineReducers({
     feeds: feedsReducer,
     trending: trendingReducer,
     lists: listsReducer,
+    support: supportReducer,
 });
 
 const rootReducer = (state: ReturnType<typeof appReducer> | undefined, action: AnyAction) => {

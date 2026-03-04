@@ -63,6 +63,7 @@ public partial class BSkyDbContext : DbContext
     public virtual DbSet<UserListSubscription> UserListSubscriptions { get; set; }
 
     public virtual DbSet<ListPost> ListPosts { get; set; }
+    public virtual DbSet<SupportRequest> SupportRequests { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -662,6 +663,22 @@ public partial class BSkyDbContext : DbContext
                 .WithOne(m => m.LinkPreview)
                 .HasForeignKey<LinkPreview>(d => d.MessageId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SupportRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("pending");
+            entity.Property(e => e.Category).HasMaxLength(50);
+            entity.Property(e => e.DeviceType).HasMaxLength(20);
+            entity.Property(e => e.Email).HasMaxLength(256);
+            entity.Property(e => e.Username).HasMaxLength(256);
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);

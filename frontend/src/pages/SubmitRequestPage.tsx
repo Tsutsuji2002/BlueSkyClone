@@ -4,12 +4,17 @@ import { FiMenu, FiX } from 'react-icons/fi';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css'; // Import styles
 import { useAppSelector } from '../hooks/useAppSelector';
+import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { useTranslation } from 'react-i18next';
+import { submitSupportRequest, resetSupportStatus } from '../redux/slices/supportSlice';
+import { showToast } from '../redux/slices/toastSlice';
 
 const SubmitRequestPage: React.FC = () => {
     const { t } = useTranslation();
+    const dispatch = useAppDispatch();
     const { user } = useAppSelector((state: RootState) => state.auth);
+    const { loading, success, error } = useAppSelector((state: RootState) => state.support);
     const location = useLocation();
 
     const [email, setEmail] = useState('');
@@ -31,11 +36,27 @@ const SubmitRequestPage: React.FC = () => {
         const usernameParam = searchParams.get('username');
 
         if (emailParam) setEmail(emailParam);
-        else if (user) setEmail(`${user.username}@gmail.com`);
+        else if (user) setEmail(user.email || '');
 
         if (usernameParam) setUsername(usernameParam);
         else if (user) setUsername(user.handle);
     }, [location.search, user]);
+
+    useEffect(() => {
+        if (success) {
+            dispatch(showToast({ message: t('support.submit_success'), type: 'success' }));
+            setEmail('');
+            setDescription('');
+            setCategory('');
+            setDeviceType('');
+            setFiles([]);
+            dispatch(resetSupportStatus());
+        }
+        if (error) {
+            dispatch(showToast({ message: error, type: 'error' }));
+            dispatch(resetSupportStatus());
+        }
+    }, [success, error, dispatch, t]);
 
     // Custom Toolbar Configuration to match Zendesk style
     const modules = {
@@ -107,6 +128,21 @@ const SubmitRequestPage: React.FC = () => {
 
     const triggerFileInput = () => {
         fileInputRef.current?.click();
+    };
+
+    const handleSubmit = async () => {
+        if (!email || !description || !category || !deviceType) {
+            dispatch(showToast({ message: t('support.fill_required'), type: 'error' }));
+            return;
+        }
+
+        dispatch(submitSupportRequest({
+            email,
+            description,
+            username,
+            category,
+            deviceType
+        }));
     };
 
     return (
@@ -323,8 +359,17 @@ const SubmitRequestPage: React.FC = () => {
                 </div>
 
                 <div className="mt-8">
-                    <button className="bg-[#0072EF] hover:bg-[#0060cb] text-white font-medium py-2.5 px-6 rounded transition-colors text-sm">
-                        {t('support.submit')}
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className={`bg-[#0072EF] hover:bg-[#0060cb] text-white font-medium py-2.5 px-6 rounded transition-colors text-sm flex items-center gap-2 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                        {loading ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                {t('support.submitting')}
+                            </>
+                        ) : t('support.submit')}
                     </button>
                 </div>
             </div>
