@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
-import { FiUsers, FiCpu, FiMessageSquare, FiActivity, FiArrowLeft, FiTag, FiList, FiMessageCircle, FiShield, FiBell, FiMenu, FiX, FiHash } from 'react-icons/fi';
+import { FiUsers, FiCpu, FiMessageSquare, FiActivity, FiArrowLeft, FiTag, FiList, FiMessageCircle, FiShield, FiBell, FiMenu, FiX, FiHash, FiFileText } from 'react-icons/fi';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -51,6 +51,7 @@ const AdminLayout: React.FC = () => {
                 { path: '/admin/moderation', icon: <FiShield size={20} />, label: t('admin.moderation.title') },
                 { path: '/admin/notifications', icon: <FiBell size={20} />, label: t('admin.notifications.title') },
                 { path: '/admin/support', icon: <FiMessageSquare size={20} />, label: t('admin.support.title') },
+                { path: '/admin/pages', icon: <FiFileText size={20} />, label: 'Legal Pages' },
             ]
         }
     ];

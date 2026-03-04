@@ -170,7 +170,7 @@ const RightSidebar: React.FC = () => {
                     <a href={supportLink} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary-500 font-medium">{t('sidebar.feedback', { defaultValue: 'Phản hồi' })}</a>
                     <span>·</span>
                     <button
-                        onClick={() => navigate('/settings/privacy')}
+                        onClick={() => navigate('/about/privacy-policy')}
                         className="hover:underline hover:text-gray-600 dark:hover:text-dark-text transition-colors"
                     >
                         {t('sidebar.privacy', { defaultValue: 'Quyền riêng tư' })}

@@ -68,6 +68,10 @@ const api = {
             });
             return handleResponse(response) as Promise<{ data: any[] }>;
         }
+    },
+    pageContent: {
+        get: (slug: string) => api.get<any>(`/PageContent/${slug}`),
+        update: (slug: string, body: any) => api.put<void>(`/PageContent/${slug}`, body)
     }
 };
 

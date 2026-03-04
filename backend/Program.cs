@@ -507,6 +507,22 @@ using (var scope = app.Services.CreateScope())
                         UserId UNIQUEIDENTIFIER NULL,
                         CONSTRAINT FK_Support_User FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE SET NULL
                     )
+                END;
+
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name=''PageContents'' AND xtype=''U'')
+                BEGIN
+                    CREATE TABLE PageContents (
+                        Slug NVARCHAR(100) PRIMARY KEY,
+                        Title NVARCHAR(200) NOT NULL,
+                        HtmlContent NVARCHAR(MAX) NOT NULL,
+                        UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+                    )
+                END;
+
+                IF NOT EXISTS (SELECT * FROM PageContents WHERE Slug = ''privacy-policy'')
+                BEGIN
+                    INSERT INTO PageContents (Slug, Title, HtmlContent, UpdatedAt)
+                    VALUES (''privacy-policy'', ''Privacy Policy'', ''<h1>Privacy Policy</h1><p>This is the default privacy policy. Please edit it in the Admin UI.</p>'', GETUTCDATE())
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied manual schema updates for Hashtags, Lists, SupportRequests, and Cleanup.");

@@ -203,7 +203,7 @@ const MobileMenu: React.FC = () => {
                         </button>
                         <button
                             onClick={() => {
-                                navigate('/settings/privacy');
+                                navigate('/about/privacy-policy');
                                 dispatch(closeMobileMenu());
                             }}
                             className="text-[#0085ff] dark:text-primary-500 hover:underline text-sm font-medium text-left"

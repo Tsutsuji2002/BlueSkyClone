@@ -64,6 +64,7 @@ public partial class BSkyDbContext : DbContext
 
     public virtual DbSet<ListPost> ListPosts { get; set; }
     public virtual DbSet<SupportRequest> SupportRequests { get; set; }
+    public virtual DbSet<PageContent> PageContents { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
