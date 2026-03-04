@@ -18,7 +18,7 @@ const ChangeHandleModal: React.FC<ChangeHandleModalProps> = ({ isOpen, onClose }
     const dispatch = useAppDispatch();
     const currentUser = useAppSelector((state) => state.auth.user);
 
-    const [mode, setMode] = useState<'selection' | 'custom' | 'default'>('custom');
+    const [mode, setMode] = useState<'selection' | 'custom' | 'default'>('default');
     const [handle, setHandle] = useState('');
     const [verifyMethod, setVerifyMethod] = useState<'dns' | 'http'>('dns');
     const [isLoading, setIsLoading] = useState(false);
@@ -204,7 +204,7 @@ const ChangeHandleModal: React.FC<ChangeHandleModalProps> = ({ isOpen, onClose }
                                 onClick={() => setMode('default')}
                                 className="w-full text-center py-2 text-gray-600 dark:text-dark-text-secondary font-bold text-[15px] flex items-center justify-center gap-2 hover:opacity-80 transition-opacity"
                             >
-                                <FiChevronLeft /> Nevermind, create a handle for me
+                                <FiChevronLeft /> I'll use a .bsky.social handle
                             </button>
                         </div>
                     )}
