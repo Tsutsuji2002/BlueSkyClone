@@ -8,8 +8,9 @@ interface GifPickerProps {
     onClose: () => void;
 }
 
-const TENOR_API_KEY = process.env.REACT_APP_TENOR_API_KEY || 'LIVDSRZULEUB'; // Default for testing if not provided
-const CLIENT_KEY = 'bluesky_clone';
+// GIPHY API configuration
+const GIPHY_API_KEY = process.env.REACT_APP_GIPHY_API_KEY || 'pwI6O1p3H7m5C3K3pY7vY8R3n8H1z2N4'; // Use a demo key for testing if not provided
+const GIPHY_BASE_URL = 'https://api.giphy.com/v1/gifs';
 
 const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
     const { t } = useTranslation();
@@ -24,19 +25,19 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
         setError(null);
         try {
             const endpoint = query
-                ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${TENOR_API_KEY}&client_key=${CLIENT_KEY}&limit=20`
-                : `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&client_key=${CLIENT_KEY}&limit=20`;
+                ? `${GIPHY_BASE_URL}/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=20&rating=g`
+                : `${GIPHY_BASE_URL}/trending?api_key=${GIPHY_API_KEY}&limit=20&rating=g`;
 
             const response = await fetch(endpoint);
             const data = await response.json();
 
-            if (data.results) {
-                setGifs(data.results);
+            if (data.data) {
+                setGifs(data.data);
             } else {
                 setGifs([]);
             }
         } catch (err) {
-            console.error('Error fetching GIFs:', err);
+            console.error('Error fetching GIPHY GIFs:', err);
             setError(t('common.failed_to_load', 'Failed to load GIFs'));
         } finally {
             setIsLoading(false);
@@ -62,7 +63,7 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder={t('post.search_gifs', 'Search Tenor GIFs')}
+                        placeholder={t('post.search_gifs', 'Search GIPHY GIFs')}
                         className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-dark-hover rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all dark:text-dark-text"
                         autoFocus
                     />
@@ -107,12 +108,12 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
                         {gifs.map((gif) => (
                             <button
                                 key={gif.id}
-                                onClick={() => onSelect(gif.media_formats.mediumgif.url)}
+                                onClick={() => onSelect(gif.images.fixed_height.url)}
                                 className="relative aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-dark-hover group transition-transform hover:scale-[1.02] active:scale-[0.98]"
                             >
                                 <img
-                                    src={gif.media_formats.tinygif.url}
-                                    alt={gif.content_description}
+                                    src={gif.images.fixed_height_small.url}
+                                    alt={gif.title}
                                     className="w-full h-full object-cover"
                                     loading="lazy"
                                 />
@@ -124,11 +125,11 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
             </div>
 
             {/* Attribution */}
-            <div className="p-2 flex justify-center border-t border-gray-100 dark:border-dark-border">
+            <div className="p-2 flex justify-center border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-hover/30">
                 <img
-                    src="https://tenor.com/assets/img/links/powered-by-tenor-gray.png"
-                    alt="Powered by Tenor"
-                    className="h-4 opacity-50"
+                    src="https://raw.githubusercontent.com/Giphy/giphy-ios-sdk-ui-example/master/GiphySDK/Assets.xcassets/Poweredby_640px-White_VertText.imageset/Poweredby_640px-White_VertText.png"
+                    alt="Powered by GIPHY"
+                    className="h-8 object-contain dark:invert opacity-70"
                 />
             </div>
         </div>

@@ -627,7 +627,7 @@
         "reposted_by": "Đã đăng lại bởi {{name}}",
         "read_more_replies": "Đọc thêm {{count}} phản hồi",
         "read_more_reply": "Đọc thêm 1 phản hồi",
-        "search_gifs": "Tìm GIF từ Tenor",
+        "search_gifs": "Tìm GIF từ GIPHY",
         "trending_gifs": "GIF xu hướng",
         "no_gifs_found": "Không tìm thấy GIF nào"
     },

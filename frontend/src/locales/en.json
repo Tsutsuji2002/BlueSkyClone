@@ -654,7 +654,7 @@
         "reposted_by": "Reposted by {{name}}",
         "read_more_replies": "Read {{count}} more replies",
         "read_more_reply": "Read 1 more reply",
-        "search_gifs": "Search Tenor GIFs",
+        "search_gifs": "Search GIPHY GIFs",
         "trending_gifs": "Trending GIFs",
         "no_gifs_found": "No GIFs found"
     },
