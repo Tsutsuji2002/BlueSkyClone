@@ -68,16 +68,26 @@ const PrivacyPolicyPage: React.FC = () => {
 
             {/* Content Container */}
             <main className="max-w-3xl mx-auto px-6 py-12 md:py-16">
+                <style>
+                    {`
+                    .privacy-content h1 { font-size: 2.25rem; line-height: 2.5rem; font-weight: 700; margin-bottom: 2rem; color: inherit; }
+                    .privacy-content h2 { font-size: 1.5rem; line-height: 2rem; font-weight: 700; margin-top: 3rem; margin-bottom: 1rem; color: inherit; }
+                    .privacy-content h3 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: inherit; }
+                    .privacy-content p { font-size: 17px; line-height: 1.6; margin-bottom: 1.25rem; color: var(--text-color); }
+                    .privacy-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1.25rem; }
+                    .privacy-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1.25rem; }
+                    .privacy-content li { font-size: 17px; line-height: 1.6; margin-bottom: 0.5rem; color: var(--text-color); }
+                    .privacy-content strong { font-weight: 600; color: inherit; }
+                    .privacy-content a { color: #0087ff; text-decoration: none; }
+                    .privacy-content a:hover { text-decoration: underline; }
+                    
+                    /* Dark mode specific variable */
+                    .dark .privacy-content { --text-color: #d1d5db; color: #fff; }
+                    .privacy-content { --text-color: #374151; color: #000; }
+                    `}
+                </style>
                 <div
-                    className="prose prose-lg dark:prose-invert max-w-none 
-                               prose-headings:font-bold prose-headings:tracking-tight
-                               prose-h1:text-4xl sm:prose-h1:text-5xl prose-h1:mb-8 prose-h1:text-black dark:prose-h1:text-white
-                               prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-4
-                               prose-p:text-[17px] prose-p:leading-relaxed prose-p:text-gray-700 dark:prose-p:text-gray-300
-                               prose-li:text-[17px] prose-li:text-gray-700 dark:prose-li:text-gray-300
-                               prose-strong:text-black dark:prose-strong:text-white
-                               prose-a:text-primary-500 prose-a:no-underline hover:prose-a:underline
-                               marker:text-gray-400 dark:marker:text-gray-500"
+                    className="privacy-content"
                     dangerouslySetInnerHTML={{ __html: pageData.content }}
                 />
             </main>
