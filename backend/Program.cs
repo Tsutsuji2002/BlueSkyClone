@@ -509,7 +509,7 @@ using (var scope = app.Services.CreateScope())
                     )
                 END;
 
-                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name=''PageContents'' AND xtype=''U'')
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PageContents' AND xtype='U')
                 BEGIN
                     CREATE TABLE PageContents (
                         Slug NVARCHAR(100) PRIMARY KEY,
@@ -519,10 +519,10 @@ using (var scope = app.Services.CreateScope())
                     )
                 END;
 
-                IF NOT EXISTS (SELECT * FROM PageContents WHERE Slug = ''privacy-policy'')
+                IF NOT EXISTS (SELECT * FROM PageContents WHERE Slug = 'privacy-policy')
                 BEGIN
                     INSERT INTO PageContents (Slug, Title, HtmlContent, UpdatedAt)
-                    VALUES (''privacy-policy'', ''Privacy Policy'', ''<h1>Privacy Policy</h1><p>This is the default privacy policy. Please edit it in the Admin UI.</p>'', GETUTCDATE())
+                    VALUES ('privacy-policy', 'Privacy Policy', '<h1>Privacy Policy</h1><p>This is the default privacy policy. Please edit it in the Admin UI.</p>', GETUTCDATE())
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied manual schema updates for Hashtags, Lists, SupportRequests, and Cleanup.");
