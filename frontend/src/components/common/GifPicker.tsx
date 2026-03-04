@@ -137,7 +137,7 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
             {/* Attribution */}
             <div className="p-2 flex justify-center border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-hover/30">
                 <img
-                    src="https://binaries.giphy.com/poweredby-640px-white.png"
+                    src="https://raw.githubusercontent.com/GIPHY/giphy-js/master/packages/components/static/img/powered_by_giphy_light.png"
                     alt="Powered by GIPHY"
                     className="h-6 object-contain dark:invert opacity-70"
                 />
