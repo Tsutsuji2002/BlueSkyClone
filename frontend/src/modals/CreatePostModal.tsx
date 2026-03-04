@@ -440,7 +440,7 @@ const CreatePostModal: React.FC = () => {
             {/* Main Modal */}
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={handleClose}>
                 <div
-                    className="bg-[#16181c] rounded-[14px] border border-gray-800 w-full max-w-[600px] shadow-2xl flex flex-col"
+                    className="bg-dark-surface rounded-[14px] border border-dark-border w-full max-w-[600px] shadow-2xl flex flex-col"
                     style={{ maxHeight: 'min(90vh, 720px)' }}
                     onClick={e => e.stopPropagation()}
                 >

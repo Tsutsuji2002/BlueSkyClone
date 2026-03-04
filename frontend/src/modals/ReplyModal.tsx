@@ -7,6 +7,7 @@ import { showToast } from '../redux/slices/toastSlice';
 
 import Avatar from '../components/common/Avatar';
 import GifPicker from '../components/common/GifPicker';
+import PostInteractionSettingsModal from './PostInteractionSettingsModal';
 import { FiX, FiImage, FiSmile, FiChevronRight } from 'react-icons/fi';
 import { TbWorld } from 'react-icons/tb';
 import { useTranslation } from 'react-i18next';
@@ -127,7 +128,11 @@ const ReplyModal: React.FC = () => {
     const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
     const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
 
-    // Mention
+    // Interaction settings — default to anyone/true unless user saved custom
+    const authSettings = useAppSelector((s: RootState) => s.auth.settings);
+    const [replyRestriction, setReplyRestriction] = useState<string>('anyone');
+    const [allowQuotes, setAllowQuotes] = useState<boolean>(true);
+    const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
     const [mentionSearch, setMentionSearch] = useState('');
     const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null);
     const { results: mentionResults, isLoading: isMentionLoading } = useUserSearch(mentionSearch);
@@ -142,16 +147,19 @@ const ReplyModal: React.FC = () => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevContentRef = useRef('');
 
-    // Reset on open
+    // Reset on open: always start with 'anyone' unless user saved a preference
     useEffect(() => {
         if (isOpen) {
             setPostLanguage(uiLanguage);
             setIsLanguageManual(false);
             setLanguageAccepted(false);
+            // Use saved defaults if present, otherwise 'anyone'
+            setReplyRestriction(authSettings?.defaultReplyRestriction || 'anyone');
+            setAllowQuotes(authSettings?.defaultAllowQuotes ?? true);
         } else {
             setPostLanguage('');
         }
-    }, [isOpen, uiLanguage]);
+    }, [isOpen, uiLanguage, authSettings]);
 
     // Auto-detect composing language
     useEffect(() => {
@@ -212,6 +220,8 @@ const ReplyModal: React.FC = () => {
         setSelectedGifUrl(null); setLinkPreview(null); setStickyLink(null);
         setShowEmojiPicker(false); setShowGifPicker(false);
         setLanguageAccepted(false); setPostLanguage(''); setIsLanguageManual(false);
+        setReplyRestriction(authSettings?.defaultReplyRestriction || 'anyone');
+        setAllowQuotes(authSettings?.defaultAllowQuotes ?? true);
         prevContentRef.current = '';
     };
 
@@ -289,7 +299,7 @@ const ReplyModal: React.FC = () => {
             {/* Modal: vertically centered, safe margins */}
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
                 <div
-                    className="bg-[#16181c] w-full max-w-[600px] flex flex-col shadow-2xl rounded-[14px] border border-gray-800 pointer-events-auto"
+                    className="bg-dark-surface w-full max-w-[600px] flex flex-col shadow-2xl rounded-[14px] border border-dark-border pointer-events-auto"
                     style={{ maxHeight: 'min(92vh, 760px)' }}
                     onClick={e => e.stopPropagation()}
                 >
@@ -313,10 +323,10 @@ const ReplyModal: React.FC = () => {
                                 <Avatar src={post.author.avatarUrl || post.author.avatar} alt={post.author.displayName} size="md" />
                             </div>
                             <div className="flex-1 min-w-0 pt-0.5">
-                                <span className="font-bold text-white text-[15px]">{post.author.displayName || post.author.handle}</span>
+                                <span className="font-bold text-dark-text text-[15px]">{post.author.displayName || post.author.handle}</span>
                                 {/* Content row: text + thumbnail (images/video/linkcard) */}
                                 <div className="flex items-start gap-2 mt-0.5">
-                                    <p className="flex-1 text-[15px] text-gray-300 leading-[1.35] break-all whitespace-pre-wrap">
+                                    <p className="flex-1 text-[15px] text-dark-text-secondary leading-[1.35] break-all whitespace-pre-wrap">
                                         {post.content}
                                     </p>
                                     <OriginalPostThumb post={post} />
@@ -340,7 +350,7 @@ const ReplyModal: React.FC = () => {
                                     value={content}
                                     onChange={handleContentChange}
                                     placeholder="Write your reply"
-                                    className="w-full text-[18px] bg-transparent border-none resize-none focus:outline-none text-white placeholder-gray-500 min-h-[56px] leading-[1.35]"
+                                    className="w-full text-[18px] bg-transparent border-none resize-none focus:outline-none text-dark-text placeholder-dark-text-secondary min-h-[56px] leading-[1.35]"
                                     autoFocus
                                     rows={1}
                                 />
@@ -348,6 +358,18 @@ const ReplyModal: React.FC = () => {
                                 {mentionRange && (
                                     <MentionSuggester users={mentionResults} isLoading={isMentionLoading} onSelect={handleMentionSelect} />
                                 )}
+
+                                {/* Interaction Settings */}
+                                <div className="mt-1 mb-2">
+                                    <button
+                                        onClick={() => setIsInteractionModalOpen(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-bold border border-dark-border text-dark-text-secondary hover:bg-dark-hover transition-colors"
+                                    >
+                                        <FiSmile size={13} className="text-dark-text-secondary" />
+                                        <span>{replyRestriction === 'anyone' && allowQuotes ? 'Anyone can interact' : 'Interaction limited'}</span>
+                                        <FiChevronRight size={12} className="ml-0.5 rotate-90 opacity-40" />
+                                    </button>
+                                </div>
 
                                 {/* Attached images */}
                                 {images.length > 0 && (
@@ -406,15 +428,15 @@ const ReplyModal: React.FC = () => {
                             <div className="relative">
                                 <button onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)} className="text-[13px] font-bold text-[#1d9bf0] hover:text-[#60b8f5] transition-colors">{currentLangName}</button>
                                 {isLanguageDropdownOpen && (
-                                    <div className="absolute bottom-full right-0 mb-2 w-52 bg-[#1e2028] border border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-[65]">
+                                    <div className="absolute bottom-full right-0 mb-2 w-52 bg-dark-surface border border-dark-border rounded-2xl shadow-2xl overflow-hidden z-[65]">
                                         <div className="max-h-[240px] overflow-y-auto p-1 space-y-0.5">
                                             {['en', 'vi', 'ja', 'fr', 'ko', 'zh'].map(code => {
                                                 const lang = ALL_LANGUAGES.find(l => l.code === code);
                                                 if (!lang) return null;
-                                                return <button key={code} onClick={() => { setPostLanguage(code); setIsLanguageManual(true); setIsLanguageDropdownOpen(false); }} className={cn('w-full text-left px-4 py-2.5 rounded-xl text-[14px] transition-colors', postLanguage === code ? 'bg-[#1d9bf0] text-white font-bold' : 'text-gray-200 hover:bg-gray-700/50')}>{lang.englishName}</button>;
+                                                return <button key={code} onClick={() => { setPostLanguage(code); setIsLanguageManual(true); setIsLanguageDropdownOpen(false); }} className={cn('w-full text-left px-4 py-2.5 rounded-xl text-[14px] transition-colors', postLanguage === code ? 'bg-[#1d9bf0] text-white font-bold' : 'text-dark-text hover:bg-dark-hover')}>{lang.englishName}</button>;
                                             })}
-                                            <div className="h-px bg-gray-700 my-1" />
-                                            <button onClick={() => { setIsLanguageDropdownOpen(false); setIsLanguageModalOpen(true); }} className="w-full flex items-center justify-between px-4 py-2 text-[13px] text-gray-400 hover:bg-gray-700/50 rounded-xl transition-colors">More languages… <FiChevronRight size={13} /></button>
+                                            <div className="h-px bg-dark-border my-1" />
+                                            <button onClick={() => { setIsLanguageDropdownOpen(false); setIsLanguageModalOpen(true); }} className="w-full flex items-center justify-between px-4 py-2 text-[13px] text-dark-text-secondary hover:bg-dark-hover rounded-xl transition-colors">More languages… <FiChevronRight size={13} /></button>
                                         </div>
                                     </div>
                                 )}
@@ -450,6 +472,14 @@ const ReplyModal: React.FC = () => {
                 </div>
             )}
 
+            <PostInteractionSettingsModal
+                isOpen={isInteractionModalOpen}
+                onClose={() => setIsInteractionModalOpen(false)}
+                replyRestriction={replyRestriction}
+                setReplyRestriction={setReplyRestriction}
+                allowQuotes={allowQuotes}
+                setAllowQuotes={setAllowQuotes}
+            />
             <LanguagePickerModal isOpen={isLanguageModalOpen} onClose={() => setIsLanguageModalOpen(false)} selectedCode={postLanguage} onSelect={(code) => { setPostLanguage(code); setIsLanguageManual(true); }} />
             <AltTextModal isOpen={isAltModalOpen} onClose={() => setIsAltModalOpen(false)} imageUrl={editingImageIndex !== null ? (images[editingImageIndex]?.url ?? '') : ''} initialAlt={editingImageIndex !== null ? (images[editingImageIndex]?.alt ?? '') : ''} onSave={saveAltText} />
             <ConfirmModal isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={performClose} title={t('post.discard_title', 'Discard reply?')} message={t('post.discard_message', "This can't be undone.")} confirmLabel={t('post.discard_confirm', 'Discard')} cancelLabel={t('post.discard_cancel', 'Cancel')} variant="danger" />
