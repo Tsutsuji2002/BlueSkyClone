@@ -35,7 +35,8 @@ public record UserDto(
     int? PostsCount,
     string Role = "user",
     int? ListMembershipStatus = null,
-    bool IsVerified = false
+    bool IsVerified = false,
+    string? Did = null
 )
 {
     [JsonPropertyName("isFollowing")]

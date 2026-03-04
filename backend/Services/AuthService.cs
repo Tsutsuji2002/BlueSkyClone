@@ -194,7 +194,8 @@ public class AuthService : IAuthService
             user.PostsCount,
             user.Role,
             null,
-            user.IsVerified
+            user.IsVerified,
+            user.Did
         );
 
         var settingsDto = user.UserSetting != null ? new UserSettingDto(

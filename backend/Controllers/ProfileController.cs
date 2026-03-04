@@ -66,7 +66,11 @@ public class ProfileController : ControllerBase
             user.DateOfBirth,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
+            user.PostsCount,
+            user.Role,
+            null,
+            user.IsVerified,
+            user.Did
         );
 
         return Ok(new { 
@@ -112,7 +116,11 @@ public class ProfileController : ControllerBase
             user.DateOfBirth,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
+            user.PostsCount,
+            user.Role,
+            null,
+            user.IsVerified,
+            user.Did
         );
 
         return Ok(new { 
@@ -271,7 +279,10 @@ public class ProfileController : ControllerBase
             user.FollowersCount,
             user.FollowingCount,
             user.PostsCount,
-            user.Role
+            user.Role,
+            null,
+            user.IsVerified,
+            user.Did
         );
 
         if (viewerId.HasValue && viewerId != user.Id)

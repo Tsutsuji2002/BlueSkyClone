@@ -112,7 +112,8 @@ public class NotificationService : INotificationService
             u.PostsCount,
             u.Role,
             null, // ListMembershipStatus
-            u.IsVerified
+            u.IsVerified,
+            u.Did
         );
     }
 }

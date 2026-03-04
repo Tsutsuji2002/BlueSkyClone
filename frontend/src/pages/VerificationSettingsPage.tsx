@@ -11,6 +11,7 @@ import { RootState } from '../redux/store';
 import { verifyDomain } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import Button from '../components/common/Button';
+import ChangeHandleModal from '../modals/ChangeHandleModal';
 
 const VerificationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -19,6 +20,7 @@ const VerificationSettingsPage: React.FC = () => {
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const [isVerifying, setIsVerifying] = useState(false);
     const [method, setMethod] = useState<'dns' | 'http'>('dns');
+    const [isHandleModalOpen, setIsHandleModalOpen] = useState(false);
 
     const handleCopy = (text: string, label: string) => {
         navigator.clipboard.writeText(text);
@@ -79,14 +81,14 @@ const VerificationSettingsPage: React.FC = () => {
 
                     {/* Status Section */}
                     <div className="mb-8 p-6 bg-gray-50 dark:bg-dark-surface/30 rounded-2xl border border-gray-100 dark:border-dark-border">
-                        <div className="flex items-center gap-4 mb-4">
+                        <div className="flex items-center gap-4 mb-6">
                             <div className={cn(
                                 "w-12 h-12 rounded-full flex items-center justify-center",
                                 currentUser?.isVerified ? "bg-blue-100 dark:bg-blue-900/30 text-blue-500" : "bg-gray-200 dark:bg-dark-surface text-gray-400"
                             )}>
                                 {currentUser?.isVerified ? <BsPatchCheckFill size={28} /> : <FiGlobe size={28} />}
                             </div>
-                            <div>
+                            <div className="flex-1">
                                 <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text">
                                     {domain}
                                 </h2>
@@ -94,118 +96,54 @@ const VerificationSettingsPage: React.FC = () => {
                                     {currentUser?.isVerified ? t('profile.verified_account') : t('moderation.verification_info')}
                                 </p>
                             </div>
+                            <Button
+                                variant="ghost"
+                                className="text-blue-500 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/10"
+                                onClick={() => setIsHandleModalOpen(true)}
+                            >
+                                Change
+                            </Button>
                         </div>
+
+                        {currentUser?.isVerified && (
+                            <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-500/20 rounded-xl p-4 flex gap-3 items-start">
+                                <FiCheckCircle className="text-blue-500 mt-1" size={18} />
+                                <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary">
+                                    Your domain <span className="font-bold text-gray-900 dark:text-dark-text">{domain}</span> is verified. This serves as your identity on the network.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {!currentUser?.isVerified && (
-                        <>
-                            {/* Method Tabs */}
-                            <div className="flex gap-2 mb-6 bg-gray-100 dark:bg-dark-surface p-1 rounded-xl">
-                                <button
-                                    onClick={() => setMethod('dns')}
-                                    className={cn(
-                                        "flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2",
-                                        method === 'dns'
-                                            ? "bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text shadow-sm"
-                                            : "text-gray-500 dark:text-dark-text-secondary hover:text-gray-700"
-                                    )}
+                        <div className="space-y-6">
+                            <div className="bg-gray-50 dark:bg-dark-surface/20 rounded-2xl p-6 border border-gray-100 dark:border-dark-border">
+                                <h3 className="text-[17px] font-bold dark:text-dark-text mb-4">How to verify</h3>
+                                <p className="text-[15px] text-gray-600 dark:text-dark-text-secondary mb-6 leading-relaxed">
+                                    To get verified, you need to use your own domain as your handle. You can either use a domain you already own or buy a new one.
+                                </p>
+                                <Button
+                                    fullWidth
+                                    size="lg"
+                                    className="rounded-full py-4 text-[17px]"
+                                    onClick={() => setIsHandleModalOpen(true)}
                                 >
-                                    <FiGlobe size={18} />
-                                    {t('moderation.verification_method_dns')}
-                                </button>
-                                <button
-                                    onClick={() => setMethod('http')}
-                                    className={cn(
-                                        "flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2",
-                                        method === 'http'
-                                            ? "bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text shadow-sm"
-                                            : "text-gray-500 dark:text-dark-text-secondary hover:text-gray-700"
-                                    )}
-                                >
-                                    <FiFileText size={18} />
-                                    {t('moderation.verification_method_http')}
-                                </button>
+                                    I have my own domain
+                                </Button>
                             </div>
 
-                            {/* Instructions */}
-                            <div className="space-y-6 mb-8">
-                                {method === 'dns' ? (
-                                    <div className="space-y-4">
-                                        <p className="text-[15px] dark:text-dark-text">{t('moderation.verification_dns_instruction')}</p>
-                                        <div className="space-y-3">
-                                            <div className="p-3 bg-gray-50 dark:bg-dark-surface/50 rounded-lg border border-gray-100 dark:border-dark-border">
-                                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">
-                                                    {t('moderation.verification_dns_name')}
-                                                </label>
-                                                <div className="flex items-center justify-between">
-                                                    <code className="text-sm font-mono text-blue-600 dark:text-blue-400">_atproto.{domain}</code>
-                                                    <button onClick={() => handleCopy(`_atproto.${domain}`, 'Name')} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-surface rounded">
-                                                        <FiCopy size={16} className="text-gray-400" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="p-3 bg-gray-50 dark:bg-dark-surface/50 rounded-lg border border-gray-100 dark:border-dark-border">
-                                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">
-                                                    {t('moderation.verification_dns_value')}
-                                                </label>
-                                                <div className="flex items-center justify-between">
-                                                    <code className="text-sm font-mono text-blue-600 dark:text-blue-400">{did}</code>
-                                                    <button onClick={() => handleCopy(did, 'Value')} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-surface rounded">
-                                                        <FiCopy size={16} className="text-gray-400" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <p className="text-[15px] dark:text-dark-text">{t('moderation.verification_http_instruction')}</p>
-                                        <div className="space-y-3">
-                                            <div className="p-3 bg-gray-50 dark:bg-dark-surface/50 rounded-lg border border-gray-100 dark:border-dark-border">
-                                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">
-                                                    {t('moderation.verification_http_path')}
-                                                </label>
-                                                <div className="flex items-center justify-between">
-                                                    <code className="text-sm font-mono text-blue-600 dark:text-blue-400">https://{domain}/.well-known/atproto-did</code>
-                                                    <button onClick={() => handleCopy(`https://${domain}/.well-known/atproto-did`, 'Path')} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-surface rounded">
-                                                        <FiCopy size={16} className="text-gray-400" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="p-3 bg-gray-50 dark:bg-dark-surface/50 rounded-lg border border-gray-100 dark:border-dark-border">
-                                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">
-                                                    {t('moderation.verification_http_content')}
-                                                </label>
-                                                <div className="flex items-center justify-between">
-                                                    <code className="text-sm font-mono text-blue-600 dark:text-blue-400">{did}</code>
-                                                    <button onClick={() => handleCopy(did, 'Content')} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-surface rounded">
-                                                        <FiCopy size={16} className="text-gray-400" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <Button
-                                onClick={handleVerifySync}
-                                disabled={isVerifying}
-                                className="w-full py-4 rounded-2xl text-[17px] font-bold shadow-lg shadow-blue-500/20"
-                            >
-                                {isVerifying ? (
-                                    <div className="flex items-center justify-center gap-2">
-                                        <FiLoader className="animate-spin" />
-                                        <span>Verifying...</span>
-                                    </div>
-                                ) : (
-                                    t('moderation.verification_verify_btn')
-                                )}
-                            </Button>
-                        </>
+                            <p className="text-center text-sm text-gray-500 dark:text-dark-text-secondary">
+                                Looking for something else? <button className="text-blue-500 hover:underline font-bold">Contact support</button>
+                            </p>
+                        </div>
                     )}
                 </div>
             </div>
+
+            <ChangeHandleModal
+                isOpen={isHandleModalOpen}
+                onClose={() => setIsHandleModalOpen(false)}
+            />
         </MainLayout>
     );
 };

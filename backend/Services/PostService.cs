@@ -81,7 +81,8 @@ public class PostService : IPostService
                     Handle = reposter.User.Handle,
                     DisplayName = reposter.User.DisplayName,
                     AvatarUrl = reposter.User.AvatarUrl,
-                    IsVerified = reposter.User.IsVerified
+                    IsVerified = reposter.User.IsVerified,
+                    Did = reposter.User.Did
                 };
             }
             postDtos.Add(dto);
@@ -123,7 +124,8 @@ public class PostService : IPostService
             Handle = profileUser.Handle,
             DisplayName = profileUser.DisplayName,
             AvatarUrl = profileUser.AvatarUrl,
-            IsVerified = profileUser.IsVerified
+            IsVerified = profileUser.IsVerified,
+            Did = profileUser.Did
         };
 
         var postDtos = posts.Select(p => {
@@ -1588,7 +1590,8 @@ public class PostService : IPostService
                 DisplayName = post.Author.DisplayName,
                 AvatarUrl = post.Author.AvatarUrl,
                 IsFollowing = false, // Default
-                IsVerified = post.Author.IsVerified
+                IsVerified = post.Author.IsVerified,
+                Did = post.Author.Did
             },
             ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
             Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
@@ -1722,7 +1725,11 @@ public class PostService : IPostService
                     savedNotification.Sender.DateOfBirth,
                     savedNotification.Sender.FollowersCount,
                     savedNotification.Sender.FollowingCount,
-                    savedNotification.Sender.PostsCount
+                    savedNotification.Sender.PostsCount,
+                    savedNotification.Sender.Role,
+                    null,
+                    savedNotification.Sender.IsVerified,
+                    savedNotification.Sender.Did
                 ),
                 savedNotification.PostId,
                 savedNotification.ListId,

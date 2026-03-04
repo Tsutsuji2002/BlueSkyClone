@@ -50,7 +50,8 @@ public class UserController : ControllerBase
                 user.PostsCount,
                 user.Role,
                 null,
-                user.IsVerified
+                user.IsVerified,
+                user.Did
             );
 
             return Ok(userDto);
@@ -95,7 +96,8 @@ public class UserController : ControllerBase
                 user.PostsCount,
                 user.Role,
                 null,
-                user.IsVerified
+                user.IsVerified,
+                user.Did
             );
 
             return Ok(userDto);
@@ -186,14 +188,42 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("verify-domain")]
-    public async Task<IActionResult> VerifyDomain()
+    public async Task<IActionResult> VerifyDomain([FromBody] VerifyDomainRequest request)
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
             return Unauthorized();
 
-        var success = await _userService.VerifyDomainAsync(userId);
-        return Ok(new { success });
+        var success = await _userService.VerifyDomainAsync(userId, request.Handle);
+        if (success)
+        {
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user != null)
+            {
+                var userDto = new UserDto(
+                    user.Id,
+                    user.Username,
+                    user.Handle,
+                    user.Email,
+                    user.DisplayName,
+                    user.AvatarUrl,
+                    user.CoverImageUrl,
+                    user.Bio,
+                    user.Location,
+                    user.Website,
+                    user.DateOfBirth,
+                    user.FollowersCount,
+                    user.FollowingCount,
+                    user.PostsCount,
+                    user.Role,
+                    null,
+                    user.IsVerified,
+                    user.Did
+                );
+                return Ok(userDto);
+            }
+        }
+        return BadRequest(new { message = "Verification failed" });
     }
 
     [HttpGet("interests")]
@@ -252,7 +282,8 @@ public class UserController : ControllerBase
             user.PostsCount,
             user.Role,
             null,
-            user.IsVerified
+            user.IsVerified,
+            user.Did
         );
 
         if (viewerId.HasValue && viewerId != user.Id)

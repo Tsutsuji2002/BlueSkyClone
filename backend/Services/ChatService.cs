@@ -502,7 +502,11 @@ public class ChatService : IChatService
             u.DateOfBirth,
             u.FollowersCount,
             u.FollowingCount,
-            u.PostsCount
+            u.PostsCount,
+            u.Role,
+            null,
+            u.IsVerified,
+            u.Did
         );
     }
 

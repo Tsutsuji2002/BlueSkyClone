@@ -175,7 +175,7 @@ public class ListService : IListService
                         await _hubContext.Clients.Group($"user-{targetUserId}").SendAsync("ReceiveNotification", new {
                             Id = notification.Id,
                             Type = notification.Type,
-                            Sender = new { sender.Id, sender.Username, sender.Handle, sender.AvatarUrl, sender.DisplayName },
+                            Sender = new { sender.Id, sender.Username, sender.Handle, sender.AvatarUrl, sender.DisplayName, sender.IsVerified, sender.Did },
                             ListId = notification.ListId,
                             CreatedAt = notification.CreatedAt,
                             Title = notification.Title,
@@ -239,7 +239,8 @@ public class ListService : IListService
                 lm.User.PostsCount,
                 lm.User.Role,
                 null,
-                lm.User.IsVerified
+                lm.User.IsVerified,
+                lm.User.Did
             ),
             JoinedAt = lm.JoinedAt ?? DateTime.UtcNow
         });
@@ -349,7 +350,8 @@ public class ListService : IListService
                 list.Owner.PostsCount,
                 list.Owner.Role,
                 null,
-                list.Owner.IsVerified
+                list.Owner.IsVerified,
+                list.Owner.Did
             )
         };
     }
@@ -406,7 +408,8 @@ public class ListService : IListService
                 DisplayName = post.Author.DisplayName,
                 AvatarUrl = post.Author.AvatarUrl,
                 IsFollowing = false,
-                IsVerified = post.Author.IsVerified
+                IsVerified = post.Author.IsVerified,
+                Did = post.Author.Did
             },
             ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
             Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
@@ -572,7 +575,8 @@ public class ListService : IListService
                 user.PostsCount,
                 user.Role,
                 status, // New field: ListMembershipStatus
-                user.IsVerified
+                user.IsVerified,
+                user.Did
             );
         });
     }

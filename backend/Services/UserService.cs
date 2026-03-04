@@ -383,7 +383,8 @@ public class UserService : IUserService
                         savedNotification.Sender.PostsCount,
                         savedNotification.Sender.Role,
                         null,
-                        savedNotification.Sender.IsVerified
+                        savedNotification.Sender.IsVerified,
+                        savedNotification.Sender.Did
                     ),
                     savedNotification.PostId,
                     savedNotification.ListId,
@@ -650,16 +651,18 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<bool> VerifyDomainAsync(Guid userId)
+    public async Task<bool> VerifyDomainAsync(Guid userId, string? handle = null)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return false;
 
-        var handle = user.Handle;
-        if (string.IsNullOrEmpty(handle)) return false;
+        // Use provided handle or existing handle
+        var handleToVerify = handle ?? user.Handle;
+        if (string.IsNullOrEmpty(handleToVerify)) return false;
 
-        // If it's a default .bsky.social handle, treat it as verified by default or skip
-        if (handle.EndsWith(".bsky.social"))
+        // If it's the current handle and it ends with .bsky.social, it's already verified
+        // But if a NEW handle is provided, we MUST verify it regardless of extension
+        if (handle == null && handleToVerify.EndsWith(".bsky.social"))
         {
             user.IsVerified = true;
             _unitOfWork.Users.Update(user);
@@ -674,7 +677,7 @@ public class UserService : IUserService
         try
         {
             var lookup = new LookupClient();
-            var result = await lookup.QueryAsync($"_atproto.{handle}", QueryType.TXT);
+            var result = await lookup.QueryAsync($"_atproto.{handleToVerify}", QueryType.TXT);
             foreach (var txtRecord in result.Answers.TxtRecords())
             {
                 if (txtRecord.Text.Any(t => t.Contains(didValue)))
@@ -693,7 +696,7 @@ public class UserService : IUserService
             {
                 using var client = new HttpClient();
                 client.Timeout = TimeSpan.FromSeconds(5);
-                var response = await client.GetStringAsync($"https://{handle}/.well-known/atproto-did");
+                var response = await client.GetStringAsync($"https://{handleToVerify}/.well-known/atproto-did");
                 if (response.Trim() == user.Did)
                 {
                     verified = true;
@@ -705,6 +708,12 @@ public class UserService : IUserService
         if (verified)
         {
             user.IsVerified = true;
+            // If we verified a new handle, update it
+            if (!string.IsNullOrEmpty(handle) && handle != user.Handle)
+            {
+                user.Handle = handle;
+            }
+
             _unitOfWork.Users.Update(user);
             await _unitOfWork.CompleteAsync();
             

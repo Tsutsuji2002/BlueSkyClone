@@ -783,7 +783,11 @@ public class AdminService : IAdminService
             systemAdmin.DateOfBirth,
             systemAdmin.FollowersCount,
             systemAdmin.FollowingCount,
-            systemAdmin.PostsCount
+            systemAdmin.PostsCount,
+            systemAdmin.Role,
+            null,
+            systemAdmin.IsVerified,
+            systemAdmin.Did
         );
 
         foreach (var notification in notifications)
