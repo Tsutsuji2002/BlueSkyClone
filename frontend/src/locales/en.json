@@ -656,7 +656,9 @@
         "read_more_reply": "Read 1 more reply",
         "search_gifs": "Search GIPHY GIFs",
         "trending_gifs": "Trending GIFs",
-        "no_gifs_found": "No GIFs found"
+        "no_gifs_found": "No GIFs found",
+        "giphy_key_missing": "GIPHY API Key is missing. Please set REACT_APP_GIPHY_API_KEY in your .env file.",
+        "giphy_key_invalid": "Invalid GIPHY API Key. Please check your REACT_APP_GIPHY_API_KEY."
     },
     "sidebar": {
         "trending": "Trending Topics",

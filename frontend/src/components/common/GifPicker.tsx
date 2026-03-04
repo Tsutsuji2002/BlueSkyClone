@@ -9,7 +9,7 @@ interface GifPickerProps {
 }
 
 // GIPHY API configuration
-const GIPHY_API_KEY = process.env.REACT_APP_GIPHY_API_KEY || 'pwI6O1p3H7m5C3K3pY7vY8R3n8H1z2N4'; // Use a demo key for testing if not provided
+const GIPHY_API_KEY = process.env.REACT_APP_GIPHY_API_KEY;
 const GIPHY_BASE_URL = 'https://api.giphy.com/v1/gifs';
 
 const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
@@ -21,6 +21,11 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const fetchGifs = async (query?: string) => {
+        if (!GIPHY_API_KEY) {
+            setError(t('post.giphy_key_missing', 'GIPHY API Key is missing. Please set REACT_APP_GIPHY_API_KEY in your .env file.'));
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
         try {
@@ -30,6 +35,11 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
 
             const response = await fetch(endpoint);
             const data = await response.json();
+
+            if (response.status === 401) {
+                setError(t('post.giphy_key_invalid', 'Invalid GIPHY API Key. Please check your REACT_APP_GIPHY_API_KEY.'));
+                return;
+            }
 
             if (data.data) {
                 setGifs(data.data);
@@ -127,9 +137,9 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
             {/* Attribution */}
             <div className="p-2 flex justify-center border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-hover/30">
                 <img
-                    src="https://raw.githubusercontent.com/Giphy/giphy-ios-sdk-ui-example/master/GiphySDK/Assets.xcassets/Poweredby_640px-White_VertText.imageset/Poweredby_640px-White_VertText.png"
+                    src="https://binaries.giphy.com/poweredby-640px-white.png"
                     alt="Powered by GIPHY"
-                    className="h-8 object-contain dark:invert opacity-70"
+                    className="h-6 object-contain dark:invert opacity-70"
                 />
             </div>
         </div>

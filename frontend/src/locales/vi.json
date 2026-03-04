@@ -629,7 +629,9 @@
         "read_more_reply": "Đọc thêm 1 phản hồi",
         "search_gifs": "Tìm GIF từ GIPHY",
         "trending_gifs": "GIF xu hướng",
-        "no_gifs_found": "Không tìm thấy GIF nào"
+        "no_gifs_found": "Không tìm thấy GIF nào",
+        "giphy_key_missing": "Thiếu mã API GIPHY. Vui lòng thiết lập REACT_APP_GIPHY_API_KEY trong tệp .env của bạn.",
+        "giphy_key_invalid": "Mã API GIPHY không hợp lệ. Vui lòng kiểm tra lại REACT_APP_GIPHY_API_KEY."
     },
     "sidebar": {
         "trending": "Chủ đề nổi bật",
