@@ -492,7 +492,7 @@ using (var scope = app.Services.CreateScope())
                 DELETE FROM Notifications WHERE Type = 'message';
                 UPDATE u SET u.PostsCount = sub.ActualCount FROM Users u INNER JOIN (SELECT AuthorId, COUNT(*) AS ActualCount FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL GROUP BY AuthorId) sub ON u.Id = sub.AuthorId WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
                 UPDATE Users SET PostsCount = 0 WHERE PostsCount IS NULL AND Id NOT IN (SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL);
-                UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';";
+                UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='SupportRequests' AND xtype='U')
                 BEGIN
                     CREATE TABLE SupportRequests (
