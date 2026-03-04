@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useLocation } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './redux/store';
 import { useAppSelector } from './hooks/useAppSelector';
@@ -26,6 +26,7 @@ import { fetchConversations } from './redux/slices/messagesSlice';
 import { isTokenExpired } from './utils/authUtils';
 import signalrService, { HubStatus } from './services/signalrService';
 import postSignalrService from './services/postSignalrService';
+import { closeAllModals } from './redux/slices/modalsSlice';
 
 import LoadingScreen from './components/common/LoadingScreen';
 
@@ -35,6 +36,7 @@ const AppContent: React.FC = () => {
   const isLoading = useAppSelector((state: RootState) => state.auth.isLoading);
   const appLanguage = useAppSelector((state: RootState) => state.language.appLanguage);
   const { i18n } = useTranslation();
+  const location = useLocation();
 
   useEffect(() => {
     // Clear chunk reload count on successful mount
@@ -122,6 +124,11 @@ const AppContent: React.FC = () => {
       i18n.changeLanguage(appLanguage);
     }
   }, [appLanguage, i18n]);
+
+  // Close all modals on navigation
+  useEffect(() => {
+    dispatch(closeAllModals());
+  }, [location.pathname, dispatch]);
 
   if (isLoading && !isAuthenticated) {
     return <LoadingScreen />;

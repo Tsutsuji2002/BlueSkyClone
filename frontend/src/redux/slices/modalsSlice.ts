@@ -172,6 +172,43 @@ const modalsSlice = createSlice({
                 onConfirm: undefined,
             };
         },
+        closeAllModals: (state) => {
+            state.createPost = false;
+            state.editProfile = false;
+            state.imageViewer = {
+                isOpen: false,
+                images: [],
+                currentIndex: 0,
+            };
+            state.reply = {
+                isOpen: false,
+                post: null,
+            };
+            state.confirmation = {
+                isOpen: false,
+                title: '',
+                message: '',
+                onConfirm: undefined,
+            };
+            state.mobileMenu = false;
+            state.sharePost = {
+                isOpen: false,
+                post: null,
+            };
+            state.editPost = {
+                isOpen: false,
+                post: null,
+            };
+            state.quote = {
+                isOpen: false,
+                post: null,
+            };
+            (state as any).deleteConfirm = {
+                isOpen: false,
+                postId: null,
+                onConfirm: undefined,
+            };
+        },
     },
 });
 
@@ -197,6 +234,7 @@ export const {
     closeQuote,
     openDeleteConfirm,
     closeDeleteConfirm,
+    closeAllModals,
 } = modalsSlice.actions;
 
 export default modalsSlice.reducer;
