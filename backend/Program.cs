@@ -386,7 +386,56 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnabledMediaProviders')
                 BEGIN
                     ALTER TABLE UserSettings ADD EnabledMediaProviders NVARCHAR(MAX) NULL;
-                END";
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyActivity')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NotifyActivity BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyLikesOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NotifyLikesOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyRepostsOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyOthers')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NotifyOthers BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyActivity')
+                BEGIN
+                    ALTER TABLE UserSettings ADD PushNotifyActivity BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyLikesOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD PushNotifyLikesOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyRepostsOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD PushNotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyOthers')
+                BEGIN
+                    ALTER TABLE UserSettings ADD PushNotifyOthers BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyActivity')
+                BEGIN
+                    ALTER TABLE UserSettings ADD InAppNotifyActivity BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyLikesOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD InAppNotifyLikesOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyRepostsOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD InAppNotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyOthers')
+                BEGIN
+                    ALTER TABLE UserSettings ADD InAppNotifyOthers BIT NULL DEFAULT 1;
+                END
+";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied manual schema updates for UserSettings.");
         }
