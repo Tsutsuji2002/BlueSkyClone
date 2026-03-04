@@ -14,8 +14,8 @@ const PrivacyPolicyPage: React.FC = () => {
             try {
                 const response = await api.pageContent.get(slug);
                 setPageData({
-                    title: response.data.title,
-                    content: response.data.htmlContent
+                    title: response.title,
+                    content: response.htmlContent
                 });
             } catch (error) {
                 console.error('Failed to fetch privacy policy:', error);

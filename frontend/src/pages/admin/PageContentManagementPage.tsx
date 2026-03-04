@@ -18,8 +18,8 @@ const PageContentManagementPage: React.FC = () => {
         const fetchContent = async () => {
             try {
                 const response = await api.pageContent.get(slug);
-                setTitle(response.data.title);
-                setContent(response.data.htmlContent);
+                setTitle(response.title);
+                setContent(response.htmlContent);
             } catch (error) {
                 console.error('Failed to fetch page content:', error);
                 toast.error('Failed to load page content');

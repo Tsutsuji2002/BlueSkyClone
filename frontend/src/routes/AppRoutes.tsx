@@ -149,7 +149,6 @@ const AppRoutes: React.FC = () => {
                         <Route path="notifications" element={<NotificationManagementPage />} />
                         <Route path="support" element={<SupportManagementPage />} />
                         <Route path="pages" element={<PageContentManagementPage />} />
-                        <Route path="pages" element={<PageContentManagementPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

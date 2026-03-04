@@ -70,8 +70,8 @@ const api = {
         }
     },
     pageContent: {
-        get: (slug: string) => api.get<any>(`/PageContent/${slug}`),
-        update: (slug: string, body: any) => api.put<void>(`/PageContent/${slug}`, body)
+        get: (slug: string) => api.get<{ title: string; htmlContent: string }>(`/PageContent/${slug}`).then(res => res.data),
+        update: (slug: string, body: { title: string; htmlContent: string }) => api.put<void>(`/PageContent/${slug}`, body)
     }
 };
 
