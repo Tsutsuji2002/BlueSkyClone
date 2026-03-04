@@ -103,7 +103,8 @@ public class RecommendationService : IRecommendationService
                 Id = feed.Creator.Id,
                 Username = feed.Creator.Username,
                 DisplayName = feed.Creator.DisplayName,
-                AvatarUrl = feed.Creator.AvatarUrl
+                AvatarUrl = feed.Creator.AvatarUrl,
+                IsVerified = feed.Creator.IsVerified
             } : null
         });
     }

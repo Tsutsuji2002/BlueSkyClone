@@ -237,7 +237,9 @@ public class ListService : IListService
                 lm.User.FollowersCount,
                 lm.User.FollowingCount,
                 lm.User.PostsCount,
-                lm.User.Role
+                lm.User.Role,
+                null,
+                lm.User.IsVerified
             ),
             JoinedAt = lm.JoinedAt ?? DateTime.UtcNow
         });
@@ -345,7 +347,9 @@ public class ListService : IListService
                 list.Owner.FollowersCount,
                 list.Owner.FollowingCount,
                 list.Owner.PostsCount,
-                list.Owner.Role
+                list.Owner.Role,
+                null,
+                list.Owner.IsVerified
             )
         };
     }
@@ -401,7 +405,8 @@ public class ListService : IListService
                 Handle = post.Author.Handle,
                 DisplayName = post.Author.DisplayName,
                 AvatarUrl = post.Author.AvatarUrl,
-                IsFollowing = false
+                IsFollowing = false,
+                IsVerified = post.Author.IsVerified
             },
             ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
             Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
@@ -566,7 +571,8 @@ public class ListService : IListService
                 user.FollowingCount,
                 user.PostsCount,
                 user.Role,
-                status // New field: ListMembershipStatus
+                status, // New field: ListMembershipStatus
+                user.IsVerified
             );
         });
     }

@@ -47,7 +47,10 @@ public class UserController : ControllerBase
                 user.DateOfBirth,
                 user.FollowersCount,
                 user.FollowingCount,
-                user.PostsCount
+                user.PostsCount,
+                user.Role,
+                null,
+                user.IsVerified
             );
 
             return Ok(userDto);
@@ -89,7 +92,10 @@ public class UserController : ControllerBase
                 user.DateOfBirth,
                 user.FollowersCount,
                 user.FollowingCount,
-                user.PostsCount
+                user.PostsCount,
+                user.Role,
+                null,
+                user.IsVerified
             );
 
             return Ok(userDto);
@@ -179,6 +185,17 @@ public class UserController : ControllerBase
         }
     }
 
+    [HttpPost("verify-domain")]
+    public async Task<IActionResult> VerifyDomain()
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized();
+
+        var success = await _userService.VerifyDomainAsync(userId);
+        return Ok(new { success });
+    }
+
     [HttpGet("interests")]
     public async Task<IActionResult> GetInterests()
     {
@@ -233,7 +250,9 @@ public class UserController : ControllerBase
             user.FollowersCount,
             user.FollowingCount,
             user.PostsCount,
-            user.Role
+            user.Role,
+            null,
+            user.IsVerified
         );
 
         if (viewerId.HasValue && viewerId != user.Id)

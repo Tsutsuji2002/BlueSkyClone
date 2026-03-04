@@ -109,7 +109,10 @@ public class NotificationService : INotificationService
             u.DateOfBirth,
             u.FollowersCount,
             u.FollowingCount,
-            u.PostsCount
+            u.PostsCount,
+            u.Role,
+            null, // ListMembershipStatus
+            u.IsVerified
         );
     }
 }

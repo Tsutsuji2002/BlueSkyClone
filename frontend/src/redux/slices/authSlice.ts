@@ -267,6 +267,28 @@ export const updateNotificationSettings = createAsyncThunk(
     }
 );
 
+export const verifyDomain = createAsyncThunk(
+    'auth/verifyDomain',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/user/verify-domain`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return rejectWithValue(data.message || 'Verification failed');
+            }
+            return data; // returns true/false
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
 
 const authSlice = createSlice({
     name: 'auth',
@@ -387,6 +409,12 @@ const authSlice = createSlice({
             // Update Settings
             .addCase(updateNotificationSettings.fulfilled, (state, action: PayloadAction<UserSettings>) => {
                 state.settings = normalizeSettings({ ...state.settings, ...action.payload });
+            })
+            // Verify Domain
+            .addCase(verifyDomain.fulfilled, (state, action: PayloadAction<boolean>) => {
+                if (action.payload && state.user) {
+                    state.user.isVerified = true;
+                }
             });
     },
 });

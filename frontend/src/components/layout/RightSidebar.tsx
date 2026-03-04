@@ -6,6 +6,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import api from '../../utils/api';
 import Avatar from '../common/Avatar';
+import { BsPatchCheckFill } from 'react-icons/bs';
 import LoadingIndicator from '../common/LoadingIndicator';
 
 import TrendingSection from './TrendingSection';
@@ -134,8 +135,11 @@ const RightSidebar: React.FC = () => {
                                                 size="md"
                                             />
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-gray-900 dark:text-dark-text truncate">
+                                                <p className="font-bold text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
                                                     {user.displayName}
+                                                    {user.isVerified && (
+                                                        <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
+                                                    )}
                                                 </p>
                                                 <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary truncate">
                                                     @{user.handle}

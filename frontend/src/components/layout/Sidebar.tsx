@@ -15,6 +15,7 @@ import Button from '../common/Button';
 import Avatar from '../common/Avatar';
 import IconButton from '../common/IconButton';
 import Dropdown from '../common/Dropdown';
+import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
 
 import ButterflyLogo from '../common/ButterflyLogo';
@@ -150,8 +151,11 @@ const Sidebar: React.FC = () => {
                                     size="md"
                                 />
                                 <div className="flex-1 text-left hidden xl:block">
-                                    <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">
+                                    <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
                                         {user.displayName}
+                                        {user.isVerified && (
+                                            <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
+                                        )}
                                     </p>
                                     <p className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
                                         @{user.handle}

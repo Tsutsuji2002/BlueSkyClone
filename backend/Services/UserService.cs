@@ -7,6 +7,8 @@ using BSkyClone.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
+using DnsClient;
+using System.Net.Http;
 
 namespace BSkyClone.Services;
 
@@ -378,7 +380,10 @@ public class UserService : IUserService
                         savedNotification.Sender.DateOfBirth,
                         savedNotification.Sender.FollowersCount,
                         savedNotification.Sender.FollowingCount,
-                        savedNotification.Sender.PostsCount
+                        savedNotification.Sender.PostsCount,
+                        savedNotification.Sender.Role,
+                        null,
+                        savedNotification.Sender.IsVerified
                     ),
                     savedNotification.PostId,
                     savedNotification.ListId,
@@ -643,5 +648,70 @@ public class UserService : IUserService
             "activity" => (settings.NotifyActivity ?? true) && (settings.InAppNotifyActivity ?? true),
             _ => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true)
         };
+    }
+
+    public async Task<bool> VerifyDomainAsync(Guid userId)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        var handle = user.Handle;
+        if (string.IsNullOrEmpty(handle)) return false;
+
+        // If it's a default .bsky.social handle, treat it as verified by default or skip
+        if (handle.EndsWith(".bsky.social"))
+        {
+            user.IsVerified = true;
+            _unitOfWork.Users.Update(user);
+            await _unitOfWork.CompleteAsync();
+            return true;
+        }
+
+        var didValue = $"did={user.Did}";
+        bool verified = false;
+
+        // 1. Check DNS TXT record: _atproto.handle
+        try
+        {
+            var lookup = new LookupClient();
+            var result = await lookup.QueryAsync($"_atproto.{handle}", QueryType.TXT);
+            foreach (var txtRecord in result.Answers.TxtRecords())
+            {
+                if (txtRecord.Text.Any(t => t.Contains(didValue)))
+                {
+                    verified = true;
+                    break;
+                }
+            }
+        }
+        catch { /* Fallback to HTTP */ }
+
+        // 2. Check HTTP: https://handle/.well-known/atproto-did
+        if (!verified)
+        {
+            try
+            {
+                using var client = new HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(5);
+                var response = await client.GetStringAsync($"https://{handle}/.well-known/atproto-did");
+                if (response.Trim() == user.Did)
+                {
+                    verified = true;
+                }
+            }
+            catch { }
+        }
+
+        if (verified)
+        {
+            user.IsVerified = true;
+            _unitOfWork.Users.Update(user);
+            await _unitOfWork.CompleteAsync();
+            
+            // Re-index in Elasticsearch
+            await _searchService.IndexUserAsync(user);
+        }
+
+        return verified;
     }
 }

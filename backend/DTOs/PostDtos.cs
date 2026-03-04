@@ -71,6 +71,7 @@ public class AuthorDto
     public string? DisplayName { get; set; }
     public string? AvatarUrl { get; set; }
     public bool IsFollowing { get; set; }
+    public bool IsVerified { get; set; }
 }
 
 public class CreatePostRequest

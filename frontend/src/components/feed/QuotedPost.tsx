@@ -7,6 +7,7 @@ import RichText from '../common/RichText';
 import MediaGrid from './MediaGrid';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { FiRepeat } from 'react-icons/fi';
+import { BsPatchCheckFill } from 'react-icons/bs';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -50,8 +51,11 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                         alt={post.author.displayName}
                         size="xs"
                     />
-                    <span className="font-bold text-[14px] text-gray-900 dark:text-dark-text truncate">
+                    <span className="font-bold text-[14px] text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
                         {post.author.displayName}
+                        {post.author.isVerified && (
+                            <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
+                        )}
                     </span>
                     <span className="text-[14px] text-gray-500 dark:text-dark-text-secondary truncate">
                         @{post.author.handle}

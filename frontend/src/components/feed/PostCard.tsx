@@ -41,6 +41,7 @@ import {
     FiHash,
     FiX
 } from 'react-icons/fi';
+import { BsPatchCheckFill } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
 
 interface PostCardProps {
@@ -360,10 +361,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                         {/* Header */}
                         <div className="flex items-center gap-1.5 mb-0.5">
                             <span
-                                className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline"
+                                className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline flex items-center gap-0.5"
                                 onClick={handleAvatarClick}
                             >
                                 {post.author.displayName}
+                                {post.author.isVerified && (
+                                    <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
+                                )}
                             </span>
                             <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary truncate">
                                 @{post.author.handle}

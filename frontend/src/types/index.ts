@@ -30,6 +30,8 @@ export interface User {
     isMuted?: boolean;
     role?: 'user' | 'admin';
     listMembershipStatus?: number; // 0: Pending, 1: Accepted, 2: Rejected, null: None
+    isVerified?: boolean;
+    did?: string;
 }
 
 export interface UserSettings {

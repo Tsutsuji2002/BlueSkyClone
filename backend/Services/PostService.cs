@@ -80,7 +80,8 @@ public class PostService : IPostService
                     Username = reposter.User.Username,
                     Handle = reposter.User.Handle,
                     DisplayName = reposter.User.DisplayName,
-                    AvatarUrl = reposter.User.AvatarUrl
+                    AvatarUrl = reposter.User.AvatarUrl,
+                    IsVerified = reposter.User.IsVerified
                 };
             }
             postDtos.Add(dto);
@@ -121,7 +122,8 @@ public class PostService : IPostService
             Username = profileUser.Username,
             Handle = profileUser.Handle,
             DisplayName = profileUser.DisplayName,
-            AvatarUrl = profileUser.AvatarUrl
+            AvatarUrl = profileUser.AvatarUrl,
+            IsVerified = profileUser.IsVerified
         };
 
         var postDtos = posts.Select(p => {
@@ -1585,7 +1587,8 @@ public class PostService : IPostService
                 Handle = post.Author.Handle,
                 DisplayName = post.Author.DisplayName,
                 AvatarUrl = post.Author.AvatarUrl,
-                IsFollowing = false // Default
+                IsFollowing = false, // Default
+                IsVerified = post.Author.IsVerified
             },
             ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
             Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
