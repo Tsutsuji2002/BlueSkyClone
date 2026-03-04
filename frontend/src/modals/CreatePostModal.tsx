@@ -100,6 +100,14 @@ const CreatePostModal: React.FC = () => {
                 setVideo({ url: postToEdit.videoUrl });
             }
 
+            // Handle GIF
+            if (postToEdit.media) {
+                const gifMedium = postToEdit.media.find(m => m.type === 'gif');
+                if (gifMedium) {
+                    setSelectedGifUrl(gifMedium.url);
+                }
+            }
+
             if (postToEdit.linkPreview) {
                 setLinkPreview(postToEdit.linkPreview);
                 setStickyLink(postToEdit.linkPreview.url);
@@ -282,6 +290,10 @@ const CreatePostModal: React.FC = () => {
         setIsVideoProcessing(false);
         setSelectedGifUrl(null);
         setShowGifPicker(false);
+        setReplyRestriction(authSettings?.defaultReplyRestriction || 'anyone');
+        setAllowQuotes(authSettings?.defaultAllowQuotes ?? true);
+        setPostLanguage('');
+        setIsLanguageManual(false);
     };
 
     const settings = useAppSelector((state) => state.auth.settings);

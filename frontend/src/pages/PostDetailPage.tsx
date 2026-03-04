@@ -307,6 +307,12 @@ const PostDetailPage: React.FC = () => {
     const moreDropdownItems: DropdownItem[] = [
         ...(currentUser?.id === post.author.id ? [
             {
+                id: 'edit-post',
+                label: t('common.edit_post', 'Edit post'),
+                icon: <FiEdit />,
+                onClick: () => dispatch(openEditPost(post)),
+            },
+            {
                 id: 'pin-post',
                 label: t('post.pin_to_profile', 'Pin to your profile'),
                 icon: <FiAnchor />,
@@ -408,28 +414,33 @@ const PostDetailPage: React.FC = () => {
         <MainLayout hideTopBar={true} title={pageTitle}>
             <div className="min-h-screen">
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
-                    <div className="flex items-center justify-between px-4 py-2">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => dispatch(openMobileMenu())}
-                                className="lg:hidden p-1 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
-                            >
-                                <Avatar src={currentUser?.avatar} alt={currentUser?.displayName || 'User'} size="sm" />
-                            </button>
+                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
+                    <div className="flex items-center justify-between px-4 h-[53px]">
+                        <div className="flex items-center gap-2">
                             <IconButton
                                 icon={<FiArrowLeft size={20} />}
                                 onClick={handleBack}
                                 variant="default"
+                                className="mr-2"
                             />
-                            <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
+                            <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text truncate max-w-[200px] sm:max-w-xs">
                                 {t('post.title')}
                             </h1>
                         </div>
-                        <IconButton
-                            icon={<FiSliders size={20} />}
-                            variant="default"
-                        />
+                        <div className="flex items-center gap-2">
+                            <IconButton
+                                icon={<FiSliders size={20} />}
+                                variant="default"
+                            />
+                            <div className="lg:hidden ml-2">
+                                <button
+                                    onClick={() => dispatch(openMobileMenu())}
+                                    className="p-1 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
+                                >
+                                    <Avatar src={currentUser?.avatar} alt={currentUser?.displayName || 'User'} size="sm" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

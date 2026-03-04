@@ -46,9 +46,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
             <div
-                className="bg-white dark:bg-[#161e27] rounded-[24px] w-full max-w-[340px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
+                className="bg-white dark:bg-[#000000] border border-transparent dark:border-gray-800 rounded-[32px] w-full max-w-[340px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-6 pb-4">
