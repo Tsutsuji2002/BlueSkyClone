@@ -24,6 +24,7 @@ import { User } from '../types';
 import QuotedPost from '../components/feed/QuotedPost';
 import PostInteractionSettingsModal from './PostInteractionSettingsModal';
 import LanguagePickerModal from '../components/modals/LanguagePickerModal';
+import GifPicker from '../components/common/GifPicker';
 
 const CreatePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -64,6 +65,8 @@ const CreatePostModal: React.FC = () => {
     const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
     const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
     const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
+    const [showGifPicker, setShowGifPicker] = useState(false);
+    const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null);
 
     const { results: mentionResults, isLoading: isMentionLoading } = useUserSearch(mentionSearch);
 
@@ -277,6 +280,8 @@ const CreatePostModal: React.FC = () => {
         setDismissedLinks(new Set());
         setShowEmojiPicker(false);
         setIsVideoProcessing(false);
+        setSelectedGifUrl(null);
+        setShowGifPicker(false);
     };
 
     const settings = useAppSelector((state) => state.auth.settings);
@@ -298,6 +303,7 @@ const CreatePostModal: React.FC = () => {
         formData.append('ReplyRestriction', replyRestriction);
         formData.append('AllowQuotes', allowQuotes.toString());
         if (postLanguage) formData.append('Language', postLanguage);
+        if (selectedGifUrl) formData.append('GifUrl', selectedGifUrl);
 
         if (isQuoting && postToQuote) {
             formData.append('QuotePostId', postToQuote.id);
@@ -443,7 +449,7 @@ const CreatePostModal: React.FC = () => {
                                 variant="primary"
                                 size="sm"
                                 onClick={handleSubmit}
-                                disabled={(!content.trim() && images.length === 0 && !video) || isOverLimit || isPostLoading}
+                                disabled={(!content.trim() && images.length === 0 && !video && !selectedGifUrl) || isOverLimit || isPostLoading}
                                 className="rounded-full px-6 py-1.5 font-bold"
                             >
                                 {isPostLoading ? (
@@ -645,6 +651,21 @@ const CreatePostModal: React.FC = () => {
                                         )}
                                     </div>
                                 )}
+
+                                {selectedGifUrl && (
+                                    <div className="mb-4 relative rounded-2xl overflow-hidden bg-gray-100 dark:bg-dark-surface aspect-video">
+                                        <img src={selectedGifUrl} alt="Selected GIF" className="w-full h-full object-contain" />
+                                        <button
+                                            onClick={() => setSelectedGifUrl(null)}
+                                            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors z-10"
+                                        >
+                                            <FiX size={18} />
+                                        </button>
+                                        <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white rounded font-bold text-[10px]">
+                                            GIF
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -672,6 +693,20 @@ const CreatePostModal: React.FC = () => {
                                 className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors"
                             >
                                 <FiSmile size={22} />
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowGifPicker(!showGifPicker);
+                                    setShowEmojiPicker(false);
+                                }}
+                                disabled={images.length > 0 || !!video}
+                                className={cn(
+                                    "p-1.5 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg text-primary-500 transition-colors border-2 border-primary-500/20 font-bold text-[10px] leading-none",
+                                    (images.length > 0 || !!video) && "opacity-50 grayscale"
+                                )}
+                                title={t('common.gif')}
+                            >
+                                GIF
                             </button>
                         </div>
 
@@ -792,6 +827,24 @@ const CreatePostModal: React.FC = () => {
                     setIsLanguageManual(true);
                 }}
             />
+
+            {/* GIF Picker Overlay */}
+            {showGifPicker && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm lg:p-12">
+                    <div className="bg-white dark:bg-dark-surface w-full max-w-lg h-[500px] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                        <GifPicker
+                            onSelect={(url) => {
+                                setSelectedGifUrl(url);
+                                setImages([]);
+                                setVideo(null);
+                                setVideoFile(null);
+                                setShowGifPicker(false);
+                            }}
+                            onClose={() => setShowGifPicker(false)}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Discard Confirmation Modal */}
             <ConfirmModal

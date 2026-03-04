@@ -94,6 +94,7 @@ public class CreatePostRequest
     public string? ReplyRestriction { get; set; }
     public bool? AllowQuotes { get; set; }
     public string? Language { get; set; }
+    public string? GifUrl { get; set; }
 }
 
 public class FeedDto

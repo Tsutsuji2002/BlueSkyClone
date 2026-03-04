@@ -571,7 +571,8 @@
         "show_more": "Xem thêm",
         "show_less": "Xem bớt",
         "adding": "Đang thêm...",
-        "loading": "Đang tải..."
+        "loading": "Đang tải...",
+        "gif": "GIF"
     },
     "post": {
         "title": "Đăng",
@@ -625,7 +626,10 @@
         "reposted_by_you": "Đã đăng lại bởi bạn",
         "reposted_by": "Đã đăng lại bởi {{name}}",
         "read_more_replies": "Đọc thêm {{count}} phản hồi",
-        "read_more_reply": "Đọc thêm 1 phản hồi"
+        "read_more_reply": "Đọc thêm 1 phản hồi",
+        "search_gifs": "Tìm GIF từ Tenor",
+        "trending_gifs": "GIF xu hướng",
+        "no_gifs_found": "Không tìm thấy GIF nào"
     },
     "sidebar": {
         "trending": "Chủ đề nổi bật",
