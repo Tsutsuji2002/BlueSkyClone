@@ -358,6 +358,18 @@ public class PostService : IPostService
                 Language = language
             };
 
+            if (!string.IsNullOrEmpty(request.GifUrl))
+            {
+                post.PostMedia.Add(new PostMedium
+                {
+                    Id = Guid.NewGuid(),
+                    PostId = post.Id,
+                    Type = "gif",
+                    Url = request.GifUrl,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
 
 
         if (request.Images != null && request.Images.Any())
@@ -729,6 +741,35 @@ public class PostService : IPostService
             post.Language = request.Language ?? post.Language;
             post.ReplyRestriction = request.ReplyRestriction ?? post.ReplyRestriction;
             post.AllowQuotes = request.AllowQuotes ?? post.AllowQuotes;
+
+            // Update GifUrl
+            if (!string.IsNullOrEmpty(request.GifUrl))
+            {
+                var existingGif = post.PostMedia.FirstOrDefault(m => m.Type == "gif");
+                if (existingGif != null)
+                {
+                    existingGif.Url = request.GifUrl;
+                }
+                else
+                {
+                    post.PostMedia.Add(new PostMedium
+                    {
+                        Id = Guid.NewGuid(),
+                        PostId = post.Id,
+                        Type = "gif",
+                        Url = request.GifUrl,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+            else
+            {
+               var existingGif = post.PostMedia.FirstOrDefault(m => m.Type == "gif");
+               if (existingGif != null)
+               {
+                   post.PostMedia.Remove(existingGif);
+               }
+            }
 
             // Update AltTexts for existing media if provided
             if (request.AltTexts != null && post.PostMedia != null)
