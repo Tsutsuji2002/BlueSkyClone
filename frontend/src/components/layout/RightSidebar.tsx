@@ -165,15 +165,30 @@ const RightSidebar: React.FC = () => {
             <TrendingSection />
 
             {/* Footer Links */}
-            <div className="px-1 py-4">
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-primary-500 font-medium">
-                    <a href={supportLink} target="_blank" rel="noopener noreferrer" className="hover:underline">{t('sidebar.feedback', { defaultValue: 'Phản hồi' })}</a>
-                    <span className="text-gray-300 dark:text-gray-700">·</span>
-                    <button className="hover:underline">{t('sidebar.privacy', { defaultValue: 'Quyền riêng tư' })}</button>
-                    <span className="text-gray-300 dark:text-gray-700">·</span>
-                    <button className="hover:underline">{t('sidebar.terms', { defaultValue: 'Điều khoản' })}</button>
-                    <span className="text-gray-300 dark:text-gray-700">·</span>
-                    <button className="hover:underline">{t('sidebar.help', { defaultValue: 'Giúp đỡ' })}</button>
+            <div className="px-1 py-4 text-gray-400 dark:text-dark-text-secondary">
+                <div className="flex flex-wrap gap-x-2 gap-y-1 text-[13px]">
+                    <a href={supportLink} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary-500 font-medium">{t('sidebar.feedback', { defaultValue: 'Phản hồi' })}</a>
+                    <span>·</span>
+                    <button
+                        onClick={() => navigate('/settings/privacy')}
+                        className="hover:underline hover:text-gray-600 dark:hover:text-dark-text transition-colors"
+                    >
+                        {t('sidebar.privacy', { defaultValue: 'Quyền riêng tư' })}
+                    </button>
+                    <span>·</span>
+                    <button
+                        onClick={() => navigate('/settings/about')}
+                        className="hover:underline hover:text-gray-600 dark:hover:text-dark-text transition-colors"
+                    >
+                        {t('sidebar.terms', { defaultValue: 'Điều khoản' })}
+                    </button>
+                    <span>·</span>
+                    <button
+                        onClick={() => navigate('/support')}
+                        className="hover:underline hover:text-gray-600 dark:hover:text-dark-text transition-colors"
+                    >
+                        {t('sidebar.help', { defaultValue: 'Giúp đỡ' })}
+                    </button>
                 </div>
             </div>
         </div>
