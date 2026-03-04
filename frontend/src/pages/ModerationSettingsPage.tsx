@@ -100,22 +100,6 @@ const ModerationSettingsPage: React.FC = () => {
                 </div>
 
                 <div className="pb-20">
-                    {/* Verification Banner */}
-                    <div className="p-4">
-                        <div
-                            onClick={() => navigate('/settings/moderation/verification')}
-                            className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 rounded-xl p-4 flex gap-4 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
-                        >
-                            <FiInfo className="text-blue-500 shrink-0 mt-0.5" size={20} />
-                            <div className="flex-1">
-                                <p className="text-[15px] text-gray-900 dark:text-dark-text leading-snug">
-                                    Verifications on Bluesky work differently than on other platforms. <span className="text-blue-500 font-bold hover:underline">Learn more here.</span>
-                                </p>
-                            </div>
-                            <FiChevronRight className="text-blue-500 shrink-0" size={20} />
-                        </div>
-                    </div>
-
                     {/* MODERATION TOOLS */}
                     <section>
                         <h2 className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-dark-text mt-2 block">
