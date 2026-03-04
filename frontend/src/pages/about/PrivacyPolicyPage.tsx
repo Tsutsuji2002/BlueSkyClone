@@ -60,7 +60,7 @@ const PrivacyPolicyPage: React.FC = () => {
                         Back
                     </button>
                     <div className="flex items-center gap-2">
-                        <ButterflyLogo size="sm" />
+                        <ButterflyLogo size={24} />
                         <span className="font-bold tracking-tight hidden sm:inline">Bluesky</span>
                     </div>
                 </div>
