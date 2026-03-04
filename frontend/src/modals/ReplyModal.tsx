@@ -5,7 +5,6 @@ import { closeReply } from '../redux/slices/modalsSlice';
 import { createPost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 
-import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
 import { FiX, FiImage, FiSmile } from 'react-icons/fi';
 import { MdGif } from 'react-icons/md';
@@ -21,9 +20,9 @@ import { getLinkMetadata } from '../utils/linkMetadata';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useUserSearch } from '../hooks/useUserSearch';
 import MentionSuggester from '../components/common/MentionSuggester';
-import RichText from '../components/common/RichText';
 import { User } from '../types';
 import { RootState } from '../redux/store';
+import MediaGrid from '../components/feed/MediaGrid';
 
 const ReplyModal: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -46,12 +45,18 @@ const ReplyModal: React.FC = () => {
     const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
     const [mentionSearch, setMentionSearch] = useState('');
     const [mentionRange, setMentionRange] = useState<{ start: number, end: number } | null>(null);
+    const [languageDismissed, setLanguageDismissed] = useState(false);
 
     const { results: mentionResults, isLoading: isMentionLoading } = useUserSearch(mentionSearch);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevContentRef = useRef('');
+
+    // Detect when post has a different language than the reply
+    const postLanguage = post?.language || null;
+    const userLanguage = i18n.language || 'en';
+    const showLanguageHint = postLanguage && postLanguage !== userLanguage && !languageDismissed;
 
     // Link Detection logic
     useEffect(() => {
@@ -99,29 +104,19 @@ const ReplyModal: React.FC = () => {
                 };
                 fetchMetadata();
             }
-        } else if (!stickyLink && matches.length > 0) {
-            const firstLink = matches.find(link => !dismissedLinks.has(link));
-            if (firstLink && (isPaste || isEnterOrSpace)) {
-                const fetchMetadata = async () => {
-                    setIsLinkLoading(true);
-                    const metadata = await getLinkMetadata(firstLink);
-                    if (metadata) {
-                        setStickyLink(firstLink);
-                        setLinkPreview(metadata);
-                    }
-                    setIsLinkLoading(false);
-                };
-                fetchMetadata();
-            }
         }
 
         prevContentRef.current = content;
-    }, [content, stickyLink, dismissedLinks, isOpen, linkPreview, setIsLinkLoading]);
+    }, [content, stickyLink, dismissedLinks, isOpen, linkPreview]);
 
     const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newValue = e.target.value;
         const cursorPos = e.target.selectionStart;
         setContent(newValue);
+
+        // Auto-resize
+        e.target.style.height = 'auto';
+        e.target.style.height = `${e.target.scrollHeight}px`;
 
         // Mention detection
         const textBeforeCursor = newValue.slice(0, cursorPos);
@@ -149,9 +144,7 @@ const ReplyModal: React.FC = () => {
             setMentionSearch('');
             setMentionRange(null);
 
-            const newCursorPos = mentionRange.start + handle.length + 2; // +1 for @, +1 for space
-
-            // Focus back to textarea after selection and set cursor position
+            const newCursorPos = mentionRange.start + handle.length + 2;
             setTimeout(() => {
                 if (textareaRef.current) {
                     textareaRef.current.focus();
@@ -163,7 +156,6 @@ const ReplyModal: React.FC = () => {
 
     const handleClose = () => {
         const hasContent = content.trim().length > 0 || images.length > 0 || !!video;
-
         if (hasContent) {
             setShowConfirm(true);
         } else {
@@ -175,12 +167,14 @@ const ReplyModal: React.FC = () => {
         dispatch(closeReply());
         setContent('');
         setImages([]);
+        setImageFiles([]);
         setVideo(null);
         setLinkPreview(null);
         setStickyLink(null);
         setDismissedLinks(new Set());
         setShowEmojiPicker(false);
         setIsVideoProcessing(false);
+        setLanguageDismissed(false);
     };
 
     const handleSubmit = async () => {
@@ -190,11 +184,8 @@ const ReplyModal: React.FC = () => {
         formData.append('Content', content);
         formData.append('ReplyToPostId', post.id);
 
-        // Set RootPostId: if the post we're replying to is already a reply, use its RootPostId
-        // Otherwise, use the post's own ID as the root
         const rootId: string = (post as any).rootPostId || post.id;
         formData.append('RootPostId', rootId);
-
 
         imageFiles.forEach((file: File) => {
             formData.append('Images', file);
@@ -217,7 +208,6 @@ const ReplyModal: React.FC = () => {
         }
     };
 
-
     const handleImageClick = () => {
         fileInputRef.current?.click();
     };
@@ -237,12 +227,9 @@ const ReplyModal: React.FC = () => {
                     reader.readAsDataURL(file);
                     return;
                 }
-
                 if (video) return;
                 if (images.length >= 4) return;
-
                 setImageFiles((prev: File[]) => [...prev, file]);
-
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     setImages((prev: PostImage[]) => [...prev, { url: reader.result as string }].slice(0, 4));
@@ -255,6 +242,7 @@ const ReplyModal: React.FC = () => {
 
     const handleRemoveImage = (index: number) => {
         setImages(images.filter((_, i) => i !== index));
+        setImageFiles(imageFiles.filter((_, i) => i !== index));
     };
 
     const handleDismissLink = () => {
@@ -272,9 +260,7 @@ const ReplyModal: React.FC = () => {
 
     const saveAltText = (alt: string) => {
         if (editingImageIndex !== null) {
-            setImages(prev => prev.map((img, i) =>
-                i === editingImageIndex ? { ...img, alt } : img
-            ));
+            setImages(prev => prev.map((img, i) => i === editingImageIndex ? { ...img, alt } : img));
         }
         setIsAltModalOpen(false);
     };
@@ -296,96 +282,104 @@ const ReplyModal: React.FC = () => {
         }
     })();
 
+    // Get a language name for the hint banner
+    const getLanguageName = (code: string) => {
+        const names: Record<string, string> = { en: 'English', vi: 'Vietnamese', ja: 'Japanese', fr: 'French', ko: 'Korean', zh: 'Chinese', es: 'Spanish', de: 'German' };
+        return names[code] || code.toUpperCase();
+    };
+
     return (
         <>
-            <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white dark:bg-dark-surface rounded-t-2xl lg:rounded-2xl w-full lg:max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh] lg:max-h-[90vh]">
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-dark-border">
+            {/* Backdrop */}
+            <div
+                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+                onClick={handleClose}
+            />
+
+            {/* Modal Panel */}
+            <div className="fixed inset-x-0 top-0 z-50 flex justify-center items-start mt-0 lg:mt-12 lg:px-4 animate-in slide-in-from-top-2 duration-200">
+                <div className="bg-white dark:bg-[#16181c] w-full lg:max-w-[600px] lg:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-screen lg:max-h-[90vh] min-h-[400px]">
+
+                    {/* Header Row */}
+                    <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
                         <button
                             onClick={handleClose}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-full transition-colors"
+                            className="text-[15px] font-bold text-primary-500 hover:opacity-80 transition-opacity"
                         >
-                            <FiX size={24} className="text-gray-600 dark:text-dark-text-secondary" />
+                            {t('common.cancel')}
                         </button>
-                        <div className="flex items-center gap-3">
-                            {isVideoProcessing && (
-                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-dark-text-secondary animate-pulse">
-                                    <div className="w-4 h-4 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
-                                    <span>{t('post.video_processing')}</span>
-                                </div>
+
+                        <button
+                            onClick={handleSubmit}
+                            disabled={(!content.trim() && images.length === 0 && !video) || isOverLimit || isPostLoading}
+                            className={cn(
+                                "px-5 py-1.5 rounded-full text-[15px] font-bold transition-all",
+                                (!content.trim() && images.length === 0 && !video) || isOverLimit || isPostLoading
+                                    ? "bg-primary-500/50 text-white/70 cursor-not-allowed"
+                                    : "bg-primary-500 text-white hover:bg-primary-600 active:scale-95"
                             )}
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={handleSubmit}
-                                disabled={(!content.trim() && images.length === 0 && !video) || isOverLimit || isPostLoading}
-                                className="rounded-full px-6 py-1.5 font-bold"
-                            >
-                                {isPostLoading ? t('common.posting', 'Posting...') : t('common.reply')}
-                            </Button>
-                        </div>
+                        >
+                            {isPostLoading ? t('common.posting', 'Posting...') : t('common.reply')}
+                        </button>
                     </div>
 
-                    <div className="p-4 overflow-y-auto flex-1">
+                    <div className="overflow-y-auto flex-1">
                         {/* Original Post */}
-                        <div className="flex gap-3 relative">
-                            {/* Vertical Line */}
-                            <div className="absolute left-[20px] top-[44px] bottom-[-20px] w-[2px] bg-gray-200 dark:bg-dark-border" />
+                        <div className="px-4 pt-2 pb-0 flex gap-3 relative">
+                            {/* Avatar + line connector */}
+                            <div className="flex flex-col items-center flex-shrink-0">
+                                <Avatar
+                                    src={post.author.avatarUrl || post.author.avatar}
+                                    alt={post.author.displayName}
+                                    size="md"
+                                />
+                                <div className="w-[2px] bg-gray-300 dark:bg-gray-700 flex-1 mt-2 min-h-[20px]" />
+                            </div>
 
-                            <Avatar
-                                src={post.author.avatarUrl || post.author.avatar}
-                                alt={post.author.displayName}
-                                size="md"
-                            />
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1 mb-0.5">
-                                    <span className="font-bold text-gray-900 dark:text-dark-text truncate">
+                            <div className="flex-1 min-w-0 pb-3">
+                                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                    <span className="font-bold text-gray-900 dark:text-white truncate text-[15px]">
                                         {post.author.displayName}
                                     </span>
-                                    <span className="text-gray-500 dark:text-dark-text-secondary truncate">
-                                        @{post.author.handle}
-                                    </span>
-                                    <span className="text-gray-500 dark:text-dark-text-secondary">·</span>
-                                    <span className="text-gray-500 dark:text-dark-text-secondary whitespace-nowrap">
-                                        {formatDistanceToNow(new Date(post.createdAt), { addSuffix: false, locale: dateLocale })}
-                                    </span>
+                                    {post.media && post.media.length > 0 && (
+                                        <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                                            {post.media.slice(0, 3).map((m, i) => (
+                                                <img key={i} src={m.url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-[15px] text-gray-800 dark:text-dark-text leading-normal">
+                                <p className="text-[15px] text-gray-700 dark:text-gray-300 leading-normal whitespace-pre-wrap break-words">
                                     {post.content}
                                 </p>
                             </div>
                         </div>
 
-                        {/* Reply Area */}
-                        <div className="flex gap-3 mt-6 pb-4">
-                            <Avatar
-                                src={user?.avatar}
-                                alt={user?.displayName || 'User'}
-                                size="md"
-                            />
-                            <div className="flex-1">
+                        {/* Separator line + Replying to label */}
+                        <div className="px-4 mb-3 flex items-center gap-3">
+                            <div className="flex flex-col items-center w-10 flex-shrink-0">
+                                <Avatar src={user?.avatar} alt={user?.displayName || 'User'} size="sm" />
+                            </div>
+                            <span className="text-[13px] text-gray-500 dark:text-gray-400">
+                                {t('post.replying_to', 'Replying to')} <span className="text-primary-500">@{post.author.handle}</span>
+                            </span>
+                        </div>
 
+                        {/* Reply Input Area */}
+                        <div className="px-4 flex gap-3">
+                            <div className="flex flex-col items-center flex-shrink-0">
+                                <Avatar src={user?.avatar} alt={user?.displayName || 'User'} size="md" />
+                            </div>
+                            <div className="flex-1 min-w-0 pb-4">
                                 <textarea
                                     ref={textareaRef}
                                     value={content}
                                     onChange={handleContentChange}
                                     placeholder={t('common.reply_placeholder')}
-                                    className="w-full min-h-[120px] py-2 text-[18px] bg-transparent border-none resize-none focus:outline-none text-gray-900 dark:text-dark-text placeholder-gray-400 dark:placeholder-dark-text-secondary"
+                                    className="w-full py-2 text-[18px] bg-transparent border-none resize-none focus:outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 min-h-[100px]"
                                     autoFocus
+                                    rows={3}
                                 />
-
-                                {content.trim().length > 0 && (content.includes('@') || content.includes('http')) && (
-                                    <div className="mt-2 mb-4 p-3 bg-blue-50/30 dark:bg-primary-900/5 rounded-xl border border-blue-100/50 dark:border-primary-800/20">
-                                        <div className="text-[11px] font-bold text-primary-500 uppercase tracking-wider mb-2 opacity-70">
-                                            {t('post.preview')}
-                                        </div>
-                                        <RichText
-                                            content={content}
-                                            className="text-[16px] text-gray-800 dark:text-dark-text leading-normal break-words whitespace-pre-wrap"
-                                        />
-                                    </div>
-                                )}
 
                                 {mentionRange && (
                                     <MentionSuggester
@@ -395,65 +389,9 @@ const ReplyModal: React.FC = () => {
                                     />
                                 )}
 
-
-                                {/* Link Preview (Only if no images/video) */}
-                                {isLinkLoading && !video && images.length === 0 && (
-                                    <div className="mb-4 h-[90px] rounded-xl border border-gray-100 dark:border-dark-border animate-pulse flex items-center p-3 gap-3">
-                                        <div className="w-12 h-12 bg-gray-200 dark:bg-dark-border rounded-lg" />
-                                        <div className="flex-1 space-y-2">
-                                            <div className="h-3 bg-gray-200 dark:bg-dark-border rounded w-3/4" />
-                                            <div className="h-2 bg-gray-200 dark:bg-dark-border rounded w-1/2" />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {linkPreview && images.length === 0 && !video && !isLinkLoading && (
-                                    <div className="mb-4 rounded-xl border border-gray-200 dark:border-dark-border overflow-hidden relative bg-white dark:bg-dark-surface group shadow-sm hover:shadow-md transition-shadow">
-                                        <button
-                                            onClick={handleDismissLink}
-                                            className="absolute top-2 right-2 z-20 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-                                        >
-                                            <FiX size={16} />
-                                        </button>
-                                        <a
-                                            href={linkPreview.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="block h-full transition-opacity"
-                                        >
-                                            {linkPreview.image ? (
-                                                <div className="flex flex-col h-[300px]">
-                                                    <div className="h-[200px] w-full bg-gray-100 dark:bg-dark-border relative overflow-hidden">
-                                                        <img
-                                                            src={linkPreview.image}
-                                                            alt=""
-                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                                        />
-                                                    </div>
-                                                    <div className="p-3 flex-1 flex flex-col justify-center border-t border-gray-100 dark:border-dark-border">
-                                                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-tight mb-0.5">
-                                                            <span className="truncate">{linkPreview.domain}</span>
-                                                        </div>
-                                                        <h3 className="font-bold text-[14px] leading-snug text-gray-900 dark:text-dark-text mb-0.5 line-clamp-1">{linkPreview.title}</h3>
-                                                        <p className="text-[12.5px] leading-tight text-gray-500 dark:text-dark-text-secondary line-clamp-2">{linkPreview.description}</p>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col h-[90px] p-3 justify-center">
-                                                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-tight mb-0.5">
-                                                        <span className="truncate">{linkPreview.domain}</span>
-                                                    </div>
-                                                    <h3 className="font-bold text-[14px] leading-snug text-gray-900 dark:text-dark-text mb-0.5 line-clamp-1">{linkPreview.title}</h3>
-                                                    <p className="text-[12.5px] leading-tight text-gray-500 dark:text-dark-text-secondary line-clamp-1">{linkPreview.description}</p>
-                                                </div>
-                                            )}
-                                        </a>
-                                    </div>
-                                )}
-
-                                {/* Media Previews (Consolidated) */}
+                                {/* Media Previews */}
                                 {(images.length > 0 || video) && (
-                                    <div className="mb-4">
+                                    <div className="mb-4 mt-2">
                                         {video ? (
                                             <div className="relative aspect-video rounded-2xl overflow-hidden bg-black group">
                                                 <video src={video.url} className="w-full h-full object-contain" controls />
@@ -463,45 +401,33 @@ const ReplyModal: React.FC = () => {
                                                 >
                                                     <FiX size={18} />
                                                 </button>
-                                                <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full text-white text-sm backdrop-blur-sm shadow-lg">
-                                                    <FiSmile size={14} />
-                                                    <span>{t('post.captions_alt_text')}</span>
-                                                </div>
                                             </div>
                                         ) : (
-                                            <div>
-                                                <div className={cn(
-                                                    "grid gap-2 rounded-2xl overflow-hidden max-h-[400px] overflow-y-auto",
-                                                    images.length === 1 && "grid-cols-1",
-                                                    images.length >= 2 && "grid-cols-2"
-                                                )}>
-                                                    {images.map((img, idx) => (
-                                                        <div key={idx} className="relative aspect-video group">
-                                                            <img src={img.url} alt="" className="w-full h-full object-cover" />
-                                                            <button
-                                                                onClick={() => handleRemoveImage(idx)}
-                                                                className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
-                                                            >
-                                                                <FiX size={18} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => openAltModal(idx)}
-                                                                className={cn(
-                                                                    "absolute bottom-2 left-2 px-2 py-1 rounded font-bold text-[11px] transition-colors",
-                                                                    img.alt ? "bg-primary-500 text-white" : "bg-black/60 text-white hover:bg-black/80"
-                                                                )}
-                                                            >
-                                                                ALT
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                {images.length > 4 && (
-                                                    <div className="mt-2 py-2 px-3 bg-gray-50 dark:bg-dark-bg/50 text-[12px] text-gray-500 dark:text-dark-text-secondary rounded-xl flex items-center gap-2 border border-gray-100 dark:border-dark-border">
-                                                        <FiImage size={14} />
-                                                        <span>{t('post.images_selected', { count: images.length })}</span>
+                                            <div className={cn(
+                                                "grid gap-2 rounded-2xl overflow-hidden",
+                                                images.length === 1 && "grid-cols-1",
+                                                images.length >= 2 && "grid-cols-2"
+                                            )}>
+                                                {images.map((img, idx) => (
+                                                    <div key={idx} className="relative aspect-video group">
+                                                        <img src={img.url} alt="" className="w-full h-full object-cover" />
+                                                        <button
+                                                            onClick={() => handleRemoveImage(idx)}
+                                                            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
+                                                        >
+                                                            <FiX size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => openAltModal(idx)}
+                                                            className={cn(
+                                                                "absolute bottom-2 left-2 px-2 py-1 rounded font-bold text-[11px] transition-colors",
+                                                                img.alt ? "bg-primary-500 text-white" : "bg-black/60 text-white hover:bg-black/80"
+                                                            )}
+                                                        >
+                                                            ALT
+                                                        </button>
                                                     </div>
-                                                )}
+                                                ))}
                                             </div>
                                         )}
                                     </div>
@@ -510,9 +436,29 @@ const ReplyModal: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Language Hint Banner */}
+                    {showLanguageHint && postLanguage && (
+                        <div className="px-4 py-3 bg-[#1a1f2e] border-t border-gray-800 flex items-center justify-between gap-3 flex-shrink-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-6 h-6 rounded-full bg-primary-500/20 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-primary-400 text-[11px] font-bold">A</span>
+                                </div>
+                                <p className="text-[13px] text-gray-300 leading-snug">
+                                    {t('post.language_hint', 'The post you\'re replying to was marked as being written in')} <strong className="text-white">{getLanguageName(postLanguage)}</strong> {t('post.language_hint_2', 'by its author. Would you like to reply in')} <strong className="text-white">{getLanguageName(postLanguage)}</strong>?
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setLanguageDismissed(true)}
+                                className="px-4 py-1.5 rounded-full bg-gray-700 hover:bg-gray-600 text-white text-[13px] font-bold transition-colors flex-shrink-0"
+                            >
+                                {t('common.yes', 'Yes')}
+                            </button>
+                        </div>
+                    )}
+
                     {/* Footer Toolbar */}
-                    <div className="px-4 py-3 border-t border-gray-100 dark:border-dark-border flex items-center justify-between relative">
-                        <div className="flex items-center gap-2">
+                    <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between relative flex-shrink-0">
+                        <div className="flex items-center gap-1">
                             <input
                                 type="file"
                                 ref={fileInputRef}
@@ -523,8 +469,8 @@ const ReplyModal: React.FC = () => {
                             />
                             <button
                                 onClick={handleImageClick}
-                                disabled={images.length >= 20 || !!video}
-                                className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors disabled:opacity-50"
+                                disabled={images.length >= 4 || !!video}
+                                className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors disabled:opacity-40"
                             >
                                 <FiImage size={22} />
                             </button>
@@ -538,32 +484,44 @@ const ReplyModal: React.FC = () => {
                                 <FiSmile size={22} />
                             </button>
                             {showEmojiPicker && (
-                                <div className="absolute bottom-full left-0 lg:left-0 z-50 mb-2 w-full sm:w-auto">
+                                <div className="absolute bottom-full left-0 z-50 mb-2">
                                     <EmojiPicker
                                         onEmojiClick={onEmojiClick}
                                         theme={Theme.AUTO}
-                                        width="100%"
-                                        searchDisabled={window.innerWidth < 640}
-                                        skinTonesDisabled={window.innerWidth < 640}
+                                        width={320}
                                     />
                                 </div>
                             )}
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-3">
-                                <span className={`text-[13px] font-medium ${isOverLimit ? 'text-red-500' : 'text-gray-500 dark:text-dark-text-secondary'}`}>
-                                    {POST_CHARACTER_LIMIT - content.length}
-                                </span>
-                                <div className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-dark-border relative">
-                                    <div
-                                        className={`absolute inset-0 rounded-full border-2 border-primary-500 transition-all duration-300`}
-                                        style={{
-                                            clipPath: `inset(0 ${100 - (content.length / POST_CHARACTER_LIMIT) * 100}% 0 0)`,
-                                            opacity: content.length > 0 ? 1 : 0
-                                        }}
+                        <div className="flex items-center gap-3">
+                            <span className={cn(
+                                "text-[13px] font-medium",
+                                isOverLimit ? 'text-red-500' : remainingChars <= 20 ? 'text-yellow-500' : 'text-gray-400 dark:text-gray-500'
+                            )}>
+                                {remainingChars}
+                            </span>
+                            <div className="relative w-[22px] h-[22px]">
+                                <svg className="w-full h-full -rotate-90" viewBox="0 0 22 22">
+                                    <circle
+                                        cx="11" cy="11" r="9.5"
+                                        fill="none"
+                                        strokeWidth="2.5"
+                                        className="stroke-gray-200 dark:stroke-gray-700"
                                     />
-                                </div>
+                                    <circle
+                                        cx="11" cy="11" r="9.5"
+                                        fill="none"
+                                        strokeWidth="2.5"
+                                        strokeDasharray={`${2 * Math.PI * 9.5}`}
+                                        strokeDashoffset={`${2 * Math.PI * 9.5 * (1 - Math.min(content.length / POST_CHARACTER_LIMIT, 1))}`}
+                                        strokeLinecap="round"
+                                        className={cn(
+                                            "transition-all duration-200",
+                                            isOverLimit ? "stroke-red-500" : remainingChars <= 20 ? "stroke-yellow-500" : "stroke-primary-500"
+                                        )}
+                                    />
+                                </svg>
                             </div>
                         </div>
                     </div>

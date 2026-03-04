@@ -14,6 +14,7 @@ import ImageViewerModal from './modals/ImageViewerModal';
 import SharePostModal from './modals/SharePostModal';
 import Toast from './components/common/Toast';
 import ScrollToTop from './components/common/ScrollToTop';
+import GlobalDeleteConfirmModal from './components/common/GlobalDeleteConfirmModal';
 import './index.css';
 
 import { RootState } from './redux/store';
@@ -134,6 +135,7 @@ const AppContent: React.FC = () => {
       <EditProfileModal />
       <ImageViewerModal />
       <SharePostModal />
+      <GlobalDeleteConfirmModal />
       <Toast />
     </>
   );

@@ -2,7 +2,18 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 // Modals Slice
 import { ModalsState, Post } from '../../types';
 
-const initialState: ModalsState = {
+export interface DeleteConfirmState {
+    isOpen: boolean;
+    postId: string | null;
+    isListRemoval?: boolean;
+    onConfirm?: (() => void) | undefined;
+}
+
+interface ExtendedModalsState extends ModalsState {
+    deleteConfirm: DeleteConfirmState;
+}
+
+const initialState: ExtendedModalsState = {
     createPost: false,
     editProfile: false,
     imageViewer: {
@@ -32,6 +43,11 @@ const initialState: ModalsState = {
     quote: {
         isOpen: false,
         post: null,
+    },
+    deleteConfirm: {
+        isOpen: false,
+        postId: null,
+        onConfirm: undefined,
     },
 };
 
@@ -141,6 +157,21 @@ const modalsSlice = createSlice({
             };
             state.createPost = false;
         },
+        openDeleteConfirm: (state, action: PayloadAction<{ postId: string; isListRemoval?: boolean; onConfirm?: () => void }>) => {
+            (state as any).deleteConfirm = {
+                isOpen: true,
+                postId: action.payload.postId,
+                isListRemoval: action.payload.isListRemoval,
+                onConfirm: action.payload.onConfirm,
+            };
+        },
+        closeDeleteConfirm: (state) => {
+            (state as any).deleteConfirm = {
+                isOpen: false,
+                postId: null,
+                onConfirm: undefined,
+            };
+        },
     },
 });
 
@@ -164,6 +195,8 @@ export const {
     closeEditPost,
     openQuote,
     closeQuote,
+    openDeleteConfirm,
+    closeDeleteConfirm,
 } = modalsSlice.actions;
 
 export default modalsSlice.reducer;

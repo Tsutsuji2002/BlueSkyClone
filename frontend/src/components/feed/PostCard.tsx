@@ -1,11 +1,10 @@
 import React from 'react';
 import { Post } from '../../types';
-import ConfirmModal from '../common/ConfirmModal';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
-import { toggleLike, repostPost, bookmarkPost, deletePost } from '../../redux/slices/postsSlice';
+import { toggleLike, repostPost, bookmarkPost } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
-import { openReply, openEditPost, openQuote } from '../../redux/slices/modalsSlice';
+import { openReply, openEditPost, openQuote, openDeleteConfirm } from '../../redux/slices/modalsSlice';
 import QuotedPost from './QuotedPost';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
@@ -64,8 +63,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const isOwnPost = isOwnPostProp ?? (currentUser?.id === post.author.id);
-    const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-    const [showRemoveConfirm, setShowRemoveConfirm] = React.useState(false);
     const [isUnmuted, setIsUnmuted] = React.useState(false);
     const [isExpanded, setIsExpanded] = React.useState(false);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
@@ -91,14 +88,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
         dispatch(bookmarkPost(post.id));
     };
 
-    const handleDelete = async () => {
-        try {
-            await dispatch(deletePost(post.id)).unwrap();
-            dispatch(showToast({ message: t('common.post_deleted'), type: 'success' }));
-        } catch (error: any) {
-            dispatch(showToast({ message: error || t('common.failed_to_delete'), type: 'error' }));
-        }
-    };
 
     const handleAvatarClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -157,7 +146,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                 id: 'remove-from-list',
                 label: t('lists.remove_from_list'),
                 icon: <FiTrash2 />,
-                onClick: () => setShowRemoveConfirm(true),
+                onClick: () => dispatch(openDeleteConfirm({ postId: post.id, isListRemoval: true, onConfirm: onRemoveFromList })),
                 danger: true,
             }
         ] : []),
@@ -243,7 +232,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                 id: 'remove-from-list',
                 label: t('lists.remove_from_list'),
                 icon: <FiTrash2 />,
-                onClick: () => setShowRemoveConfirm(true),
+                onClick: () => dispatch(openDeleteConfirm({ postId: post.id, isListRemoval: true, onConfirm: onRemoveFromList })),
                 danger: true,
             }
         ] : []),
@@ -252,14 +241,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             {
                 id: 'edit',
                 label: t('common.edit_post', 'Edit post'),
-                icon: <FiType />, // Reusing FiType or specific edit icon like FiEdit
+                icon: <FiType />,
                 onClick: () => dispatch(openEditPost(post)),
             },
             {
                 id: 'delete',
                 label: t('common.delete_post'),
                 icon: <FiTrash2 />,
-                onClick: () => setShowDeleteConfirm(true),
+                onClick: () => dispatch(openDeleteConfirm({ postId: post.id })),
                 danger: true,
             }
         ] : []),
@@ -550,25 +539,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                     </div>
                 </div>
 
-                <ConfirmModal
-                    isOpen={showDeleteConfirm}
-                    onClose={() => setShowDeleteConfirm(false)}
-                    onConfirm={handleDelete}
-                    title={t('common.delete_post_confirm_title', { defaultValue: 'Delete post?' })}
-                    message={t('common.delete_post_confirm_message', { defaultValue: 'This cannot be undone. The post will be removed from your profile, the timeline of any accounts that follow you, and from search results.' })}
-                    confirmLabel={t('common.delete', { defaultValue: 'Delete' })}
-                    variant="danger"
-                />
-
-                <ConfirmModal
-                    isOpen={showRemoveConfirm}
-                    title={t('lists.remove_from_list')}
-                    message={t('lists.confirm_remove_post', 'Remove this post from the list?')}
-                    onConfirm={() => {
-                        onRemoveFromList?.();
-                    }}
-                    onClose={() => setShowRemoveConfirm(false)}
-                />
             </div >
         </div >
     );
