@@ -437,50 +437,44 @@ const CreatePostModal: React.FC = () => {
 
     return (
         <>
-            <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white dark:bg-dark-surface rounded-t-2xl lg:rounded-2xl w-full lg:max-w-2xl max-h-[90vh] lg:max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-dark-border">
+            {/* Main Modal */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={handleClose}>
+                <div
+                    className="bg-[#16181c] rounded-[14px] border border-gray-800 w-full max-w-[600px] shadow-2xl flex flex-col"
+                    style={{ maxHeight: 'min(90vh, 720px)' }}
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Header: Cancel | Drafts | Post */}
+                    <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
                         <button
                             onClick={handleClose}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-full transition-colors"
+                            className="text-[15px] font-bold text-[#1d9bf0] hover:text-[#60b8f5] transition-colors"
                         >
-                            <FiX size={24} className="text-gray-600 dark:text-dark-text-secondary" />
+                            {t('common.cancel', 'Cancel')}
                         </button>
+                        <span className="text-[15px] font-bold text-gray-400">{t('common.drafts', 'Drafts')}</span>
                         <div className="flex items-center gap-3">
                             {isVideoProcessing && (
-                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-dark-text-secondary animate-pulse">
-                                    <div className="w-4 h-4 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
+                                <div className="flex items-center gap-2 text-sm text-gray-500 animate-pulse">
+                                    <div className="w-4 h-4 rounded-full border-2 border-[#1d9bf0] border-t-transparent animate-spin" />
                                     <span>{t('post.video_processing')}</span>
                                 </div>
                             )}
-                            <span className={`text-[13px] font-medium ${isOverLimit ? 'text-red-500' : 'text-gray-500 dark:text-dark-text-secondary'}`}>
-                                {remainingChars}
-                            </span>
-                            <Button
-                                variant="primary"
-                                size="sm"
+                            <button
                                 onClick={handleSubmit}
                                 disabled={(!content.trim() && images.length === 0 && !video && !selectedGifUrl) || isOverLimit || isPostLoading}
-                                className="rounded-full px-6 py-1.5 font-bold"
+                                className="px-[18px] py-[6px] rounded-full text-[14px] font-bold transition-all bg-[#1d9bf0] text-white hover:bg-[#1a8cd8] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isPostLoading ? (
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        <span>{isEditing ? t('common.saving', 'Saving...') : t('common.posting', 'Posting...')}</span>
-                                    </div>
-                                ) : (isEditing ? t('common.save', 'Save') : t('common.post_verb'))}
-                            </Button>
+                                {isPostLoading
+                                    ? (isEditing ? t('common.saving', 'Saving…') : t('common.posting', 'Posting…'))
+                                    : (isEditing ? t('common.save', 'Save') : t('common.post_verb', 'Post'))}
+                            </button>
                         </div>
                     </div>
 
-                    <div className="p-4 overflow-y-auto flex-1">
-                        <div className="flex gap-4">
-                            <Avatar
-                                src={user?.avatar}
-                                alt={user?.displayName || 'User'}
-                                size="md"
-                            />
+                    <div className="px-4 pt-3 pb-2 overflow-y-auto flex-1">
+                        <div className="flex gap-3">
+                            <Avatar src={user?.avatar} alt={user?.displayName || 'User'} size="md" />
 
                             <div className="flex-1 min-w-0">
 
@@ -488,31 +482,20 @@ const CreatePostModal: React.FC = () => {
                                     ref={textareaRef}
                                     value={content}
                                     onChange={handleContentChange}
-                                    placeholder={t('common.whats_new')}
-                                    className="w-full min-h-[150px] py-2 text-[20px] bg-transparent border-none resize-none focus:outline-none text-gray-900 dark:text-dark-text placeholder-gray-500 dark:placeholder-dark-text-secondary"
+                                    placeholder={t('common.whats_new', "What's up?")}
+                                    className="w-full min-h-[120px] py-2 text-[20px] bg-transparent border-none resize-none focus:outline-none text-white placeholder-gray-500"
                                     autoFocus
                                 />
 
-                                {/* Interaction Settings Button */}
+                                {/* Interaction Settings */}
                                 <div className="mt-2 mb-4">
                                     <button
                                         onClick={() => setIsInteractionModalOpen(true)}
-                                        className={cn(
-                                            "flex items-center gap-2 px-3 py-1.5 rounded-full text-[14px] font-bold transition-all border",
-                                            replyRestriction === 'anyone' && allowQuotes
-                                                ? "text-gray-500 dark:text-dark-text-secondary border-gray-200 dark:border-dark-border hover:bg-gray-100 dark:hover:bg-dark-surface"
-                                                : "text-primary-500 border-primary-500/30 bg-primary-500/5 hover:bg-primary-500/10"
-                                        )}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-bold border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
                                     >
-                                        <div className="flex items-center gap-1.5">
-                                            {replyRestriction === 'anyone' && allowQuotes ? <FiSmile size={14} /> : <FiX size={14} />}
-                                            <span>
-                                                {replyRestriction === 'anyone' && allowQuotes
-                                                    ? t('post.anyone_can_interact', 'Anyone can interact')
-                                                    : t('post.interaction_limited', 'Interaction limited')}
-                                            </span>
-                                        </div>
-                                        <FiChevronRight size={14} className="rotate-90 opacity-50" />
+                                        <FiSmile size={13} className="text-gray-400" />
+                                        <span>{replyRestriction === 'anyone' && allowQuotes ? t('post.anyone_can_interact', 'Anyone can interact') : t('post.interaction_limited', 'Interaction limited')}</span>
+                                        <FiChevronRight size={12} className="ml-0.5 rotate-90 opacity-40" />
                                     </button>
                                 </div>
 
@@ -683,134 +666,76 @@ const CreatePostModal: React.FC = () => {
                     </div>
 
                     {/* Footer Toolbar */}
-                    <div className="px-4 py-3 border-t border-gray-100 dark:border-dark-border flex items-center justify-between relative">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept="image/*,video/*"
-                                multiple
-                            />
+                    <div className="px-2 py-2 border-t border-gray-800 flex items-center justify-between flex-shrink-0">
+                        <div className="flex items-center">
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,video/*" multiple />
                             <button
-                                onClick={handleImageClick}
-                                disabled={images.length >= 20 || !!video}
-                                className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors disabled:opacity-50"
-                            >
-                                <FiImage size={22} />
-                            </button>
+                                onClick={() => { handleImageClick(); setShowEmojiPicker(false); setShowGifPicker(false); }}
+                                disabled={images.length >= 20 || !!video || !!selectedGifUrl}
+                                className="p-2.5 rounded-full text-[#1d9bf0] hover:bg-[#1d9bf0]/10 transition-colors disabled:opacity-40"
+                            ><FiImage size={20} strokeWidth={2.5} /></button>
                             <button
-                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                className="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full text-primary-500 transition-colors"
-                            >
-                                <FiSmile size={22} />
-                            </button>
+                                onClick={() => { setShowGifPicker(!showGifPicker); setShowEmojiPicker(false); }}
+                                disabled={images.length > 0 || !!video || !!selectedGifUrl}
+                                className="px-2.5 py-2.5 rounded-full text-[#1d9bf0] hover:bg-[#1d9bf0]/10 transition-colors font-bold text-[14px] leading-none disabled:opacity-40"
+                            >GIF</button>
                             <button
-                                onClick={() => {
-                                    setShowGifPicker(!showGifPicker);
-                                    setShowEmojiPicker(false);
-                                }}
-                                disabled={images.length > 0 || !!video}
-                                className={cn(
-                                    "p-1.5 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg text-primary-500 transition-colors border-2 border-primary-500/20 font-bold text-[10px] leading-none",
-                                    (images.length > 0 || !!video) && "opacity-50 grayscale"
-                                )}
-                                title={t('common.gif')}
-                            >
-                                GIF
-                            </button>
+                                onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }}
+                                className="p-2.5 rounded-full text-[#1d9bf0] hover:bg-[#1d9bf0]/10 transition-colors"
+                            ><FiSmile size={20} strokeWidth={2.5} /></button>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            {/* Language Selector */}
+                        <div className="flex items-center gap-3 pr-2">
+                            {/* Language */}
                             <div className="relative">
-                                <button
-                                    onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
-                                    className="text-[13px] font-bold text-primary-500 hover:opacity-80 transition-opacity"
-                                >
-                                    {ALL_LANGUAGES.find(l => l.code === postLanguage)?.englishName || t('post.detect_language', 'Detect language')}
-                                </button>
-
+                                <button onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+                                    className="text-[13px] font-bold text-[#1d9bf0] hover:text-[#60b8f5] transition-colors"
+                                >{ALL_LANGUAGES.find(l => l.code === postLanguage)?.englishName || 'English'}</button>
                                 {isLanguageDropdownOpen && (
-                                    <div className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-2xl shadow-xl overflow-hidden z-50 animate-in slide-in-from-bottom-2 duration-200">
-                                        <div className="max-h-[300px] overflow-y-auto p-1.5 space-y-0.5">
-                                            {['en', 'vi', 'ja', 'fr'].map(code => {
+                                    <div className="absolute bottom-full right-0 mb-2 w-52 bg-[#1e2028] border border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-[65]">
+                                        <div className="max-h-[260px] overflow-y-auto p-1 space-y-0.5">
+                                            {['en', 'vi', 'ja', 'fr', 'ko', 'zh'].map(code => {
                                                 const lang = ALL_LANGUAGES.find(l => l.code === code);
                                                 if (!lang) return null;
                                                 return (
-                                                    <button
-                                                        key={code}
-                                                        onClick={() => {
-                                                            setPostLanguage(code);
-                                                            setIsLanguageManual(true);
-                                                            setIsLanguageDropdownOpen(false);
-                                                        }}
-                                                        className={cn(
-                                                            "w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-colors",
-                                                            postLanguage === code ? "bg-primary-500 text-white font-bold" : "hover:bg-gray-50 dark:hover:bg-dark-hover dark:text-dark-text"
-                                                        )}
-                                                    >
-                                                        <span>{lang.englishName}</span>
-                                                        {postLanguage === code && <FiCheck size={14} />}
-                                                    </button>
+                                                    <button key={code} onClick={() => { setPostLanguage(code); setIsLanguageManual(true); setIsLanguageDropdownOpen(false); }}
+                                                        className={cn('w-full text-left px-4 py-2.5 rounded-xl text-[14px] transition-colors', postLanguage === code ? 'bg-[#1d9bf0] text-white font-bold' : 'text-gray-200 hover:bg-gray-700/50')}
+                                                    >{lang.englishName}</button>
                                                 );
                                             })}
-                                            <div className="h-px bg-gray-100 dark:bg-dark-border my-1.5" />
-                                            <button
-                                                onClick={() => {
-                                                    setIsLanguageDropdownOpen(false);
-                                                    setIsLanguageModalOpen(true);
-                                                }}
-                                                className="w-full text-left px-4 py-2.5 rounded-xl text-sm text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors flex items-center justify-between"
-                                            >
-                                                <span>{t('language.more_languages', 'More languages...')}</span>
-                                                <FiChevronRight size={14} />
-                                            </button>
+                                            <div className="h-px bg-gray-700 my-1" />
+                                            <button onClick={() => { setIsLanguageDropdownOpen(false); setIsLanguageModalOpen(true); }}
+                                                className="w-full flex items-center justify-between px-4 py-2 text-[13px] text-gray-400 hover:bg-gray-700/50 rounded-xl transition-colors"
+                                            >More languages… <FiChevronRight size={13} /></button>
                                         </div>
                                     </div>
                                 )}
                             </div>
-
-                            <div className="flex items-center gap-3">
-                                <span className={cn(
-                                    "text-[13px] font-medium transition-colors",
-                                    isOverLimit ? "text-red-500" : "text-gray-500 dark:text-dark-text-secondary"
-                                )}>
-                                    {remainingChars}
-                                </span>
-                                <div className="w-5 h-5 relative">
-                                    <svg className="w-full h-full -rotate-90 transform">
-                                        <circle
-                                            cx="10"
-                                            cy="10"
-                                            r="8"
-                                            fill="transparent"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            className="text-gray-200 dark:text-dark-border"
-                                        />
-                                        <circle
-                                            cx="10"
-                                            cy="10"
-                                            r="8"
-                                            fill="transparent"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeDasharray={50.26}
-                                            strokeDashoffset={50.26 * (1 - Math.max(0, Math.min(1, content.length / POST_CHARACTER_LIMIT)))}
-                                            className={cn(
-                                                "transition-all duration-300",
-                                                isOverLimit ? "text-red-500" : remainingChars <= 20 ? "text-amber-500" : "text-primary-500"
-                                            )}
-                                        />
-                                    </svg>
-                                </div>
+                            <span className={cn('text-[14px] font-medium tabular-nums', isOverLimit ? 'text-red-500 font-bold' : remainingChars <= 20 ? 'text-yellow-500' : 'text-gray-400')}>{remainingChars}</span>
+                            <div className="w-[22px] h-[22px] flex-shrink-0">
+                                <svg className="w-full h-full -rotate-90" viewBox="0 0 22 22">
+                                    <circle cx="11" cy="11" r="9" fill="none" strokeWidth="2.5" className="stroke-gray-700/50" />
+                                    <circle cx="11" cy="11" r="9" fill="none" strokeWidth="2.5"
+                                        strokeDasharray={`${2 * Math.PI * 9}`}
+                                        strokeDashoffset={`${2 * Math.PI * 9 * (1 - Math.min(content.length / POST_CHARACTER_LIMIT, 1))}`}
+                                        strokeLinecap="round"
+                                        className={cn('transition-all duration-150', isOverLimit ? 'stroke-red-500' : remainingChars <= 20 ? 'stroke-yellow-500' : 'stroke-[#1d9bf0]')}
+                                    />
+                                </svg>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Emoji Picker Overlay */}
+            {showEmojiPicker && (
+                <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center p-4 bg-black/20" onClick={() => setShowEmojiPicker(false)}>
+                    <div className="rounded-xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <EmojiPicker onEmojiClick={(d) => { setContent(p => p + d.emoji); }} theme={Theme.DARK} width={320} height={420} lazyLoadEmojis />
+                    </div>
+                </div>
+            )}
 
             {/* Alt Text Modal */}
             <AltTextModal
