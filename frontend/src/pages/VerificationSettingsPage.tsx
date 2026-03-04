@@ -61,6 +61,22 @@ const VerificationSettingsPage: React.FC = () => {
                 </div>
 
                 <div className="p-4 max-w-2xl mx-auto">
+                    {/* Info Banner */}
+                    <div className="bg-white dark:bg-dark-bg border border-blue-500/30 rounded-xl p-4 mb-6 flex gap-4">
+                        <FiInfo className="text-blue-500 shrink-0 mt-0.5" size={20} />
+                        <p className="text-[15px] text-gray-900 dark:text-dark-text leading-snug">
+                            Verifications on Bluesky work differently than on other platforms. <a
+                                href="https://bsky.social/about/blog/04-21-2025-verification"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 font-bold hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                Learn more here.
+                            </a>
+                        </p>
+                    </div>
+
                     {/* Status Section */}
                     <div className="mb-8 p-6 bg-gray-50 dark:bg-dark-surface/30 rounded-2xl border border-gray-100 dark:border-dark-border">
                         <div className="flex items-center gap-4 mb-4">
