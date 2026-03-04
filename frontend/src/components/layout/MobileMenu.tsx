@@ -8,7 +8,7 @@ import Avatar from '../common/Avatar';
 import { useTranslation } from 'react-i18next';
 import {
     FiX, FiHome, FiSearch, FiBell, FiMail, FiUser, FiSettings,
-    FiRss, FiList, FiBookmark, FiLogOut, FiSun, FiMoon
+    FiRss, FiList, FiBookmark, FiLogOut, FiSun, FiMoon, FiShield, FiHash, FiMessageCircle, FiHelpCircle, FiMessageSquare
 } from 'react-icons/fi';
 import { RootState } from '../../redux/store';
 import { cn } from '../../utils/classNames';
@@ -20,8 +20,8 @@ const iconMap: Record<string, React.ReactNode> = {
     home: <FiHome size={22} />,
     search: <FiSearch size={22} />,
     bell: <FiBell size={22} />,
-    mail: <FiMail size={22} />,
-    feeds: <FiRss size={22} />,
+    mail: <FiMessageCircle size={22} />,
+    feeds: <FiHash size={22} />,
     lists: <FiList size={22} />,
     saved: <FiBookmark size={22} />,
     user: <FiUser size={22} />,
@@ -89,19 +89,20 @@ const MobileMenu: React.FC = () => {
                             }}
                         >
                             <Avatar
-                                src={user.avatar}
+                                src={user.avatarUrl || user.avatar}
                                 alt={user.displayName}
                                 size="lg"
                                 className="mb-3"
                             />
-                            <p className="font-bold text-gray-900 dark:text-dark-text">{user.displayName}</p>
-                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary">@{user.handle}</p>
-                            <div className="flex gap-4 mt-2 text-sm">
-                                <span className="text-gray-700 dark:text-dark-text">
-                                    <strong>{user.followingCount}</strong> {t('profile.following')}
-                                </span>
+                            <p className="font-bold text-gray-900 dark:text-dark-text text-xl">{user.displayName || user.handle}</p>
+                            <p className="text-gray-500 dark:text-dark-text-secondary">@{user.handle}</p>
+                            <div className="flex items-center gap-1.5 mt-2 text-sm">
                                 <span className="text-gray-700 dark:text-dark-text">
                                     <strong>{user.followersCount}</strong> {t('profile.followers')}
+                                </span>
+                                <span className="text-gray-400 dark:text-dark-text-secondary">·</span>
+                                <span className="text-gray-700 dark:text-dark-text">
+                                    <strong>{user.followingCount}</strong> {t('profile.following')}
                                 </span>
                             </div>
                         </div>
@@ -142,6 +143,24 @@ const MobileMenu: React.FC = () => {
                             </button>
                         );
                     })}
+
+                    {user?.role === 'admin' && (
+                        <button
+                            onClick={() => {
+                                navigate('/admin');
+                                dispatch(closeMobileMenu());
+                            }}
+                            className={cn(
+                                "w-full flex items-center gap-4 px-4 py-3 rounded-xl mb-1 transition-colors",
+                                location.pathname.startsWith('/admin')
+                                    ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-500 font-bold'
+                                    : 'hover:bg-gray-100 dark:hover:bg-dark-surface text-gray-700 dark:text-dark-text'
+                            )}
+                        >
+                            <FiShield size={22} />
+                            <span className="text-xl">{t('nav.admin')}</span>
+                        </button>
+                    )}
                 </nav>
 
                 {/* Theme Toggle */}
@@ -172,12 +191,46 @@ const MobileMenu: React.FC = () => {
                         <span>{t('settings.logout_label')}</span>
                     </button>
 
-                    <div className="flex flex-wrap gap-4 px-2">
-                        <button className="text-gray-500 dark:text-dark-text-secondary hover:underline text-xs">
+                    <div className="flex flex-col gap-2 px-4 mb-6">
+                        <button
+                            onClick={() => {
+                                navigate('/settings/about');
+                                dispatch(closeMobileMenu());
+                            }}
+                            className="text-[#0085ff] dark:text-primary-500 hover:underline text-sm font-medium text-left"
+                        >
                             {t('signup.terms_link')}
                         </button>
-                        <button className="text-gray-500 dark:text-dark-text-secondary hover:underline text-xs">
+                        <button
+                            onClick={() => {
+                                navigate('/settings/privacy');
+                                dispatch(closeMobileMenu());
+                            }}
+                            className="text-[#0085ff] dark:text-primary-500 hover:underline text-sm font-medium text-left"
+                        >
                             {t('signup.privacy_link')}
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2 px-2 mt-4">
+                        <button
+                            onClick={() => {
+                                navigate('/support');
+                                dispatch(closeMobileMenu());
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border rounded-full text-sm font-bold text-gray-900 dark:text-dark-text transition-all"
+                        >
+                            <FiMessageSquare size={18} />
+                            {t('sidebar.feedback')}
+                        </button>
+                        <button
+                            onClick={() => {
+                                navigate('/support?category=other');
+                                dispatch(closeMobileMenu());
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border rounded-full text-sm font-bold text-gray-900 dark:text-dark-text transition-all"
+                        >
+                            {t('sidebar.help')}
                         </button>
                     </div>
                 </div>

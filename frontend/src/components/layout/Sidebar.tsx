@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FiHome, FiSearch, FiBell, FiMail, FiUser, FiSettings,
-    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield
+    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { NAV_ITEMS } from '../../constants';
@@ -24,9 +24,9 @@ const iconMap: Record<string, React.ReactNode> = {
     home: <FiHome size={24} />,
     search: <FiSearch size={24} />,
     bell: <FiBell size={24} />,
-    mail: <FiMail size={24} />,
+    mail: <FiMessageCircle size={24} />,
     notifications: <FiBell size={24} />,
-    feeds: <FiRss size={24} />,
+    feeds: <FiHash size={24} />,
     lists: <FiList size={24} />,
     saved: <FiBookmark size={24} />,
     user: <FiUser size={24} />,
