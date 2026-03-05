@@ -19,10 +19,10 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("timeline")]
-    public async Task<IActionResult> GetTimeline()
+    public async Task<IActionResult> GetTimeline([FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var posts = await _postService.GetTimelineAsync(userId);
+        var posts = await _postService.GetTimelineAsync(userId, skip, take);
         return Ok(posts);
     }
 
@@ -62,6 +62,15 @@ public class PostsController : ControllerBase
         return Ok(post);
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdatePost(Guid id, [FromForm] CreatePostRequest request)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var post = await _postService.UpdatePostAsync(userId, id, request);
+        if (post == null) return NotFound("Post not found or you are not authorized to edit it.");
+        return Ok(post);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetPost(Guid id)
     {
@@ -77,9 +86,9 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> DeletePost(Guid id)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var result = await _postService.DeletePostAsync(userId, id);
-        if (!result) return BadRequest("Could not delete post");
-        return Ok();
+        var deletedIds = await _postService.DeletePostAsync(userId, id);
+        if (deletedIds == null) return BadRequest("Could not delete post");
+        return Ok(deletedIds);
     }
 
     [HttpPost("{id:guid}/like")]
@@ -114,5 +123,24 @@ public class PostsController : ControllerBase
 
         var replies = await _postService.GetPostRepliesAsync(id, viewerId);
         return Ok(replies);
+    }
+
+    [HttpGet("tag/{tag}")]
+    public async Task<IActionResult> GetPostsByTag(string tag, [FromQuery] int limit = 20, [FromQuery] int offset = 0)
+    {
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var posts = await _postService.GetPostsByTagAsync(tag, viewerId, limit, offset);
+        return Ok(posts);
+    }
+
+    [HttpPost("{id:guid}/interaction-settings")]
+    public async Task<IActionResult> UpdateInteractionSettings(Guid id, [FromBody] UpdateInteractionSettingsRequest request)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var post = await _postService.UpdateInteractionSettingsAsync(userId, id, request);
+        if (post == null) return NotFound("Post not found or you are not authorized to edit it.");
+        return Ok(post);
     }
 }

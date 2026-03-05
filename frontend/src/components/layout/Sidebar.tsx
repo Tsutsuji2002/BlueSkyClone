@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FiHome, FiSearch, FiBell, FiMail, FiUser, FiSettings,
-    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield
+    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { NAV_ITEMS } from '../../constants';
@@ -15,6 +15,7 @@ import Button from '../common/Button';
 import Avatar from '../common/Avatar';
 import IconButton from '../common/IconButton';
 import Dropdown from '../common/Dropdown';
+import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
 
 import ButterflyLogo from '../common/ButterflyLogo';
@@ -23,9 +24,9 @@ const iconMap: Record<string, React.ReactNode> = {
     home: <FiHome size={24} />,
     search: <FiSearch size={24} />,
     bell: <FiBell size={24} />,
-    mail: <FiMail size={24} />,
+    mail: <FiMessageCircle size={24} />,
     notifications: <FiBell size={24} />,
-    feeds: <FiRss size={24} />,
+    feeds: <FiHash size={24} />,
     lists: <FiList size={24} />,
     saved: <FiBookmark size={24} />,
     user: <FiUser size={24} />,
@@ -100,7 +101,7 @@ const Sidebar: React.FC = () => {
                         <div className="relative">
                             <FiShield size={24} />
                         </div>
-                        <span className="text-xl hidden xl:inline">Admin</span>
+                        <span className="text-xl hidden xl:inline">{t('nav.admin')}</span>
                     </button>
                 )}
             </nav>
@@ -150,8 +151,11 @@ const Sidebar: React.FC = () => {
                                     size="md"
                                 />
                                 <div className="flex-1 text-left hidden xl:block">
-                                    <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">
+                                    <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
                                         {user.displayName}
+                                        {user.isVerified && (
+                                            <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
+                                        )}
                                     </p>
                                     <p className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
                                         @{user.handle}

@@ -1,51 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { FiX, FiGrid } from 'react-icons/fi';
+import InterestsEditor from './InterestsEditor';
 
 const InterestsSection: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const [isVisible, setIsVisible] = useState(true);
 
-    const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-
-    const loadInterests = () => {
-        const storedInterests = localStorage.getItem('selected_interests');
-        const current = storedInterests ? JSON.parse(storedInterests) : ['art', 'books', 'developers', 'technology'];
-        setSelectedInterests(current);
-    }
-
-    useEffect(() => {
-        loadInterests();
-    }, []);
+    if (!isVisible) return null;
 
     return (
-        <div className="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border p-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
-                {t('interests.title')}
-            </h2>
+        <div className="p-4 bg-white dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+            <section className="bg-gray-50/50 dark:bg-dark-surface/30 rounded-2xl p-4 border border-gray-100 dark:border-dark-border relative transition-all">
+                <button
+                    onClick={() => setIsVisible(false)}
+                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text transition-colors"
+                >
+                    <FiX size={20} />
+                </button>
 
-            <p className="text-[15px] text-gray-600 dark:text-dark-text-secondary mb-4">
-                {t('interests.widget_desc')}
-            </p>
+                <div className="flex items-center gap-2 mb-4 text-primary-600 dark:text-primary-400">
+                    <FiGrid size={20} />
+                    <h2 className="text-lg font-bold">
+                        {t('interests.title')}
+                    </h2>
+                </div>
 
-            <div className="flex flex-wrap gap-2 mb-4">
-                {selectedInterests.map((interest: string) => (
-                    <span
-                        key={interest}
-                        className="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-white/10 text-[15px] font-medium text-gray-700 dark:text-dark-text"
-                    >
-                        {interest}
-                    </span>
-                ))}
-            </div>
+                <div className="mb-4">
+                    <InterestsEditor variant="condensed" limit={15} />
+                </div>
 
-            <button
-                type="button"
-                onClick={() => navigate('/interests')}
-                className="w-full py-3 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-full transition-colors text-[15px]"
-            >
-                {t('interests.edit_btn')}
-            </button>
+                <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-4 leading-normal">
+                    {t('interests.widget_desc')}
+                </p>
+
+                <button
+                    onClick={() => navigate('/interests')}
+                    className="w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-full transition-colors text-sm shadow-sm"
+                >
+                    {t('interests.edit_btn')}
+                </button>
+            </section>
         </div>
     );
 };

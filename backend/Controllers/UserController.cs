@@ -1,4 +1,5 @@
 using BSkyClone.DTOs;
+using BSkyClone.Models;
 using BSkyClone.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,7 +47,11 @@ public class UserController : ControllerBase
                 user.DateOfBirth,
                 user.FollowersCount,
                 user.FollowingCount,
-                user.PostsCount
+                user.PostsCount,
+                user.Role,
+                null,
+                user.IsVerified,
+                user.Did
             );
 
             return Ok(userDto);
@@ -88,7 +93,11 @@ public class UserController : ControllerBase
                 user.DateOfBirth,
                 user.FollowersCount,
                 user.FollowingCount,
-                user.PostsCount
+                user.PostsCount,
+                user.Role,
+                null,
+                user.IsVerified,
+                user.Did
             );
 
             return Ok(userDto);
@@ -143,9 +152,31 @@ public class UserController : ControllerBase
                 settings.InAppNotifyMentions,
                 settings.InAppNotifyQuotes,
                 settings.InAppNotifyReposts,
+                settings.NotifyActivity,
+                settings.PushNotifyActivity,
+                settings.InAppNotifyActivity,
+                settings.NotifyLikesOfReposts,
+                settings.PushNotifyLikesOfReposts,
+                settings.InAppNotifyLikesOfReposts,
+                settings.NotifyRepostsOfReposts,
+                settings.PushNotifyRepostsOfReposts,
+                settings.InAppNotifyRepostsOfReposts,
+                settings.NotifyOthers,
+                settings.PushNotifyOthers,
+                settings.InAppNotifyOthers,
                 settings.DefaultReplyRestriction,
                 settings.DefaultAllowQuotes,
-                settings.FontSize
+                settings.FontSize,
+                settings.EnableTrending,
+                settings.EnableDiscoverVideo,
+                settings.EnableTreeView,
+                settings.RequireLogoutVisibility,
+                settings.LargerAltBadge,
+                settings.ShowReplies,
+                settings.ShowReposts,
+                settings.ShowQuotePosts,
+                settings.ShowSampleSavedFeeds,
+                settings.EnabledMediaProviders
             );
 
             return Ok(settingsDto);
@@ -156,12 +187,85 @@ public class UserController : ControllerBase
         }
     }
 
+    [HttpPost("verify-domain")]
+    public async Task<IActionResult> VerifyDomain([FromBody] VerifyDomainRequest request)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized();
+
+        var success = await _userService.VerifyDomainAsync(userId, request.Handle);
+        if (success)
+        {
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user != null)
+            {
+                var userDto = new UserDto(
+                    user.Id,
+                    user.Username,
+                    user.Handle,
+                    user.Email,
+                    user.DisplayName,
+                    user.AvatarUrl,
+                    user.CoverImageUrl,
+                    user.Bio,
+                    user.Location,
+                    user.Website,
+                    user.DateOfBirth,
+                    user.FollowersCount,
+                    user.FollowingCount,
+                    user.PostsCount,
+                    user.Role,
+                    null,
+                    user.IsVerified,
+                    user.Did
+                );
+                return Ok(userDto);
+            }
+        }
+        return BadRequest(new { message = "Verification failed" });
+    }
+
+    [HttpGet("interests")]
+    public async Task<IActionResult> GetInterests()
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized();
+
+        var interests = await _userService.GetSelectedInterestsAsync(userId);
+        return Ok(interests);
+    }
+
+    [HttpPost("interests")]
+    public async Task<IActionResult> SaveInterests([FromBody] List<string> interests)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized();
+
+        await _userService.SaveSelectedInterestsAsync(userId, interests);
+        return Ok(new { success = true });
+    }
 
     [HttpGet("search")]
     public async Task<IActionResult> SearchUsers([FromQuery] string q, [FromQuery] int limit = 10)
     {
         var users = await _userService.SearchUsersAsync(q, limit);
-        var dtos = users.Select(user => new UserDto(
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            dtos.Add(await MapUserToDtoWithStatus(user, currentUserId));
+        }
+        return Ok(dtos);
+    }
+
+    private async Task<UserDto> MapUserToDtoWithStatus(User user, Guid? viewerId)
+    {
+        var dto = new UserDto(
             user.Id,
             user.Username,
             user.Handle,
@@ -175,8 +279,24 @@ public class UserController : ControllerBase
             user.DateOfBirth,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
-        ));
-        return Ok(dtos);
+            user.PostsCount,
+            user.Role,
+            null,
+            user.IsVerified,
+            user.Did
+        );
+
+        if (viewerId.HasValue && viewerId != user.Id)
+        {
+            return dto with
+            {
+                IsFollowing = await _userService.IsFollowingAsync(viewerId.Value, user.Id),
+                IsBlocking = await _userService.IsBlockedAsync(viewerId.Value, user.Id),
+                IsBlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
+                IsMuted = await _userService.IsMutedAsync(viewerId.Value, user.Id)
+            };
+        }
+        
+        return dto;
     }
 }

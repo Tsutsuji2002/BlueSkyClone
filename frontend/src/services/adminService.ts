@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../constants';
-import { AdminStats, AdminList, AdminConversation, AdminBlock, AdminMute, BroadcastNotificationRequest, PaginatedResult, AdminUser, AdminPost, AdminFeed, AdminInterest } from '../types/admin';
+import { AdminStats, AdminList, AdminConversation, AdminBlock, AdminMute, BroadcastNotificationRequest, PaginatedResult, AdminUser, AdminPost, AdminFeed, AdminInterest, AdminHashtag } from '../types/admin';
 
 const getHeaders = () => {
     const token = localStorage.getItem('token');
@@ -272,5 +272,35 @@ export const adminService = {
             body: JSON.stringify(request)
         });
         if (!response.ok) throw new Error('Failed to broadcast notification');
+    },
+
+    getHashtags: async (skip = 0, take = 20, search?: string): Promise<PaginatedResult<AdminHashtag>> => {
+        const query = new URLSearchParams({
+            skip: skip.toString(),
+            take: take.toString()
+        });
+        if (search) query.append('search', search);
+
+        const response = await fetch(`${API_BASE_URL}/admin/hashtags?${query.toString()}`, {
+            headers: getHeaders()
+        });
+        if (!response.ok) throw new Error('Failed to fetch hashtags');
+        return response.json();
+    },
+
+    deleteHashtag: async (id: number): Promise<void> => {
+        const response = await fetch(`${API_BASE_URL}/admin/hashtags/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders()
+        });
+        if (!response.ok) throw new Error('Failed to delete hashtag');
+    },
+
+    reindexSystem: async (): Promise<void> => {
+        const response = await fetch(`${API_BASE_URL}/admin/system/reindex`, {
+            method: 'POST',
+            headers: getHeaders()
+        });
+        if (!response.ok) throw new Error('Failed to reindex system');
     }
 };

@@ -3,40 +3,35 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BSkyClone.Repositories;
 
-public class BlockRepository : IBlockRepository
+public class BlockRepository : Repository<BlockedAccount>, IBlockRepository
 {
-    private readonly BSkyDbContext _context;
-
-    public BlockRepository(BSkyDbContext context)
+    public BlockRepository(BSkyDbContext context) : base(context)
     {
-        _context = context;
     }
 
     public async Task<BlockedAccount?> GetAsync(Guid userId, Guid blockedUserId)
     {
-        return await _context.BlockedAccounts
+        return await _dbSet
             .FirstOrDefaultAsync(b => b.UserId == userId && b.BlockedUserId == blockedUserId);
-    }
-
-    public async Task AddAsync(BlockedAccount block)
-    {
-        await _context.BlockedAccounts.AddAsync(block);
-    }
-
-    public void Remove(BlockedAccount block)
-    {
-        _context.BlockedAccounts.Remove(block);
     }
 
     public async Task<bool> IsBlockedAsync(Guid userId, Guid potentialBlockedUserId)
     {
-        return await _context.BlockedAccounts
+        return await _dbSet
             .AnyAsync(b => b.UserId == userId && b.BlockedUserId == potentialBlockedUserId);
+    }
+
+    public async Task<List<BlockedAccount>> GetBlockedAccountsAsync(Guid userId)
+    {
+        return await _dbSet
+            .Include(b => b.BlockedUser)
+            .Where(b => b.UserId == userId)
+            .ToListAsync();
     }
 
     public async Task<List<Guid>> GetBlockedUserIdsAsync(Guid userId)
     {
-        return await _context.BlockedAccounts
+        return await _dbSet
             .Where(b => b.UserId == userId)
             .Select(b => b.BlockedUserId)
             .ToListAsync();

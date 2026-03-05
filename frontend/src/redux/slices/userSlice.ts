@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
-import { UserState, User } from '../../types';
+import { UserState, User, MutedWord } from '../../types';
 import { API_BASE_URL } from '../../constants';
 
 const initialState: UserState = {
@@ -9,7 +9,9 @@ const initialState: UserState = {
     mutedWords: [],
     mutedUsers: [],
     blockedUsers: [],
+    selectedInterests: [],
     isLoading: false,
+    interestsLoading: false,
     error: null,
     actionLoading: {}, // Map of userId -> boolean
 };
@@ -99,6 +101,52 @@ export const fetchFollowing = createAsyncThunk<
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch following');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchMutedAccounts = createAsyncThunk<
+    User[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchMuted',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted accounts');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchBlockedAccounts = createAsyncThunk<
+    User[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchBlocked',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/blocked`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch blocked accounts');
             return data;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -252,6 +300,142 @@ export const unmuteUserAsync = createAsyncThunk<
     }
 );
 
+export const fetchMutedWords = createAsyncThunk<
+    MutedWord[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchMutedWords',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted words');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const addMutedWordAsync = createAsyncThunk<
+    MutedWord,
+    { word: string, muteBehavior: string },
+    { rejectValue: string }
+>(
+    'user/addMutedWord',
+    async (payload, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to add muted word');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const deleteMutedWordAsync = createAsyncThunk<
+    number,
+    number,
+    { rejectValue: string }
+>(
+    'user/deleteMutedWord',
+    async (id, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to delete muted word');
+            }
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchSelectedInterests = createAsyncThunk<
+    string[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchInterests',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                const stored = localStorage.getItem('selected_interests');
+                return stored ? JSON.parse(stored) : [];
+            }
+            const response = await fetch(`${API_BASE_URL}/user/interests`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch interests');
+
+            // Sync local storage
+            localStorage.setItem('selected_interests', JSON.stringify(data));
+            return data;
+        } catch (error: any) {
+            const stored = localStorage.getItem('selected_interests');
+            if (stored) return JSON.parse(stored);
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const saveSelectedInterests = createAsyncThunk<
+    string[],
+    string[],
+    { rejectValue: string }
+>(
+    'user/saveInterests',
+    async (interests: string[], { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            // Optimistic update of localStorage
+            localStorage.setItem('selected_interests', JSON.stringify(interests));
+
+            if (!token) return interests;
+
+            const response = await fetch(`${API_BASE_URL}/user/interests`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(interests)
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to save interests');
+            return interests;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 const userSlice = createSlice({
     name: 'user',
     initialState,
@@ -275,9 +459,13 @@ const userSlice = createSlice({
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
         builder
             // Fetch Profile
-            .addCase(fetchUserProfile.pending, (state: UserState) => {
+            .addCase(fetchUserProfile.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
+                // Clear profile only if requested handle is different from current
+                if (state.profile?.handle !== action.meta.arg) {
+                    state.profile = null;
+                }
             })
             .addCase(fetchUserProfile.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
@@ -294,9 +482,13 @@ const userSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Fetch Profile by ID
-            .addCase(fetchUserProfileById.pending, (state: UserState) => {
+            .addCase(fetchUserProfileById.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
+                // Clear profile only if requested id is different from current
+                if (state.profile?.id !== action.meta.arg) {
+                    state.profile = null;
+                }
             })
             .addCase(fetchUserProfileById.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
@@ -415,6 +607,53 @@ const userSlice = createSlice({
             .addCase(fetchFollowing.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
                 state.isLoading = false;
                 state.users = action.payload;
+            })
+            // Fetch Muted/Blocked
+            .addCase(fetchMutedAccounts.pending, (state: UserState) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchMutedAccounts.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+                state.isLoading = false;
+                state.users = action.payload;
+            })
+            .addCase(fetchMutedAccounts.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(fetchBlockedAccounts.pending, (state: UserState) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchBlockedAccounts.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+                state.isLoading = false;
+                state.users = action.payload;
+            })
+            .addCase(fetchBlockedAccounts.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Muted Words
+            .addCase(fetchMutedWords.fulfilled, (state: UserState, action: PayloadAction<MutedWord[]>) => {
+                state.mutedWords = action.payload;
+            })
+            .addCase(addMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<MutedWord>) => {
+                state.mutedWords = [action.payload, ...state.mutedWords];
+            })
+            .addCase(deleteMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<number>) => {
+                state.mutedWords = state.mutedWords.filter(w => w.id !== action.payload);
+            })
+            // Selected Interests
+            .addCase(fetchSelectedInterests.pending, (state: UserState) => {
+                state.interestsLoading = true;
+            })
+            .addCase(fetchSelectedInterests.fulfilled, (state: UserState, action: PayloadAction<string[]>) => {
+                state.interestsLoading = false;
+                state.selectedInterests = action.payload;
+            })
+            .addCase(fetchSelectedInterests.rejected, (state: UserState) => {
+                state.interestsLoading = false;
+            })
+            .addCase(saveSelectedInterests.fulfilled, (state: UserState, action: PayloadAction<string[]>) => {
+                state.selectedInterests = action.payload;
             });
     }
 });
@@ -423,4 +662,3 @@ export const { clearProfile, updateProfileLocal, toggleFollowSuggestedUser } = u
 
 
 export default userSlice.reducer;
-

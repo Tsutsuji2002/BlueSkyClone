@@ -1,0 +1,65 @@
+export interface LanguageMetadata {
+    code: string;
+    nativeName: string;
+    englishName: string;
+}
+
+export const APP_LANGUAGES: LanguageMetadata[] = [
+    { code: 'en', nativeName: 'English', englishName: 'English' },
+    { code: 'de', nativeName: 'Deutsch', englishName: 'German' },
+    { code: 'es', nativeName: 'español', englishName: 'Spanish' },
+    { code: 'fr', nativeName: 'français', englishName: 'French' },
+    { code: 'ja', nativeName: '日本語', englishName: 'Japanese' },
+    { code: 'ko', nativeName: '한국어', englishName: 'Korean' },
+    { code: 'vi', nativeName: 'Tiếng Việt', englishName: 'Vietnamese' },
+    { code: 'zh', nativeName: '中文', englishName: 'Chinese' },
+];
+
+export const ALL_LANGUAGES: LanguageMetadata[] = [
+    ...APP_LANGUAGES,
+    { code: 'aa', nativeName: 'Afar', englishName: 'Afar' },
+    { code: 'ab', nativeName: 'Abkhazian', englishName: 'Abkhazian' },
+    { code: 'af', nativeName: 'Afrikaans', englishName: 'Afrikaans' },
+    { code: 'ak', nativeName: 'Akan', englishName: 'Akan' },
+    { code: 'sq', nativeName: 'Albanian', englishName: 'Albanian' },
+    { code: 'am', nativeName: 'Amharic', englishName: 'Amharic' },
+    { code: 'ar', nativeName: 'Arabic', englishName: 'Arabic' },
+    { code: 'hy', nativeName: 'Armenian', englishName: 'Armenian' },
+    { code: 'as', nativeName: 'Assamese', englishName: 'Assamese' },
+    { code: 'av', nativeName: 'Avaric', englishName: 'Avaric' },
+    { code: 'ae', nativeName: 'Avestan', englishName: 'Avestan' },
+    { code: 'ay', nativeName: 'Aymara', englishName: 'Aymara' },
+    { code: 'az', nativeName: 'Azerbaijani', englishName: 'Azerbaijani' },
+    { code: 'ba', nativeName: 'Bashkir', englishName: 'Bashkir' },
+    { code: 'bm', nativeName: 'Bambara', englishName: 'Bambara' },
+    { code: 'be', nativeName: 'Belarusian', englishName: 'Belarusian' },
+    { code: 'bn', nativeName: 'Bangla', englishName: 'Bangla' },
+    // Adding more common ones to reach a substantial list similar to BlueSky
+    { code: 'bg', nativeName: 'Bulgarian', englishName: 'Bulgarian' },
+    { code: 'my', nativeName: 'Burmese', englishName: 'Burmese' },
+    { code: 'cs', nativeName: 'Czech', englishName: 'Czech' },
+    { code: 'et', nativeName: 'Estonian', englishName: 'Estonian' },
+    { code: 'gu', nativeName: 'Gujarati', englishName: 'Gujarati' },
+    { code: 'he', nativeName: 'Hebrew', englishName: 'Hebrew' },
+    { code: 'hr', nativeName: 'Croatian', englishName: 'Croatian' },
+    { code: 'is', nativeName: 'Icelandic', englishName: 'Icelandic' },
+    { code: 'ka', nativeName: 'Georgian', englishName: 'Georgian' },
+    { code: 'kk', nativeName: 'Kazakh', englishName: 'Kazakh' },
+    { code: 'kn', nativeName: 'Kannada', englishName: 'Kannada' },
+    { code: 'ky', nativeName: 'Kyrgyz', englishName: 'Kyrgyz' },
+    { code: 'la', nativeName: 'Latin', englishName: 'Latin' },
+    { code: 'lv', nativeName: 'Latvian', englishName: 'Latvian' },
+    { code: 'lt', nativeName: 'Lithuanian', englishName: 'Lithuanian' },
+    { code: 'ml', nativeName: 'Malayalam', englishName: 'Malayalam' },
+    { code: 'mr', nativeName: 'Marathi', englishName: 'Marathi' },
+    { code: 'no', nativeName: 'Norwegian', englishName: 'Norwegian' },
+    { code: 'pa', nativeName: 'Punjabi', englishName: 'Punjabi' },
+    { code: 'fa', nativeName: 'Persian', englishName: 'Persian' },
+    { code: 'sk', nativeName: 'Slovak', englishName: 'Slovak' },
+    { code: 'sl', nativeName: 'Slovenian', englishName: 'Slovenian' },
+    { code: 'sw', nativeName: 'Swahili', englishName: 'Swahili' },
+    { code: 'ta', nativeName: 'Tamil', englishName: 'Tamil' },
+    { code: 'te', nativeName: 'Telugu', englishName: 'Telugu' },
+    { code: 'ur', nativeName: 'Urdu', englishName: 'Urdu' },
+    { code: 'uz', nativeName: 'Uzbek', englishName: 'Uzbek' },
+].sort((a, b) => a.englishName.localeCompare(b.englishName));

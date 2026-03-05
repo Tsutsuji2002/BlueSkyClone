@@ -130,7 +130,7 @@ const ListDetailPage: React.FC = () => {
         });
     };
 
-    const isMember = currentUser ? activeListMembers.some(m => m.userId === currentUser.id) : false;
+    const isMember = currentUser && activeList ? listsIAmOn.some(l => l.id === activeList.id) : false;
     const canAddPost = activeList?.isOwner || isMember;
 
     if (isLoading && !activeList) {
@@ -287,13 +287,22 @@ const ListDetailPage: React.FC = () => {
                                 {activeListFeed.map(post => {
                                     const canRemove = activeList.isOwner || (currentUser && post.addedByUserId === currentUser.id);
                                     return (
-                                        <PostCard
-                                            key={post.id}
-                                            post={post}
-                                            isOwnPost={currentUser?.id === post.author.id}
-                                            isInListContext={true}
-                                            onRemoveFromList={canRemove ? () => handleRemovePost(post.id) : undefined}
-                                        />
+                                        <div key={post.id} className="relative z-10 bg-white dark:bg-dark-bg">
+                                            {post.parentPost && (
+                                                <PostCard
+                                                    post={post.parentPost}
+                                                    hasBottomLine={true}
+                                                    hideBorder={true}
+                                                />
+                                            )}
+                                            <PostCard
+                                                post={post}
+                                                isOwnPost={currentUser?.id === post.author.id}
+                                                isInListContext={true}
+                                                onRemoveFromList={canRemove ? () => handleRemovePost(post.id) : undefined}
+                                                hasTopLine={!!post.parentPost}
+                                            />
+                                        </div>
                                     );
                                 })}
                             </div>

@@ -29,6 +29,7 @@ public class InterestsController : ControllerBase
                 i.Name,
                 UsersCount = i.Users.Count
             })
+            .OrderByDescending(i => i.UsersCount)
             .ToListAsync();
 
         return Ok(interests);

@@ -9,6 +9,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace BSkyClone.Services;
 
@@ -36,6 +37,13 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Username) || 
+            request.Username.Length > 16 || 
+            !Regex.IsMatch(request.Username, @"^[a-zA-Z0-9.]+$"))
+        {
+            return null;
+        }
+
         var handle = $"{request.Username.ToLower()}.{request.HostingProvider.ToLower()}";
 
         if (await _unitOfWork.Users.GetByEmailAsync(request.Email) != null ||
@@ -128,8 +136,13 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> GetUserProfileAsync(Guid userId)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var user = await _unitOfWork.Users.Query()
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
         if (user == null) return null;
+
+        user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
 
         // Banned user logic: Instantly invalidate session if banned
         if (user.IsBanned)
@@ -179,7 +192,10 @@ public class AuthService : IAuthService
             user.FollowersCount,
             user.FollowingCount,
             user.PostsCount,
-            user.Role
+            user.Role,
+            null,
+            user.IsVerified,
+            user.Did
         );
 
         var settingsDto = user.UserSetting != null ? new UserSettingDto(
@@ -208,10 +224,45 @@ public class AuthService : IAuthService
             user.UserSetting.InAppNotifyMentions,
             user.UserSetting.InAppNotifyQuotes,
             user.UserSetting.InAppNotifyReposts,
+            user.UserSetting.NotifyActivity,
+            user.UserSetting.PushNotifyActivity,
+            user.UserSetting.InAppNotifyActivity,
+            user.UserSetting.NotifyLikesOfReposts,
+            user.UserSetting.PushNotifyLikesOfReposts,
+            user.UserSetting.InAppNotifyLikesOfReposts,
+            user.UserSetting.NotifyRepostsOfReposts,
+            user.UserSetting.PushNotifyRepostsOfReposts,
+            user.UserSetting.InAppNotifyRepostsOfReposts,
+            user.UserSetting.NotifyOthers,
+            user.UserSetting.PushNotifyOthers,
+            user.UserSetting.InAppNotifyOthers,
             user.UserSetting.DefaultReplyRestriction,
             user.UserSetting.DefaultAllowQuotes,
-            user.UserSetting.FontSize
-        ) : new UserSettingDto(null, null, null, null, null, "en", "system", true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, "anyone", true, 15);
+            user.UserSetting.FontSize,
+            user.UserSetting.EnableTrending,
+            user.UserSetting.EnableDiscoverVideo,
+            user.UserSetting.EnableTreeView,
+            user.UserSetting.RequireLogoutVisibility,
+            user.UserSetting.LargerAltBadge,
+            user.UserSetting.ShowReplies,
+            user.UserSetting.ShowReposts,
+            user.UserSetting.ShowQuotePosts,
+            user.UserSetting.ShowSampleSavedFeeds,
+            user.UserSetting.EnabledMediaProviders
+        ) : new UserSettingDto(
+            null, null, null, null, null, "en", "system",
+            true, true, true, true, true, true,  // Notify* (6)
+            true, true, true, true, true, true,  // PushNotify* (6)
+            true, true, true, true, true, true,  // InAppNotify* (6)
+            true, true, true,                    // Activity (3)
+            true, true, true,                    // LikesOfReposts (3)
+            true, true, true,                    // RepostsOfReposts (3)
+            true, true, true,                    // Others (3)
+            "anyone", true, 15,                  // ReplyRestriction, AllowQuotes, FontSize
+            true, true, false, false, false,     // Trending, Video, TreeView, Logout, AltBadge
+            true, true, true, false,             // ShowReplies, ShowReposts, ShowQuotes, ShowSampleFeeds
+            null                                 // EnabledMediaProviders
+        );
 
         return new AuthResponse(userDto, settingsDto, token, refreshToken);
     }

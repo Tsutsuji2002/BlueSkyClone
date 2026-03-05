@@ -179,6 +179,48 @@ namespace BSkyClone.Migrations
                     b.ToTable("Feeds");
                 });
 
+            modelBuilder.Entity("BSkyClone.Models.Hashtag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<bool?>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("PostsCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Hashtags");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Hashtags");
+                });
+
             modelBuilder.Entity("BSkyClone.Models.Interest", b =>
                 {
                     b.Property<int>("Id")
@@ -353,6 +395,9 @@ namespace BSkyClone.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("(getutcdate())");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.HasKey("ListId", "UserId")
                         .HasName("PK__ListMemb__32FBA4C18A09448F");
 
@@ -524,6 +569,18 @@ namespace BSkyClone.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<string>("MuteBehavior")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("hide");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
@@ -547,6 +604,9 @@ namespace BSkyClone.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("(newsequentialid())");
 
+                    b.Property<string>("Content")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -562,6 +622,9 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<Guid?>("ListId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("PostId")
                         .HasColumnType("uniqueidentifier");
 
@@ -575,6 +638,9 @@ namespace BSkyClone.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Type")
                         .HasMaxLength(50)
@@ -624,10 +690,16 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("Language")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("LikesCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<Guid?>("QuotePostId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int?>("QuotesCount")
                         .ValueGeneratedOnAdd()
@@ -665,6 +737,8 @@ namespace BSkyClone.Migrations
                         .HasName("PK__Posts__3214EC07CB992B89");
 
                     b.HasIndex("AuthorId");
+
+                    b.HasIndex("QuotePostId");
 
                     b.HasIndex("ReplyToPostId");
 
@@ -993,10 +1067,31 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<bool?>("EnableDiscoverVideo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("EnableTreeView")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool?>("EnableTrending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("EnabledMediaProviders")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("FontSize")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(15);
+
+                    b.Property<bool?>("InAppNotifyActivity")
+                        .HasColumnType("bit");
 
                     b.Property<bool?>("InAppNotifyFollowers")
                         .ValueGeneratedOnAdd()
@@ -1008,10 +1103,16 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("InAppNotifyLikesOfReposts")
+                        .HasColumnType("bit");
+
                     b.Property<bool?>("InAppNotifyMentions")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyOthers")
+                        .HasColumnType("bit");
 
                     b.Property<bool?>("InAppNotifyQuotes")
                         .ValueGeneratedOnAdd()
@@ -1028,6 +1129,17 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("InAppNotifyRepostsOfReposts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("LargerAltBadge")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool?>("NotifyActivity")
+                        .HasColumnType("bit");
+
                     b.Property<bool?>("NotifyFollowers")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -1038,10 +1150,16 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("NotifyLikesOfReposts")
+                        .HasColumnType("bit");
+
                     b.Property<bool?>("NotifyMentions")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
+
+                    b.Property<bool?>("NotifyOthers")
+                        .HasColumnType("bit");
 
                     b.Property<bool?>("NotifyQuotes")
                         .ValueGeneratedOnAdd()
@@ -1058,6 +1176,12 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("NotifyRepostsOfReposts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("PushNotifyActivity")
+                        .HasColumnType("bit");
+
                     b.Property<bool?>("PushNotifyFollowers")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -1068,10 +1192,16 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("PushNotifyLikesOfReposts")
+                        .HasColumnType("bit");
+
                     b.Property<bool?>("PushNotifyMentions")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyOthers")
+                        .HasColumnType("bit");
 
                     b.Property<bool?>("PushNotifyQuotes")
                         .ValueGeneratedOnAdd()
@@ -1088,7 +1218,38 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("PushNotifyRepostsOfReposts")
+                        .HasColumnType("bit");
+
                     b.Property<bool?>("RequireAltText")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool?>("RequireLogoutVisibility")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("SelectedInterests")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool?>("ShowQuotePosts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("ShowReplies")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("ShowReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("ShowSampleSavedFeeds")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
@@ -1109,6 +1270,22 @@ namespace BSkyClone.Migrations
                         .HasName("PK__UserSett__1788CC4CA56EF176");
 
                     b.ToTable("UserSettings");
+                });
+
+            modelBuilder.Entity("PostHashtag", b =>
+                {
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("HashtagId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PostId", "HashtagId")
+                        .HasName("PK_PostHashtags");
+
+                    b.HasIndex("HashtagId");
+
+                    b.ToTable("PostHashtags", (string)null);
                 });
 
             modelBuilder.Entity("PostInterest", b =>
@@ -1427,6 +1604,12 @@ namespace BSkyClone.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_PostAuthor");
 
+                    b.HasOne("BSkyClone.Models.Post", "QuotePost")
+                        .WithMany("InverseQuotePost")
+                        .HasForeignKey("QuotePostId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PostQuote");
+
                     b.HasOne("BSkyClone.Models.Post", "ReplyToPost")
                         .WithMany("InverseReplyToPost")
                         .HasForeignKey("ReplyToPostId")
@@ -1438,6 +1621,8 @@ namespace BSkyClone.Migrations
                         .HasConstraintName("FK_PostRoot");
 
                     b.Navigation("Author");
+
+                    b.Navigation("QuotePost");
 
                     b.Navigation("ReplyToPost");
 
@@ -1548,6 +1733,23 @@ namespace BSkyClone.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("PostHashtag", b =>
+                {
+                    b.HasOne("BSkyClone.Models.Hashtag", null)
+                        .WithMany()
+                        .HasForeignKey("HashtagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_PH_Hashtag");
+
+                    b.HasOne("BSkyClone.Models.Post", null)
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_PH_Post");
+                });
+
             modelBuilder.Entity("PostInterest", b =>
                 {
                     b.HasOne("BSkyClone.Models.Interest", null)
@@ -1627,6 +1829,8 @@ namespace BSkyClone.Migrations
             modelBuilder.Entity("BSkyClone.Models.Post", b =>
                 {
                     b.Navigation("Bookmarks");
+
+                    b.Navigation("InverseQuotePost");
 
                     b.Navigation("InverseReplyToPost");
 

@@ -1,0 +1,71 @@
+services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bsky-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:-YourStrongPassword123!}
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: [ "CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${DB_PASSWORD:-YourStrongPassword123!}", "-C", "-Q", "SELECT 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=BlueSkyClone;User Id=sa;Password=${DB_PASSWORD:-YourStrongPassword123!};TrustServerCertificate=True;
+      - Redis__ConnectionString=redis:6379,abortConnect=false,connectTimeout=10000,syncTimeout=10000
+      - Jwt__Key=${JWT_KEY:-a_very_long_random_secret_string_change_this_for_prod}
+    depends_on:
+      sql-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/wwwroot/uploads:/app/wwwroot/uploads
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-https://bskyclone.site/api}
+        - REACT_APP_HUB_URL=${REACT_APP_HUB_URL:-https://bskyclone.site/hubs/chat}
+        - REACT_APP_GIPHY_API_KEY=${REACT_APP_GIPHY_API_KEY}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - ./backend/wwwroot/uploads:/usr/share/nginx/html/uploads:ro
+    restart: always
+
+  redis:
+    image: redis:alpine
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  elasticsearch:
+    restart: always
+
+  kibana:
+    restart: always
+
+  certbot:
+    image: certbot/certbot
+    container_name: bsky-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  mssql_data:

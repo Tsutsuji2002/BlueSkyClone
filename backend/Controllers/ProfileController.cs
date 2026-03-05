@@ -1,4 +1,5 @@
 using BSkyClone.DTOs;
+using BSkyClone.Models;
 using BSkyClone.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -65,7 +66,11 @@ public class ProfileController : ControllerBase
             user.DateOfBirth,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
+            user.PostsCount,
+            user.Role,
+            null,
+            user.IsVerified,
+            user.Did
         );
 
         return Ok(new { 
@@ -111,7 +116,11 @@ public class ProfileController : ControllerBase
             user.DateOfBirth,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
+            user.PostsCount,
+            user.Role,
+            null,
+            user.IsVerified,
+            user.Did
         );
 
         return Ok(new { 
@@ -189,22 +198,14 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> GetFollowers(Guid userId)
     {
         var users = await _userService.GetFollowersAsync(userId);
-        var dtos = users.Select(user => new UserDto(
-            user.Id,
-            user.Username,
-            user.Handle,
-            user.Email,
-            user.DisplayName,
-            user.AvatarUrl,
-            user.CoverImageUrl,
-            user.Bio,
-            user.Location,
-            user.Website,
-            user.DateOfBirth,
-            user.FollowersCount,
-            user.FollowingCount,
-            user.PostsCount
-        ));
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            dtos.Add(await MapUserToDtoWithStatus(user, currentUserId));
+        }
         return Ok(dtos);
     }
 
@@ -212,7 +213,58 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> GetFollowing(Guid userId)
     {
         var users = await _userService.GetFollowingAsync(userId);
-        var dtos = users.Select(user => new UserDto(
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            // If viewing own following list, we definitely follow everyone in it
+            if (userId == currentUserId && currentUserId.HasValue)
+            {
+                dto = dto with { IsFollowing = true };
+            }
+            dtos.Add(dto);
+        }
+        return Ok(dtos);
+    }
+
+    [HttpGet("muted")]
+    public async Task<IActionResult> GetMutedAccounts()
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var users = await _userService.GetMutedUsersAsync(currentUserId);
+        
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            dto = dto with { IsMuted = true };
+            dtos.Add(dto);
+        }
+        return Ok(dtos);
+    }
+
+    [HttpGet("blocked")]
+    public async Task<IActionResult> GetBlockedAccounts()
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var users = await _userService.GetBlockedUsersAsync(currentUserId);
+        
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            dto = dto with { IsBlocking = true };
+            dtos.Add(dto);
+        }
+        return Ok(dtos);
+    }
+
+    private async Task<UserDto> MapUserToDtoWithStatus(User user, Guid? viewerId)
+    {
+        var dto = new UserDto(
             user.Id,
             user.Username,
             user.Handle,
@@ -226,8 +278,50 @@ public class ProfileController : ControllerBase
             user.DateOfBirth,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
-        ));
+            user.PostsCount,
+            user.Role,
+            null,
+            user.IsVerified,
+            user.Did
+        );
+
+        if (viewerId.HasValue && viewerId != user.Id)
+        {
+            return dto with
+            {
+                IsFollowing = await _userService.IsFollowingAsync(viewerId.Value, user.Id),
+                IsBlocking = await _userService.IsBlockedAsync(viewerId.Value, user.Id),
+                IsBlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
+                IsMuted = await _userService.IsMutedAsync(viewerId.Value, user.Id)
+            };
+        }
+        
+        return dto;
+    }
+
+    [HttpGet("muted-words")]
+    public async Task<IActionResult> GetMutedWords()
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var words = await _userService.GetMutedWordsAsync(currentUserId);
+        var dtos = words.Select(w => new MutedWordDto(w.Id, w.Word, w.MuteBehavior, w.CreatedAt));
         return Ok(dtos);
+    }
+
+    [HttpPost("muted-words")]
+    public async Task<IActionResult> AddMutedWord([FromBody] MutedWordDto request)
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var word = await _userService.AddMutedWordAsync(currentUserId, request.Word, request.MuteBehavior);
+        return Ok(new MutedWordDto(word.Id, word.Word, word.MuteBehavior, word.CreatedAt));
+    }
+
+    [HttpDelete("muted-words/{id}")]
+    public async Task<IActionResult> DeleteMutedWord(int id)
+    {
+        var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var success = await _userService.DeleteMutedWordAsync(currentUserId, id);
+        if (!success) return NotFound();
+        return Ok();
     }
 }

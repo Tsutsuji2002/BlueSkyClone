@@ -80,12 +80,24 @@ export const formatPostDate = (date: string | Date, lang: string = 'en'): string
         const locale = dateLocales[lang] || enUS;
 
         if (diffInHours < 24 * 7) {
-            // Use date-fns for relative time which is localized
-            // "1m", "2h", "3d" etc.
-            return formatDistanceToNowStrict(dateObj, {
+            const formatted = formatDistanceToNowStrict(dateObj, {
                 locale,
                 addSuffix: false
-            })
+            });
+
+            if (lang === 'vi') {
+                return formatted
+                    .replace(' phút', 'phút')
+                    .replace(' giờ', 'giờ')
+                    .replace(' ngày', 'ngày')
+                    .replace(' giây', 'giây')
+                    .replace('phút', ' phút') // Ensure space
+                    .replace('giờ', ' giờ')
+                    .replace('ngày', ' ngày')
+                    .trim();
+            }
+
+            return formatted
                 .replace(' minutes', 'm')
                 .replace(' minute', 'm')
                 .replace(' hours', 'h')
@@ -93,13 +105,7 @@ export const formatPostDate = (date: string | Date, lang: string = 'en'): string
                 .replace(' days', 'd')
                 .replace(' day', 'd')
                 .replace(' seconds', 's')
-                .replace(' second', 's')
-                .replace(' phút', 'phót') // Vietnamese short forms if needed
-                .replace(' giờ', 'giờ')
-                .replace(' ngày', 'ngày');
-            // Note: Bluesky uses very short forms. 
-            // In Vietnamese it's usually "1 giờ", "1 ngày".
-            // If we want exact "1h", "1d" we might need custom logic for each lang.
+                .replace(' second', 's');
         } else {
             return format(dateObj, 'MMM d', { locale });
         }

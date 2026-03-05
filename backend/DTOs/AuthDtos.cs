@@ -34,8 +34,23 @@ public record UserDto(
     int? FollowingCount,
     int? PostsCount,
     string Role = "user",
-    int? ListMembershipStatus = null
-);
+    int? ListMembershipStatus = null,
+    bool IsVerified = false,
+    string? Did = null
+)
+{
+    [JsonPropertyName("isFollowing")]
+    public bool? IsFollowing { get; init; }
+    
+    [JsonPropertyName("isBlockedBy")]
+    public bool? IsBlockedBy { get; init; }
+    
+    [JsonPropertyName("isBlocking")]
+    public bool? IsBlocking { get; init; }
+    
+    [JsonPropertyName("isMuted")]
+    public bool? IsMuted { get; init; }
+}
 
 public record UserSettingDto(
     string? AdultContentFilter,
@@ -63,9 +78,31 @@ public record UserSettingDto(
     bool? InAppNotifyMentions,
     bool? InAppNotifyQuotes,
     bool? InAppNotifyReposts,
+    bool? NotifyActivity,
+    bool? PushNotifyActivity,
+    bool? InAppNotifyActivity,
+    bool? NotifyLikesOfReposts,
+    bool? PushNotifyLikesOfReposts,
+    bool? InAppNotifyLikesOfReposts,
+    bool? NotifyRepostsOfReposts,
+    bool? PushNotifyRepostsOfReposts,
+    bool? InAppNotifyRepostsOfReposts,
+    bool? NotifyOthers,
+    bool? PushNotifyOthers,
+    bool? InAppNotifyOthers,
     string? DefaultReplyRestriction,
     bool? DefaultAllowQuotes,
-    int? FontSize
+    int? FontSize,
+    bool? EnableTrending,
+    bool? EnableDiscoverVideo,
+    bool? EnableTreeView,
+    bool? RequireLogoutVisibility,
+    bool? LargerAltBadge,
+    bool? ShowReplies,
+    bool? ShowReposts,
+    bool? ShowQuotePosts,
+    bool? ShowSampleSavedFeeds,
+    string? EnabledMediaProviders
 );
 
 public record AuthResponse(
@@ -74,3 +111,11 @@ public record AuthResponse(
     string Token,
     string RefreshToken
 );
+
+public record MutedWordDto(
+    int Id,
+    string Word,
+    string MuteBehavior,
+    DateTime? CreatedAt
+);
+

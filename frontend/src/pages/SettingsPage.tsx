@@ -22,6 +22,21 @@ const SettingsPage: React.FC = () => {
     const { t } = useTranslation();
     const user = useAppSelector((state: RootState) => state.auth.user);
 
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+
+    const languages = [
+        { code: 'vi', name: 'Tiếng Việt' },
+        { code: 'en', name: 'English' },
+        { code: 'ja', name: '日本語' },
+        { code: 'zh', name: '简体中文' },
+        { code: 'es', name: 'Español' },
+        { code: 'fr', name: 'Français' },
+        { code: 'de', name: 'Deutsch' },
+        { code: 'ko', name: '한국어' },
+    ];
+
+    const currentLanguageName = languages.find(l => l.code === settings?.appLanguage)?.name || settings?.appLanguage || 'English';
+    const currentThemeName = settings?.themeMode === 'dark' ? t('settings.dark_mode') : settings?.themeMode === 'light' ? t('settings.light_mode') : t('settings.system_mode', 'System');
 
     const handleLogout = async () => {
         await dispatch(logoutAsync());
@@ -34,9 +49,9 @@ const SettingsPage: React.FC = () => {
         { id: 'moderation', label: t('settings.moderation'), icon: <FiShield size={20} /> },
         { id: 'notifications', label: t('settings.notifications'), icon: <FiBell size={20} /> },
         { id: 'content', label: t('settings.content'), icon: <FiMonitor size={20} /> },
-        { id: 'appearance', label: t('settings.appearance'), icon: <FiLayout size={20} />, active: true },
+        { id: 'appearance', label: t('settings.appearance'), icon: <FiLayout size={20} />, value: currentThemeName, active: true },
         { id: 'accessibility', label: t('settings.accessibility'), icon: <FiMaximize size={20} /> },
-        { id: 'language', label: t('settings.language'), icon: <FiGlobe size={20} /> },
+        { id: 'language', label: t('settings.language'), icon: <FiGlobe size={20} />, value: currentLanguageName },
         { id: 'help', label: t('settings.help'), icon: <FiHelpCircle size={20} /> },
         { id: 'about', label: t('settings.about'), icon: <FiInfo size={20} /> },
     ];
@@ -122,11 +137,14 @@ const SettingsPage: React.FC = () => {
                                     : "hover:bg-gray-50 dark:hover:bg-dark-surface/50"
                             )}
                         >
-                            <div className="flex items-center gap-4 text-gray-900 dark:text-dark-text">
-                                <span className="opacity-80">{item.icon}</span>
-                                <span className="text-[15px] font-medium">{item.label}</span>
+                            <div className="flex items-center gap-4 text-gray-900 dark:text-dark-text overflow-hidden">
+                                <span className="opacity-80 flex-shrink-0">{item.icon}</span>
+                                <span className="text-[15px] font-medium truncate">{item.label}</span>
                             </div>
-                            <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
+                            <div className="flex items-center gap-2 text-gray-400 dark:text-dark-text-secondary">
+                                {item.value && <span className="text-[14px] truncate max-w-[120px]">{item.value}</span>}
+                                <FiChevronRight />
+                            </div>
                         </button>
                     ))}
                 </div>

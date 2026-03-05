@@ -6,6 +6,7 @@ import { cn } from '../../utils/classNames';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { BsPatchCheckFill } from 'react-icons/bs';
 
 interface ConversationItemProps {
     conversation: Conversation;
@@ -54,8 +55,11 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
             <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between">
                     <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-gray-900 dark:text-dark-text truncate">
+                        <span className="font-bold text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
                             {otherParticipant.displayName}
+                            {(otherParticipant as any).isVerified && (
+                                <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
+                            )}
                         </span>
                         <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
                             @{otherParticipant.handle || otherParticipant.username}

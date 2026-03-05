@@ -3,12 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
-import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiBookmark, FiMoreHorizontal, FiShare2 } from 'react-icons/fi';
+import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiBookmark, FiMoreHorizontal, FiShare2, FiLink, FiSend, FiCode } from 'react-icons/fi';
 import { toggleLike, repostPost, bookmarkPost, fetchPostById } from '../redux/slices/postsSlice';
 import { openReply } from '../redux/slices/modalsSlice';
 import { Post } from '../types';
 import Avatar from '../components/common/Avatar';
 import RichText from '../components/common/RichText';
+import Dropdown, { DropdownItem } from '../components/common/Dropdown';
 import { formatDistanceToNow } from 'date-fns';
 import { vi, enUS } from 'date-fns/locale';
 import { API_BASE_URL } from '../constants';
@@ -25,10 +26,11 @@ const MediaViewerPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t, i18n } = useTranslation();
-    const { openShareModal } = usePostActions();
+    const { handleCopyLink, handleEmbedPost, openShareModal } = usePostActions();
 
     const [currentIndex, setCurrentIndex] = useState(parseInt(indexParam || '0', 10));
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [showShareMenu, setShowShareMenu] = useState(false);
 
     // Swipe state
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -40,7 +42,7 @@ const MediaViewerPage: React.FC = () => {
     const currentPost = useMemo(() => allPosts.find((p: Post) => p.id === postId), [allPosts, postId]);
 
     // Media posts for swiping across feed
-    const mediaPosts = useMemo(() => allPosts.filter((p: Post) => (p.imageUrls && p.imageUrls.length > 0) || p.videoUrl), [allPosts]);
+    const mediaPosts = useMemo(() => allPosts.filter((p: Post) => (p.media && p.media.length > 0) || (p.imageUrls && p.imageUrls.length > 0) || p.videoUrl), [allPosts]);
     const currentPostIdx = useMemo(() => mediaPosts.findIndex((p: Post) => p.id === postId), [mediaPosts, postId]);
 
     useEffect(() => {
@@ -63,6 +65,19 @@ const MediaViewerPage: React.FC = () => {
         return `${base}${path}`;
     }, []);
 
+    const allMedia = useMemo(() => {
+        if (!currentPost) return [];
+        if (currentPost.media && currentPost.media.length > 0) {
+            return currentPost.media;
+        }
+        return [
+            ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' as const })),
+            ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' as const }] : [])
+        ];
+    }, [currentPost]);
+
+    const currentMedia = allMedia[currentIndex];
+
     if (!currentPost) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
@@ -71,19 +86,13 @@ const MediaViewerPage: React.FC = () => {
         );
     }
 
-    const allMedia = [
-        ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' })),
-        ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' }] : [])
-    ];
-    const currentMedia = allMedia[currentIndex];
-
     // Navigation
     const handlePrevMedia = () => {
         if (currentIndex > 0) {
             navigate(`/profile/${currentPost.author.handle}/post/${currentPost.id}/media/${currentIndex - 1}`, { replace: true });
         } else if (currentPostIdx > 0) {
             const prevPost = mediaPosts[currentPostIdx - 1];
-            const prevMediaCount = (prevPost.imageUrls?.length || 0) + (prevPost.videoUrl ? 1 : 0);
+            const prevMediaCount = (prevPost.media?.length || prevPost.imageUrls?.length || 0) + (prevPost.videoUrl ? 1 : 0);
             navigate(`/profile/${prevPost.author.handle}/post/${prevPost.id}/media/${prevMediaCount - 1}`, { replace: true });
         }
     };
@@ -142,6 +151,27 @@ const MediaViewerPage: React.FC = () => {
         openShareModal(currentPost);
     };
 
+    const shareDropdownItems: DropdownItem[] = [
+        {
+            id: 'copy-link',
+            label: t('post.copy_link'),
+            icon: <FiLink />,
+            onClick: () => handleCopyLink(currentPost.author.handle, currentPost.id),
+        },
+        {
+            id: 'send-message',
+            label: t('post.send_via_message'),
+            icon: <FiSend />,
+            onClick: () => openShareModal(currentPost),
+        },
+        {
+            id: 'embed',
+            label: t('post.embed_post'),
+            icon: <FiCode />,
+            onClick: () => handleEmbedPost(currentPost.author.handle, currentPost.id, currentPost.content || ''),
+        },
+    ];
+
     const formatCount = (count: number) => {
         if (count >= 1000) {
             const unit = t('common.user').startsWith('N') ? 'N' : 'K';
@@ -190,7 +220,7 @@ const MediaViewerPage: React.FC = () => {
                         {currentMedia?.type === 'video' ? (
                             <video src={getMediaUrl(currentMedia.url)} className="max-w-full max-h-full object-contain" controls onClick={e => e.stopPropagation()} />
                         ) : (
-                            <img src={getMediaUrl(currentMedia?.url || '')} alt="" className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-300" />
+                            <img src={getMediaUrl(currentMedia?.url || '')} alt={('altText' in currentMedia! ? currentMedia.altText : '') || ''} className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-300" />
                         )}
                     </div>
                 </div>
@@ -237,7 +267,7 @@ const MediaViewerPage: React.FC = () => {
                         <span className="text-[13px] font-bold">{formatCount(currentPost.bookmarksCount || 0)}</span>
                     </button>
                     <button
-                        onClick={handleShare}
+                        onClick={(e) => { e.stopPropagation(); setShowShareMenu(true); }}
                         className="flex flex-col items-center gap-1.5 text-white/95 active:scale-75 transition-all p-2 min-w-[60px]"
                     >
                         <FiShare2 size={26} />
@@ -257,7 +287,17 @@ const MediaViewerPage: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-white dark:bg-dark-bg">
                     <RichText content={currentPost.content || ''} className="text-[18px] text-gray-900 dark:text-dark-text leading-relaxed whitespace-pre-wrap mb-4" />
-                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-6">{formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true, locale: dateLocale })}</p>
+                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-4">{formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true, locale: dateLocale })}</p>
+
+                    {/* Alt Text for Current Media */}
+                    {'altText' in currentMedia && currentMedia.altText && (
+                        <div className="mb-6 p-4 bg-gray-50 dark:bg-dark-surface/30 rounded-xl border border-gray-100 dark:border-dark-border">
+                            <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1">{t('post.alt_text')}</h4>
+                            <p className="text-[15px] text-gray-700 dark:text-dark-text leading-snug italic">
+                                "{currentMedia.altText}"
+                            </p>
+                        </div>
+                    )}
 
                     {/* Unified Actions */}
                     <div className="py-6 border-y border-gray-100 dark:border-dark-border flex justify-around items-center">
@@ -265,7 +305,15 @@ const MediaViewerPage: React.FC = () => {
                         <button onClick={handleRepost} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isReposted ? "text-green-500" : "text-gray-500 hover:text-green-500")}><FiRepeat size={24} className={cn("group-hover:scale-110", currentPost.isReposted ? "stroke-[2.5px]" : "")} /><span className="text-xs font-bold">{currentPost.repostsCount}</span></button>
                         <button onClick={handleLike} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isLiked ? "text-red-500" : "text-gray-500 hover:text-red-500")}><FiHeart size={24} className={cn("group-hover:scale-110", currentPost.isLiked ? "fill-current" : "")} /><span className="text-xs font-bold">{currentPost.likesCount}</span></button>
                         <button onClick={handleBookmark} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isBookmarked ? "text-blue-500" : "text-gray-500 hover:text-blue-500")}><FiBookmark size={24} className={cn("group-hover:scale-110", currentPost.isBookmarked ? "fill-current" : "")} /><span className="text-xs font-bold">{currentPost.bookmarksCount || 0}</span></button>
-                        <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-primary-500 transition-all group"><FiShare2 size={24} className="group-hover:scale-110" /></button>
+                        <Dropdown
+                            trigger={
+                                <button className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-primary-500 transition-all group">
+                                    <FiShare2 size={24} className="group-hover:scale-110" />
+                                </button>
+                            }
+                            items={shareDropdownItems}
+                            align="right"
+                        />
                     </div>
 
 
@@ -287,6 +335,35 @@ const MediaViewerPage: React.FC = () => {
                             {i18n.language === 'vi' ? 'Xem bài đăng' : 'View post'}
                         </button>
                         <button onClick={() => setShowOptionsMenu(false)} className="w-full py-5 mt-6 text-[19px] font-bold text-gray-700 dark:text-dark-text-secondary bg-gray-100 dark:bg-dark-surface rounded-full">
+                            {i18n.language === 'vi' ? 'Hủy' : 'Cancel'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Mobile Share Sheet */}
+            {showShareMenu && (
+                <div className="fixed inset-0 z-[200] bg-black/70 flex items-end animate-in fade-in duration-200" onClick={() => setShowShareMenu(false)}>
+                    <div className="w-full bg-white dark:bg-dark-bg rounded-t-[32px] p-6 pb-12 animate-in slide-in-from-bottom duration-300 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="w-12 h-1.5 bg-gray-200 dark:bg-dark-border rounded-full mx-auto mb-8" />
+                        <h3 className="text-center font-bold text-[18px] text-gray-900 dark:text-dark-text mb-6">
+                            {t('post.share_post')}
+                        </h3>
+                        {shareDropdownItems.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    item.onClick();
+                                    setShowShareMenu(false);
+                                }}
+                                className="w-full text-left py-4 px-4 flex items-center gap-4 text-[17px] font-semibold text-gray-900 dark:text-dark-text border-b border-gray-50 dark:border-dark-border active:bg-gray-100 dark:active:bg-dark-surface"
+                            >
+                                <span className="text-gray-500">{item.icon}</span>
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                        <button onClick={() => setShowShareMenu(false)} className="w-full py-4 mt-6 text-[17px] font-bold text-gray-700 dark:text-dark-text-secondary bg-gray-100 dark:bg-dark-surface rounded-xl active:scale-95 transition-all">
                             {i18n.language === 'vi' ? 'Hủy' : 'Cancel'}
                         </button>
                     </div>

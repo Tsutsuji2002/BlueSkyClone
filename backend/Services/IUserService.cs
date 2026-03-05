@@ -25,5 +25,13 @@ public interface IUserService
     Task<bool> MuteUserAsync(Guid userId, Guid mutedUserId);
     Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId);
     Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId);
+    Task<List<User>> GetMutedUsersAsync(Guid userId);
+    Task<List<User>> GetBlockedUsersAsync(Guid userId);
     Task<List<User>> SearchUsersAsync(string query, int limit = 10);
+    Task<List<MutedWord>> GetMutedWordsAsync(Guid userId);
+    Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior);
+    Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId);
+    Task<List<string>> GetSelectedInterestsAsync(Guid userId);
+    Task SaveSelectedInterestsAsync(Guid userId, List<string> interests);
+    Task<bool> VerifyDomainAsync(Guid userId, string? handle = null);
 }

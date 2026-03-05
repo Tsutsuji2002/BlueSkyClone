@@ -30,6 +30,8 @@ export interface User {
     isMuted?: boolean;
     role?: 'user' | 'admin';
     listMembershipStatus?: number; // 0: Pending, 1: Accepted, 2: Rejected, null: None
+    isVerified?: boolean;
+    did?: string;
 }
 
 export interface UserSettings {
@@ -78,11 +80,27 @@ export interface UserSettings {
     inAppNotifyMentions: boolean;
     inAppNotifyQuotes: boolean;
     inAppNotifyReposts: boolean;
+    // Extended notification types
+    notifyActivity: boolean;
+    pushNotifyActivity: boolean;
+    inAppNotifyActivity: boolean;
+    notifyLikesOfReposts: boolean;
+    pushNotifyLikesOfReposts: boolean;
+    inAppNotifyLikesOfReposts: boolean;
+    notifyRepostsOfReposts: boolean;
+    pushNotifyRepostsOfReposts: boolean;
+    inAppNotifyRepostsOfReposts: boolean;
+    notifyOthers: boolean;
+    pushNotifyOthers: boolean;
+    inAppNotifyOthers: boolean;
     // Branding/UI
     appLanguage: string;
     primaryLanguage: string;
     themeMode: 'system' | 'light' | 'dark';
     fontSize?: number;
+    // Interaction Settings
+    defaultReplyRestriction?: string;
+    defaultAllowQuotes?: boolean;
 }
 
 export interface LinkPreview {
@@ -104,6 +122,12 @@ export interface PostVideo {
     alt?: string;
 }
 
+export interface PostMedia {
+    url: string;
+    altText?: string;
+    type?: string;
+}
+
 // Post types
 export interface Post {
     id: string;
@@ -111,6 +135,7 @@ export interface Post {
     content: string;
     images?: PostImage[];
     imageUrls?: string[]; // From backend
+    media?: PostMedia[]; // From backend
     videoUrl?: string; // From backend
     video?: PostVideo;
     linkPreview?: LinkPreview;
@@ -120,15 +145,29 @@ export interface Post {
     bookmarksCount: number;
     repliesCount: number;
     quotesCount: number;
-    isLiked?: boolean;
-    isReposted?: boolean;
+    isLiked?: boolean; isReposted?: boolean;
     isBookmarked?: boolean;
     listCaption?: string; // For curated lists
     isDeleted?: boolean;
     replyToPostId?: string;
     replyToHandle?: string;
     rootPostId?: string;
+    quotePostId?: string;
+    quotePost?: Post;
+    parentPost?: Post;
     addedByUserId?: string; // For curated lists
+    tags?: string[];
+    muteInfo?: {
+        isMuted: boolean;
+        behavior: 'hide' | 'warn' | 'none';
+        reason?: string;
+    };
+    canReply?: boolean;
+    replyRestriction?: string;
+    allowQuotes?: boolean;
+    language?: string;
+    repostedBy?: Partial<User>;
+    lastUpdated?: string; // ISO string for local cross-event ordering
 }
 
 // Comment/Reply types
@@ -156,6 +195,13 @@ export interface Notification {
     createdAt: string;
     isRead: boolean;
     invitationStatus?: number;
+}
+
+export interface MutedWord {
+    id: number;
+    word: string;
+    muteBehavior: string;
+    createdAt?: string;
 }
 
 // Trending topic types
@@ -280,21 +326,29 @@ export interface ThemeState {
 
 export interface PostsState {
     posts: Post[];
+    discoverPosts: Post[];
     trendingPosts: Post[];
     isLoading: boolean;
+    timelineLoading: boolean;
+    discoverLoading: boolean;
     error: string | null;
     hasMore: boolean;
+    discoverHasMore: boolean;
     actionLoading: Record<string, boolean>;
+    lastTimelineFetch: number;
+    lastDiscoverFetch: number;
 }
 
 export interface UserState {
     profile: User | null; // Current viewing profile
     users: User[]; // All sample users
     suggestedUsers: User[]; // Suggested users to follow
-    mutedWords: string[];
+    mutedWords: MutedWord[];
     mutedUsers: string[]; // User IDs
     blockedUsers: string[]; // User IDs
+    selectedInterests: string[];
     isLoading: boolean;
+    interestsLoading: boolean;
     error: string | null;
     actionLoading: Record<string, boolean>;
 }
@@ -326,7 +380,7 @@ export interface ModalsState {
     mobileMenu: boolean;
     imageViewer: {
         isOpen: boolean;
-        images: string[];
+        images: { url: string; altText?: string }[];
         currentIndex: number;
     };
     reply: {
@@ -343,6 +397,14 @@ export interface ModalsState {
         isOpen: boolean;
         post: Post | null;
     };
+    editPost: {
+        isOpen: boolean;
+        post: Post | null;
+    };
+    quote: {
+        isOpen: boolean;
+        post: Post | null;
+    };
 }
 
 // Component Props Types
@@ -353,7 +415,7 @@ export interface ButtonProps {
     fullWidth?: boolean;
     disabled?: boolean;
     loading?: boolean;
-    onClick?: () => void;
+    onClick?: React.MouseEventHandler<HTMLButtonElement>;
     type?: 'button' | 'submit' | 'reset';
     className?: string;
 }
@@ -368,6 +430,8 @@ export interface InputProps {
     disabled?: boolean;
     className?: string;
     icon?: React.ReactNode;
+    max?: string;
+    min?: string;
 }
 
 export interface AvatarProps {

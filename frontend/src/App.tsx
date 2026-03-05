@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useLocation } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './redux/store';
 import { useAppSelector } from './hooks/useAppSelector';
@@ -14,6 +14,7 @@ import ImageViewerModal from './modals/ImageViewerModal';
 import SharePostModal from './modals/SharePostModal';
 import Toast from './components/common/Toast';
 import ScrollToTop from './components/common/ScrollToTop';
+import GlobalDeleteConfirmModal from './components/common/GlobalDeleteConfirmModal';
 import './index.css';
 
 import { RootState } from './redux/store';
@@ -23,7 +24,9 @@ import { getMe, logoutAsync } from './redux/slices/authSlice';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
 import { isTokenExpired } from './utils/authUtils';
-import signalrService from './services/signalrService';
+import signalrService, { HubStatus } from './services/signalrService';
+import postSignalrService from './services/postSignalrService';
+import { closeAllModals } from './redux/slices/modalsSlice';
 
 import LoadingScreen from './components/common/LoadingScreen';
 
@@ -33,6 +36,7 @@ const AppContent: React.FC = () => {
   const isLoading = useAppSelector((state: RootState) => state.auth.isLoading);
   const appLanguage = useAppSelector((state: RootState) => state.language.appLanguage);
   const { i18n } = useTranslation();
+  const location = useLocation();
 
   useEffect(() => {
     // Clear chunk reload count on successful mount
@@ -60,18 +64,71 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       signalrService.startConnection();
+      postSignalrService.startConnection();
+
+      // Monitor SignalR connection status
+      signalrService.onStatusChange((status) => {
+        if (status === HubStatus.Disconnected) {
+          dispatch({
+            type: 'toast/showToast',
+            payload: {
+              message: 'SignalR Disconnected. Real-time updates may be delayed.',
+              type: 'error'
+            }
+          });
+        } else if (status === HubStatus.Reconnecting) {
+          dispatch({
+            type: 'toast/showToast',
+            payload: {
+              message: 'SignalR Reconnecting...',
+              type: 'info'
+            }
+          });
+        }
+      });
+
       dispatch(fetchUnreadCount());
       dispatch(fetchConversations());
     } else {
       signalrService.stopConnection();
+      postSignalrService.stopConnection();
     }
   }, [isAuthenticated, dispatch]);
+
+  const theme = useAppSelector((state: RootState) => state.theme);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    // Apply dark mode and variants
+    if (theme.mode === 'dark') {
+      root.classList.add('dark');
+      if (theme.darkVariant === 'dark') {
+        root.classList.add('lights-out');
+        root.classList.remove('dim');
+      } else {
+        root.classList.add('dim');
+        root.classList.remove('lights-out');
+      }
+    } else {
+      root.classList.remove('dark');
+      root.classList.remove('lights-out');
+      root.classList.remove('dim');
+    }
+
+    // Apply font size
+    root.setAttribute('data-font-size', theme.fontSize);
+  }, [theme.mode, theme.darkVariant, theme.fontSize]);
 
   useEffect(() => {
     if (appLanguage) {
       i18n.changeLanguage(appLanguage);
     }
   }, [appLanguage, i18n]);
+
+  // Close all modals on navigation
+  useEffect(() => {
+    dispatch(closeAllModals());
+  }, [location.pathname, dispatch]);
 
   if (isLoading && !isAuthenticated) {
     return <LoadingScreen />;
@@ -85,6 +142,7 @@ const AppContent: React.FC = () => {
       <EditProfileModal />
       <ImageViewerModal />
       <SharePostModal />
+      <GlobalDeleteConfirmModal />
       <Toast />
     </>
   );

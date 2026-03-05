@@ -18,19 +18,28 @@ const ButterflyLoading: React.FC<ButterflyLoadingProps> = ({ size = 'md', classN
         <div className={cn("relative flex items-center justify-center", sizeClasses[size], className)}>
             <svg
                 viewBox="0 0 64 64"
-                className="w-full h-full text-primary-500"
-                fill="currentColor"
+                className="w-full h-full text-primary-500 loading-butterfly"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
                 style={{ perspective: '1000px' }}
             >
+                <defs>
+                    <linearGradient id="loading-gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stopColor="currentColor" />
+                        <stop offset="100%" stopColor="currentColor" stopOpacity="0.8" />
+                    </linearGradient>
+                </defs>
                 {/* Left Wing */}
                 <path
                     className="butterfly-wing-left"
-                    d="M13.873 3.805C21.21 9.332 29.103 20.537 32 26.55v15.882c0-.338-.13.044-.41.867-1.512 4.456-7.418 21.847-20.923 7.944-7.111-7.32-3.819-14.64 9.125-16.85-7.405 1.264-15.73-.825-18.014-9.015C1.12 23.022 0 8.51 0 6.55 0-3.268 8.579-.182 13.873 3.805z"
+                    d="M16.892 13.717c-4.41 -3.197 -11.559 -5.672 -11.559 2.203c0 1.574 .934 13.208 1.483 15.096c1.9 6.568 8.347 7.333 14.516 6.317c-10.787 1.774 -13.037 8.555 -7.111 14.427c2.746 2.715 5.101 4.24 7.111 4.24c5.333 0 8.357 -7.384 9.333 -9.333l.435 -0.87V32c-2.413 -4.822 -8.991 -13.851 -15.106 -18.283z"
+                    fill="url(#loading-gradient)"
                 />
                 {/* Right Wing */}
                 <path
                     className="butterfly-wing-right"
-                    d="M50.127 3.805C42.79 9.332 34.897 20.537 32 26.55v15.882c0-.338.13.044.41.867 1.512 4.456 7.418 21.847 20.923 7.944 7.111-7.32 3.819-14.64-9.125-16.85 7.405 1.264 15.73-.825 18.014-9.015C62.88 23.022 64 8.51 64 6.55c0-9.818-8.579-6.732-13.873-2.745z"
+                    d="M47.108 13.717c4.41 -3.197 11.559 -5.672 11.559 2.203c0 1.574 -.934 13.208 -1.483 15.096c-1.9 6.568 -8.347 7.333 -14.516 6.317c10.787 1.774 13.037 8.555 7.111 14.427c-2.746 2.715 -5.101 4.24 -7.111 4.24c-5.333 0 -8.357 -7.384 -9.333 -9.333l-.435 -0.87V32c2.413 -4.822 8.991 -13.851 15.106 -18.283z"
+                    fill="url(#loading-gradient)"
                 />
             </svg>
         </div>

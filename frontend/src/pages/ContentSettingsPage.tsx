@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
@@ -13,15 +13,21 @@ import {
     FiPlay
 } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { updateNotificationSettings, updateSettings } from '../redux/slices/authSlice';
+import { RootState } from '../redux/store';
 
 const ContentSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
 
-    // State for toggles
-    const [autoplay, setAutoplay] = useState(true);
-    const [trending, setTrending] = useState(true);
-    const [discoverVideo, setDiscoverVideo] = useState(true);
+    const dispatch = useAppDispatch();
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+
+    const handleToggle = (key: string, value: boolean) => {
+        dispatch(updateSettings({ [key]: value })); // Optimistic UI update
+        dispatch(updateNotificationSettings({ [key]: value }));
+    };
 
     const MenuLinkItem = ({
         icon,
@@ -127,20 +133,20 @@ const ContentSettingsPage: React.FC = () => {
                         <ToggleItem
                             icon={<FiPlay size={20} />}
                             label={t('content.autoplay_video_gif')}
-                            value={autoplay}
-                            onChange={setAutoplay}
+                            value={settings?.autoplayVideoGif ?? true}
+                            onChange={(val) => handleToggle('autoplayVideoGif', val)}
                         />
                         <ToggleItem
                             icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>}
                             label={t('content.open_trending_topics')}
-                            value={trending}
-                            onChange={setTrending}
+                            value={settings?.openTrendingTopics ?? true}
+                            onChange={(val) => handleToggle('openTrendingTopics', val)}
                         />
                         <ToggleItem
                             icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
                             label={t('content.enable_video_discover')}
-                            value={discoverVideo}
-                            onChange={setDiscoverVideo}
+                            value={settings?.enableVideoDiscover ?? true}
+                            onChange={(val) => handleToggle('enableVideoDiscover', val)}
                         />
                     </section>
                 </div>

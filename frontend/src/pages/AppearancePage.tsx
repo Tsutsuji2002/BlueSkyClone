@@ -4,6 +4,7 @@ import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { setColorMode, setDarkVariant, setFontFamily, setFontSize } from '../redux/slices/themeSlice';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
 import { useTranslation } from 'react-i18next';
 import {
     FiArrowLeft, FiTablet, FiMoon, FiType, FiMaximize2
@@ -16,6 +17,25 @@ const AppearancePage: React.FC = () => {
     const { t } = useTranslation();
     const { colorMode, darkVariant, fontFamily, fontSize } = useAppSelector((state) => state.theme);
 
+    const handleColorModeChange = (val: string) => {
+        dispatch(setColorMode(val as any));
+        dispatch(updateNotificationSettings({ themeMode: val as any }));
+    };
+
+    const handleFontSizeChange = (val: 'sm' | 'md' | 'lg') => {
+        dispatch(setFontSize(val));
+        const numericSize = val === 'sm' ? 14 : val === 'md' ? 16 : 18;
+        dispatch(updateNotificationSettings({ fontSize: numericSize }));
+    };
+
+    const handleDarkVariantChange = (val: 'dim' | 'dark') => {
+        dispatch(setDarkVariant(val));
+    };
+
+    const handleFontFamilyChange = (val: 'system' | 'ui') => {
+        dispatch(setFontFamily(val));
+    };
+
     const SegmentedControl = ({
         options,
         value,
@@ -25,16 +45,16 @@ const AppearancePage: React.FC = () => {
         value: string,
         onChange: (val: any) => void
     }) => (
-        <div className="flex bg-gray-100 dark:bg-dark-surface p-1 rounded-xl w-full">
+        <div className="flex bg-gray-100 dark:bg-dark-surface p-1 rounded-[14px] w-full border border-gray-200 dark:border-dark-border/40">
             {options.map((opt) => (
                 <button
                     key={opt.value}
                     onClick={() => onChange(opt.value)}
                     className={cn(
-                        "flex-1 py-2 text-sm font-semibold rounded-lg transition-all",
+                        "flex-1 py-[9px] text-[15px] font-bold rounded-[10px] transition-all border border-transparent",
                         value === opt.value
-                            ? "bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text shadow-sm"
-                            : "text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text"
+                            ? "bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text shadow-[0_1px_3px_rgba(0,0,0,0.1)] dark:shadow-none dark:border-dark-border border-gray-200"
+                            : "text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text border-transparent"
                     )}
                 >
                     {opt.label}
@@ -73,7 +93,7 @@ const AppearancePage: React.FC = () => {
                                 { label: t('appearance.dark'), value: 'dark' },
                             ]}
                             value={colorMode}
-                            onChange={(val) => dispatch(setColorMode(val))}
+                            onChange={handleColorModeChange}
                         />
                     </section>
 
@@ -89,7 +109,7 @@ const AppearancePage: React.FC = () => {
                                 { label: t('appearance.dark'), value: 'dark' },
                             ]}
                             value={darkVariant}
-                            onChange={(val) => dispatch(setDarkVariant(val))}
+                            onChange={handleDarkVariantChange}
                         />
                     </section>
 
@@ -110,7 +130,7 @@ const AppearancePage: React.FC = () => {
                                 { label: t('appearance.ui_font'), value: 'ui' },
                             ]}
                             value={fontFamily}
-                            onChange={(val) => dispatch(setFontFamily(val))}
+                            onChange={handleFontFamilyChange}
                         />
                     </section>
 
@@ -127,7 +147,7 @@ const AppearancePage: React.FC = () => {
                                 { label: t('appearance.larger'), value: 'lg' },
                             ]}
                             value={fontSize}
-                            onChange={(val) => dispatch(setFontSize(val))}
+                            onChange={handleFontSizeChange}
                         />
                     </section>
                 </div>

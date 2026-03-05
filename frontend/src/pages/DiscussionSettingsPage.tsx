@@ -1,16 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiMessageSquare } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { updateNotificationSettings, updateSettings } from '../redux/slices/authSlice';
+import { RootState } from '../redux/store';
 
 const DiscussionSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
 
-    const [sortOrder, setSortOrder] = useState('top'); // top, oldest, newest
-    const [treeView, setTreeView] = useState(false);
+    const dispatch = useAppDispatch();
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+
+    const handleToggle = (key: string, value: any) => {
+        dispatch(updateSettings({ [key]: value })); // Optimistic UI update
+        dispatch(updateNotificationSettings({ [key]: value }));
+    };
 
     const RadioItem = ({
         label,
@@ -76,20 +84,20 @@ const DiscussionSettingsPage: React.FC = () => {
                             <RadioItem
                                 label={t('content.top_replies_first')}
                                 value="top"
-                                checked={sortOrder === 'top'}
-                                onChange={setSortOrder}
+                                checked={(settings?.sortReplies ?? 'top') === 'top'}
+                                onChange={(val) => handleToggle('sortReplies', val)}
                             />
                             <RadioItem
                                 label={t('content.oldest_replies_first')}
                                 value="oldest"
-                                checked={sortOrder === 'oldest'}
-                                onChange={setSortOrder}
+                                checked={settings?.sortReplies === 'oldest'}
+                                onChange={(val) => handleToggle('sortReplies', val)}
                             />
                             <RadioItem
                                 label={t('content.newest_replies_first')}
                                 value="newest"
-                                checked={sortOrder === 'newest'}
-                                onChange={setSortOrder}
+                                checked={settings?.sortReplies === 'newest'}
+                                onChange={(val) => handleToggle('sortReplies', val)}
                             />
                         </div>
                     </section>
@@ -106,15 +114,18 @@ const DiscussionSettingsPage: React.FC = () => {
                                 </h2>
                             </div>
                             <button
-                                onClick={() => setTreeView(!treeView)}
+                                onClick={() => {
+                                    dispatch(updateSettings({ treeView: !settings?.treeView })); // Optimistic UI
+                                    dispatch(updateNotificationSettings({ enableTreeView: !settings?.treeView } as any));
+                                }}
                                 className={cn(
                                     "w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out",
-                                    treeView ? "bg-blue-500" : "bg-gray-200 dark:bg-dark-surface"
+                                    settings?.treeView ? "bg-blue-500" : "bg-gray-200 dark:bg-dark-surface"
                                 )}
                             >
                                 <div className={cn(
                                     "w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform shadow-sm",
-                                    treeView ? "left-[22px]" : "left-0.5"
+                                    settings?.treeView ? "left-[22px]" : "left-0.5"
                                 )} />
                             </button>
                         </div>

@@ -7,17 +7,34 @@
     ports:
       - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      # 1. Switched to SQL Authentication (sa user). 
-      # Note: Windows Auth (Trusted_Connection) is not supported from Linux containers.
+      - ASPNETCORE_ENVIRONMENT=Production
+      # For VPS: Replace host.docker.internal with your VPS Public IP or use --add-host in docker run
       - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;
-      # 2. Re-enabled globalization (ICU library is now installed in Dockerfile)
       - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
-      - Redis__ConnectionString=redis:6379
+      - Redis__ConnectionString=redis:6379,abortConnect=false,connectTimeout=10000,syncTimeout=10000
+      - Elasticsearch__Uri=http://elasticsearch:9200
     depends_on:
       - redis
+    # Add this for Linux VPS to allow host.docker.internal to work
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   redis:
     image: redis:alpine
+    command: redis-server --save 60 1 --loglevel warning --stop-writes-on-bgsave-error no
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
+    driver: local
+  # Optional: Uncomment if you want to run Elasticsearch in the same compose
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false
+  #   ports:
+  #     - "9200:9200"

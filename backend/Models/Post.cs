@@ -18,6 +18,7 @@ public partial class Post
     public Guid? ReplyToPostId { get; set; }
 
     public Guid? RootPostId { get; set; }
+    public Guid? QuotePostId { get; set; }
 
     public int? LikesCount { get; set; }
 
@@ -32,7 +33,7 @@ public partial class Post
     public string? ReplyRestriction { get; set; }
 
     public bool? AllowQuotes { get; set; }
-
+    public string? Language { get; set; }
     public bool? IsDeleted { get; set; }
 
     public virtual User Author { get; set; } = null!;
@@ -54,8 +55,11 @@ public partial class Post
     public virtual ICollection<Repost> Reposts { get; set; } = new List<Repost>();
 
     public virtual Post? RootPost { get; set; }
-
+    public virtual Post? QuotePost { get; set; }
+    public virtual ICollection<Post> InverseQuotePost { get; set; } = new List<Post>();
     public virtual ICollection<Interest> Interests { get; set; } = new List<Interest>();
+
+    public virtual ICollection<Hashtag> Hashtags { get; set; } = new List<Hashtag>();
 
     public virtual ICollection<List> Lists { get; set; } = new List<List>();
 }

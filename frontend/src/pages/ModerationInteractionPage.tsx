@@ -1,23 +1,109 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiInfo, FiChevronDown } from 'react-icons/fi';
+import { FiArrowLeft, FiInfo, FiGlobe, FiUsers, FiAtSign, FiXCircle, FiCheck, FiChevronDown, FiRepeat, FiUserCheck } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { useAppDispatch } from '../hooks/useAppDispatch';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { RootState } from '../redux/store';
+import Button from '../components/common/Button';
+import axios from 'axios';
+import { API_BASE_URL } from '../constants';
+
+interface List {
+    id: string;
+    name: string;
+    description: string;
+    avatarUrl?: string;
+}
 
 const ModerationInteractionPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const [replyAccess, setReplyAccess] = useState('everyone'); // everyone, unmentioned
-    const [allowQuote, setAllowQuote] = useState(true);
+    const dispatch = useAppDispatch();
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+    const token = localStorage.getItem('token');
 
-    // Reply settings checkboxes
-    const [followers, setFollowers] = useState(false);
-    const [follows, setFollows] = useState(false);
-    const [mentions, setMentions] = useState(false);
+    // Local state
+    const [localReply, setLocalReply] = useState<string>('anyone');
+    const [localCustomRestrictions, setLocalCustomRestrictions] = useState<string[]>([]);
+    const [selectedLists, setSelectedLists] = useState<string[]>([]);
+    const [allowQuote, setAllowQuote] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isListsOpen, setIsListsOpen] = useState(false);
+    const [myLists, setMyLists] = useState<List[]>([]);
+
+    useEffect(() => {
+        if (settings) {
+            const restriction = settings.defaultReplyRestriction || 'anyone';
+            if (restriction === 'anyone' || restriction === 'nobody') {
+                setLocalReply(restriction);
+                setLocalCustomRestrictions([]);
+                setSelectedLists([]);
+            } else {
+                setLocalReply('custom');
+                setLocalCustomRestrictions(restriction.split(',').filter(r => ['followers', 'following', 'mentioned'].includes(r)));
+                const listIds = restriction.split(',').filter(r => r.startsWith('list:'));
+                setSelectedLists(listIds.map(l => l.replace('list:', '')));
+            }
+            setAllowQuote(settings.defaultAllowQuotes ?? true);
+        }
+        fetchLists();
+    }, [settings]);
+
+    const fetchLists = async () => {
+        try {
+            const resp = await axios.get(`${API_BASE_URL}/Lists/my`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setMyLists(resp.data);
+        } catch (error) {
+            console.error('Failed to fetch lists', error);
+        }
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        let finalRestriction = localReply;
+        if (localReply === 'custom') {
+            const parts = [...localCustomRestrictions];
+            selectedLists.forEach(id => parts.push(`list:${id}`));
+            finalRestriction = parts.join(',') || 'anyone';
+        }
+
+        try {
+            await dispatch(updateNotificationSettings({
+                defaultReplyRestriction: finalRestriction,
+                defaultAllowQuotes: allowQuote
+            })).unwrap();
+        } catch (error) {
+            console.error("Failed to save settings", error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const toggleCustomRestriction = (key: string) => {
+        setLocalReply('custom');
+        setLocalCustomRestrictions(prev =>
+            prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+        );
+    };
+
+    const toggleListSelection = (listId: string) => {
+        setLocalReply('custom');
+        setSelectedLists(prev =>
+            prev.includes(listId) ? prev.filter(id => id !== listId) : [...prev, listId]
+        );
+    };
+
+    const isCustomSelected = (key: string) => localReply === 'custom' && localCustomRestrictions.includes(key);
+    const isListSelected = (id: string) => localReply === 'custom' && selectedLists.includes(id);
 
     return (
-        <MainLayout>
+        <MainLayout hideTopBar title={t('moderation.interaction_title')}>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
@@ -28,13 +114,13 @@ const ModerationInteractionPage: React.FC = () => {
                         <FiArrowLeft size={20} className="dark:text-dark-text" />
                     </button>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                        {t('moderation.interaction_title')}
+                        {t('moderation.interaction_settings')}
                     </h1>
                 </div>
 
-                <div className="p-4">
+                <div className="p-6 max-w-xl mx-auto space-y-8">
                     {/* Info Banner */}
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex gap-3">
+                    <div className="bg-blue-50 dark:bg-[#001933] border border-blue-200 dark:border-[#0085FF]/30 rounded-2xl p-4 flex gap-3">
                         <FiInfo className="text-blue-500 shrink-0 mt-0.5" size={20} />
                         <p className="text-[15px] text-gray-800 dark:text-blue-100 leading-snug">
                             {t('moderation.interaction_info')}
@@ -42,104 +128,180 @@ const ModerationInteractionPage: React.FC = () => {
                     </div>
 
                     {/* Who can reply section */}
-                    <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">
-                        {t('moderation.who_can_reply')}
-                    </h2>
+                    <div className="space-y-4">
+                        <h2 className="font-bold text-gray-900 dark:text-dark-text text-lg">
+                            {t('moderation.who_can_reply')}
+                        </h2>
 
-                    <div className="flex gap-4 mb-4">
-                        <button
-                            onClick={() => setReplyAccess('everyone')}
-                            className={cn(
-                                "flex-1 flex items-center gap-2 p-3 rounded-lg border transition-all",
-                                replyAccess === 'everyone'
-                                    ? "bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-                                    : "bg-gray-50 border-transparent text-gray-500 dark:bg-dark-surface dark:text-dark-text-secondary"
-                            )}
-                        >
-                            <div className={cn(
-                                "w-5 h-5 rounded-full border flex items-center justify-center",
-                                replyAccess === 'everyone' ? "border-blue-500 bg-blue-500" : "border-gray-400"
-                            )}>
-                                {replyAccess === 'everyone' && <div className="w-2 h-2 bg-white rounded-full" />}
-                            </div>
-                            <span className="font-semibold">{t('moderation.anyone')}</span>
-                        </button>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => { setLocalReply('anyone'); setLocalCustomRestrictions([]); setSelectedLists([]); }}
+                                className={cn(
+                                    "flex items-center gap-3 p-4 rounded-2xl transition-all border-2",
+                                    localReply === 'anyone'
+                                        ? "bg-blue-50 dark:bg-[#001933] border-blue-500 dark:border-[#0085FF]"
+                                        : "bg-white dark:bg-dark-surface border-gray-100 dark:border-transparent hover:border-gray-300 dark:hover:bg-[#202022]"
+                                )}
+                            >
+                                <div className={cn(
+                                    "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                    localReply === 'anyone' ? "border-blue-500 bg-blue-500" : "border-gray-400 dark:border-gray-600"
+                                )}>
+                                    {localReply === 'anyone' && <div className="w-2 h-2 bg-white rounded-full shadow-sm" />}
+                                </div>
+                                <span className={cn("font-bold text-[16px]", localReply === 'anyone' ? "text-blue-600 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
+                                    {t('post.reply_anyone', 'Anyone')}
+                                </span>
+                            </button>
 
-                        <button
-                            onClick={() => setReplyAccess('none')}
-                            className={cn(
-                                "flex-1 flex items-center gap-2 p-3 rounded-lg border transition-all",
-                                replyAccess === 'none'
-                                    ? "bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-                                    : "bg-gray-50 border-transparent text-gray-500 dark:bg-dark-surface dark:text-dark-text-secondary"
-                            )}
-                        >
-                            <div className={cn(
-                                "w-5 h-5 rounded-full border flex items-center justify-center",
-                                replyAccess === 'none' ? "border-blue-500 bg-blue-500" : "border-gray-400"
-                            )}>
-                                {replyAccess === 'none' && <div className="w-2 h-2 bg-white rounded-full" />}
-                            </div>
-                            <span className="font-semibold">{t('moderation.no_one')}</span>
-                        </button>
-                    </div>
+                            <button
+                                onClick={() => { setLocalReply('nobody'); setLocalCustomRestrictions([]); setSelectedLists([]); }}
+                                className={cn(
+                                    "flex items-center gap-3 p-4 rounded-2xl transition-all border-2",
+                                    localReply === 'nobody'
+                                        ? "bg-blue-50 dark:bg-[#001933] border-blue-500 dark:border-[#0085FF]"
+                                        : "bg-white dark:bg-dark-surface border-gray-100 dark:border-transparent hover:border-gray-300 dark:hover:bg-[#202022]"
+                                )}
+                            >
+                                <div className={cn(
+                                    "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                    localReply === 'nobody' ? "border-blue-500 bg-blue-500" : "border-gray-400 dark:border-gray-600"
+                                )}>
+                                    {localReply === 'nobody' && <div className="w-2 h-2 bg-white rounded-full shadow-sm" />}
+                                </div>
+                                <span className={cn("font-bold text-[16px]", localReply === 'nobody' ? "text-blue-600 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
+                                    {t('post.reply_nobody', 'Nobody')}
+                                </span>
+                            </button>
+                        </div>
 
-                    <div className="space-y-3 mb-4">
-                        {[
-                            { label: t('moderation.followers'), state: followers, setter: setFollowers },
-                            { label: t('moderation.following'), state: follows, setter: setFollows },
-                            { label: t('moderation.mentioned'), state: mentions, setter: setMentions },
-                        ].map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-dark-surface/50 rounded-lg">
+                        <div className="space-y-2">
+                            {[
+                                { id: 'followers', label: t('post.reply_followers', 'Your followers'), icon: <FiUsers size={18} /> },
+                                { id: 'following', label: t('post.reply_following', 'People you follow'), icon: <FiUserCheck size={18} /> },
+                                { id: 'mentioned', label: t('post.reply_mentioned', 'People you mention'), icon: <FiAtSign size={18} /> },
+                            ].map((opt) => (
                                 <button
-                                    onClick={() => item.setter(!item.state)}
+                                    key={opt.id}
+                                    onClick={() => toggleCustomRestriction(opt.id)}
                                     className={cn(
-                                        "w-6 h-6 rounded border flex items-center justify-center transition-colors",
-                                        item.state
-                                            ? "bg-blue-500 border-blue-500 text-white"
-                                            : "bg-white border-gray-300 dark:bg-dark-bg dark:border-gray-600"
+                                        "w-full flex items-center gap-3 p-4 rounded-2xl transition-all border-2",
+                                        isCustomSelected(opt.id)
+                                            ? "bg-blue-50 dark:bg-[#001933] border-blue-500 dark:border-[#0085FF]"
+                                            : "bg-white dark:bg-dark-surface border-gray-100 dark:border-transparent hover:border-gray-300 dark:hover:bg-[#202022]"
                                     )}
                                 >
-                                    {item.state && <div className="w-2 h-2 bg-white rounded-sm" />} {/* Simple checkmark */}
+                                    <div className={cn(
+                                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                                        isCustomSelected(opt.id) ? "bg-blue-500 border-blue-500" : "border-gray-400 dark:border-gray-600"
+                                    )}>
+                                        {isCustomSelected(opt.id) && <FiCheck className="text-white" size={14} strokeWidth={4} />}
+                                    </div>
+                                    <span className={cn("font-bold text-[16px]", isCustomSelected(opt.id) ? "text-blue-600 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
+                                        {opt.label}
+                                    </span>
                                 </button>
-                                <span className="text-gray-700 dark:text-dark-text font-medium">{item.label}</span>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
 
-                    <div className="relative mb-8">
-                        <button className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-surface/50 rounded-lg text-gray-500 dark:text-dark-text-secondary">
-                            <span>{t('moderation.select_list')}</span>
-                            <FiChevronDown size={20} />
-                        </button>
-                    </div>
+                            <div className="space-y-2">
+                                <button
+                                    onClick={() => setIsListsOpen(!isListsOpen)}
+                                    className={cn(
+                                        "w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2",
+                                        selectedLists.length > 0
+                                            ? "bg-blue-50 dark:bg-[#001933] border-blue-500 dark:border-[#0085FF]"
+                                            : "bg-white dark:bg-dark-surface border-gray-100 dark:border-transparent hover:border-gray-300 dark:hover:bg-[#202022]"
+                                    )}
+                                >
+                                    <span className={cn("font-bold text-[16px]", selectedLists.length > 0 ? "text-blue-600 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
+                                        {t('post.select_from_lists', 'Select from your lists')}
+                                    </span>
+                                    <FiChevronDown className={cn("text-gray-400 transition-transform", isListsOpen && "rotate-180")} size={20} />
+                                </button>
 
-                    {/* Quote Post Toggle */}
-                    <div className="px-4 py-4 flex items-center justify-between border border-gray-100 dark:border-dark-border bg-blue-50/50 dark:bg-dark-surface/30 rounded-xl mb-8">
-                        <div className="flex items-center gap-3">
-                            <div className="text-gray-900 dark:text-dark-text font-bold">
-                                <span className="text-lg mr-2">""</span>
-                                {t('moderation.allow_quote')}
+                                {isListsOpen && (
+                                    <div className="px-2 py-2 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                                        {myLists.length === 0 ? (
+                                            <div className="p-4 text-center text-sm text-gray-500 italic">
+                                                {t('post.no_lists', "You haven't created any lists yet.")}
+                                            </div>
+                                        ) : (
+                                            myLists.map(list => (
+                                                <button
+                                                    key={list.id}
+                                                    onClick={() => toggleListSelection(list.id)}
+                                                    className={cn(
+                                                        "w-full flex items-center gap-3 p-3 rounded-xl transition-all",
+                                                        isListSelected(list.id) ? "bg-blue-500/10" : "hover:bg-gray-100 dark:hover:bg-[#161618]"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                                                        isListSelected(list.id) ? "bg-blue-500 border-blue-500" : "border-gray-400 dark:border-gray-600"
+                                                    )}>
+                                                        {isListSelected(list.id) && <FiCheck className="text-white" size={12} strokeWidth={4} />}
+                                                    </div>
+                                                    <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white shrink-0">
+                                                        <FiUsers size={16} />
+                                                    </div>
+                                                    <span className={cn("font-bold text-[15px] truncate text-left", isListSelected(list.id) ? "text-blue-600 dark:text-white" : "text-gray-600 dark:text-gray-400")}>
+                                                        {list.name}
+                                                    </span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
+                    </div>
+
+                    {/* Allow Quotes Section */}
+                    <div className="space-y-4">
+                        <h2 className="font-bold text-gray-900 dark:text-dark-text text-lg">
+                            {t('moderation.quote_posts')}
+                        </h2>
                         <button
                             onClick={() => setAllowQuote(!allowQuote)}
-                            className={cn(
-                                "w-12 h-7 rounded-full relative transition-colors duration-200 ease-in-out",
-                                allowQuote ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-600"
-                            )}
+                            className="w-full flex items-center justify-between p-5 rounded-3xl bg-blue-50/30 dark:bg-[#001933] border border-blue-200 dark:border-[#0085FF]/30 transition-all hover:bg-blue-50 dark:hover:bg-[#002850]"
                         >
+                            <div className="flex items-center gap-4 text-left">
+                                <div className="p-2 bg-blue-500/10 rounded-lg">
+                                    <FiRepeat className="text-blue-500" size={22} />
+                                </div>
+                                <div>
+                                    <span className="font-bold text-[16px] text-gray-900 dark:text-white block mb-0.5">
+                                        {t('post.allow_quotes', 'Allow quote posts')}
+                                    </span>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                        Other users can quote and react to your posts
+                                    </span>
+                                </div>
+                            </div>
                             <div className={cn(
-                                "w-6 h-6 bg-white rounded-full absolute top-0.5 transition-transform duration-200 ease-in-out shadow-sm",
-                                allowQuote ? "left-[22px]" : "left-0.5"
-                            )} />
+                                "w-14 h-8 rounded-full transition-colors relative flex items-center px-1 shrink-0",
+                                allowQuote ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-600"
+                            )}>
+                                <div className={cn(
+                                    "w-6 h-6 bg-white rounded-full transition-transform shadow-lg",
+                                    allowQuote ? "translate-x-6" : "translate-x-0"
+                                )} />
+                            </div>
                         </button>
                     </div>
 
                     {/* Save Button */}
-                    <button className="w-full py-3 bg-blue-100 hover:bg-blue-200 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 font-bold rounded-full transition-colors">
-                        {t('moderation.save')}
-                    </button>
+                    <div className="pt-4">
+                        <Button
+                            variant="primary"
+                            fullWidth
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold py-4 text-[17px] shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                            {isSaving ? t('common.saving') : t('moderation.save')}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </MainLayout>

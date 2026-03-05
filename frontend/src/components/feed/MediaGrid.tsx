@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PostImage, PostVideo } from '../../types';
+import { useAppSelector } from '../../redux/hooks';
+import { RootState } from '../../redux/store';
 
 import { cn } from '../../utils/classNames';
 import { API_BASE_URL } from '../../constants';
@@ -8,9 +10,10 @@ import { API_BASE_URL } from '../../constants';
 interface MediaGridProps {
     images?: PostImage[];
     imageUrls?: string[]; // From backend
+    media?: { url: string; altText?: string; type?: string }[]; // New backend media
     video?: PostVideo | null;
     videoUrl?: string; // From backend
-    onImageClick: (index: number) => void;
+    onImageClick?: (index: number) => void;
     isDetailView?: boolean;
 }
 
@@ -27,7 +30,7 @@ interface GridItemProps {
     className?: string;
     showOverlay?: boolean;
     totalCount: number;
-    onImageClick: (index: number) => void;
+    onImageClick?: (index: number) => void;
     isDetailView?: boolean;
 }
 
@@ -35,23 +38,42 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const { t } = useTranslation();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [imageError, setImageError] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+    const autoplayEnabled = settings?.autoplayVideoGif ?? true;
+
+    useEffect(() => {
+        if (!item.isVideo || !videoRef.current || !autoplayEnabled) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    videoRef.current?.play().catch(() => { });
+                } else {
+                    videoRef.current?.pause();
+                    videoRef.current!.currentTime = 0;
+                }
+            },
+            { threshold: 0.5 } // Play when at least 50% visible
+        );
+
+        observer.observe(videoRef.current);
+        return () => observer.disconnect();
+    }, [item.isVideo, autoplayEnabled]);
 
     const handleMouseEnter = () => {
-        if (item.isVideo && videoRef.current) {
-            videoRef.current.play().catch(() => { });
-        }
+        // Already handled by observer, but could be used for unmute or something in future
     };
 
     const handleMouseLeave = () => {
-        if (item.isVideo && videoRef.current) {
-            videoRef.current.pause();
-            videoRef.current.currentTime = 0;
-        }
+        // Already handled by observer
     };
 
     // Reset error state when URL changes
     useEffect(() => {
         setImageError(false);
+        setIsPlaying(false);
     }, [item.url]);
 
     if (imageError && !item.isVideo) {
@@ -75,7 +97,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
             )}
             onClick={(e) => {
                 e.stopPropagation();
-                onImageClick(index);
+                onImageClick?.(index);
             }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -90,16 +112,24 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             "w-full h-full",
                             isDetailView ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover"
                         )}
-                        muted
+                        muted={!isDetailView}
                         playsInline
                         loop
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
                         onError={(e) => {
                             // On video error, we'll just show a generic indicator or nothing
                             console.error('Video load error:', item.url);
                         }}
                     />
-                    <div className="absolute inset-0 bg-black/10 group-hover/video:bg-transparent transition-colors flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white opacity-80 group-hover/video:opacity-0 transition-opacity">
+                    <div className={cn(
+                        "absolute inset-0 bg-black/10 transition-colors flex items-center justify-center",
+                        isPlaying ? "opacity-0" : "group-hover/video:bg-transparent"
+                    )}>
+                        <div className={cn(
+                            "w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white transition-opacity",
+                            isPlaying ? "opacity-0" : "opacity-80 group-hover/video:opacity-0"
+                        )}>
                             <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z" />
                             </svg>
@@ -119,7 +149,10 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 />
             )}
             {item.alt && (
-                <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white rounded text-[10px] font-bold">
+                <div className={cn(
+                    "absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white rounded font-bold",
+                    settings?.largerAltBadge ? "text-xs px-2 py-1" : "text-[10px]"
+                )}>
                     ALT
                 </div>
             )}
@@ -135,7 +168,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     );
 };
 
-const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], video, videoUrl, onImageClick, isDetailView = false }) => {
+const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], media = [], video, videoUrl, onImageClick, isDetailView = false }) => {
     const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
 
     const resolveUrl = (url: string) => {
@@ -174,19 +207,36 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
         // Use a set to track added URLs to avoid duplicates
         const addedUrls = new Set<string>();
 
-        // 1. Handle primary video (prefers video object with thumbnail)
+        // 1. Handle new media prop (highest priority, has alt text from DB)
+        if (media && media.length > 0) {
+            media.forEach(m => {
+                const url = resolveUrl(m.url);
+                if (!addedUrls.has(url)) {
+                    const isVideo = m.type === 'video' || isVideoUrl(url);
+                    const optimized = getOptimizedUrl(m.url, url, isVideo);
+                    list.push({ url: optimized, alt: m.altText, isVideo });
+                    addedUrls.add(url);
+                }
+            });
+        }
+
+        // 2. Handle primary video (prefers video object with thumbnail)
         if (video) {
             const url = resolveUrl(video.url);
             const thumbUrl = video.thumbnail ? resolveUrl(video.thumbnail) : undefined;
-            list.push({ url, isVideo: true, thumbnail: thumbUrl, alt: video.alt });
-            addedUrls.add(url);
+            if (!addedUrls.has(url)) {
+                list.push({ url, isVideo: true, thumbnail: thumbUrl, alt: video.alt });
+                addedUrls.add(url);
+            }
         } else if (videoUrl) {
             const url = resolveUrl(videoUrl);
-            list.push({ url, isVideo: true });
-            addedUrls.add(url);
+            if (!addedUrls.has(url)) {
+                list.push({ url, isVideo: true });
+                addedUrls.add(url);
+            }
         }
 
-        // 2. Add images (with video detection safety)
+        // 3. Add images (fallback)
         images.forEach(img => {
             const resolved = resolveUrl(img.url);
             if (!addedUrls.has(resolved)) {
@@ -207,16 +257,9 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], vide
             }
         });
 
-        // Final sanity check: if we have a videoUrl that wasn't added yet (shouldn't happen but for safety)
-        if (videoUrl && !addedUrls.has(resolveUrl(videoUrl))) {
-            const url = resolveUrl(videoUrl);
-            list.unshift({ url, isVideo: true });
-            addedUrls.add(url);
-        }
-
         return list;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [video, videoUrl, images, imageUrls, isDetailView]);
+    }, [media, video, videoUrl, images, imageUrls, isDetailView]);
 
     const firstMedia = mediaList[0];
     // Use the URL string as dependency instead of the object to avoid infinite loops

@@ -6,11 +6,31 @@ import { Message } from '../types';
 
 const HUB_URL = process.env.REACT_APP_HUB_URL || 'http://localhost:5000/hubs/chat';
 
+export enum HubStatus {
+    Disconnected = 'Disconnected',
+    Connecting = 'Connecting',
+    Connected = 'Connected',
+    Reconnecting = 'Reconnecting'
+}
+
 class SignalRService {
     private connection: signalR.HubConnection | null = null;
+    public hubStatus: HubStatus = HubStatus.Disconnected;
+    private statusListeners: ((status: HubStatus) => void)[] = [];
+
+    public onStatusChange(callback: (status: HubStatus) => void) {
+        this.statusListeners.push(callback);
+    }
+
+    private updateStatus(status: HubStatus) {
+        this.hubStatus = status;
+        this.statusListeners.forEach(fn => fn(status));
+    }
 
     public async startConnection() {
         if (this.connection) return;
+
+        this.updateStatus(HubStatus.Connecting);
 
         this.connection = new signalR.HubConnectionBuilder()
             .withUrl(HUB_URL, {
@@ -18,6 +38,10 @@ class SignalRService {
             })
             .withAutomaticReconnect()
             .build();
+
+        this.connection.onreconnecting(() => this.updateStatus(HubStatus.Reconnecting));
+        this.connection.onreconnected(() => this.updateStatus(HubStatus.Connected));
+        this.connection.onclose(() => this.updateStatus(HubStatus.Disconnected));
 
         this.connection.on('ReceiveMessage', (message: Message) => {
             const state = store.getState();
@@ -42,7 +66,10 @@ class SignalRService {
 
         // Add handler for notifications
         this.connection.on('ReceiveNotification', (notification) => {
-            store.dispatch(addNotification(notification));
+            // Chat messages should only be handled in the chat section, not in the general notification feed
+            if (notification.type !== 'message') {
+                store.dispatch(addNotification(notification));
+            }
             // Show a toast for instant feedback
             const message = notification.title || 'New notification received';
             // @ts-ignore
@@ -54,8 +81,10 @@ class SignalRService {
 
         try {
             await this.connection.start();
+            this.updateStatus(HubStatus.Connected);
             console.log('SignalR connected');
         } catch (err) {
+            this.updateStatus(HubStatus.Disconnected);
             console.error('SignalR connection error: ', err);
             setTimeout(() => this.startConnection(), 5000);
         }
@@ -81,10 +110,10 @@ class SignalRService {
         }
     }
 
-    public async sendMessage(conversationId: string, content?: string | null, imageUrl?: string | null, replyToId?: string | null) {
+    public async sendMessage(conversationId: string, content?: string | null, imageUrl?: string | null, replyToId?: string | null, linkPreview?: any | null) {
         if (this.connection?.state === signalR.HubConnectionState.Connected) {
             try {
-                await this.connection.invoke('SendMessage', conversationId, content, imageUrl, replyToId);
+                await this.connection.invoke('SendMessage', conversationId, content, imageUrl, replyToId, linkPreview);
             } catch (err) {
                 console.error('Failed to send message:', err);
                 throw err;

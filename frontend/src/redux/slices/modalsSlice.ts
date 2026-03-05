@@ -2,7 +2,18 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 // Modals Slice
 import { ModalsState, Post } from '../../types';
 
-const initialState: ModalsState = {
+export interface DeleteConfirmState {
+    isOpen: boolean;
+    postId: string | null;
+    isListRemoval?: boolean;
+    onConfirm?: (() => void) | undefined;
+}
+
+interface ExtendedModalsState extends ModalsState {
+    deleteConfirm: DeleteConfirmState;
+}
+
+const initialState: ExtendedModalsState = {
     createPost: false,
     editProfile: false,
     imageViewer: {
@@ -25,6 +36,19 @@ const initialState: ModalsState = {
         isOpen: false,
         post: null,
     },
+    editPost: {
+        isOpen: false,
+        post: null,
+    },
+    quote: {
+        isOpen: false,
+        post: null,
+    },
+    deleteConfirm: {
+        isOpen: false,
+        postId: null,
+        onConfirm: undefined,
+    },
 };
 
 const modalsSlice = createSlice({
@@ -43,7 +67,7 @@ const modalsSlice = createSlice({
         closeEditProfile: (state) => {
             state.editProfile = false;
         },
-        openImageViewer: (state, action: PayloadAction<{ images: string[]; index?: number }>) => {
+        openImageViewer: (state, action: PayloadAction<{ images: { url: string; altText?: string }[]; index?: number }>) => {
             state.imageViewer = {
                 isOpen: true,
                 images: action.payload.images,
@@ -105,6 +129,86 @@ const modalsSlice = createSlice({
                 post: null,
             };
         },
+        openEditPost: (state, action: PayloadAction<Post>) => {
+            state.editPost = {
+                isOpen: true,
+                post: action.payload,
+            };
+            state.createPost = true;
+        },
+        closeEditPost: (state) => {
+            state.editPost = {
+                isOpen: false,
+                post: null,
+            };
+            state.createPost = false;
+        },
+        openQuote: (state, action: PayloadAction<Post>) => {
+            state.quote = {
+                isOpen: true,
+                post: action.payload,
+            };
+            state.createPost = true;
+        },
+        closeQuote: (state) => {
+            state.quote = {
+                isOpen: false,
+                post: null,
+            };
+            state.createPost = false;
+        },
+        openDeleteConfirm: (state, action: PayloadAction<{ postId: string; isListRemoval?: boolean; onConfirm?: () => void }>) => {
+            (state as any).deleteConfirm = {
+                isOpen: true,
+                postId: action.payload.postId,
+                isListRemoval: action.payload.isListRemoval,
+                onConfirm: action.payload.onConfirm,
+            };
+        },
+        closeDeleteConfirm: (state) => {
+            (state as any).deleteConfirm = {
+                isOpen: false,
+                postId: null,
+                onConfirm: undefined,
+            };
+        },
+        closeAllModals: (state) => {
+            state.createPost = false;
+            state.editProfile = false;
+            state.imageViewer = {
+                isOpen: false,
+                images: [],
+                currentIndex: 0,
+            };
+            state.reply = {
+                isOpen: false,
+                post: null,
+            };
+            state.confirmation = {
+                isOpen: false,
+                title: '',
+                message: '',
+                onConfirm: undefined,
+            };
+            state.mobileMenu = false;
+            state.sharePost = {
+                isOpen: false,
+                post: null,
+            };
+            state.editPost = {
+                isOpen: false,
+                post: null,
+            };
+            state.quote = {
+                isOpen: false,
+                post: null,
+            };
+            (state as any).deleteConfirm = {
+                isOpen: false,
+                postId: null,
+                onConfirm: undefined,
+            };
+        },
     },
 });
 
@@ -124,6 +228,13 @@ export const {
     closeMobileMenu,
     openSharePost,
     closeSharePost,
+    openEditPost,
+    closeEditPost,
+    openQuote,
+    closeQuote,
+    openDeleteConfirm,
+    closeDeleteConfirm,
+    closeAllModals,
 } = modalsSlice.actions;
 
 export default modalsSlice.reducer;

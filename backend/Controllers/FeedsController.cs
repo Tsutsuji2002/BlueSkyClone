@@ -36,12 +36,28 @@ public class FeedsController : ControllerBase
     }
 
     [HttpGet("trending-posts")]
-    public async Task<IActionResult> GetTrendingPosts([FromServices] IPostService postService, [FromQuery] int limit = 50)
+    public async Task<IActionResult> GetTrendingPosts([FromServices] IPostService postService, [FromQuery] int limit = 50, [FromQuery] int skip = 0)
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         Guid? userId = string.IsNullOrEmpty(userIdString) ? null : Guid.Parse(userIdString);
         
-        var posts = await postService.GetTrendingPosts24hAsync(userId, limit);
+        var posts = await postService.GetTrendingPosts24hAsync(userId, limit, skip);
+        return Ok(posts);
+    }
+
+    [HttpGet("discover")]
+    public async Task<IActionResult> GetDiscoverPosts([FromServices] IPostService postService, [FromQuery] int skip = 0, [FromQuery] int take = 10)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString))
+        {
+            // Unauthenticated users get trending
+            var trendingPosts = await postService.GetTrendingPosts24hAsync(null, take);
+            return Ok(trendingPosts);
+        }
+
+        var userId = Guid.Parse(userIdString);
+        var posts = await postService.GetDiscoverPostsAsync(userId, take, skip);
         return Ok(posts);
     }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -7,40 +7,42 @@ import { useTranslation } from 'react-i18next';
 import {
     setAppLanguage,
     setPrimaryLanguage,
-    toggleContentLanguage
+    toggleContentLanguage,
+    setContentLanguages
 } from '../redux/slices/languageSlice';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
 import {
-    FiArrowLeft, FiGlobe, FiType, FiCheck
+    FiArrowLeft, FiPlus, FiX, FiCheck, FiChevronRight, FiSearch
 } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
+import { APP_LANGUAGES, ALL_LANGUAGES, LanguageMetadata } from '../constants/languages';
+import LanguageSelectionModal from '../components/modals/LanguageSelectionModal';
 
 const LanguagePage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { appLanguage, primaryLanguage, contentLanguages } = useAppSelector((state) => state.language);
 
-    const languages = [
-        { code: 'vi', name: t('language.vi', { defaultValue: 'Tiếng Việt – Vietnamese' }) },
-        { code: 'en', name: t('language.en', { defaultValue: 'English' }) },
-        { code: 'ja', name: t('language.ja', { defaultValue: '日本語 – Japanese' }) },
-        { code: 'zh', name: t('language.zh', { defaultValue: '简体中文 – Chinese (Simplified)' }) },
-        { code: 'es', name: t('language.es', { defaultValue: 'Español – Spanish' }) },
-        { code: 'fr', name: t('language.fr', { defaultValue: 'Français – French' }) },
-        { code: 'de', name: t('language.de', { defaultValue: 'Deutsch – German' }) },
-        { code: 'ko', name: t('language.ko', { defaultValue: '한국어 – Korean' }) },
-    ];
+    const [isAppLangOpen, setIsAppLangOpen] = useState(false);
+    const [isPrimaryLangOpen, setIsPrimaryLangOpen] = useState(false);
+    const [isContentModalOpen, setIsContentModalOpen] = useState(false);
 
-    const contentLanguageOptions = [
-        { code: 'vi', name: t('language.vi', { defaultValue: 'Tiếng Việt' }) },
-        { code: 'en', name: t('language.en', { defaultValue: 'English' }) },
-        { code: 'ja', name: t('language.ja', { defaultValue: '日本語' }) },
-        { code: 'zh', name: t('language.zh', { defaultValue: '简体中文' }) },
-        { code: 'es', name: t('language.es', { defaultValue: 'Español' }) },
-        { code: 'fr', name: t('language.fr', { defaultValue: 'Français' }) },
-        { code: 'de', name: t('language.de', { defaultValue: 'Deutsch' }) },
-        { code: 'ko', name: t('language.ko', { defaultValue: '한국어' }) },
-    ];
+    const handleAppLangChange = (code: string) => {
+        dispatch(setAppLanguage(code));
+        i18n.changeLanguage(code);
+        dispatch(updateNotificationSettings({ appLanguage: code }));
+        setIsAppLangOpen(false);
+    };
+
+    const handlePrimaryLangChange = (code: string) => {
+        dispatch(setPrimaryLanguage(code));
+        dispatch(updateNotificationSettings({ primaryLanguage: code }));
+        setIsPrimaryLangOpen(false);
+    };
+
+    const getCurrentAppLang = () => APP_LANGUAGES.find(l => l.code === appLanguage) || APP_LANGUAGES[0];
+    const getCurrentPrimaryLang = () => ALL_LANGUAGES.find(l => l.code === primaryLanguage) || { code: 'vi', nativeName: 'Tiếng Việt', englishName: 'Vietnamese' };
 
     return (
         <MainLayout>
@@ -59,106 +61,161 @@ const LanguagePage: React.FC = () => {
                 </div>
 
                 <div className="p-4 space-y-8">
-                    {/* Ngôn ngữ ứng dụng */}
-                    <section className="space-y-4">
+                    {/* App language */}
+                    <section className="space-y-3">
                         <div className="space-y-1">
                             <h2 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
                                 {t('language.app_language')}
                             </h2>
-                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary leading-snug">
+                            <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary">
                                 {t('language.app_language_desc')}
                             </p>
                         </div>
+
                         <div className="relative">
-                            <select
-                                value={appLanguage}
-                                onChange={(e) => dispatch(setAppLanguage(e.target.value))}
-                                className="w-full bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-[15px] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all dark:text-dark-text"
+                            <button
+                                onClick={() => setIsAppLangOpen(!isAppLangOpen)}
+                                className="w-full flex items-center justify-between bg-gray-50 dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl px-4 py-3.5 text-[15px] font-medium transition-all hover:bg-gray-100/50 dark:hover:bg-dark-surface-hover"
                             >
-                                {languages.map(lang => (
-                                    <option key={lang.code} value={lang.code}>{lang.name}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                <FiGlobe size={18} />
-                            </div>
+                                <span className="dark:text-dark-text">
+                                    {getCurrentAppLang().nativeName}
+                                </span>
+                                <FiChevronRight className={cn("text-gray-400 transition-transform", isAppLangOpen && "rotate-90")} size={18} />
+                            </button>
+
+                            {isAppLangOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 z-30 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-2xl shadow-xl max-h-[400px] overflow-y-auto">
+                                    {APP_LANGUAGES.map((lang) => (
+                                        <button
+                                            key={lang.code}
+                                            onClick={() => handleAppLangChange(lang.code)}
+                                            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-dark-surface-hover transition-colors border-b last:border-0 border-gray-100 dark:border-dark-border/50"
+                                        >
+                                            <div className="text-left">
+                                                <div className="text-[15px] font-medium dark:text-dark-text">
+                                                    {lang.nativeName} {lang.nativeName !== lang.englishName && `– ${lang.englishName}`}
+                                                </div>
+                                            </div>
+                                            {appLanguage === lang.code && <FiCheck className="text-primary-500" size={18} />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </section>
 
                     <div className="h-px bg-gray-100 dark:bg-dark-border" />
 
-                    {/* Ngôn ngữ chính */}
-                    <section className="space-y-4">
+                    {/* Primary language */}
+                    <section className="space-y-3">
                         <div className="space-y-1">
                             <h2 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
                                 {t('language.primary_language')}
                             </h2>
-                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary leading-snug">
+                            <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary">
                                 {t('language.primary_language_desc')}
                             </p>
                         </div>
+
                         <div className="relative">
-                            <select
-                                value={primaryLanguage}
-                                onChange={(e) => dispatch(setPrimaryLanguage(e.target.value))}
-                                className="w-full bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-[15px] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all dark:text-dark-text"
+                            <button
+                                onClick={() => setIsPrimaryLangOpen(!isPrimaryLangOpen)}
+                                className="w-full flex items-center justify-between bg-gray-50 dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl px-4 py-3.5 text-[15px] font-medium transition-all hover:bg-gray-100/50 dark:hover:bg-dark-surface-hover"
                             >
-                                {languages.map(lang => (
-                                    <option key={lang.code} value={lang.code}>{lang.name}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                <FiType size={18} />
-                            </div>
+                                <span className="dark:text-dark-text">
+                                    {getCurrentPrimaryLang().englishName}
+                                </span>
+                                <FiChevronRight className={cn("text-gray-400 transition-transform", isPrimaryLangOpen && "rotate-90")} size={18} />
+                            </button>
+
+                            {isPrimaryLangOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 z-30 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-2xl shadow-xl max-h-[400px] overflow-y-auto">
+                                    <div className="sticky top-0 bg-white dark:bg-dark-surface p-3 border-b border-gray-100 dark:border-dark-border/50">
+                                        <div className="relative">
+                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                            <input
+                                                type="text"
+                                                placeholder="Search languages..."
+                                                className="w-full bg-gray-50 dark:bg-dark-bg border border-transparent rounded-lg pl-9 pr-4 py-2 text-sm dark:text-dark-text focus:outline-none"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
+                                    </div>
+                                    {ALL_LANGUAGES.map((lang) => (
+                                        <button
+                                            key={lang.code}
+                                            onClick={() => handlePrimaryLangChange(lang.code)}
+                                            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-dark-surface-hover transition-colors border-b last:border-0 border-gray-100 dark:border-dark-border/50"
+                                        >
+                                            <span className="text-[15px] dark:text-dark-text">{lang.englishName}</span>
+                                            {primaryLanguage === lang.code && <FiCheck className="text-primary-500" size={18} />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </section>
 
                     <div className="h-px bg-gray-100 dark:bg-dark-border" />
 
-                    {/* Ngôn ngữ nội dung */}
-                    <section className="space-y-4">
+                    {/* Content languages */}
+                    <section className="space-y-5">
                         <div className="space-y-1">
                             <h2 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
                                 {t('language.content_languages')}
                             </h2>
-                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary leading-snug">
+                            <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary">
                                 {t('language.content_languages_desc')}
                             </p>
                         </div>
 
-                        <div className="bg-gray-50 dark:bg-dark-surface rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border">
-                            {contentLanguageOptions.map((lang, index) => {
-                                const isSelected = contentLanguages.includes(lang.code);
+                        <div className="space-y-0.5">
+                            {contentLanguages.map((code) => {
+                                const lang = ALL_LANGUAGES.find(l => l.code === code);
+                                if (!lang) return null;
                                 return (
-                                    <button
-                                        key={lang.code}
-                                        onClick={() => dispatch(toggleContentLanguage(lang.code))}
-                                        className={cn(
-                                            "w-full flex items-center justify-between px-4 py-4 transition-colors",
-                                            index !== contentLanguageOptions.length - 1 && "border-b border-gray-100 dark:border-dark-border/50",
-                                            "hover:bg-gray-100/50 dark:hover:bg-dark-surface-hover"
-                                        )}
+                                    <div
+                                        key={code}
+                                        className="flex items-center justify-between px-4 py-4 bg-primary-500/5 dark:bg-primary-500/10 border-b border-gray-100 dark:border-dark-border/30 first:rounded-t-2xl last:rounded-b-2xl last:border-0"
                                     >
-                                        <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
-                                            {lang.name}
-                                        </span>
-                                        {isSelected && (
-                                            <FiCheck className="text-primary-500" size={20} />
-                                        )}
-                                    </button>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-5 h-5 bg-primary-500 rounded flex items-center justify-center">
+                                                <FiCheck className="text-white" size={12} strokeWidth={4} />
+                                            </div>
+                                            <span className="text-[15px] font-bold dark:text-dark-text">{lang.englishName}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => dispatch(toggleContentLanguage(code))}
+                                            className="p-1 hover:bg-gray-200 dark:hover:bg-dark-surface-hover rounded-full transition-colors"
+                                        >
+                                            <FiX className="text-gray-400" size={18} />
+                                        </button>
+                                    </div>
                                 );
                             })}
-                        </div>
 
-                        <div className="px-4 py-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl flex items-center gap-3">
-                            <FiCheck className="text-blue-500 flex-shrink-0" size={18} />
-                            <span className="text-[14px] font-medium text-gray-700 dark:text-dark-text-secondary">
-                                {contentLanguages.map(code => contentLanguageOptions.find(o => o.code === code)?.name).join(', ')}
-                            </span>
+                            <button
+                                onClick={() => setIsContentModalOpen(true)}
+                                className={cn(
+                                    "w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface-hover transition-colors text-primary-500 font-medium text-[15px]",
+                                    contentLanguages.length === 0 ? "bg-gray-50 dark:bg-dark-surface rounded-2xl" : "border-t border-gray-100 dark:border-dark-border/30"
+                                )}
+                            >
+                                <FiPlus size={20} />
+                                {t('language.add_more', { defaultValue: 'Add more languages...' })}
+                            </button>
                         </div>
                     </section>
                 </div>
             </div>
+
+            {isContentModalOpen && (
+                <LanguageSelectionModal
+                    onClose={() => setIsContentModalOpen(false)}
+                    selectedCodes={contentLanguages}
+                    onToggle={(code) => dispatch(toggleContentLanguage(code))}
+                />
+            )}
         </MainLayout>
     );
 };

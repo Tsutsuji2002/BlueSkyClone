@@ -18,7 +18,9 @@
         "video": "Video",
         "likes": "Lượt thích",
         "bookmarks": "Đã lưu",
-        "link_preview": "Xem trước liên kết"
+        "link_preview": "Xem trước liên kết",
+        "admin": "Quản trị",
+        "search": "Tìm kiếm"
     },
     "settings": {
         "title": "Cài đặt",
@@ -35,6 +37,7 @@
         "about": "Giới thiệu",
         "dark_mode": "Chế độ tối",
         "light_mode": "Chế độ sáng",
+        "system_mode": "Hệ thống",
         "logout": "Đăng xuất",
         "logout_label": "Đăng xuất",
         "email": "Email",
@@ -79,7 +82,9 @@
         "done": "Xong",
         "current_password": "Mật khẩu hiện tại",
         "handle_same": "Đây là handle hiện tại của bạn",
-        "username_updated_success": "Đã cập nhật handle thành công"
+        "username_updated_success": "Đã cập nhật handle thành công",
+        "handle_cannot_be_blank": "Handle không được để trống",
+        "birthdate_future_error": "Ngày sinh không được ở tương lai"
     },
     "moderation": {
         "title": "Kiểm duyệt",
@@ -105,6 +110,13 @@
         "select_list": "Select from your lists",
         "allow_quote": "Cho phép trích dẫn bài đăng",
         "block_confirm": "Bạn có chắc chắn muốn chặn {{name}}? Họ sẽ không thể xem bài đăng của bạn hoặc tương tác với bạn nữa.",
+        "unblock_confirm": "Bạn có chắc chắn muốn bỏ chặn {{name}}?",
+        "mute_confirm": "Bạn có chắc chắn muốn ẩn {{name}}? Bài đăng của họ sẽ không còn xuất hiện trên bảng tin của bạn.",
+        "unmute_confirm": "Bạn có chắc chắn muốn hiện lại {{name}}?",
+        "unblock": "Bỏ chặn",
+        "unmute": "Bỏ ẩn",
+        "block": "Chặn",
+        "mute": "Ẩn",
         "save": "Lưu",
         "muted_words_title": "Từ & thẻ bị ẩn",
         "add_muted_word_title": "Thêm từ cấm và thẻ",
@@ -122,6 +134,16 @@
         "add": "Thêm +",
         "your_muted_words": "Từ cấm của bạn",
         "no_muted_words": "Bạn chưa ẩn từ hoặc thẻ nào cả",
+        "add_new": "Thêm mới",
+        "mute_behavior": "Hành vi ẩn",
+        "hide_completely": "Ẩn hoàn toàn",
+        "hide_completely_desc": "Bài đăng sẽ bị ẩn hoàn toàn khỏi bảng tin của bạn.",
+        "show_warning": "Hiển thị cảnh báo",
+        "show_warning_desc": "Bài đăng sẽ hiển thị với một lớp cảnh báo.",
+        "behavior_hide": "Ẩn hoàn toàn",
+        "behavior_warn": "Hiện cảnh báo",
+        "word_or_tag": "Từ hoặc Thẻ",
+        "add_word": "Thêm từ cấm",
         "mod_lists_title": "Danh sách kiểm duyệt",
         "create_new": "Tạo mới",
         "mod_lists_empty": "Danh sách công khai, chia sẻ được của người dùng để cho việc ẩn hoặc chặn hàng loạt.",
@@ -199,19 +221,20 @@
         "quote_desc": "Nhận thông báo khi mọi người trích dẫn bài đăng của bạn.",
         "repost": "Reposts",
         "repost_desc": "Nhận thông báo khi mọi người đăng lại bài đăng của bạn.",
-        "activity": "Activity from others",
+        "activity": "Hoạt động từ người khác",
         "activity_desc": "Nhận thông báo về hoạt động từ người dùng khác.",
-        "likes_reposts": "Likes of your reposts",
+        "likes_reposts": "Lượt thích của bài chia sẻ",
         "likes_reposts_desc": "Nhận thông báo khi mọi người thích bài đăng lại của bạn.",
-        "reposts_reposts": "Reposts of your reposts",
+        "reposts_reposts": "Lượt chia sẻ của bài chia sẻ",
         "reposts_reposts_desc": "Nhận thông báo khi mọi người đăng lại bài đăng lại của bạn.",
-        "others": "Everything else",
+        "others": "Các hoạt động khác",
         "others_desc": "Nhận thông báo cho các loại hoạt động khác.",
         "liked_post": "đã thích bài viết của bạn",
         "followed_you": "đã theo dõi bạn",
         "reposted_post": "đã chia sẻ bài viết của bạn",
         "replied_post": "đã trả lời bài viết của bạn",
         "mentioned_you": "đã nhắc đến bạn trong một bài viết",
+        "quoted_post": "đã trích dẫn bài viết của bạn",
         "push": "Push notifications",
         "in_app": "In-app notifications",
         "from": "Từ",
@@ -220,7 +243,14 @@
         "setting_summary": "Trong ứng dụng, Thông báo đẩy, Tất cả",
         "setting_summary_simple": "Trong ứng dụng, Tất cả",
         "setting_summary_push": "Trong ứng dụng, Thông báo đẩy",
-        "system_announcement": "Thông báo hệ thống"
+        "system_announcement": "Thông báo hệ thống",
+        "channels": "Kênh thông báo",
+        "enabled": "Đã bật",
+        "enabled_desc": "Cho phép nhận thông báo của loại này",
+        "in_app_desc": "Hiển thị bên trong ứng dụng",
+        "push_desc": "Nhận thông báo đẩy trên thiết bị",
+        "mobile_only": "Chỉ dành cho thiết bị di động",
+        "settings_saved_locally": "Cài đặt đã được lưu thành công"
     },
     "appearance": {
         "title": "Giao diện",
@@ -230,6 +260,7 @@
         "dark": "Tối",
         "dark_variant": "Biến thể chế độ tối",
         "dim": "Mờ",
+        "lights_out": "Đen kịt",
         "font_family": "Phông chữ",
         "font_family_desc": "Chúng tôi khuyến nghị sử dụng phông chữ chủ đề để có trải nghiệm tốt nhất.",
         "ui_font": "Phông chữ giao diện",
@@ -288,7 +319,16 @@
         "add_to_lists": "Thêm vào danh sách",
         "hide_account": "Ẩn tài khoản",
         "block_account": "Chặn tài khoản",
-        "report_account": "Báo cáo tài khoản"
+        "report_account": "Báo cáo tài khoản",
+        "block": "Chặn",
+        "unblock": "Bỏ chặn",
+        "mute": "Ẩn",
+        "unmute": "Bỏ ẩn",
+        "blocked_by": "@{{handle}} đã chặn bạn",
+        "blocked_by_desc": "Bạn không thể theo dõi hoặc xem các bài đăng của người dùng này.",
+        "is_blocking_title": "Bạn đã chặn người dùng này",
+        "is_blocking_desc": "Bạn không thể xem các bài đăng hoặc tương tác với họ.",
+        "unblock_to_see": "Bỏ chặn để xem bài đăng"
     },
     "home": {
         "title": "Trang chủ",
@@ -318,6 +358,8 @@
         "no_pinned": "Bạn chưa ghim bảng tin nào.",
         "search_results": "Kết quả tìm kiếm",
         "recommended_for_you": "Gợi ý cho bạn",
+        "following_end": "Theo dõi thêm nhiều người để nhận thêm nội dung mới...",
+        "end": "Không còn bài viết nào để tải.",
         "pin_feed": "Ghim bảng tin",
         "pin": "Ghim",
         "unpin": "Bỏ ghim",
@@ -327,10 +369,12 @@
     "explore": {
         "search_placeholder": "Tìm kiếm bài đăng, người dùng hoặc bảng tin",
         "interests": "Mục quan tâm của bạn",
-        "interests_desc": "Mục quan tâm của bạn giúp chúng tôi tìm những gì bạn thích!",
-        "edit_interests": "Chỉnh sửa mục quan tâm",
-        "promoted": "Nổi bật",
-        "no_posts_found": "Không tìm thấy bài đăng xu hướng nào trong 24 giờ qua."
+        "interests_desc": "Sở thích của bạn giúp chúng tôi tìm thấy những gì bạn thích!",
+        "edit_interests": "Chỉnh sơ thích",
+        "promoted": "Được tài trợ",
+        "no_posts_found": "Không tìm thấy bài đăng xu hướng nào trong 24 giờ qua.",
+        "trending_posts": "Bài đăng xu hướng",
+        "loading_accounts": "Đang tải các tài khoản xu hướng..."
     },
     "lists": {
         "title": "Danh sách",
@@ -420,6 +464,7 @@
             "step": "Bước {{step}} / 3",
             "your_account": "Tài khoản của bạn",
             "creating_on": "Bạn đang tạo tài khoản trên",
+            "hosting_provider_name": "Bluesky Social",
             "email_label": "Email",
             "email_placeholder": "Nhập địa chỉ email của bạn",
             "password_label": "Mật khẩu",
@@ -434,6 +479,7 @@
             "username_desc": "Bạn có thể thay đổi sau",
             "username_label": "Tên người dùng",
             "username_preview": "Tên người dùng của bạn sẽ là:",
+            "username_placeholder_default": "tennguoidung",
             "having_trouble": "Gặp khó khăn?",
             "contact_support": "Liên hệ hỗ trợ",
             "back": "Trở lại",
@@ -474,8 +520,23 @@
         "forward": "Chuyển tiếp",
         "reply": "Trả lời",
         "replying_to": "Đang trả lời {{name}}",
+        "replying_to_prefix": "Đang trả lời",
         "modified": "Đã chỉnh sửa",
         "add_reaction": "Bày tỏ cảm xúc"
+    },
+    "search": {
+        "title": "Tìm kiếm",
+        "placeholder": "Tìm bài đăng hoặc người dùng...",
+        "tabs": {
+            "posts": "Bài đăng",
+            "users": "Mọi người"
+        },
+        "no_results_title": "Không tìm thấy kết quả",
+        "no_results_desc": "Hãy thử tìm nội dung khác, hoặc kiểm tra lỗi chính tả.",
+        "start_searching": "Tìm kiếm trên BlueSky",
+        "start_desc": "Tìm bài đăng và mọi người trên BlueSky.",
+        "searching_for": "Tìm kiếm \"{{query}}\"",
+        "no_results": "Không tìm thấy kết quả"
     },
     "common": {
         "app_name": "BlueSky",
@@ -510,7 +571,8 @@
         "show_more": "Xem thêm",
         "show_less": "Xem bớt",
         "adding": "Đang thêm...",
-        "loading": "Đang tải..."
+        "loading": "Đang tải...",
+        "gif": "GIF"
     },
     "post": {
         "title": "Đăng",
@@ -530,8 +592,8 @@
         "add_comment_placeholder": "Thêm bình luận...",
         "shared_success": "Chia sẻ thành công",
         "shared_failed": "Chia sẻ thất bại",
-        "show_more": "Hiển thị nhiều bài như thế này hơn",
-        "show_less": "Hiển thị ít bài như thế này hơn",
+        "show_more": "Xem thêm",
+        "show_less": "Ẩn",
         "mute_thread": "Tắt thông báo thảo luận",
         "hide_words": "Ẩn từ & thẻ",
         "hide_post": "Ẩn bài đăng cho tôi",
@@ -553,7 +615,23 @@
         "preview": "Xem trước bài đăng",
         "created_success": "Đã tạo bài đăng thành công",
         "reply_success": "Đã trả lời thành công",
-        "loading": "Đang tải bài đăng..."
+        "muted_by_word": "Bài viết bị ẩn bởi từ cấm của bạn",
+        "show_anyway": "Vẫn hiển thị",
+        "loading": "Đang tải bài đăng...",
+        "view_full_post": "Xem bài đăng đầy đủ",
+        "no_replies": "Chưa có trả lời nào",
+        "quote_post": "Trích dẫn bài đăng",
+        "repost": "Đăng lại",
+        "undo_repost": "Bỏ đăng lại",
+        "reposted_by_you": "Đã đăng lại bởi bạn",
+        "reposted_by": "Đã đăng lại bởi {{name}}",
+        "read_more_replies": "Đọc thêm {{count}} phản hồi",
+        "read_more_reply": "Đọc thêm 1 phản hồi",
+        "search_gifs": "Tìm GIF từ GIPHY",
+        "trending_gifs": "GIF xu hướng",
+        "no_gifs_found": "Không tìm thấy GIF nào",
+        "giphy_key_missing": "Thiếu mã API GIPHY. Vui lòng thiết lập REACT_APP_GIPHY_API_KEY trong tệp .env của bạn.",
+        "giphy_key_invalid": "Mã API GIPHY không hợp lệ. Vui lòng kiểm tra lại REACT_APP_GIPHY_API_KEY."
     },
     "sidebar": {
         "trending": "Chủ đề nổi bật",
@@ -610,6 +688,7 @@
         "politics": "Chính trị",
         "science": "Khoa học",
         "sports": "Thể thao",
+        "tech": "Công nghệ",
         "technology": "Công nghệ",
         "travel": "Du lịch",
         "fashion": "Thời trang",
@@ -658,7 +737,17 @@
         "dashboard": {
             "title": "Bảng điều khiển",
             "welcome": "Chào mừng trở lại, {{name}}",
-            "loading": "Đang tải thống kê..."
+            "loading": "Đang tải thống kê...",
+            "reindex_system": "Đánh chỉ mục lại Elasticsearch",
+            "reindex_confirm": "Bạn có chắc chắn muốn đánh chỉ mục lại toàn bộ dữ liệu? Việc này có thể mất một lúc và gây tải cao cho hệ thống.",
+            "reindex_success": "Đã bắt đầu đánh chỉ mục lại thành công",
+            "reindex_error": "Bắt đầu đánh chỉ mục lại thất bại"
+        },
+        "content": {
+            "title": "Quản lý nội dung"
+        },
+        "safety": {
+            "title": "An toàn & Hệ thống"
         },
         "stats": {
             "total_users": "Tổng người dùng",
@@ -666,7 +755,10 @@
             "active_today": "Hoạt động hôm nay",
             "new_posts_today": "Bài đăng mới hôm nay",
             "total_feeds": "Tổng bảng tin",
-            "banned_users": "Người dùng bị cấm"
+            "banned_users": "Người dùng bị cấm",
+            "total_lists": "Tổng danh sách",
+            "total_conversations": "Tổng cuộc trò chuyện",
+            "total_notifications": "Tổng thông báo"
         },
         "feeds": {
             "title": "Quản lý Bảng tin",
@@ -792,12 +884,57 @@
             "title": "Phát thông báo",
             "desc": "Gửi thông báo toàn hệ thống",
             "create_btn": "Tạo thông báo mới",
-            "history_title": "Lịch sử phát thông báo",
-            "message_label": "Nội dung",
-            "type_label": "Tiêu đề",
-            "target_audience_label": "Đối tượng mục tiêu",
-            "send_btn": "Gửi thông báo",
-            "sent_success": "Thông báo đã được gửi thành công"
-        }
+            "sent_success": "Đã gửi thông báo thành công",
+            "send_error": "Gửi thông báo thất bại. Vui lòng thử lại.",
+            "broadcast_confirm_title": "Xác nhận phát thông báo",
+            "broadcast_confirm_message": "Bạn có chắc chắn muốn gửi thông báo này tới đối tượng đã chọn? Hành động này không thể hoàn tác.",
+            "audience_all": "Tất cả người dùng",
+            "audience_user": "Chỉ người dùng thường",
+            "audience_admin": "Chỉ quản trị viên",
+            "best_practices": "Quy tắc tốt nhất",
+            "best_practices_list": [
+                "Giữ thông báo súc tích và rõ ràng.",
+                "Sử dụng tiêu đề thu hút sự chú ý nhưng không phải là clickbait.",
+                "Nhắm mục tiêu vào các vai trò cụ thể khi thông báo không liên quan đến mọi người.",
+                "Tránh gửi quá nhiều thông báo để ngăn chặn sự mệt mỏi của người dùng."
+            ]
+        },
+        "back_to_app": "Quay lại ứng dụng",
+        "panel": "Bảng điều khiển"
+    },
+    "tag": {
+        "exploring_tagged": "Khám phá các bài đăng được gắn thẻ #{{tag}}",
+        "no_posts_with_tag": "Không tìm thấy bài đăng nào với thẻ #{{tag}}"
+    },
+    "support": {
+        "submit_request": "Gửi yêu cầu",
+        "sign_in": "Đăng nhập",
+        "required_fields": "Các trường được đánh dấu bằng dấu sao (*) là bắt buộc.",
+        "email_label": "Địa chỉ email của bạn",
+        "description_label": "Nhập loại thiết bị và mô tả mối quan tâm",
+        "description_info": "Vui lòng nhập chi tiết yêu cầu của bạn. Nhân viên hỗ trợ của chúng tôi sẽ phản hồi sớm nhất có thể.",
+        "username_label": "Tên người dùng",
+        "category_label": "Danh mục",
+        "category_options": {
+            "account": "Vấn đề về Tài khoản/Hồ sơ",
+            "bug": "Báo cáo lỗi",
+            "domain": "Tên miền tùy chỉnh",
+            "feedback": "Phản hồi/Gợi ý sản phẩm",
+            "moderation": "Kiểm duyệt",
+            "other": "Khác"
+        },
+        "device_label": "Loại thiết bị:",
+        "device_info": "Loại thiết bị được sử dụng để truy cập nền tảng.",
+        "device_options": {
+            "android": "Android",
+            "ios": "IOS",
+            "web": "Web"
+        },
+        "attachments": "Tệp đính kèm",
+        "choose_file": "Chọn một tệp",
+        "drag_drop": "hoặc kéo và thả vào đây",
+        "files_skipped_size": "Một số tệp đã bị bỏ qua vì chúng vượt quá giới hạn {{size}}MB.",
+        "submit": "Gửi",
+        "powered_by": "Cung cấp bởi"
     }
 }

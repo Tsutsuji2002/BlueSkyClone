@@ -107,7 +107,7 @@ const EditProfileModal: React.FC = () => {
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-4 bg-black/70 backdrop-blur-sm">
             <input
                 type="file"
                 ref={coverInputRef}
@@ -123,7 +123,7 @@ const EditProfileModal: React.FC = () => {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileChange(e, 'avatar')}
             />
 
-            <div className="bg-white dark:bg-dark-bg w-full max-w-[600px] rounded-2xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="bg-white dark:bg-dark-bg w-full lg:max-w-[600px] rounded-t-2xl lg:rounded-2xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in slide-in-from-bottom-2 lg:zoom-in duration-200">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-dark-border">
                     <button
                         onClick={() => dispatch(closeEditProfile())}

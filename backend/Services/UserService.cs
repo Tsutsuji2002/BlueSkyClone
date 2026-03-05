@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Http;
 using BSkyClone.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
+using DnsClient;
+using System.Net.Http;
 
 namespace BSkyClone.Services;
 
@@ -15,28 +18,47 @@ public class UserService : IUserService
     private readonly IWebHostEnvironment _environment;
     private readonly IHubContext<ChatHub> _hubContext;
     private readonly ICacheService _cacheService;
+    private readonly ISearchService _searchService;
+    private readonly IFileService _fileService;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _hubContext = hubContext;
         _cacheService = cacheService;
+        _searchService = searchService;
+        _fileService = fileService;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
     {
-        return await _unitOfWork.Users.GetByIdAsync(id);
+        var user = await _unitOfWork.Users.GetByIdAsync(id);
+        if (user != null)
+        {
+            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+        }
+        return user;
     }
 
     public async Task<User?> GetUserByHandleAsync(string handle)
     {
-        return await _unitOfWork.Users.GetByHandleAsync(handle);
+        var user = await _unitOfWork.Users.GetByHandleAsync(handle);
+        if (user != null)
+        {
+            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+        }
+        return user;
     }
 
     public async Task<User?> GetUserByUsernameAsync(string username)
     {
-        return await _unitOfWork.Users.GetByUsernameAsync(username);
+        var user = await _unitOfWork.Users.GetByUsernameAsync(username);
+        if (user != null)
+        {
+            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+        }
+        return user;
     }
 
     public async Task<User> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
@@ -55,10 +77,19 @@ public class UserService : IUserService
         // Handle Avatar: remove, upload new, or keep existing
         if (request.RemoveAvatar)
         {
+            if (!string.IsNullOrEmpty(user.AvatarUrl))
+            {
+                _fileService.DeleteFile(user.AvatarUrl);
+            }
             user.AvatarUrl = null;
         }
         else if (request.Avatar != null)
         {
+            // Delete old one if exists
+            if (!string.IsNullOrEmpty(user.AvatarUrl))
+            {
+                _fileService.DeleteFile(user.AvatarUrl);
+            }
             var avatarPath = await SaveFileAsync(request.Avatar, "avatars");
             user.AvatarUrl = avatarPath;
         }
@@ -66,16 +97,31 @@ public class UserService : IUserService
         // Handle Cover Image: remove, upload new, or keep existing
         if (request.RemoveCoverImage)
         {
+            if (!string.IsNullOrEmpty(user.CoverImageUrl))
+            {
+                _fileService.DeleteFile(user.CoverImageUrl);
+            }
             user.CoverImageUrl = null;
         }
         else if (request.CoverImage != null)
         {
+            // Delete old one if exists
+            if (!string.IsNullOrEmpty(user.CoverImageUrl))
+            {
+                _fileService.DeleteFile(user.CoverImageUrl);
+            }
             var coverPath = await SaveFileAsync(request.CoverImage, "covers");
             user.CoverImageUrl = coverPath;
         }
 
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
+
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
+
+        // Index in Elasticsearch
+        await _searchService.IndexUserAsync(user);
 
         return user;
     }
@@ -109,6 +155,11 @@ public class UserService : IUserService
         // Update Username / Handle
         if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.Username)
         {
+            if (request.Username.Length > 16 || !Regex.IsMatch(request.Username, @"^[a-zA-Z0-9.]+$"))
+            {
+                throw new Exception("Handle can only contain Latin characters, numbers, and dots, and be maximum 16 characters long.");
+            }
+
             var newHandle = $"{request.Username.Trim().ToLower()}.bsky.social";
             var existing = await _unitOfWork.Users.GetByHandleAsync(newHandle);
             if (existing != null) throw new Exception("Username already in use");
@@ -141,6 +192,12 @@ public class UserService : IUserService
         _unitOfWork.Users.Update(user); // Force entity state to Modified
         await _unitOfWork.CompleteAsync();
 
+        _unitOfWork.Users.Update(user); // Force entity state to Modified
+        await _unitOfWork.CompleteAsync();
+
+        // Index in Elasticsearch
+        await _searchService.IndexUserAsync(user);
+
         return user;
     }
 
@@ -166,6 +223,17 @@ public class UserService : IUserService
         if (request.AppLanguage != null) s.AppLanguage = request.AppLanguage;
         if (request.ThemeMode != null) s.ThemeMode = request.ThemeMode;
         if (request.FontSize != null) s.FontSize = request.FontSize;
+        if (request.EnableTrending != null) s.EnableTrending = request.EnableTrending;
+        if (request.EnableDiscoverVideo != null) s.EnableDiscoverVideo = request.EnableDiscoverVideo;
+        if (request.EnableTreeView != null) s.EnableTreeView = request.EnableTreeView;
+        if (request.RequireLogoutVisibility != null) s.RequireLogoutVisibility = request.RequireLogoutVisibility;
+        if (request.LargerAltBadge != null) s.LargerAltBadge = request.LargerAltBadge;
+        
+        if (request.ShowReplies != null) s.ShowReplies = request.ShowReplies;
+        if (request.ShowReposts != null) s.ShowReposts = request.ShowReposts;
+        if (request.ShowQuotePosts != null) s.ShowQuotePosts = request.ShowQuotePosts;
+        if (request.ShowSampleSavedFeeds != null) s.ShowSampleSavedFeeds = request.ShowSampleSavedFeeds;
+        if (request.EnabledMediaProviders != null) s.EnabledMediaProviders = request.EnabledMediaProviders;
 
         // Notification toggles
         if (request.NotifyLikes != null) s.NotifyLikes = request.NotifyLikes;
@@ -191,8 +259,47 @@ public class UserService : IUserService
         if (request.InAppNotifyQuotes != null) s.InAppNotifyQuotes = request.InAppNotifyQuotes;
         if (request.InAppNotifyReposts != null) s.InAppNotifyReposts = request.InAppNotifyReposts;
 
-        if (request.DefaultReplyRestriction != null) s.DefaultReplyRestriction = request.DefaultReplyRestriction;
-        if (request.DefaultAllowQuotes != null) s.DefaultAllowQuotes = request.DefaultAllowQuotes;
+        // Extended notification settings
+        if (request.NotifyActivity != null) s.NotifyActivity = request.NotifyActivity;
+        if (request.PushNotifyActivity != null) s.PushNotifyActivity = request.PushNotifyActivity;
+        if (request.InAppNotifyActivity != null) s.InAppNotifyActivity = request.InAppNotifyActivity;
+        if (request.NotifyLikesOfReposts != null) s.NotifyLikesOfReposts = request.NotifyLikesOfReposts;
+        if (request.PushNotifyLikesOfReposts != null) s.PushNotifyLikesOfReposts = request.PushNotifyLikesOfReposts;
+        if (request.InAppNotifyLikesOfReposts != null) s.InAppNotifyLikesOfReposts = request.InAppNotifyLikesOfReposts;
+        if (request.NotifyRepostsOfReposts != null) s.NotifyRepostsOfReposts = request.NotifyRepostsOfReposts;
+        if (request.PushNotifyRepostsOfReposts != null) s.PushNotifyRepostsOfReposts = request.PushNotifyRepostsOfReposts;
+        if (request.InAppNotifyRepostsOfReposts != null) s.InAppNotifyRepostsOfReposts = request.InAppNotifyRepostsOfReposts;
+        if (request.NotifyOthers != null) s.NotifyOthers = request.NotifyOthers;
+        if (request.PushNotifyOthers != null) s.PushNotifyOthers = request.PushNotifyOthers;
+        if (request.InAppNotifyOthers != null) s.InAppNotifyOthers = request.InAppNotifyOthers;
+
+        if (request.DefaultReplyRestriction != null)
+        {
+            s.DefaultReplyRestriction = request.DefaultReplyRestriction;
+            
+            // Proactively update existing posts to match the new default to meet user expectations of a "global" setting.
+            var postsToUpdate = await _unitOfWork.Posts.Query()
+                .Where(p => p.AuthorId == userId && (p.IsDeleted == false || p.IsDeleted == null))
+                .ToListAsync();
+            
+            foreach (var post in postsToUpdate)
+            {
+                post.ReplyRestriction = request.DefaultReplyRestriction;
+            }
+        }
+        if (request.DefaultAllowQuotes != null)
+        {
+            s.DefaultAllowQuotes = request.DefaultAllowQuotes;
+            
+            var postsToUpdate = await _unitOfWork.Posts.Query()
+                .Where(p => p.AuthorId == userId && (p.IsDeleted == false || p.IsDeleted == null))
+                .ToListAsync();
+            
+            foreach (var post in postsToUpdate)
+            {
+                post.AllowQuotes = request.DefaultAllowQuotes;
+            }
+        }
 
         await _unitOfWork.CompleteAsync();
         return s;
@@ -232,58 +339,64 @@ public class UserService : IUserService
         following.FollowersCount++;
 
         // Create notification
-        var notification = new Notification
+        if (await ShouldCreateNotificationAsync(followingId, "follow"))
         {
-            Id = Guid.NewGuid(),
-            Tid = DateTime.UtcNow.Ticks.ToString(),
-            Type = "follow",
-            RecipientId = followingId,
-            SenderId = followerId,
-            CreatedAt = DateTime.UtcNow,
-            IsRead = false,
-            IsDeleted = false
-        };
-        await _unitOfWork.Notifications.AddAsync(notification);
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                Tid = Guid.NewGuid().ToString().Substring(0, 20),
+                Type = "follow",
+                SenderId = followerId,
+                RecipientId = followingId,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
+            };
+            await _unitOfWork.Notifications.AddAsync(notification);
+            await _unitOfWork.CompleteAsync();
 
-        await _unitOfWork.CompleteAsync();
+            // Broadcast notification via SignalR
+            // Need to fetch notification with sender for DTO
+            var savedNotification = await _unitOfWork.Notifications.Query()
+                .Include(n => n.Sender)
+                .FirstOrDefaultAsync(n => n.Id == notification.Id);
 
-        // Broadcast notification via SignalR
-        // Need to fetch notification with sender for DTO
-        var savedNotification = await _unitOfWork.Notifications.Query()
-            .Include(n => n.Sender)
-            .FirstOrDefaultAsync(n => n.Id == notification.Id);
+            if (savedNotification != null)
+            {
+                var notificationDto = new NotificationDto(
+                    savedNotification.Id,
+                    savedNotification.Type ?? "follow",
+                    new UserDto(
+                        savedNotification.Sender.Id,
+                        savedNotification.Sender.Username,
+                        savedNotification.Sender.Handle,
+                        savedNotification.Sender.Email,
+                        savedNotification.Sender.DisplayName,
+                        savedNotification.Sender.AvatarUrl,
+                        savedNotification.Sender.CoverImageUrl,
+                        savedNotification.Sender.Bio,
+                        savedNotification.Sender.Location,
+                        savedNotification.Sender.Website,
+                        savedNotification.Sender.DateOfBirth,
+                        savedNotification.Sender.FollowersCount,
+                        savedNotification.Sender.FollowingCount,
+                        savedNotification.Sender.PostsCount,
+                        savedNotification.Sender.Role,
+                        null,
+                        savedNotification.Sender.IsVerified,
+                        savedNotification.Sender.Did
+                    ),
+                    savedNotification.PostId,
+                    savedNotification.ListId,
+                    savedNotification.Title,
+                    savedNotification.Content,
+                    savedNotification.IsRead ?? false,
+                    DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
+                );
 
-        if (savedNotification != null)
-        {
-            var notificationDto = new NotificationDto(
-                savedNotification.Id,
-                savedNotification.Type ?? "follow",
-                new UserDto(
-                    savedNotification.Sender.Id,
-                    savedNotification.Sender.Username,
-                    savedNotification.Sender.Handle,
-                    savedNotification.Sender.Email,
-                    savedNotification.Sender.DisplayName,
-                    savedNotification.Sender.AvatarUrl,
-                    savedNotification.Sender.CoverImageUrl,
-                    savedNotification.Sender.Bio,
-                    savedNotification.Sender.Location,
-                    savedNotification.Sender.Website,
-                    savedNotification.Sender.DateOfBirth,
-                    savedNotification.Sender.FollowersCount,
-                    savedNotification.Sender.FollowingCount,
-                    savedNotification.Sender.PostsCount
-                ),
-                savedNotification.PostId,
-                savedNotification.ListId,
-                savedNotification.Title,
-                savedNotification.Content,
-                savedNotification.IsRead ?? false,
-                DateTime.SpecifyKind(savedNotification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
-            );
-
-            await _hubContext.Clients.Group($"user-{followingId}")
-                .SendAsync("ReceiveNotification", notificationDto);
+                await _hubContext.Clients.Group($"user-{followingId}")
+                    .SendAsync("ReceiveNotification", notificationDto);
+            }
         }
 
         return true;
@@ -352,15 +465,7 @@ public class UserService : IUserService
     {
         if (userId == blockedUserId) return false;
 
-        var lockKey = $"lock:block:{userId}:{blockedUserId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
-        {
-            return false;
-        }
-
-        try
-        {
-            // Check if already blocked
+        // Check if already blocked
         if (await _unitOfWork.Blocks.IsBlockedAsync(userId, blockedUserId)) return true;
 
         // Create Block
@@ -378,34 +483,17 @@ public class UserService : IUserService
 
         await _unitOfWork.CompleteAsync();
         return true;
-        }
-        finally
-        {
-            await _cacheService.ReleaseLockAsync(lockKey);
-        }
     }
+
 
     public async Task<bool> UnblockUserAsync(Guid userId, Guid blockedUserId)
     {
-        var lockKey = $"lock:unblock:{userId}:{blockedUserId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
-        {
-            return false;
-        }
-
-        try
-        {
-            var block = await _unitOfWork.Blocks.GetAsync(userId, blockedUserId);
+        var block = await _unitOfWork.Blocks.GetAsync(userId, blockedUserId);
         if (block == null) return true;
 
         _unitOfWork.Blocks.Remove(block);
         await _unitOfWork.CompleteAsync();
         return true;
-        }
-        finally
-        {
-            await _cacheService.ReleaseLockAsync(lockKey);
-        }
     }
 
     public async Task<bool> IsBlockedAsync(Guid userId, Guid potentialBlockedUserId)
@@ -422,59 +510,45 @@ public class UserService : IUserService
     {
         if (userId == mutedUserId) return false;
 
-        var lockKey = $"lock:mute:{userId}:{mutedUserId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
-        {
-            return false;
-        }
+        if (await _unitOfWork.Mutes.IsMutedAsync(userId, mutedUserId)) return true;
 
-        try
+        var mute = new MutedAccount
         {
-            if (await _unitOfWork.Mutes.IsMutedAsync(userId, mutedUserId)) return true;
+            UserId = userId,
+            MutedUserId = mutedUserId,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var mute = new MutedAccount
-            {
-                UserId = userId,
-                MutedUserId = mutedUserId,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await _unitOfWork.Mutes.AddAsync(mute);
-            await _unitOfWork.CompleteAsync();
-            return true;
-        }
-        finally
-        {
-            await _cacheService.ReleaseLockAsync(lockKey);
-        }
+        await _unitOfWork.Mutes.AddAsync(mute);
+        await _unitOfWork.CompleteAsync();
+        return true;
     }
 
     public async Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId)
     {
-        var lockKey = $"lock:unmute:{userId}:{mutedUserId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
-        {
-            return false;
-        }
+        var mute = await _unitOfWork.Mutes.GetAsync(userId, mutedUserId);
+        if (mute == null) return true;
 
-        try
-        {
-            var mute = await _unitOfWork.Mutes.GetAsync(userId, mutedUserId);
-            if (mute == null) return true;
-
-            _unitOfWork.Mutes.Remove(mute);
-            await _unitOfWork.CompleteAsync();
-            return true;
-        }
-        finally
-        {
-            await _cacheService.ReleaseLockAsync(lockKey);
-        }
+        _unitOfWork.Mutes.Remove(mute);
+        await _unitOfWork.CompleteAsync();
+        return true;
     }
 
     public async Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId)
     {
         return await _unitOfWork.Mutes.IsMutedAsync(userId, potentialMutedUserId);
+    }
+
+    public async Task<List<User>> GetMutedUsersAsync(Guid userId)
+    {
+        var mutes = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
+        return mutes.Select(m => m.MutedUser).ToList();
+    }
+
+    public async Task<List<User>> GetBlockedUsersAsync(Guid userId)
+    {
+        var blocks = await _unitOfWork.Blocks.GetBlockedAccountsAsync(userId);
+        return blocks.Select(b => b.BlockedUser).ToList();
     }
 
     public async Task<List<User>> SearchUsersAsync(string query, int limit = 10)
@@ -489,5 +563,164 @@ public class UserService : IUserService
                         (u.DisplayName != null && u.DisplayName.ToLower().Contains(query)))
             .Take(limit)
             .ToListAsync();
+    }
+
+    public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId)
+    {
+        return await _unitOfWork.MutedWords.Query()
+            .Where(w => w.UserId == userId)
+            .OrderByDescending(w => w.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior)
+    {
+        var mutedWord = new MutedWord
+        {
+            UserId = userId,
+            Word = word.Trim().ToLower(),
+            MuteBehavior = behavior,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.MutedWords.AddAsync(mutedWord);
+        await _unitOfWork.CompleteAsync();
+        return mutedWord;
+    }
+
+    public async Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId)
+    {
+        var word = await _unitOfWork.MutedWords.Query()
+            .FirstOrDefaultAsync(w => w.Id == mutedWordId && w.UserId == userId);
+        
+        if (word == null) return false;
+
+        _unitOfWork.MutedWords.Remove(word);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
+
+    public async Task<List<string>> GetSelectedInterestsAsync(Guid userId)
+    {
+        var settings = await _unitOfWork.Users.Query()
+            .Where(u => u.Id == userId)
+            .Select(u => u.UserSetting)
+            .FirstOrDefaultAsync();
+
+        if (settings?.SelectedInterests == null) return new List<string>();
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(settings.SelectedInterests) ?? new List<string>();
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
+
+    public async Task SaveSelectedInterestsAsync(Guid userId, List<string> interests)
+    {
+        var user = await _unitOfWork.Users.Query()
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null) throw new Exception("User not found");
+
+        if (user.UserSetting == null)
+        {
+            user.UserSetting = new UserSetting { UserId = userId };
+        }
+
+        user.UserSetting.SelectedInterests = System.Text.Json.JsonSerializer.Serialize(interests);
+        await _unitOfWork.CompleteAsync();
+    }
+
+    private async Task<bool> ShouldCreateNotificationAsync(Guid userId, string type)
+    {
+        var settings = await _unitOfWork.UserSettings.Query()
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+            
+        if (settings == null) return true;
+
+        return type.ToLower() switch
+        {
+            "follow" => (settings.NotifyFollowers ?? true) && (settings.InAppNotifyFollowers ?? true),
+            "activity" => (settings.NotifyActivity ?? true) && (settings.InAppNotifyActivity ?? true),
+            _ => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true)
+        };
+    }
+
+    public async Task<bool> VerifyDomainAsync(Guid userId, string? handle = null)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        // Use provided handle or existing handle
+        var handleToVerify = handle ?? user.Handle;
+        if (string.IsNullOrEmpty(handleToVerify)) return false;
+
+        // If it's the current handle and it ends with .bsky.social, it's already verified
+        // But if a NEW handle is provided, we MUST verify it regardless of extension
+        if (handle == null && handleToVerify.EndsWith(".bsky.social"))
+        {
+            user.IsVerified = true;
+            _unitOfWork.Users.Update(user);
+            await _unitOfWork.CompleteAsync();
+            return true;
+        }
+
+        var didValue = $"did={user.Did}";
+        bool verified = false;
+
+        // 1. Check DNS TXT record: _atproto.handle
+        try
+        {
+            var lookup = new LookupClient();
+            var result = await lookup.QueryAsync($"_atproto.{handleToVerify}", QueryType.TXT);
+            foreach (var txtRecord in result.Answers.TxtRecords())
+            {
+                if (txtRecord.Text.Any(t => t.Contains(didValue)))
+                {
+                    verified = true;
+                    break;
+                }
+            }
+        }
+        catch { /* Fallback to HTTP */ }
+
+        // 2. Check HTTP: https://handle/.well-known/atproto-did
+        if (!verified)
+        {
+            try
+            {
+                using var client = new HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(5);
+                var response = await client.GetStringAsync($"https://{handleToVerify}/.well-known/atproto-did");
+                if (response.Trim() == user.Did)
+                {
+                    verified = true;
+                }
+            }
+            catch { }
+        }
+
+        if (verified)
+        {
+            user.IsVerified = true;
+            // If we verified a new handle, update it
+            if (!string.IsNullOrEmpty(handle) && handle != user.Handle)
+            {
+                user.Handle = handle;
+            }
+
+            _unitOfWork.Users.Update(user);
+            await _unitOfWork.CompleteAsync();
+            
+            // Re-index in Elasticsearch
+            await _searchService.IndexUserAsync(user);
+        }
+
+        return verified;
     }
 }

@@ -25,6 +25,8 @@ public partial class BSkyDbContext : DbContext
 
     public virtual DbSet<Feed> Feeds { get; set; }
 
+    public virtual DbSet<Hashtag> Hashtags { get; set; }
+
     public virtual DbSet<Interest> Interests { get; set; }
 
     public virtual DbSet<Like> Likes { get; set; }
@@ -61,6 +63,8 @@ public partial class BSkyDbContext : DbContext
     public virtual DbSet<UserListSubscription> UserListSubscriptions { get; set; }
 
     public virtual DbSet<ListPost> ListPosts { get; set; }
+    public virtual DbSet<SupportRequest> SupportRequests { get; set; }
+    public virtual DbSet<PageContent> PageContents { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -280,6 +284,10 @@ public partial class BSkyDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__MutedWor__3214EC076609311A");
 
             entity.Property(e => e.Word).HasMaxLength(256);
+            entity.Property(e => e.MuteBehavior)
+                .HasMaxLength(20)
+                .HasDefaultValue("hide");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
 
             entity.HasOne(d => d.User).WithMany(p => p.MutedWords)
                 .HasForeignKey(d => d.UserId)
@@ -348,6 +356,11 @@ public partial class BSkyDbContext : DbContext
             entity.HasOne(d => d.RootPost).WithMany(p => p.InverseRootPost)
                 .HasForeignKey(d => d.RootPostId)
                 .HasConstraintName("FK_PostRoot");
+
+            entity.HasOne(d => d.QuotePost).WithMany(p => p.InverseQuotePost)
+                .HasForeignKey(d => d.QuotePostId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PostQuote");
 
             entity.HasMany(d => d.Interests).WithMany(p => p.Posts)
                 .UsingEntity<Dictionary<string, object>>(
@@ -530,6 +543,18 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.InAppNotifyReplies).HasDefaultValue(true);
             entity.Property(e => e.InAppNotifyMentions).HasDefaultValue(true);
             entity.Property(e => e.InAppNotifyQuotes).HasDefaultValue(true);
+            entity.Property(e => e.NotifyOthers).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyOthers).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyOthers).HasDefaultValue(true);
+            entity.Property(e => e.NotifyActivity).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyActivity).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyActivity).HasDefaultValue(true);
+            entity.Property(e => e.NotifyLikesOfReposts).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyLikesOfReposts).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyLikesOfReposts).HasDefaultValue(true);
+            entity.Property(e => e.NotifyRepostsOfReposts).HasDefaultValue(true);
+            entity.Property(e => e.PushNotifyRepostsOfReposts).HasDefaultValue(true);
+            entity.Property(e => e.InAppNotifyRepostsOfReposts).HasDefaultValue(true);
             entity.Property(e => e.InAppNotifyReposts).HasDefaultValue(true);
             entity.Property(e => e.RequireAltText).HasDefaultValue(false);
             entity.Property(e => e.SortReplies)
@@ -538,6 +563,16 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.ThemeMode)
                 .HasMaxLength(20)
                 .HasDefaultValue("system");
+            entity.Property(e => e.EnableTrending).HasDefaultValue(true);
+            entity.Property(e => e.EnableDiscoverVideo).HasDefaultValue(true);
+            entity.Property(e => e.EnableTreeView).HasDefaultValue(false);
+            entity.Property(e => e.RequireLogoutVisibility).HasDefaultValue(false);
+            entity.Property(e => e.LargerAltBadge).HasDefaultValue(false);
+            entity.Property(e => e.SelectedInterests).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.ShowReplies).HasDefaultValue(true);
+            entity.Property(e => e.ShowReposts).HasDefaultValue(true);
+            entity.Property(e => e.ShowQuotePosts).HasDefaultValue(true);
+            entity.Property(e => e.ShowSampleSavedFeeds).HasDefaultValue(false);
 
             entity.HasOne(d => d.User).WithOne(p => p.UserSetting)
                 .HasForeignKey<UserSetting>(d => d.UserId)
@@ -588,6 +623,32 @@ public partial class BSkyDbContext : DbContext
              // I shouldn't duplicate the entity config block.
         });
 
+        modelBuilder.Entity<Hashtag>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_Hashtags");
+            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Slug).HasMaxLength(100);
+            entity.Property(e => e.PostsCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+
+            entity.HasMany(d => d.Posts).WithMany(p => p.Hashtags)
+                .UsingEntity<Dictionary<string, object>>(
+                    "PostHashtag",
+                    r => r.HasOne<Post>().WithMany()
+                        .HasForeignKey("PostId")
+                        .HasConstraintName("FK_PH_Post"),
+                    l => l.HasOne<Hashtag>().WithMany()
+                        .HasForeignKey("HashtagId")
+                        .HasConstraintName("FK_PH_Hashtag"),
+                    j =>
+                    {
+                        j.HasKey("PostId", "HashtagId").HasName("PK_PostHashtags");
+                        j.ToTable("PostHashtags");
+                    });
+        });
+
         modelBuilder.Entity<LinkPreview>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -603,6 +664,22 @@ public partial class BSkyDbContext : DbContext
                 .WithOne(m => m.LinkPreview)
                 .HasForeignKey<LinkPreview>(d => d.MessageId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SupportRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("pending");
+            entity.Property(e => e.Category).HasMaxLength(50);
+            entity.Property(e => e.DeviceType).HasMaxLength(20);
+            entity.Property(e => e.Email).HasMaxLength(256);
+            entity.Property(e => e.Username).HasMaxLength(256);
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);

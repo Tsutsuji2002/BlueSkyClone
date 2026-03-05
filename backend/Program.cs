@@ -1,10 +1,13 @@
 using BSkyClone.Models;
 using BSkyClone.Repositories;
 using BSkyClone.Services;
+using BSkyClone.Services.ML;
 using BSkyClone.UnitOfWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Http.Features;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +15,25 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+
+// Increase Max Upload Size (500MB)
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 524288000; // 500 MB
+});
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 524288000; // 500 MB
+});
+
+// Configure Forwarded Headers for Nginx SSL
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Ensure WebRootPath is set
 if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
@@ -28,7 +50,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // Common React/Vite ports
+        policy.SetIsOriginAllowed(_ => true) // Allow any origin in production
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials()
@@ -39,7 +61,8 @@ builder.Services.AddCors(options =>
 // Database
 builder.Services.AddDbContext<BSkyDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure()));
+        sqlOptions => sqlOptions.EnableRetryOnFailure())
+        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
 // Repository and Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -56,13 +79,32 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ICategorizationService, CategorizationService>();
+builder.Services.AddScoped<ISearchService, ElasticSearchService>();
+builder.Services.AddSingleton<IMLModelService, MLModelService>();
+builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
 
 // Redis Caching
-builder.Services.AddStackExchangeRedisCache(options =>
+if (builder.Environment.IsDevelopment())
 {
-    options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
-    options.InstanceName = "BSky_";
-});
+    builder.Services.AddDistributedMemoryCache();
+}
+else
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
+        options.InstanceName = "BSky_";
+    });
+}
+
+// Elasticsearch
+var esUri = new Uri(builder.Configuration["Elasticsearch:Uri"] ?? "http://elasticsearch:9200");
+var esSettings = new Elastic.Clients.Elasticsearch.ElasticsearchClientSettings(esUri)
+    .DefaultMappingFor<BSkyClone.Models.Post>(m => m.IndexName("posts"))
+    .DefaultMappingFor<BSkyClone.Models.User>(m => m.IndexName("users"));
+
+builder.Services.AddSingleton(new Elastic.Clients.Elasticsearch.ElasticsearchClient(esSettings));
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long";
@@ -96,7 +138,7 @@ builder.Services.AddAuthentication(x =>
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             if (!string.IsNullOrEmpty(accessToken) && 
-                (path.StartsWithSegments("/hubs/chat")))
+                (path.StartsWithSegments("/hubs/chat") || path.StartsWithSegments("/hubs/posts")))
             {
                 context.Token = accessToken;
             }
@@ -136,17 +178,20 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Handle Forwarded Headers from Nginx
+app.UseForwardedHeaders();
 
+// Configure the HTTP request pipeline.
+// Enable Swagger in production for easy debugging
+app.UseSwagger();
+app.UseSwaggerUI();
+
+/* 
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+*/
 
 app.UseCors("AllowFrontend");
 
@@ -169,6 +214,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<BSkyClone.Hubs.ChatHub>("/hubs/chat");
+app.MapHub<BSkyClone.Hubs.PostHub>("/hubs/posts");
 
 // Apply database migrations automatically
 using (var scope = app.Services.CreateScope())
@@ -177,35 +223,250 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<BSkyDbContext>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
         
-        // --- MANUAL SCHEMA UPDATES ---
+        // Try to apply pending migrations, but don't let failures here block manual updates
         try
         {
-                // Ensure Notification Columns exist
-                // This is critical because the code now depends on these columns
-                var modSql = @"
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'Title')
-                    BEGIN
-                        ALTER TABLE Notifications ADD Title NVARCHAR(MAX) NULL;
-                    END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'Content')
-                    BEGIN
-                        ALTER TABLE Notifications ADD Content NVARCHAR(MAX) NULL;
-                    END
-                    
-                    -- Admin properties for Users
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsBanned')
-                    BEGIN
-                        ALTER TABLE Users ADD IsBanned BIT NOT NULL DEFAULT 0;
-                    END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsVerified')
-                    BEGIN
-                        ALTER TABLE Users ADD IsVerified BIT NOT NULL DEFAULT 0;
-                    END";
-                context.Database.ExecuteSqlRaw(modSql);
+            context.Database.Migrate();
+            logger.LogInformation("Database migrations applied successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Database migration failed. Attempting manual schema updates as fallback...");
+        }
 
-            // Manual Table Creation for UserListSubscriptions (since we can't run migrations)
+        // --- MANUAL SCHEMA UPDATES ---
+        
+        // 1. Notifications and User Properties
+        try
+        {
             var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Title')
+                BEGIN
+                    ALTER TABLE dbo.Notifications ADD Title NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Content')
+                BEGIN
+                    ALTER TABLE dbo.Notifications ADD Content NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'IsBanned')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD IsBanned BIT NOT NULL DEFAULT 0;
+                    PRINT 'Added IsBanned to Users';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'IsVerified')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD IsVerified BIT NOT NULL DEFAULT 0;
+                    PRINT 'Added IsVerified to Users';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Feeds') OR object_id = OBJECT_ID('Feeds')) AND name = 'IsOfficial')
+                BEGIN
+                    ALTER TABLE dbo.Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
+                END";
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied/Verified manual schema updates for Notifications and User properties.");
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 1 failed. This might cause issues with BannedUserMiddleware."); }
+
+        // 2. MutedWords
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'MuteBehavior')
+                BEGIN
+                    ALTER TABLE MutedWords ADD MuteBehavior NVARCHAR(20) NOT NULL DEFAULT 'hide';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'CreatedAt')
+                BEGIN
+                    ALTER TABLE MutedWords ADD CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE();
+                END";
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied manual schema updates for MutedWords.");
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 2 failed."); }
+
+        // 3. Post Interaction Columns (Quote Feature)
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'ReplyRestriction')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD ReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                    PRINT 'Added ReplyRestriction to Posts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'AllowQuotes')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD AllowQuotes BIT NULL DEFAULT 1;
+                    PRINT 'Added AllowQuotes to Posts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'QuotesCount')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD QuotesCount INT NULL DEFAULT 0;
+                    PRINT 'Added QuotesCount to Posts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'QuotePostId')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD QuotePostId UNIQUEIDENTIFIER NULL;
+                    PRINT 'Added QuotePostId to Posts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'Language')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD Language NVARCHAR(MAX) NULL;
+                    PRINT 'Added Language to Posts';
+                END";
+            context.Database.ExecuteSqlRaw(sql);
+            
+            // Separate block for the FK to avoid batch issues
+            var fkSql = @"
+                IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_PostQuote')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD CONSTRAINT FK_PostQuote FOREIGN KEY (QuotePostId) REFERENCES dbo.Posts(Id);
+                    PRINT 'Added FK_PostQuote to Posts';
+                END";
+            context.Database.ExecuteSqlRaw(fkSql);
+            logger.LogInformation("Finished checking/applying Post interaction schema updates.");
+        }
+        catch (Exception ex) 
+        { 
+            logger.LogError(ex, "CRITICAL: Manual update for QuotePostId failed! This will cause ISE 500 on Post APIs."); 
+        }
+
+        // 4. UserSettings
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultReplyRestriction')
+                BEGIN
+                    ALTER TABLE UserSettings ADD DefaultReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultAllowQuotes')
+                BEGIN
+                    ALTER TABLE UserSettings ADD DefaultAllowQuotes BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableTrending')
+                BEGIN
+                    ALTER TABLE UserSettings ADD EnableTrending BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableDiscoverVideo')
+                BEGIN
+                    ALTER TABLE UserSettings ADD EnableDiscoverVideo BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableTreeView')
+                BEGIN
+                    ALTER TABLE UserSettings ADD EnableTreeView BIT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'RequireLogoutVisibility')
+                BEGIN
+                    ALTER TABLE UserSettings ADD RequireLogoutVisibility BIT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'LargerAltBadge')
+                BEGIN
+                    ALTER TABLE UserSettings ADD LargerAltBadge BIT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReplies')
+                BEGIN
+                    ALTER TABLE UserSettings ADD ShowReplies BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD ShowReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowQuotePosts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD ShowQuotePosts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowSampleSavedFeeds')
+                BEGIN
+                    ALTER TABLE UserSettings ADD ShowSampleSavedFeeds BIT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'SelectedInterests')
+                BEGIN
+                    ALTER TABLE UserSettings ADD SelectedInterests NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnabledMediaProviders')
+                BEGIN
+                    ALTER TABLE UserSettings ADD EnabledMediaProviders NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyActivity')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NotifyActivity BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyLikesOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NotifyLikesOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyRepostsOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyOthers')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NotifyOthers BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyActivity')
+                BEGIN
+                    ALTER TABLE UserSettings ADD PushNotifyActivity BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyLikesOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD PushNotifyLikesOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyRepostsOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD PushNotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyOthers')
+                BEGIN
+                    ALTER TABLE UserSettings ADD PushNotifyOthers BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyActivity')
+                BEGIN
+                    ALTER TABLE UserSettings ADD InAppNotifyActivity BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyLikesOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD InAppNotifyLikesOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyRepostsOfReposts')
+                BEGIN
+                    ALTER TABLE UserSettings ADD InAppNotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyOthers')
+                BEGIN
+                    ALTER TABLE UserSettings ADD InAppNotifyOthers BIT NULL DEFAULT 1;
+                END
+";
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied manual schema updates for UserSettings.");
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 4 failed."); }
+
+        // 5. Hashtags and Other Tables
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Hashtags' AND xtype='U')
+                BEGIN
+                    CREATE TABLE Hashtags (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        Name NVARCHAR(100) NOT NULL,
+                        Slug NVARCHAR(100) NOT NULL UNIQUE,
+                        PostsCount INT NOT NULL DEFAULT 0,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        IsDeleted BIT NOT NULL DEFAULT 0
+                    )
+                END
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostHashtags' AND xtype='U')
+                BEGIN
+                    CREATE TABLE PostHashtags (
+                        PostId UNIQUEIDENTIFIER NOT NULL,
+                        HashtagId INT NOT NULL,
+                        PRIMARY KEY (PostId, HashtagId),
+                        CONSTRAINT FK_PH_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                        CONSTRAINT FK_PH_Hashtag FOREIGN KEY (HashtagId) REFERENCES Hashtags(Id) ON DELETE CASCADE
+                    )
+                END
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserListSubscriptions' AND xtype='U')
                 BEGIN
                     CREATE TABLE UserListSubscriptions (
@@ -218,28 +479,66 @@ using (var scope = app.Services.CreateScope())
                         CONSTRAINT FK_ULS_List FOREIGN KEY (ListId) REFERENCES Lists(Id) ON DELETE CASCADE
                     )
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Notifications') AND name = 'ListId')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'ListId')
                 BEGIN
                     ALTER TABLE Notifications ADD ListId UNIQUEIDENTIFIER NULL;
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('ListMembers') AND name = 'Status')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ListMembers') AND name = 'Status')
                 BEGIN
                     ALTER TABLE ListMembers ADD Status INT NOT NULL DEFAULT 0;
                 END
-                -- Always ensure any status-less (0) members are migrated to Accepted (1) 
-                -- for users transitioning to the invitation system.
-                EXEC('UPDATE ListMembers SET Status = 1 WHERE Status = 0');
-                ";
+                -- Cleanup and Recalculations
+                EXEC('IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(''dbo.ListMembers'') AND name = ''Status'') UPDATE ListMembers SET Status = 1 WHERE Status = 0');
+                DELETE FROM Notifications WHERE Type = 'message';
+                UPDATE u SET u.PostsCount = sub.ActualCount FROM Users u INNER JOIN (SELECT AuthorId, COUNT(*) AS ActualCount FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL GROUP BY AuthorId) sub ON u.Id = sub.AuthorId WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
+                UPDATE Users SET PostsCount = 0 WHERE PostsCount IS NULL AND Id NOT IN (SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL);
+                UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='SupportRequests' AND xtype='U')
+                BEGIN
+                    CREATE TABLE SupportRequests (
+                        Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                        Email NVARCHAR(256) NOT NULL,
+                        Description NVARCHAR(MAX) NOT NULL,
+                        Username NVARCHAR(256) NULL,
+                        Category NVARCHAR(50) NOT NULL,
+                        DeviceType NVARCHAR(20) NOT NULL,
+                        Status NVARCHAR(20) NOT NULL DEFAULT 'pending',
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        UserId UNIQUEIDENTIFIER NULL,
+                        CONSTRAINT FK_Support_User FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE SET NULL
+                    )
+                END;
+
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PageContents' AND xtype='U')
+                BEGIN
+                    CREATE TABLE PageContents (
+                        Slug NVARCHAR(100) PRIMARY KEY,
+                        Title NVARCHAR(200) NOT NULL,
+                        HtmlContent NVARCHAR(MAX) NOT NULL,
+                        UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+                    )
+                END;
+
+                IF NOT EXISTS (SELECT * FROM PageContents WHERE Slug = 'privacy-policy')
+                BEGIN
+                    INSERT INTO PageContents (Slug, Title, HtmlContent, UpdatedAt)
+                    VALUES ('privacy-policy', 'Privacy Policy', '<h1>Privacy Policy</h1><p>This is the default privacy policy. Please edit it in the Admin UI.</p>', GETUTCDATE())
+                END";
             context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied manual schema updates for Hashtags, Lists, SupportRequests, and Cleanup.");
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 5 failed."); }
+
+        // --- SEED AI FEEDS AND INTERESTS ---
+        try
+        {
+            var feedService = services.GetRequiredService<IFeedService>();
+            await feedService.PreSeedFeedsAsync();
         }
         catch (Exception ex)
         {
-            var logger = services.GetRequiredService<ILogger<Program>>();
-            logger.LogWarning(ex, "An error occurred during manual schema updates. Continuing...");
+            logger.LogError(ex, "An error occurred during AI feed seeding.");
         }
-
-        // Apply any pending migrations
-        context.Database.Migrate();
     }
     catch (Exception ex)
     {

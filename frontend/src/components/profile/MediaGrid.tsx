@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FiPlay } from 'react-icons/fi';
 import { Post } from '../../types';
 import { API_BASE_URL } from '../../constants';
@@ -8,27 +9,39 @@ interface MediaItem {
     type: 'image' | 'video';
     post: Post;
     mediaIndex: number;
+    altText?: string;
 }
 
 interface MediaGridProps {
     posts: Post[];
-    onMediaClick: (post: Post, mediaIndex: number) => void;
 }
 
-const MediaGrid: React.FC<MediaGridProps> = ({ posts, onMediaClick }) => {
+const MediaGrid: React.FC<MediaGridProps> = ({ posts }) => {
     // Flatten all media from all posts into a single list, ordered by post date
     const allMedia: MediaItem[] = posts.flatMap(post => {
         const items: MediaItem[] = [];
+        const addedUrls = new Set<string>();
 
-        // Add images
-        if (post.imageUrls && post.imageUrls.length > 0) {
-            post.imageUrls.forEach((url, idx) => {
-                items.push({ url, type: 'image', post, mediaIndex: idx });
+        // 1. Handle new media prop
+        if (post.media && post.media.length > 0) {
+            post.media.forEach((m, idx) => {
+                items.push({ url: m.url, type: (m.type === 'video' ? 'video' : 'image'), post, mediaIndex: idx, altText: m.altText });
+                addedUrls.add(m.url);
             });
         }
 
-        // Add video
-        if (post.videoUrl) {
+        // 2. Fallback to images
+        if (post.imageUrls && post.imageUrls.length > 0) {
+            post.imageUrls.forEach((url, idx) => {
+                if (!addedUrls.has(url)) {
+                    items.push({ url, type: 'image', post, mediaIndex: idx });
+                    addedUrls.add(url);
+                }
+            });
+        }
+
+        // 3. Fallback to video
+        if (post.videoUrl && !addedUrls.has(post.videoUrl)) {
             const videoIndex = post.imageUrls ? post.imageUrls.length : 0;
             items.push({ url: post.videoUrl, type: 'video', post, mediaIndex: videoIndex });
         }
@@ -52,10 +65,10 @@ const MediaGrid: React.FC<MediaGridProps> = ({ posts, onMediaClick }) => {
     return (
         <div className="grid grid-cols-3 gap-0.5 bg-gray-100 dark:bg-dark-border">
             {allMedia.map((media, index) => (
-                <button
+                <Link
                     key={`${media.post.id}-${media.mediaIndex}-${index}`}
-                    onClick={() => onMediaClick(media.post, media.mediaIndex)}
-                    className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-dark-surface group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset"
+                    to={`/profile/${media.post.author.handle}/post/${media.post.id}/media/${media.mediaIndex}`}
+                    className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-dark-surface group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset block"
                 >
                     {media.type === 'video' ? (
                         <>
@@ -81,9 +94,15 @@ const MediaGrid: React.FC<MediaGridProps> = ({ posts, onMediaClick }) => {
                         />
                     )}
 
+                    {media.altText && (
+                        <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/60 text-white rounded text-[10px] font-bold">
+                            ALT
+                        </div>
+                    )}
+
                     {/* Hover Overlay */}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
-                </button>
+                </Link>
             ))}
         </div>
     );

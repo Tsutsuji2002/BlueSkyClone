@@ -9,6 +9,24 @@ const initialState: ThemeState = {
     fontSize: (localStorage.getItem('fontSize') as any) || 'md',
 };
 
+const applyThemeSettings = (mode: 'light' | 'dark', variant: 'dim' | 'dark') => {
+    const root = document.documentElement;
+    if (mode === 'dark') {
+        root.classList.add('dark');
+        if (variant === 'dark') {
+            root.classList.add('lights-out');
+            root.classList.remove('dim');
+        } else {
+            root.classList.add('dim');
+            root.classList.remove('lights-out');
+        }
+    } else {
+        root.classList.remove('dark');
+        root.classList.remove('lights-out');
+        root.classList.remove('dim');
+    }
+};
+
 const themeSlice = createSlice({
     name: 'theme',
     initialState,
@@ -17,7 +35,6 @@ const themeSlice = createSlice({
             state.colorMode = action.payload;
             localStorage.setItem('colorMode', action.payload);
 
-            // Logic to determine actual mode (light/dark)
             let actualMode = action.payload;
             if (action.payload === 'system') {
                 actualMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -25,17 +42,12 @@ const themeSlice = createSlice({
 
             state.mode = actualMode as 'light' | 'dark';
             localStorage.setItem('theme', state.mode);
-
-            if (state.mode === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+            applyThemeSettings(state.mode, state.darkVariant);
         },
         setDarkVariant: (state, action: PayloadAction<ThemeState['darkVariant']>) => {
             state.darkVariant = action.payload;
             localStorage.setItem('darkVariant', action.payload);
-            // In a real app, you'd apply a class like 'theme-dim' to documentElement
+            applyThemeSettings(state.mode, state.darkVariant);
         },
         setFontFamily: (state, action: PayloadAction<ThemeState['fontFamily']>) => {
             state.fontFamily = action.payload;
@@ -44,7 +56,6 @@ const themeSlice = createSlice({
         setFontSize: (state, action: PayloadAction<ThemeState['fontSize']>) => {
             state.fontSize = action.payload;
             localStorage.setItem('fontSize', action.payload);
-            // Apply font size class to documentElement
             document.documentElement.setAttribute('data-font-size', action.payload);
         },
         toggleTheme: (state) => {
@@ -52,12 +63,7 @@ const themeSlice = createSlice({
             state.colorMode = state.mode;
             localStorage.setItem('theme', state.mode);
             localStorage.setItem('colorMode', state.mode);
-
-            if (state.mode === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+            applyThemeSettings(state.mode, state.darkVariant);
         },
     },
 });

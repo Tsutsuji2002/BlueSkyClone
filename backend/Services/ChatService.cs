@@ -2,6 +2,8 @@ using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using BSkyClone.Hubs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,12 +16,14 @@ public class ChatService : IChatService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILinkService _linkService;
     private readonly ICacheService _cacheService;
+    private readonly IHubContext<ChatHub> _hubContext;
 
-    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService)
+    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext)
     {
         _unitOfWork = unitOfWork;
         _linkService = linkService;
         _cacheService = cacheService;
+        _hubContext = hubContext;
     }
 
     public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId)
@@ -160,7 +164,7 @@ public class ChatService : IChatService
         return MapToConversationDto(created!, userId, 0);
     }
 
-    public async Task<MessageDto> SendMessageAsync(Guid userId, Guid conversationId, string? content, string? imageUrl = null, Guid? replyToId = null)
+    public async Task<MessageDto> SendMessageAsync(Guid userId, Guid conversationId, string? content, string? imageUrl = null, Guid? replyToId = null, LinkPreviewDto? linkPreviewDto = null)
     {
         var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
@@ -186,11 +190,35 @@ public class ChatService : IChatService
 
         if (!string.IsNullOrEmpty(content))
         {
-            var linkPreview = await _linkService.GetLinkPreviewAsync(content);
-            if (linkPreview != null)
+            // Internal variable to hold the preview to save
+            LinkPreview? previewToSave = null;
+
+            if (linkPreviewDto != null && !string.IsNullOrEmpty(linkPreviewDto.Url))
             {
-                linkPreview.MessageId = message.Id;
-                message.LinkPreview = linkPreview;
+                 previewToSave = new LinkPreview
+                 {
+                     Id = Guid.NewGuid(),
+                     MessageId = message.Id,
+                     Url = linkPreviewDto.Url,
+                     Title = linkPreviewDto.Title,
+                     Description = linkPreviewDto.Description,
+                     Image = linkPreviewDto.Image,
+                     Domain = linkPreviewDto.Domain ?? new Uri(linkPreviewDto.Url).Host.Replace("www.", ""),
+                     CreatedAt = DateTime.UtcNow
+                 };
+            }
+            else
+            {
+                 previewToSave = await _linkService.GetLinkPreviewAsync(content);
+                 if (previewToSave != null)
+                 {
+                     previewToSave.MessageId = message.Id;
+                 }
+            }
+
+            if (previewToSave != null)
+            {
+                message.LinkPreview = previewToSave;
             }
         }
 
@@ -211,6 +239,27 @@ public class ChatService : IChatService
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
             .FirstOrDefaultAsync(m => m.Id == message.Id);
+
+        // Send SignalR notifications for other participants
+        foreach (var p in conversation.ConversationParticipants.Where(p => p.UserId != userId))
+        {
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                Tid = GenerateTid(),
+                Type = "message",
+                SenderId = userId,
+                RecipientId = p.UserId,
+                Title = "Tin nhắn mới",
+                Content = content?.Length > 50 ? content.Substring(0, 47) + "..." : content,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false,
+                Sender = savedMessage?.Sender!
+            };
+            
+            await SendNotificationAsync(notification);
+        }
 
         return MapToMessageDto(savedMessage!);
     }
@@ -453,12 +502,34 @@ public class ChatService : IChatService
             u.DateOfBirth,
             u.FollowersCount,
             u.FollowingCount,
-            u.PostsCount
+            u.PostsCount,
+            u.Role,
+            null,
+            u.IsVerified,
+            u.Did
         );
     }
 
     private string GenerateTid()
     {
         return DateTime.UtcNow.Ticks.ToString();
+    }
+
+    private async Task SendNotificationAsync(Notification notification)
+    {
+        var notificationDto = new NotificationDto(
+            notification.Id,
+            notification.Type ?? "message",
+            MapToUserDto(notification.Sender),
+            notification.PostId,
+            notification.ListId,
+            notification.Title,
+            notification.Content,
+            notification.IsRead ?? false,
+            DateTime.SpecifyKind(notification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
+        );
+
+        await _hubContext.Clients.Group($"user-{notification.RecipientId}")
+            .SendAsync("ReceiveNotification", notificationDto);
     }
 }

@@ -8,6 +8,7 @@ import { FiArrowLeft, FiChevronRight, FiMail, FiEdit2, FiLock, FiAtSign, FiGift,
 import Button from '../components/common/Button';
 import { updateUserAccount } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
+import ChangeHandleModal from '../modals/ChangeHandleModal';
 
 // Functional Modal Components for updating account settings
 const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: string }> = ({ isOpen, onClose, email }) => {
@@ -146,67 +147,7 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
     );
 };
 
-const ChangeUsernameModal: React.FC<{ isOpen: boolean; onClose: () => void; username: string }> = ({ isOpen, onClose, username }) => {
-    const { t } = useTranslation();
-    const dispatch = useAppDispatch();
-    const [newUsername, setNewUsername] = useState(username);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
 
-    if (!isOpen) return null;
-
-    const handleSave = async () => {
-        if (newUsername.trim() === username.trim()) {
-            dispatch(showToast({ message: t('settings.handle_same'), type: 'info' }));
-            onClose();
-            return;
-        }
-
-        setIsLoading(true);
-        setError('');
-        try {
-            await dispatch(updateUserAccount({ username: newUsername })).unwrap();
-            dispatch(showToast({ message: t('settings.username_updated_success'), type: 'success' }));
-            onClose();
-        } catch (err: any) {
-            setError(err || 'Failed to update username');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-dark-surface rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl p-6">
-                <div className="flex justify-between items-center mb-2">
-                    <button onClick={onClose} className="text-primary-500 font-medium">{t('settings.cancel')}</button>
-                    <h2 className="text-lg font-bold dark:text-dark-text">{t('settings.change_username_title')}</h2>
-                    <div className="w-8" />
-                </div>
-                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-                <div className="mb-6">
-                    <label className="block text-sm font-bold text-gray-700 dark:text-dark-text-secondary mb-2 uppercase text-xs tracking-wider">
-                        {t('settings.new_username_label')}
-                    </label>
-                    <div className="flex items-center bg-gray-100 dark:bg-dark-bg rounded-lg px-4 py-3">
-                        <span className="text-gray-500 mr-1">@</span>
-                        <input
-                            type="text"
-                            value={newUsername}
-                            onChange={(e) => setNewUsername(e.target.value)}
-                            className="bg-transparent border-none focus:outline-none w-full text-gray-900 dark:text-dark-text font-medium"
-                        />
-                        <span className="text-gray-400 ml-1">.bsky.social</span>
-                    </div>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-6">
-                    {t('settings.curr_username_label', { handle: username })}
-                </p>
-                <Button variant="primary" fullWidth size="lg" onClick={handleSave} loading={isLoading}>{t('settings.save')}</Button>
-            </div>
-        </div>
-    );
-};
 
 const EditBirthdateModal: React.FC<{ isOpen: boolean; onClose: () => void; birthdate?: string }> = ({ isOpen, onClose, birthdate }) => {
     const { t } = useTranslation();
@@ -215,9 +156,15 @@ const EditBirthdateModal: React.FC<{ isOpen: boolean; onClose: () => void; birth
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const today = new Date().toISOString().split('T')[0];
+
     if (!isOpen) return null;
 
     const handleSave = async () => {
+        if (date && date > today) {
+            setError(t('settings.birthdate_future_error', 'Birthday cannot be in the future'));
+            return;
+        }
         setIsLoading(true);
         setError('');
         try {
@@ -245,6 +192,7 @@ const EditBirthdateModal: React.FC<{ isOpen: boolean; onClose: () => void; birth
                         <input
                             type="date"
                             value={date}
+                            max={today}
                             onChange={(e) => setDate(e.target.value)}
                             className="bg-transparent border-none focus:outline-none w-full text-gray-900 dark:text-dark-text font-medium"
                         />
@@ -345,7 +293,7 @@ const AccountSettingsPage: React.FC = () => {
     const { t } = useTranslation();
     const user = useAppSelector((state) => state.auth.user);
 
-    const [activeModal, setActiveModal] = useState<'email' | 'password' | 'username' | 'birthdate' | 'export' | 'deactivate' | 'delete' | null>(null);
+    const [activeModal, setActiveModal] = useState<'email' | 'password' | 'handle' | 'birthdate' | 'export' | 'deactivate' | 'delete' | null>(null);
 
     const closeModal = () => setActiveModal(null);
 
@@ -408,12 +356,12 @@ const AccountSettingsPage: React.FC = () => {
                         </button>
 
                         <button
-                            onClick={() => setActiveModal('username')}
+                            onClick={() => setActiveModal('handle')}
                             className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
                         >
                             <div className="flex items-center gap-4">
                                 <FiAtSign size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.change_username')}</span>
+                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">Change Handle</span>
                             </div>
                             <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
                         </button>
@@ -475,7 +423,7 @@ const AccountSettingsPage: React.FC = () => {
             {/* Modals */}
             <UpdateEmailModal isOpen={activeModal === 'email'} onClose={closeModal} email={user?.email || ''} />
             <ChangePasswordModal isOpen={activeModal === 'password'} onClose={closeModal} />
-            <ChangeUsernameModal isOpen={activeModal === 'username'} onClose={closeModal} username={user?.username || ''} />
+            <ChangeHandleModal isOpen={activeModal === 'handle'} onClose={closeModal} />
             <EditBirthdateModal isOpen={activeModal === 'birthdate'} onClose={closeModal} birthdate={user?.dateOfBirth} />
             <ExportDataModal isOpen={activeModal === 'export'} onClose={closeModal} />
             <DeactivateAccountModal isOpen={activeModal === 'deactivate'} onClose={closeModal} />

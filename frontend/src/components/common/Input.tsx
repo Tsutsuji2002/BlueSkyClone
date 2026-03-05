@@ -12,6 +12,8 @@ const Input: React.FC<InputProps> = ({
     disabled = false,
     className,
     icon,
+    max,
+    min,
 }) => {
     return (
         <div className="w-full">
@@ -32,6 +34,8 @@ const Input: React.FC<InputProps> = ({
                     onChange={onChange}
                     placeholder={placeholder}
                     disabled={disabled}
+                    max={max}
+                    min={min}
                     className={cn(
                         'w-full px-4 py-3 rounded-lg border transition-colors duration-200',
                         'bg-white dark:bg-dark-surface',

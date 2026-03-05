@@ -11,7 +11,8 @@ import {
     FiSlash,
     FiCheckCircle,
     FiChevronRight,
-    FiShield
+    FiShield,
+    FiInfo
 } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
 

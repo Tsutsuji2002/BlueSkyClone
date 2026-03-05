@@ -94,6 +94,14 @@ export interface AdminInterest {
     createdAt?: string;
 }
 
+export interface AdminHashtag {
+    id: number;
+    name: string;
+    slug: string;
+    postsCount: number;
+    createdAt: string;
+}
+
 export interface BroadcastNotificationRequest {
     title: string;
     content: string;

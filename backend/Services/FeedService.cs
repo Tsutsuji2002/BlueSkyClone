@@ -1,6 +1,7 @@
 using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
+using BSkyClone.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace BSkyClone.Services;
@@ -18,7 +19,7 @@ public class FeedService : IFeedService
 
     public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid userId)
     {
-        await EnsureOfficialFeedsSeededAsync();
+        await PreSeedFeedsAsync();
         var feeds = await _unitOfWork.Feeds.GetTrendingFeedsAsync();
         
         var userSubscribedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
@@ -64,13 +65,39 @@ public class FeedService : IFeedService
 
         var topics = new List<(string Name, string Description, string Handle)>
         {
-            ("Art", "Discover amazing drawings, paintings, and digital art.", "art.official"),
-            ("Gaming", "Latest from the gaming world, consoles, and streaming.", "gaming.official"),
-            ("Tech", "Software, hardware, AI, and developer updates.", "tech.official")
+            (PostCategoryConstants.Art, "Discover amazing drawings, paintings, and digital art.", "art.official"),
+            (PostCategoryConstants.Photography, "Professional and amateur photography from around the world.", "photo.official"),
+            (PostCategoryConstants.Gaming, "Latest from the gaming world, consoles, and streaming.", "gaming.official"),
+            (PostCategoryConstants.Tech, "Software, hardware, AI, and developer updates.", "tech.official"),
+            (PostCategoryConstants.Music, "New releases, concerts, and music discussions.", "music.official"),
+            (PostCategoryConstants.News, "Headlines and breaking news from trusted sources.", "news.official"),
+            (PostCategoryConstants.Nature, "Beautiful landscapes, wildlife, and environmental topics.", "nature.official"),
+            (PostCategoryConstants.Politics, "Discussion about global and local political events.", "politics.official"),
+            (PostCategoryConstants.Movies, "Reviews, trailers, and news from the cinema world.", "movies.official"),
+            (PostCategoryConstants.Science, "Space, biology, physics, and latest scientific research.", "science.official"),
+            (PostCategoryConstants.Sports, "Match results, athletes, and sporting event updates.", "sports.official"),
+            (PostCategoryConstants.Food, "Recipes, cooking tips, and culinary adventures.", "food.official")
         };
 
         foreach (var topic in topics)
         {
+            // Ensure Interest exists for AI tagging
+            var interest = await _unitOfWork.Interests.Query()
+                .FirstOrDefaultAsync(i => i.Name == topic.Name);
+            
+            if (interest == null)
+            {
+                interest = new Interest
+                {
+                    Name = topic.Name,
+                    Slug = topic.Name.ToLower(),
+                    IsDeleted = false
+                };
+                await _unitOfWork.Interests.AddAsync(interest);
+                await _unitOfWork.CompleteAsync();
+            }
+
+            // Ensure Feed exists
             var feed = await _unitOfWork.Feeds.Query()
                 .FirstOrDefaultAsync(f => f.IsOfficial && f.Name == topic.Name);
 
@@ -249,7 +276,8 @@ public class FeedService : IFeedService
                 Id = feed.Creator.Id,
                 Username = feed.Creator.Username,
                 DisplayName = feed.Creator.DisplayName,
-                AvatarUrl = feed.Creator.AvatarUrl
+                AvatarUrl = feed.Creator.AvatarUrl,
+                IsVerified = feed.Creator.IsVerified
             } : null
         };
     }
@@ -278,31 +306,38 @@ public class FeedService : IFeedService
         var feed = await _unitOfWork.Feeds.GetByIdAsync(feedId);
         if (feed == null) return new List<PostDto>();
 
-        // Special handling for official feeds
-        if (feed.IsOfficial)
+        // 1. Special handling for Trending (still logic-based)
+        if (feed.IsOfficial && (feed.Name == "Trending" || feed.Tid == "official-trending"))
         {
-            if (feed.Name == "Trending")
-            {
-                return await _postService.GetTrendingPosts24hAsync(userId, take);
-            }
-
-            // AI Sort: Fetch posts tagged with this interest
-            var posts = await _unitOfWork.Posts.Query()
-                .Include(p => p.Author)
-                .Include(p => p.PostMedia)
-                .Include(p => p.LinkPreview)
-                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
-                            p.Interests.Any(i => i.Name == feed.Name))
-                .OrderByDescending(p => p.CreatedAt)
-                .Skip(skip)
-                .Take(take)
-                .ToListAsync();
-
-            return posts.Select(p => _postService.MapToDto(p));
+            return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
         }
 
-        // Future: Handle non-official community feeds if logic exists
-        return new List<PostDto>();
+        // 2. Generic AI/Category Sort: Fetch posts tagged with an interest matching the feed name or handle
+        // This works for any feed (Official or Community) if the system tagged the post correctly.
+        var posts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                        p.Interests.Any(i => i.Name == feed.Name))
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        var postDtos = posts.Select(p => _postService.MapToDto(p)).ToList();
+
+        if (userId.HasValue)
+        {
+            return await _postService.EnrichAndFilterPostsAsync(postDtos, userId.Value);
+        }
+
+        return postDtos;
+    }
+
+    public async Task PreSeedFeedsAsync()
+    {
+        await EnsureOfficialFeedsSeededAsync();
     }
 }
 

@@ -9,27 +9,37 @@
 
   /* Light theme (default) */
   :root {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f7f9f9;
-    --bg-hover: #eff3f4;
-    --text-primary: #0f1419;
-    --text-secondary: #536471;
-    --border-color: #eff3f4;
+    --bg-primary: 255 255 255;
+    --bg-secondary: 247 249 249;
+    --bg-hover: 239 243 244;
+    --text-primary: 15 20 25;
+    --text-secondary: 83 100 113;
+    --border-color: 239 243 244;
   }
 
-  /* Dark theme */
+  /* Dark theme (Default: Dim/Blue-dark) */
   .dark {
-    --bg-primary: #15202b;
-    --bg-secondary: #192734;
-    --bg-hover: #1c2732;
-    --text-primary: #e7e9ea;
-    --text-secondary: #8b98a5;
-    --border-color: #38444d;
+    --bg-primary: 21 32 43;
+    --bg-secondary: 25 39 52;
+    --bg-hover: 28 39 50;
+    --text-primary: 231 233 234;
+    --text-secondary: 139 152 165;
+    --border-color: 56 68 77;
+  }
+
+  /* Lights out (Pure black) override */
+  .dark.lights-out {
+    --bg-primary: 0 0 0;
+    --bg-secondary: 22 24 28;
+    --bg-hover: 28 31 35;
+    --text-primary: 231 233 234;
+    --text-secondary: 113 118 123;
+    --border-color: 47 51 54;
   }
 
   body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
+    background-color: rgb(var(--bg-primary));
+    color: rgb(var(--text-primary));
   }
 
   /* Font sizes */
@@ -46,13 +56,27 @@
   }
 
   @keyframes flap-left {
-    0%, 100% { transform: rotateY(0deg); }
-    50% { transform: rotateY(-60deg); }
+
+    0%,
+    100% {
+      transform: rotateY(0deg);
+    }
+
+    50% {
+      transform: rotateY(-60deg);
+    }
   }
 
   @keyframes flap-right {
-    0%, 100% { transform: rotateY(0deg); }
-    50% { transform: rotateY(60deg); }
+
+    0%,
+    100% {
+      transform: rotateY(0deg);
+    }
+
+    50% {
+      transform: rotateY(60deg);
+    }
   }
 
   .butterfly-wing-left {
@@ -78,12 +102,12 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: rgb(var(--border-color));
     border-radius: 3px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
+    background: rgb(var(--text-secondary));
   }
 
   /* No scrollbar */
@@ -94,5 +118,70 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Privacy Policy Strict Formatting */
+  .privacy-content h1, .privacy-content h2, .privacy-content h3, .privacy-content h4, .privacy-content h5, .privacy-content h6, .privacy-content p, .privacy-content span, .privacy-content div, .privacy-content li {
+    font-size: 17px !important;
+    line-height: 1.6 !important;
+    font-weight: 400 !important;
+    color: inherit;
+    font-family: inherit !important;
+  }
+  
+  .privacy-content h1 { 
+    font-size: 2.25rem !important; 
+    line-height: 2.5rem !important; 
+    font-weight: 700 !important; 
+    margin-bottom: 2rem !important; 
+  }
+  
+  .privacy-content h2 { 
+    font-size: 1.5rem !important; 
+    line-height: 2rem !important; 
+    font-weight: 700 !important; 
+    margin-top: 3rem !important; 
+    margin-bottom: 1rem !important; 
+  }
+
+  .privacy-content h3 { 
+    font-size: 1.25rem !important; 
+    line-height: 1.75rem !important; 
+    font-weight: 700 !important; 
+    margin-top: 2rem !important; 
+    margin-bottom: 1rem !important; 
+  }
+
+  .privacy-content p { 
+    margin-bottom: 1.25rem !important; 
+  }
+
+  .privacy-content ul { 
+    list-style-type: disc !important; 
+    padding-left: 1.5rem !important; 
+    margin-bottom: 1.25rem !important; 
+  }
+
+  .privacy-content ol { 
+    list-style-type: decimal !important; 
+    padding-left: 1.5rem !important; 
+    margin-bottom: 1.25rem !important; 
+  }
+
+  .privacy-content li { 
+    margin-bottom: 0.5rem !important; 
+  }
+
+  .privacy-content strong { 
+    font-weight: 600 !important; 
+  }
+
+  .privacy-content a { 
+    color: #0087ff !important; 
+    text-decoration: none !important; 
+  }
+
+  .privacy-content a:hover { 
+    text-decoration: underline !important; 
   }
 }

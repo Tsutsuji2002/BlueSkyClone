@@ -175,7 +175,7 @@ public class ListService : IListService
                         await _hubContext.Clients.Group($"user-{targetUserId}").SendAsync("ReceiveNotification", new {
                             Id = notification.Id,
                             Type = notification.Type,
-                            Sender = new { sender.Id, sender.Username, sender.Handle, sender.AvatarUrl, sender.DisplayName },
+                            Sender = new { sender.Id, sender.Username, sender.Handle, sender.AvatarUrl, sender.DisplayName, sender.IsVerified, sender.Did },
                             ListId = notification.ListId,
                             CreatedAt = notification.CreatedAt,
                             Title = notification.Title,
@@ -237,7 +237,10 @@ public class ListService : IListService
                 lm.User.FollowersCount,
                 lm.User.FollowingCount,
                 lm.User.PostsCount,
-                lm.User.Role
+                lm.User.Role,
+                null,
+                lm.User.IsVerified,
+                lm.User.Did
             ),
             JoinedAt = lm.JoinedAt ?? DateTime.UtcNow
         });
@@ -345,7 +348,10 @@ public class ListService : IListService
                 list.Owner.FollowersCount,
                 list.Owner.FollowingCount,
                 list.Owner.PostsCount,
-                list.Owner.Role
+                list.Owner.Role,
+                null,
+                list.Owner.IsVerified,
+                list.Owner.Did
             )
         };
     }
@@ -359,6 +365,12 @@ public class ListService : IListService
             .Include(lp => lp.Post).ThenInclude(p => p.Author)
             .Include(lp => lp.Post).ThenInclude(p => p.PostMedia)
             .Include(lp => lp.Post).ThenInclude(p => p.LinkPreview)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Where(lp => lp.ListId == listId)
             .OrderByDescending(lp => lp.AddedAt)
             .Skip(offset)
@@ -378,7 +390,9 @@ public class ListService : IListService
     }
 
     // Helper from PostService
-    private PostDto MapToPostDto(Post post)
+    private PostDto MapToPostDto(Post post) => MapToPostDto(post, true, true);
+
+    private PostDto MapToPostDto(Post post, bool includeQuote, bool includeParent)
     {
         return new PostDto
         {
@@ -386,19 +400,30 @@ public class ListService : IListService
             Tid = post.Tid,
             Content = post.Content,
             CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : null,
-            Author = new AuthorDto
+            Author = post.Author == null ? new AuthorDto { Username = "unknown", Handle = "unknown" } : new AuthorDto
             {
                 Id = post.Author.Id,
                 Username = post.Author.Username,
                 Handle = post.Author.Handle,
                 DisplayName = post.Author.DisplayName,
                 AvatarUrl = post.Author.AvatarUrl,
-                IsFollowing = false
+                IsFollowing = false,
+                IsVerified = post.Author.IsVerified,
+                Did = post.Author.Did
             },
-            ImageUrls = post.PostMedia.Select(m => m.Url).ToList(),
+            ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
+            Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
+            {
+                Url = m.Url,
+                AltText = m.AltText,
+                Type = m.Type
+            }).ToList(),
+            VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,
             LikesCount = post.LikesCount ?? 0,
             RepostsCount = post.RepostsCount ?? 0,
             RepliesCount = post.RepliesCount ?? 0,
+            QuotesCount = post.QuotesCount ?? 0,
+            BookmarksCount = post.BookmarksCount ?? 0,
             ReplyToPostId = post.ReplyToPostId,
             ReplyToHandle = post.ReplyToPost?.Author?.Handle,
             RootPostId = post.RootPostId,
@@ -412,7 +437,12 @@ public class ListService : IListService
                 Description = post.LinkPreview.Description,
                 Image = post.LinkPreview.Image,
                 Domain = post.LinkPreview.Domain
-            }
+            },
+            QuotePostId = post.QuotePostId,
+            QuotePost = (includeQuote && post.QuotePost != null) ? MapToPostDto(post.QuotePost, false, false) : null,
+            ParentPost = (includeParent && post.ReplyToPost != null) ? MapToPostDto(post.ReplyToPost, false, false) : null,
+            IsDeleted = post.IsDeleted ?? false,
+            CanReply = true
         };
     }
 
@@ -518,7 +548,7 @@ public class ListService : IListService
             users = await _unitOfWork.Users.Query()
                 .Where(u => u.Id != userId && 
                            (u.Username.ToLower().Contains(query) || 
-                            u.DisplayName.ToLower().Contains(query) ||
+                            (u.DisplayName != null && u.DisplayName.ToLower().Contains(query)) ||
                             u.Handle.ToLower().Contains(query)))
                 .Take(20)
                 .ToListAsync();
@@ -544,7 +574,9 @@ public class ListService : IListService
                 user.FollowingCount,
                 user.PostsCount,
                 user.Role,
-                status // New field: ListMembershipStatus
+                status, // New field: ListMembershipStatus
+                user.IsVerified,
+                user.Did
             );
         });
     }

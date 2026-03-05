@@ -16,6 +16,8 @@ interface FeedsState {
     error: string | null;
     hasMoreSearch: boolean;
     actionLoading: Record<string, boolean>;
+    feedHasMore: Record<string, boolean>;
+    feedLastFetch: Record<string, number>;
 }
 
 const initialState: FeedsState = {
@@ -24,7 +26,7 @@ const initialState: FeedsState = {
     searchResults: [],
     pinnedFeedIds: [],
     activeFeedId: null,
-    activeTab: 'following', // Default to following
+    activeTab: localStorage.getItem('home_active_tab') || 'following', // Default to following or persisted tab
     feedPosts: {},
     recommendedFeeds: [],
     isLoading: false,
@@ -32,6 +34,8 @@ const initialState: FeedsState = {
     error: null,
     hasMoreSearch: true,
     actionLoading: {},
+    feedHasMore: {},
+    feedLastFetch: {},
 };
 
 export const fetchTrendingFeeds = createAsyncThunk<
@@ -296,6 +300,7 @@ const feedsSlice = createSlice({
         },
         setActiveTab: (state: FeedsState, action: PayloadAction<string>) => {
             state.activeTab = action.payload;
+            localStorage.setItem('home_active_tab', action.payload);
             if (action.payload === 'following' || action.payload === 'discover') {
                 state.activeFeedId = null;
             } else {
@@ -310,6 +315,7 @@ const feedsSlice = createSlice({
         builder
             .addCase(fetchTrendingFeeds.pending, (state: FeedsState) => {
                 state.isLoading = true;
+                state.feeds = [];
             })
             .addCase(fetchTrendingFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
                 state.isLoading = false;
@@ -461,22 +467,53 @@ const feedsSlice = createSlice({
             .addCase(unsaveFeed.rejected, (state: FeedsState, action: any) => {
                 state.actionLoading[action.meta.arg] = false;
             })
-            .addCase(fetchFeedPosts.pending, (state: FeedsState) => {
+            .addCase(fetchFeedPosts.pending, (state: FeedsState, action) => {
                 state.isLoading = true;
+                if (action.meta.arg.skip === 0) {
+                    state.feedPosts[action.meta.arg.feedId] = [];
+                }
             })
             .addCase(fetchFeedPosts.fulfilled, (state: FeedsState, action: any) => {
                 state.isLoading = false;
-                const { feedId, posts } = action.payload;
+                const { feedId, posts, isMore } = action.payload;
                 if (!state.feedPosts[feedId] || action.meta.arg.skip === 0) {
                     state.feedPosts[feedId] = posts;
+                    state.feedLastFetch[feedId] = Date.now();
                 } else {
                     state.feedPosts[feedId] = [...state.feedPosts[feedId], ...posts];
                 }
+                state.feedHasMore[feedId] = isMore !== undefined ? isMore : posts.length > 0;
             })
             .addCase(fetchFeedPosts.rejected, (state: FeedsState, action: any) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
-            });
+            })
+            // Synchronize interactions across feedPosts
+            .addMatcher(
+                (action) => action.type.endsWith('/toggleLike/fulfilled') ||
+                    action.type.endsWith('/repostPost/fulfilled') ||
+                    action.type.endsWith('/bookmarkPost/fulfilled'),
+                (state: FeedsState, action: any) => {
+                    const updatedPost = action.payload;
+                    if (!updatedPost || !updatedPost.postId) return;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        const posts = state.feedPosts[feedId];
+                        const index = posts.findIndex(p => p.id === updatedPost.postId);
+                        if (index !== -1) {
+                            posts[index] = {
+                                ...posts[index],
+                                isLiked: updatedPost.isLiked !== undefined ? updatedPost.isLiked : posts[index].isLiked,
+                                isReposted: updatedPost.isReposted !== undefined ? updatedPost.isReposted : posts[index].isReposted,
+                                isBookmarked: updatedPost.isBookmarked !== undefined ? updatedPost.isBookmarked : posts[index].isBookmarked,
+                                likesCount: updatedPost.likesCount !== undefined ? updatedPost.likesCount : posts[index].likesCount,
+                                repostsCount: updatedPost.repostsCount !== undefined ? updatedPost.repostsCount : posts[index].repostsCount,
+                                bookmarksCount: updatedPost.bookmarksCount !== undefined ? updatedPost.bookmarksCount : posts[index].bookmarksCount,
+                            };
+                        }
+                    });
+                }
+            );
     }
 });
 

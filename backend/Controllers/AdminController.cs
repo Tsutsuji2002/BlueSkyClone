@@ -216,6 +216,23 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    // ── Hashtags Management ──
+
+    [HttpGet("hashtags")]
+    public async Task<IActionResult> GetHashtags([FromQuery] int skip = 0, [FromQuery] int take = 20, [FromQuery] string? search = null)
+    {
+        var result = await _adminService.GetHashtagsAsync(skip, take, search);
+        return Ok(result);
+    }
+
+    [HttpDelete("hashtags/{id}")]
+    public async Task<IActionResult> DeleteHashtag(int id)
+    {
+        var success = await _adminService.DeleteHashtagAsync(id);
+        if (!success) return NotFound(new { message = "Hashtag not found" });
+        return Ok(new { message = "Hashtag deleted successfully" });
+    }
+
     // ── Notifications ──
 
     [HttpPost("notifications/broadcast")]
@@ -224,5 +241,11 @@ public class AdminController : ControllerBase
         var success = await _adminService.BroadcastNotificationAsync(request);
         if (!success) return Ok(new { message = "No matching users were found for this broadcast." });
         return Ok(new { message = "Notification broadcasted successfully" });
+    }
+    [HttpPost("system/reindex")]
+    public async Task<IActionResult> ReindexSystem()
+    {
+        await _adminService.ReindexSystemAsync();
+        return Ok(new { message = "Reindexing started in the background" });
     }
 }

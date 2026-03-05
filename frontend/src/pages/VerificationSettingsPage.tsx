@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiInfo, FiCheckCircle } from 'react-icons/fi';
-import { cn } from '../utils/classNames';
 
 const VerificationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const [hideVerifications, setHideVerifications] = useState(false);
+    const [hideBadges, setHideBadges] = useState(false);
 
     return (
         <MainLayout>
@@ -26,35 +25,36 @@ const VerificationSettingsPage: React.FC = () => {
                     </h1>
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 max-w-2xl mx-auto">
                     {/* Info Banner */}
-                    <div className="bg-white dark:bg-dark-bg border border-blue-500 rounded-xl p-4 mb-8 flex gap-4">
+                    <div className="bg-blue-50/10 dark:bg-blue-900/10 border border-blue-500/50 rounded-xl p-4 mb-8 flex gap-4">
                         <FiInfo className="text-blue-500 shrink-0 mt-0.5" size={20} />
                         <p className="text-[15px] text-gray-900 dark:text-dark-text leading-snug">
-                            {t('moderation.verification_info')}
+                            Verifications on Bluesky work differently than on other platforms. <a
+                                href="https://bsky.social/about/blog/04-21-2025-verification"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                            >
+                                Learn more here.
+                            </a>
                         </p>
                     </div>
 
-                    {/* Hide Verification Marks Toggle */}
-                    <div className="flex items-center justify-between p-2">
-                        <div className="flex items-center gap-4 text-gray-900 dark:text-dark-text">
-                            <FiCheckCircle size={24} />
-                            <span className="font-medium text-[17px]">{t('moderation.hide_verifications')}</span>
+                    {/* Settings Item */}
+                    <div
+                        className="flex items-center justify-between py-2 cursor-pointer transition-colors"
+                        onClick={() => setHideBadges(!hideBadges)}
+                    >
+                        <div className="flex items-center gap-4">
+                            <FiCheckCircle size={22} className="text-gray-900 dark:text-dark-text" />
+                            <span className="text-[17px] font-medium text-gray-900 dark:text-dark-text">
+                                Hide verification badges
+                            </span>
                         </div>
-                        <button
-                            onClick={() => setHideVerifications(!hideVerifications)}
-                            className={cn(
-                                "w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out border-2",
-                                hideVerifications
-                                    ? "bg-blue-500 border-blue-500 shadow-[0_0_0_2px_rgba(59,130,246,0.1)]"
-                                    : "bg-gray-100 border-gray-200 dark:bg-dark-surface dark:border-gray-600"
-                            )}
-                        >
-                            <div className={cn(
-                                "w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform duration-200 ease-in-out shadow-sm",
-                                hideVerifications ? "left-[20px]" : "left-[2px]"
-                            )} />
-                        </button>
+                        <div className={`w-10 h-6 rounded-md flex items-center p-1 transition-colors ${hideBadges ? 'bg-blue-600' : 'bg-gray-300 dark:bg-dark-surface'}`}>
+                            <div className={`w-4 h-4 bg-white rounded-sm transition-transform ${hideBadges ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </div>
                     </div>
                 </div>
             </div>

@@ -74,21 +74,21 @@ const AdminDashboardPage: React.FC = () => {
             change: '+5%'
         },
         {
-            title: t('admin.stats.total_lists', 'Total Lists'),
+            title: t('admin.stats.total_lists'),
             value: stats.totalLists,
             icon: FiList,
             color: 'bg-pink-500',
             change: '+10%'
         },
         {
-            title: t('admin.stats.total_conversations', 'Conversations'),
+            title: t('admin.stats.total_conversations'),
             value: stats.totalConversations,
             icon: FiMessageCircle,
             color: 'bg-teal-500',
             change: '+7%'
         },
         {
-            title: t('admin.stats.total_notifications', 'Notifications Sent'),
+            title: t('admin.stats.total_notifications'),
             value: stats.totalNotifications,
             icon: FiBell,
             color: 'bg-yellow-500',
@@ -120,6 +120,25 @@ const AdminDashboardPage: React.FC = () => {
                 <p className="text-gray-600 dark:text-dark-text-secondary">
                     {t('admin.dashboard.welcome', { name: user?.displayName || user?.handle })}
                 </p>
+            </div>
+
+            <div className="mb-6 flex justify-end">
+                <button
+                    onClick={async () => {
+                        if (window.confirm(t('admin.dashboard.reindex_confirm'))) {
+                            try {
+                                await adminService.reindexSystem();
+                                alert(t('admin.dashboard.reindex_success'));
+                            } catch (error) {
+                                console.error(error);
+                                alert(t('admin.dashboard.reindex_error'));
+                            }
+                        }
+                    }}
+                    className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                    {t('admin.dashboard.reindex_system')}
+                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

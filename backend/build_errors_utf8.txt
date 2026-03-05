@@ -1,0 +1,33 @@
+﻿  Determining projects to restore...
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc [C:\Projects\BlueSky\backend\BSkyClone.sln]
+  All projects are up-to-date for restore.
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\UserService.cs(340,19): error CS0103: The name 'ShouldCreateNotificationAsync' does not exist in the current context [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\UserService.cs(367,25): error CS7036: There is no argument given that corresponds to the required parameter 'PostsCount' of 'UserDto.UserDto(Guid, string, string, string, string?, string?, string?, string?, string?, string?, DateTime?, int?, int?, int?, string, int?)' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Controllers\TrendingController.cs(134,55): warning CS8604: Possible null reference argument for parameter 'item' in 'void List<string>.Add(string item)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(341,76): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(376,20): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(334,32): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(980,20): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(1515,26): warning CS8602: Dereference of a possibly null reference. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(1601,30): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+
+Build FAILED.
+
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc [C:\Projects\BlueSky\backend\BSkyClone.sln]
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Controllers\TrendingController.cs(134,55): warning CS8604: Possible null reference argument for parameter 'item' in 'void List<string>.Add(string item)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(341,76): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(376,20): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ML\MLModelService.cs(334,32): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(980,20): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(1515,26): warning CS8602: Dereference of a possibly null reference. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(1601,30): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\UserService.cs(340,19): error CS0103: The name 'ShouldCreateNotificationAsync' does not exist in the current context [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\UserService.cs(367,25): error CS7036: There is no argument given that corresponds to the required parameter 'PostsCount' of 'UserDto.UserDto(Guid, string, string, string, string?, string?, string?, string?, string?, string?, DateTime?, int?, int?, int?, string, int?)' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+    9 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:12.19
+
+Workload updates are available. Run `dotnet workload list` for more information.

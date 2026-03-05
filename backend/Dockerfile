@@ -22,4 +22,12 @@ RUN dotnet publish "./BSkyClone.csproj" -c $BUILD_CONFIGURATION -o /app/publish 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+# Create uploads directories and set permissions for the app user
+USER root
+RUN mkdir -p wwwroot/uploads/posts wwwroot/uploads/avatars wwwroot/uploads/covers \
+    && chown -R $APP_UID:$APP_UID wwwroot/uploads \
+    && chmod -R 775 wwwroot/uploads
+USER $APP_UID
+
 ENTRYPOINT ["dotnet", "BSkyClone.dll"]

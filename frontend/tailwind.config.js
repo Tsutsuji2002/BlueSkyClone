@@ -22,19 +22,19 @@ module.exports = {
         },
         // Dark theme colors
         dark: {
-          bg: '#15202b',
-          surface: '#192734',
-          border: '#38444d',
-          text: '#e7e9ea',
-          'text-secondary': '#8b98a5',
+          bg: 'rgb(var(--bg-primary) / <alpha-value>)',
+          surface: 'rgb(var(--bg-secondary) / <alpha-value>)',
+          border: 'rgb(var(--border-color) / <alpha-value>)',
+          text: 'rgb(var(--text-primary) / <alpha-value>)',
+          'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
         },
         // Light theme colors
         light: {
-          bg: '#ffffff',
-          surface: '#f7f9f9',
-          border: '#eff3f4',
-          text: '#0f1419',
-          'text-secondary': '#536471',
+          bg: 'rgb(var(--bg-primary) / <alpha-value>)',
+          surface: 'rgb(var(--bg-secondary) / <alpha-value>)',
+          border: 'rgb(var(--border-color) / <alpha-value>)',
+          text: 'rgb(var(--text-primary) / <alpha-value>)',
+          'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
         },
       },
       fontFamily: {
@@ -75,5 +75,7 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }

@@ -42,9 +42,46 @@ public partial class UserSetting
     public bool? InAppNotifyQuotes { get; set; }
     public bool? InAppNotifyReposts { get; set; }
 
+    // Extended notification settings
+    public bool? NotifyActivity { get; set; }
+    public bool? PushNotifyActivity { get; set; }
+    public bool? InAppNotifyActivity { get; set; }
+
+    public bool? NotifyLikesOfReposts { get; set; }
+    public bool? PushNotifyLikesOfReposts { get; set; }
+    public bool? InAppNotifyLikesOfReposts { get; set; }
+
+    public bool? NotifyRepostsOfReposts { get; set; }
+    public bool? PushNotifyRepostsOfReposts { get; set; }
+    public bool? InAppNotifyRepostsOfReposts { get; set; }
+
+    public bool? NotifyOthers { get; set; }
+    public bool? PushNotifyOthers { get; set; }
+    public bool? InAppNotifyOthers { get; set; }
+
     public string? DefaultReplyRestriction { get; set; }
     public bool? DefaultAllowQuotes { get; set; }
     public int? FontSize { get; set; }
+    public bool? EnableTrending { get; set; }
+    public bool? EnableDiscoverVideo { get; set; }
+    public bool? EnableTreeView { get; set; }
+    public bool? RequireLogoutVisibility { get; set; }
+    public bool? LargerAltBadge { get; set; }
+
+    /// <summary>
+    /// JSON array of selected interest names, e.g., '["Tech","Art","Food"]'
+    /// </summary>
+    public string? SelectedInterests { get; set; }
+
+    public bool? ShowReplies { get; set; }
+    public bool? ShowReposts { get; set; }
+    public bool? ShowQuotePosts { get; set; }
+    public bool? ShowSampleSavedFeeds { get; set; }
+
+    /// <summary>
+    /// JSON array of enabled media providers, e.g., '["YouTube","Spotify"]'
+    /// </summary>
+    public string? EnabledMediaProviders { get; set; }
 
     public virtual User User { get; set; } = null!;
 }

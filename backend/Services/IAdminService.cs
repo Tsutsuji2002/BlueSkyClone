@@ -29,5 +29,8 @@ public interface IAdminService
     Task<bool> DeleteConversationAsync(Guid conversationId);
     Task<PaginatedResult<AdminBlockDto>> GetBlocksAsync(int skip, int take, string? searchQuery);
     Task<PaginatedResult<AdminMuteDto>> GetMutesAsync(int skip, int take, string? searchQuery);
+    Task<PaginatedResult<AdminHashtagDto>> GetHashtagsAsync(int skip, int take, string? searchQuery);
+    Task<bool> DeleteHashtagAsync(int hashtagId);
     Task<bool> BroadcastNotificationAsync(BroadcastNotificationRequest request);
+    Task ReindexSystemAsync();
 }

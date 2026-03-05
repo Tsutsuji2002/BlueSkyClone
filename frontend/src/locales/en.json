@@ -18,7 +18,9 @@
         "video": "Video",
         "likes": "Likes",
         "bookmarks": "Bookmarks",
-        "link_preview": "Link preview"
+        "link_preview": "Link preview",
+        "admin": "Admin",
+        "search": "Search"
     },
     "settings": {
         "title": "Settings",
@@ -31,10 +33,19 @@
         "notifications": "Notifications",
         "content": "Content and Media",
         "accessibility": "Accessibility",
+        "following_feed_settings": "Following feed settings",
+        "following_settings_info": "These settings only apply to the Following feed.",
+        "show_replies": "Show replies",
+        "show_reposts": "Show reposts",
+        "show_quote_posts": "Show quote posts",
+        "experimental": "Experimental",
+        "show_sample_saved_feeds": "Show samples from saved feeds",
+        "feed_visibility": "Feed visibility",
         "help": "Help",
         "about": "About Bluesky",
         "dark_mode": "Dark mode",
         "light_mode": "Light mode",
+        "system_mode": "System",
         "logout": "Log out",
         "logout_label": "Log out",
         "email": "Email",
@@ -86,7 +97,9 @@
         "new_password": "New password",
         "current_password": "Current password",
         "handle_same": "This is already your current handle",
-        "username_updated_success": "Handle updated successfully"
+        "username_updated_success": "Handle updated successfully",
+        "handle_cannot_be_blank": "Handle cannot be blank",
+        "birthdate_future_error": "Birthday cannot be in the future"
     },
     "moderation": {
         "title": "Moderation",
@@ -100,7 +113,18 @@
         "blocked_accounts_info": "Blocked accounts cannot reply to your posts, mention you, or interact with you. You will not be able to see their content and they will not be allowed to see yours.",
         "no_blocked_accounts": "You haven't blocked any accounts. To block an account, go to their profile and select \"Block account\" from the menu on their account.",
         "verification_title": "Verification settings",
-        "verification_info": "Verification on Bluesky works differently than other platforms. Learn more here.",
+        "verification_info": "Verification on Bluesky works by proving ownership of a domain. You can verify your identity by setting a DNS record or uploading a file to your website.",
+        "verification_method_dns": "DNS TXT Record",
+        "verification_method_http": "HTTP File",
+        "verification_dns_instruction": "Add a TXT record to your domain's DNS configuration with the following name and value:",
+        "verification_dns_name": "Domain / Name:",
+        "verification_dns_value": "Value:",
+        "verification_http_instruction": "Upload a file to your website at the following path with your DID as the content:",
+        "verification_http_path": "Path:",
+        "verification_http_content": "Content (Your DID):",
+        "verification_verify_btn": "Verify Domain",
+        "verification_success": "Domain verified successfully!",
+        "verification_failed": "Verification failed. Please check your settings and try again.",
         "hide_verifications": "Hide verification marks",
         "interaction_title": "Interaction Settings",
         "interaction_info": "These settings will be used as the default when you create a new post. You can edit them post-by-post from the composer.",
@@ -112,6 +136,13 @@
         "select_list": "Select from your lists",
         "allow_quote": "Allow quote posts",
         "block_confirm": "Are you sure you want to block {{name}}? They will no longer be able to see your posts or interact with you.",
+        "unblock_confirm": "Are you sure you want to unblock {{name}}?",
+        "mute_confirm": "Are you sure you want to mute {{name}}? Their posts will no longer appear in your feeds.",
+        "unmute_confirm": "Are you sure you want to unmute {{name}}?",
+        "unblock": "Unblock",
+        "unmute": "Unmute",
+        "block": "Block",
+        "mute": "Mute",
         "save": "Save",
         "muted_words_title": "Muted words & tags",
         "add_muted_word_title": "Add muted word or tag",
@@ -129,6 +160,16 @@
         "add": "Add +",
         "your_muted_words": "Your muted words",
         "no_muted_words": "You haven't muted any words or tags",
+        "add_new": "Add New",
+        "mute_behavior": "Mute Behavior",
+        "hide_completely": "Hide Completely",
+        "hide_completely_desc": "Posts will be fully hidden from your feeds.",
+        "show_warning": "Show Warning",
+        "show_warning_desc": "Posts will be shown with a warning overlay.",
+        "behavior_hide": "Fully hidden",
+        "behavior_warn": "Show warning",
+        "word_or_tag": "Word or Tag",
+        "add_word": "Add Muted Word",
         "mod_lists_title": "Moderation lists",
         "create_new": "Create new",
         "mod_lists_empty": "Public, shareable lists of users for bulk muting or blocking.",
@@ -219,6 +260,7 @@
         "reposted_post": "reposted your post",
         "replied_post": "replied to your post",
         "mentioned_you": "mentioned you in a post",
+        "quoted_post": "quoted your post",
         "push": "Push notifications",
         "in_app": "In-app notifications",
         "from": "From",
@@ -227,7 +269,14 @@
         "setting_summary": "In-app, Push, Everyone",
         "setting_summary_simple": "In-app, Everyone",
         "setting_summary_push": "In-app, Push",
-        "system_announcement": "System Announcement"
+        "system_announcement": "System Announcement",
+        "channels": "Channels",
+        "enabled": "Enabled",
+        "enabled_desc": "Allow receiving notifications for this type",
+        "in_app_desc": "Show inside the app",
+        "push_desc": "Get push notifications on your device",
+        "mobile_only": "Mobile only",
+        "settings_saved_locally": "Settings saved successfully"
     },
     "appearance": {
         "title": "Appearance",
@@ -237,6 +286,7 @@
         "dark": "Dark",
         "dark_variant": "Dark Mode Variant",
         "dim": "Dim",
+        "lights_out": "Lights Out",
         "font_family": "Font Family",
         "font_family_desc": "We recommend using theme fonts for the best experience.",
         "ui_font": "UI Font",
@@ -306,7 +356,13 @@
         "add_to_lists": "Add to lists",
         "hide_account": "Hide account",
         "block_account": "Block account",
-        "report_account": "Report account"
+        "report_account": "Report account",
+        "blocked_by": "@{{handle}} blocked you",
+        "blocked_by_desc": "You cannot follow or see this user's posts.",
+        "is_blocking_title": "You have blocked this user",
+        "is_blocking_desc": "You cannot see their posts or interact with them.",
+        "unblock_to_see": "Unblock to see posts",
+        "verified_account": "Verified account"
     },
     "home": {
         "title": "Home",
@@ -336,6 +392,8 @@
         "no_pinned": "You don't have any pinned feeds.",
         "search_results": "Search Results",
         "recommended_for_you": "Recommended for you",
+        "following_end": "Follow more people to get more content...",
+        "end": "No more posts to load.",
         "pin_feed": "Pin Feed",
         "pin": "Pin",
         "unpin": "Unpin",
@@ -348,7 +406,9 @@
         "interests_desc": "Your interests help us find what you like!",
         "edit_interests": "Edit interests",
         "promoted": "Promoted",
-        "no_posts_found": "No trending posts found in the last 24 hours."
+        "no_posts_found": "No trending posts found in the last 24 hours.",
+        "trending_posts": "Trending posts",
+        "loading_accounts": "Loading trending accounts..."
     },
     "lists": {
         "title": "Lists",
@@ -402,7 +462,9 @@
         "invited": "Invited",
         "member": "Member",
         "invitation_accepted": "Invitation accepted",
-        "invitation_rejected": "Invitation declined"
+        "invitation_rejected": "Invitation declined",
+        "join": "Join",
+        "join_request_sent": "Join request sent"
     },
     "saved": {
         "title": "Saved",
@@ -438,6 +500,7 @@
             "step": "Step {{step}} / 3",
             "your_account": "Your account",
             "creating_on": "You are creating an account on",
+            "hosting_provider_name": "Bluesky Social",
             "email_label": "Email",
             "email_placeholder": "Enter your email address",
             "password_label": "Password",
@@ -452,6 +515,7 @@
             "username_desc": "You can change this later",
             "username_label": "Username",
             "username_preview": "Your username will be:",
+            "username_placeholder_default": "username",
             "having_trouble": "Having trouble?",
             "contact_support": "Contact support",
             "back": "Back",
@@ -492,8 +556,23 @@
         "forward": "Forward",
         "reply": "Reply",
         "replying_to": "Replying to {{name}}",
+        "replying_to_prefix": "Replying to",
         "modified": "Modified",
         "add_reaction": "Add reaction"
+    },
+    "search": {
+        "title": "Search",
+        "placeholder": "Search posts or users...",
+        "tabs": {
+            "posts": "Posts",
+            "users": "People"
+        },
+        "no_results_title": "No results found",
+        "no_results_desc": "Try searching for something else, or check for typos.",
+        "start_searching": "Search BlueSky",
+        "start_desc": "Find posts and people on BlueSky.",
+        "searching_for": "Search for \"{{query}}\"",
+        "no_results": "No results found"
     },
     "common": {
         "app_name": "BlueSky",
@@ -519,6 +598,7 @@
         "close": "Close",
         "cancel": "Cancel",
         "save": "Save",
+        "edit_post": "Edit post",
         "copied_to_clipboard": "Copied to clipboard",
         "hours_ago": "{{count}}h ago",
         "you": "You",
@@ -527,10 +607,13 @@
         "go_home": "Go home",
         "show_more": "Show more",
         "show_less": "Show less",
-        "adding": "Adding..."
+        "adding": "Adding...",
+        "saving": "Saving...",
+        "gif": "GIF"
     },
     "post": {
         "title": "Post",
+        "updated_success": "Post updated successfully",
         "everyone_can_reply": "Everyone can reply",
         "translate": "Translate",
         "copy_text": "Copy post text",
@@ -547,8 +630,8 @@
         "add_comment_placeholder": "Add a comment...",
         "shared_success": "Shared successfully",
         "shared_failed": "Failed to share",
-        "show_more": "Show more like this",
-        "show_less": "Show less like this",
+        "show_more": "Show more",
+        "show_less": "Hide",
         "mute_thread": "Mute thread",
         "hide_words": "Hide words & tags",
         "hide_post": "Hide post for me",
@@ -556,6 +639,7 @@
         "mute_account": "Mute account",
         "block_account": "Block account",
         "report_post": "Report post",
+        "replies_disabled": "Replies are disabled for this post",
         "add_alt_text": "Add alt text",
         "alt_text_description": "ALT TEXT DESCRIPTION",
         "alt_text_placeholder": "Alt text",
@@ -570,9 +654,23 @@
         "preview": "Post Preview",
         "created_success": "Post created successfully",
         "reply_success": "Reply posted successfully",
+        "muted_by_word": "Post hidden by your muted word",
+        "show_anyway": "Show anyway",
         "loading": "Loading post...",
         "view_full_post": "View full post",
-        "no_replies": "No replies yet"
+        "no_replies": "No replies yet",
+        "quote_post": "Quote post",
+        "repost": "Repost",
+        "undo_repost": "Undo repost",
+        "reposted_by_you": "Reposted by you",
+        "reposted_by": "Reposted by {{name}}",
+        "read_more_replies": "Read {{count}} more replies",
+        "read_more_reply": "Read 1 more reply",
+        "search_gifs": "Search GIPHY GIFs",
+        "trending_gifs": "Trending GIFs",
+        "no_gifs_found": "No GIFs found",
+        "giphy_key_missing": "GIPHY API Key is missing. Please set REACT_APP_GIPHY_API_KEY in your .env file.",
+        "giphy_key_invalid": "Invalid GIPHY API Key. Please check your REACT_APP_GIPHY_API_KEY."
     },
     "sidebar": {
         "trending": "Trending Topics",
@@ -628,6 +726,7 @@
         "politics": "Politics",
         "science": "Science",
         "sports": "Sports",
+        "tech": "Tech",
         "technology": "Technology",
         "travel": "Travel",
         "fashion": "Fashion",
@@ -676,7 +775,17 @@
         "dashboard": {
             "title": "Dashboard",
             "welcome": "Welcome back, {{name}}",
-            "loading": "Loading statistics..."
+            "loading": "Loading statistics...",
+            "reindex_system": "Reindex Elasticsearch",
+            "reindex_confirm": "Are you sure you want to reindex all data? This may take a while and cause high load.",
+            "reindex_success": "Reindexing started successfully",
+            "reindex_error": "Failed to start reindexing"
+        },
+        "content": {
+            "title": "Content Management"
+        },
+        "safety": {
+            "title": "Safety & System"
         },
         "stats": {
             "total_users": "Total Users",
@@ -684,7 +793,10 @@
             "active_today": "Active Today",
             "new_posts_today": "New Posts Today",
             "total_feeds": "Total Feeds",
-            "banned_users": "Banned Users"
+            "banned_users": "Banned Users",
+            "total_lists": "Total Lists",
+            "total_conversations": "Total Conversations",
+            "total_notifications": "Total Notifications"
         },
         "feeds": {
             "title": "Feed Management",
@@ -811,12 +923,85 @@
             "title": "Notification Broadcast",
             "desc": "Send system-wide notifications",
             "create_btn": "New Broadcast",
-            "history_title": "Broadcast History",
-            "message_label": "Message",
-            "type_label": "Type",
-            "target_audience_label": "Target Audience",
-            "send_btn": "Send Notification",
-            "sent_success": "Notification sent successfully"
-        }
+            "sent_success": "Notification sent successfully",
+            "send_error": "Failed to send notification. Please try again.",
+            "broadcast_confirm_title": "Confirm Broadcast",
+            "broadcast_confirm_message": "Are you sure you want to send this notification to the selected audience? This action cannot be undone.",
+            "audience_all": "All Users",
+            "audience_user": "Regular Users Only",
+            "audience_admin": "Admins Only",
+            "best_practices": "Best Practices",
+            "best_practices_list": [
+                "Keep notifications concise and clear.",
+                "Use titles that grab attention but aren't clickbait.",
+                "Target specific roles when the message isn't relevant to everyone.",
+                "Avoid sending too many broadcasts to prevent user fatigue."
+            ]
+        },
+        "support": {
+            "title": "Support Management",
+            "desc": "Manage user feedback and support requests",
+            "search_placeholder": "Search by email or description...",
+            "table_user": "User/Email",
+            "table_category": "Category",
+            "table_device": "Device",
+            "table_status": "Status",
+            "table_created": "Date",
+            "table_actions": "Actions",
+            "status_pending": "Pending",
+            "status_replied": "Replied",
+            "status_closed": "Closed",
+            "no_requests": "No support requests found",
+            "showing_info": "Showing {{count}} of {{total}} requests",
+            "request_details": "Request Details",
+            "view_details": "View details",
+            "update_status": "Update status",
+            "description": "Description",
+            "contact_email": "Contact Email",
+            "category": "Category",
+            "device": "Device Type",
+            "status": "Status",
+            "date": "Submitted Date"
+        },
+        "back_to_app": "Back to App",
+        "panel": "Panel"
+    },
+    "tag": {
+        "exploring_tagged": "Exploring posts tagged with #{{tag}}",
+        "no_posts_with_tag": "No posts found with tag #{{tag}}"
+    },
+    "support": {
+        "submit_request": "Submit a request",
+        "sign_in": "Sign in",
+        "required_fields": "Fields marked with an asterisk (*) are required.",
+        "email_label": "Your email address",
+        "description_label": "Enter device type and description of concern",
+        "description_info": "Please enter the details of your request. A member of our support staff will respond as soon as possible.",
+        "username_label": "Username",
+        "category_label": "Category",
+        "category_options": {
+            "account": "Account/Profile Concern",
+            "bug": "Bug Report",
+            "domain": "Custom Domain",
+            "feedback": "Product Feedback/Suggestions",
+            "moderation": "Moderation",
+            "other": "Other"
+        },
+        "device_label": "Type of Device:",
+        "device_info": "The type of device used to access the platform.",
+        "device_options": {
+            "android": "Android",
+            "ios": "IOS",
+            "web": "Web"
+        },
+        "attachments": "Attachments",
+        "choose_file": "Choose a file",
+        "drag_drop": "or drag and drop here",
+        "files_skipped_size": "Some files were skipped because they exceed the {{size}}MB limit.",
+        "submit": "Submit",
+        "submitting": "Submitting...",
+        "submit_success": "Your request has been submitted successfully.",
+        "fill_required": "Please fill in all required fields.",
+        "powered_by": "Powered by"
     }
 }

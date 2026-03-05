@@ -52,6 +52,26 @@ const api = {
             headers: getHeaders(),
         });
         return handleResponse(response) as Promise<{ data: T }>;
+    },
+    search: {
+        posts: async (query: string, skip: number = 0, take: number = 20) => {
+            const response = await fetch(`${API_URL}/search/posts?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
+                method: 'GET',
+                headers: getHeaders(),
+            });
+            return handleResponse(response) as Promise<{ data: any[] }>;
+        },
+        users: async (query: string, skip: number = 0, take: number = 20) => {
+            const response = await fetch(`${API_URL}/search/users?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
+                method: 'GET',
+                headers: getHeaders(),
+            });
+            return handleResponse(response) as Promise<{ data: any[] }>;
+        }
+    },
+    pageContent: {
+        get: (slug: string) => api.get<{ title: string; htmlContent: string }>(`/PageContent/${slug}`).then(res => res.data),
+        update: (slug: string, body: { title: string; htmlContent: string }) => api.put<void>(`/PageContent/${slug}`, body)
     }
 };
 

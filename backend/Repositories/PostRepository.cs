@@ -25,9 +25,15 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
             .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
-            .Where(p => followedUserIds.Contains(p.AuthorId) 
-                && (p.IsDeleted == false || p.IsDeleted == null)
-                && p.ReplyToPostId == null) // Exclude replies from timeline
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .Include(p => p.Reposts).ThenInclude(r => r.User)
+            .AsSplitQuery()
+            .Where(p => (followedUserIds.Contains(p.AuthorId) || p.Reposts.Any(r => followedUserIds.Contains(r.UserId)))
+                && (p.IsDeleted == false || p.IsDeleted == null)) // Allow replies in timeline
             .OrderByDescending(p => p.CreatedAt)
             .Take(limit)
             .ToListAsync();
@@ -40,7 +46,13 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
             .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Include(p => p.Reposts)
+            .AsSplitQuery()
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null));
 
         if (type == "replies")
@@ -66,15 +78,21 @@ public class PostRepository : Repository<Post>, IPostRepository
                 .Include(l => l.Post.PostMedia)
                 .Include(l => l.Post.LinkPreview)
                 .Include(l => l.Post.ReplyToPost).ThenInclude(rp => rp!.Author)
+                .Include(l => l.Post.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+                .Include(l => l.Post.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+                .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.Author)
+                .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                .AsSplitQuery()
                 .OrderByDescending(l => l.CreatedAt)
                 .Skip(offset)
                 .Take(limit)
                 .Select(l => l.Post)
                 .ToListAsync();
         }
-        else // default to "posts" tab - user's own posts (excluding replies)
+        else // default to "posts" tab - user's own posts (excluding replies) and their reposts
         {
-            query = query.Where(p => p.AuthorId == userId && p.ReplyToPostId == null);
+            query = query.Where(p => (p.AuthorId == userId && p.ReplyToPostId == null) || p.Reposts.Any(r => r.UserId == userId));
         }
 
         return await query
@@ -84,7 +102,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<Post>> GetTrendingPosts24hAsync(int limit = 50)
+    public async Task<IEnumerable<Post>> GetTrendingPosts24hAsync(int limit = 50, int offset = 0)
     {
         var dayAgo = DateTime.UtcNow.AddHours(-24);
         return await _dbSet
@@ -92,10 +110,38 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
             .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .AsSplitQuery()
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
+                        && p.ReplyToPostId == null
                         && p.CreatedAt >= dayAgo)
             .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
             .ThenByDescending(p => p.CreatedAt)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Post>> GetPostsByTagAsync(string tag, int limit = 20, int offset = 0)
+    {
+        return await _dbSet
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Include(p => p.Hashtags)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .AsSplitQuery()
+            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
+                        && p.ReplyToPostId == null
+                        && p.Hashtags.Any(h => h.Slug == tag.ToLower() || h.Name.ToLower() == tag.ToLower()))
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip(offset)
             .Take(limit)
             .ToListAsync();
     }

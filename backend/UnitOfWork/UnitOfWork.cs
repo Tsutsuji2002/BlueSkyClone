@@ -38,6 +38,9 @@ public class UnitOfWork : IUnitOfWork
 
     public IRepository<ListPost> ListPosts => _listPosts ??= new Repository<ListPost>(_context);
     public IRepository<Interest> Interests => _interests ??= new Repository<Interest>(_context);
+    public IRepository<Hashtag> Hashtags => _hashtags ??= new Repository<Hashtag>(_context);
+    public IRepository<MutedWord> MutedWords => _mutedWords ??= new Repository<MutedWord>(_context);
+    public IRepository<UserSetting> UserSettings => _userSettings ??= new Repository<UserSetting>(_context);
 
     private IBlockRepository? _blocks;
     private IMuteRepository? _mutes;
@@ -54,6 +57,9 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<MessageReaction>? _messageReactions;
     private IRepository<ListPost>? _listPosts;
     private IRepository<Interest>? _interests;
+    private IRepository<Hashtag>? _hashtags;
+    private IRepository<MutedWord>? _mutedWords;
+    private IRepository<UserSetting>? _userSettings;
 
     public async Task<int> CompleteAsync()
     {

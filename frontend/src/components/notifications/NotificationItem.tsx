@@ -3,6 +3,7 @@ import { Notification } from '../../types';
 import Avatar from '../common/Avatar';
 import { formatPostDate } from '../../utils/formatDate';
 import { FiHeart, FiUserPlus, FiRepeat, FiMessageCircle, FiAtSign, FiBell, FiList, FiCheck, FiX } from 'react-icons/fi';
+import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -91,6 +92,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                 return <FiMessageCircle className="text-blue-500" size={18} />;
             case 'mention':
                 return <FiAtSign className="text-purple-500" size={18} />;
+            case 'quote':
+                return <FiRepeat className="text-indigo-500" size={18} />;
             case 'list_invitation':
                 return <FiList className="text-primary-500" size={18} />;
             case 'system':
@@ -113,6 +116,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                 return t('notifications.replied_post');
             case 'mention':
                 return t('notifications.mentioned_you');
+            case 'quote':
+                return t('notifications.quoted_post');
             case 'list_invitation':
                 return t('notifications.list_invitation', 'invited you to a list');
             case 'system':
@@ -150,10 +155,13 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                     <div className="flex-1">
                         <div className="text-sm">
                             <span
-                                className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer"
+                                className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer flex items-center gap-0.5"
                                 onClick={handleProfileClick}
                             >
                                 {notification.sender.displayName}
+                                {(notification.sender as any).isVerified && (
+                                    <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
+                                )}
                             </span>
                             <span
                                 className="text-gray-500 dark:text-dark-text-secondary ml-1 cursor-pointer hover:underline"

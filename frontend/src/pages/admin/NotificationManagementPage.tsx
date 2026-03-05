@@ -94,7 +94,7 @@ const NotificationManagementPage: React.FC = () => {
                                 onChange={(e) => setTitle(e.target.value)}
                                 required
                                 className="w-full bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:text-dark-text"
-                                placeholder="Announcement Title"
+                                placeholder={t('admin.notifications.type_label')}
                             />
                         </div>
 
@@ -108,7 +108,7 @@ const NotificationManagementPage: React.FC = () => {
                                 required
                                 rows={4}
                                 className="w-full bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:text-dark-text"
-                                placeholder="Type your message here..."
+                                placeholder={t('admin.notifications.message_label')}
                             />
                         </div>
 
@@ -121,9 +121,9 @@ const NotificationManagementPage: React.FC = () => {
                                 onChange={(e) => setRole(e.target.value as any)}
                                 className="w-full bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:text-dark-text"
                             >
-                                <option value="all">All Users</option>
-                                <option value="user">Regular Users Only</option>
-                                <option value="admin">Admins Only</option>
+                                <option value="all">{t('admin.notifications.audience_all')}</option>
+                                <option value="user">{t('admin.notifications.audience_user')}</option>
+                                <option value="admin">{t('admin.notifications.audience_admin')}</option>
                             </select>
                         </div>
 
@@ -145,13 +145,12 @@ const NotificationManagementPage: React.FC = () => {
                 <div className="space-y-6">
                     <Card className="p-6 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30">
                         <h3 className="font-bold text-blue-900 dark:text-blue-300 mb-2">
-                            Best Practices
+                            {t('admin.notifications.best_practices')}
                         </h3>
                         <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
-                            <li>• Keep notifications concise and clear.</li>
-                            <li>• Use titles that grab attention but aren't clickbait.</li>
-                            <li>• Target specific roles when the message isn't relevant to everyone.</li>
-                            <li>• Avoid sending too many broadcasts to prevent user fatigue.</li>
+                            {(t('admin.notifications.best_practices_list', { returnObjects: true }) as string[]).map((item: string, idx: number) => (
+                                <li key={idx}>• {item}</li>
+                            ))}
                         </ul>
                     </Card>
                 </div>

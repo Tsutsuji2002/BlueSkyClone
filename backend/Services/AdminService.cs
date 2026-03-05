@@ -10,11 +10,15 @@ public class AdminService : IAdminService
 {
     private readonly BSkyDbContext _context;
     private readonly IHubContext<ChatHub> _hubContext;
+    private readonly ISearchService _searchService;
+    private readonly IFileService _fileService;
 
-    public AdminService(BSkyDbContext context, IHubContext<ChatHub> hubContext)
+    public AdminService(BSkyDbContext context, IHubContext<ChatHub> hubContext, ISearchService searchService, IFileService fileService)
     {
         _context = context;
         _hubContext = hubContext;
+        _searchService = searchService;
+        _fileService = fileService;
     }
 
     public async Task<AdminStatsDto> GetStatsAsync()
@@ -60,6 +64,7 @@ public class AdminService : IAdminService
             query = query.Where(u => 
                 u.Handle.ToLower().Contains(search) || 
                 u.Email.ToLower().Contains(search) ||
+                u.Username.ToLower().Contains(search) ||
                 (u.DisplayName != null && u.DisplayName.ToLower().Contains(search))
             );
         }
@@ -200,8 +205,27 @@ public class AdminService : IAdminService
 
     public async Task<bool> DeletePostPermanentAsync(Guid postId)
     {
-        var post = await _context.Posts.FindAsync(postId);
+        var post = await _context.Posts
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
         if (post == null) return false;
+
+        // Physical deletion of media files
+        if (post.PostMedia != null)
+        {
+            foreach (var media in post.PostMedia)
+            {
+                _fileService.DeleteFile(media.Url);
+            }
+        }
+
+        // Physical deletion of link preview image if it's local (unlikely but safe)
+        if (post.LinkPreview != null && post.LinkPreview.Image != null && post.LinkPreview.Image.StartsWith("/uploads"))
+        {
+             _fileService.DeleteFile(post.LinkPreview.Image);
+        }
 
         _context.Posts.Remove(post);
         await _context.SaveChangesAsync();
@@ -331,12 +355,7 @@ public class AdminService : IAdminService
 
     public async Task<bool> DeletePostAsync(Guid postId)
     {
-        var post = await _context.Posts.FindAsync(postId);
-        if (post == null) return false;
-
-        _context.Posts.Remove(post);
-        await _context.SaveChangesAsync();
-        return true;
+        return await DeletePostPermanentAsync(postId);
     }
 
     public async Task<PaginatedResult<AdminFeedDto>> GetFeedsAsync(int skip, int take, string? searchQuery)
@@ -378,6 +397,11 @@ public class AdminService : IAdminService
     {
         var feed = await _context.Feeds.FindAsync(feedId);
         if (feed == null) return false;
+
+        if (!string.IsNullOrEmpty(feed.AvatarUrl))
+        {
+            _fileService.DeleteFile(feed.AvatarUrl);
+        }
 
         _context.Feeds.Remove(feed);
         await _context.SaveChangesAsync();
@@ -656,6 +680,46 @@ public class AdminService : IAdminService
         return new PaginatedResult<AdminMuteDto>(mutes, total, skip, take);
     }
 
+    public async Task<PaginatedResult<AdminHashtagDto>> GetHashtagsAsync(int skip, int take, string? searchQuery)
+    {
+        var query = _context.Hashtags
+            .Where(h => h.IsDeleted != true)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var search = searchQuery.ToLower();
+            query = query.Where(h => h.Name.ToLower().Contains(search) || h.Slug.ToLower().Contains(search));
+        }
+
+        var total = await query.CountAsync();
+
+        var hashtags = await query
+            .OrderByDescending(h => h.PostsCount)
+            .Skip(skip)
+            .Take(take)
+            .Select(h => new AdminHashtagDto(
+                h.Id,
+                h.Name,
+                h.Slug,
+                h.PostsCount ?? 0,
+                h.CreatedAt ?? DateTime.UtcNow
+            ))
+            .ToListAsync();
+
+        return new PaginatedResult<AdminHashtagDto>(hashtags, total, skip, take);
+    }
+
+    public async Task<bool> DeleteHashtagAsync(int hashtagId)
+    {
+        var hashtag = await _context.Hashtags.FindAsync(hashtagId);
+        if (hashtag == null) return false;
+
+        hashtag.IsDeleted = true;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     // ── Notification Broadcasting ──
 
     public async Task<bool> BroadcastNotificationAsync(BroadcastNotificationRequest request)
@@ -719,7 +783,11 @@ public class AdminService : IAdminService
             systemAdmin.DateOfBirth,
             systemAdmin.FollowersCount,
             systemAdmin.FollowingCount,
-            systemAdmin.PostsCount
+            systemAdmin.PostsCount,
+            systemAdmin.Role,
+            null,
+            systemAdmin.IsVerified,
+            systemAdmin.Did
         );
 
         foreach (var notification in notifications)
@@ -747,5 +815,9 @@ public class AdminService : IAdminService
     {
         // Generate a high-precision hex TID based on Ticks (100ns resolution)
         return DateTime.UtcNow.Ticks.ToString("x");
+    }
+    public async Task ReindexSystemAsync()
+    {
+        await _searchService.ReindexAllAsync();
     }
 }

@@ -9,6 +9,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
 import { signUp, clearError } from '../../redux/slices/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { cn } from '../../utils/classNames';
 
 const SignUpPage: React.FC = () => {
     const navigate = useNavigate();
@@ -31,10 +32,40 @@ const SignUpPage: React.FC = () => {
         hostingProvider: 'bsky.social',
     });
 
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
     const handleNext = async () => {
+        // Validate step 2: birthday must not be in the future
+        if (step === 2 && formData.dateOfBirth) {
+            const todayDate = new Date();
+            const localToday = new Date(todayDate.getTime() - todayDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+            if (formData.dateOfBirth > localToday) {
+                setFormErrors({ dateOfBirth: t('settings.birthdate_future_error', 'Birthday cannot be in the future') });
+                return;
+            }
+        }
+
         if (step < 3) {
+            setFormErrors({});
             setStep(step + 1);
         } else {
+            // Validate step 3: username must not be blank and follow rules
+            if (!formData.username.trim()) {
+                setFormErrors({ username: t('settings.handle_cannot_be_blank', 'Handle cannot be blank') });
+                return;
+            }
+
+            const handleRegex = /^[a-zA-Z0-9.]+$/;
+            if (formData.username.length > 16) {
+                setFormErrors({ username: t('settings.handle_too_long', 'Handle must be at most 16 characters') });
+                return;
+            }
+            if (!handleRegex.test(formData.username)) {
+                setFormErrors({ username: t('settings.handle_invalid_chars', 'Handle can only contain letters, numbers, and dots') });
+                return;
+            }
+
+            setFormErrors({});
             // Complete signup
             const signupData = {
                 ...formData,
@@ -101,7 +132,7 @@ const SignUpPage: React.FC = () => {
                                 {t('auth.signup.your_account')}
                             </h2>
                             <p className="text-gray-600 dark:text-dark-text-secondary mb-8">
-                                {t('auth.signup.creating_on')} <span className="text-primary-500 font-semibold">Bluesky Social</span>
+                                {t('auth.signup.creating_on')} <span className="text-primary-500 font-semibold">{t('auth.signup.hosting_provider_name')}</span>
                             </p>
 
                             <div className="space-y-6">
@@ -168,7 +199,9 @@ const SignUpPage: React.FC = () => {
                                     <Input
                                         type="date"
                                         value={formData.dateOfBirth}
-                                        onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                                        onChange={(e) => { setFormData({ ...formData, dateOfBirth: e.target.value }); setFormErrors({}); }}
+                                        max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}
+                                        error={formErrors.dateOfBirth}
                                         icon={
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -217,14 +250,20 @@ const SignUpPage: React.FC = () => {
                                             <input
                                                 type="text"
                                                 value={formData.username}
-                                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                                onChange={(e) => { setFormData({ ...formData, username: e.target.value }); setFormErrors({}); }}
                                                 placeholder="oaky.social"
-                                                className="w-full pl-8 pr-4 py-3 rounded-lg border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                className={cn(
+                                                    "w-full pl-8 pr-4 py-3 rounded-lg border bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-primary-500",
+                                                    formErrors.username ? "border-red-500" : "border-gray-300 dark:border-dark-border"
+                                                )}
                                             />
                                         </div>
                                     </div>
+                                    {formErrors.username && (
+                                        <p className="mt-1 text-sm text-red-500">{formErrors.username}</p>
+                                    )}
                                     <p className="mt-2 text-sm text-gray-500 dark:text-dark-text-secondary">
-                                        {t('auth.signup.username_preview')} <span className="font-semibold">{formData.username || 'username'}.{formData.hostingProvider}</span>
+                                        {t('auth.signup.username_preview')} <span className="font-semibold">{formData.username || t('auth.signup.username_placeholder_default')}.{formData.hostingProvider}</span>
                                     </p>
                                 </div>
 

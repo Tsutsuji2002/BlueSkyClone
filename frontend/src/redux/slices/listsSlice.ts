@@ -410,6 +410,44 @@ const listsSlice = createSlice({
                 state.candidatePosts = action.payload;
             }
         });
+
+        builder.addMatcher(
+            (action) => action.type.endsWith('/toggleLike/fulfilled') ||
+                action.type.endsWith('/repostPost/fulfilled') ||
+                action.type.endsWith('/bookmarkPost/fulfilled'),
+            (state, action: any) => {
+                const updatedPost = action.payload;
+                if (!updatedPost || !updatedPost.postId) return;
+
+                // Update activeListFeed
+                const index = state.activeListFeed.findIndex(p => p.id === updatedPost.postId);
+                if (index !== -1) {
+                    state.activeListFeed[index] = {
+                        ...state.activeListFeed[index],
+                        isLiked: updatedPost.isLiked !== undefined ? updatedPost.isLiked : state.activeListFeed[index].isLiked,
+                        isReposted: updatedPost.isReposted !== undefined ? updatedPost.isReposted : state.activeListFeed[index].isReposted,
+                        isBookmarked: updatedPost.isBookmarked !== undefined ? updatedPost.isBookmarked : state.activeListFeed[index].isBookmarked,
+                        likesCount: updatedPost.likesCount !== undefined ? updatedPost.likesCount : state.activeListFeed[index].likesCount,
+                        repostsCount: updatedPost.repostsCount !== undefined ? updatedPost.repostsCount : state.activeListFeed[index].repostsCount,
+                        bookmarksCount: updatedPost.bookmarksCount !== undefined ? updatedPost.bookmarksCount : state.activeListFeed[index].bookmarksCount,
+                    };
+                }
+
+                // Update candidatePosts
+                const cIndex = state.candidatePosts.findIndex(p => p.id === updatedPost.postId);
+                if (cIndex !== -1) {
+                    state.candidatePosts[cIndex] = {
+                        ...state.candidatePosts[cIndex],
+                        isLiked: updatedPost.isLiked !== undefined ? updatedPost.isLiked : state.candidatePosts[cIndex].isLiked,
+                        isReposted: updatedPost.isReposted !== undefined ? updatedPost.isReposted : state.candidatePosts[cIndex].isReposted,
+                        isBookmarked: updatedPost.isBookmarked !== undefined ? updatedPost.isBookmarked : state.candidatePosts[cIndex].isBookmarked,
+                        likesCount: updatedPost.likesCount !== undefined ? updatedPost.likesCount : state.candidatePosts[cIndex].likesCount,
+                        repostsCount: updatedPost.repostsCount !== undefined ? updatedPost.repostsCount : state.candidatePosts[cIndex].repostsCount,
+                        bookmarksCount: updatedPost.bookmarksCount !== undefined ? updatedPost.bookmarksCount : state.candidatePosts[cIndex].bookmarksCount,
+                    };
+                }
+            }
+        );
     }
 });
 

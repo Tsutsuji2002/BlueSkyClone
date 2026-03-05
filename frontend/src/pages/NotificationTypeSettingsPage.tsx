@@ -18,17 +18,17 @@ const NotificationTypeSettingsPage: React.FC = () => {
     const { settings } = useAppSelector(state => state.auth);
 
     const fieldMap = useMemo(() => {
-        const map: Record<string, { push: keyof UserSettings; inApp: keyof UserSettings }> = {
-            likes: { push: 'pushNotifyLikes', inApp: 'inAppNotifyLikes' },
-            followers: { push: 'pushNotifyFollowers', inApp: 'inAppNotifyFollowers' },
-            reply: { push: 'pushNotifyReplies', inApp: 'inAppNotifyReplies' },
-            mention: { push: 'pushNotifyMentions', inApp: 'inAppNotifyMentions' },
-            quote: { push: 'pushNotifyQuotes', inApp: 'inAppNotifyQuotes' },
-            repost: { push: 'pushNotifyReposts', inApp: 'inAppNotifyReposts' },
-            activity: { push: 'pushNotifyLikes', inApp: 'inAppNotifyLikes' }, // Fallback
-            likes_reposts: { push: 'pushNotifyLikes', inApp: 'inAppNotifyLikes' },
-            reposts_reposts: { push: 'pushNotifyReposts', inApp: 'inAppNotifyReposts' },
-            others: { push: 'pushNotifyLikes', inApp: 'inAppNotifyLikes' },
+        const map: Record<string, { push: keyof UserSettings; inApp: keyof UserSettings; notify: keyof UserSettings }> = {
+            likes: { notify: 'notifyLikes', push: 'pushNotifyLikes', inApp: 'inAppNotifyLikes' },
+            followers: { notify: 'notifyFollowers', push: 'pushNotifyFollowers', inApp: 'inAppNotifyFollowers' },
+            reply: { notify: 'notifyReplies', push: 'pushNotifyReplies', inApp: 'inAppNotifyReplies' },
+            mention: { notify: 'notifyMentions', push: 'pushNotifyMentions', inApp: 'inAppNotifyMentions' },
+            quote: { notify: 'notifyQuotes', push: 'pushNotifyQuotes', inApp: 'inAppNotifyQuotes' },
+            repost: { notify: 'notifyReposts', push: 'pushNotifyReposts', inApp: 'inAppNotifyReposts' },
+            activity: { notify: 'notifyActivity', push: 'pushNotifyActivity', inApp: 'inAppNotifyActivity' },
+            likes_reposts: { notify: 'notifyLikesOfReposts', push: 'pushNotifyLikesOfReposts', inApp: 'inAppNotifyLikesOfReposts' },
+            reposts_reposts: { notify: 'notifyRepostsOfReposts', push: 'pushNotifyRepostsOfReposts', inApp: 'inAppNotifyRepostsOfReposts' },
+            others: { notify: 'notifyOthers', push: 'pushNotifyOthers', inApp: 'inAppNotifyOthers' },
         };
         return map;
     }, []);
@@ -36,8 +36,13 @@ const NotificationTypeSettingsPage: React.FC = () => {
     const currentTypeKey = type || 'likes';
     const fields = fieldMap[currentTypeKey] || fieldMap['likes'];
 
+    const notifyEnabled = settings ? !!settings[fields.notify] : true;
     const pushEnabled = settings ? !!settings[fields.push] : true;
     const inAppEnabled = settings ? !!settings[fields.inApp] : true;
+
+    const handleToggleNotify = () => {
+        dispatch(updateNotificationSettings({ [fields.notify]: !notifyEnabled }));
+    };
 
     const handleTogglePush = () => {
         dispatch(updateNotificationSettings({ [fields.push]: !pushEnabled }));
@@ -61,6 +66,19 @@ const NotificationTypeSettingsPage: React.FC = () => {
     };
 
     const currentType = type && typeConfig[type] ? typeConfig[type] : typeConfig['likes'];
+
+    const Toggle = ({ enabled, onToggle, label, sublabel }: { enabled: boolean; onToggle: () => void; label: string; sublabel?: string }) => (
+        <label className="flex items-center gap-3 cursor-pointer group">
+            <div className={`w-6 h-6 rounded flex items-center justify-center transition-colors border ${enabled ? 'bg-blue-600 border-blue-600' : 'bg-white dark:bg-dark-bg border-gray-300 dark:border-gray-600'}`}>
+                <input type="checkbox" className="hidden" checked={enabled} onChange={onToggle} />
+                {enabled && <FiCheck className="text-white w-4 h-4" style={{ strokeWidth: 3 }} />}
+            </div>
+            <div className="flex flex-col">
+                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{label}</span>
+                {sublabel && <span className="text-xs text-gray-500">{sublabel}</span>}
+            </div>
+        </label>
+    );
 
     return (
         <MainLayout>
@@ -93,50 +111,41 @@ const NotificationTypeSettingsPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="space-y-6 pb-6 border-b border-gray-100 dark:border-dark-border mb-6">
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                            <div className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${pushEnabled ? 'bg-blue-600 border-blue-600' : 'bg-white dark:bg-dark-bg border-gray-300 dark:border-gray-600'} border`}>
-                                <input
-                                    type="checkbox"
-                                    className="hidden"
-                                    checked={pushEnabled}
-                                    onChange={handleTogglePush}
-                                />
-                                {pushEnabled && <FiCheck className="text-white w-4 h-4" style={{ strokeWidth: 3 }} />}
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('notifications.push')}</span>
-                                <span className="text-xs text-gray-500">{t('notifications.mobile_only', 'Mobile notification')}</span>
-                            </div>
-                        </label>
-
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                            <div className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${inAppEnabled ? 'bg-blue-600 border-blue-600' : 'bg-white dark:bg-dark-bg border-gray-300 dark:border-gray-600'} border`}>
-                                <input
-                                    type="checkbox"
-                                    className="hidden"
-                                    checked={inAppEnabled}
-                                    onChange={handleToggleInApp}
-                                />
-                                {inAppEnabled && <FiCheck className="text-white w-4 h-4" style={{ strokeWidth: 3 }} />}
-                            </div>
-                            <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('notifications.in_app')}</span>
-                        </label>
+                    <div className="space-y-6 mb-6">
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wide">
+                            {t('notifications.settings', 'Notification channels')}
+                        </h3>
+                        <Toggle
+                            enabled={notifyEnabled}
+                            onToggle={handleToggleNotify}
+                            label={t('notifications.enabled', 'Enable notifications')}
+                            sublabel={t('notifications.enabled_desc', 'Receive this type of notification')}
+                        />
+                        <Toggle
+                            enabled={inAppEnabled}
+                            onToggle={handleToggleInApp}
+                            label={t('notifications.in_app', 'In-app')}
+                            sublabel={t('notifications.in_app_desc', 'Show in your notification feed')}
+                        />
+                        <Toggle
+                            enabled={pushEnabled}
+                            onToggle={handleTogglePush}
+                            label={t('notifications.push', 'Push')}
+                            sublabel={t('notifications.mobile_only', 'Mobile notification')}
+                        />
                     </div>
 
-                    <div>
+                    <div className="pt-4 border-t border-gray-100 dark:border-dark-border">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-dark-text mb-4">
                             {t('notifications.from')}
                         </h3>
                         <div className="space-y-4">
-                            {/* Keep as UI for now as requested 'just save setting' for mobile/in-app */}
                             <label className="flex items-center gap-3 cursor-pointer">
                                 <span className={`flex items-center justify-center w-6 h-6 rounded-full border bg-blue-600 border-blue-600`}>
                                     <FiCheck className="text-white w-4 h-4" style={{ strokeWidth: 3 }} />
                                 </span>
                                 <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('notifications.from_all')}</span>
                             </label>
-
                             <p className="text-xs text-gray-400 mt-4 italic">{t('notifications.settings_saved_locally', 'Settings are saved to your account.')}</p>
                         </div>
                     </div>

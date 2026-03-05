@@ -38,7 +38,8 @@ export const fetchInterestsList = createAsyncThunk(
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch interests');
             // Assuming data is an array of interest objects with a 'name' property
-            return data.map((i: any) => i.name || i);
+            // Handle both PascalCase (from C#) and camelCase (from JSON)
+            return data.map((i: any) => i.name || i.Name || (typeof i === 'string' ? i : ''));
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

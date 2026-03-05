@@ -4,6 +4,78 @@ import { isTokenExpired } from '../../utils/authUtils';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+/**
+ * Normalizes settings from the backend (PascalCase / different field names)
+ * to the frontend camelCase UserSettings shape.
+ */
+function normalizeSettings(raw: any): UserSettings {
+    let parsedProviders: string[] = [];
+    try {
+        if (typeof raw.enabledMediaProviders === 'string') parsedProviders = JSON.parse(raw.enabledMediaProviders);
+        else if (typeof raw.EnabledMediaProviders === 'string') parsedProviders = JSON.parse(raw.EnabledMediaProviders);
+        else if (Array.isArray(raw.enabledMediaProviders)) parsedProviders = raw.enabledMediaProviders;
+    } catch (e) {
+        parsedProviders = [];
+    }
+
+    return {
+        ...raw,
+        // Map backend's enableTreeView -> frontend's treeView
+        treeView: raw.treeView ?? raw.enableTreeView ?? false,
+        // Map backend's sortReplies (already camelCase) - keep as is
+        sortReplies: raw.sortReplies ?? 'top',
+        // Map backend's enableDiscoverVideo -> frontend's enableVideoDiscover
+        enableVideoDiscover: raw.enableVideoDiscover ?? raw.enableDiscoverVideo ?? raw.EnableDiscoverVideo ?? false,
+        openTrendingTopics: raw.openTrendingTopics ?? raw.enableTrending ?? raw.EnableTrending ?? true,
+        autoplayVideoGif: raw.autoplayVideoGif ?? raw.AutoplayVideoGif ?? true,
+        appLanguage: raw.appLanguage ?? raw.AppLanguage ?? 'en',
+        themeMode: raw.themeMode ?? raw.ThemeMode ?? 'system',
+        showReplies: raw.showReplies ?? raw.ShowReplies ?? true,
+        showReposts: raw.showReposts ?? raw.ShowReposts ?? true,
+        showQuotePosts: raw.showQuotePosts ?? raw.ShowQuotePosts ?? true,
+        showSampleSavedFeeds: raw.showSampleSavedFeeds ?? raw.ShowSampleSavedFeeds ?? false,
+        enabledMediaProviders: parsedProviders,
+        defaultReplyRestriction: raw.defaultReplyRestriction ?? raw.DefaultReplyRestriction ?? 'anyone',
+        defaultAllowQuotes: raw.defaultAllowQuotes ?? raw.DefaultAllowQuotes ?? true,
+
+        // Notification master toggles
+        notifyLikes: raw.notifyLikes ?? raw.NotifyLikes ?? true,
+        notifyReposts: raw.notifyReposts ?? raw.NotifyReposts ?? true,
+        notifyFollowers: raw.notifyFollowers ?? raw.NotifyFollowers ?? true,
+        notifyReplies: raw.notifyReplies ?? raw.NotifyReplies ?? true,
+        notifyMentions: raw.notifyMentions ?? raw.NotifyMentions ?? true,
+        notifyQuotes: raw.notifyQuotes ?? raw.NotifyQuotes ?? true,
+        notifyActivity: raw.notifyActivity ?? raw.NotifyActivity ?? true,
+        notifyLikesOfReposts: raw.notifyLikesOfReposts ?? raw.NotifyLikesOfReposts ?? true,
+        notifyRepostsOfReposts: raw.notifyRepostsOfReposts ?? raw.NotifyRepostsOfReposts ?? true,
+        notifyOthers: raw.notifyOthers ?? raw.NotifyOthers ?? true,
+
+        // Push notification toggles
+        pushNotifyLikes: raw.pushNotifyLikes ?? raw.PushNotifyLikes ?? true,
+        pushNotifyReposts: raw.pushNotifyReposts ?? raw.PushNotifyReposts ?? true,
+        pushNotifyFollowers: raw.pushNotifyFollowers ?? raw.PushNotifyFollowers ?? true,
+        pushNotifyReplies: raw.pushNotifyReplies ?? raw.PushNotifyReplies ?? true,
+        pushNotifyMentions: raw.pushNotifyMentions ?? raw.PushNotifyMentions ?? true,
+        pushNotifyQuotes: raw.pushNotifyQuotes ?? raw.PushNotifyQuotes ?? true,
+        pushNotifyActivity: raw.pushNotifyActivity ?? raw.PushNotifyActivity ?? true,
+        pushNotifyLikesOfReposts: raw.pushNotifyLikesOfReposts ?? raw.PushNotifyLikesOfReposts ?? true,
+        pushNotifyRepostsOfReposts: raw.pushNotifyRepostsOfReposts ?? raw.PushNotifyRepostsOfReposts ?? true,
+        pushNotifyOthers: raw.pushNotifyOthers ?? raw.PushNotifyOthers ?? true,
+
+        // In-app notification toggles
+        inAppNotifyLikes: raw.inAppNotifyLikes ?? raw.InAppNotifyLikes ?? true,
+        inAppNotifyReposts: raw.inAppNotifyReposts ?? raw.InAppNotifyReposts ?? true,
+        inAppNotifyFollowers: raw.inAppNotifyFollowers ?? raw.InAppNotifyFollowers ?? true,
+        inAppNotifyReplies: raw.inAppNotifyReplies ?? raw.InAppNotifyReplies ?? true,
+        inAppNotifyMentions: raw.inAppNotifyMentions ?? raw.InAppNotifyMentions ?? true,
+        inAppNotifyQuotes: raw.inAppNotifyQuotes ?? raw.InAppNotifyQuotes ?? true,
+        inAppNotifyActivity: raw.inAppNotifyActivity ?? raw.InAppNotifyActivity ?? true,
+        inAppNotifyLikesOfReposts: raw.inAppNotifyLikesOfReposts ?? raw.InAppNotifyLikesOfReposts ?? true,
+        inAppNotifyRepostsOfReposts: raw.inAppNotifyRepostsOfReposts ?? raw.InAppNotifyRepostsOfReposts ?? true,
+        inAppNotifyOthers: raw.inAppNotifyOthers ?? raw.InAppNotifyOthers ?? true
+    } as UserSettings;
+}
+
 const token = localStorage.getItem('token');
 
 const initialState: AuthState = {
@@ -93,20 +165,24 @@ export const logoutAsync = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const refreshToken = localStorage.getItem('refreshToken');
+            // Fire and forget logout request
             if (refreshToken) {
-                await fetch(`${API_URL}/auth/logout`, {
+                fetch(`${API_URL}/auth/logout`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(refreshToken),
-                });
+                    keepalive: true // Ensure request completes even if page unloads
+                }).catch(err => console.error('Logout failed', err));
             }
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
+            localStorage.removeItem('home_active_tab');
             return null;
         } catch (error: any) {
             // Even if logout fails on BE, we should clear local state
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
+            localStorage.removeItem('home_active_tab');
             return null;
         }
     }
@@ -164,17 +240,49 @@ export const updateNotificationSettings = createAsyncThunk(
     async (settings: Partial<UserSettings>, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const payload = {
+                ...settings,
+                enableTrending: settings.openTrendingTopics,
+                enabledMediaProviders: Array.isArray(settings.enabledMediaProviders)
+                    ? JSON.stringify(settings.enabledMediaProviders)
+                    : settings.enabledMediaProviders
+            };
+
             const response = await fetch(`${API_URL}/user/settings`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(settings),
+                body: JSON.stringify(payload),
             });
             const data = await response.json();
             if (!response.ok) {
                 return rejectWithValue(data.message || 'Update failed');
+            }
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
+export const verifyDomain = createAsyncThunk(
+    'auth/verifyDomain',
+    async (handle: string | undefined, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/user/verify-domain`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ handle })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return rejectWithValue(data.message || 'Verification failed');
             }
             return data;
         } catch (error: any) {
@@ -213,7 +321,7 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.isAuthenticated = true;
                 state.user = action.payload.user;
-                state.settings = action.payload.settings;
+                state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
                 if (action.payload.token) {
                     localStorage.setItem('token', action.payload.token);
@@ -235,7 +343,7 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.isAuthenticated = true;
                 state.user = action.payload.user;
-                state.settings = action.payload.settings;
+                state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
                 if (action.payload.token) {
                     localStorage.setItem('token', action.payload.token);
@@ -256,7 +364,7 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.isAuthenticated = true;
                 state.user = action.payload.user;
-                state.settings = action.payload.settings;
+                state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
             })
             .addCase(getMe.rejected, (state) => {
@@ -270,6 +378,7 @@ const authSlice = createSlice({
                 state.user = null;
                 state.settings = null;
                 state.isAuthenticated = false;
+                state.isLoading = false;
                 state.error = null;
             })
             // Update Profile
@@ -301,7 +410,13 @@ const authSlice = createSlice({
             })
             // Update Settings
             .addCase(updateNotificationSettings.fulfilled, (state, action: PayloadAction<UserSettings>) => {
-                state.settings = { ...state.settings, ...action.payload } as UserSettings;
+                state.settings = normalizeSettings({ ...state.settings, ...action.payload });
+            })
+            // Verify Domain
+            .addCase(verifyDomain.fulfilled, (state, action: PayloadAction<User>) => {
+                if (action.payload && state.user) {
+                    state.user = action.payload;
+                }
             });
     },
 });

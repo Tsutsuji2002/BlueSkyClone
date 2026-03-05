@@ -6,13 +6,10 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      # CONNECT TO LOCAL HOST (Windows Machine)
-      # 1. 'host.docker.internal' points to your laptop
-      # 2. You MUST use User ID/Password (Docker handling Windows Auth is very difficult)
-      # 3. Ensure your local SQL Server has TCP/IP Enabled on Port 1433
-      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;
-      - Redis__ConnectionString=redis:6379
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      # CONNECT TO LOCAL HOST (Windows Machine) or Docker Service
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING:-Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;}
+      - Redis__ConnectionString=${REDIS_CONNECTION:-redis:6379,abortConnect=false,connectTimeout=10000,syncTimeout=10000}
       - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
     depends_on:
       redis:
@@ -34,6 +31,7 @@ services:
 
   redis:
     image: redis:alpine
+    command: redis-server --save 60 1 --loglevel warning --stop-writes-on-bgsave-error no
     ports:
       - "6379:6379"
     healthcheck:
@@ -41,18 +39,52 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  # Virtual SQL Server REMOVED. Using Local SQL Server instead.
+    volumes:
+      - redis_data:/data
 
-  # sql-server:
-  #   image: mcr.microsoft.com/mssql/server:2022-latest
-  #   environment:
-  #     - ACCEPT_EULA=Y
-  #     - MSSQL_SA_PASSWORD=Ifilp0721! # Use a strong password
-  #   ports:
-  #     - "1433:1433"
-  #   healthcheck:
-  #     # The -C flag trusts the self-signed certificate, preventing connection errors
-  #     test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Ifilp0721!", "-C", "-Q", "SELECT 1"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 10
+  elasticsearch:
+    image: elasticsearch:8.12.0
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: kibana:8.12.0
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    # Virtual SQL Server REMOVED. Using Local SQL Server instead.
+
+    # sql-server:
+    #   image: mcr.microsoft.com/mssql/server:2022-latest
+    #   environment:
+    #     - ACCEPT_EULA=Y
+    #     - MSSQL_SA_PASSWORD=Ifilp0721! # Use a strong password
+    #   ports:
+    #     - "1433:1433"
+    #   healthcheck:
+    #     # The -C flag trusts the self-signed certificate, preventing connection errors
+    #     test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Ifilp0721!", "-C", "-Q", "SELECT 1"]
+    #     interval: 10s
+    #     timeout: 5s
+    #     retries: 10
+    #     retries: 10
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  redis_data:
+    driver: local

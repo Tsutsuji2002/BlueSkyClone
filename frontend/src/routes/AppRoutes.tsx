@@ -22,6 +22,7 @@ const FeedDetailPage = React.lazy(() => import('../pages/FeedDetailPage'));
 const ListsPage = React.lazy(() => import('../pages/ListsPage'));
 const ListDetailPage = React.lazy(() => import('../pages/ListDetailPage'));
 const SavedPage = React.lazy(() => import('../pages/SavedPage'));
+const SearchPage = React.lazy(() => import('../pages/SearchPage'));
 const MediaViewerPage = React.lazy(() => import('../pages/MediaViewerPage'));
 
 // Settings Pages
@@ -52,6 +53,7 @@ const BlockedAccountsPage = React.lazy(() => import('../pages/BlockedAccountsPag
 const VerificationSettingsPage = React.lazy(() => import('../pages/VerificationSettingsPage'));
 
 const PostDetailPage = React.lazy(() => import('../pages/PostDetailPage'));
+const TagPage = React.lazy(() => import('../pages/TagPage'));
 const SubmitRequestPage = React.lazy(() => import('../pages/SubmitRequestPage'));
 
 // Admin Pages
@@ -60,10 +62,14 @@ const UserManagementPage = React.lazy(() => import('../pages/admin/UserManagemen
 const PostManagementPage = React.lazy(() => import('../pages/admin/PostManagementPage'));
 const FeedManagementPage = React.lazy(() => import('../pages/admin/FeedManagementPage'));
 const InterestManagementPage = React.lazy(() => import('../pages/admin/InterestManagementPage'));
+const HashtagManagementPage = React.lazy(() => import('../pages/admin/HashtagManagementPage'));
 const ListManagementPage = React.lazy(() => import('../pages/admin/ListManagementPage'));
 const ConversationManagementPage = React.lazy(() => import('../pages/admin/ConversationManagementPage'));
 const ModerationPage = React.lazy(() => import('../pages/admin/ModerationPage'));
 const NotificationManagementPage = React.lazy(() => import('../pages/admin/NotificationManagementPage'));
+const SupportManagementPage = React.lazy(() => import('../pages/admin/SupportManagementPage'));
+const PageContentManagementPage = React.lazy(() => import('../pages/admin/PageContentManagementPage'));
+const PrivacyPolicyPage = React.lazy(() => import('../pages/about/PrivacyPolicyPage'));
 
 const AppRoutes: React.FC = () => {
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
@@ -77,6 +83,7 @@ const AppRoutes: React.FC = () => {
             }>
                 <Routes>
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/about/privacy-policy" element={<PrivacyPolicyPage />} />
                     <Route path="/profile" element={<Navigate to={`/profile/${currentUser?.handle || 'unknown'}`} replace />} />
                     <Route path="/profile/:handle" element={<ProfilePage />} />
                     <Route path="/profile/user/:userId" element={<SampleProfilePage />} />
@@ -92,6 +99,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="/lists" element={<ListsPage />} />
                     <Route path="/lists/:id" element={<ListDetailPage />} />
                     <Route path="/saved" element={<SavedPage />} />
+                    <Route path="/search" element={<SearchPage />} />
 
                     {/* Settings Routes */}
                     <Route path="/settings" element={<SettingsPage />} />
@@ -121,6 +129,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="/settings/content/external-media" element={<ExternalMediaPage />} />
 
                     <Route path="/interests" element={<MyInterestsPage />} />
+                    <Route path="/tag/:tag" element={<TagPage />} />
                     <Route path="/profile/:handle/post/:postId" element={<PostDetailPage />} />
                     <Route path="/profile/:handle/post/:postId/media/:index" element={<MediaViewerPage />} />
                     <Route path="/support" element={<SubmitRequestPage />} />
@@ -133,10 +142,13 @@ const AppRoutes: React.FC = () => {
                         <Route path="posts" element={<PostManagementPage />} />
                         <Route path="feeds" element={<FeedManagementPage />} />
                         <Route path="interests" element={<InterestManagementPage />} />
+                        <Route path="hashtags" element={<HashtagManagementPage />} />
                         <Route path="lists" element={<ListManagementPage />} />
                         <Route path="conversations" element={<ConversationManagementPage />} />
                         <Route path="moderation" element={<ModerationPage />} />
                         <Route path="notifications" element={<NotificationManagementPage />} />
+                        <Route path="support" element={<SupportManagementPage />} />
+                        <Route path="pages" element={<PageContentManagementPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
