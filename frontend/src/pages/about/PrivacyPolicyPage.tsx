@@ -65,7 +65,6 @@ const PrivacyPolicyPage: React.FC = () => {
                     <div className="hidden lg:flex items-center gap-2 bg-white rounded-full p-1 shadow-sm">
                         <a href="#" className="px-4 py-1.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors">Company</a>
                         <a href="#" className="px-4 py-1.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors">Blog</a>
-                        <a href="#" className="px-4 py-1.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors">AT Protocol</a>
                         <a href="#" className="px-4 py-1.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors">App</a>
                         <a href="#" className="p-1.5 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors">
                             <FiGithub size={20} />
@@ -98,7 +97,7 @@ const PrivacyPolicyPage: React.FC = () => {
                             .bsky-static-content { 
                                 color: #4B5563; 
                                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-                                word-break: break-word;
+                                word-break: normal;
                                 overflow-wrap: break-word;
                             }
                             .bsky-static-content h1, .bsky-static-content h2, .bsky-static-content h3, .bsky-static-content h4, .bsky-static-content h5, .bsky-static-content h6, .bsky-static-content p, .bsky-static-content span, .bsky-static-content div, .bsky-static-content li {
@@ -160,15 +159,14 @@ const PrivacyPolicyPage: React.FC = () => {
                         <div>
                             <h3 className="font-bold mb-4 text-[#111827]">Links</h3>
                             <ul className="space-y-3">
-                                <li><a href="#" className="hover:underline">AT Protocol</a></li>
                                 <li><a href="#" className="hover:underline">Bluesky App</a></li>
                             </ul>
                         </div>
                         <div className="col-span-2 md:col-span-1 border-t border-white/20 pt-8 md:pt-0 md:border-t-0">
                             <h3 className="font-bold mb-4 text-[#111827]">Connect</h3>
                             <ul className="space-y-3">
-                                <li><a href="mailto:press@blueskyweb.xyz" className="hover:underline">press@blueskyweb.xyz</a></li>
-                                <li><a href="mailto:support@bsky.app" className="hover:underline">support@bsky.app</a></li>
+                                <li><a href="mailto:nguyentrungtrung2002@gmail.com" className="hover:underline">nguyentrungtrung2002@gmail.com</a></li>
+                                <li><a href="https://github.com/Tsutsuji2002" className="hover:underline">Tsutsuji2002</a></li>
                             </ul>
                         </div>
                     </div>
