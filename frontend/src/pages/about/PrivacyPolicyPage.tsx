@@ -95,7 +95,12 @@ const PrivacyPolicyPage: React.FC = () => {
                         <style>
                             {`
                             /* Hard overrides to mimic Bluesky static styling perfectly */
-                            .bsky-static-content { color: #4B5563; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+                            .bsky-static-content { 
+                                color: #4B5563; 
+                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+                                word-break: break-word;
+                                overflow-wrap: break-word;
+                            }
                             .bsky-static-content h1, .bsky-static-content h2, .bsky-static-content h3, .bsky-static-content h4, .bsky-static-content h5, .bsky-static-content h6, .bsky-static-content p, .bsky-static-content span, .bsky-static-content div, .bsky-static-content li {
                                 font-size: 16px !important;
                                 line-height: 1.6 !important;
