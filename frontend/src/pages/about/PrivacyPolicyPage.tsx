@@ -68,24 +68,6 @@ const PrivacyPolicyPage: React.FC = () => {
 
             {/* Content Container */}
             <main className="max-w-3xl mx-auto px-6 py-12 md:py-16">
-                <style>
-                    {`
-                    .privacy-content h1 { font-size: 2.25rem; line-height: 2.5rem; font-weight: 700; margin-bottom: 2rem; color: inherit; }
-                    .privacy-content h2 { font-size: 1.5rem; line-height: 2rem; font-weight: 700; margin-top: 3rem; margin-bottom: 1rem; color: inherit; }
-                    .privacy-content h3 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: inherit; }
-                    .privacy-content p { font-size: 17px; line-height: 1.6; margin-bottom: 1.25rem; color: var(--text-color); }
-                    .privacy-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1.25rem; }
-                    .privacy-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1.25rem; }
-                    .privacy-content li { font-size: 17px; line-height: 1.6; margin-bottom: 0.5rem; color: var(--text-color); }
-                    .privacy-content strong { font-weight: 600; color: inherit; }
-                    .privacy-content a { color: #0087ff; text-decoration: none; }
-                    .privacy-content a:hover { text-decoration: underline; }
-                    
-                    /* Dark mode specific variable */
-                    .dark .privacy-content { --text-color: #d1d5db; color: #fff; }
-                    .privacy-content { --text-color: #374151; color: #000; }
-                    `}
-                </style>
                 <div
                     className="privacy-content"
                     dangerouslySetInnerHTML={{ __html: pageData.content }}
