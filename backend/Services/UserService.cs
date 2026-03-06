@@ -339,9 +339,11 @@ public class UserService : IUserService
         following.FollowersCount++;
 
         // Create notification
-        if (await ShouldCreateNotificationAsync(followingId, "follow"))
+        bool createNotif = await ShouldCreateNotificationAsync(followingId, "follow");
+        Notification? notification = null;
+        if (createNotif)
         {
-            var notification = new Notification
+            notification = new Notification
             {
                 Id = Guid.NewGuid(),
                 Tid = Guid.NewGuid().ToString().Substring(0, 20),
@@ -353,8 +355,12 @@ public class UserService : IUserService
                 IsDeleted = false
             };
             await _unitOfWork.Notifications.AddAsync(notification);
-            await _unitOfWork.CompleteAsync();
+        }
 
+        await _unitOfWork.CompleteAsync();
+
+        if (createNotif && notification != null)
+        {
             // Broadcast notification via SignalR
             // Need to fetch notification with sender for DTO
             var savedNotification = await _unitOfWork.Notifications.Query()
