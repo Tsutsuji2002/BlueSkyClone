@@ -33,7 +33,12 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)
     {
-        var cacheKey = $"user:{userId}:timeline:{skip}:{take}";
+        // Timeline filtering is viewer-specific (settings, mutes/blocks). Apply the major filters
+        // at the query level so pagination doesn't "run out" early due to post-fetch filtering.
+        var userSettings = await _unitOfWork.UserSettings.Query()
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        var cacheKey = $"user:{userId}:timeline:{skip}:{take}:sr{(userSettings?.ShowReplies ?? true)}:sq{(userSettings?.ShowQuotePosts ?? true)}:sp{(userSettings?.ShowReposts ?? true)}";
         var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
         if (cached != null)
         {
@@ -48,16 +53,42 @@ public class PostService : IPostService
         // Include the user's own posts in the Following feed
         followedUserIds.Add(userId);
 
-        var posts = await _unitOfWork.Posts.Query()
+        var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
+        var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
+
+        var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(userId);
+        var blockedByUserIds = await _unitOfWork.Blocks.Query()
+            .Where(b => b.BlockedUserId == userId)
+            .Select(b => b.UserId)
+            .ToListAsync();
+
+        var postsQuery = _unitOfWork.Posts.Query()
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
             .Include(p => p.Hashtags)
             .Include(p => p.Reposts).ThenInclude(r => r.User)
-            .Where(p => followedUserIds.Contains(p.AuthorId) && (p.IsDeleted == false || p.IsDeleted == null))
+            .Where(p =>
+                followedUserIds.Contains(p.AuthorId) &&
+                (p.IsDeleted == false || p.IsDeleted == null) &&
+                !mutedUserIds.Contains(p.AuthorId) &&
+                !blockedUserIds.Contains(p.AuthorId) &&
+                !blockedByUserIds.Contains(p.AuthorId));
+
+        if (userSettings?.ShowReplies == false)
+        {
+            postsQuery = postsQuery.Where(p => p.ReplyToPostId == null);
+        }
+
+        if (userSettings?.ShowQuotePosts == false)
+        {
+            postsQuery = postsQuery.Where(p => p.QuotePostId == null);
+        }
+
+        var posts = await postsQuery
             .OrderByDescending(p => p.CreatedAt)
-            .Skip(skip) // APPLY SKIP!
-            .Take(take) // APPLY TAKE!
+            .Skip(skip)
+            .Take(take)
             .ToListAsync();
         
         var postDtos = new List<PostDto>();
@@ -237,7 +268,9 @@ public class PostService : IPostService
                 // Filter Reposts
                 if (userSettings.ShowReposts == false && post.RepostedBy != null)
                 {
-                    continue;
+                    // In this app the "repost" is a banner on a post (not a separate feed item),
+                    // so hiding reposts should hide the banner, not drop the post entirely.
+                    post.RepostedBy = null;
                 }
             }
             // Filter out deleted, muted or blocked users
@@ -1777,14 +1810,27 @@ public class PostService : IPostService
         // Fallback: If no interests, just show trending
         if (!userInterests.Any())
         {
-            return await GetTrendingPosts24hAsync(userId, limit);
+            return await GetTrendingPosts24hAsync(userId, limit, skip);
         }
+
+        var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
+        var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
+
+        var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(userId);
+        var blockedByUserIds = await _unitOfWork.Blocks.Query()
+            .Where(b => b.BlockedUserId == userId)
+            .Select(b => b.UserId)
+            .ToListAsync();
 
         // 2. Fetch a pool of recent posts (past 72h)
         var poolCutoff = DateTime.UtcNow.AddDays(-3);
         var postPool = await _unitOfWork.Posts.Query()
             .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
             .Where(p => p.AuthorId != userId) // EXCLUDE USER'S OWN POSTS FROM DISCOVER
+            .Where(p =>
+                !mutedUserIds.Contains(p.AuthorId) &&
+                !blockedUserIds.Contains(p.AuthorId) &&
+                !blockedByUserIds.Contains(p.AuthorId))
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)

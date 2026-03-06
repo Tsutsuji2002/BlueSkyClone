@@ -340,7 +340,7 @@ export const fetchBookmarkedPosts = createAsyncThunk(
 
 export const fetchDiscoverPosts = createAsyncThunk(
     'posts/fetchDiscover',
-    async ({ skip = 0, take = 10 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/Feeds/discover?skip=${skip}&take=${take}`, {

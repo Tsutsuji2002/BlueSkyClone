@@ -68,13 +68,16 @@ const Feed: React.FC<FeedProps> = ({
     useEffect(() => {
         if (!onLoadMore || !hasMore || isLoading) return;
 
+        let requested = false;
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting) {
+                if (!requested && entries[0].isIntersecting) {
+                    requested = true;
                     onLoadMore();
                 }
             },
-            { threshold: 1.0 }
+            // Trigger earlier and more reliably than "100% visible"
+            { threshold: 0, rootMargin: '400px 0px' }
         );
 
         if (observerTarget.current) {

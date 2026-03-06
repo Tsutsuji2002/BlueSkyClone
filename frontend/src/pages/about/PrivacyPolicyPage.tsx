@@ -99,8 +99,7 @@ const PrivacyPolicyPage: React.FC = () => {
                                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
                                 width: 100%;
                                 word-break: normal !important;
-                                word-wrap: break-word !important; 
-                                overflow-wrap: anywhere !important;
+                                overflow-wrap: break-word !important; 
                             }
                             .bsky-static-content h1, .bsky-static-content h2, .bsky-static-content h3, .bsky-static-content h4, .bsky-static-content h5, .bsky-static-content h6, .bsky-static-content p, .bsky-static-content span, .bsky-static-content div, .bsky-static-content li {
                                 font-size: 16px !important;
