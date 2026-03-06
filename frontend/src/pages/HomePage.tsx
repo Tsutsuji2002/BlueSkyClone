@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import MainLayout from '../components/layout/MainLayout';
 import InterestsSection from '../components/feed/InterestsSection';
 import Feed from '../components/feed/Feed';
@@ -127,14 +127,24 @@ const HomePage: React.FC = () => {
         .sort((a: FeedType, b: FeedType) => (a.pinnedOrder || 0) - (b.pinnedOrder || 0));
 
     // Display feeds: Following, Discover, then top pinned feeds (up to 5 total)
-    const tabs = [
+    const tabs = useMemo(() => [
         { id: 'following', label: t('nav.following') },
         { id: 'discover', label: t('nav.discover') },
         ...pinnedFeeds.slice(0, 10).map((f: FeedType) => ({
             id: f.id,
             label: f.name
         }))
-    ];
+    ], [pinnedFeeds, t]);
+
+    // Ensure a valid tab is always selected
+    useEffect(() => {
+        if (tabs.length > 0) {
+            const isValidTab = tabs.some(tab => tab.id === activeTab);
+            if (!isValidTab || !activeTab) {
+                dispatch(setActiveTab(tabs[0].id));
+            }
+        }
+    }, [tabs, activeTab, dispatch]);
 
     return (
         <MainLayout hideTopBar={true} title={t('nav.home')}>
