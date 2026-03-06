@@ -16,12 +16,19 @@ const PrivacyPolicyPage: React.FC = () => {
         const fetchContent = async () => {
             try {
                 const response = await api.pageContent.get(slug);
-                // Clean the content of invisible word-breaking characters (shy, zero-width spaces)
-                const cleanedContent = response.htmlContent.replace(/[\u00AD\u200B\u200C\u200D\uFEFF]/g, '');
+
+                // Heal words that are commonly split by bad formatting/copy-pasting
+                let healedContent = response.htmlContent
+                    .replace(/pr\s+ofile/gi, 'profile')
+                    .replace(/imperson\s+ate/gi, 'impersonate')
+                    .replace(/co\s+ntact/gi, 'contact')
+                    .replace(/usernames\s*,\s*pr/gi, 'usernames, pr') // Keep this together if it was just spacing
+                    .replace(/([a-z])[\r\n]+\s*([a-z])/gi, '$1$2') // Glue words split by newlines
+                    .replace(/[\u00AD\u200B\u200C\u200D\uFEFF]/g, ''); // Remove invisible break characters
 
                 setPageData({
                     title: response.title,
-                    content: cleanedContent
+                    content: healedContent
                 });
             } catch (error) {
                 console.error('Failed to fetch privacy policy:', error);
@@ -148,6 +155,9 @@ const PrivacyPolicyPage: React.FC = () => {
                             className="bsky-static-content"
                             dangerouslySetInnerHTML={{ __html: pageData.content }}
                         />
+                        <div className="mt-12 pt-8 border-t border-gray-100 text-[10px] text-gray-300 text-right">
+                            v1.0.4-healer-active
+                        </div>
                     </div>
                 </div>
             </main>

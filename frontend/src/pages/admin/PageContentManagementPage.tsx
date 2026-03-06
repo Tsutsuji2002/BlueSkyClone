@@ -38,11 +38,20 @@ const PageContentManagementPage: React.FC = () => {
         }
 
         setSaving(true);
+        // Clean and heal content before saving to database
+        const healedContent = content
+            .replace(/pr\s+ofile/gi, 'profile')
+            .replace(/imperson\s+ate/gi, 'impersonate')
+            .replace(/co\s+ntact/gi, 'contact')
+            .replace(/([a-z])[\r\n]+\s*([a-z])/gi, '$1$2')
+            .replace(/[\u00AD\u200B\u200C\u200D\uFEFF]/g, '');
+
         try {
             await api.pageContent.update(slug, {
                 title,
-                htmlContent: content
+                htmlContent: healedContent
             });
+            setContent(healedContent); // Update local state for consistency
             toast.success('Privacy policy updated successfully');
         } catch (error) {
             console.error('Failed to update page content:', error);
