@@ -140,7 +140,7 @@ const HomePage: React.FC = () => {
         <MainLayout hideTopBar={true} title={t('nav.home')}>
             <div className="min-h-screen">
                 {/* Header with Logo and Feeds Button */}
-                <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
+                <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border transform-gpu">
                     <div className="flex items-center justify-between px-4 h-12">
                         <button
                             onClick={() => dispatch(openMobileMenu())}
@@ -164,14 +164,14 @@ const HomePage: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="flex px-2 overflow-x-auto no-scrollbar justify-between items-center">
-                        <div className="flex">
+                    <div className="flex px-2 overflow-x-auto no-scrollbar items-center">
+                        <div className="flex w-max">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => handleTabChange(tab.id)}
                                     className={cn(
-                                        "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap",
+                                        "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap flex-shrink-0",
                                         activeTab === tab.id
                                             ? "text-gray-900 dark:text-dark-text"
                                             : "text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50"
