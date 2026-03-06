@@ -139,33 +139,32 @@ const HomePage: React.FC = () => {
     return (
         <MainLayout hideTopBar={true} title={t('nav.home')}>
             <div className="min-h-screen">
-                {/* Header with Logo and Feeds Button */}
-                <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border transform-gpu">
-                    <div className="flex items-center justify-between px-4 h-12">
+                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
+                    <div className="flex items-center justify-between px-4 h-12 w-full">
                         <button
                             onClick={() => dispatch(openMobileMenu())}
-                            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full"
+                            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
                         >
                             <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
                         </button>
-                        <div className="hidden lg:block w-10" /> {/* Spacer */}
+                        <div className="hidden lg:block w-10 flex-shrink-0" /> {/* Spacer */}
 
                         <ButterflyLogo
-                            className="w-7 h-7 text-primary-500 cursor-pointer"
+                            className="w-7 h-7 text-primary-500 cursor-pointer flex-shrink-0"
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                         />
 
                         <button
                             onClick={() => navigate('/feeds')}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text flex-shrink-0"
                             title={t('feeds.title')}
                         >
                             <FiHash size={24} />
                         </button>
                     </div>
 
-                    <div className="flex px-2 overflow-x-auto no-scrollbar items-center">
-                        <div className="flex w-max">
+                    <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
+                        <div className="flex w-full">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}

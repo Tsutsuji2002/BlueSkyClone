@@ -48,8 +48,7 @@ const SearchPage: React.FC = () => {
     return (
         <MainLayout title={`${query} - ${t('nav.search', { defaultValue: 'Search' })}`}>
             <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
-                {/* Header */}
-                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border transform-gpu">
+                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
                     <div className="flex items-center gap-3 px-3 py-2">
                         <button
                             onClick={() => navigate(-1)}
