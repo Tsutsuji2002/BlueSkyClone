@@ -420,7 +420,9 @@ const postsSlice = createSlice({
                     state.posts = action.payload.posts;
                     state.lastTimelineFetch = Date.now();
                 } else {
-                    state.posts = [...state.posts, ...action.payload.posts];
+                    const existingIds = new Set(state.posts.map(p => p.id));
+                    const newPosts = action.payload.posts.filter(p => !existingIds.has(p.id));
+                    state.posts = [...state.posts, ...newPosts];
                 }
                 state.hasMore = action.payload.posts.length > 0;
             })
@@ -784,7 +786,9 @@ const postsSlice = createSlice({
                     state.discoverPosts = action.payload.posts;
                     state.lastDiscoverFetch = Date.now();
                 } else {
-                    state.discoverPosts = [...state.discoverPosts, ...action.payload.posts];
+                    const existingIds = new Set(state.discoverPosts.map(p => p.id));
+                    const newPosts = action.payload.posts.filter(p => !existingIds.has(p.id));
+                    state.discoverPosts = [...state.discoverPosts, ...newPosts];
                 }
                 state.discoverHasMore = action.payload.posts.length > 0;
             })

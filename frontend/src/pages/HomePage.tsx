@@ -195,6 +195,7 @@ const HomePage: React.FC = () => {
                         hasMore={timelineHasMore}
                         onLoadMore={handleLoadMore}
                         endMessage={t('feeds.following_end', 'Follow more people to get more content...')}
+                        emptyMessage={t('feeds.follow_more_cta', 'Follow more accounts to see more content.')}
                     />
                 </div>
 

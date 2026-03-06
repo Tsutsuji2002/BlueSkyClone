@@ -12,6 +12,7 @@ interface FeedProps {
     onLoadMore?: () => void; // Optional infinite scroll trigger
     hasMore?: boolean; // Whether more posts can be loaded
     endMessage?: string; // NEW: custom end of feed message
+    emptyMessage?: string; // NEW: custom message when there are 0 posts
 }
 
 const Feed: React.FC<FeedProps> = ({
@@ -19,7 +20,8 @@ const Feed: React.FC<FeedProps> = ({
     isLoading: propLoading,
     onLoadMore,
     hasMore = true,
-    endMessage
+    endMessage,
+    emptyMessage
 }) => {
     const { t } = useTranslation();
     const reduxPosts = useAppSelector((state) => state.posts.posts);
@@ -100,11 +102,13 @@ const Feed: React.FC<FeedProps> = ({
             <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                 <FiBookmark size={48} className="text-gray-300 dark:text-dark-border mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text mb-2">
-                    {t('feeds.no_posts')}
+                    {emptyMessage || t('feeds.no_posts')}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                    {t('feeds.no_posts_desc')}
-                </p>
+                {!emptyMessage && (
+                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
+                        {t('feeds.no_posts_desc')}
+                    </p>
+                )}
             </div>
         );
     }

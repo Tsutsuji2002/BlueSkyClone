@@ -1822,8 +1822,8 @@ public class PostService : IPostService
             .Select(b => b.UserId)
             .ToListAsync();
 
-        // 2. Fetch a pool of recent posts (past 72h)
-        var poolCutoff = DateTime.UtcNow.AddDays(-3);
+        // 2. Fetch a pool of recent posts (expand search window if they have interests)
+        var poolCutoff = DateTime.UtcNow.AddDays(-7); // Expand to 7 days to find more interest matches
         var postPool = await _unitOfWork.Posts.Query()
             .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
             .Where(p => p.AuthorId != userId) // EXCLUDE USER'S OWN POSTS FROM DISCOVER
@@ -1839,11 +1839,12 @@ public class PostService : IPostService
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .OrderByDescending(p => p.LikesCount + p.RepostsCount)
-            .Take(2000)
+            .Take(5000) // Increase pool size to 5000 to ensure we find matching topics
             .ToListAsync();
 
         // 3. Score and rank posts
         var scoredPosts = new List<(Post Post, float Score)>();
+        var random = new Random();
 
         foreach (var post in postPool)
         {
@@ -1856,24 +1857,33 @@ public class PostService : IPostService
             
             var categoryScores = await _categorizationService.ScorePostForDiscoverAsync(post.Content ?? "", imageUrls);
             
-            // Boost score based on matches with user interests
+            // Boost score heavily based on matches with user interests
+            bool matchedInterest = false;
             foreach (var interest in userInterests)
             {
                 if (categoryScores.TryGetValue(interest, out var confidence))
                 {
-                    score += confidence * 10.0f; // Significant boost for interest match
+                    // Massively boost so it always outranks non-interest trending posts
+                    score += confidence * 1000.0f; 
+                    matchedInterest = true;
                 }
             }
 
             // Engagement Score (scaled)
+            // Even if it matches an interest, higher engagement within that interest wins
             score += ((post.LikesCount ?? 0) * 1.0f) + ((post.RepostsCount ?? 0) * 2.0f);
 
             // Recency Score (decay)
             var hoursOld = (DateTime.UtcNow - (post.CreatedAt ?? DateTime.UtcNow)).TotalHours;
-            var recencyFactor = (float)Math.Exp(-hoursOld / 24.0); // 24h half-life
+            var recencyFactor = (float)Math.Exp(-hoursOld / 48.0); // 48h half-life for Discover to include broader matches
             score *= recencyFactor;
 
-            if (score > 0)
+            // Add a small random factor to provide variety (the "variable of trending/new" effect)
+            var varietyBoost = (float)random.NextDouble() * 10.0f; // 0 to 10 points
+            score += varietyBoost;
+
+            // Include either interest matches, or highly engaging trending posts, or fresh posts
+            if (matchedInterest || score > 5.0f || hoursOld < 2.0)
             {
                 scoredPosts.Add((post, score));
             }
