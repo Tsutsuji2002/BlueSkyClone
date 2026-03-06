@@ -37,14 +37,15 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Username) || 
-            request.Username.Length > 16 || 
-            !Regex.IsMatch(request.Username, @"^[a-zA-Z0-9.]+$"))
+        var username = request.Username.ToLower();
+        if (string.IsNullOrWhiteSpace(username) || 
+            username.Length > 16 || 
+            !Regex.IsMatch(username, @"^[a-z0-9.]+$"))
         {
             return null;
         }
 
-        var handle = $"{request.Username.ToLower()}.{request.HostingProvider.ToLower()}";
+        var handle = $"{username}.{request.HostingProvider.ToLower()}";
 
         if (await _unitOfWork.Users.GetByEmailAsync(request.Email) != null ||
             await _unitOfWork.Users.GetByHandleAsync(handle) != null)
@@ -60,9 +61,9 @@ public class AuthService : IAuthService
         {
             Id = userId,
             Email = request.Email,
-            Username = request.Username,
+            Username = username,
             Handle = handle,
-            DisplayName = request.DisplayName ?? request.Username,
+            DisplayName = request.DisplayName ?? username,
             PasswordHash = passwordHash,
             Salt = salt,
             DateOfBirth = request.DateOfBirth,

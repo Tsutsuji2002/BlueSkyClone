@@ -55,7 +55,7 @@ const SignUpPage: React.FC = () => {
                 return;
             }
 
-            const handleRegex = /^[a-zA-Z0-9.]+$/;
+            const handleRegex = /^[a-z0-9.]+$/;
             if (formData.username.length > 16) {
                 setFormErrors({ username: t('settings.handle_too_long', 'Handle must be at most 16 characters') });
                 return;
@@ -250,7 +250,11 @@ const SignUpPage: React.FC = () => {
                                             <input
                                                 type="text"
                                                 value={formData.username}
-                                                onChange={(e) => { setFormData({ ...formData, username: e.target.value }); setFormErrors({}); }}
+                                                onChange={(e) => {
+                                                    const lowercaseValue = e.target.value.toLowerCase();
+                                                    setFormData({ ...formData, username: lowercaseValue });
+                                                    setFormErrors({});
+                                                }}
                                                 placeholder="oaky.social"
                                                 className={cn(
                                                     "w-full pl-8 pr-4 py-3 rounded-lg border bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-primary-500",

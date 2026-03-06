@@ -220,7 +220,7 @@ const ChangeHandleModal: React.FC<ChangeHandleModalProps> = ({ isOpen, onClose }
                                     <input
                                         type="text"
                                         value={username}
-                                        onChange={(e) => setUsername(e.target.value)}
+                                        onChange={(e) => setUsername(e.target.value.toLowerCase())}
                                         className="bg-transparent border-none focus:outline-none w-full text-gray-900 dark:text-dark-text font-medium text-[17px]"
                                     />
                                     <span className="text-gray-400 ml-1">.bsky.social</span>

@@ -153,18 +153,19 @@ public class UserService : IUserService
         }
 
         // Update Username / Handle
-        if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.Username)
+        if (!string.IsNullOrWhiteSpace(request.Username) && request.Username.ToLower() != user.Username)
         {
-            if (request.Username.Length > 16 || !Regex.IsMatch(request.Username, @"^[a-zA-Z0-9.]+$"))
+            var username = request.Username.Trim().ToLower();
+            if (username.Length > 16 || !Regex.IsMatch(username, @"^[a-z0-9.]+$"))
             {
-                throw new Exception("Handle can only contain Latin characters, numbers, and dots, and be maximum 16 characters long.");
+                throw new Exception("Handle can only contain lowercase Latin characters, numbers, and dots, and be maximum 16 characters long.");
             }
 
-            var newHandle = $"{request.Username.Trim().ToLower()}.bsky.social";
+            var newHandle = $"{username}.bsky.social";
             var existing = await _unitOfWork.Users.GetByHandleAsync(newHandle);
             if (existing != null) throw new Exception("Username already in use");
             
-            user.Username = request.Username.Trim();
+            user.Username = username;
             user.Handle = newHandle;
         }
 
@@ -715,9 +716,9 @@ public class UserService : IUserService
         {
             user.IsVerified = true;
             // If we verified a new handle, update it
-            if (!string.IsNullOrEmpty(handle) && handle != user.Handle)
+            if (!string.IsNullOrEmpty(handle) && handle.ToLower() != user.Handle)
             {
-                user.Handle = handle;
+                user.Handle = handle.ToLower();
             }
 
             _unitOfWork.Users.Update(user);

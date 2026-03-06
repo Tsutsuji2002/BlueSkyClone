@@ -13,7 +13,7 @@ public class UserRepository : Repository<User>, IUserRepository
     {
         return await _dbSet
             .Include(u => u.UserSetting)
-            .FirstOrDefaultAsync(u => u.Email == email);
+            .FirstOrDefaultAsync(u => EF.Functions.Collate(u.Email, "SQL_Latin1_General_CP1_CS_AS") == email);
     }
 
     public async Task<User?> GetByHandleAsync(string handle)
