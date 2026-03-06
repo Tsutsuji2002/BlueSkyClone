@@ -712,7 +712,7 @@ const PostDetailPage: React.FC = () => {
                                         const indent = depth * DEPTH_STEP;
 
                                         return (
-                                            <div key={reply.id} className={depth === 0 ? "border-b border-gray-200 dark:border-dark-border" : ""}>
+                                            <div key={reply.id}>
                                                 {/* Parent's own block - bounds its absolute line heights exclusively to itself */}
                                                 <div className="relative bg-white dark:bg-dark-bg group">
                                                     {/* Left structural lines for all depth levels */}
@@ -789,6 +789,13 @@ const PostDetailPage: React.FC = () => {
                                                     <div>
                                                         {renderTree(subReplies, depth + 1, nextActiveLines)}
                                                     </div>
+                                                )}
+
+                                                {/* Explicit separator after each depth-0 thread group (including all its children).
+                                                    Using a real div instead of CSS border-b to prevent the PostCard's
+                                                    background from visually hiding the parent's border edge. */}
+                                                {depth === 0 && (
+                                                    <div className="h-px bg-gray-200 dark:bg-dark-border" />
                                                 )}
                                             </div>
                                         );
