@@ -17,18 +17,16 @@ const PrivacyPolicyPage: React.FC = () => {
             try {
                 const response = await api.pageContent.get(slug);
 
-                // Heal words that are commonly split by bad formatting/copy-pasting
-                let healedContent = response.htmlContent
-                    .replace(/pr\s+ofile/gi, 'profile')
-                    .replace(/imperson\s+ate/gi, 'impersonate')
-                    .replace(/co\s+ntact/gi, 'contact')
-                    .replace(/usernames\s*,\s*pr/gi, 'usernames, pr') // Keep this together if it was just spacing
-                    .replace(/([a-z])[\r\n]+\s*([a-z])/gi, '$1$2') // Glue words split by newlines
-                    .replace(/[\u00AD\u200B\u200C\u200D\uFEFF]/g, ''); // Remove invisible break characters
+                // ROOT CAUSE FIX: Quill editor saves all spaces as &nbsp; (non-breaking spaces).
+                // This leaves the browser ZERO valid break points inside paragraphs,
+                // so it is forced to break mid-word. Converting to regular spaces fixes this.
+                const fixedContent = response.htmlContent
+                    .replace(/&nbsp;/g, ' ')           // Convert non-breaking spaces → regular spaces
+                    .replace(/ql-align-justify/g, ''); // Remove justify alignment (causes uneven word spacing)
 
                 setPageData({
                     title: response.title,
-                    content: healedContent
+                    content: fixedContent
                 });
             } catch (error) {
                 console.error('Failed to fetch privacy policy:', error);
