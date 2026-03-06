@@ -7,40 +7,66 @@ import { FiArrowLeft, FiSearch, FiX } from 'react-icons/fi';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { fetchPostsSearch } from '../redux/slices/postsSlice';
+import { searchUsers } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
+import Avatar from '../components/common/Avatar';
+import { BsPatchCheckFill } from 'react-icons/bs';
 
 const SearchPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const query = searchParams.get('q') || '';
+    const initialTab = query.startsWith('@') ? 'people' : (searchParams.get('tab') || 'top');
+    const [activeTab, setActiveTab] = useState(initialTab);
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
 
-    const { posts, isLoading, hasMore } = useAppSelector((state: RootState) => state.posts);
+    const { posts, isLoading: isPostsLoading, hasMore } = useAppSelector((state: RootState) => state.posts);
+    const { searchResults: users, searchLoading: isUsersLoading } = useAppSelector((state: RootState) => state.user);
+
     const [inputValue, setInputValue] = useState(query);
     const [offset, setOffset] = useState(0);
     const limit = 20;
 
+    const isLoading = activeTab === 'people' ? isUsersLoading : isPostsLoading;
+
     useEffect(() => {
         setInputValue(query);
         if (query) {
-            dispatch(fetchPostsSearch({ query, skip: 0, take: limit }));
+            if (activeTab === 'people') {
+                const userQuery = query.startsWith('@') ? query.slice(1) : query;
+                dispatch(searchUsers({ query: userQuery, skip: 0, take: limit }));
+            } else {
+                dispatch(fetchPostsSearch({ query, skip: 0, take: limit }));
+            }
             setOffset(0);
         }
-    }, [dispatch, query]);
+    }, [dispatch, query, activeTab]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         if (inputValue.trim()) {
-            setSearchParams({ q: inputValue.trim() });
+            const nextTab = inputValue.trim().startsWith('@') ? 'people' : activeTab;
+            setSearchParams({ q: inputValue.trim(), tab: nextTab });
+            setActiveTab(nextTab);
         }
+    };
+
+    const handleTabChange = (tab: string) => {
+        setActiveTab(tab);
+        setSearchParams({ q: query, tab });
     };
 
     const handleLoadMore = () => {
         if (query) {
             const nextOffset = offset + limit;
-            dispatch(fetchPostsSearch({ query, skip: nextOffset, take: limit }));
+            if (activeTab === 'people') {
+                const userQuery = query.startsWith('@') ? query.slice(1) : query;
+                dispatch(searchUsers({ query: userQuery, skip: nextOffset, take: limit }));
+            } else {
+                dispatch(fetchPostsSearch({ query, skip: nextOffset, take: limit }));
+            }
             setOffset(nextOffset);
         }
     };
@@ -78,30 +104,38 @@ const SearchPage: React.FC = () => {
                         </form>
                     </div>
 
-                    {/* Tabs / Filters could go here */}
+                    {/* Tabs */}
                     <div className="flex border-b border-gray-100 dark:border-dark-border overflow-x-auto no-scrollbar">
-                        <button className="flex-1 py-3 text-[15px] font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500">
+                        <button
+                            onClick={() => handleTabChange('top')}
+                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === 'top' ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
                             {t('search.top', { defaultValue: 'Top' })}
                         </button>
-                        <button className="flex-1 py-3 text-[15px] font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors">
+                        <button
+                            onClick={() => handleTabChange('latest')}
+                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === 'latest' ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
                             {t('search.latest', { defaultValue: 'Latest' })}
                         </button>
-                        <button className="flex-1 py-3 text-[15px] font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors">
+                        <button
+                            onClick={() => handleTabChange('people')}
+                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === 'people' ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
                             {t('search.people', { defaultValue: 'People' })}
                         </button>
-                        <button className="flex-1 py-3 text-[15px] font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors">
+                        <button
+                            onClick={() => handleTabChange('media')}
+                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === 'media' ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
                             {t('search.media', { defaultValue: 'Media' })}
                         </button>
                     </div>
                 </div>
 
-                {/* Posts Feed */}
+                {/* Results Container */}
                 <div className="pb-20">
                     {isLoading && offset === 0 ? (
                         <div className="flex justify-center py-20">
                             <LoadingIndicator size="lg" />
                         </div>
-                    ) : posts.length === 0 ? (
+                    ) : (activeTab === 'people' ? users : posts).length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                             <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
                                 <FiSearch className="text-gray-300" size={40} />
@@ -115,8 +149,33 @@ const SearchPage: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <Feed posts={posts} />
-                            {hasMore && posts.length >= limit && (
+                            {activeTab === 'people' ? (
+                                <div className="divide-y divide-gray-100 dark:divide-dark-border">
+                                    {users.map((user) => (
+                                        <div
+                                            key={user.id}
+                                            onClick={() => navigate(`/profile/${user.handle}`)}
+                                            className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer transition-colors"
+                                        >
+                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="lg" />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName}</span>
+                                                    {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
+                                                </div>
+                                                <div className="text-gray-500 dark:text-dark-text-secondary text-[15px] truncate">@{user.handle}</div>
+                                                {user.bio && (
+                                                    <div className="text-gray-900 dark:text-dark-text text-[15px] mt-1 line-clamp-2">{user.bio}</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Feed posts={posts} />
+                            )}
+
+                            {hasMore && (activeTab === 'people' ? users : posts).length >= limit && (
                                 <button
                                     onClick={handleLoadMore}
                                     className="w-full py-4 text-primary-500 font-bold hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors disabled:opacity-50"

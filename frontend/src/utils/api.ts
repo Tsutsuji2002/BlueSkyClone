@@ -67,6 +67,13 @@ const api = {
                 headers: getHeaders(),
             });
             return handleResponse(response) as Promise<{ data: any[] }>;
+        },
+        feeds: async (query: string, skip: number = 0, take: number = 20) => {
+            const response = await fetch(`${API_URL}/feeds/search?query=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
+                method: 'GET',
+                headers: getHeaders(),
+            });
+            return handleResponse(response) as Promise<{ data: any[] }>;
         }
     },
     pageContent: {

@@ -10,11 +10,36 @@ const initialState: UserState = {
     mutedUsers: [],
     blockedUsers: [],
     selectedInterests: [],
+    searchResults: [],
     isLoading: false,
+    searchLoading: false,
     interestsLoading: false,
     error: null,
     actionLoading: {}, // Map of userId -> boolean
 };
+
+export const searchUsers = createAsyncThunk<
+    User[],
+    { query: string, skip: number, take: number },
+    { rejectValue: string }
+>(
+    'user/search',
+    async ({ query, skip, take }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/search/users?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to search users');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
 
 export const fetchUserProfile = createAsyncThunk<
     { user: User, isFollowing: boolean, isBlockedBy: boolean, isBlocking: boolean, isMuted: boolean },
@@ -654,6 +679,19 @@ const userSlice = createSlice({
             })
             .addCase(saveSelectedInterests.fulfilled, (state: UserState, action: PayloadAction<string[]>) => {
                 state.selectedInterests = action.payload;
+            })
+            // Search Users
+            .addCase(searchUsers.pending, (state: UserState) => {
+                state.searchLoading = true;
+                state.error = null;
+            })
+            .addCase(searchUsers.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+                state.searchLoading = false;
+                state.searchResults = action.payload;
+            })
+            .addCase(searchUsers.rejected, (state: UserState, action) => {
+                state.searchLoading = false;
+                state.error = action.payload as string;
             });
     }
 });

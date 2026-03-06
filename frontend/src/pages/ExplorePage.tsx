@@ -45,8 +45,26 @@ const ExplorePage: React.FC = () => {
 
         setLoading(true);
         try {
-            const response = await api.search.users(query);
-            setResults(response.data || []);
+            if (query.startsWith('@')) {
+                const userQuery = query.slice(1);
+                if (userQuery.length > 0) {
+                    const response = await api.search.users(userQuery);
+                    setResults((response.data || []).map((u: any) => ({ ...u, _type: 'user' })));
+                } else {
+                    setResults([]);
+                }
+            } else {
+                const [usersRes, feedsRes] = await Promise.all([
+                    api.search.users(query, 0, 5),
+                    api.search.feeds(query, 0, 5)
+                ]);
+
+                const combined = [
+                    ...(usersRes.data || []).map((u: any) => ({ ...u, _type: 'user' })),
+                    ...(feedsRes.data || []).map((f: any) => ({ ...f, _type: 'feed' }))
+                ];
+                setResults(combined);
+            }
         } catch (error) {
             console.error('Search failed:', error);
             setResults([]);
@@ -78,10 +96,21 @@ const ExplorePage: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleResultClick = (handle: string) => {
-        navigate(`/profile/${handle}`);
+    const handleResultClick = (result: any) => {
+        if (result._type === 'feed') {
+            navigate(`/feeds/${result.id}`);
+        } else {
+            navigate(`/profile/${result.handle}`);
+        }
         setSearchQuery('');
         setShowResults(false);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && searchQuery.trim()) {
+            navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+            setShowResults(false);
+        }
     };
 
     const clearSearch = () => {
@@ -124,6 +153,7 @@ const ExplorePage: React.FC = () => {
                                     setShowResults(true);
                                 }}
                                 onFocus={() => setShowResults(true)}
+                                onKeyDown={handleKeyDown}
                                 className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
                             />
                             {searchQuery && (
@@ -152,31 +182,46 @@ const ExplorePage: React.FC = () => {
                                         </div>
                                     ) : results.length > 0 ? (
                                         <div className="py-2">
-                                            {results.map((user) => (
+                                            {results.map((result) => (
                                                 <button
-                                                    key={user.id}
-                                                    onClick={() => handleResultClick(user.handle)}
+                                                    key={result.id}
+                                                    onClick={() => handleResultClick(result)}
                                                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors text-left"
                                                 >
-                                                    <Avatar
-                                                        src={user.avatarUrl || user.avatar}
-                                                        alt={user.displayName}
-                                                        size="md"
-                                                    />
+                                                    {result._type === 'feed' ? (
+                                                        <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xl">
+                                                            {result.avatarUrl || result.avatar ? (
+                                                                <img src={result.avatarUrl || result.avatar} alt="" className="w-full h-full rounded-lg object-cover" />
+                                                            ) : (
+                                                                result.name?.[0] || 'F'
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <Avatar
+                                                            src={result.avatarUrl || result.avatar}
+                                                            alt={result.displayName}
+                                                            size="md"
+                                                        />
+                                                    )}
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-bold text-gray-900 dark:text-dark-text truncate">
-                                                            {user.displayName}
+                                                            {result._type === 'feed' ? result.name : result.displayName}
                                                         </p>
                                                         <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary truncate">
-                                                            @{user.handle}
+                                                            {result._type === 'feed' ? (
+                                                                <>Feed · @{result.handle}</>
+                                                            ) : (
+                                                                <>@{result.handle}</>
+                                                            )}
                                                         </p>
                                                     </div>
                                                 </button>
                                             ))}
                                         </div>
                                     ) : searchQuery.trim() ? (
-                                        <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary">
-                                            {t('search.no_results', { defaultValue: 'No results found' })}
+                                        <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface"
+                                            onClick={() => navigate(`/search?q=${encodeURIComponent(searchQuery)}`)}>
+                                            <p className="font-medium text-primary-500">{t('search.goto_search', { defaultValue: 'Search all for "{{query}}"', query: searchQuery })}</p>
                                         </div>
                                     ) : null}
                                 </div>
