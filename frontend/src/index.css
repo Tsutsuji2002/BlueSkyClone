@@ -127,6 +127,9 @@
     font-weight: 400 !important;
     color: inherit;
     font-family: inherit !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    hyphens: none !important;
   }
   
   .privacy-content h1 { 

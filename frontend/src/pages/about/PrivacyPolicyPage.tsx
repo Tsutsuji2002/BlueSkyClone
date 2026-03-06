@@ -16,9 +16,12 @@ const PrivacyPolicyPage: React.FC = () => {
         const fetchContent = async () => {
             try {
                 const response = await api.pageContent.get(slug);
+                // Clean the content of invisible word-breaking characters (shy, zero-width spaces)
+                const cleanedContent = response.htmlContent.replace(/[\u00AD\u200B\u200C\u200D\uFEFF]/g, '');
+
                 setPageData({
                     title: response.title,
-                    content: response.htmlContent
+                    content: cleanedContent
                 });
             } catch (error) {
                 console.error('Failed to fetch privacy policy:', error);
@@ -94,19 +97,31 @@ const PrivacyPolicyPage: React.FC = () => {
                         <style>
                             {`
                             /* Hard overrides to mimic Bluesky static styling perfectly */
-                            .bsky-static-content { 
-                                color: #4B5563; 
-                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-                                width: 100%;
-                                word-break: normal !important;
-                                overflow-wrap: break-word !important; 
-                            }
-                            .bsky-static-content h1, .bsky-static-content h2, .bsky-static-content h3, .bsky-static-content h4, .bsky-static-content h5, .bsky-static-content h6, .bsky-static-content p, .bsky-static-content span, .bsky-static-content div, .bsky-static-content li {
-                                font-size: 16px !important;
-                                line-height: 1.6 !important;
-                                font-weight: 400 !important;
-                                font-family: inherit !important;
-                            }
+                             .bsky-static-content {
+                                 color: #4B5563; 
+                                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+                                 width: 100%;
+                             }
+
+                             /* Kill all mid-word breaks for the container and everything inside it */
+                             .bsky-static-content, 
+                             .bsky-static-content *,
+                             .privacy-content,
+                             .privacy-content * { 
+                                 word-break: keep-all !important;
+                                 overflow-wrap: break-word !important; 
+                                 word-wrap: break-word !important;
+                                 hyphens: none !important;
+                                 text-align: left !important;
+                                 white-space: normal !important;
+                             }
+
+                             .bsky-static-content h1, .bsky-static-content h2, .bsky-static-content h3, .bsky-static-content h4, .bsky-static-content h5, .bsky-static-content h6, .bsky-static-content p, .bsky-static-content span, .bsky-static-content div, .bsky-static-content li {
+                                 font-size: 16px !important;
+                                 line-height: 1.6 !important;
+                                 font-weight: 400 !important;
+                                 font-family: inherit !important;
+                             }
                             
                             .bsky-static-content h1, .bsky-static-content h2, .bsky-static-content h3 {
                                 font-weight: 600 !important;
