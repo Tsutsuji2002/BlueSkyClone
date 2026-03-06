@@ -259,7 +259,7 @@
         "my_feeds_desc": "保存したすべてのフィードを一箇所で見ることができます。",
         "discover_new": "新しいフィードを発見",
         "discover_new_desc": "自分専用の フィードを選んでください！コミュニティが作成したフィードでお気に入りのコンテンツを見つけましょう。",
-        "search_placeholder": "フィードを検索",
+        "search_placeholder": "検索",
         "pinned": "ピン留め済み",
         "pin_feed": "フィードをピン留め",
         "liked_by": "{{count}} 人のユーザーが「いいね」しました",

@@ -178,7 +178,7 @@
         "my_feeds_desc": "저장한 모든 피드를 한 곳에서 확인하세요.",
         "discover_new": "새로운 피드 발견",
         "discover_new_desc": "자신만의 피드를 선택해보세요! 커뮤니티에서 만든 피드가 좋아하는 콘텐츠를 찾는 데 도움을 줍니다.",
-        "search_placeholder": "피드 찾기",
+        "search_placeholder": "검색",
         "pinned": "고정됨",
         "pin_feed": "피드 고정",
         "liked_by": "{{count}}명의 사용자가 좋아합니다",

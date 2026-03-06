@@ -244,7 +244,7 @@
         "my_feeds_desc": "Alle Ihre gespeicherten Feeds an einem Ort.",
         "discover_new": "Neue Feeds entdecken",
         "discover_new_desc": "Wählen Sie Ihre eigenen Feeds! Von der Community erstellte Feeds helfen Ihnen, die Inhalte zu finden, die Sie lieben.",
-        "search_placeholder": "Feeds finden",
+        "search_placeholder": "Suchen",
         "pinned": "Angeheftet",
         "pin_feed": "Feed anheften",
         "liked_by": "Gefällt {{count}} Benutzern",

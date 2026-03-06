@@ -177,7 +177,7 @@
         "my_feeds_desc": "Todos los feeds que has guardado en un solo lugar.",
         "discover_new": "Descubre nuevos Feeds",
         "discover_new_desc": "¡Elige tus propios feeds! Los feeds creados por la comunidad te ayudan a encontrar el contenido que te gusta.",
-        "search_placeholder": "Buscar feeds",
+        "search_placeholder": "Buscar",
         "pinned": "Fijado",
         "pin_feed": "Fijar feed",
         "liked_by": "Le gusta a {{count}} usuarios",

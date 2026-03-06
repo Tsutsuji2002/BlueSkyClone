@@ -117,7 +117,7 @@ const RightSidebar: React.FC = () => {
                     <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
                     <input
                         type="text"
-                        placeholder={t('feeds.search_placeholder', { defaultValue: 'Tìm kiếm' })}
+                        placeholder={t('feeds.search_placeholder', { defaultValue: 'Find' })}
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);

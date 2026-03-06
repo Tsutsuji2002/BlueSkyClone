@@ -178,7 +178,7 @@
         "my_feeds_desc": "您保存的所有动态都在这里。",
         "discover_new": "发现新动态",
         "discover_new_desc": "选择您自己的动态！社区构建的动态可帮助您找到喜爱的内容。",
-        "search_placeholder": "查找动态",
+        "search_placeholder": "搜索",
         "pinned": "已固定",
         "pin_feed": "固定动态",
         "liked_by": "已被 {{count}} 位用户点赞",

@@ -175,7 +175,7 @@
         "my_feeds_desc": "Tous les flux que vous avez enregistrés en un seul endroit.",
         "discover_new": "Découvrir de nouveaux flux",
         "discover_new_desc": "Choisissez vos propres flux ! Les flux créés par la communauté vous aident à trouver le contenu que vous aimez.",
-        "search_placeholder": "Rechercher des flux",
+        "search_placeholder": "Rechercher",
         "pinned": "Épinglé",
         "pin_feed": "Épingler le flux",
         "liked_by": "Aimé par {{count}} utilisateurs",

@@ -343,7 +343,7 @@
         "my_feeds_desc": "Tất cả bảng tin bạn đã lưu tại cùng một nơi.",
         "discover_new": "Khám phá bảng tin mới",
         "discover_new_desc": "Chọn bảng tin của riêng bạn! Các bảng tin được xây dựng bởi cộng đồng giúp bạn tìm nội dung bạn yêu thích.",
-        "search_placeholder": "Tìm bảng tin",
+        "search_placeholder": "Tìm kiếm",
         "liked_by": "Thích bởi {{count}} người dùng",
         "no_feeds_found": "Không tìm thấy bảng tin nào phù hợp.",
         "followers": "{{count}} người theo dõi",
