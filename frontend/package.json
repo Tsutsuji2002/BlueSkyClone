@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@atproto/api": "^0.19.3",
     "@microsoft/signalr": "^8.0.17",
     "@reduxjs/toolkit": "^2.11.2",
     "@testing-library/dom": "^10.4.1",

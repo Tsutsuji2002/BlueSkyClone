@@ -4,6 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { closeReply } from '../redux/slices/modalsSlice';
 import { createPost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
+import agent from '../services/atpAgent';
 
 import Avatar from '../components/common/Avatar';
 import GifPicker from '../components/common/GifPicker';
@@ -227,26 +228,48 @@ const ReplyModal: React.FC = () => {
 
     const handleSubmit = async () => {
         if ((!content.trim() && images.length === 0 && !selectedGifUrl) || !user || !post) return;
-        const fd = new FormData();
-        fd.append('Content', content);
-        fd.append('ReplyToPostId', post.id);
-        fd.append('RootPostId', (post as any).rootPostId || post.id);
-        imageFiles.forEach(f => fd.append('Images', f));
-        if (selectedGifUrl) fd.append('GifUrl', selectedGifUrl);
-        if (postLanguage) fd.append('Language', postLanguage);
-        if (linkPreview) {
-            fd.append('LinkPreviewUrl', linkPreview.url);
-            if (linkPreview.title) fd.append('LinkPreviewTitle', linkPreview.title);
-            if (linkPreview.description) fd.append('LinkPreviewDescription', linkPreview.description);
-            if (linkPreview.image) fd.append('LinkPreviewImage', linkPreview.image);
-            if (linkPreview.domain) fd.append('LinkPreviewDomain', linkPreview.domain);
-        }
+
         try {
-            await dispatch(createPost(fd)).unwrap();
+            // 1. Upload Blobs if any
+            const blobs: any[] = [];
+            for (const file of imageFiles) {
+                const { data } = await agent.uploadBlob(file, {
+                    encoding: file.type
+                });
+                blobs.push({
+                    image: data.blob,
+                    alt: images[blobs.length]?.alt || ''
+                });
+            }
+
+            const embed = blobs.length > 0 ? {
+                $type: 'app.bsky.embed.images',
+                images: blobs
+            } : undefined;
+
+            // 2. Resolve root and parent for reply
+            const replyTo = {
+                root: {
+                    uri: (post as any).rootUri || post.uri || `at://${post.author.did}/app.bsky.feed.post/${post.id}`,
+                    cid: (post as any).rootCid || post.cid || ''
+                },
+                parent: {
+                    uri: post.uri || `at://${post.author.did}/app.bsky.feed.post/${post.id}`,
+                    cid: post.cid || ''
+                }
+            };
+
+            // 3. Create Reply via AT Proto
+            await dispatch(createPost({
+                content,
+                replyTo,
+                embed
+            })).unwrap();
+
             performClose();
             dispatch(showToast({ message: t('post.reply_success'), type: 'success' }));
         } catch (err: any) {
-            dispatch(showToast({ message: err || t('common.failed_to_reply'), type: 'error' }));
+            dispatch(showToast({ message: err.message || t('common.failed_to_reply'), type: 'error' }));
         }
     };
 

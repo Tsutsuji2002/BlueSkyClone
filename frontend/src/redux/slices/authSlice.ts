@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AuthState, User, UserSettings, LoginFormData, SignUpFormData } from '../../types';
 import { isTokenExpired } from '../../utils/authUtils';
+import agent from '../../services/atpAgent';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -90,18 +91,25 @@ export const login = createAsyncThunk(
     'auth/login',
     async (credentials: LoginFormData, { rejectWithValue }) => {
         try {
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(credentials),
+            const { data } = await agent.login({
+                identifier: credentials.identifier,
+                password: credentials.password,
             });
-            const data = await response.json();
-            if (!response.ok) {
-                return rejectWithValue(data.message || 'Login failed');
+
+            if (data.accessJwt) {
+                localStorage.setItem('token', data.accessJwt);
+                localStorage.setItem('refreshToken', data.refreshJwt);
             }
-            return data;
+
+            // Map Lexicon response (with our custom fields) to Redux payload
+            return {
+                user: (data as any).user,
+                settings: (data as any).settings,
+                token: data.accessJwt,
+                refreshToken: data.refreshJwt
+            };
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Something went wrong');
+            return rejectWithValue(error.message || 'Login failed');
         }
     }
 );
@@ -131,13 +139,25 @@ export const getMe = createAsyncThunk(
     async (_, { rejectWithValue, dispatch }) => {
         try {
             const token = localStorage.getItem('token');
-            if (!token) return rejectWithValue('No token found');
+            const refreshToken = localStorage.getItem('refreshToken');
 
-            if (isTokenExpired(token)) {
-                dispatch(logoutAsync());
-                return rejectWithValue('Token expired');
-            }
+            if (!token || !refreshToken) return rejectWithValue('No session found');
 
+            // Resume session with AtpAgent
+            const { data } = await agent.resumeSession({
+                accessJwt: token,
+                refreshJwt: refreshToken,
+                handle: '', // Will be populated by resumeSession
+                did: '',    // Will be populated by resumeSession
+                active: true
+            });
+
+            // After resume, we still need the user/settings which are in our custom response
+            // For now, assume the backend returns them in getSession or a separate call
+            // Or use the data from resumeSession if we modified the backend accordingly
+
+            // To keep legacy code working, we can call /auth/me or similar, 
+            // but now using the agent's authorized fetch.
             const response = await fetch(`${API_URL}/auth/me`, {
                 method: 'GET',
                 headers: {
@@ -145,15 +165,16 @@ export const getMe = createAsyncThunk(
                     'Content-Type': 'application/json'
                 },
             });
-            const data = await response.json();
+            const userData = await response.json();
             if (!response.ok) {
-                if (response.status === 401) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('refreshToken');
-                }
-                return rejectWithValue(data.message || 'Failed to fetch user');
+                return rejectWithValue(userData.message || 'Failed to fetch user');
             }
-            return data;
+
+            // Return payload that matches the expected reducer type
+            return {
+                user: userData.user,
+                settings: userData.settings
+            };
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
         }
@@ -164,6 +185,9 @@ export const logoutAsync = createAsyncThunk(
     'auth/logout',
     async (_, { rejectWithValue }) => {
         try {
+            // Logout with AtpAgent (clears local session and optionally remote)
+            agent.logout();
+
             const refreshToken = localStorage.getItem('refreshToken');
             // Fire and forget logout request
             if (refreshToken) {

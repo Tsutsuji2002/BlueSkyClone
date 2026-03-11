@@ -1,7 +1,7 @@
 import React from 'react';
 import { Post } from '../../types';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
-import { toggleLike, repostPost, bookmarkPost } from '../../redux/slices/postsSlice';
+import { toggleLike, repostPost } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
 import { openReply, openEditPost, openQuote, openDeleteConfirm } from '../../redux/slices/modalsSlice';
@@ -69,34 +69,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
 
     const handleCardClick = () => {
-        navigate(`/profile/${post.author.handle}/post/${post.id}`);
+        navigate(`/profile/${post.author.handle}/post/${post.uri!.split('/').pop()}`);
     };
 
-    const handleLike = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        console.log('PostCard handleLike clicked for:', post.id);
-        dispatch(toggleLike(post.id));
-    };
-
-    const handleRepost = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        console.log('PostCard handleRepost clicked for:', post.id);
-        dispatch(repostPost(post.id));
-    };
-
-    const handleBookmark = () => {
-        console.log('PostCard handleBookmark clicked for:', post.id);
-        dispatch(bookmarkPost(post.id));
-    };
+    // handleBookmark removed as not supported by standard BSky lexicons yet
 
 
     const handleAvatarClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (currentUser?.id === post.author.id) {
-            navigate(`/profile/${post.author.handle}`);
-        } else {
-            navigate(`/profile/user/${post.author.id}`);
-        }
+        navigate(`/profile/${post.author.handle}`);
     };
 
     const shareDropdownItems: DropdownItem[] = [
@@ -104,7 +85,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             id: 'copy-link',
             label: t('post.copy_link'),
             icon: <FiLink />,
-            onClick: () => handleCopyLink(post.author.handle, post.id),
+            onClick: () => handleCopyLink(post.author.handle, post.uri!.split('/').pop() || ''),
         },
         {
             id: 'send-message',
@@ -116,7 +97,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             id: 'embed',
             label: t('post.embed_post'),
             icon: <FiCode />,
-            onClick: () => handleEmbedPost(post.author.handle, post.id, post.content),
+            onClick: () => handleEmbedPost(post.author.handle, post.uri!.split('/').pop() || '', post.content),
         },
     ];
 
@@ -147,7 +128,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                 id: 'remove-from-list',
                 label: t('lists.remove_from_list'),
                 icon: <FiTrash2 />,
-                onClick: () => dispatch(openDeleteConfirm({ postId: post.id, isListRemoval: true, onConfirm: onRemoveFromList })),
+                onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri!, isListRemoval: true, onConfirm: onRemoveFromList })),
                 danger: true,
             }
         ] : []),
@@ -233,7 +214,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                 id: 'remove-from-list',
                 label: t('lists.remove_from_list'),
                 icon: <FiTrash2 />,
-                onClick: () => dispatch(openDeleteConfirm({ postId: post.id, isListRemoval: true, onConfirm: onRemoveFromList })),
+                onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri!, isListRemoval: true, onConfirm: onRemoveFromList })),
                 danger: true,
             }
         ] : []),
@@ -249,7 +230,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                 id: 'delete',
                 label: t('common.delete_post'),
                 icon: <FiTrash2 />,
-                onClick: () => dispatch(openDeleteConfirm({ postId: post.id })),
+                onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri! })),
                 danger: true,
             }
         ] : []),
@@ -406,7 +387,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                             );
                         })()}
 
-                        {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
+                        {post.uri && post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
 
                         {post.quotePost && (
                             <div onClick={(e) => e.stopPropagation()}>
@@ -425,10 +406,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                 onImageClick={(index: number) => {
                                     // If clicking a video (always at index 0 when present), go to post detail
                                     const hasVideo = post.video || post.videoUrl;
+                                    const postShortId = post.uri.split('/').pop() || '';
                                     if (hasVideo && index === 0) {
-                                        navigate(`/profile/${post.author.handle}/post/${post.id}`);
+                                        navigate(`/profile/${post.author.handle}/post/${postShortId}`);
                                     } else {
-                                        navigate(`/profile/${post.author.handle}/post/${post.id}/media/${index}`);
+                                        navigate(`/profile/${post.author.handle}/post/${postShortId}/media/${index}`);
                                     }
                                 }}
                             />
@@ -464,7 +446,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                     <Dropdown
                                         trigger={
                                             <button
-                                                disabled={actionLoading[post.id]}
+                                                disabled={!!actionLoading[post.uri!]}
                                                 className={cn(
                                                     "flex items-center gap-2 group transition-colors disabled:opacity-50",
                                                     post.isReposted ? "text-green-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-green-500"
@@ -479,7 +461,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                                 id: 'repost',
                                                 label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
                                                 icon: <FiRepeat />,
-                                                onClick: () => dispatch(repostPost(post.id))
+                                                onClick: () => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted }))
                                             },
                                             {
                                                 id: 'quote',
@@ -493,8 +475,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                 </div>
 
                                 <button
-                                    onClick={handleLike}
-                                    disabled={actionLoading[post.id]}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked }));
+                                    }}
+                                    disabled={!!actionLoading[post.uri!]}
                                     className={cn(
                                         "flex items-center gap-2 group transition-colors disabled:opacity-50",
                                         post.isLiked ? "text-red-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-red-500"
@@ -504,16 +489,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                     <span className="text-[13px]">{post.likesCount > 1000 ? `${(post.likesCount / 1000).toFixed(1)} ${t('common.user').startsWith('N') ? 'N' : 'K'}` : post.likesCount}</span>
                                 </button>
 
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
-                                    disabled={actionLoading[post.id]}
-                                    className={cn(
-                                        "flex items-center transition-colors disabled:opacity-50",
-                                        post.isBookmarked ? "text-primary-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-primary-500"
-                                    )}
-                                >
-                                    <FiBookmark size={18} className={post.isBookmarked ? "fill-current" : ""} />
-                                </button>
+                                {/* Bookmark removed */}
 
                                 <div onClick={(e) => e.stopPropagation()}>
                                     <Dropdown

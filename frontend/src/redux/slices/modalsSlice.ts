@@ -4,7 +4,7 @@ import { ModalsState, Post } from '../../types';
 
 export interface DeleteConfirmState {
     isOpen: boolean;
-    postId: string | null;
+    postUri: string | null;
     isListRemoval?: boolean;
     onConfirm?: (() => void) | undefined;
 }
@@ -46,7 +46,7 @@ const initialState: ExtendedModalsState = {
     },
     deleteConfirm: {
         isOpen: false,
-        postId: null,
+        postUri: null,
         onConfirm: undefined,
     },
 };
@@ -157,10 +157,10 @@ const modalsSlice = createSlice({
             };
             state.createPost = false;
         },
-        openDeleteConfirm: (state, action: PayloadAction<{ postId: string; isListRemoval?: boolean; onConfirm?: () => void }>) => {
+        openDeleteConfirm: (state, action: PayloadAction<{ postUri: string; isListRemoval?: boolean; onConfirm?: () => void }>) => {
             (state as any).deleteConfirm = {
                 isOpen: true,
-                postId: action.payload.postId,
+                postUri: action.payload.postUri,
                 isListRemoval: action.payload.isListRemoval,
                 onConfirm: action.payload.onConfirm,
             };
@@ -168,7 +168,7 @@ const modalsSlice = createSlice({
         closeDeleteConfirm: (state) => {
             (state as any).deleteConfirm = {
                 isOpen: false,
-                postId: null,
+                postUri: null,
                 onConfirm: undefined,
             };
         },

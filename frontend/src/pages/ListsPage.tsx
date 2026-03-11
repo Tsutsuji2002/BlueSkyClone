@@ -88,8 +88,8 @@ const ListsPage: React.FC = () => {
                         <div className="divide-y divide-gray-200 dark:divide-dark-border">
                             {(activeTab === 'my' ? myLists : listsIAmOn).map(list => (
                                 <Link
-                                    key={list.id}
-                                    to={`/lists/${list.id}`}
+                                    key={list.uri}
+                                    to={`/lists/${list.uri}`}
                                     className="block p-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
                                 >
                                     <div className="flex gap-4">
@@ -103,7 +103,7 @@ const ListsPage: React.FC = () => {
                                                 </h3>
                                             </div>
                                             <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                                {list.description || t('lists.list_by', { handle: list.owner.handle })}
+                                                {list.description || (list.owner ? t('lists.list_by', { handle: list.owner.handle }) : '')}
                                             </p>
                                         </div>
                                     </div>

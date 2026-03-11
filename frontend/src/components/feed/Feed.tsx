@@ -116,7 +116,7 @@ const Feed: React.FC<FeedProps> = ({
     return (
         <div className="divide-y-0">
             {posts.map((post) => (
-                <div key={post.id} className="relative z-10 bg-white dark:bg-dark-bg">
+                <div key={post.uri!} className="relative z-10 bg-white dark:bg-dark-bg">
                     {post.parentPost && (
                         <PostCard
                             post={post.parentPost}

@@ -1689,26 +1689,41 @@ public class PostService : IPostService
         if (!isMentioned && lowerHandle.Contains("."))
         {
             var prefix = lowerHandle.Split('.')[0];
-            isMentioned = Regex.IsMatch(lowerContent, $@"\B@{Regex.Escape(prefix)}\b", RegexOptions.IgnoreCase);
+            isMentioned = Regex.IsMatch(lowerContent, $@"\B@{Regex.Escape(lowerHandle.Split('.')[0])}\b", RegexOptions.IgnoreCase);
         }
         return isMentioned;
     }
 
-    private async Task<string> SaveFileAsync(IFormFile file, string folder)
-    {
-        var uploadsRoot = Path.Combine(_environment.WebRootPath, "uploads", folder);
-        if (!Directory.Exists(uploadsRoot)) Directory.CreateDirectory(uploadsRoot);
-
-        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-        var filePath = Path.Combine(uploadsRoot, fileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        public async Task<string> SaveBlobAsync(Stream stream, string contentType, string folder)
         {
-            await file.CopyToAsync(stream);
+            var extension = contentType switch
+            {
+                "image/jpeg" => ".jpg",
+                "image/png" => ".png",
+                "image/webp" => ".webp",
+                "video/mp4" => ".mp4",
+                _ => ".bin"
+            };
+
+            var uploadsRoot = Path.Combine(_environment.WebRootPath, "uploads", folder);
+            if (!Directory.Exists(uploadsRoot)) Directory.CreateDirectory(uploadsRoot);
+
+            var fileName = $"{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(uploadsRoot, fileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await stream.CopyToAsync(fileStream);
+            }
+
+            return $"/uploads/{folder}/{fileName}";
         }
 
-        return $"/uploads/{folder}/{fileName}";
-    }
+        private async Task<string> SaveFileAsync(IFormFile file, string folder)
+        {
+            using var stream = file.OpenReadStream();
+            return await SaveBlobAsync(stream, file.ContentType, folder);
+        }
 
     private async Task<bool> ShouldCreateNotificationAsync(Guid userId, string type)
     {

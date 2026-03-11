@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchUserProfile, followUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync } from '../redux/slices/userSlice';
+import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync } from '../redux/slices/userSlice';
 import { openEditProfile, openCreatePost } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import MainLayout from '../components/layout/MainLayout';
@@ -24,7 +24,7 @@ import { fetchUserLists } from '../redux/slices/listsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import { RootState } from '../redux/store';
 
-import { Post } from '../types';
+import { Post, ListDto } from '../types';
 
 const ProfilePage: React.FC = () => {
     const { handle } = useParams<{ handle: string }>();
@@ -36,7 +36,8 @@ const ProfilePage: React.FC = () => {
     const isProfileLoading = useAppSelector((state: RootState) => state.user.isLoading);
     const reduxPosts = useAppSelector((state: RootState) => state.posts.posts);
     const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
-    const hasMore = useAppSelector((state: RootState) => state.posts.hasMore);
+    const cursor = useAppSelector((state: RootState) => state.posts.cursor);
+    const hasMore = !!cursor;
     const userLists = useAppSelector((state: RootState) => state.lists.userLists);
     const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
     const actionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
@@ -62,7 +63,7 @@ const ProfilePage: React.FC = () => {
                 dispatch(fetchUserLists(profileUser.id));
             } else {
                 dispatch(clearPosts());
-                dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20, offset: 0 }));
+                dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20 }));
             }
         }
     }, [dispatch, profileUser?.id, activeTab]);
@@ -71,7 +72,7 @@ const ProfilePage: React.FC = () => {
         const observer = new IntersectionObserver(
             entries => {
                 if (entries[0].isIntersecting && hasMore && !isPostsLoading && profileUser?.id) {
-                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20, offset: reduxPosts.length }));
+                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20, cursor: cursor || undefined }));
                 }
             },
             { threshold: 0.1 }
@@ -90,7 +91,7 @@ const ProfilePage: React.FC = () => {
 
 
 
-    const isOwnProfile = currentUser?.id === profileUser?.id;
+    const isOwnProfile = currentUser?.did === profileUser?.did;
 
     // Use profileUser's cover image or placeholder
     const coverImage = profileUser?.coverImage || COVER_PLACEHOLDER;
@@ -98,7 +99,18 @@ const ProfilePage: React.FC = () => {
     const handleFollowToggle = async () => {
         if (!profileUser) return;
         try {
-            await dispatch(followUserAsync(profileUser.id)).unwrap();
+            if (profileUser.isFollowing) {
+                if (!profileUser.followingReference) {
+                    dispatch(showToast({ message: 'Missing follow reference', type: 'error' }));
+                    return;
+                }
+                await dispatch(unfollowUserAsync({
+                    userId: profileUser.id,
+                    followUri: profileUser.followingReference
+                })).unwrap();
+            } else {
+                await dispatch(followUserAsync(profileUser.id)).unwrap();
+            }
         } catch (error: any) {
             dispatch(showToast({ message: error || 'Failed to update follow status', type: 'error' }));
         }
@@ -116,7 +128,14 @@ const ProfilePage: React.FC = () => {
         if (!profileUser) return;
         try {
             if (profileUser.isBlocking) {
-                await dispatch(unblockUserAsync(profileUser.id)).unwrap();
+                if (!profileUser.blockingReference) {
+                    dispatch(showToast({ message: 'Missing block reference', type: 'error' }));
+                    return;
+                }
+                await dispatch(unblockUserAsync({
+                    userId: profileUser.id,
+                    blockUri: profileUser.blockingReference
+                })).unwrap();
                 dispatch(showToast({ message: t('profile.unblocked_success'), type: 'success' }));
             } else {
                 await dispatch(blockUserAsync(profileUser.id)).unwrap();
@@ -227,7 +246,7 @@ const ProfilePage: React.FC = () => {
                     <div className="h-40 lg:h-48 w-full bg-blue-100 dark:bg-dark-surface overflow-hidden">
                         {coverImage && (
                             <img
-                                src={(coverImage && coverImage.startsWith('/') && coverImage !== COVER_PLACEHOLDER) ? `${API_BASE_URL.replace('/api', '')}${coverImage}` : coverImage}
+                                src={coverImage}
                                 alt="Cover"
                                 className="w-full h-full object-cover"
                             />
@@ -321,11 +340,11 @@ const ProfilePage: React.FC = () => {
                         <>
                             {/* Stats Section (One-line compact) */}
                             <div className="flex items-center gap-2 mb-3 mt-1.5 text-[15px]">
-                                <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/user/${profileUser?.id}/followers`)}>
+                                <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/${profileUser?.handle}/followers`)}>
                                     <span className="font-bold text-black dark:text-dark-text">{profileUser?.followersCount || 0}</span>
                                     <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.followers')}</p>
                                 </div>
-                                <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/user/${profileUser?.id}/following`)}>
+                                <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/${profileUser?.handle}/following`)}>
                                     <span className="font-bold text-black dark:text-dark-text">{profileUser?.followingCount || 0}</span>
                                     <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.following')}</p>
                                 </div>
@@ -423,7 +442,7 @@ const ProfilePage: React.FC = () => {
                                 </div>
                             ) : userLists.length > 0 ? (
                                 <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
-                                    {userLists.map(list => (
+                                    {userLists.map((list: ListDto) => (
                                         <div
                                             key={list.id}
                                             className="p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer transition-colors"
@@ -445,16 +464,18 @@ const ProfilePage: React.FC = () => {
                                                             {list.description}
                                                         </p>
                                                     )}
-                                                    <div className="flex items-center gap-2 mt-2">
-                                                        <Avatar
-                                                            src={list.owner.avatarUrl || list.owner.avatar}
-                                                            alt={list.owner.displayName}
-                                                            size="xs"
-                                                        />
-                                                        <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                            {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
-                                                        </span>
-                                                    </div>
+                                                    {list.owner && (
+                                                        <div className="flex items-center gap-2 mt-2">
+                                                            <Avatar
+                                                                src={list.owner.avatarUrl || list.owner.avatar}
+                                                                alt={list.owner.displayName}
+                                                                size="xs"
+                                                            />
+                                                            <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                                {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -504,7 +525,7 @@ const ProfilePage: React.FC = () => {
                                     {reduxPosts.length > 0 ? (
                                         <>
                                             {reduxPosts.map((post: Post) => (
-                                                <div key={post.id} className="relative z-10 bg-white dark:bg-dark-bg">
+                                                <div key={post.uri!} className="relative z-10 bg-white dark:bg-dark-bg">
                                                     {post.parentPost && (
                                                         <PostCard
                                                             post={post.parentPost}

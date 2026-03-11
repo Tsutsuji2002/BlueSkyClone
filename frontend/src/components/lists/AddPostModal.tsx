@@ -21,29 +21,29 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
     const { user: currentUser } = useAppSelector(state => state.auth);
 
     const [addingMap, setAddingMap] = useState<Record<string, boolean>>({});
-    const [addedPostIds, setAddedPostIds] = useState<Set<string>>(new Set());
-    const [offset, setOffset] = useState(0);
+    const [addedPostUris, setAddedPostUris] = useState<Set<string>>(new Set());
+    const [cursor, setCursor] = useState<string | undefined>(undefined);
     const [isProcessing, setIsProcessing] = useState(false);
     const [hasFetchedCandidate, setHasFetchedCandidate] = useState(false);
 
     // Filter out posts already in the list and posts just added in this session
     const filteredCandidatePosts = useMemo(() => {
-        const existingPostIds = new Set(activeListFeed.map(p => p.id));
+        const existingPostUris = new Set(activeListFeed.map(p => p.uri));
         return candidatePosts.filter(post =>
-            !existingPostIds.has(post.id) && !addedPostIds.has(post.id)
+            !existingPostUris.has(post.uri) && !addedPostUris.has(post.uri!)
         );
-    }, [candidatePosts, activeListFeed, addedPostIds]);
+    }, [candidatePosts, activeListFeed, addedPostUris]);
 
     useEffect(() => {
         if (isOpen && currentUser) {
             const loadData = async () => {
-                setOffset(0);
-                setAddedPostIds(new Set()); // Reset added posts when modal opens
+                setCursor(undefined);
+                setAddedPostUris(new Set()); // Reset added posts when modal opens
                 setIsProcessing(false);
                 setHasFetchedCandidate(false);
                 dispatch(clearCandidatePosts());
                 try {
-                    await dispatch(fetchCandidatePosts({ listId, userId: currentUser.id, limit: 10, offset: 0 })).unwrap();
+                    await dispatch(fetchCandidatePosts({ listId, userId: currentUser.id, limit: 10 })).unwrap();
                 } finally {
                     setHasFetchedCandidate(true);
                 }
@@ -54,16 +54,14 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
 
     const handleLoadMore = () => {
         if (!currentUser) return;
-        const newOffset = offset + 10;
-        setOffset(newOffset);
-        dispatch(fetchCandidatePosts({ listId, userId: currentUser.id, limit: 10, offset: newOffset }));
+        dispatch(fetchCandidatePosts({ listId, userId: currentUser.id, limit: 10 }));
     };
 
     const handleAddPost = async (post: Post) => {
-        setAddingMap(prev => ({ ...prev, [post.id]: true }));
+        setAddingMap(prev => ({ ...prev, [post.uri!]: true }));
         setIsProcessing(true);
         try {
-            await dispatch(addListPost({ listId, postId: post.id })).unwrap();
+            await dispatch(addListPost({ listId, postUri: post.uri!, postCid: post.cid! })).unwrap();
 
             // Show "Adding..." state in the button but don't close immediately
             // Reload the list feed and WAIT for it to complete
@@ -75,15 +73,14 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
             setIsProcessing(false);
             onClose();
         } catch (err) {
-            setAddingMap(prev => ({ ...prev, [post.id]: false }));
+            setAddingMap(prev => ({ ...prev, [post.uri!]: false }));
             setIsProcessing(false);
         }
     };
 
     const resolveUrl = (url: string) => {
         if (!url) return '';
-        if (url.startsWith('http') || url.startsWith('data:')) return url;
-        return `${API_BASE_URL.replace(/\/api$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+        return url;
     };
 
     const renderPostPreview = (post: Post) => {
@@ -120,7 +117,7 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
         if (isThumbnailActuallyVideo) thumbnailSrc = null;
 
         return (
-            <div key={post.id} className={`p-3 border rounded-lg border-gray-200 dark:border-dark-border mb-2 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div key={post.uri!} className={`p-3 border rounded-lg border-gray-200 dark:border-dark-border mb-2 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div className="flex justify-between items-start gap-2">
                     <div className="flex-1 text-sm text-gray-600 dark:text-gray-300">
                         <div className="font-medium italic mb-1">"{caption}"</div>
@@ -128,10 +125,10 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
                     </div>
                     <button
                         onClick={() => handleAddPost(post)}
-                        disabled={addingMap[post.id] || isProcessing}
+                        disabled={addingMap[post.uri!] || isProcessing}
                         className="px-3 py-1 bg-primary-500 hover:bg-primary-600 text-white rounded-full text-xs font-bold transition-colors disabled:opacity-50"
                     >
-                        {addingMap[post.id] ? (
+                        {addingMap[post.uri!] ? (
                             <div className="animate-spin w-3 h-3 border-2 border-white rounded-full border-t-transparent" />
                         ) : (
                             t('lists.add')

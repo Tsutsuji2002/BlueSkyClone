@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { PostsState, Post } from '../../types';
-import { API_BASE_URL } from '../../constants';
+import agent from '../../services/atpAgent';
 
 const initialState: PostsState = {
     posts: [],
@@ -12,24 +12,54 @@ const initialState: PostsState = {
     error: null,
     hasMore: true,
     discoverHasMore: true,
-    actionLoading: {}, // Map of postId -> boolean
+    actionLoading: {},
     lastTimelineFetch: 0,
     lastDiscoverFetch: 0,
+    cursor: null,
+    discoverCursor: null,
 };
 
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
-    async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20, cursor }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/timeline?skip=${skip}&take=${take}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+            const response = await agent.getTimeline({
+                cursor: cursor || (skip > 0 ? skip.toString() : undefined),
+                limit: take
             });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch timeline');
-            return { posts: data, skip };
+
+            if (!response.success) return rejectWithValue('Failed to fetch timeline');
+
+            // Map FeedViewPost to our internal Post type
+            const posts: Post[] = response.data.feed.map((item: any) => {
+                const postView = item.post;
+                const record = postView.record as any;
+
+                return {
+                    id: postView.uri.split('/').pop() || '',
+                    cid: postView.cid,
+                    author: {
+                        id: postView.author.did,
+                        did: postView.author.did,
+                        handle: postView.author.handle,
+                        username: postView.author.handle, // Map handle to username for compatibility
+                        displayName: postView.author.displayName || postView.author.handle,
+                        avatarUrl: postView.author.avatar
+                    },
+                    content: record.text,
+                    createdAt: record.createdAt,
+                    likesCount: postView.likeCount || 0,
+                    repostsCount: postView.repostCount || 0,
+                    repliesCount: postView.replyCount || 0,
+                    quotesCount: postView.quoteCount || 0,
+                    bookmarksCount: 0,
+                    isLiked: !!postView.viewer?.like,
+                    isReposted: !!postView.viewer?.repost,
+                    tid: postView.uri.split('/').pop() || ''
+                } as Post;
+            });
+
+            return { posts, skip, cursor: response.data.cursor };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -38,21 +68,47 @@ export const fetchTimeline = createAsyncThunk(
 
 export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
-    async ({ userId, type, limit = 20, offset = 0 }: { userId: string; type?: string; limit?: number; offset?: number }, { rejectWithValue }) => {
+    async ({ userId, limit = 20, cursor }: { userId: string; type?: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            let url = `${API_BASE_URL}/posts/user/${userId}?limit=${limit}&offset=${offset}`;
-            if (type && type !== 'posts') {
-                url += `&type=${type}`;
-            }
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+            const response = await agent.getAuthorFeed({
+                actor: userId,
+                limit,
+                cursor
             });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch user posts');
-            return { posts: data, offset };
+
+            if (!response.success) return rejectWithValue('Failed to fetch author feed');
+
+            const posts: Post[] = response.data.feed.map((item: any) => {
+                const postView = item.post;
+                const record = postView.record as any;
+
+                return {
+                    id: postView.uri.split('/').pop() || '',
+                    uri: postView.uri,
+                    cid: postView.cid,
+                    author: {
+                        id: postView.author.did,
+                        did: postView.author.did,
+                        handle: postView.author.handle,
+                        username: postView.author.handle,
+                        displayName: postView.author.displayName || postView.author.handle,
+                        avatarUrl: postView.author.avatar
+                    },
+                    content: record.text,
+                    createdAt: record.createdAt,
+                    likesCount: postView.likeCount || 0,
+                    repostsCount: postView.repostCount || 0,
+                    repliesCount: postView.replyCount || 0,
+                    quotesCount: postView.quoteCount || 0,
+                    bookmarksCount: 0,
+                    isLiked: !!postView.viewer?.like,
+                    isReposted: !!postView.viewer?.repost,
+                    tid: postView.uri.split('/').pop() || '',
+                    viewer: postView.viewer
+                } as Post;
+            });
+
+            return { posts, userId, cursor: response.data.cursor };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -61,63 +117,67 @@ export const fetchUserPosts = createAsyncThunk(
 
 
 
-export const updatePost = createAsyncThunk(
-    'posts/updatePost',
-    async ({ postId, formData }: { postId: string; formData: FormData }, { rejectWithValue }) => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to update post');
-            return data;
-        } catch (error: any) {
-            return rejectWithValue(error.message);
-        }
-    }
-);
+// updatePost removed as AT Protocol usually handles updates by deleting and re-creating or specific field updates in some CMS, but not the standard post flow.
 
 export const createPost = createAsyncThunk(
     'posts/createPost',
-    async (formData: FormData, { rejectWithValue }) => {
+    async (postData: { content: string; replyTo?: any; embed?: any }, { rejectWithValue, getState }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
+            const state = getState() as any;
+            const user = state.auth.user;
+
+            const response = await agent.post({
+                text: postData.content,
+                reply: postData.replyTo,
+                embed: postData.embed,
+                createdAt: new Date().toISOString()
             });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to create post');
-            return data;
+
+            // Return a full Post object to satisfy the Reducer and UI
+            return {
+                id: response.uri.split('/').pop() || '',
+                uri: response.uri,
+                cid: response.cid,
+                content: postData.content,
+                createdAt: new Date().toISOString(),
+                author: {
+                    id: user?.id || '',
+                    did: user?.did || '',
+                    handle: user?.handle || '',
+                    username: user?.username || '',
+                    displayName: user?.displayName || '',
+                    avatarUrl: user?.avatarUrl || user?.avatar
+                },
+                likesCount: 0,
+                repostsCount: 0,
+                repliesCount: 0,
+                quotesCount: 0,
+                bookmarksCount: 0,
+                isLiked: false,
+                isReposted: false,
+                isBookmarked: false,
+                tid: response.uri.split('/').pop() || ''
+            } as Post;
         } catch (error: any) {
-            return rejectWithValue(error.message);
+            return rejectWithValue(error.message || 'Failed to create post');
         }
     }
 );
 
 export const toggleLike = createAsyncThunk(
     'posts/toggleLike',
-    async (postId: string, { rejectWithValue, getState }) => {
-        console.log('toggleLike thunk started for:', postId);
+    async ({ uri, cid, isLiked }: { uri: string; cid: string; isLiked: boolean }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/like`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to like post');
-            return { postId, ...data }; // { isLiked, likesCount }
+            if (isLiked) {
+                // We need the like URI to delete it. Usually stored in post.viewer.like
+                // If we don't have it, we might need to fetch it or the agent handles it if we pass the right thing.
+                // But typically AtpAgent expects the URI of the like record.
+                await agent.deleteLike(uri);
+                return { uri, isLiked: false };
+            } else {
+                const response = await agent.like(uri, cid);
+                return { uri, isLiked: true, likeUri: response.uri };
+            }
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -126,105 +186,64 @@ export const toggleLike = createAsyncThunk(
 
 export const repostPost = createAsyncThunk(
     'posts/repost',
-    async (postId: string, { rejectWithValue, getState }) => {
-        console.log('repostPost thunk started for:', postId);
+    async ({ uri, cid, isReposted }: { uri: string; cid: string; isReposted: boolean }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to repost');
-            return { postId, ...data };
+            if (isReposted) {
+                await agent.deleteRepost(uri);
+                return { uri, isReposted: false };
+            } else {
+                const response = await agent.repost(uri, cid);
+                return { uri, isReposted: true, repostUri: response.uri };
+            }
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
     }
 );
 
-export const bookmarkPost = createAsyncThunk(
-    'posts/bookmark',
-    async (postId: string, { rejectWithValue, getState }) => {
-        console.log('bookmarkPost thunk started for:', postId);
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/bookmark`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to bookmark');
-            return { postId, ...data };
-        } catch (error: any) {
-            return rejectWithValue(error.message);
-        }
-    }
-);
+// Bookmark thunk removed as AT Protocol does not have a standard bookmark lexicon yet.
+// Users can use 'Like' or 'Repost' for similar functionality, or custom lists.
 
-export const deletePost = createAsyncThunk<string[], string>(
+export const deletePost = createAsyncThunk(
     'posts/delete',
-    async (postId: string, { rejectWithValue }) => {
+    async (postUri: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (!response.ok) {
-                const data = await response.json();
-                return rejectWithValue(data.message || 'Failed to delete post');
-            }
-            const data = await response.json();
-            return data; // Array of affected IDs
+            await agent.deletePost(postUri);
+            return postUri;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
     }
 );
 
-export const updateInteractionSettings = createAsyncThunk(
-    'posts/updateInteractionSettings',
-    async ({ postId, replyRestriction, allowQuotes }: { postId: string; replyRestriction: string; allowQuotes: boolean }, { rejectWithValue }) => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/interaction-settings`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ replyRestriction, allowQuotes })
-            });
-            if (!response.ok) {
-                const data = await response.json();
-                return rejectWithValue(data.message || 'Failed to update interaction settings');
-            }
-            const data = await response.json();
-            return data; // Returns the updated PostDto
-        } catch (error: any) {
-            return rejectWithValue(error.message);
-        }
-    }
-);
+// updateInteractionSettings removed to focus on standard AT Protocol post/feed flow.
 
 export const fetchPostsByTag = createAsyncThunk(
     'posts/fetchByTag',
-    async ({ tag, limit = 20, offset = 0 }: { tag: string; limit?: number; offset?: number }, { rejectWithValue }) => {
+    async ({ tag, limit = 20, cursor }: { tag: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/tag/${tag}?limit=${limit}&offset=${offset}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await agent.app.bsky.feed.searchPosts({
+                q: `#${tag}`,
+                limit,
+                cursor
             });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch posts by tag');
-            return { posts: data, offset };
+            if (!response.success) return rejectWithValue('Failed to fetch posts by tag');
+
+            const posts: Post[] = response.data.posts.map((postView: any) => ({
+                id: postView.uri.split('/').pop() || '',
+                uri: postView.uri,
+                cid: postView.cid,
+                author: postView.author,
+                content: (postView.record as any).text,
+                createdAt: (postView.record as any).createdAt,
+                likesCount: postView.likeCount || 0,
+                repostsCount: postView.repostCount || 0,
+                isLiked: !!postView.viewer?.like,
+                isReposted: !!postView.viewer?.repost,
+                viewer: postView.viewer
+            } as any));
+
+            return { posts, cursor: response.data.cursor };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -233,15 +252,42 @@ export const fetchPostsByTag = createAsyncThunk(
 
 export const fetchPostsSearch = createAsyncThunk(
     'posts/fetchSearch',
-    async ({ query, skip = 0, take = 20 }: { query: string; skip?: number; take?: number }, { rejectWithValue }) => {
+    async ({ query, take = 20, cursor }: { query: string; skip?: number; take?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/search/posts?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await agent.app.bsky.feed.searchPosts({
+                q: query,
+                limit: take,
+                cursor
             });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to search posts');
-            return { posts: data, skip };
+            if (!response.success) return rejectWithValue('Failed to search posts');
+
+            const posts: Post[] = response.data.posts.map((postView: any) => {
+                const record = postView.record as any;
+                return {
+                    id: postView.uri.split('/').pop() || '',
+                    uri: postView.uri,
+                    cid: postView.cid,
+                    author: {
+                        id: postView.author.did,
+                        did: postView.author.did,
+                        handle: postView.author.handle,
+                        username: postView.author.handle,
+                        displayName: postView.author.displayName || postView.author.handle,
+                        avatarUrl: postView.author.avatar
+                    },
+                    content: record.text,
+                    createdAt: record.createdAt,
+                    likesCount: postView.likeCount || 0,
+                    repostsCount: postView.repostCount || 0,
+                    repliesCount: postView.replyCount || 0,
+                    quotesCount: postView.quoteCount || 0,
+                    isLiked: !!postView.viewer?.like,
+                    isReposted: !!postView.viewer?.repost,
+                    viewer: postView.viewer
+                } as Post;
+            });
+
+            return { posts, cursor: response.data.cursor };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -250,17 +296,38 @@ export const fetchPostsSearch = createAsyncThunk(
 
 export const fetchPostById = createAsyncThunk(
     'posts/fetchPostById',
-    async (postId: string, { rejectWithValue }) => {
+    async (uri: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch post');
-            return data;
+            const response = await agent.getPostThread({ uri });
+            if (!response.success) return rejectWithValue('Failed to fetch post thread');
+
+            // Map ThreadViewPost to our internal Post type
+            const thread: any = response.data.thread;
+            const postView = thread.post;
+            const record = postView.record as any;
+
+            return {
+                id: postView.uri.split('/').pop() || '',
+                uri: postView.uri,
+                cid: postView.cid,
+                author: {
+                    id: postView.author.did,
+                    did: postView.author.did,
+                    handle: postView.author.handle,
+                    username: postView.author.handle,
+                    displayName: postView.author.displayName || postView.author.handle,
+                    avatarUrl: postView.author.avatar
+                },
+                content: record.text,
+                createdAt: record.createdAt,
+                likesCount: postView.likeCount || 0,
+                repostsCount: postView.repostCount || 0,
+                repliesCount: postView.replyCount || 0,
+                quotesCount: postView.quoteCount || 0,
+                isLiked: !!postView.viewer?.like,
+                isReposted: !!postView.viewer?.repost,
+                viewer: postView.viewer
+            } as Post;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -268,87 +335,77 @@ export const fetchPostById = createAsyncThunk(
 );
 
 
-export const fetchPostReplies = createAsyncThunk(
-    'posts/fetchPostReplies',
-    async (postId: string, { rejectWithValue }) => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/replies`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch replies');
-            return data;
-        } catch (error: any) {
-            return rejectWithValue(error.message);
-        }
-    }
-);
+// fetchPostReplies removed as replies are included in getPostThread
 
 export const fetchTrendingPosts = createAsyncThunk(
     'posts/fetchTrending',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/trending`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch trending posts');
-            return data;
+            // Standard AT Proto doesn't have a "trending" endpoint in bsky.feed namespace.
+            // For now, we'll use getTimeline or a custom feed if available.
+            const response = await agent.getTimeline({ limit: 40 });
+            if (!response.success) return rejectWithValue('Failed to fetch trending');
+
+            return response.data.feed.map((item: any) => ({
+                id: item.post.uri.split('/').pop() || '',
+                uri: item.post.uri,
+                cid: item.post.cid,
+                author: item.post.author,
+                content: (item.post.record as any).text,
+                createdAt: (item.post.record as any).createdAt,
+                likesCount: item.post.likeCount || 0,
+                repostsCount: item.post.repostCount || 0,
+                isLiked: !!item.post.viewer?.like,
+                isReposted: !!item.post.viewer?.repost,
+                viewer: item.post.viewer
+            } as any));
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
     }
 );
 
-export const fetchTrendingPosts24h = createAsyncThunk(
-    'posts/fetchTrending24h',
-    async (_, { rejectWithValue }) => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/Feeds/trending-posts`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch trending posts');
-            return data;
-        } catch (error: any) {
-            return rejectWithValue(error.message);
-        }
-    }
-);
-
-export const fetchBookmarkedPosts = createAsyncThunk(
-    'posts/fetchBookmarked',
-    async (_, { rejectWithValue }) => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/posts/bookmarks`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch bookmarked posts');
-            return data;
-        } catch (error: any) {
-            return rejectWithValue(error.message);
-        }
-    }
-);
+// fetchBookmarkedPosts removed as not natively supported by AT Proto lexicon yet
 
 export const fetchDiscoverPosts = createAsyncThunk(
     'posts/fetchDiscover',
-    async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20, cursor }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/Feeds/discover?skip=${skip}&take=${take}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            // Using getTimeline for now as a "discover" fallback if no specific discover feed
+            const response = await agent.getTimeline({
+                cursor,
+                limit: take
             });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch discover posts');
-            return { posts: data, skip };
+            if (!response.success) return rejectWithValue('Failed to fetch discover feed');
+
+            const posts: Post[] = response.data.feed.map((item: any) => {
+                const postView = item.post;
+                const record = postView.record as any;
+                return {
+                    id: postView.uri.split('/').pop() || '',
+                    uri: postView.uri,
+                    cid: postView.cid,
+                    author: {
+                        id: postView.author.did,
+                        did: postView.author.did,
+                        handle: postView.author.handle,
+                        username: postView.author.handle,
+                        displayName: postView.author.displayName || postView.author.handle,
+                        avatarUrl: postView.author.avatar
+                    },
+                    content: record.text,
+                    createdAt: record.createdAt,
+                    likesCount: postView.likeCount || 0,
+                    repostsCount: postView.repostCount || 0,
+                    repliesCount: postView.replyCount || 0,
+                    quotesCount: postView.quoteCount || 0,
+                    isLiked: !!postView.viewer?.like,
+                    isReposted: !!postView.viewer?.repost,
+                    viewer: postView.viewer
+                } as Post;
+            });
+
+            return { posts, skip, cursor: response.data.cursor };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -363,12 +420,11 @@ const postsSlice = createSlice({
             state.posts = [];
             state.hasMore = true;
         },
-        updatePostStats: (state, action: PayloadAction<{ postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
-            const { postId, timestamp, ...stats } = action.payload;
+        updatePostStats: (state, action: PayloadAction<{ uri: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
+            const { uri, timestamp, ...stats } = action.payload;
             const updateInArray = (arr: Post[]) => {
-                const post = arr.find(p => p.id === postId);
+                const post = arr.find((p: Post) => p.uri === uri);
                 if (post) {
-                    // Only update if no timestamp or if the incoming timestamp is newer
                     if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
                         Object.assign(post, stats);
                         if (timestamp) post.lastUpdated = timestamp;
@@ -379,10 +435,10 @@ const postsSlice = createSlice({
             updateInArray(state.discoverPosts);
             updateInArray(state.trendingPosts);
         },
-        updateUserPostStatus: (state, action: PayloadAction<{ postId: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
-            const { postId, timestamp, ...status } = action.payload;
+        updateUserPostStatus: (state, action: PayloadAction<{ uri: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
+            const { uri, timestamp, ...status } = action.payload;
             const updateInArray = (arr: Post[]) => {
-                const post = arr.find(p => p.id === postId);
+                const post = arr.find((p: Post) => p.uri === uri);
                 if (post) {
                     if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
                         Object.assign(post, status);
@@ -395,10 +451,10 @@ const postsSlice = createSlice({
             updateInArray(state.trendingPosts);
         },
         removePost: (state, action: PayloadAction<string>) => {
-            const postId = action.payload;
-            state.posts = state.posts.filter(p => p.id !== postId);
-            state.discoverPosts = state.discoverPosts.filter(p => p.id !== postId);
-            state.trendingPosts = state.trendingPosts.filter(p => p.id !== postId);
+            const postUri = action.payload;
+            state.posts = state.posts.filter((p: Post) => p.uri !== postUri);
+            state.discoverPosts = state.discoverPosts.filter((p: Post) => p.uri !== postUri);
+            state.trendingPosts = state.trendingPosts.filter((p: Post) => p.uri !== postUri);
         }
     },
 
@@ -413,15 +469,15 @@ const postsSlice = createSlice({
                     state.posts = [];
                 }
             })
-            .addCase(fetchTimeline.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], skip: number }>) => {
+            .addCase(fetchTimeline.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 state.timelineLoading = false;
-                if (action.payload.skip === 0) {
+                if (!action.meta.arg.cursor) {
                     state.posts = action.payload.posts;
                     state.lastTimelineFetch = Date.now();
                 } else {
-                    const existingIds = new Set(state.posts.map(p => p.id));
-                    const newPosts = action.payload.posts.filter(p => !existingIds.has(p.id));
+                    const existingUris = new Set(state.posts.map((p: Post) => p.uri));
+                    const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.posts = [...state.posts, ...newPosts];
                 }
                 state.hasMore = action.payload.posts.length > 0;
@@ -443,36 +499,26 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            // Fetch Trending Posts 24h
-            .addCase(fetchTrendingPosts24h.pending, (state: PostsState) => {
-                state.isLoading = true;
-            })
-            .addCase(fetchTrendingPosts24h.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
-                state.isLoading = false;
-                state.trendingPosts = action.payload;
-            })
-            .addCase(fetchTrendingPosts24h.rejected, (state: PostsState, action) => {
-                state.isLoading = false;
-                state.error = action.payload as string;
-            })
             // Fetch User Posts
-            .addCase(fetchUserPosts.pending, (state: PostsState, action) => {
+            .addCase(fetchUserPosts.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
-                const { offset, userId } = action.meta.arg;
+                const { cursor, userId } = action.meta.arg;
                 // Clear only if it's the first page AND we're switching users or have no posts
-                if (offset === 0) {
+                if (!cursor) {
                     const currentAuthorId = state.posts[0]?.author?.id;
                     if (currentAuthorId !== userId) {
                         state.posts = [];
                     }
                 }
             })
-            .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], offset: number }>) => {
+            .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                if (action.payload.offset === 0) {
+                if (!action.meta.arg.cursor) {
                     state.posts = action.payload.posts;
                 } else {
-                    state.posts = [...state.posts, ...action.payload.posts];
+                    const existingUris = new Set(state.posts.map((p: Post) => p.uri));
+                    const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
+                    state.posts = [...state.posts, ...newPosts];
                 }
                 state.hasMore = action.payload.posts.length > 0;
             })
@@ -488,49 +534,19 @@ const postsSlice = createSlice({
             .addCase(createPost.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
                 state.isLoading = false;
                 state.posts.unshift(action.payload);
-                if (action.payload.replyToPostId) {
-                    const parentPost = state.posts.find(p => p.id === action.payload.replyToPostId);
-                    if (parentPost) {
-                        parentPost.repliesCount = (parentPost.repliesCount || 0) + 1;
-                    }
-                }
-                if (action.payload.quotePostId) {
-                    const quotedPost = state.posts.find(p => p.id === action.payload.quotePostId);
-                    if (quotedPost) {
-                        quotedPost.quotesCount = (quotedPost.quotesCount || 0) + 1;
-                    }
-                }
+                // Optimistic replies/quotes count updates would need parent post URI
             })
             .addCase(createPost.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            // Update Post
-            .addCase(updatePost.pending, (state: PostsState) => {
-                state.isLoading = true;
-                state.error = null;
-            })
-            .addCase(updatePost.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
-                state.isLoading = false;
-                const updateInArray = (arr: Post[]) => {
-                    const idx = arr.findIndex(p => p.id === action.payload.id);
-                    if (idx !== -1) arr[idx] = action.payload;
-                };
-                updateInArray(state.posts);
-                updateInArray(state.discoverPosts);
-                updateInArray(state.trendingPosts);
-            })
-            .addCase(updatePost.rejected, (state: PostsState, action) => {
-                state.isLoading = false;
-                state.error = action.payload as string;
-            })
             .addCase(toggleLike.pending, (state: PostsState, action) => {
-                const postId = action.meta.arg;
-                state.actionLoading[postId] = true;
+                const { uri } = action.meta.arg;
+                state.actionLoading[uri] = true;
 
                 // Optimistic Update
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === postId);
+                    const post = arr.find(p => p.uri === uri);
                     if (post) {
                         const wasLiked = post.isLiked;
                         post.isLiked = !wasLiked;
@@ -541,15 +557,15 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
             })
-            .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isLiked: boolean, likesCount: number }>) => {
-                state.actionLoading[action.payload.postId] = false;
+            .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isLiked: boolean, likeUri?: string }>) => {
+                state.actionLoading[action.payload.uri] = false;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === action.payload.postId);
+                    const post = arr.find(p => p.uri === action.payload.uri);
                     if (post) {
                         post.isLiked = action.payload.isLiked;
-                        // Don't overwrite count if it was updated by something newer (SignalR)
-                        // If we don't have a timestamp from the thunk, we just trust the thunk for the initiator
-                        post.likesCount = action.payload.likesCount;
+                        // We store the like record URI in the viewer object to allow deletion later
+                        if (!post.viewer) post.viewer = {};
+                        post.viewer.like = action.payload.likeUri;
                         post.lastUpdated = new Date().toISOString();
                     }
                 };
@@ -558,12 +574,12 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
             })
             .addCase(toggleLike.rejected, (state: PostsState, action) => {
-                const postId = action.meta.arg;
-                state.actionLoading[postId] = false;
+                const { uri } = action.meta.arg;
+                state.actionLoading[uri] = false;
 
                 // Rollback on Error
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === postId);
+                    const post = arr.find(p => p.uri === uri);
                     if (post) {
                         const wasLiked = post.isLiked;
                         post.isLiked = !wasLiked;
@@ -576,12 +592,12 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             .addCase(repostPost.pending, (state: PostsState, action) => {
-                const postId = action.meta.arg;
-                state.actionLoading[postId] = true;
+                const { uri } = action.meta.arg;
+                state.actionLoading[uri] = true;
 
                 // Optimistic Update
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === postId);
+                    const post = arr.find(p => p.uri === uri);
                     if (post) {
                         const wasReposted = post.isReposted;
                         post.isReposted = !wasReposted;
@@ -592,13 +608,14 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
             })
-            .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isReposted: boolean, repostsCount: number }>) => {
-                state.actionLoading[action.payload.postId] = false;
+            .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isReposted: boolean, repostUri?: string }>) => {
+                state.actionLoading[action.payload.uri] = false;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === action.payload.postId);
+                    const post = arr.find(p => p.uri === action.payload.uri);
                     if (post) {
                         post.isReposted = action.payload.isReposted;
-                        post.repostsCount = action.payload.repostsCount;
+                        if (!post.viewer) post.viewer = {};
+                        post.viewer.repost = action.payload.repostUri;
                         post.lastUpdated = new Date().toISOString();
                     }
                 };
@@ -607,12 +624,12 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
             })
             .addCase(repostPost.rejected, (state: PostsState, action) => {
-                const postId = action.meta.arg;
-                state.actionLoading[postId] = false;
+                const { uri } = action.meta.arg;
+                state.actionLoading[uri] = false;
 
                 // Rollback
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === postId);
+                    const post = arr.find(p => p.uri === uri);
                     if (post) {
                         const wasReposted = post.isReposted;
                         post.isReposted = !wasReposted;
@@ -623,60 +640,12 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
             })
-            .addCase(bookmarkPost.pending, (state: PostsState, action) => {
-                const postId = action.meta.arg;
-                state.actionLoading[postId] = true;
-
-                // Optimistic Update
-                const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === postId);
-                    if (post) {
-                        const wasBookmarked = post.isBookmarked;
-                        post.isBookmarked = !wasBookmarked;
-                        post.bookmarksCount = wasBookmarked ? Math.max(0, (post.bookmarksCount || 0) - 1) : (post.bookmarksCount || 0) + 1;
-                    }
-                };
-                updateInArray(state.posts);
-                updateInArray(state.discoverPosts);
-                updateInArray(state.trendingPosts);
-            })
-            .addCase(bookmarkPost.fulfilled, (state: PostsState, action: PayloadAction<{ postId: string, isBookmarked: boolean, bookmarksCount: number }>) => {
-                state.actionLoading[action.payload.postId] = false;
-                const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === action.payload.postId);
-                    if (post) {
-                        post.isBookmarked = action.payload.isBookmarked;
-                        post.bookmarksCount = action.payload.bookmarksCount;
-                        post.lastUpdated = new Date().toISOString();
-                    }
-                };
-                updateInArray(state.posts);
-                updateInArray(state.discoverPosts);
-                updateInArray(state.trendingPosts);
-            })
-            .addCase(bookmarkPost.rejected, (state: PostsState, action) => {
-                const postId = action.meta.arg;
-                state.actionLoading[postId] = false;
-
-                // Rollback
-                const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === postId);
-                    if (post) {
-                        const wasBookmarked = post.isBookmarked;
-                        post.isBookmarked = !wasBookmarked;
-                        post.bookmarksCount = wasBookmarked ? Math.max(0, (post.bookmarksCount || 0) - 1) : (post.bookmarksCount || 0) + 1;
-                    }
-                };
-                updateInArray(state.posts);
-                updateInArray(state.discoverPosts);
-                updateInArray(state.trendingPosts);
-            })
             // Delete Post
-            .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string[]>) => {
-                const deletedIds = new Set(action.payload);
-                state.posts = state.posts.filter(p => !deletedIds.has(p.id));
-                state.discoverPosts = state.discoverPosts.filter(p => !deletedIds.has(p.id));
-                state.trendingPosts = state.trendingPosts.filter(p => !deletedIds.has(p.id));
+            .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string>) => {
+                const deletedUri = action.payload;
+                state.posts = state.posts.filter((p: Post) => p.uri !== deletedUri);
+                state.discoverPosts = state.discoverPosts.filter((p: Post) => p.uri !== deletedUri);
+                state.trendingPosts = state.trendingPosts.filter((p: Post) => p.uri !== deletedUri);
             })
             // Fetch Post By ID
             .addCase(fetchPostById.pending, (state: PostsState) => {
@@ -685,7 +654,7 @@ const postsSlice = createSlice({
             })
             .addCase(fetchPostById.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
                 state.isLoading = false;
-                const index = state.posts.findIndex(p => p.id === action.payload.id);
+                const index = state.posts.findIndex(p => p.uri === action.payload.uri);
                 if (index !== -1) {
                     state.posts[index] = action.payload;
                 } else {
@@ -696,54 +665,22 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            // Fetch Post Replies
-            .addCase(fetchPostReplies.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
-                action.payload.forEach(reply => {
-                    const index = state.posts.findIndex(p => p.id === reply.id);
-                    if (index !== -1) {
-                        state.posts[index] = reply;
-                    } else {
-                        state.posts.push(reply);
-                    }
-                });
-            })
-            // Fetch Bookmarked Posts
-            .addCase(fetchBookmarkedPosts.pending, (state: PostsState) => {
-                state.isLoading = true;
-                // For bookmarks, we can keep existing until new ones load unless list is empty
-                if (state.posts.length === 0) {
-                    state.posts = [];
-                }
-            })
-            .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
-                state.isLoading = false;
-                // We want to combine these into the main posts list but also mark them
-                action.payload.forEach(post => {
-                    const index = state.posts.findIndex(p => p.id === post.id);
-                    if (index !== -1) {
-                        state.posts[index] = post;
-                    } else {
-                        state.posts.push(post);
-                    }
-                });
-            })
-            .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
-                state.isLoading = false;
-                state.error = action.payload as string;
-            })
+            // fetchBookmarkedPosts removed as not natively supported by AT Proto lexicon yet
             // Fetch Posts By Tag
-            .addCase(fetchPostsByTag.pending, (state: PostsState, action) => {
+            .addCase(fetchPostsByTag.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
-                if (action.meta.arg.offset === 0) {
+                if (!action.meta.arg.cursor) {
                     state.posts = [];
                 }
             })
-            .addCase(fetchPostsByTag.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], offset: number }>) => {
+            .addCase(fetchPostsByTag.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                if (action.payload.offset === 0) {
+                if (!action.meta.arg.cursor) {
                     state.posts = action.payload.posts;
                 } else {
-                    state.posts = [...state.posts, ...action.payload.posts];
+                    const existingUris = new Set(state.posts.map((p: Post) => p.uri));
+                    const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
+                    state.posts = [...state.posts, ...newPosts];
                 }
                 state.hasMore = action.payload.posts.length > 0;
             })
@@ -752,18 +689,20 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Fetch Posts Search
-            .addCase(fetchPostsSearch.pending, (state: PostsState, action) => {
+            .addCase(fetchPostsSearch.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
-                if (action.meta.arg.skip === 0) {
+                if (!action.meta.arg.cursor) {
                     state.posts = [];
                 }
             })
-            .addCase(fetchPostsSearch.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], skip: number }>) => {
+            .addCase(fetchPostsSearch.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                if (action.payload.skip === 0) {
+                if (!action.meta.arg.cursor) {
                     state.posts = action.payload.posts;
                 } else {
-                    state.posts = [...state.posts, ...action.payload.posts];
+                    const existingUris = new Set(state.posts.map((p: Post) => p.uri));
+                    const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
+                    state.posts = [...state.posts, ...newPosts];
                 }
                 state.hasMore = action.payload.posts.length > 0;
             })
@@ -772,22 +711,22 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Fetch Discover Posts
-            .addCase(fetchDiscoverPosts.pending, (state: PostsState, action) => {
+            .addCase(fetchDiscoverPosts.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
                 state.discoverLoading = true;
-                if (action.meta.arg?.skip === 0 || !action.meta.arg) {
+                if (!action.meta.arg?.cursor) {
                     state.discoverPosts = [];
                 }
             })
-            .addCase(fetchDiscoverPosts.fulfilled, (state: PostsState, action: PayloadAction<{ posts: Post[], skip: number }>) => {
+            .addCase(fetchDiscoverPosts.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 state.discoverLoading = false;
-                if (action.payload.skip === 0) {
+                if (!action.meta.arg?.cursor) {
                     state.discoverPosts = action.payload.posts;
                     state.lastDiscoverFetch = Date.now();
                 } else {
-                    const existingIds = new Set(state.discoverPosts.map(p => p.id));
-                    const newPosts = action.payload.posts.filter(p => !existingIds.has(p.id));
+                    const existingUris = new Set(state.discoverPosts.map((p: Post) => p.uri));
+                    const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.discoverPosts = [...state.discoverPosts, ...newPosts];
                 }
                 state.discoverHasMore = action.payload.posts.length > 0;
@@ -797,44 +736,6 @@ const postsSlice = createSlice({
                 state.discoverLoading = false;
                 state.error = action.payload as string;
             })
-            // Update Interaction Settings
-            .addCase(updateInteractionSettings.pending, (state: PostsState, action) => {
-                const { postId, replyRestriction, allowQuotes } = action.meta.arg;
-                state.actionLoading[postId] = true;
-
-                const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.id === postId);
-                    if (post) {
-                        post.replyRestriction = replyRestriction;
-                        post.allowQuotes = allowQuotes;
-                        // Also update canReply optimistically if we can infer it
-                        // For simplicity, we just update the restriction fields
-                    }
-                };
-                updateInArray(state.posts);
-                updateInArray(state.discoverPosts);
-                updateInArray(state.trendingPosts);
-            })
-            .addCase(updateInteractionSettings.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
-                state.actionLoading[action.payload.id] = false;
-                const updateInArray = (arr: Post[]) => {
-                    const index = arr.findIndex(p => p.id === action.payload.id);
-                    if (index !== -1) {
-                        arr[index] = action.payload;
-                    }
-                };
-                updateInArray(state.posts);
-                updateInArray(state.discoverPosts);
-                updateInArray(state.trendingPosts);
-            })
-            .addCase(updateInteractionSettings.rejected, (state: PostsState, action) => {
-                const postId = action.meta.arg.postId;
-                state.actionLoading[postId] = false;
-                state.error = action.payload as string;
-                // Note: Full rollback would require storing old values, 
-                // but since we usually fetch the post again or rely on next refresh, 
-                // this is a reasonable compromise for now.
-            });
 
 
     }

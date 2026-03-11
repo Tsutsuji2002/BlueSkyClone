@@ -32,6 +32,8 @@ export interface User {
     listMembershipStatus?: number; // 0: Pending, 1: Accepted, 2: Rejected, null: None
     isVerified?: boolean;
     did?: string;
+    followingReference?: string; // at-uri of the follow record
+    blockingReference?: string;  // at-uri of the block record
 }
 
 export interface UserSettings {
@@ -168,6 +170,14 @@ export interface Post {
     language?: string;
     repostedBy?: Partial<User>;
     lastUpdated?: string; // ISO string for local cross-event ordering
+    uri?: string;
+    cid?: string;
+    viewer?: {
+        like?: string;
+        repost?: string;
+        replyDisabled?: boolean;
+        embeddingDisabled?: boolean;
+    };
 }
 
 // Comment/Reply types
@@ -185,16 +195,20 @@ export interface Comment {
 export type NotificationType = 'like' | 'repost' | 'follow' | 'mention' | 'reply' | 'quote' | 'system' | 'System' | 'list_invitation';
 
 export interface Notification {
-    id: string;
-    type: NotificationType;
+    id: string; // CID or URI
+    uri: string;
+    cid: string;
+    type: 'like' | 'repost' | 'follow' | 'reply' | 'mention' | 'quote' | 'system';
+    reason: 'like' | 'repost' | 'follow' | 'reply' | 'mention' | 'quote' | string;
+    reasonSubject?: string; // URI of the subject
     sender: User;
-    postId?: string;
-    listId?: string;
-    title?: string;
     content?: string;
-    createdAt: string;
+    title?: string;
+    postId?: string; // Tail of URI for subject
+    subjectUri?: string;
     isRead: boolean;
-    invitationStatus?: number;
+    createdAt: string;
+    record?: any;
 }
 
 export interface MutedWord {
@@ -274,18 +288,24 @@ export type UserDto = User;
 
 // List types
 export interface ListDto {
-    id: string;
-    ownerId: string;
-    owner: User;
+    id: string; // Tail of URI
+    uri: string;
+    cid: string;
+    ownerId: string; // Creator DID
+    owner?: User; // Or creator: User
     name: string;
     description?: string;
-    purpose?: string;
+    purpose?: string; // e.g., "app.bsky.graph.defs#curatelist"
     avatarUrl?: string;
     membersCount: number;
     postsCount: number;
     createdAt: string;
     isPinned: boolean;
     isOwner: boolean;
+    viewer?: {
+        muted?: boolean;
+        blocked?: string;
+    };
 }
 
 export interface CreateListDto {
@@ -302,6 +322,8 @@ export interface UpdateListDto {
 }
 
 export interface ListItemDto {
+    id?: string; // URI of the listitem record
+    uri?: string;
     userId: string;
     user: User;
     joinedAt: string;
@@ -337,6 +359,8 @@ export interface PostsState {
     actionLoading: Record<string, boolean>;
     lastTimelineFetch: number;
     lastDiscoverFetch: number;
+    cursor: string | null;
+    discoverCursor: string | null;
 }
 
 export interface UserState {

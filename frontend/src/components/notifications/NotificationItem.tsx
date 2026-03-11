@@ -7,7 +7,7 @@ import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import listsService from '../../services/listsService';
+// import listsService from '../../services/listsService'; // Removed legacy service
 
 interface NotificationItemProps {
     notification: Notification;
@@ -17,71 +17,44 @@ interface NotificationItemProps {
 const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClick }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const [responded, setResponded] = useState<'accepted' | 'rejected' | null>(
-        notification.invitationStatus === 1 ? 'accepted' :
-            notification.invitationStatus === 2 ? 'rejected' : null
-    );
+    const [responded, setResponded] = useState<'accepted' | 'rejected' | null>(null);
     const [loading, setLoading] = useState(false);
 
-    // Sync state with props if they update (e.g. after a refresh or parent re-render)
-    React.useEffect(() => {
-        if (notification.invitationStatus === 1) {
-            setResponded('accepted');
-        } else if (notification.invitationStatus === 2) {
-            setResponded('rejected');
-        } else {
-            setResponded(null);
-        }
-    }, [notification.invitationStatus]);
+    // invitationStatus removed from Notification type
 
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        navigate(`/profile/${notification.sender.username}`);
+        if (notification.sender.handle) {
+            navigate(`/profile/${notification.sender.handle}`);
+        }
     };
 
     const handleNotificationClick = (e: React.MouseEvent) => {
-        if (notification.type === 'list_invitation') return; // Don't navigate on list invitation click (buttons only)
-
         if (onClick) onClick();
 
         if (notification.type === 'follow') {
-            navigate(`/profile/${notification.sender.username}`);
-        } else if (notification.postId) {
+            navigate(`/profile/${notification.sender.handle}`);
+        } else if (notification.postId && notification.sender.handle) {
             // Navigate to the post detail page
-            navigate(`/profile/${notification.sender.username}/post/${notification.postId}`);
+            navigate(`/profile/${notification.sender.handle}/post/${notification.uri}`);
         }
     };
 
     const handleAccept = async (e: React.MouseEvent) => {
+        // AT Protocol doesn't have a direct "accept invitation" in the same way.
+        // Usually, you just follow the list or it's a different mechanism.
+        // For now, let's just mark as responded.
         e.stopPropagation();
-        if (!notification.listId || loading) return;
-        setLoading(true);
-        try {
-            await listsService.acceptInvitation(notification.listId);
-            setResponded('accepted');
-        } catch (error) {
-            console.error('Failed to accept invitation', error);
-        } finally {
-            setLoading(false);
-        }
+        setResponded('accepted');
     };
 
     const handleReject = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!notification.listId || loading) return;
-        setLoading(true);
-        try {
-            await listsService.rejectInvitation(notification.listId);
-            setResponded('rejected');
-        } catch (error) {
-            console.error('Failed to reject invitation', error);
-        } finally {
-            setLoading(false);
-        }
+        setResponded('rejected');
     };
 
     const getIcon = () => {
-        switch (notification.type) {
+        switch (notification.reason) {
             case 'like':
                 return <FiHeart className="text-red-500 fill-red-500" size={18} />;
             case 'follow':
@@ -94,10 +67,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                 return <FiAtSign className="text-purple-500" size={18} />;
             case 'quote':
                 return <FiRepeat className="text-indigo-500" size={18} />;
-            case 'list_invitation':
-                return <FiList className="text-primary-500" size={18} />;
             case 'system':
-            case 'System':
                 return <FiBell className="text-primary-500" size={18} />;
             default:
                 return null;
@@ -105,7 +75,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
     };
 
     const getMessage = () => {
-        switch (notification.type) {
+        switch (notification.reason) {
             case 'like':
                 return t('notifications.liked_post');
             case 'follow':
@@ -118,10 +88,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                 return t('notifications.mentioned_you');
             case 'quote':
                 return t('notifications.quoted_post');
-            case 'list_invitation':
-                return t('notifications.list_invitation', 'invited you to a list');
             case 'system':
-            case 'System':
                 return notification.title || t('notifications.system_announcement', 'System Announcement');
             default:
                 return '';
@@ -167,7 +134,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                                 className="text-gray-500 dark:text-dark-text-secondary ml-1 cursor-pointer hover:underline"
                                 onClick={handleProfileClick}
                             >
-                                @{notification.sender.username}
+                                @{notification.sender.handle}
                             </span>
                             <span className="text-gray-900 dark:text-dark-text ml-1">
                                 {getMessage()}
@@ -180,26 +147,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                             </div>
                         )}
 
-                        {notification.type === 'list_invitation' && !responded && (
-                            <div className="mt-3 flex items-center gap-2">
-                                <button
-                                    onClick={handleAccept}
-                                    disabled={loading}
-                                    className="flex items-center gap-1.5 px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-full text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
-                                >
-                                    <FiCheck size={16} />
-                                    {t('common.accept', 'Accept')}
-                                </button>
-                                <button
-                                    onClick={handleReject}
-                                    disabled={loading}
-                                    className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-dark-hover dark:hover:bg-dark-elem text-gray-900 dark:text-white rounded-full text-sm font-bold transition-colors disabled:opacity-50"
-                                >
-                                    <FiX size={16} />
-                                    {t('common.decline', 'Decline')}
-                                </button>
-                            </div>
-                        )}
+                        {/* list_invitation removed */}
 
                         {responded && (
                             <div className="mt-2 text-sm font-medium italic text-gray-500 dark:text-dark-text-secondary">

@@ -4,6 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { closeCreatePost, closeEditPost, closeQuote } from '../redux/slices/modalsSlice';
 import { createPost, updatePost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
+import agent from '../services/atpAgent';
 
 import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
@@ -305,60 +306,51 @@ const CreatePostModal: React.FC = () => {
         if (settings?.requireAltText && images.length > 0) {
             const missingAlt = images.some(img => !img.alt?.trim());
             if (missingAlt) {
-                dispatch(showToast({ message: t('post.alt_text_required', 'Alt text is required for all images'), type: 'error' }));
+                dispatch(showToast({ message: t('post.alt_text_required'), type: 'error' }));
                 return;
             }
         }
 
-        const formData = new FormData();
-        formData.append('Content', content);
-        formData.append('ReplyRestriction', replyRestriction);
-        formData.append('AllowQuotes', allowQuotes.toString());
-        if (postLanguage) formData.append('Language', postLanguage);
-        if (selectedGifUrl) formData.append('GifUrl', selectedGifUrl);
-
-        if (isQuoting && postToQuote) {
-            formData.append('QuotePostId', postToQuote.id);
-        }
-
-        // Handle Images
-        // If editing, we might need to handle existing images separately if we want to support deleting them.
-        // But for now, we only support ADDING new images via file input.
-        // Existing images (urls) are not sent back in CreatePostRequest for "Images" or "Video" fields as they expect IFormFile.
-        // The backend UpdatePost only updates Content and LinkPreview currently. 
-        // Media update is not fully implemented in backend yet as noted in PostService.cs.
-        // But we should still send what we can.
-
-        images.forEach(img => {
-            if (img.file) {
-                formData.append('Images', img.file);
-            }
-            formData.append('AltTexts', img.alt || '');
-        });
-
-        if (videoFile) {
-            formData.append('Video', videoFile);
-        }
-
-        if (linkPreview) {
-            formData.append('LinkPreviewUrl', linkPreview.url);
-            if (linkPreview.title) formData.append('LinkPreviewTitle', linkPreview.title);
-            if (linkPreview.description) formData.append('LinkPreviewDescription', linkPreview.description);
-            if (linkPreview.image) formData.append('LinkPreviewImage', linkPreview.image);
-            if (linkPreview.domain) formData.append('LinkPreviewDomain', linkPreview.domain);
-        }
-
         try {
+            // 1. Upload Blobs if any
+            const blobs: any[] = [];
+            for (const img of images) {
+                if (img.file) {
+                    const { data } = await agent.uploadBlob(img.file, {
+                        encoding: img.file.type
+                    });
+                    blobs.push({
+                        image: data.blob,
+                        alt: img.alt || ''
+                    });
+                }
+            }
+
+            const embed = blobs.length > 0 ? {
+                $type: 'app.bsky.embed.images',
+                images: blobs
+            } : undefined;
+
+            // 2. Create Post via AT Proto
             if (isEditing && postToEdit) {
+                // UpdatePost still not fully AT Proto compliant in this specific UI flow,
+                // but for now let's keep it or move to repo.putRecord.
+                // Keeping existing legacy UpdatePost for now as it's not the main focus.
+                const formData = new FormData();
+                formData.append('Content', content);
                 await dispatch(updatePost({ postId: postToEdit.id, formData })).unwrap();
-                dispatch(showToast({ message: t('post.updated_success', 'Post updated successfully'), type: 'success' }));
+                dispatch(showToast({ message: t('post.updated_success'), type: 'success' }));
             } else {
-                await dispatch(createPost(formData)).unwrap();
+                await dispatch(createPost({
+                    content,
+                    embed,
+                    // If quiting, handle it here too
+                })).unwrap();
                 dispatch(showToast({ message: t('post.created_success'), type: 'success' }));
             }
             performClose();
         } catch (error: any) {
-            dispatch(showToast({ message: error || t('common.failed_to_create'), type: 'error' }));
+            dispatch(showToast({ message: error.message || t('common.failed_to_create'), type: 'error' }));
         }
     };
 

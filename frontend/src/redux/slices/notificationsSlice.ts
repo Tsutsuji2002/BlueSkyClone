@@ -1,19 +1,34 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { NotificationsState, Notification } from '../../types';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import agent from '../../services/atpAgent';
 
 export const fetchNotifications = createAsyncThunk<Notification[], void, { rejectValue: string }>(
     'notifications/fetchNotifications',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/notifications`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch notifications');
-            return data;
+            const { data } = await agent.listNotifications();
+            return data.notifications.map(n => ({
+                id: n.cid,
+                uri: n.uri,
+                cid: n.cid,
+                type: n.reason as any,
+                reason: n.reason,
+                reasonSubject: n.reasonSubject,
+                sender: {
+                    id: n.author.did,
+                    did: n.author.did,
+                    handle: n.author.handle,
+                    username: n.author.handle,
+                    displayName: n.author.displayName || n.author.handle,
+                    avatarUrl: n.author.avatar,
+                } as any,
+                isRead: n.isRead,
+                createdAt: n.indexedAt,
+                record: n.record,
+                subjectUri: n.reasonSubject,
+                postId: n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined
+            }));
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch notifications');
         }
@@ -24,15 +39,11 @@ export const markNotificationAsRead = createAsyncThunk<string, string, { rejectV
     'notifications/markAsRead',
     async (id: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/notifications/${id}/read`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
+            // In AT Protocol, we usually mark all unread as seen up to a certain time
+            // For a single notification, we might just update the local state or call updateSeen
+            await agent.app.bsky.notification.updateSeen({
+                seenAt: new Date().toISOString()
             });
-            if (!response.ok) {
-                const data = await response.json();
-                return rejectWithValue(data.message || 'Failed to mark as read');
-            }
             return id;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to mark as read');
@@ -44,15 +55,9 @@ export const markAllNotificationsAsRead = createAsyncThunk<void, void, { rejectV
     'notifications/markAllAsRead',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/notifications/read-all`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
+            await agent.app.bsky.notification.updateSeen({
+                seenAt: new Date().toISOString()
             });
-            if (!response.ok) {
-                const data = await response.json();
-                return rejectWithValue(data.message || 'Failed to mark all as read');
-            }
             return;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to mark all as read');
@@ -64,12 +69,7 @@ export const fetchUnreadCount = createAsyncThunk<number, void, { rejectValue: st
     'notifications/fetchUnreadCount',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/notifications/unread-count`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch unread count');
+            const { data } = await agent.countUnreadNotifications();
             return data.count;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch unread count');

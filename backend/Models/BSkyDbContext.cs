@@ -65,6 +65,7 @@ public partial class BSkyDbContext : DbContext
     public virtual DbSet<ListPost> ListPosts { get; set; }
     public virtual DbSet<SupportRequest> SupportRequests { get; set; }
     public virtual DbSet<PageContent> PageContents { get; set; }
+    public virtual DbSet<RepoBlock> RepoBlocks { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -680,6 +681,16 @@ public partial class BSkyDbContext : DbContext
             entity.HasOne(d => d.User).WithMany()
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<RepoBlock>(entity =>
+        {
+            entity.HasKey(e => e.Cid);
+            entity.Property(e => e.Cid).HasMaxLength(100);
+            entity.Property(e => e.Did).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            
+            entity.HasIndex(e => e.Did);
         });
 
         OnModelCreatingPartial(modelBuilder);

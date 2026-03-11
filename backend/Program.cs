@@ -83,6 +83,7 @@ builder.Services.AddScoped<ISearchService, ElasticSearchService>();
 builder.Services.AddSingleton<IMLModelService, MLModelService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
+builder.Services.AddScoped<IRepoManager, RepoManager>();
 
 // Redis Caching
 if (builder.Environment.IsDevelopment())
@@ -212,6 +213,7 @@ app.UseAuthentication();
 app.UseMiddleware<BSkyClone.Middleware.BannedUserMiddleware>();
 app.UseAuthorization();
 
+app.UseMiddleware<BSkyClone.Middleware.XrpcMiddleware>();
 app.MapControllers();
 app.MapHub<BSkyClone.Hubs.ChatHub>("/hubs/chat");
 app.MapHub<BSkyClone.Hubs.PostHub>("/hubs/posts");

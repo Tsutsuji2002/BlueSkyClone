@@ -24,4 +24,5 @@ public interface IPostService
     Task<PostDto?> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request);
     PostDto MapToDto(Post post);
     Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false);
+    Task<string> SaveBlobAsync(Stream stream, string contentType, string folder);
 }

@@ -22,8 +22,9 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
 
     const handleQuoteClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (post.isDeleted) return;
-        navigate(`/profile/${post.author.handle}/post/${post.id}`);
+        if (post.isDeleted || !post.uri) return;
+        const postShortId = post.uri.split('/').pop();
+        navigate(`/profile/${post.author.handle}/post/${postShortId}`);
     };
 
     if (post.isDeleted) {
@@ -92,7 +93,12 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                             media={post.media}
                             video={post.video}
                             videoUrl={post.videoUrl}
-                            onImageClick={() => navigate(`/profile/${post.author.handle}/post/${post.id}`)}
+                            onImageClick={() => {
+                                if (post.uri) {
+                                    const postShortId = post.uri.split('/').pop();
+                                    navigate(`/profile/${post.author.handle}/post/${postShortId}`);
+                                }
+                            }}
                         />
                     </div>
                 )}
