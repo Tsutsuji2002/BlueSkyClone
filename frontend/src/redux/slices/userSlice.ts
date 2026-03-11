@@ -162,6 +162,46 @@ export const unblockUserAsync = createAsyncThunk<
     }
 );
 
+export const fetchMutedAccounts = createAsyncThunk<User[], void, { rejectValue: string }>(
+    'user/fetchMutes',
+    async (_, { rejectWithValue }) => {
+        try {
+            const { data } = await agent.app.bsky.graph.getMutes();
+            return data.mutes.map(m => ({
+                id: m.did,
+                did: m.did,
+                handle: m.handle,
+                username: m.handle,
+                displayName: m.displayName || '',
+                avatarUrl: m.avatar,
+                isMuted: true,
+            } as any));
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchBlockedAccounts = createAsyncThunk<User[], void, { rejectValue: string }>(
+    'user/fetchBlocks',
+    async (_, { rejectWithValue }) => {
+        try {
+            const { data } = await agent.app.bsky.graph.getBlocks();
+            return data.blocks.map(b => ({
+                id: b.did,
+                did: b.did,
+                handle: b.handle,
+                username: b.handle,
+                displayName: b.displayName || '',
+                avatarUrl: b.avatar,
+                isBlocking: true,
+            } as any));
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const muteUserAsync = createAsyncThunk<
     { isMuted: boolean },
     string,
@@ -370,6 +410,26 @@ const userSlice = createSlice({
             })
             .addCase(saveSelectedInterests.rejected, (state: UserState, action) => {
                 state.interestsLoading = false;
+                state.error = action.payload as string;
+            })
+            // Fetch Muted Accounts
+            .addCase(fetchMutedAccounts.pending, (state: UserState) => { state.isLoading = true; })
+            .addCase(fetchMutedAccounts.fulfilled, (state: UserState, action) => {
+                state.isLoading = false;
+                state.users = action.payload;
+            })
+            .addCase(fetchMutedAccounts.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Fetch Blocked Accounts
+            .addCase(fetchBlockedAccounts.pending, (state: UserState) => { state.isLoading = true; })
+            .addCase(fetchBlockedAccounts.fulfilled, (state: UserState, action) => {
+                state.isLoading = false;
+                state.users = action.payload;
+            })
+            .addCase(fetchBlockedAccounts.rejected, (state: UserState, action) => {
+                state.isLoading = false;
                 state.error = action.payload as string;
             });
     }

@@ -221,12 +221,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
         ...(isOwnPost ? [
             { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
             {
-                id: 'edit',
-                label: t('common.edit_post', 'Edit post'),
-                icon: <FiType />,
-                onClick: () => dispatch(openEditPost(post)),
-            },
-            {
                 id: 'delete',
                 label: t('common.delete_post'),
                 icon: <FiTrash2 />,

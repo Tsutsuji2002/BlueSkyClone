@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { closeCreatePost, closeEditPost, closeQuote } from '../redux/slices/modalsSlice';
-import { createPost, updatePost } from '../redux/slices/postsSlice';
+import { createPost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import agent from '../services/atpAgent';
 
@@ -333,13 +333,9 @@ const CreatePostModal: React.FC = () => {
 
             // 2. Create Post via AT Proto
             if (isEditing && postToEdit) {
-                // UpdatePost still not fully AT Proto compliant in this specific UI flow,
-                // but for now let's keep it or move to repo.putRecord.
-                // Keeping existing legacy UpdatePost for now as it's not the main focus.
-                const formData = new FormData();
-                formData.append('Content', content);
-                await dispatch(updatePost({ postId: postToEdit.id, formData })).unwrap();
-                dispatch(showToast({ message: t('post.updated_success'), type: 'success' }));
+                // Post editing is not supported in standard AT Protocol (posts are immutable).
+                // We show a toast and close the modal.
+                dispatch(showToast({ message: t('post.editing_not_supported', 'Post editing is not supported on AT Protocol'), type: 'info' }));
             } else {
                 await dispatch(createPost({
                     content,

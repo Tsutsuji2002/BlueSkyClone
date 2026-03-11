@@ -6,7 +6,7 @@ import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
-import { updateInteractionSettings } from '../redux/slices/postsSlice';
+import { showToast } from '../redux/slices/toastSlice';
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
 
@@ -89,11 +89,9 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
         }
 
         if (postId) {
-            dispatch(updateInteractionSettings({
-                postId,
-                replyRestriction: finalRestriction,
-                allowQuotes: localQuotes
-            }));
+            // Per-post interaction settings are not yet supported via standard AT Protocol Lexicons (e.g. thread-gate)
+            // dispatch(updateInteractionSettings({ ... }));
+            dispatch(showToast({ message: t('post.per_post_settings_not_supported', 'Per-post settings are not yet supported on AT Protocol'), type: 'info' }));
         }
 
         setReplyRestriction(finalRestriction);

@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
-import { Post } from '../types';
-import { toggleLike, repostPost, bookmarkPost, deletePost, fetchPostById, fetchPostReplies } from '../redux/slices/postsSlice';
-import { openReply, openMobileMenu, openEditPost } from '../redux/slices/modalsSlice';
+import { Post, User } from '../types';
+import { toggleLike, repostPost, deletePost, fetchPostById } from '../redux/slices/postsSlice';
+import { openReply, openMobileMenu } from '../redux/slices/modalsSlice';
 import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -145,11 +145,7 @@ const PostDetailPage: React.FC = () => {
             if (!post) {
                 dispatch(fetchPostById(postId));
             }
-            // Only fetch replies if we haven't already for this specific postId in this mount
-            if (!fetchedRepliesRef.current.has(postId)) {
-                dispatch(fetchPostReplies(postId));
-                fetchedRepliesRef.current.add(postId);
-            }
+            // Replies are now usually included in fetchPostById (getPostThread)
         }
     }, [dispatch, postId]); // Removed post from dependencies
 
@@ -163,53 +159,16 @@ const PostDetailPage: React.FC = () => {
         }
     }, [dispatch, oldestKnown?.id, oldestKnown?.replyToPostId, posts]);
 
-    // Fetch sub-replies for chain building
+    // Fetch sub-replies removed as they are part of the thread view
     React.useEffect(() => {
-        replies.forEach(reply => {
-            if (reply.repliesCount > 0 && !fetchedRepliesRef.current.has(reply.id)) {
-                fetchedRepliesRef.current.add(reply.id);
-                dispatch(fetchPostReplies(reply.id));
-            }
-        });
     }, [dispatch, replies]);
 
-    // Build chain depth for non-tree view
+    // Build chain depth removed as they are part of the thread view
     React.useEffect(() => {
-        if (treeViewEnabled) return;
-        replies.forEach(reply => {
-            let currentId = reply.id;
-            for (let depth = 0; depth < 5; depth++) {
-                const subReplies = posts.filter(p => p.replyToPostId === currentId);
-                if (subReplies.length === 0) break;
-                const topSub = sortPosts(subReplies)[0];
-                if (!topSub) break;
-                if (topSub.repliesCount > 0 && !fetchedRepliesRef.current.has(topSub.id)) {
-                    fetchedRepliesRef.current.add(topSub.id);
-                    dispatch(fetchPostReplies(topSub.id));
-                }
-                currentId = topSub.id;
-            }
-        });
     }, [dispatch, replies, posts, treeViewEnabled, sortPosts]);
 
-    // For tree view: fetch sub-replies recursively for all loaded posts
+    // For tree view: fetch sub-replies removed
     React.useEffect(() => {
-        if (!treeViewEnabled) return;
-        const fetchNested = () => {
-            posts.forEach(p => {
-                if (p.repliesCount > 0 && !fetchedRepliesRef.current.has(p.id)) {
-                    // Only fetch if this post is a descendant of the main post
-                    const isDescendant = p.replyToPostId === postId ||
-                        posts.some(ancestor => ancestor.id === p.replyToPostId && ancestor.replyToPostId === postId) ||
-                        posts.some(a1 => a1.id === p.replyToPostId && posts.some(a2 => a2.id === a1.replyToPostId));
-                    if (isDescendant) {
-                        fetchedRepliesRef.current.add(p.id);
-                        dispatch(fetchPostReplies(p.id));
-                    }
-                }
-            });
-        };
-        fetchNested();
     }, [dispatch, posts, postId, treeViewEnabled]);
 
     const mainPostRef = React.useRef<HTMLDivElement>(null);
@@ -260,15 +219,17 @@ const PostDetailPage: React.FC = () => {
     };
 
     const handleLike = () => {
-        dispatch(toggleLike(post.id));
+        if (!post.uri || !post.cid) return;
+        dispatch(toggleLike({ uri: post.uri, cid: post.cid, isLiked: !!post.isLiked }));
     };
 
     const handleRepost = () => {
-        dispatch(repostPost(post.id));
+        if (!post.uri || !post.cid) return;
+        dispatch(repostPost({ uri: post.uri, cid: post.cid, isReposted: !!post.isReposted }));
     };
 
     const handleBookmark = () => {
-        dispatch(bookmarkPost(post.id));
+        dispatch(showToast({ message: t('common.bookmarks_not_supported', 'Bookmarks are not supported on AT Protocol yet'), type: 'info' }));
     };
 
     const handleDelete = async () => {
@@ -307,12 +268,6 @@ const PostDetailPage: React.FC = () => {
     const moreDropdownItems: DropdownItem[] = [
         ...(currentUser?.id === post.author.id ? [
             {
-                id: 'edit-post',
-                label: t('common.edit_post', 'Edit post'),
-                icon: <FiEdit />,
-                onClick: () => dispatch(openEditPost(post)),
-            },
-            {
                 id: 'pin-post',
                 label: t('post.pin_to_profile', 'Pin to your profile'),
                 icon: <FiAnchor />,
@@ -343,12 +298,6 @@ const PostDetailPage: React.FC = () => {
                 icon: <FiFilter />,
                 onClick: () => { },
                 hasDivider: true,
-            },
-            {
-                id: 'edit-settings',
-                label: t('post.edit_interaction', 'Edit interaction settings'),
-                icon: <FiSettings />,
-                onClick: () => setIsInteractionModalOpen(true),
             },
             {
                 id: 'delete-post',
@@ -392,8 +341,9 @@ const PostDetailPage: React.FC = () => {
     const handleFollowToggle = async () => {
         if (!currentUser || !post) return;
         try {
-            if (post.author.isFollowing) {
-                await dispatch(unfollowUserAsync(post.author.id)).unwrap();
+            const author = post.author as User;
+            if (author.isFollowing && author.followingReference) {
+                await dispatch(unfollowUserAsync({ userId: author.id, followUri: author.followingReference })).unwrap();
                 // Optimistically update or re-fetch
                 dispatch(fetchPostById(post.id));
             } else {

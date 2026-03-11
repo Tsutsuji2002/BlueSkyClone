@@ -1,24 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import LoadingIndicator from '../components/common/LoadingIndicator';
-
 import { useAppSelector } from '../hooks/useAppSelector';
-import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchBookmarkedPosts } from '../redux/slices/postsSlice';
-import PostCard from '../components/feed/PostCard';
 
 const SavedPage: React.FC = () => {
     const { t } = useTranslation();
-    const dispatch = useAppDispatch();
-    const { posts, isLoading } = useAppSelector((state) => state.posts);
-
-    // Specifically filter posts that are bookmarked
-    const savedPosts = posts.filter(post => post.isBookmarked);
-
-    useEffect(() => {
-        dispatch(fetchBookmarkedPosts());
-    }, [dispatch]);
+    const { isLoading } = useAppSelector((state) => state.posts);
 
     return (
         <MainLayout title={t('saved.title')}>
@@ -31,17 +19,12 @@ const SavedPage: React.FC = () => {
                     </div>
                 </div>
 
-                {isLoading && savedPosts.length === 0 ? (
+                {isLoading ? (
                     <LoadingIndicator text={t('common.loading')} />
-                ) : savedPosts.length > 0 ? (
-                    <div className="divide-y divide-gray-100 dark:divide-dark-border">
-                        {savedPosts.map(post => (
-                            <PostCard key={post.id} post={post} />
-                        ))}
-                    </div>
                 ) : (
                     <div className="p-12 text-center text-gray-500">
-                        {t('saved.no_saved')}
+                        <p className="text-lg font-bold mb-2">{t('saved.title')}</p>
+                        <p>{t('common.coming_soon', 'Bookmarks are coming soon to AT Protocol!')}</p>
                     </div>
                 )}
             </div>
