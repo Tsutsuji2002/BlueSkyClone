@@ -4,7 +4,6 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { closeReply } from '../redux/slices/modalsSlice';
 import { createPost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
-import agent from '../services/atpAgent';
 
 import Avatar from '../components/common/Avatar';
 import GifPicker from '../components/common/GifPicker';
@@ -230,40 +229,14 @@ const ReplyModal: React.FC = () => {
         if ((!content.trim() && images.length === 0 && !selectedGifUrl) || !user || !post) return;
 
         try {
-            // 1. Upload Blobs if any
-            const blobs: any[] = [];
-            for (const file of imageFiles) {
-                const { data } = await agent.uploadBlob(file, {
-                    encoding: file.type
-                });
-                blobs.push({
-                    image: data.blob,
-                    alt: images[blobs.length]?.alt || ''
-                });
-            }
+            const mediaFiles = imageFiles.length > 0 ? imageFiles : undefined;
+            // Extract string ID from post for replyToPostId
+            const replyToPostId = post.id;
 
-            const embed = blobs.length > 0 ? {
-                $type: 'app.bsky.embed.images',
-                images: blobs
-            } : undefined;
-
-            // 2. Resolve root and parent for reply
-            const replyTo = {
-                root: {
-                    uri: (post as any).rootUri || post.uri || `at://${post.author.did}/app.bsky.feed.post/${post.id}`,
-                    cid: (post as any).rootCid || post.cid || ''
-                },
-                parent: {
-                    uri: post.uri || `at://${post.author.did}/app.bsky.feed.post/${post.id}`,
-                    cid: post.cid || ''
-                }
-            };
-
-            // 3. Create Reply via AT Proto
             await dispatch(createPost({
                 content,
-                replyTo,
-                embed
+                replyToPostId,
+                mediaFiles,
             })).unwrap();
 
             performClose();

@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
 import { UserState, User } from '../../types';
-import agent from '../../services/atpAgent';
 import { API_BASE_URL } from '../../constants';
 
 const initialState: UserState = {
@@ -25,22 +24,27 @@ export const searchUsers = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/search',
-    async ({ query, take }, { rejectWithValue }) => {
+    async ({ query, skip, take }, { rejectWithValue }) => {
         try {
-            const { data } = await agent.searchActors({
-                term: query,
-                limit: take
-            });
-            return data.actors.map(u => ({
-                id: u.did,
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/search/users?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Search failed');
+            return data.map((u: any) => ({
+                id: u.id,
                 did: u.did,
                 handle: u.handle,
-                username: u.handle,
-                displayName: u.displayName,
-                avatarUrl: u.avatar,
-                description: u.description,
-                viewer: u.viewer
-            } as any));
+                username: u.username || u.handle,
+                displayName: u.displayName || '',
+                avatarUrl: u.avatarUrl,
+                bio: u.bio,
+                followersCount: u.followersCount || 0,
+                followingCount: u.followingCount || 0,
+                postsCount: u.postsCount || 0,
+            } as User));
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -55,33 +59,42 @@ export const fetchUserProfile = createAsyncThunk<
     'user/fetchProfile',
     async (actor: string, { rejectWithValue }) => {
         try {
-            const { data } = await agent.getProfile({ actor });
+            const token = localStorage.getItem('token');
+            // actor can be a handle or a did/id — try handle endpoint first
+            const response = await fetch(
+                `${API_BASE_URL}/users/profile/${encodeURIComponent(actor)}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch profile');
 
+            const u = data.user;
             const user: User = {
-                id: data.did,
-                did: data.did,
-                handle: data.handle,
-                username: data.handle,
-                displayName: data.displayName || '',
-                avatarUrl: data.avatar,
-                coverImage: data.banner,
-                bio: data.description,
-                followersCount: data.followersCount || 0,
-                followingCount: data.followsCount || 0,
-                postsCount: data.postsCount || 0,
-                isFollowing: !!data.viewer?.following,
-                isBlocking: !!data.viewer?.blocking,
-                isMuted: !!data.viewer?.muted,
-                followingReference: data.viewer?.following,
-                blockingReference: data.viewer?.blocking,
+                id: u.id,
+                did: u.did,
+                handle: u.handle,
+                username: u.username || u.handle,
+                displayName: u.displayName || '',
+                avatarUrl: u.avatarUrl,
+                coverImage: u.coverImageUrl,
+                bio: u.bio,
+                location: u.location,
+                website: u.website,
+                followersCount: u.followersCount || 0,
+                followingCount: u.followingCount || 0,
+                postsCount: u.postsCount || 0,
+                isFollowing: data.isFollowing,
+                isBlocking: data.isBlocking,
+                isBlockedBy: data.isBlockedBy,
+                isMuted: data.isMuted,
             } as any;
 
             return {
                 user,
-                isFollowing: !!data.viewer?.following,
-                isBlockedBy: false,
-                isBlocking: !!data.viewer?.blocking,
-                isMuted: !!data.viewer?.muted
+                isFollowing: data.isFollowing,
+                isBlockedBy: data.isBlockedBy,
+                isBlocking: data.isBlocking,
+                isMuted: data.isMuted,
             };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -99,18 +112,24 @@ export const fetchFollowers = createAsyncThunk<
     'user/fetchFollowers',
     async (actor: string, { rejectWithValue }) => {
         try {
-            const { data } = await agent.getFollowers({ actor });
-            return data.followers.map(f => ({
-                id: f.did,
-                did: f.did,
-                handle: f.handle,
-                username: f.handle,
-                displayName: f.displayName || '',
-                avatarUrl: f.avatar,
-                bio: f.description,
-                isFollowing: !!f.viewer?.following,
-                followingReference: f.viewer?.following,
-            } as any));
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/followers`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch followers');
+            return data.map((u: any) => ({
+                id: u.id,
+                did: u.did,
+                handle: u.handle,
+                username: u.username || u.handle,
+                displayName: u.displayName || '',
+                avatarUrl: u.avatarUrl,
+                bio: u.bio,
+                isFollowing: u.isFollowing,
+                followingReference: u.followingReference,
+            } as User));
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -125,18 +144,24 @@ export const fetchFollowing = createAsyncThunk<
     'user/fetchFollowing',
     async (actor: string, { rejectWithValue }) => {
         try {
-            const { data } = await agent.getFollows({ actor });
-            return data.follows.map(f => ({
-                id: f.did,
-                did: f.did,
-                handle: f.handle,
-                username: f.handle,
-                displayName: f.displayName || '',
-                avatarUrl: f.avatar,
-                bio: f.description,
-                isFollowing: !!f.viewer?.following,
-                followingReference: f.viewer?.following,
-            } as any));
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/following`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch following');
+            return data.map((u: any) => ({
+                id: u.id,
+                did: u.did,
+                handle: u.handle,
+                username: u.username || u.handle,
+                displayName: u.displayName || '',
+                avatarUrl: u.avatarUrl,
+                bio: u.bio,
+                isFollowing: u.isFollowing,
+                followingReference: u.followingReference,
+            } as User));
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -151,8 +176,14 @@ export const followUserAsync = createAsyncThunk<
     'user/follow',
     async (userId: string, { rejectWithValue }) => {
         try {
-            const { uri } = await agent.follow(userId);
-            return { isFollowing: true, followersCount: 0, uri };
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/follow/${userId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to follow');
+            return { isFollowing: true, followersCount: data.followersCount || 0, uri: '' };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -165,10 +196,16 @@ export const unfollowUserAsync = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/unfollow',
-    async ({ followUri }, { rejectWithValue }) => {
+    async ({ userId }, { rejectWithValue }) => {
         try {
-            await agent.deleteFollow(followUri);
-            return { isFollowing: false, followersCount: 0 };
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/unfollow/${userId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to unfollow');
+            return { isFollowing: false, followersCount: data.followersCount || 0 };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -183,12 +220,14 @@ export const blockUserAsync = createAsyncThunk<
     'user/block',
     async (userId: string, { rejectWithValue }) => {
         try {
-            if (!agent.session) return rejectWithValue('Not logged in');
-            const { uri } = await agent.app.bsky.graph.block.create(
-                { repo: agent.session.did },
-                { subject: userId, createdAt: new Date().toISOString() }
-            );
-            return { isBlocking: true, isFollowing: false, uri };
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/block/${userId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to block');
+            return { isBlocking: true, isFollowing: false, uri: '' };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -201,14 +240,17 @@ export const unblockUserAsync = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/unblock',
-    async ({ blockUri }, { rejectWithValue }) => {
+    async ({ userId }, { rejectWithValue }) => {
         try {
-            if (!agent.session) return rejectWithValue('Not logged in');
-            const rkey = blockUri.split('/').pop() || '';
-            await agent.app.bsky.graph.block.delete({
-                repo: agent.session.did,
-                rkey
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/unblock/${userId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to unblock');
+            }
             return { isBlocking: false };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -220,16 +262,21 @@ export const fetchMutedAccounts = createAsyncThunk<User[], void, { rejectValue: 
     'user/fetchMutes',
     async (_, { rejectWithValue }) => {
         try {
-            const { data } = await agent.app.bsky.graph.getMutes();
-            return data.mutes.map(m => ({
-                id: m.did,
-                did: m.did,
-                handle: m.handle,
-                username: m.handle,
-                displayName: m.displayName || '',
-                avatarUrl: m.avatar,
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted accounts');
+            return data.map((u: any) => ({
+                id: u.id,
+                did: u.did,
+                handle: u.handle,
+                username: u.username || u.handle,
+                displayName: u.displayName || '',
+                avatarUrl: u.avatarUrl,
                 isMuted: true,
-            } as any));
+            } as User));
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -240,29 +287,39 @@ export const fetchBlockedAccounts = createAsyncThunk<User[], void, { rejectValue
     'user/fetchBlocks',
     async (_, { rejectWithValue }) => {
         try {
-            const { data } = await agent.app.bsky.graph.getBlocks();
-            return data.blocks.map(b => ({
-                id: b.did,
-                did: b.did,
-                handle: b.handle,
-                username: b.handle,
-                displayName: b.displayName || '',
-                avatarUrl: b.avatar,
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/blocked`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch blocked accounts');
+            return data.map((u: any) => ({
+                id: u.id,
+                did: u.did,
+                handle: u.handle,
+                username: u.username || u.handle,
+                displayName: u.displayName || '',
+                avatarUrl: u.avatarUrl,
                 isBlocking: true,
-            } as any));
+            } as User));
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
     }
 );
 
-// Muted Words Mock Thunks
+// Muted Words Thunks — backed by REST API
 export const fetchMutedWords = createAsyncThunk<any[], void, { rejectValue: string }>(
     'user/fetchMutedWords',
     async (_, { rejectWithValue }) => {
         try {
-            // Mocking for now as AT Protocol uses content filters/labels for this
-            return [];
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted words');
+            return data;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -273,7 +330,15 @@ export const addMutedWordAsync = createAsyncThunk<any, { word: string, muteBehav
     'user/addMutedWord',
     async (data, { rejectWithValue }) => {
         try {
-            return { id: Math.random(), ...data };
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (!response.ok) return rejectWithValue(result.message || 'Failed to add muted word');
+            return result;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -284,6 +349,15 @@ export const deleteMutedWordAsync = createAsyncThunk<number, number, { rejectVal
     'user/deleteMutedWord',
     async (id, { rejectWithValue }) => {
         try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/muted-words/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to delete muted word');
+            }
             return id;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -299,7 +373,15 @@ export const muteUserAsync = createAsyncThunk<
     'user/mute',
     async (userId: string, { rejectWithValue }) => {
         try {
-            await agent.mute(userId);
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/mute/${userId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to mute user');
+            }
             return { isMuted: true };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -315,7 +397,15 @@ export const unmuteUserAsync = createAsyncThunk<
     'user/unmute',
     async (userId: string, { rejectWithValue }) => {
         try {
-            await agent.unmute(userId);
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/users/unmute/${userId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to unmute user');
+            }
             return { isMuted: false };
         } catch (error: any) {
             return rejectWithValue(error.message);

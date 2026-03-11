@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { PostsState, Post } from '../../types';
-import agent from '../../services/atpAgent';
+import { API_BASE_URL } from '../../constants';
 
 const initialState: PostsState = {
     posts: [],
@@ -21,45 +21,16 @@ const initialState: PostsState = {
 
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
-    async ({ skip = 0, take = 20, cursor }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
         try {
-            const response = await agent.getTimeline({
-                cursor: cursor || (skip > 0 ? skip.toString() : undefined),
-                limit: take
-            });
-
-            if (!response.success) return rejectWithValue('Failed to fetch timeline');
-
-            // Map FeedViewPost to our internal Post type
-            const posts: Post[] = response.data.feed.map((item: any) => {
-                const postView = item.post;
-                const record = postView.record as any;
-
-                return {
-                    id: postView.uri.split('/').pop() || '',
-                    cid: postView.cid,
-                    author: {
-                        id: postView.author.did,
-                        did: postView.author.did,
-                        handle: postView.author.handle,
-                        username: postView.author.handle, // Map handle to username for compatibility
-                        displayName: postView.author.displayName || postView.author.handle,
-                        avatarUrl: postView.author.avatar
-                    },
-                    content: record.text,
-                    createdAt: record.createdAt,
-                    likesCount: postView.likeCount || 0,
-                    repostsCount: postView.repostCount || 0,
-                    repliesCount: postView.replyCount || 0,
-                    quotesCount: postView.quoteCount || 0,
-                    bookmarksCount: 0,
-                    isLiked: !!postView.viewer?.like,
-                    isReposted: !!postView.viewer?.repost,
-                    tid: postView.uri.split('/').pop() || ''
-                } as Post;
-            });
-
-            return { posts, skip, cursor: response.data.cursor };
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/posts/timeline?skip=${skip}&take=${take}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to fetch timeline');
+            const posts: Post[] = await response.json();
+            return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -68,47 +39,18 @@ export const fetchTimeline = createAsyncThunk(
 
 export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
-    async ({ userId, limit = 20, cursor }: { userId: string; type?: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ userId, type, limit = 20, offset = 0 }: { userId: string; type?: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const response = await agent.getAuthorFeed({
-                actor: userId,
-                limit,
-                cursor
-            });
-
-            if (!response.success) return rejectWithValue('Failed to fetch author feed');
-
-            const posts: Post[] = response.data.feed.map((item: any) => {
-                const postView = item.post;
-                const record = postView.record as any;
-
-                return {
-                    id: postView.uri.split('/').pop() || '',
-                    uri: postView.uri,
-                    cid: postView.cid,
-                    author: {
-                        id: postView.author.did,
-                        did: postView.author.did,
-                        handle: postView.author.handle,
-                        username: postView.author.handle,
-                        displayName: postView.author.displayName || postView.author.handle,
-                        avatarUrl: postView.author.avatar
-                    },
-                    content: record.text,
-                    createdAt: record.createdAt,
-                    likesCount: postView.likeCount || 0,
-                    repostsCount: postView.repostCount || 0,
-                    repliesCount: postView.replyCount || 0,
-                    quotesCount: postView.quoteCount || 0,
-                    bookmarksCount: 0,
-                    isLiked: !!postView.viewer?.like,
-                    isReposted: !!postView.viewer?.repost,
-                    tid: postView.uri.split('/').pop() || '',
-                    viewer: postView.viewer
-                } as Post;
-            });
-
-            return { posts, userId, cursor: response.data.cursor };
+            const token = localStorage.getItem('token');
+            const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+            if (type) params.set('type', type);
+            const response = await fetch(
+                `${API_BASE_URL}/posts/user/${userId}?${params}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to fetch user posts');
+            const posts: Post[] = await response.json();
+            return { posts, userId, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -121,43 +63,31 @@ export const fetchUserPosts = createAsyncThunk(
 
 export const createPost = createAsyncThunk(
     'posts/createPost',
-    async (postData: { content: string; replyTo?: any; embed?: any }, { rejectWithValue, getState }) => {
+    async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; replyToPostId?: string }, { rejectWithValue, getState }) => {
         try {
             const state = getState() as any;
             const user = state.auth.user;
+            const token = localStorage.getItem('token');
 
-            const response = await agent.post({
-                text: postData.content,
-                reply: postData.replyTo,
-                embed: postData.embed,
-                createdAt: new Date().toISOString()
+            const formData = new FormData();
+            formData.append('Content', postData.content);
+            if (postData.replyToPostId) formData.append('ReplyToPostId', postData.replyToPostId);
+            if (postData.mediaFiles) {
+                postData.mediaFiles.forEach(f => formData.append('MediaFiles', f));
+            }
+
+            const response = await fetch(`${API_BASE_URL}/posts`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
             });
 
-            // Return a full Post object to satisfy the Reducer and UI
-            return {
-                id: response.uri.split('/').pop() || '',
-                uri: response.uri,
-                cid: response.cid,
-                content: postData.content,
-                createdAt: new Date().toISOString(),
-                author: {
-                    id: user?.id || '',
-                    did: user?.did || '',
-                    handle: user?.handle || '',
-                    username: user?.username || '',
-                    displayName: user?.displayName || '',
-                    avatarUrl: user?.avatarUrl || user?.avatar
-                },
-                likesCount: 0,
-                repostsCount: 0,
-                repliesCount: 0,
-                quotesCount: 0,
-                bookmarksCount: 0,
-                isLiked: false,
-                isReposted: false,
-                isBookmarked: false,
-                tid: response.uri.split('/').pop() || ''
-            } as Post;
+            if (!response.ok) {
+                const err = await response.json();
+                return rejectWithValue(err.message || 'Failed to create post');
+            }
+
+            return await response.json() as Post;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to create post');
         }
@@ -168,16 +98,16 @@ export const toggleLike = createAsyncThunk(
     'posts/toggleLike',
     async ({ uri, cid, isLiked }: { uri: string; cid: string; isLiked: boolean }, { rejectWithValue }) => {
         try {
-            if (isLiked) {
-                // We need the like URI to delete it. Usually stored in post.viewer.like
-                // If we don't have it, we might need to fetch it or the agent handles it if we pass the right thing.
-                // But typically AtpAgent expects the URI of the like record.
-                await agent.deleteLike(uri);
-                return { uri, isLiked: false };
-            } else {
-                const response = await agent.like(uri, cid);
-                return { uri, isLiked: true, likeUri: response.uri };
-            }
+            const token = localStorage.getItem('token');
+            // Extract post ID from URI (at://did/app.bsky.feed.post/<id> or just a guid)
+            const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/like`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) return rejectWithValue('Failed to toggle like');
+            const data = await response.json();
+            return { uri, isLiked: data.isLiked, likeUri: '' };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -188,27 +118,33 @@ export const repostPost = createAsyncThunk(
     'posts/repost',
     async ({ uri, cid, isReposted }: { uri: string; cid: string; isReposted: boolean }, { rejectWithValue }) => {
         try {
-            if (isReposted) {
-                await agent.deleteRepost(uri);
-                return { uri, isReposted: false };
-            } else {
-                const response = await agent.repost(uri, cid);
-                return { uri, isReposted: true, repostUri: response.uri };
-            }
+            const token = localStorage.getItem('token');
+            const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) return rejectWithValue('Failed to toggle repost');
+            const data = await response.json();
+            return { uri, isReposted: data.isReposted, repostUri: '' };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
     }
 );
 
-// Bookmark thunk removed as AT Protocol does not have a standard bookmark lexicon yet.
-// Users can use 'Like' or 'Repost' for similar functionality, or custom lists.
-
 export const deletePost = createAsyncThunk(
     'posts/delete',
     async (postUri: string, { rejectWithValue }) => {
         try {
-            await agent.deletePost(postUri);
+            const token = localStorage.getItem('token');
+            // Extract GUID from URI
+            const postId = postUri.includes('/') ? postUri.split('/').pop()! : postUri;
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) return rejectWithValue('Failed to delete post');
             return postUri;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -220,30 +156,16 @@ export const deletePost = createAsyncThunk(
 
 export const fetchPostsByTag = createAsyncThunk(
     'posts/fetchByTag',
-    async ({ tag, limit = 20, cursor }: { tag: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ tag, limit = 20, offset = 0 }: { tag: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const response = await agent.app.bsky.feed.searchPosts({
-                q: `#${tag}`,
-                limit,
-                cursor
-            });
-            if (!response.success) return rejectWithValue('Failed to fetch posts by tag');
-
-            const posts: Post[] = response.data.posts.map((postView: any) => ({
-                id: postView.uri.split('/').pop() || '',
-                uri: postView.uri,
-                cid: postView.cid,
-                author: postView.author,
-                content: (postView.record as any).text,
-                createdAt: (postView.record as any).createdAt,
-                likesCount: postView.likeCount || 0,
-                repostsCount: postView.repostCount || 0,
-                isLiked: !!postView.viewer?.like,
-                isReposted: !!postView.viewer?.repost,
-                viewer: postView.viewer
-            } as any));
-
-            return { posts, cursor: response.data.cursor };
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/posts/tag/${encodeURIComponent(tag)}?limit=${limit}&offset=${offset}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to fetch posts by tag');
+            const posts: Post[] = await response.json();
+            return { posts, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -252,42 +174,16 @@ export const fetchPostsByTag = createAsyncThunk(
 
 export const fetchPostsSearch = createAsyncThunk(
     'posts/fetchSearch',
-    async ({ query, take = 20, cursor }: { query: string; skip?: number; take?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ query, skip = 0, take = 20 }: { query: string; skip?: number; take?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const response = await agent.app.bsky.feed.searchPosts({
-                q: query,
-                limit: take,
-                cursor
-            });
-            if (!response.success) return rejectWithValue('Failed to search posts');
-
-            const posts: Post[] = response.data.posts.map((postView: any) => {
-                const record = postView.record as any;
-                return {
-                    id: postView.uri.split('/').pop() || '',
-                    uri: postView.uri,
-                    cid: postView.cid,
-                    author: {
-                        id: postView.author.did,
-                        did: postView.author.did,
-                        handle: postView.author.handle,
-                        username: postView.author.handle,
-                        displayName: postView.author.displayName || postView.author.handle,
-                        avatarUrl: postView.author.avatar
-                    },
-                    content: record.text,
-                    createdAt: record.createdAt,
-                    likesCount: postView.likeCount || 0,
-                    repostsCount: postView.repostCount || 0,
-                    repliesCount: postView.replyCount || 0,
-                    quotesCount: postView.quoteCount || 0,
-                    isLiked: !!postView.viewer?.like,
-                    isReposted: !!postView.viewer?.repost,
-                    viewer: postView.viewer
-                } as Post;
-            });
-
-            return { posts, cursor: response.data.cursor };
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/search/posts?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to search posts');
+            const posts: Post[] = await response.json();
+            return { posts, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -298,36 +194,15 @@ export const fetchPostById = createAsyncThunk(
     'posts/fetchPostById',
     async (uri: string, { rejectWithValue }) => {
         try {
-            const response = await agent.getPostThread({ uri });
-            if (!response.success) return rejectWithValue('Failed to fetch post thread');
-
-            // Map ThreadViewPost to our internal Post type
-            const thread: any = response.data.thread;
-            const postView = thread.post;
-            const record = postView.record as any;
-
-            return {
-                id: postView.uri.split('/').pop() || '',
-                uri: postView.uri,
-                cid: postView.cid,
-                author: {
-                    id: postView.author.did,
-                    did: postView.author.did,
-                    handle: postView.author.handle,
-                    username: postView.author.handle,
-                    displayName: postView.author.displayName || postView.author.handle,
-                    avatarUrl: postView.author.avatar
-                },
-                content: record.text,
-                createdAt: record.createdAt,
-                likesCount: postView.likeCount || 0,
-                repostsCount: postView.repostCount || 0,
-                repliesCount: postView.replyCount || 0,
-                quotesCount: postView.quoteCount || 0,
-                isLiked: !!postView.viewer?.like,
-                isReposted: !!postView.viewer?.repost,
-                viewer: postView.viewer
-            } as Post;
+            const token = localStorage.getItem('token');
+            // uri may be a full AT URI or just a GUID
+            const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
+            const response = await fetch(
+                `${API_BASE_URL}/posts/${postId}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to fetch post');
+            return await response.json() as Post;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -341,24 +216,13 @@ export const fetchTrendingPosts = createAsyncThunk(
     'posts/fetchTrending',
     async (_, { rejectWithValue }) => {
         try {
-            // Standard AT Proto doesn't have a "trending" endpoint in bsky.feed namespace.
-            // For now, we'll use getTimeline or a custom feed if available.
-            const response = await agent.getTimeline({ limit: 40 });
-            if (!response.success) return rejectWithValue('Failed to fetch trending');
-
-            return response.data.feed.map((item: any) => ({
-                id: item.post.uri.split('/').pop() || '',
-                uri: item.post.uri,
-                cid: item.post.cid,
-                author: item.post.author,
-                content: (item.post.record as any).text,
-                createdAt: (item.post.record as any).createdAt,
-                likesCount: item.post.likeCount || 0,
-                repostsCount: item.post.repostCount || 0,
-                isLiked: !!item.post.viewer?.like,
-                isReposted: !!item.post.viewer?.repost,
-                viewer: item.post.viewer
-            } as any));
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/posts/trending`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to fetch trending');
+            return await response.json() as Post[];
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -369,43 +233,16 @@ export const fetchTrendingPosts = createAsyncThunk(
 
 export const fetchDiscoverPosts = createAsyncThunk(
     'posts/fetchDiscover',
-    async ({ skip = 0, take = 20, cursor }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
         try {
-            // Using getTimeline for now as a "discover" fallback if no specific discover feed
-            const response = await agent.getTimeline({
-                cursor,
-                limit: take
-            });
-            if (!response.success) return rejectWithValue('Failed to fetch discover feed');
-
-            const posts: Post[] = response.data.feed.map((item: any) => {
-                const postView = item.post;
-                const record = postView.record as any;
-                return {
-                    id: postView.uri.split('/').pop() || '',
-                    uri: postView.uri,
-                    cid: postView.cid,
-                    author: {
-                        id: postView.author.did,
-                        did: postView.author.did,
-                        handle: postView.author.handle,
-                        username: postView.author.handle,
-                        displayName: postView.author.displayName || postView.author.handle,
-                        avatarUrl: postView.author.avatar
-                    },
-                    content: record.text,
-                    createdAt: record.createdAt,
-                    likesCount: postView.likeCount || 0,
-                    repostsCount: postView.repostCount || 0,
-                    repliesCount: postView.replyCount || 0,
-                    quotesCount: postView.quoteCount || 0,
-                    isLiked: !!postView.viewer?.like,
-                    isReposted: !!postView.viewer?.repost,
-                    viewer: postView.viewer
-                } as Post;
-            });
-
-            return { posts, skip, cursor: response.data.cursor };
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/posts/trending?skip=${skip}&take=${take}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
+            const posts: Post[] = await response.json();
+            return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

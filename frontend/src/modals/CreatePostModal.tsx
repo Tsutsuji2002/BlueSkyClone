@@ -4,7 +4,6 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { closeCreatePost, closeEditPost, closeQuote } from '../redux/slices/modalsSlice';
 import { createPost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
-import agent from '../services/atpAgent';
 
 import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
@@ -312,35 +311,14 @@ const CreatePostModal: React.FC = () => {
         }
 
         try {
-            // 1. Upload Blobs if any
-            const blobs: any[] = [];
-            for (const img of images) {
-                if (img.file) {
-                    const { data } = await agent.uploadBlob(img.file, {
-                        encoding: img.file.type
-                    });
-                    blobs.push({
-                        image: data.blob,
-                        alt: img.alt || ''
-                    });
-                }
-            }
-
-            const embed = blobs.length > 0 ? {
-                $type: 'app.bsky.embed.images',
-                images: blobs
-            } : undefined;
-
-            // 2. Create Post via AT Proto
             if (isEditing && postToEdit) {
-                // Post editing is not supported in standard AT Protocol (posts are immutable).
-                // We show a toast and close the modal.
-                dispatch(showToast({ message: t('post.editing_not_supported', 'Post editing is not supported on AT Protocol'), type: 'info' }));
+                dispatch(showToast({ message: t('post.editing_not_supported', 'Post editing is not supported'), type: 'info' }));
             } else {
+                // Collect image files from the images array
+                const mediaFiles = images.filter(img => img.file).map(img => img.file as File);
                 await dispatch(createPost({
                     content,
-                    embed,
-                    // If quiting, handle it here too
+                    mediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined,
                 })).unwrap();
                 dispatch(showToast({ message: t('post.created_success'), type: 'success' }));
             }
