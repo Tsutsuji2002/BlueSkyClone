@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
 import { UserState, User } from '../../types';
 import agent from '../../services/atpAgent';
+import { API_BASE_URL } from '../../constants';
 
 const initialState: UserState = {
     profile: null,
@@ -193,6 +194,53 @@ export const unmuteUserAsync = createAsyncThunk<
     }
 );
 
+export const fetchSelectedInterests = createAsyncThunk<
+    string[],
+    void,
+    { rejectValue: string }
+>(
+    'user/fetchInterests',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/User/interests`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch interests');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const saveSelectedInterests = createAsyncThunk<
+    string[],
+    string[],
+    { rejectValue: string }
+>(
+    'user/saveInterests',
+    async (interests: string[], { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/User/interests`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(interests)
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to save interests');
+            return interests;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 const userSlice = createSlice({
     name: 'user',
     initialState,
@@ -297,6 +345,32 @@ const userSlice = createSlice({
                 if (state.profile && state.profile.id === userId) {
                     state.profile.isMuted = false;
                 }
+            })
+            // Fetch Selected Interests
+            .addCase(fetchSelectedInterests.pending, (state: UserState) => {
+                state.interestsLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchSelectedInterests.fulfilled, (state: UserState, action: PayloadAction<string[]>) => {
+                state.interestsLoading = false;
+                state.selectedInterests = action.payload;
+            })
+            .addCase(fetchSelectedInterests.rejected, (state: UserState, action) => {
+                state.interestsLoading = false;
+                state.error = action.payload as string;
+            })
+            // Save Selected Interests
+            .addCase(saveSelectedInterests.pending, (state: UserState) => {
+                state.interestsLoading = true;
+                state.error = null;
+            })
+            .addCase(saveSelectedInterests.fulfilled, (state: UserState, action: PayloadAction<string[]>) => {
+                state.interestsLoading = false;
+                state.selectedInterests = action.payload;
+            })
+            .addCase(saveSelectedInterests.rejected, (state: UserState, action) => {
+                state.interestsLoading = false;
+                state.error = action.payload as string;
             });
     }
 });
