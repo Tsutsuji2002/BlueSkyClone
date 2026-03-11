@@ -398,14 +398,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                 video={post.video}
                                 videoUrl={post.videoUrl}
                                 onImageClick={(index: number) => {
-                                    // If clicking a video (always at index 0 when present), go to post detail
-                                    const hasVideo = post.video || post.videoUrl;
+                                    if (!post.uri) return;
                                     const postShortId = post.uri.split('/').pop() || '';
-                                    if (hasVideo && index === 0) {
-                                        navigate(`/profile/${post.author.handle}/post/${postShortId}`);
-                                    } else {
-                                        navigate(`/profile/${post.author.handle}/post/${postShortId}/media/${index}`);
-                                    }
+                                    navigate(`/profile/${post.author.handle}/post/${postShortId}/media/${index}`);
                                 }}
                             />
                         </div>

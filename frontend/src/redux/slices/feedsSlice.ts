@@ -491,8 +491,7 @@ const feedsSlice = createSlice({
             // Synchronize interactions across feedPosts
             .addMatcher(
                 (action) => action.type.endsWith('/toggleLike/fulfilled') ||
-                    action.type.endsWith('/repostPost/fulfilled') ||
-                    action.type.endsWith('/bookmarkPost/fulfilled'),
+                    action.type.endsWith('/repostPost/fulfilled'),
                 (state: FeedsState, action: any) => {
                     const updatedPost = action.payload;
                     if (!updatedPost || !updatedPost.postId) return;

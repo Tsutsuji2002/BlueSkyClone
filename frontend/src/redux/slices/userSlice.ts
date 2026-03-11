@@ -89,6 +89,60 @@ export const fetchUserProfile = createAsyncThunk<
     }
 );
 
+export const fetchUserProfileById = fetchUserProfile;
+
+export const fetchFollowers = createAsyncThunk<
+    User[],
+    string,
+    { rejectValue: string }
+>(
+    'user/fetchFollowers',
+    async (actor: string, { rejectWithValue }) => {
+        try {
+            const { data } = await agent.getFollowers({ actor });
+            return data.followers.map(f => ({
+                id: f.did,
+                did: f.did,
+                handle: f.handle,
+                username: f.handle,
+                displayName: f.displayName || '',
+                avatarUrl: f.avatar,
+                bio: f.description,
+                isFollowing: !!f.viewer?.following,
+                followingReference: f.viewer?.following,
+            } as any));
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchFollowing = createAsyncThunk<
+    User[],
+    string,
+    { rejectValue: string }
+>(
+    'user/fetchFollowing',
+    async (actor: string, { rejectWithValue }) => {
+        try {
+            const { data } = await agent.getFollows({ actor });
+            return data.follows.map(f => ({
+                id: f.did,
+                did: f.did,
+                handle: f.handle,
+                username: f.handle,
+                displayName: f.displayName || '',
+                avatarUrl: f.avatar,
+                bio: f.description,
+                isFollowing: !!f.viewer?.following,
+                followingReference: f.viewer?.following,
+            } as any));
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const followUserAsync = createAsyncThunk<
     { isFollowing: boolean, followersCount: number, uri: string },
     string,
@@ -196,6 +250,41 @@ export const fetchBlockedAccounts = createAsyncThunk<User[], void, { rejectValue
                 avatarUrl: b.avatar,
                 isBlocking: true,
             } as any));
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+// Muted Words Mock Thunks
+export const fetchMutedWords = createAsyncThunk<any[], void, { rejectValue: string }>(
+    'user/fetchMutedWords',
+    async (_, { rejectWithValue }) => {
+        try {
+            // Mocking for now as AT Protocol uses content filters/labels for this
+            return [];
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const addMutedWordAsync = createAsyncThunk<any, { word: string, muteBehavior: string }, { rejectValue: string }>(
+    'user/addMutedWord',
+    async (data, { rejectWithValue }) => {
+        try {
+            return { id: Math.random(), ...data };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const deleteMutedWordAsync = createAsyncThunk<number, number, { rejectValue: string }>(
+    'user/deleteMutedWord',
+    async (id, { rejectWithValue }) => {
+        try {
+            return id;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -431,6 +520,50 @@ const userSlice = createSlice({
             .addCase(fetchBlockedAccounts.rejected, (state: UserState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+            })
+            // Fetch Followers
+            .addCase(fetchFollowers.pending, (state: UserState) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchFollowers.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+                state.isLoading = false;
+                state.users = action.payload;
+            })
+            .addCase(fetchFollowers.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Fetch Following
+            .addCase(fetchFollowing.pending, (state: UserState) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchFollowing.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+                state.isLoading = false;
+                state.users = action.payload;
+            })
+            .addCase(fetchFollowing.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Muted Words
+            .addCase(fetchMutedWords.pending, (state: UserState) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchMutedWords.fulfilled, (state: UserState, action: PayloadAction<any[]>) => {
+                state.isLoading = false;
+                state.mutedWords = action.payload;
+            })
+            .addCase(fetchMutedWords.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(addMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<any>) => {
+                state.mutedWords.push(action.payload);
+            })
+            .addCase(deleteMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<number>) => {
+                state.mutedWords = state.mutedWords.filter(w => w.id !== action.payload);
             });
     }
 });

@@ -605,8 +605,7 @@ const listsSlice = createSlice({
 
         builder.addMatcher(
             (action) => action.type.endsWith('/toggleLike/fulfilled') ||
-                action.type.endsWith('/repostPost/fulfilled') ||
-                action.type.endsWith('/bookmarkPost/fulfilled'),
+                action.type.endsWith('/repostPost/fulfilled'),
             (state, action: any) => {
                 const updatedPost = action.payload;
                 if (!updatedPost || !updatedPost.uri) return;

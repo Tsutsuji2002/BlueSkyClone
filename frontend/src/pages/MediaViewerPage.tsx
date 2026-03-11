@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
-import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiBookmark, FiMoreHorizontal, FiShare2, FiLink, FiSend, FiCode } from 'react-icons/fi';
-import { toggleLike, repostPost, bookmarkPost, fetchPostById } from '../redux/slices/postsSlice';
+import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiMoreHorizontal, FiShare2, FiLink, FiSend, FiCode } from 'react-icons/fi';
+import { toggleLike, repostPost, fetchPostById } from '../redux/slices/postsSlice';
 import { openReply } from '../redux/slices/modalsSlice';
 import { Post } from '../types';
 import Avatar from '../components/common/Avatar';
@@ -125,19 +125,13 @@ const MediaViewerPage: React.FC = () => {
     const handleLike = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         console.log('MediaViewerPage handleLike clicked for:', currentPost.id);
-        dispatch(toggleLike(currentPost.id));
+        dispatch(toggleLike({ uri: currentPost.uri!, cid: currentPost.cid!, isLiked: !!currentPost.isLiked }));
     };
 
     const handleRepost = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         console.log('MediaViewerPage handleRepost clicked for:', currentPost.id);
-        dispatch(repostPost(currentPost.id));
-    };
-
-    const handleBookmark = (e: React.MouseEvent | React.TouchEvent) => {
-        e.stopPropagation();
-        console.log('MediaViewerPage handleBookmark clicked for:', currentPost.id);
-        dispatch(bookmarkPost(currentPost.id));
+        dispatch(repostPost({ uri: currentPost.uri!, cid: currentPost.cid!, isReposted: !!currentPost.isReposted }));
     };
 
     const handleComment = (e: React.MouseEvent) => {
@@ -259,14 +253,6 @@ const MediaViewerPage: React.FC = () => {
                         <span className="text-[13px] font-bold">{formatCount(currentPost.likesCount)}</span>
                     </button>
                     <button
-                        onClick={handleBookmark}
-                        disabled={actionLoading[currentPost.id]}
-                        className={cn("flex flex-col items-center gap-1.5 transition-all active:scale-75 p-2 min-w-[60px]", currentPost.isBookmarked ? "text-blue-500 scale-110" : "text-white/95")}
-                    >
-                        <FiBookmark size={26} className={currentPost.isBookmarked ? "fill-current" : ""} />
-                        <span className="text-[13px] font-bold">{formatCount(currentPost.bookmarksCount || 0)}</span>
-                    </button>
-                    <button
                         onClick={(e) => { e.stopPropagation(); setShowShareMenu(true); }}
                         className="flex flex-col items-center gap-1.5 text-white/95 active:scale-75 transition-all p-2 min-w-[60px]"
                     >
@@ -304,7 +290,6 @@ const MediaViewerPage: React.FC = () => {
                         <button onClick={handleComment} className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-primary-500 transition-all group"><FiMessageCircle size={24} className="group-hover:scale-110" /><span className="text-xs font-bold">{currentPost.repliesCount}</span></button>
                         <button onClick={handleRepost} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isReposted ? "text-green-500" : "text-gray-500 hover:text-green-500")}><FiRepeat size={24} className={cn("group-hover:scale-110", currentPost.isReposted ? "stroke-[2.5px]" : "")} /><span className="text-xs font-bold">{currentPost.repostsCount}</span></button>
                         <button onClick={handleLike} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isLiked ? "text-red-500" : "text-gray-500 hover:text-red-500")}><FiHeart size={24} className={cn("group-hover:scale-110", currentPost.isLiked ? "fill-current" : "")} /><span className="text-xs font-bold">{currentPost.likesCount}</span></button>
-                        <button onClick={handleBookmark} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isBookmarked ? "text-blue-500" : "text-gray-500 hover:text-blue-500")}><FiBookmark size={24} className={cn("group-hover:scale-110", currentPost.isBookmarked ? "fill-current" : "")} /><span className="text-xs font-bold">{currentPost.bookmarksCount || 0}</span></button>
                         <Dropdown
                             trigger={
                                 <button className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-primary-500 transition-all group">
