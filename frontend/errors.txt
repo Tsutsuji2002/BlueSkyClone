@@ -1,0 +1,16 @@
+﻿src/pages/FollowersPage.tsx(68,50): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ userId: string; followUri: string; }'.
+src/pages/FollowingPage.tsx(67,50): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ userId: string; followUri: string; }'.
+src/pages/ListDetailPage.tsx(306,114): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/pages/SampleProfilePage.tsx(107,50): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ userId: string; followUri: string; }'.
+src/pages/SampleProfilePage.tsx(138,49): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ userId: string; blockUri: string; }'.
+src/pages/SampleProfilePage.tsx(438,85): error TS18048: 'list.owner' is possibly 'undefined'.
+src/pages/SampleProfilePage.tsx(472,74): error TS18048: 'list.owner' is possibly 'undefined'.
+src/pages/SampleProfilePage.tsx(472,98): error TS18048: 'list.owner' is possibly 'undefined'.
+src/pages/SampleProfilePage.tsx(473,74): error TS18048: 'list.owner' is possibly 'undefined'.
+src/pages/SampleProfilePage.tsx(477,158): error TS18048: 'list.owner' is possibly 'undefined'.
+src/services/postSignalrService.ts(22,44): error TS2345: Argument of type '{ postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string | undefined; }' is not assignable to parameter of type '{ uri: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string | undefined; }'.
+  Property 'uri' is missing in type '{ postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string | undefined; }' but required in type '{ uri: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string | undefined; }'.
+src/services/postSignalrService.ts(26,49): error TS2345: Argument of type '{ postId: string; isLiked?: boolean | undefined; isReposted?: boolean | undefined; isBookmarked?: boolean | undefined; timestamp?: string | undefined; }' is not assignable to parameter of type '{ uri: string; isLiked?: boolean | undefined; isReposted?: boolean | undefined; isBookmarked?: boolean | undefined; timestamp?: string | undefined; }'.
+  Property 'uri' is missing in type '{ postId: string; isLiked?: boolean | undefined; isReposted?: boolean | undefined; isBookmarked?: boolean | undefined; timestamp?: string | undefined; }' but required in type '{ uri: string; isLiked?: boolean | undefined; isReposted?: boolean | undefined; isBookmarked?: boolean | undefined; timestamp?: string | undefined; }'.
+

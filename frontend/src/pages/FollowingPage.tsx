@@ -64,7 +64,7 @@ const FollowingPage: React.FC = () => {
     const handleFollowToggle = async (user: User) => {
         try {
             if (user.isFollowing) {
-                await dispatch(unfollowUserAsync(user.id)).unwrap();
+                await dispatch(unfollowUserAsync({ userId: user.id, followUri: (user as any).followingReference || '' })).unwrap();
             } else {
                 await dispatch(followUserAsync(user.id)).unwrap();
             }

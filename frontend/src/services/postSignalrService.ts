@@ -19,11 +19,11 @@ class PostSignalRService {
             .build();
 
         this.connection.on('UpdatePostStats', (stats: { postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number, timestamp?: string }) => {
-            store.dispatch(updatePostStats(stats));
+            store.dispatch(updatePostStats({ ...stats, uri: stats.postId }));
         });
 
         this.connection.on('UpdateUserPostStatus', (status: { postId: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean, timestamp?: string }) => {
-            store.dispatch(updateUserPostStatus(status));
+            store.dispatch(updateUserPostStatus({ ...status, uri: status.postId }));
         });
 
         this.connection.on('PostDeleted', (postId: string) => {

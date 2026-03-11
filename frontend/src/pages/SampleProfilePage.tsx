@@ -104,7 +104,7 @@ const SampleProfilePage: React.FC = () => {
         if (!profileUser) return;
         try {
             if (profileUser.isFollowing) {
-                await dispatch(unfollowUserAsync(profileUser.id)).unwrap();
+                await dispatch(unfollowUserAsync({ userId: profileUser.id, followUri: (profileUser as any).followingReference || '' })).unwrap();
             } else {
                 await dispatch(followUserAsync(profileUser.id)).unwrap();
             }
@@ -135,7 +135,7 @@ const SampleProfilePage: React.FC = () => {
         if (!profileUser) return;
         try {
             if (profileUser.isBlocking) {
-                await dispatch(unblockUserAsync(profileUser.id)).unwrap();
+                await dispatch(unblockUserAsync({ userId: profileUser.id, blockUri: (profileUser as any).blockingReference || '' })).unwrap();
                 dispatch(showToast({ message: t('profile.unblocked_success'), type: 'success' }));
             } else {
                 await dispatch(blockUserAsync(profileUser.id)).unwrap();
@@ -435,7 +435,7 @@ const SampleProfilePage: React.FC = () => {
                                 ) : userLists.length > 0 ? (
                                     <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
                                         {userLists.map(list => {
-                                            const isListOwner = currentUser?.id === list.owner.id;
+                                            const isListOwner = currentUser?.id === list.owner?.id;
                                             return (
                                                 <div
                                                     key={list.id}
@@ -469,12 +469,12 @@ const SampleProfilePage: React.FC = () => {
                                                             )}
                                                             <div className="flex items-center gap-2 mt-2">
                                                                 <Avatar
-                                                                    src={list.owner.avatarUrl || list.owner.avatar}
-                                                                    alt={list.owner.displayName}
+                                                                    src={list.owner?.avatarUrl || list.owner?.avatar}
+                                                                    alt={list.owner?.displayName || ''}
                                                                     size="xs"
                                                                 />
                                                                 <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                                    {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
+                                                                    {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner?.handle}</span>
                                                                 </span>
                                                             </div>
                                                         </div>

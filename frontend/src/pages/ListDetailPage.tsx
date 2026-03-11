@@ -303,7 +303,7 @@ const ListDetailPage: React.FC = () => {
                                                 post={post}
                                                 isOwnPost={currentUser?.did === post.author.id}
                                                 isInListContext={true}
-                                                onRemoveFromList={canRemove && post.uri ? () => handleRemovePost(post.uri) : undefined}
+                                                onRemoveFromList={canRemove && post.uri ? () => handleRemovePost(post.uri as string) : undefined}
                                                 hasTopLine={!!post.parentPost}
                                             />
                                         </div>
