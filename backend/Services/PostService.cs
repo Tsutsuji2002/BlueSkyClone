@@ -1055,7 +1055,7 @@ public class PostService : IPostService
             .FirstOrDefaultAsync(p => p.Id == postId);
 
         if (rootPost == null || rootPost.AuthorId != userId)
-            return null;
+            return new List<Guid>();
 
         if (rootPost.IsDeleted == true)
             return new List<Guid> { postId };
@@ -1590,8 +1590,8 @@ public class PostService : IPostService
             .Include(p => p.LinkPreview)
             .Include(p => p.Hashtags)
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
-                        (p.Content.ToLower().Contains(lowerQuery) || 
-                         p.Hashtags.Any(h => h.Name.ToLower().Contains(lowerQuery))))
+                        (p.Content != null && p.Content.ToLower().Contains(lowerQuery) || 
+                         p.Hashtags.Any(h => h.Name != null && h.Name.ToLower().Contains(lowerQuery))))
             .OrderByDescending(p => p.CreatedAt)
             .Skip(offset)
             .Take(limit)
@@ -1666,7 +1666,7 @@ public class PostService : IPostService
         };
     }
 
-    private string GenerateTid()
+    public string GenerateTid()
     {
         // Simple TID generator for now (333rd-style)
         return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();

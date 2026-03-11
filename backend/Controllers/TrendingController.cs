@@ -131,7 +131,7 @@ public class TrendingController : ControllerBase
                 PostsCount = (u.PostsCount ?? 0),
                 Category = "Popular",
                 Type = "account",
-                FollowersAvatars = new List<string> { u.AvatarUrl },
+                FollowersAvatars = new List<string> { u.AvatarUrl ?? "" },
                 IsPromoted = false,
                 TimeAgo = "Last 24h"
             })

@@ -34,7 +34,7 @@ namespace BSkyClone.Controllers
         public async Task<IActionResult> CreateSession([FromBody] CreateSessionRequest request)
         {
             // ... existing login logic ...
-            var loginRequest = new DTOs.LoginRequest { Identifier = request.Identifier, Password = request.Password };
+            var loginRequest = new DTOs.LoginRequest(request.Identifier, request.Password);
             try
             {
                 var authResponse = await _authService.LoginAsync(loginRequest);
@@ -44,7 +44,7 @@ namespace BSkyClone.Controllers
                     AccessJwt = authResponse.Token,
                     RefreshJwt = authResponse.RefreshToken,
                     Handle = authResponse.User.Handle,
-                    Did = authResponse.User.Did,
+                    Did = authResponse.User.Did ?? "",
                     Email = authResponse.User.Email,
                     User = authResponse.User,
                     Settings = authResponse.Settings

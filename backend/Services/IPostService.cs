@@ -25,4 +25,5 @@ public interface IPostService
     PostDto MapToDto(Post post);
     Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false);
     Task<string> SaveBlobAsync(Stream stream, string contentType, string folder);
+    public string GenerateTid();
 }
