@@ -1,18 +1,31 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { NotificationsState, Notification } from '../../types';
 
-import agent from '../../services/atpAgent';
+const getXrpcBase = () =>
+    (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '') + '/xrpc';
+
+const getAuthHeaders = (): Record<string, string> => {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
 
 export const fetchNotifications = createAsyncThunk<Notification[], void, { rejectValue: string }>(
     'notifications/fetchNotifications',
     async (_, { rejectWithValue }) => {
         try {
-            const { data } = await agent.listNotifications();
-            console.log('DEBUG: Notifications API data:', data);
-            const mapped: Notification[] = data.notifications.map(n => {
+            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=50`, {
+                headers: getAuthHeaders()
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                return rejectWithValue(err.message || `Error ${res.status}`);
+            }
+            const data = await res.json();
+            console.log('DEBUG: Notifications raw data:', data);
+            const notifications: any[] = data.notifications || [];
+            const mapped: Notification[] = notifications.map(n => {
                 const author = n.author || {};
                 const reason = (n.reason || 'unknown').toLowerCase();
-                console.log('DEBUG: Mapping notification:', n.uri, reason);
                 return {
                     id: n.cid || n.uri || Math.random().toString(36).substring(7),
                     uri: n.uri || '',
@@ -31,9 +44,9 @@ export const fetchNotifications = createAsyncThunk<Notification[], void, { rejec
                     isRead: !!n.isRead,
                     createdAt: n.indexedAt || new Date().toISOString(),
                     record: n.record,
-                    content: (n.record as any)?.text || '',
+                    content: n.record?.text || '',
                     subjectUri: n.reasonSubject,
-                    postAuthorHandle: (n as any).postAuthorHandle,
+                    postAuthorHandle: n.postAuthorHandle,
                     postId: n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined
                 };
             });
@@ -49,10 +62,10 @@ export const markNotificationAsRead = createAsyncThunk<string, string, { rejectV
     'notifications/markAsRead',
     async (id: string, { rejectWithValue }) => {
         try {
-            // In AT Protocol, we usually mark all unread as seen up to a certain time
-            // For a single notification, we might just update the local state or call updateSeen
-            await agent.app.bsky.notification.updateSeen({
-                seenAt: new Date().toISOString()
+            await fetch(`${getXrpcBase()}/app.bsky.notification.updateSeen`, {
+                method: 'POST',
+                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ seenAt: new Date().toISOString() })
             });
             return id;
         } catch (error: any) {
@@ -65,10 +78,11 @@ export const markAllNotificationsAsRead = createAsyncThunk<void, void, { rejectV
     'notifications/markAllAsRead',
     async (_, { rejectWithValue }) => {
         try {
-            await agent.app.bsky.notification.updateSeen({
-                seenAt: new Date().toISOString()
+            await fetch(`${getXrpcBase()}/app.bsky.notification.updateSeen`, {
+                method: 'POST',
+                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ seenAt: new Date().toISOString() })
             });
-            return;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to mark all as read');
         }
@@ -79,8 +93,12 @@ export const fetchUnreadCount = createAsyncThunk<number, void, { rejectValue: st
     'notifications/fetchUnreadCount',
     async (_, { rejectWithValue }) => {
         try {
-            const { data } = await agent.countUnreadNotifications();
-            return data.count;
+            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.getUnreadCount`, {
+                headers: getAuthHeaders()
+            });
+            if (!res.ok) return rejectWithValue('Failed to fetch unread count');
+            const data = await res.json();
+            return data.count ?? 0;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch unread count');
         }
