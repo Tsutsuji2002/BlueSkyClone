@@ -376,6 +376,19 @@ const authSlice = createSlice({
                 state.user = action.payload.user;
                 state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
+
+                // Resume atpAgent session if we have the necessary data
+                const token = localStorage.getItem('token');
+                const refreshToken = localStorage.getItem('refreshToken');
+                if (token && action.payload.user.did) {
+                    agent.resumeSession({
+                        accessJwt: token,
+                        refreshJwt: refreshToken || '',
+                        handle: action.payload.user.handle,
+                        did: action.payload.user.did,
+                        active: true
+                    });
+                }
             })
             .addCase(getMe.rejected, (state) => {
                 state.isLoading = false;

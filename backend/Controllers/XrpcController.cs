@@ -76,9 +76,11 @@ namespace BSkyClone.Controllers
             var userHandle = User.FindFirst("handle")?.Value;
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             
-            bool isAuthorizedRepo = request.Repo == userDid || (!string.IsNullOrEmpty(userHandle) && request.Repo == userHandle) || request.Repo == userIdStr;
+            bool isAuthorizedRepo = (!string.IsNullOrEmpty(userDid) && request.Repo == userDid) || 
+                                    (!string.IsNullOrEmpty(userHandle) && request.Repo == userHandle) || 
+                                    (!string.IsNullOrEmpty(userIdStr) && request.Repo == userIdStr);
 
-            if (string.IsNullOrEmpty(userDid) || string.IsNullOrEmpty(userIdStr) || !isAuthorizedRepo)
+            if (string.IsNullOrEmpty(userIdStr) || !isAuthorizedRepo)
             {
                 return Unauthorized(new { error = "InvalidRepo", message = "You can only create records in your own repo" });
             }
@@ -214,11 +216,11 @@ namespace BSkyClone.Controllers
                             DisplayName = p.Author?.DisplayName,
                             Avatar = p.Author?.AvatarUrl,
                         },
-                        Record = new 
+                        Record = new Dictionary<string, object>
                         {
-                            text = p.Content,
-                            createdAt = p.CreatedAt?.ToString("o"),
-                            @type = "app.bsky.feed.post"
+                            { "text", p.Content ?? "" },
+                            { "createdAt", p.CreatedAt?.ToString("o") ?? "" },
+                            { "$type", "app.bsky.feed.post" }
                         },
                         ReplyCount = p.RepliesCount,
                         RepostCount = p.RepostsCount,
@@ -304,11 +306,11 @@ namespace BSkyClone.Controllers
                         PostId = n.PostId,
                         IsRead = n.IsRead,
                         IndexedAt = n.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                        Record = new
+                        Record = new Dictionary<string, object>
                         {
-                            @type = n.Reason?.ToLowerInvariant() == "follow" ? "app.bsky.graph.follow" : "app.bsky.notification.event",
-                            text = n.Content,
-                            createdAt = n.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                            { "$type", n.Reason?.ToLowerInvariant() == "follow" ? "app.bsky.graph.follow" : "app.bsky.notification.event" },
+                            { "text", n.Content ?? "" },
+                            { "createdAt", n.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") }
                         }
                     }).ToList(),
                     Cursor = null

@@ -63,6 +63,48 @@ export const fetchUserPosts = createAsyncThunk(
 
 // updatePost removed as AT Protocol usually handles updates by deleting and re-creating or specific field updates in some CMS, but not the standard post flow.
 
+export const updatePost = createAsyncThunk(
+    'posts/updatePost',
+    async ({ id, content, mediaFiles, videoFile, linkPreview, gifUrl }: { id: string; content: string; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const formData = new FormData();
+            formData.append('Content', content);
+            if (mediaFiles) {
+                mediaFiles.forEach(f => formData.append('Images', f));
+            }
+            if (videoFile) {
+                formData.append('Video', videoFile);
+            }
+            if (linkPreview) {
+                if (linkPreview.url) formData.append('LinkPreviewUrl', linkPreview.url);
+                if (linkPreview.title) formData.append('LinkPreviewTitle', linkPreview.title);
+                if (linkPreview.description) formData.append('LinkPreviewDescription', linkPreview.description);
+                if (linkPreview.image) formData.append('LinkPreviewImage', linkPreview.image);
+                if (linkPreview.domain) formData.append('LinkPreviewDomain', linkPreview.domain);
+            }
+            if (gifUrl) {
+                formData.append('GifUrl', gifUrl);
+            }
+
+            const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                return rejectWithValue(err.message || 'Failed to update post');
+            }
+
+            return await response.json() as Post;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to update post');
+        }
+    }
+);
+
 export const createPost = createAsyncThunk(
     'posts/createPost',
     async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; replyToPostId?: string }, { rejectWithValue, getState }) => {
@@ -554,6 +596,28 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+            })
+            // Update Post
+            .addCase(updatePost.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(updatePost.fulfilled, (state, action) => {
+                state.isLoading = false;
+                const updatedPost = action.payload;
+                const updateInArray = (arr: Post[]) => {
+                    const index = arr.findIndex(p => p.id === updatedPost.id);
+                    if (index !== -1) {
+                        arr[index] = { ...arr[index], ...updatedPost };
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
+                state.lastUpdated = new Date().toISOString();
+            })
+            .addCase(updatePost.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
             })
             // Delete Post
             .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string>) => {

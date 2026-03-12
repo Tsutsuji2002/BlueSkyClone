@@ -5,7 +5,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
 import { toggleLike, repostPost, deletePost, fetchPostById } from '../redux/slices/postsSlice';
-import { openReply, openMobileMenu } from '../redux/slices/modalsSlice';
+import { openReply, openMobileMenu, openEditPost } from '../redux/slices/modalsSlice';
 import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -298,6 +298,12 @@ const PostDetailPage: React.FC = () => {
                 icon: <FiFilter />,
                 onClick: () => { },
                 hasDivider: true,
+            },
+            {
+                id: 'edit-post',
+                label: t('common.edit_post', 'Edit Post'),
+                icon: <FiEdit />,
+                onClick: () => dispatch(openEditPost(post)),
             },
             {
                 id: 'delete-post',

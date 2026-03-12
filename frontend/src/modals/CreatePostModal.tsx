@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { closeCreatePost, closeEditPost, closeQuote } from '../redux/slices/modalsSlice';
-import { createPost } from '../redux/slices/postsSlice';
+import { createPost, updatePost } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 
 import Button from '../components/common/Button';
@@ -312,7 +312,16 @@ const CreatePostModal: React.FC = () => {
 
         try {
             if (isEditing && postToEdit) {
-                dispatch(showToast({ message: t('post.editing_not_supported', 'Post editing is not supported'), type: 'info' }));
+                const mediaFiles = images.filter(img => img.file).map(img => img.file as File);
+                await dispatch(updatePost({
+                    id: postToEdit.id,
+                    content,
+                    mediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined,
+                    videoFile: videoFile || undefined,
+                    linkPreview: linkPreview || undefined,
+                    gifUrl: selectedGifUrl || undefined,
+                })).unwrap();
+                dispatch(showToast({ message: t('post.updated_success', 'Post updated successfully'), type: 'success' }));
             } else {
                 const mediaFiles = images.filter(img => img.file).map(img => img.file as File);
                 await dispatch(createPost({

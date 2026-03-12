@@ -364,6 +364,7 @@ export interface PostsState {
     lastDiscoverFetch: number;
     cursor: string | null;
     discoverCursor: string | null;
+    lastUpdated?: string;
 }
 
 export interface UserState {
