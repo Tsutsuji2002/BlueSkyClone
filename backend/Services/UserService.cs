@@ -204,9 +204,19 @@ public class UserService : IUserService
 
     public async Task<UserSetting> UpdateSettingsAsync(Guid userId, UserSettingDto request)
     {
-        var user = await _unitOfWork.Users.Query()
-            .Include(u => u.UserSetting)
-            .FirstOrDefaultAsync(u => u.Id == userId);
+        User? user = null;
+        try
+        {
+            user = await _unitOfWork.Users.Query()
+                .Include(u => u.UserSetting)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[UserService] UpdateSettingsAsync: Error fetching User + settings: {ex.Message}");
+            // Critical failure if we can't even get the user, but let's try to get user without settings as fallback
+            user = await _unitOfWork.Users.GetByIdAsync(userId);
+        }
 
         if (user == null) throw new Exception("User not found");
 
@@ -614,28 +624,38 @@ public class UserService : IUserService
 
     public async Task<List<string>> GetSelectedInterestsAsync(Guid userId)
     {
-        var settings = await _unitOfWork.Users.Query()
-            .Where(u => u.Id == userId)
-            .Select(u => u.UserSetting)
-            .FirstOrDefaultAsync();
-
-        if (settings?.SelectedInterests == null) return new List<string>();
-
         try
         {
+            var settings = await _unitOfWork.Users.Query()
+                .Where(u => u.Id == userId)
+                .Select(u => u.UserSetting)
+                .FirstOrDefaultAsync();
+
+            if (settings?.SelectedInterests == null) return new List<string>();
+
             return System.Text.Json.JsonSerializer.Deserialize<List<string>>(settings.SelectedInterests) ?? new List<string>();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Console.WriteLine($"[UserService] GetSelectedInterestsAsync: Error: {ex.Message}");
             return new List<string>();
         }
     }
 
     public async Task SaveSelectedInterestsAsync(Guid userId, List<string> interests)
     {
-        var user = await _unitOfWork.Users.Query()
-            .Include(u => u.UserSetting)
-            .FirstOrDefaultAsync(u => u.Id == userId);
+        User? user = null;
+        try
+        {
+            user = await _unitOfWork.Users.Query()
+                .Include(u => u.UserSetting)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[UserService] SaveSelectedInterestsAsync: Error: {ex.Message}");
+            user = await _unitOfWork.Users.GetByIdAsync(userId);
+        }
 
         if (user == null) throw new Exception("User not found");
 
@@ -650,17 +670,25 @@ public class UserService : IUserService
 
     private async Task<bool> ShouldCreateNotificationAsync(Guid userId, string type)
     {
-        var settings = await _unitOfWork.UserSettings.Query()
-            .FirstOrDefaultAsync(s => s.UserId == userId);
-            
-        if (settings == null) return true;
-
-        return type.ToLower() switch
+        try
         {
-            "follow" => (settings.NotifyFollowers ?? true) && (settings.InAppNotifyFollowers ?? true),
-            "activity" => (settings.NotifyActivity ?? true) && (settings.InAppNotifyActivity ?? true),
-            _ => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true)
-        };
+            var settings = await _unitOfWork.UserSettings.Query()
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+                
+            if (settings == null) return true;
+
+            return type.ToLower() switch
+            {
+                "follow" => (settings.NotifyFollowers ?? true) && (settings.InAppNotifyFollowers ?? true),
+                "activity" => (settings.NotifyActivity ?? true) && (settings.InAppNotifyActivity ?? true),
+                _ => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true)
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[UserService] ShouldCreateNotificationAsync: Error: {ex.Message}");
+            return true;
+        }
     }
 
     public async Task<bool> VerifyDomainAsync(Guid userId, string? handle = null)

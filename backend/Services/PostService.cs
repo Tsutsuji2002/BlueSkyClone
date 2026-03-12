@@ -1580,24 +1580,32 @@ public class PostService : IPostService
         }
         else
         {
-            var posts = await _unitOfWork.Posts.Query()
-                .Include(p => p.Author)
-                .Include(p => p.PostMedia)
-                .Include(p => p.LinkPreview)
-                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
-                .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
-                .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-                .AsSplitQuery()
-                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
-                .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
-                .Take(50)
-                .ToListAsync();
+            try
+            {
+                var posts = await _unitOfWork.Posts.Query()
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                    .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                    .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                    .AsSplitQuery()
+                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
+                    .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
+                    .Take(50)
+                    .ToListAsync();
 
-            postDtos = posts.Select(MapToDto).ToList();
-            await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)postDtos, TimeSpan.FromMinutes(5));
+                postDtos = posts.Select(MapToDto).ToList();
+                await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)postDtos, TimeSpan.FromMinutes(5));
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[PostService] GetTrendingPostsAsync: Error fetching trending posts: {ex.Message}");
+                postDtos = new List<PostDto>();
+            }
         }
 
-        if (viewerId.HasValue)
+        if (viewerId.HasValue && postDtos.Any())
         {
             postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
         }
@@ -1607,15 +1615,23 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0)
     {
-        var posts = await _unitOfWork.Posts.GetTrendingPosts24hAsync(limit, skip);
-        var postDtos = posts.Select(MapToDto).ToList();
-
-        if (viewerId.HasValue)
+        try
         {
-            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
-        }
+            var posts = await _unitOfWork.Posts.GetTrendingPosts24hAsync(limit, skip);
+            var postDtos = posts.Select(MapToDto).ToList();
 
-        return postDtos;
+            if (viewerId.HasValue)
+            {
+                postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
+            }
+
+            return postDtos;
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[PostService] GetTrendingPosts24hAsync: Error: {ex.Message}");
+            return new List<PostDto>();
+        }
     }
 
     public async Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId)
@@ -1793,25 +1809,33 @@ public class PostService : IPostService
 
     private async Task<bool> ShouldCreateNotificationAsync(Guid userId, string type)
     {
-        var settings = await _unitOfWork.UserSettings.Query()
-            .FirstOrDefaultAsync(s => s.UserId == userId);
-
-        if (settings == null) return true;
-
-        return type switch
+        try
         {
-            "like" => (settings.NotifyLikes ?? true) && (settings.InAppNotifyLikes ?? true),
-            "repost" => (settings.NotifyReposts ?? true) && (settings.InAppNotifyReposts ?? true),
-            "reply" => (settings.NotifyReplies ?? true) && (settings.InAppNotifyReplies ?? true),
-            "mention" => (settings.NotifyMentions ?? true) && (settings.InAppNotifyMentions ?? true),
-            "quote" => (settings.NotifyQuotes ?? true) && (settings.InAppNotifyQuotes ?? true),
-            "follow" => (settings.NotifyFollowers ?? true) && (settings.InAppNotifyFollowers ?? true),
-            "activity" => (settings.NotifyActivity ?? true) && (settings.InAppNotifyActivity ?? true),
-            "like_of_repost" => (settings.NotifyLikesOfReposts ?? true) && (settings.InAppNotifyLikesOfReposts ?? true),
-            "repost_of_repost" => (settings.NotifyRepostsOfReposts ?? true) && (settings.InAppNotifyRepostsOfReposts ?? true),
-            "others" => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true),
-            _ => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true)
-        };
+            var settings = await _unitOfWork.UserSettings.Query()
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (settings == null) return true;
+
+            return type switch
+            {
+                "like" => (settings.NotifyLikes ?? true) && (settings.InAppNotifyLikes ?? true),
+                "repost" => (settings.NotifyReposts ?? true) && (settings.InAppNotifyReposts ?? true),
+                "reply" => (settings.NotifyReplies ?? true) && (settings.InAppNotifyReplies ?? true),
+                "mention" => (settings.NotifyMentions ?? true) && (settings.InAppNotifyMentions ?? true),
+                "quote" => (settings.NotifyQuotes ?? true) && (settings.InAppNotifyQuotes ?? true),
+                "follow" => (settings.NotifyFollowers ?? true) && (settings.InAppNotifyFollowers ?? true),
+                "activity" => (settings.NotifyActivity ?? true) && (settings.InAppNotifyActivity ?? true),
+                "like_of_repost" => (settings.NotifyLikesOfReposts ?? true) && (settings.InAppNotifyLikesOfReposts ?? true),
+                "repost_of_repost" => (settings.NotifyRepostsOfReposts ?? true) && (settings.InAppNotifyRepostsOfReposts ?? true),
+                "others" => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true),
+                _ => (settings.NotifyOthers ?? true) && (settings.InAppNotifyOthers ?? true)
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[PostService] ShouldCreateNotificationAsync: Error fetching UserSettings for {userId}: {ex.Message}. Returning true by default.");
+            return true;
+        }
     }
 
     private async Task SendNotificationAsync(Guid notificationId)
@@ -1880,17 +1904,22 @@ public class PostService : IPostService
     public async Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0)
     {
         // 1. Get user interests
-        var userSettings = await _unitOfWork.Users.Query()
-            .Where(u => u.Id == userId)
-            .Select(u => u.UserSetting)
-            .FirstOrDefaultAsync();
-
         List<string> userInterests = new();
-        if (userSettings?.SelectedInterests != null)
+        try
         {
-            try {
+            var userSettings = await _unitOfWork.Users.Query()
+                .Where(u => u.Id == userId)
+                .Select(u => u.UserSetting)
+                .FirstOrDefaultAsync();
+
+            if (userSettings?.SelectedInterests != null)
+            {
                 userInterests = System.Text.Json.JsonSerializer.Deserialize<List<string>>(userSettings.SelectedInterests) ?? new();
-            } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[PostService] GetDiscoverPostsAsync: Error fetching UserSettings for {userId}: {ex.Message}");
         }
 
         // Fallback: If no interests, just show trending
@@ -1910,23 +1939,32 @@ public class PostService : IPostService
 
         // 2. Fetch a pool of recent posts (expand search window if they have interests)
         var poolCutoff = DateTime.UtcNow.AddDays(-7); // Expand to 7 days to find more interest matches
-        var postPool = await _unitOfWork.Posts.Query()
-            .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
-            .Where(p => p.AuthorId != userId) // EXCLUDE USER'S OWN POSTS FROM DISCOVER
-            .Where(p =>
-                !mutedUserIds.Contains(p.AuthorId) &&
-                !blockedUserIds.Contains(p.AuthorId) &&
-                !blockedByUserIds.Contains(p.AuthorId))
-            .Include(p => p.Author)
-            .Include(p => p.PostMedia)
-            .Include(p => p.LinkPreview)
-            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
-            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
-            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
-            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-            .OrderByDescending(p => p.LikesCount + p.RepostsCount)
-            .Take(5000) // Increase pool size to 5000 to ensure we find matching topics
-            .ToListAsync();
+        List<Post> postPool;
+        try
+        {
+            postPool = await _unitOfWork.Posts.Query()
+                .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
+                .Where(p => p.AuthorId != userId) // EXCLUDE USER'S OWN POSTS FROM DISCOVER
+                .Where(p =>
+                    !mutedUserIds.Contains(p.AuthorId) &&
+                    !blockedUserIds.Contains(p.AuthorId) &&
+                    !blockedByUserIds.Contains(p.AuthorId))
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
+                .Take(5000) // Increase pool size to 5000 to ensure we find matching topics
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[PostService] GetDiscoverPostsAsync: Error fetching post pool: {ex.Message}");
+            return await GetTrendingPosts24hAsync(userId, limit, skip);
+        }
 
         // 3. Score and rank posts
         var scoredPosts = new List<(Post Post, float Score)>();
