@@ -652,7 +652,7 @@ using (var scope = app.Services.CreateScope())
                     ALTER TABLE dbo.Posts ADD RepliesCount INT NULL DEFAULT 0;
                 END
 
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'BookmarksCount')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') AND name = 'BookmarksCount')
                 BEGIN
                     ALTER TABLE dbo.Posts ADD BookmarksCount INT NULL DEFAULT 0;
                 END
@@ -661,6 +661,147 @@ using (var scope = app.Services.CreateScope())
             logger.LogInformation("Applied Block 6 - Core Entities Schema Repair.");
         }
         catch (Exception ex) { logger.LogError(ex, "Manual update block 6 (Core Entities) failed."); }
+
+        // 7. Relationship and System Tables (Follows, Likes, Blocks, Mutes, Conversations)
+        try
+        {
+            var sql = @"
+                -- UserFollows
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserFollows' AND xtype='U')
+                BEGIN
+                    CREATE TABLE UserFollows (
+                        FollowerId UNIQUEIDENTIFIER NOT NULL,
+                        FollowingId UNIQUEIDENTIFIER NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        Tid NVARCHAR(20) NULL,
+                        PRIMARY KEY (FollowerId, FollowingId),
+                        CONSTRAINT FK_Follower FOREIGN KEY (FollowerId) REFERENCES Users(Id),
+                        CONSTRAINT FK_Following FOREIGN KEY (FollowingId) REFERENCES Users(Id)
+                    );
+                    PRINT 'Created UserFollows table';
+                END
+
+                -- Likes
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Likes' AND xtype='U')
+                BEGIN
+                    CREATE TABLE Likes (
+                        UserId UNIQUEIDENTIFIER NOT NULL,
+                        PostId UNIQUEIDENTIFIER NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        Tid NVARCHAR(20) NULL,
+                        PRIMARY KEY (UserId, PostId),
+                        CONSTRAINT FK_LikeUser FOREIGN KEY (UserId) REFERENCES Users(Id),
+                        CONSTRAINT FK_LikePost FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                    );
+                    PRINT 'Created Likes table';
+                END
+
+                -- Bookmarks
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Bookmarks' AND xtype='U')
+                BEGIN
+                    CREATE TABLE Bookmarks (
+                        UserId UNIQUEIDENTIFIER NOT NULL,
+                        PostId UNIQUEIDENTIFIER NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        Tid NVARCHAR(20) NULL,
+                        PRIMARY KEY (UserId, PostId),
+                        CONSTRAINT FK_BookmarkUser FOREIGN KEY (UserId) REFERENCES Users(Id),
+                        CONSTRAINT FK_BookmarkPost FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                    );
+                    PRINT 'Created Bookmarks table';
+                END
+
+                -- BlockedAccounts
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BlockedAccounts' AND xtype='U')
+                BEGIN
+                    CREATE TABLE BlockedAccounts (
+                        UserId UNIQUEIDENTIFIER NOT NULL,
+                        BlockedUserId UNIQUEIDENTIFIER NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        PRIMARY KEY (UserId, BlockedUserId),
+                        CONSTRAINT FK_BlockedOwner FOREIGN KEY (UserId) REFERENCES Users(Id),
+                        CONSTRAINT FK_BlockedUser FOREIGN KEY (BlockedUserId) REFERENCES Users(Id)
+                    );
+                    PRINT 'Created BlockedAccounts table';
+                END
+
+                -- MutedAccounts
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='MutedAccounts' AND xtype='U')
+                BEGIN
+                    CREATE TABLE MutedAccounts (
+                        UserId UNIQUEIDENTIFIER NOT NULL,
+                        MutedUserId UNIQUEIDENTIFIER NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        PRIMARY KEY (UserId, MutedUserId),
+                        CONSTRAINT FK_MutedOwner FOREIGN KEY (UserId) REFERENCES Users(Id),
+                        CONSTRAINT FK_MutedUser FOREIGN KEY (MutedUserId) REFERENCES Users(Id)
+                    );
+                    PRINT 'Created MutedAccounts table';
+                END
+
+                -- MutedWords (Full Table if missing)
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='MutedWords' AND xtype='U')
+                BEGIN
+                    CREATE TABLE MutedWords (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        UserId UNIQUEIDENTIFIER NOT NULL,
+                        Word NVARCHAR(256) NOT NULL,
+                        MuteBehavior NVARCHAR(20) NOT NULL DEFAULT 'hide',
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        CONSTRAINT FK_MutedWordUser FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+                    );
+                    PRINT 'Created MutedWords table';
+                END
+
+                -- Conversations
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Conversations' AND xtype='U')
+                BEGIN
+                    CREATE TABLE Conversations (
+                        Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        IsDeleted BIT NOT NULL DEFAULT 0,
+                        LastMessageId UNIQUEIDENTIFIER NULL
+                    );
+                    PRINT 'Created Conversations table';
+                END
+
+                -- ConversationParticipants
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ConversationParticipants' AND xtype='U')
+                BEGIN
+                    CREATE TABLE ConversationParticipants (
+                        ConversationId UNIQUEIDENTIFIER NOT NULL,
+                        UserId UNIQUEIDENTIFIER NOT NULL,
+                        JoinedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        PRIMARY KEY (ConversationId, UserId),
+                        CONSTRAINT FK_CP_Conv FOREIGN KEY (ConversationId) REFERENCES Conversations(Id),
+                        CONSTRAINT FK_CP_User FOREIGN KEY (UserId) REFERENCES Users(Id)
+                    );
+                    PRINT 'Created ConversationParticipants table';
+                END
+
+                -- Messages
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Messages' AND xtype='U')
+                BEGIN
+                    CREATE TABLE Messages (
+                        Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                        ConversationId UNIQUEIDENTIFIER NOT NULL,
+                        SenderId UNIQUEIDENTIFIER NOT NULL,
+                        Content NVARCHAR(MAX) NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        IsDeleted BIT NOT NULL DEFAULT 0,
+                        IsRead BIT NOT NULL DEFAULT 0,
+                        Tid NVARCHAR(20) NULL,
+                        ReplyToId UNIQUEIDENTIFIER NULL,
+                        CONSTRAINT FK_MsgConv FOREIGN KEY (ConversationId) REFERENCES Conversations(Id),
+                        CONSTRAINT FK_MsgSender FOREIGN KEY (SenderId) REFERENCES Users(Id)
+                    );
+                    PRINT 'Created Messages table';
+                END
+";
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied Block 7 - Relationship and System Schema Repair.");
+        }
+        catch (Exception ex) { logger.LogError(ex, "Manual update block 7 (Relationships) failed."); }
 
 
         // --- SEED AI FEEDS AND INTERESTS ---

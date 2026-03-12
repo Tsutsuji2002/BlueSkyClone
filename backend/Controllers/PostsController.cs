@@ -21,11 +21,19 @@ public class PostsController : ControllerBase
     [HttpGet("timeline")]
     public async Task<IActionResult> GetTimeline([FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
-        var userId = Guid.Parse(userIdStr);
-        var posts = await _postService.GetTimelineAsync(userId, skip, take);
-        return Ok(posts);
+        try
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+            
+            var posts = await _postService.GetTimelineAsync(userId, skip, take);
+            return Ok(posts);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PostsController] GetTimeline error: {ex.Message}");
+            return Ok(new List<PostDto>());
+        }
     }
 
     [HttpGet("trending")]
@@ -41,11 +49,19 @@ public class PostsController : ControllerBase
     [HttpGet("bookmarks")]
     public async Task<IActionResult> GetBookmarks()
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
-        var userId = Guid.Parse(userIdStr);
-        var posts = await _postService.GetBookmarkedPostsAsync(userId);
-        return Ok(posts);
+        try
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var posts = await _postService.GetBookmarkedPostsAsync(userId);
+            return Ok(posts);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PostsController] GetBookmarks error: {ex.Message}");
+            return Ok(new List<PostDto>());
+        }
     }
 
     [HttpGet("user/{userId:guid}")]

@@ -22,49 +22,80 @@ public class FeedsController : ControllerBase
     [HttpGet("recommended")]
     public async Task<IActionResult> GetRecommended()
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) 
+                return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var feeds = await _recommendationService.GetRecommendedFeedsAsync(userId);
-        return Ok(feeds);
+            var feeds = await _recommendationService.GetRecommendedFeedsAsync(userId);
+            return Ok(feeds);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] GetRecommended error: {ex.Message}");
+            return Ok(new List<FeedDto>());
+        }
     }
 
     [HttpGet("trending")]
     public async Task<IActionResult> GetTrending()
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) 
+                return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var feeds = await _feedService.GetTrendingFeedsAsync(userId);
-        return Ok(feeds);
+            var feeds = await _feedService.GetTrendingFeedsAsync(userId);
+            return Ok(feeds);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] GetTrending error: {ex.Message}");
+            return Ok(new List<FeedDto>());
+        }
     }
 
     [HttpGet("trending-posts")]
     public async Task<IActionResult> GetTrendingPosts([FromServices] IPostService postService, [FromQuery] int limit = 50, [FromQuery] int skip = 0)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        Guid? userId = string.IsNullOrEmpty(userIdString) ? null : Guid.Parse(userIdString);
-        
-        var posts = await postService.GetTrendingPosts24hAsync(userId, limit, skip);
-        return Ok(posts);
+        try
+        {
+            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            Guid? userId = Guid.TryParse(userIdString, out var cid) ? cid : null;
+            
+            var posts = await postService.GetTrendingPosts24hAsync(userId, limit, skip);
+            return Ok(posts);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] GetTrendingPosts error: {ex.Message}");
+            return Ok(new List<PostDto>());
+        }
     }
 
     [HttpGet("discover")]
     public async Task<IActionResult> GetDiscoverPosts([FromServices] IPostService postService, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString))
+        try
         {
-            // Unauthenticated users get trending
-            var trendingPosts = await postService.GetTrendingPosts24hAsync(null, take, skip);
-            return Ok(trendingPosts);
-        }
+            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            {
+                // Unauthenticated users get trending
+                var trendingPosts = await postService.GetTrendingPosts24hAsync(null, take, skip);
+                return Ok(trendingPosts);
+            }
 
-        var userId = Guid.Parse(userIdString);
-        var posts = await postService.GetDiscoverPostsAsync(userId, take, skip);
-        return Ok(posts);
+            var posts = await postService.GetDiscoverPostsAsync(userId, take, skip);
+            return Ok(posts);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] GetDiscoverPosts error: {ex.Message}");
+            return Ok(new List<PostDto>());
+        }
     }
 
     [HttpGet("subscribed")]
@@ -167,10 +198,18 @@ public class FeedsController : ControllerBase
     [HttpGet("{feedId}/posts")]
     public async Task<IActionResult> GetFeedPosts(Guid feedId, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        Guid? userId = string.IsNullOrEmpty(userIdString) ? null : Guid.Parse(userIdString);
-
-        var posts = await _feedService.GetFeedPostsAsync(feedId, userId, skip, take);
-        return Ok(posts);
+        try
+        {
+            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            Guid? userId = Guid.TryParse(userIdString, out var cid) ? cid : null;
+    
+            var posts = await _feedService.GetFeedPostsAsync(feedId, userId, skip, take);
+            return Ok(posts);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] GetFeedPosts error: {ex.Message}");
+            return Ok(new List<PostDto>());
+        }
     }
 }

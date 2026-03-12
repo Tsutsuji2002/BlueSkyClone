@@ -70,8 +70,10 @@ namespace BSkyClone.Controllers
                 return Unauthorized(new { error = "InvalidRepo", message = "You can only create records in your own repo" });
             }
 
-            var userId = Guid.Parse(userIdStr);
             var rkey = request.Rkey ?? _postService.GenerateTid();
+            
+            if (!Guid.TryParse(userIdStr, out var userId))
+                return Unauthorized(new { error = "AuthFailed", message = "Invalid user ID" });
             
             _logger.LogInformation("Creating record {Collection}/{Rkey} for {Did}", request.Collection, rkey, userDid);
 
@@ -123,51 +125,59 @@ namespace BSkyClone.Controllers
             [FromQuery] int limit = 20, 
             [FromQuery] string? cursor = null)
         {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
-
-            var userId = Guid.Parse(userIdStr);
-            var skip = 0;
-            if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var skipVal))
+            try
             {
-                skip = skipVal;
-            }
+                var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) 
+                    return Unauthorized();
 
-            _logger.LogInformation("XRPC GetTimeline for {UserId}, skip={Skip}, limit={Limit}", userId, skip, limit);
-
-            var posts = await _postService.GetTimelineAsync(userId, skip, limit);
-            
-            var feed = posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
-            {
-                Post = new Lexicons.App.Bsky.Feed.PostView
+                var skip = 0;
+                if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var skipVal))
                 {
-                    Uri = $"at://{p.Author?.Did ?? "unknown"}/app.bsky.feed.post/{p.Tid}",
-                    Cid = "pseudo-cid-" + p.Id, // In full PDS, CID would be stored/indexed
-                    Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
-                    {
-                        Did = p.Author?.Did ?? "",
-                        Handle = p.Author?.Handle ?? "unknown",
-                        DisplayName = p.Author?.DisplayName,
-                        Avatar = p.Author?.AvatarUrl,
-                    },
-                    Record = new 
-                    {
-                        text = p.Content,
-                        createdAt = p.CreatedAt?.ToString("o"),
-                        @type = "app.bsky.feed.post"
-                    },
-                    ReplyCount = p.RepliesCount,
-                    RepostCount = p.RepostsCount,
-                    LikeCount = p.LikesCount,
-                    IndexedAt = p.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o")
+                    skip = skipVal;
                 }
-            }).ToList();
 
-            return Ok(new Lexicons.App.Bsky.Feed.GetTimelineResponse
+                _logger.LogInformation("XRPC GetTimeline for {UserId}, skip={Skip}, limit={Limit}", userId, skip, limit);
+
+                var posts = await _postService.GetTimelineAsync(userId, skip, limit);
+                
+                var feed = posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
+                {
+                    Post = new Lexicons.App.Bsky.Feed.PostView
+                    {
+                        Uri = $"at://{p.Author?.Did ?? "unknown"}/app.bsky.feed.post/{p.Tid}",
+                        Cid = "pseudo-cid-" + p.Id, 
+                        Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
+                        {
+                            Did = p.Author?.Did ?? "",
+                            Handle = p.Author?.Handle ?? "unknown",
+                            DisplayName = p.Author?.DisplayName,
+                            Avatar = p.Author?.AvatarUrl,
+                        },
+                        Record = new 
+                        {
+                            text = p.Content,
+                            createdAt = p.CreatedAt?.ToString("o"),
+                            @type = "app.bsky.feed.post"
+                        },
+                        ReplyCount = p.RepliesCount,
+                        RepostCount = p.RepostsCount,
+                        LikeCount = p.LikesCount,
+                        IndexedAt = p.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o")
+                    }
+                }).ToList();
+
+                return Ok(new Lexicons.App.Bsky.Feed.GetTimelineResponse
+                {
+                    Feed = feed,
+                    Cursor = (skip + limit).ToString()
+                });
+            }
+            catch (Exception ex)
             {
-                Feed = feed,
-                Cursor = (skip + limit).ToString()
-            });
+                _logger.LogError(ex, "XRPC GetTimeline error");
+                return Ok(new Lexicons.App.Bsky.Feed.GetTimelineResponse { Feed = new List<Lexicons.App.Bsky.Feed.FeedViewPost>() });
+            }
         }
 
         [Authorize]
@@ -208,42 +218,49 @@ namespace BSkyClone.Controllers
         [HttpGet("app.bsky.notification.listNotifications")]
         public async Task<IActionResult> ListNotifications([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
         {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
-
-            var userId = Guid.Parse(userIdStr);
-            var notifications = await _notificationService.GetNotificationsAsync(userId, limit);
-
-            var response = new Lexicons.App.Bsky.Notification.ListNotificationsResponse
+            try
             {
-                Notifications = notifications.Select(n => new Lexicons.App.Bsky.Notification.NotificationView
-                {
-                    Uri = n.Uri,
-                    Cid = n.Cid,
-                    Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
-                    {
-                        Did = n.Sender?.Did ?? "",
-                        Handle = n.Sender?.Handle ?? "unknown",
-                        DisplayName = n.Sender?.DisplayName,
-                        Avatar = n.Sender?.AvatarUrl
-                    },
-                    Reason = n.Reason,
-                    ReasonSubject = n.ReasonSubject,
-                    PostAuthorHandle = n.PostAuthorHandle,
-                    PostId = n.PostId,
-                    IsRead = n.IsRead,
-                    IndexedAt = (n.CreatedAt is DateTime dt) ? dt.ToString("o") : DateTime.UtcNow.ToString("o"),
-                    Record = new
-                    {
-                        @type = "app.bsky.notification.event",
-                        text = n.Content,
-                        createdAt = (n.CreatedAt is DateTime dt2) ? dt2.ToString("o") : DateTime.UtcNow.ToString("o")
-                    }
-                }).ToList(),
-                Cursor = null // Pagination not fully implemented in service yet
-            };
+                var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            return Ok(response);
+                var notifications = await _notificationService.GetNotificationsAsync(userId, limit);
+
+                var response = new Lexicons.App.Bsky.Notification.ListNotificationsResponse
+                {
+                    Notifications = notifications.Select(n => new Lexicons.App.Bsky.Notification.NotificationView
+                    {
+                        Uri = n.Uri,
+                        Cid = n.Cid,
+                        Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
+                        {
+                            Did = n.Sender?.Did ?? "",
+                            Handle = n.Sender?.Handle ?? "unknown",
+                            DisplayName = n.Sender?.DisplayName,
+                            Avatar = n.Sender?.AvatarUrl
+                        },
+                        Reason = n.Reason,
+                        ReasonSubject = n.ReasonSubject,
+                        PostAuthorHandle = n.PostAuthorHandle,
+                        PostId = n.PostId,
+                        IsRead = n.IsRead,
+                        IndexedAt = (n.CreatedAt is DateTime dt) ? dt.ToString("o") : DateTime.UtcNow.ToString("o"),
+                        Record = new
+                        {
+                            @type = "app.bsky.notification.event",
+                            text = n.Content,
+                            createdAt = (n.CreatedAt is DateTime dt2) ? dt2.ToString("o") : DateTime.UtcNow.ToString("o")
+                        }
+                    }).ToList(),
+                    Cursor = null // Pagination not fully implemented in service yet
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC ListNotifications error");
+                return Ok(new Lexicons.App.Bsky.Notification.ListNotificationsResponse { Notifications = new List<Lexicons.App.Bsky.Notification.NotificationView>() });
+            }
         }
 
         [Authorize]
