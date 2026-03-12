@@ -318,6 +318,7 @@ public class FeedService : IFeedService
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
+            .Include(p => p.Interests)
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
                         p.Interests.Any(i => i.Name == feed.Name))
             .OrderByDescending(p => p.CreatedAt)

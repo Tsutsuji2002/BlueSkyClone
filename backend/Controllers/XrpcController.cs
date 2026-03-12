@@ -145,10 +145,10 @@ namespace BSkyClone.Controllers
                     Cid = "pseudo-cid-" + p.Id, // In full PDS, CID would be stored/indexed
                     Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
                     {
-                        Did = p.Author.Did ?? $"did:plc:{p.Author.Id:n}",
-                        Handle = p.Author.Handle,
-                        DisplayName = p.Author.DisplayName,
-                        Avatar = p.Author.AvatarUrl
+                        Did = p.Author?.Did ?? "",
+                        Handle = p.Author?.Handle ?? "unknown",
+                        DisplayName = p.Author?.DisplayName,
+                        Avatar = p.Author?.AvatarUrl,
                     },
                     Record = new 
                     {
@@ -222,10 +222,10 @@ namespace BSkyClone.Controllers
                     Cid = n.Cid,
                     Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
                     {
-                        Did = n.Sender.Did ?? "",
-                        Handle = n.Sender.Handle,
-                        DisplayName = n.Sender.DisplayName,
-                        Avatar = n.Sender.AvatarUrl
+                        Did = n.Sender?.Did ?? "",
+                        Handle = n.Sender?.Handle ?? "unknown",
+                        DisplayName = n.Sender?.DisplayName,
+                        Avatar = n.Sender?.AvatarUrl
                     },
                     Reason = n.Reason,
                     ReasonSubject = n.ReasonSubject,

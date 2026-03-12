@@ -22,8 +22,16 @@ public class ProfileController : ControllerBase
     [HttpGet("profile/{*handle}")]
     public async Task<IActionResult> GetProfile(string handle)
     {
-        var user = await _userService.GetUserByHandleAsync(handle) 
+        User? user;
+        if (Guid.TryParse(handle, out var userId))
+        {
+            user = await _userService.GetUserByIdAsync(userId);
+        }
+        else
+        {
+            user = await _userService.GetUserByHandleAsync(handle) 
                    ?? await _userService.GetUserByUsernameAsync(handle);
+        }
                    
         if (user == null) return NotFound();
 

@@ -1641,8 +1641,8 @@ public class PostService : IPostService
             Id = post.Id,
             Tid = post.Tid,
             Content = post.Content,
-            CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : null,
-            Author = post.Author == null ? new AuthorDto { Username = "unknown", Handle = "unknown" } : new AuthorDto
+            CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : (DateTime?)null,
+            Author = post.Author == null ? new AuthorDto { Id = post.AuthorId, Username = "unknown", Handle = "unknown" } : new AuthorDto
             {
                 Id = post.Author.Id,
                 Username = post.Author.Username,
@@ -1976,6 +1976,7 @@ public class PostService : IPostService
         await _unitOfWork.CompleteAsync();
 
         var dto = MapToDto(post);
-        return await EnrichAndFilterPostsAsync(new List<PostDto> { dto }, userId).ContinueWith(t => t.Result.First());
+        var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { dto }, userId);
+        return enriched.FirstOrDefault();
     }
 }
