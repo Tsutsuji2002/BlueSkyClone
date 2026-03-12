@@ -281,7 +281,7 @@ namespace BSkyClone.Controllers
             {
                 if (string.IsNullOrEmpty(actor))
                 {
-                    return BadRequest(new { error = "InvalidRequest", message = "Actor is required" });
+                    return Ok(new GetListsResponse { Lists = new List<ListView>() });
                 }
 
                 var viewerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
