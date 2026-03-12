@@ -369,30 +369,37 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReplies')
                 BEGIN
                     ALTER TABLE UserSettings ADD ShowReplies BIT NULL DEFAULT 1;
+                    PRINT 'Added ShowReplies to UserSettings';
                 END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReposts')
                 BEGIN
                     ALTER TABLE UserSettings ADD ShowReposts BIT NULL DEFAULT 1;
+                    PRINT 'Added ShowReposts to UserSettings';
                 END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowQuotePosts')
                 BEGIN
                     ALTER TABLE UserSettings ADD ShowQuotePosts BIT NULL DEFAULT 1;
+                    PRINT 'Added ShowQuotePosts to UserSettings';
                 END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowSampleSavedFeeds')
                 BEGIN
                     ALTER TABLE UserSettings ADD ShowSampleSavedFeeds BIT NULL DEFAULT 0;
+                    PRINT 'Added ShowSampleSavedFeeds to UserSettings';
                 END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'SelectedInterests')
                 BEGIN
                     ALTER TABLE UserSettings ADD SelectedInterests NVARCHAR(MAX) NULL;
+                    PRINT 'Added SelectedInterests to UserSettings';
                 END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnabledMediaProviders')
                 BEGIN
                     ALTER TABLE UserSettings ADD EnabledMediaProviders NVARCHAR(MAX) NULL;
+                    PRINT 'Added EnabledMediaProviders to UserSettings';
                 END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyActivity')
                 BEGIN
                     ALTER TABLE UserSettings ADD NotifyActivity BIT NULL DEFAULT 1;
+                    PRINT 'Added NotifyActivity to UserSettings';
                 END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyLikesOfReposts')
                 BEGIN
@@ -440,9 +447,9 @@ using (var scope = app.Services.CreateScope())
                 END
 ";
             context.Database.ExecuteSqlRaw(sql);
-            logger.LogInformation("Applied manual schema updates for UserSettings.");
+            logger.LogInformation("Verified/Applied UserSettings resilience columns.");
         }
-        catch (Exception ex) { logger.LogWarning(ex, "Manual update block 4 failed."); }
+        catch (Exception ex) { logger.LogError(ex, "Manual update block 4 (UserSettings) failed. This WILL cause 500 errors in feeds if columns are missing."); }
 
         // 5. Hashtags and Other Tables
         try

@@ -22,8 +22,8 @@ public class TrendingController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetTrending()
     {
-        var currentToken = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        Guid? currentUserId = string.IsNullOrEmpty(currentToken) ? null : Guid.Parse(currentToken);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        Guid? currentUserId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
         var mutedWordsSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (currentUserId.HasValue)

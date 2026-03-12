@@ -22,7 +22,10 @@ public class FeedsController : ControllerBase
     [HttpGet("recommended")]
     public async Task<IActionResult> GetRecommended()
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var feeds = await _recommendationService.GetRecommendedFeedsAsync(userId);
         return Ok(feeds);
     }
@@ -30,7 +33,10 @@ public class FeedsController : ControllerBase
     [HttpGet("trending")]
     public async Task<IActionResult> GetTrending()
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var feeds = await _feedService.GetTrendingFeedsAsync(userId);
         return Ok(feeds);
     }
@@ -64,7 +70,10 @@ public class FeedsController : ControllerBase
     [HttpGet("subscribed")]
     public async Task<IActionResult> GetSubscribed()
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var feeds = await _feedService.GetUserFeedsAsync(userId);
         return Ok(feeds);
     }
@@ -80,7 +89,10 @@ public class FeedsController : ControllerBase
     [HttpGet("info/{id}")]
     public async Task<IActionResult> GetFeedById(Guid id)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var feed = await _feedService.GetFeedByIdAsync(id, userId);
         if (feed == null) return NotFound();
         return Ok(feed);
@@ -89,7 +101,10 @@ public class FeedsController : ControllerBase
     [HttpPost("save/{feedId}")]
     public async Task<IActionResult> SaveFeed(Guid feedId)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var result = await _feedService.SaveFeedAsync(userId, feedId);
         return Ok(result);
     }
@@ -97,7 +112,10 @@ public class FeedsController : ControllerBase
     [HttpDelete("unsave/{feedId}")]
     public async Task<IActionResult> UnsaveFeed(Guid feedId)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var result = await _feedService.UnsaveFeedAsync(userId, feedId);
         return Ok(result);
     }
@@ -105,7 +123,10 @@ public class FeedsController : ControllerBase
     [HttpPost("pin/{feedId}")]
     public async Task<IActionResult> PinFeed(Guid feedId)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var result = await _feedService.PinFeedAsync(userId, feedId);
         return Ok(result);
     }
@@ -113,7 +134,10 @@ public class FeedsController : ControllerBase
     [HttpDelete("unpin/{feedId}")]
     public async Task<IActionResult> UnpinFeed(Guid feedId)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var result = await _feedService.UnpinFeedAsync(userId, feedId);
         return Ok(result);
     }
@@ -121,7 +145,10 @@ public class FeedsController : ControllerBase
     [HttpPost("reorder")]
     public async Task<IActionResult> ReorderFeeds([FromBody] List<Guid> feedIds)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var result = await _feedService.ReorderFeedsAsync(userId, feedIds);
         return Ok(result);
     }
@@ -129,7 +156,10 @@ public class FeedsController : ControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> SearchFeeds([FromQuery] string query, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
         var feeds = await _feedService.SearchFeedsAsync(userId, query, skip, take);
         return Ok(feeds);
     }

@@ -35,10 +35,22 @@ public class PostService : IPostService
     {
         // Timeline filtering is viewer-specific (settings, mutes/blocks). Apply the major filters
         // at the query level so pagination doesn't "run out" early due to post-fetch filtering.
-        var userSettings = await _unitOfWork.UserSettings.Query()
-            .FirstOrDefaultAsync(s => s.UserId == userId);
+        UserSetting? userSettings = null;
+        try
+        {
+            userSettings = await _unitOfWork.UserSettings.Query()
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[PostService] GetTimelineAsync: Error fetching UserSettings for {userId}: {ex.Message}. Using defaults.");
+        }
 
-        var cacheKey = $"user:{userId}:timeline:{skip}:{take}:sr{(userSettings?.ShowReplies ?? true)}:sq{(userSettings?.ShowQuotePosts ?? true)}:sp{(userSettings?.ShowReposts ?? true)}";
+        var showReplies = userSettings?.ShowReplies ?? true;
+        var showQuotePosts = userSettings?.ShowQuotePosts ?? true;
+        var showReposts = userSettings?.ShowReposts ?? true;
+
+        var cacheKey = $"user:{userId}:timeline:{skip}:{take}:sr{showReplies}:sq{showQuotePosts}:sp{showReposts}";
         var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
         if (cached != null)
         {
@@ -75,12 +87,12 @@ public class PostService : IPostService
                 !blockedUserIds.Contains(p.AuthorId) &&
                 !blockedByUserIds.Contains(p.AuthorId));
 
-        if (userSettings?.ShowReplies == false)
+        if (showReplies == false)
         {
             postsQuery = postsQuery.Where(p => p.ReplyToPostId == null);
         }
 
-        if (userSettings?.ShowQuotePosts == false)
+        if (showQuotePosts == false)
         {
             postsQuery = postsQuery.Where(p => p.QuotePostId == null);
         }
@@ -259,22 +271,26 @@ public class PostService : IPostService
         foreach (var post in posts)
         {
             // Apply Timeline Filtering
-            if (isTimeline && userSettings != null)
+            if (isTimeline)
             {
+                var sReplies = userSettings?.ShowReplies ?? true;
+                var sQuotes = userSettings?.ShowQuotePosts ?? true;
+                var sReposts = userSettings?.ShowReposts ?? true;
+
                 // Filter Replies
-                if (userSettings.ShowReplies == false && post.ReplyToPostId != null)
+                if (sReplies == false && post.ReplyToPostId != null)
                 {
                     continue;
                 }
 
                 // Filter Quote Posts
-                if (userSettings.ShowQuotePosts == false && post.QuotePostId != null)
+                if (sQuotes == false && post.QuotePostId != null)
                 {
                     continue;
                 }
 
                 // Filter Reposts
-                if (userSettings.ShowReposts == false && post.RepostedBy != null)
+                if (sReposts == false && post.RepostedBy != null)
                 {
                     // In this app the "repost" is a banner on a post (not a separate feed item),
                     // so hiding reposts should hide the banner, not drop the post entirely.
@@ -384,7 +400,16 @@ public class PostService : IPostService
             throw new Exception("Please wait a moment before posting again.");
         }
 
-        var userSettings = await _unitOfWork.UserSettings.GetByIdAsync(userId);
+        UserSetting? userSettings = null;
+        try
+        {
+            userSettings = await _unitOfWork.UserSettings.GetByIdAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[PostService] CreatePostAsync: Error fetching UserSettings for {userId}: {ex.Message}. Using defaults.");
+        }
+
         var replyRestriction = request.ReplyRestriction ?? userSettings?.DefaultReplyRestriction ?? "anyone";
         var allowQuotes = request.AllowQuotes ?? userSettings?.DefaultAllowQuotes ?? true;
         var language = request.Language;

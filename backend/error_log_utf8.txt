@@ -1,0 +1,443 @@
+﻿Using launch settings from c:\Projects\BlueSky\backend\Properties\launchSettings.json...
+Building...
+c:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+c:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (26ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Migrations[20411]
+      Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (31ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DECLARE @result int;
+      EXEC @result = sp_getapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session', @LockMode = 'Exclusive';
+      SELECT @result
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (7ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+      BEGIN
+          CREATE TABLE [__EFMigrationsHistory] (
+              [MigrationId] nvarchar(150) NOT NULL,
+              [ProductVersion] nvarchar(32) NOT NULL,
+              CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+          );
+      END;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT OBJECT_ID(N'[__EFMigrationsHistory]');
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (9ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [MigrationId], [ProductVersion]
+      FROM [__EFMigrationsHistory]
+      ORDER BY [MigrationId];
+info: Microsoft.EntityFrameworkCore.Migrations[20405]
+      No migrations were applied. The database is already up to date.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DECLARE @result int;
+      EXEC @result = sp_releaseapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session';
+      SELECT @result
+info: Program[0]
+      Database migrations applied successfully.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (97ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Title')
+                      BEGIN
+                          ALTER TABLE dbo.Notifications ADD Title NVARCHAR(MAX) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Content')
+                      BEGIN
+                          ALTER TABLE dbo.Notifications ADD Content NVARCHAR(MAX) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'IsBanned')
+                      BEGIN
+                          ALTER TABLE dbo.Users ADD IsBanned BIT NOT NULL DEFAULT 0;
+                          PRINT 'Added IsBanned to Users';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'IsVerified')
+                      BEGIN
+                          ALTER TABLE dbo.Users ADD IsVerified BIT NOT NULL DEFAULT 0;
+                          PRINT 'Added IsVerified to Users';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Feeds') OR object_id = OBJECT_ID('Feeds')) AND name = 'IsOfficial')
+                      BEGIN
+                          ALTER TABLE dbo.Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
+                      END
+info: Program[0]
+      Applied/Verified manual schema updates for Notifications and User properties.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (24ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'MuteBehavior')
+                      BEGIN
+                          ALTER TABLE MutedWords ADD MuteBehavior NVARCHAR(20) NOT NULL DEFAULT 'hide';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'CreatedAt')
+                      BEGIN
+                          ALTER TABLE MutedWords ADD CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE();
+                      END
+info: Program[0]
+      Applied manual schema updates for MutedWords.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (68ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'ReplyRestriction')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD ReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                          PRINT 'Added ReplyRestriction to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'AllowQuotes')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD AllowQuotes BIT NULL DEFAULT 1;
+                          PRINT 'Added AllowQuotes to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'QuotesCount')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD QuotesCount INT NULL DEFAULT 0;
+                          PRINT 'Added QuotesCount to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'QuotePostId')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD QuotePostId UNIQUEIDENTIFIER NULL;
+                          PRINT 'Added QuotePostId to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'Language')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD Language NVARCHAR(MAX) NULL;
+                          PRINT 'Added Language to Posts';
+                      END
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (23ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_PostQuote')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD CONSTRAINT FK_PostQuote FOREIGN KEY (QuotePostId) REFERENCES dbo.Posts(Id);
+                          PRINT 'Added FK_PostQuote to Posts';
+                      END
+info: Program[0]
+      Finished checking/applying Post interaction schema updates.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (308ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultReplyRestriction')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD DefaultReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultAllowQuotes')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD DefaultAllowQuotes BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableTrending')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD EnableTrending BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableDiscoverVideo')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD EnableDiscoverVideo BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableTreeView')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD EnableTreeView BIT NULL DEFAULT 0;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'RequireLogoutVisibility')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD RequireLogoutVisibility BIT NULL DEFAULT 0;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'LargerAltBadge')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD LargerAltBadge BIT NULL DEFAULT 0;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReplies')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD ShowReplies BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD ShowReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowQuotePosts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD ShowQuotePosts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowSampleSavedFeeds')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD ShowSampleSavedFeeds BIT NULL DEFAULT 0;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'SelectedInterests')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD SelectedInterests NVARCHAR(MAX) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnabledMediaProviders')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD EnabledMediaProviders NVARCHAR(MAX) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyActivity')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD NotifyActivity BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyLikesOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD NotifyLikesOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyRepostsOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD NotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyOthers')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD NotifyOthers BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyActivity')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD PushNotifyActivity BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyLikesOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD PushNotifyLikesOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyRepostsOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD PushNotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyOthers')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD PushNotifyOthers BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyActivity')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD InAppNotifyActivity BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyLikesOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD InAppNotifyLikesOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyRepostsOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD InAppNotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyOthers')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD InAppNotifyOthers BIT NULL DEFAULT 1;
+                      END
+info: Program[0]
+      Applied manual schema updates for UserSettings.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (109ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Hashtags' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Hashtags (
+                              Id INT IDENTITY(1,1) PRIMARY KEY,
+                              Name NVARCHAR(100) NOT NULL,
+                              Slug NVARCHAR(100) NOT NULL UNIQUE,
+                              PostsCount INT NOT NULL DEFAULT 0,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              IsDeleted BIT NOT NULL DEFAULT 0
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostHashtags' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE PostHashtags (
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              HashtagId INT NOT NULL,
+                              PRIMARY KEY (PostId, HashtagId),
+                              CONSTRAINT FK_PH_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                              CONSTRAINT FK_PH_Hashtag FOREIGN KEY (HashtagId) REFERENCES Hashtags(Id) ON DELETE CASCADE
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserListSubscriptions' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE UserListSubscriptions (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              ListId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              PinnedOrder INT NOT NULL DEFAULT 0,
+                              CONSTRAINT PK_UserListSubscription PRIMARY KEY (UserId, ListId),
+                              CONSTRAINT FK_ULS_User FOREIGN KEY (UserId) REFERENCES Users(Id),
+                              CONSTRAINT FK_ULS_List FOREIGN KEY (ListId) REFERENCES Lists(Id) ON DELETE CASCADE
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'ListId')
+                      BEGIN
+                          ALTER TABLE Notifications ADD ListId UNIQUEIDENTIFIER NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ListMembers') AND name = 'Status')
+                      BEGIN
+                          ALTER TABLE ListMembers ADD Status INT NOT NULL DEFAULT 0;
+                      END
+                      -- Cleanup and Recalculations
+                      EXEC('IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(''dbo.ListMembers'') AND name = ''Status'') UPDATE ListMembers SET Status = 1 WHERE Status = 0');
+                      DELETE FROM Notifications WHERE Type = 'message';
+                      UPDATE u SET u.PostsCount = sub.ActualCount FROM Users u INNER JOIN (SELECT AuthorId, COUNT(*) AS ActualCount FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL GROUP BY AuthorId) sub ON u.Id = sub.AuthorId WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
+                      UPDATE Users SET PostsCount = 0 WHERE PostsCount IS NULL AND Id NOT IN (SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL);
+                      UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='SupportRequests' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE SupportRequests (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                              Email NVARCHAR(256) NOT NULL,
+                              Description NVARCHAR(MAX) NOT NULL,
+                              Username NVARCHAR(256) NULL,
+                              Category NVARCHAR(50) NOT NULL,
+                              DeviceType NVARCHAR(20) NOT NULL,
+                              Status NVARCHAR(20) NOT NULL DEFAULT 'pending',
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              UserId UNIQUEIDENTIFIER NULL,
+                              CONSTRAINT FK_Support_User FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE SET NULL
+                          )
+                      END;
+      
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PageContents' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE PageContents (
+                              Slug NVARCHAR(100) PRIMARY KEY,
+                              Title NVARCHAR(200) NOT NULL,
+                              HtmlContent NVARCHAR(MAX) NOT NULL,
+                              UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+                          )
+                      END;
+      
+                      IF NOT EXISTS (SELECT * FROM PageContents WHERE Slug = 'privacy-policy')
+                      BEGIN
+                          INSERT INTO PageContents (Slug, Title, HtmlContent, UpdatedAt)
+                          VALUES ('privacy-policy', 'Privacy Policy', '<h1>Privacy Policy</h1><p>This is the default privacy policy. Please edit it in the Admin UI.</p>', GETUTCDATE())
+                      END
+info: Program[0]
+      Applied manual schema updates for Hashtags, Lists, SupportRequests, and Cleanup.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (15ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = N'Trending'
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (16ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: c:\Projects\BlueSky\backend
