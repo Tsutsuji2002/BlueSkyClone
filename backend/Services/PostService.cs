@@ -339,6 +339,7 @@ public class PostService : IPostService
                 var content = post.Content?.ToLower() ?? "";
                 var tags = (post.Tags ?? new List<string>())
                     .Concat(post.Interests ?? new List<string>())
+                    .Where(t => t != null)
                     .Select(t => t.ToLower());
 
                 var matchingWord = mutedWords.FirstOrDefault(mw => 

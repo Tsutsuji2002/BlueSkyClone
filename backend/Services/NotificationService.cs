@@ -109,7 +109,7 @@ public class NotificationService : INotificationService
             n.Type ?? "unknown",
             reason,
             reasonSubject,
-            MapToUserDto(n.Sender),
+            MapToUserDto(n.Sender ?? new User { Id = n.SenderId, Username = "unknown", Handle = "unknown" }),
             n.Post?.Tid ?? (n.PostId?.ToString()),
             n.Post?.Author?.Handle,
             n.ListId,
@@ -123,6 +123,8 @@ public class NotificationService : INotificationService
 
     private UserDto MapToUserDto(User u)
     {
+        if (u == null) return new UserDto(Guid.Empty, "unknown", "unknown", null, "Unknown", null, null, null, null, null, null, 0, 0, 0, "user", null, false, null);
+
         return new UserDto(
             u.Id,
             u.Username,

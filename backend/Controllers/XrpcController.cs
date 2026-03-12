@@ -63,7 +63,7 @@ namespace BSkyClone.Controllers
         public async Task<IActionResult> CreateRecord([FromBody] CreateRecordRequest request)
         {
             var userDid = User.FindFirst("did")?.Value;
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             
             if (string.IsNullOrEmpty(userDid) || string.IsNullOrEmpty(userIdStr) || request.Repo != userDid)
             {
@@ -123,7 +123,7 @@ namespace BSkyClone.Controllers
             [FromQuery] int limit = 20, 
             [FromQuery] string? cursor = null)
         {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
             var userId = Guid.Parse(userIdStr);
@@ -141,7 +141,7 @@ namespace BSkyClone.Controllers
             {
                 Post = new Lexicons.App.Bsky.Feed.PostView
                 {
-                    Uri = $"at://{p.Author.Did}/app.bsky.feed.post/{p.Tid}",
+                    Uri = $"at://{p.Author?.Did ?? "unknown"}/app.bsky.feed.post/{p.Tid}",
                     Cid = "pseudo-cid-" + p.Id, // In full PDS, CID would be stored/indexed
                     Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
                     {
@@ -208,7 +208,7 @@ namespace BSkyClone.Controllers
         [HttpGet("app.bsky.notification.listNotifications")]
         public async Task<IActionResult> ListNotifications([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
         {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
             var userId = Guid.Parse(userIdStr);
@@ -232,12 +232,12 @@ namespace BSkyClone.Controllers
                     PostAuthorHandle = n.PostAuthorHandle,
                     PostId = n.PostId,
                     IsRead = n.IsRead,
-                    IndexedAt = n.CreatedAt.ToString("o"),
+                    IndexedAt = (n.CreatedAt is DateTime dt) ? dt.ToString("o") : DateTime.UtcNow.ToString("o"),
                     Record = new
                     {
                         @type = "app.bsky.notification.event",
                         text = n.Content,
-                        createdAt = n.CreatedAt.ToString("o")
+                        createdAt = (n.CreatedAt is DateTime dt2) ? dt2.ToString("o") : DateTime.UtcNow.ToString("o")
                     }
                 }).ToList(),
                 Cursor = null // Pagination not fully implemented in service yet
@@ -250,7 +250,7 @@ namespace BSkyClone.Controllers
         [HttpGet("app.bsky.notification.getUnreadCount")]
         public async Task<IActionResult> GetUnreadCount()
         {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
             var userId = Guid.Parse(userIdStr);
@@ -266,7 +266,7 @@ namespace BSkyClone.Controllers
         [HttpPost("app.bsky.notification.updateSeen")]
         public async Task<IActionResult> UpdateSeen([FromBody] Lexicons.App.Bsky.Notification.UpdateSeenRequest request)
         {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
             var userId = Guid.Parse(userIdStr);

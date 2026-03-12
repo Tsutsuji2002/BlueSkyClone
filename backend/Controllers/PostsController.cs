@@ -21,7 +21,9 @@ public class PostsController : ControllerBase
     [HttpGet("timeline")]
     public async Task<IActionResult> GetTimeline([FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
         var posts = await _postService.GetTimelineAsync(userId, skip, take);
         return Ok(posts);
     }
@@ -29,7 +31,7 @@ public class PostsController : ControllerBase
     [HttpGet("trending")]
     public async Task<IActionResult> GetTrending()
     {
-        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
         var posts = await _postService.GetTrendingPostsAsync(viewerId);
@@ -39,7 +41,9 @@ public class PostsController : ControllerBase
     [HttpGet("bookmarks")]
     public async Task<IActionResult> GetBookmarks()
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
         var posts = await _postService.GetBookmarkedPostsAsync(userId);
         return Ok(posts);
     }
@@ -47,7 +51,7 @@ public class PostsController : ControllerBase
     [HttpGet("user/{userId:guid}")]
     public async Task<IActionResult> GetUserPosts(Guid userId, [FromQuery] string? type = null, [FromQuery] int limit = 3, [FromQuery] int offset = 0)
     {
-        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
         var posts = await _postService.GetUserPostsAsync(userId, type, viewerId, limit, offset);
@@ -57,7 +61,9 @@ public class PostsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreatePost([FromForm] CreatePostRequest request)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
         var post = await _postService.CreatePostAsync(userId, request);
         return Ok(post);
     }
@@ -65,7 +71,9 @@ public class PostsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdatePost(Guid id, [FromForm] CreatePostRequest request)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
         var post = await _postService.UpdatePostAsync(userId, id, request);
         if (post == null) return NotFound("Post not found or you are not authorized to edit it.");
         return Ok(post);
@@ -74,7 +82,7 @@ public class PostsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetPost(Guid id)
     {
-        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
         var post = await _postService.GetPostByIdAsync(id, viewerId);
@@ -85,7 +93,7 @@ public class PostsController : ControllerBase
     [HttpGet("tid/{tid}")]
     public async Task<IActionResult> GetPostByTid(string tid)
     {
-        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
         var post = await _postService.GetPostByTidAsync(tid, viewerId);
@@ -96,7 +104,10 @@ public class PostsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeletePost(string id)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
+
         Guid postId;
         if (!Guid.TryParse(id, out postId))
         {
@@ -112,7 +123,10 @@ public class PostsController : ControllerBase
     [HttpPost("{id}/like")]
     public async Task<IActionResult> LikePost(string id)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
+
         Guid postId;
         if (!Guid.TryParse(id, out postId))
         {
@@ -127,7 +141,10 @@ public class PostsController : ControllerBase
     [HttpPost("{id}/bookmark")]
     public async Task<IActionResult> BookmarkPost(string id)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
+
         Guid postId;
         if (!Guid.TryParse(id, out postId))
         {
@@ -142,7 +159,10 @@ public class PostsController : ControllerBase
     [HttpPost("{id}/repost")]
     public async Task<IActionResult> RepostPost(string id)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
+
         Guid postId;
         if (!Guid.TryParse(id, out postId))
         {
@@ -157,7 +177,7 @@ public class PostsController : ControllerBase
     [HttpGet("{id}/replies")]
     public async Task<IActionResult> GetPostReplies(string id)
     {
-        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
         Guid postId;
@@ -175,7 +195,7 @@ public class PostsController : ControllerBase
     [HttpGet("tag/{tag}")]
     public async Task<IActionResult> GetPostsByTag(string tag, [FromQuery] int limit = 20, [FromQuery] int offset = 0)
     {
-        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
         var posts = await _postService.GetPostsByTagAsync(tag, viewerId, limit, offset);
@@ -185,7 +205,10 @@ public class PostsController : ControllerBase
     [HttpPost("{id}/interaction-settings")]
     public async Task<IActionResult> UpdateInteractionSettings(string id, [FromBody] UpdateInteractionSettingsRequest request)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
+
         Guid postId;
         if (!Guid.TryParse(id, out postId))
         {
