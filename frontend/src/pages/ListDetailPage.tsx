@@ -16,7 +16,7 @@ import ListAvatar from '../components/common/ListAvatar';
 import ConfirmModal from '../components/common/ConfirmModal';
 
 const ListDetailPage: React.FC = () => {
-    const { id: listUri } = useParams<{ id: string }>();
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
@@ -44,23 +44,23 @@ const ListDetailPage: React.FC = () => {
     });
 
     useEffect(() => {
-        if (listUri) {
-            dispatch(fetchListById(listUri));
+        if (id) {
+            dispatch(fetchListById(id));
             if (currentUser) {
                 dispatch(fetchListsIAmOn());
             }
         }
-    }, [dispatch, listUri, currentUser]);
+    }, [dispatch, id, currentUser]);
 
     useEffect(() => {
-        if (listUri) {
+        if (id) {
             if (activeTab === 'posts') {
-                dispatch(fetchListFeed(listUri));
+                dispatch(fetchListFeed(id));
             } else if (activeTab === 'people') {
-                dispatch(fetchListMembers(listUri));
+                dispatch(fetchListMembers(id));
             }
         }
-    }, [dispatch, listUri, activeTab]);
+    }, [dispatch, id, activeTab]);
 
     useEffect(() => {
         if (activeList) {
@@ -71,10 +71,10 @@ const ListDetailPage: React.FC = () => {
     const handlePin = async () => {
         if (!activeList) return;
         if (isPinned) {
-            await dispatch(unpinList(activeList.uri));
+            await dispatch(unpinList(activeList.id));
             setIsPinned(false);
         } else {
-            await dispatch(pinList(activeList.uri));
+            await dispatch(pinList(activeList.id));
             setIsPinned(true);
         }
     };
@@ -86,11 +86,7 @@ const ListDetailPage: React.FC = () => {
             title: t('lists.leave_list'),
             message: t('lists.confirm_leave'),
             onConfirm: async () => {
-                // Find member item for current user
-                const memberItem = activeListMembers.find(m => m.userId === currentUser?.did);
-                if (memberItem && memberItem.uri) {
-                    await dispatch(removeListMember({ itemUri: memberItem.uri })).unwrap();
-                }
+                await dispatch(removeListMember({ listId: activeList.id, userId: currentUser.id })).unwrap();
                 navigate('/lists');
             },
             variant: 'danger'
@@ -104,7 +100,7 @@ const ListDetailPage: React.FC = () => {
             title: t('lists.delete_list'),
             message: t('lists.confirm_delete'),
             onConfirm: async () => {
-                await dispatch(deleteList(activeList.uri));
+                await dispatch(deleteList(activeList.id));
                 navigate('/lists');
             },
             variant: 'danger'
@@ -113,28 +109,28 @@ const ListDetailPage: React.FC = () => {
 
     const handleUpdate = async (data: CreateListDto) => {
         if (!activeList) return;
-        await dispatch(updateList({ uri: activeList.uri, data })).unwrap();
+        await dispatch(updateList({ id: activeList.id, data })).unwrap();
     };
 
-    const handleRemovePost = async (postUri: string) => {
+    const handleRemovePost = async (postId: string) => {
         if (!activeList) return;
-        await dispatch(removeListPost({ listId: activeList.uri, postUri })).unwrap();
+        await dispatch(removeListPost({ listId: activeList.id, postId })).unwrap();
     };
 
-    const handleRemoveMember = (itemUri: string, name: string) => {
+    const handleRemoveMember = (userId: string, name: string) => {
         if (!activeList) return;
         setConfirmModal({
             isOpen: true,
             title: t('lists.remove_member'),
             message: t('lists.confirm_remove_member', { name }) || `Remove ${name} from this list?`,
             onConfirm: async () => {
-                await dispatch(removeListMember({ itemUri })).unwrap();
+                await dispatch(removeListMember({ listId: activeList.id, userId })).unwrap();
             },
             variant: 'danger'
         });
     };
 
-    const isMember = currentUser && activeList ? listsIAmOn.some(l => l.uri === activeList.uri) : false;
+    const isMember = currentUser && activeList ? listsIAmOn.some(l => l.id === activeList.id) : false;
     const canAddPost = activeList?.isOwner || isMember;
 
     if (isLoading && !activeList) {
@@ -250,7 +246,7 @@ const ListDetailPage: React.FC = () => {
                                 {activeList.name}
                             </h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm flex items-center gap-2">
-                                <span>{activeList.isOwner ? t('lists.your_list') : (activeList.owner ? t('lists.list_by', { handle: activeList.owner.handle }) : '')}</span>
+                                <span>{activeList.isOwner ? t('lists.your_list') : t('lists.list_by', { handle: activeList.owner.handle })}</span>
                                 <span>·</span>
                                 <span className="font-medium text-gray-700 dark:text-gray-300">{t('lists.members_count', { count: activeList.membersCount })}</span>
                                 <span>·</span>
@@ -291,7 +287,7 @@ const ListDetailPage: React.FC = () => {
                                 {activeListFeed.map(post => {
                                     const canRemove = activeList.isOwner || (currentUser && post.addedByUserId === currentUser.id);
                                     return (
-                                        <div key={post.uri!} className="relative z-10 bg-white dark:bg-dark-bg">
+                                        <div key={post.id} className="relative z-10 bg-white dark:bg-dark-bg">
                                             {post.parentPost && (
                                                 <PostCard
                                                     post={post.parentPost}
@@ -301,9 +297,9 @@ const ListDetailPage: React.FC = () => {
                                             )}
                                             <PostCard
                                                 post={post}
-                                                isOwnPost={currentUser?.did === post.author.id}
+                                                isOwnPost={currentUser?.id === post.author.id}
                                                 isInListContext={true}
-                                                onRemoveFromList={canRemove && post.uri ? () => handleRemovePost(post.uri as string) : undefined}
+                                                onRemoveFromList={canRemove ? () => handleRemovePost(post.id) : undefined}
                                                 hasTopLine={!!post.parentPost}
                                             />
                                         </div>
@@ -338,8 +334,8 @@ const ListDetailPage: React.FC = () => {
                                 </div>
                             )}
                             {activeListMembers && activeListMembers.length > 0 ? activeListMembers.map(member => (
-                                <div key={member.uri} className="p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
-                                    <div className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/profile/${member.user.handle}`)}>
+                                <div key={member.userId} className="p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+                                    <div className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/profile/user/${member.userId}`)}>
                                         <Avatar src={member.user.avatarUrl || member.user.avatar} alt={member.user.displayName} size="md" />
                                         <div className="min-w-0">
                                             <h3 className="font-bold text-gray-900 dark:text-dark-text truncate">{member.user.displayName}</h3>
@@ -351,9 +347,7 @@ const ListDetailPage: React.FC = () => {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                if (member.uri) {
-                                                    handleRemoveMember(member.uri, member.user.displayName);
-                                                }
+                                                handleRemoveMember(member.userId, member.user.displayName);
                                             }}
                                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
                                             title={t('lists.remove_member')}
@@ -394,13 +388,13 @@ const ListDetailPage: React.FC = () => {
             <AddMemberModal
                 isOpen={isAddMemberModalOpen}
                 onClose={() => setIsAddMemberModalOpen(false)}
-                listId={activeList.uri}
+                listId={activeList.id}
             />
 
             <AddPostModal
                 isOpen={isAddPostModalOpen}
                 onClose={() => setIsAddPostModalOpen(false)}
-                listId={activeList.uri}
+                listId={activeList.id}
             />
 
             <ConfirmModal

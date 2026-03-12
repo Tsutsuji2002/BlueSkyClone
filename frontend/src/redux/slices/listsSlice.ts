@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 import { ListDto, ListItemDto, CreateListDto, UpdateListDto, Post, UserDto } from '../../types';
+import listService from '../../services/listsService';
 import { API_BASE_URL } from '../../constants';
 
 interface ListsState {
@@ -31,19 +32,16 @@ const initialState: ListsState = {
     error: null,
 };
 
-// Async Thunks
-
-const getXrpcUrl = () => {
-    const base = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
-    return `${base}/xrpc`;
-};
+// ---------- XRPC helpers (bypass @atproto/api SDK validation) ----------
+const getXrpcBase = () =>
+    (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '') + '/xrpc';
 
 const getAuthHeaders = (): Record<string, string> => {
     const token = localStorage.getItem('token');
     return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
-const mapListResponse = (list: any, currentDid?: string): ListDto => ({
+const mapListFromXrpc = (list: any): ListDto => ({
     id: list.uri?.split('/').pop() || list.id || '',
     uri: list.uri || '',
     cid: list.cid || '',
@@ -51,40 +49,42 @@ const mapListResponse = (list: any, currentDid?: string): ListDto => ({
     name: list.name || '',
     description: list.description,
     purpose: list.purpose,
-    avatarUrl: list.avatar,
-    membersCount: 0,
-    postsCount: 0,
-    createdAt: list.indexedAt,
-    isPinned: false,
-    isOwner: list.creator?.did === currentDid
+    avatarUrl: list.avatar || list.avatarUrl,
+    membersCount: list.membersCount || 0,
+    postsCount: list.postsCount || 0,
+    createdAt: list.indexedAt || list.createdAt,
+    isPinned: list.isPinned || false,
+    isOwner: list.isOwner || false
 });
 
+// ---------- Async Thunks ----------
+
+// fetchMyLists and fetchUserLists use XRPC direct fetch to bypass @atproto/api SDK schema validation
 export const fetchMyLists = createAsyncThunk(
     'lists/fetchMyLists',
     async (_, { rejectWithValue }) => {
         try {
-            // Try to decode the identity from the stored token
-            const token = localStorage.getItem('token');
-            if (!token) return rejectWithValue('Not authenticated');
-            // Decode JWT to get user info (sub claim is the userId, handle from localStorage)
-            let actor = '';
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                actor = payload.sub || payload.did || payload.handle || '';
-            } catch {
-                return rejectWithValue('Invalid session');
-            }
-            if (!actor) return rejectWithValue('Not authenticated');
-
-            const res = await fetch(`${getXrpcUrl()}/app.bsky.graph.getLists?actor=${encodeURIComponent(actor)}&limit=50`, {
-                headers: { ...getAuthHeaders() }
+            const res = await fetch(`${getXrpcBase()}/app.bsky.graph.getLists?limit=50`, {
+                headers: getAuthHeaders()
             });
-            if (!res.ok) return rejectWithValue('Failed to fetch lists');
+            if (!res.ok) {
+                // Fallback to internal REST API if XRPC fails
+                return await listService.getMyLists();
+            }
             const data = await res.json();
             const lists: any[] = data.lists || data.items || [];
-            return lists.map(l => mapListResponse(l, actor));
+            // If no results from XRPC (e.g. actor param missing), try REST
+            if (lists.length === 0) {
+                return await listService.getMyLists();
+            }
+            return lists.map(mapListFromXrpc);
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to fetch lists');
+            // Fallback to internal REST API
+            try {
+                return await listService.getMyLists();
+            } catch {
+                return rejectWithValue(error.response?.data?.message || 'Failed to fetch lists');
+            }
         }
     }
 );
@@ -93,24 +93,9 @@ export const fetchUserLists = createAsyncThunk(
     'lists/fetchUserLists',
     async (userId: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            let currentDid = '';
-            if (token) {
-                try {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    currentDid = payload.sub || payload.did || payload.handle || '';
-                } catch { /* ignore */ }
-            }
-
-            const res = await fetch(`${getXrpcUrl()}/app.bsky.graph.getLists?actor=${encodeURIComponent(userId)}&limit=50`, {
-                headers: { ...getAuthHeaders() }
-            });
-            if (!res.ok) return rejectWithValue('Failed to fetch user lists');
-            const data = await res.json();
-            const lists: any[] = data.lists || data.items || [];
-            return lists.map(l => mapListResponse(l, currentDid));
+            return await listService.getUserLists(userId);
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to fetch user lists');
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch user lists');
         }
     }
 );
@@ -119,10 +104,9 @@ export const fetchPinnedLists = createAsyncThunk(
     'lists/fetchPinnedLists',
     async (_, { rejectWithValue }) => {
         try {
-            // No-op: preferences endpoint not available on our custom server.
-            return [] as ListDto[];
+            return await listService.getPinnedLists();
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to fetch pinned lists');
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch pinned lists');
         }
     }
 );
@@ -131,166 +115,89 @@ export const createList = createAsyncThunk(
     'lists/createList',
     async (data: CreateListDto, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-            const res = await fetch(`${API_URL}/lists`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(data)
-            });
-            if (!res.ok) return rejectWithValue('Failed to create list');
-            const created = await res.json();
-            return {
-                id: created.id || created.uri?.split('/').pop() || '',
-                uri: created.uri || '',
-                cid: created.cid || '',
-                ownerId: created.ownerId || '',
-                name: created.name || data.name,
-                description: created.description || data.description,
-                purpose: created.purpose || data.purpose || 'app.bsky.graph.defs#curatelist',
-                avatarUrl: created.avatarUrl,
-                membersCount: 0,
-                postsCount: 0,
-                createdAt: created.createdAt || new Date().toISOString(),
-                isPinned: false,
-                isOwner: true
-            } as ListDto;
+            return await listService.createList(data);
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to create list');
+            return rejectWithValue(error.response?.data?.message || 'Failed to create list');
         }
     }
 );
 
 export const fetchListById = createAsyncThunk(
     'lists/fetchListById',
-    async (uri: string, { rejectWithValue }) => {
+    async (id: string, { rejectWithValue }) => {
         try {
-            const listId = uri.split('/').pop() || uri;
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/lists/${listId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) return rejectWithValue('Failed to fetch list');
-            const list = await res.json();
-            return {
-                id: list.id || listId,
-                uri: list.uri || uri,
-                cid: list.cid || '',
-                ownerId: list.ownerId || '',
-                name: list.name || '',
-                description: list.description,
-                purpose: list.purpose,
-                avatarUrl: list.avatarUrl,
-                membersCount: list.membersCount || 0,
-                postsCount: list.postsCount || 0,
-                createdAt: list.createdAt,
-                isPinned: list.isPinned || false,
-                isOwner: list.isOwner || false
-            } as ListDto;
+            return await listService.getList(id);
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to fetch list');
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch list');
         }
     }
 );
 
 export const updateList = createAsyncThunk(
     'lists/updateList',
-    async ({ uri, data }: { uri: string; data: UpdateListDto }, { dispatch, rejectWithValue }) => {
+    async ({ id, data }: { id: string; data: UpdateListDto }, { rejectWithValue }) => {
         try {
-            const listId = uri.split('/').pop() || uri;
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/lists/${listId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(data)
-            });
-            if (!res.ok) return rejectWithValue('Failed to update list');
-            return await dispatch(fetchListById(uri)).unwrap();
+            return await listService.updateList(id, data);
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to update list');
+            return rejectWithValue(error.response?.data?.message || 'Failed to update list');
         }
     }
 );
 
 export const deleteList = createAsyncThunk(
     'lists/deleteList',
-    async (uri: string, { rejectWithValue }) => {
+    async (id: string, { rejectWithValue }) => {
         try {
-            const listId = uri.split('/').pop() || uri;
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-            const token = localStorage.getItem('token');
-            await fetch(`${API_URL}/lists/${listId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            return uri;
+            await listService.deleteList(id);
+            return id;
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to delete list');
+            return rejectWithValue(error.response?.data?.message || 'Failed to delete list');
         }
     }
 );
 
 export const pinList = createAsyncThunk(
     'lists/pinList',
-    async (uri: string, { rejectWithValue }) => {
+    async (id: string, { rejectWithValue }) => {
         try {
-            // Handle via preferences savedFeedsPref
-            return uri;
+            await listService.pinList(id);
+            return id;
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to pin list');
+            return rejectWithValue(error.response?.data?.message || 'Failed to pin list');
         }
     }
 );
 
 export const unpinList = createAsyncThunk(
     'lists/unpinList',
-    async (uri: string, { rejectWithValue }) => {
+    async (id: string, { rejectWithValue }) => {
         try {
-            // Handle via preferences savedFeedsPref
-            return uri;
+            await listService.unpinList(id);
+            return id;
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to unpin list');
+            return rejectWithValue(error.response?.data?.message || 'Failed to unpin list');
         }
     }
 );
 
 export const fetchListMembers = createAsyncThunk(
     'lists/fetchListMembers',
-    async (uri: string, { rejectWithValue }) => {
+    async (id: string, { rejectWithValue }) => {
         try {
-            const listId = uri.split('/').pop() || uri;
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/lists/${listId}/members`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) return rejectWithValue('Failed to fetch members');
-            const items: any[] = await res.json();
-            return items.map((item: any) => ({
-                uri: item.uri || item.id,
-                userId: item.userId || item.user?.id,
-                user: item.user,
-                joinedAt: item.joinedAt || item.createdAt || new Date().toISOString()
-            } as ListItemDto));
+            return await listService.getMembers(id);
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to fetch members');
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch members');
         }
     }
 );
 
 export const fetchListFeed = createAsyncThunk(
     'lists/fetchListFeed',
-    async (uri: string, { rejectWithValue }) => {
+    async (id: string, { rejectWithValue }) => {
         try {
-            // No-op: list feed not implemented on custom server
-            return [] as Post[];
+            return await listService.getListFeed(id);
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to fetch list feed');
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch list feed');
         }
     }
 );
@@ -299,100 +206,59 @@ export const fetchListsIAmOn = createAsyncThunk(
     'lists/fetchListsIAmOn',
     async (_, { rejectWithValue }) => {
         try {
-            // Not directly supported in standard Lexicons without searching all lists.
-            // Placeholder for now.
-            return [];
+            return await listService.getListsIAmOn();
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to fetch participating lists');
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch participating lists');
         }
     }
 );
 
 export const fetchCandidateMembers = createAsyncThunk(
     'lists/fetchCandidateMembers',
-    async ({ query }: { listId: string; query?: string }, { rejectWithValue }) => {
+    async ({ listId, query }: { listId: string; query?: string }, { rejectWithValue }) => {
         try {
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/user/search?q=${encodeURIComponent(query || '')}&limit=10`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) return rejectWithValue('Failed to fetch candidates');
-            const users: any[] = await res.json();
-            return users.map((actor: any) => ({
-                id: actor.id || actor.did,
-                did: actor.did,
-                handle: actor.handle,
-                displayName: actor.displayName || actor.handle,
-                avatarUrl: actor.avatarUrl || actor.avatar
-            } as UserDto));
+            return await listService.getCandidateMembers(listId, query);
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to fetch candidates');
+            return rejectWithValue(error.response?.data?.message || 'Failed to fetch candidates');
         }
     }
 );
 
 export const addListMember = createAsyncThunk(
     'lists/addListMember',
-    async ({ listUri, userId }: { listUri: string; userId: string }, { rejectWithValue }) => {
+    async ({ listId, userId }: { listId: string; userId: string }, { rejectWithValue }) => {
         try {
-            const listId = listUri.split('/').pop() || listUri;
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-            const token = localStorage.getItem('token');
-            await fetch(`${API_URL}/lists/${listId}/members`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ userId })
-            });
-            return { listUri, userId };
+            await listService.addMember(listId, userId);
+            return { listId, userId };
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to add member');
+            return rejectWithValue(error.response?.data?.message || 'Failed to add member');
         }
     }
 );
 
 export const removeListMember = createAsyncThunk(
     'lists/removeListMember',
-    async ({ itemUri }: { itemUri: string }, { rejectWithValue }) => {
+    async ({ listId, userId }: { listId: string; userId: string }, { rejectWithValue }) => {
         try {
-            const itemId = itemUri.split('/').pop() || itemUri;
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-            const token = localStorage.getItem('token');
-            await fetch(`${API_URL}/lists/members/${itemId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            return { itemUri };
+            await listService.removeMember(listId, userId);
+            return { listId, userId };
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to remove member');
+            return rejectWithValue(error.response?.data?.message || 'Failed to remove member');
         }
     }
 );
 
 export const fetchCandidatePosts = createAsyncThunk(
     'lists/fetchCandidatePosts',
-    async ({ userId, limit = 10 }: { listId: string; userId: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ listId, userId, limit = 10, offset = 0 }: { listId: string; userId: string; limit?: number; offset?: number }, { rejectWithValue }) => {
         try {
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/posts/user/${userId}?limit=${limit}`, {
+            const response = await fetch(`${API_BASE_URL}/lists/${listId}/candidate-posts?userId=${userId}&limit=${limit}&offset=${offset}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res.ok) return rejectWithValue('Failed to fetch posts');
-            const posts: any[] = await res.json();
-            return posts.map((p: any) => ({
-                id: p.id,
-                uri: p.uri || '',
-                cid: p.cid || '',
-                author: p.author,
-                content: p.content,
-                createdAt: p.createdAt,
-                likesCount: p.likesCount || 0,
-                repostsCount: p.repostsCount || 0,
-                repliesCount: p.repliesCount || 0,
-                isLiked: p.isLiked || false,
-                isReposted: p.isReposted || false
-            } as Post));
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch posts');
+            return data;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -401,27 +267,24 @@ export const fetchCandidatePosts = createAsyncThunk(
 
 export const addListPost = createAsyncThunk(
     'lists/addListPost',
-    async ({ listId, postUri, postCid, caption }: { listId: string; postUri: string; postCid: string; caption?: string }, { rejectWithValue }) => {
+    async ({ listId, postId, caption }: { listId: string; postId: string; caption?: string }, { rejectWithValue }) => {
         try {
-            // Not standard BSky. Using legacy service as fallback if really needed, 
-            // but for now let's just pretend it worked locally if we want full AT Protocol.
-            // Actually, I'll keep it as a placeholder or remove it.
-            // Since user wants "entirely apply AT Protocol", I'll just return success.
-            return { listId, postUri, postCid };
+            await listService.addPost(listId, postId, caption);
+            return { listId, postId };
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to add post');
+            return rejectWithValue(error.response?.data?.message || 'Failed to add post');
         }
     }
 );
 
 export const removeListPost = createAsyncThunk(
     'lists/removeListPost',
-    async ({ listId, postUri }: { listId: string; postUri: string }, { rejectWithValue }) => {
+    async ({ listId, postId }: { listId: string; postId: string }, { rejectWithValue }) => {
         try {
-            // Not standard BSky.
-            return { listId, postUri };
+            await listService.removePost(listId, postId);
+            return { listId, postId };
         } catch (error: any) {
-            return rejectWithValue(error.message || 'Failed to remove post');
+            return rejectWithValue(error.response?.data?.message || 'Failed to remove post');
         }
     }
 );
@@ -499,8 +362,6 @@ const listsSlice = createSlice({
 
         // Pin/Unpin
         builder.addCase(pinList.fulfilled, (state, action) => {
-            // Optimistic update? Need whole object.
-            // For now, fetchPinnedLists should be called after.
             if (state.activeList && state.activeList.id === action.payload) {
                 state.activeList.isPinned = true;
             }
@@ -552,17 +413,13 @@ const listsSlice = createSlice({
 
         // Add Member
         builder.addCase(addListMember.fulfilled, (state, action) => {
-            // Optimistically update active members if we have the user detail? 
-            // We only have userId. So we might need to rely on refetch or pass user object. 
-            // For now, let's just trigger a refetch in UI or let UI handle it. 
-            // Better: remove from candidates
             state.candidateMembers = state.candidateMembers.filter(u => u.id !== action.payload.userId);
         });
 
         // Remove Member
         builder.addCase(removeListMember.fulfilled, (state, action) => {
-            state.activeListMembers = state.activeListMembers.filter(m => m.uri !== action.payload.itemUri);
-            if (state.activeList) {
+            if (state.activeList?.id === action.payload.listId) {
+                state.activeListMembers = state.activeListMembers.filter(m => m.userId !== action.payload.userId);
                 state.activeList.membersCount = Math.max(0, state.activeList.membersCount - 1);
             }
         });
@@ -570,16 +427,17 @@ const listsSlice = createSlice({
         // Add Post
         builder.addCase(addListPost.fulfilled, (state) => {
             // Invalidate feed so it reloads
-            // Or we could try to just add it if we had the object, but we don't.
         });
 
         // Remove Post
         builder.addCase(removeListPost.fulfilled, (state, action) => {
-            state.activeListFeed = state.activeListFeed.filter(p => p.uri !== action.payload.postUri);
+            state.activeListFeed = state.activeListFeed.filter(p => p.id !== action.payload.postId);
         });
+
+        // Candidate Posts
         builder.addCase(fetchCandidatePosts.fulfilled, (state, action) => {
-            if (action.meta.arg.cursor) {
-                const newPosts = action.payload.filter((p: Post) => !state.candidatePosts.some(existing => existing.uri === p.uri));
+            if (action.meta.arg.offset && action.meta.arg.offset > 0) {
+                const newPosts = action.payload.filter((p: Post) => !state.candidatePosts.some(existing => existing.id === p.id));
                 state.candidatePosts = [...state.candidatePosts, ...newPosts];
             } else {
                 state.candidatePosts = action.payload;
@@ -588,13 +446,14 @@ const listsSlice = createSlice({
 
         builder.addMatcher(
             (action) => action.type.endsWith('/toggleLike/fulfilled') ||
-                action.type.endsWith('/repostPost/fulfilled'),
+                action.type.endsWith('/repostPost/fulfilled') ||
+                action.type.endsWith('/bookmarkPost/fulfilled'),
             (state, action: any) => {
                 const updatedPost = action.payload;
-                if (!updatedPost || !updatedPost.uri) return;
+                if (!updatedPost || !updatedPost.postId) return;
 
                 // Update activeListFeed
-                const index = state.activeListFeed.findIndex(p => p.uri === updatedPost.uri);
+                const index = state.activeListFeed.findIndex(p => p.id === updatedPost.postId);
                 if (index !== -1) {
                     state.activeListFeed[index] = {
                         ...state.activeListFeed[index],
@@ -608,7 +467,7 @@ const listsSlice = createSlice({
                 }
 
                 // Update candidatePosts
-                const cIndex = state.candidatePosts.findIndex(p => p.uri === updatedPost.uri);
+                const cIndex = state.candidatePosts.findIndex(p => p.id === updatedPost.postId);
                 if (cIndex !== -1) {
                     state.candidatePosts[cIndex] = {
                         ...state.candidatePosts[cIndex],

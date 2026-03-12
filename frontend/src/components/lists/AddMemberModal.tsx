@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
@@ -62,7 +62,7 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose, listId
     const handleAdd = async (userId: string) => {
         setAdding(prev => ({ ...prev, [userId]: true }));
         try {
-            await dispatch(addListMember({ listUri: listId, userId })).unwrap();
+            await dispatch(addListMember({ listId, userId })).unwrap();
         } catch (error) {
             console.error('Failed to add member', error);
         } finally {
