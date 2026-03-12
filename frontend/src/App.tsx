@@ -42,10 +42,40 @@ const AppContent: React.FC = () => {
     // Clear chunk reload count on successful mount
     sessionStorage.removeItem('chunk_reload_count');
 
-    const checkAuth = () => {
+    const checkAuth = async () => {
       const token = localStorage.getItem('token');
       if (token) {
         if (isTokenExpired(token)) {
+          // Try to refresh the session before giving up
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            try {
+              const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+              const res = await fetch(`${API_BASE}/xrpc/com.atproto.server.refreshSession`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${refreshToken}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.accessJwt) {
+                  localStorage.setItem('token', data.accessJwt);
+                  localStorage.setItem('refreshToken', data.refreshJwt);
+                  console.log('DEBUG: Token refreshed successfully');
+                  // Re-check auth now with new token
+                  if (!isAuthenticated) {
+                    dispatch(getMe());
+                  }
+                  return;
+                }
+              }
+            } catch (e) {
+              console.warn('Token refresh failed:', e);
+            }
+          }
+          // Refresh failed - logout
           dispatch(logoutAsync());
           return;
         }

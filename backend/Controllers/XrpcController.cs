@@ -210,7 +210,7 @@ namespace BSkyClone.Controllers
             }
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpPost("com.atproto.server.refreshSession")]
         public async Task<IActionResult> RefreshSession()
         {

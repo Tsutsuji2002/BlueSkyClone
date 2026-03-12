@@ -380,14 +380,17 @@ const authSlice = createSlice({
                 // Resume atpAgent session if we have the necessary data
                 const token = localStorage.getItem('token');
                 const refreshToken = localStorage.getItem('refreshToken');
-                if (token && action.payload.user.did) {
+                if (token) {
+                    const userDid = action.payload.user.did || action.payload.user.handle;
+                    console.log('DEBUG: Resuming ATP session for', userDid);
                     agent.resumeSession({
                         accessJwt: token,
                         refreshJwt: refreshToken || '',
                         handle: action.payload.user.handle,
-                        did: action.payload.user.did,
+                        did: userDid || action.payload.user.handle,
                         active: true
                     });
+                    console.log('DEBUG: ATP session resumed. agent.session:', (agent as any).session);
                 }
             })
             .addCase(getMe.rejected, (state) => {
