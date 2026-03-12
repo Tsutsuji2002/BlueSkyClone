@@ -280,7 +280,7 @@ public class AuthService : IAuthService
     private string GenerateJwtToken(User user, bool rememberMe = false)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long");
+        var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long");
         
         // If remember me is true, set a longer-lived JWT token (e.g., 7 days)
         // Otherwise, keep it short (e.g., 2 hours)

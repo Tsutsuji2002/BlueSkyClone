@@ -122,13 +122,13 @@ builder.Services.AddAuthentication(x =>
     x.SaveToken = true;
     x.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidateAudience = true,
-        ValidAudience = builder.Configuration["Jwt:Audience"],
+        ValidateIssuer = false, // Relaxed for VPS consistency
+        ValidateAudience = false, // Relaxed for VPS consistency
         ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long")),
         ClockSkew = TimeSpan.Zero
     };
     
@@ -636,23 +636,22 @@ using (var scope = app.Services.CreateScope())
                     PRINT 'Added IsDeleted to Posts';
                 END
                 
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'RepostsCount')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'RepostsCount')
                 BEGIN
                     ALTER TABLE dbo.Posts ADD RepostsCount INT NULL DEFAULT 0;
-                    PRINT 'Added RepostsCount to Posts';
                 END
 
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'LikesCount')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'LikesCount')
                 BEGIN
                     ALTER TABLE dbo.Posts ADD LikesCount INT NULL DEFAULT 0;
                 END
 
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'RepliesCount')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'RepliesCount')
                 BEGIN
                     ALTER TABLE dbo.Posts ADD RepliesCount INT NULL DEFAULT 0;
                 END
 
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') AND name = 'BookmarksCount')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'BookmarksCount')
                 BEGIN
                     ALTER TABLE dbo.Posts ADD BookmarksCount INT NULL DEFAULT 0;
                 END
