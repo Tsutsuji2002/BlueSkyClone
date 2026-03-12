@@ -21,7 +21,7 @@ namespace BSkyClone.Middleware
             {
                 if (context.User.Identity?.IsAuthenticated == true)
                 {
-                    var userIdString = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    var userIdString = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? context.User.FindFirst("sub")?.Value;
                     if (Guid.TryParse(userIdString, out var userId))
                     {
                         var isBanned = await dbContext.Users

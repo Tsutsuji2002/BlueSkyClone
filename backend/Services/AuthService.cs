@@ -137,9 +137,18 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> GetUserProfileAsync(Guid userId)
     {
-        var user = await _unitOfWork.Users.Query()
-            .Include(u => u.UserSetting)
-            .FirstOrDefaultAsync(u => u.Id == userId);
+        User? user = null;
+        try 
+        {
+            user = await _unitOfWork.Users.Query()
+                .Include(u => u.UserSetting)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[AuthService] Error fetching user with settings: {ex.Message}. Falling back to basic fetch.");
+            user = await _unitOfWork.Users.GetByIdAsync(userId);
+        }
 
         if (user == null) return null;
 

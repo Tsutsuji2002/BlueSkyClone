@@ -243,8 +243,16 @@ public class PostService : IPostService
         UserSetting? userSettings = null;
         if (isTimeline)
         {
-            userSettings = await _unitOfWork.UserSettings.Query()
-                .FirstOrDefaultAsync(s => s.UserId == viewerId);
+            try
+            {
+                userSettings = await _unitOfWork.UserSettings.Query()
+                    .FirstOrDefaultAsync(s => s.UserId == viewerId);
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[PostService] Error fetching UserSettings for {viewerId}: {ex.Message}");
+                // Fallback to null/defaults if table is missing columns
+            }
         }
 
         var filteredPosts = new List<PostDto>();
@@ -274,7 +282,7 @@ public class PostService : IPostService
                 }
             }
             // Filter out deleted, muted or blocked users
-            if (post.IsDeleted ||
+            if (post.IsDeleted || post.Author == null ||
                 mutedUserIds.Contains(post.Author.Id) || 
                 blockedUserIds.Contains(post.Author.Id) || 
                 blockedByUserIds.Contains(post.Author.Id))
