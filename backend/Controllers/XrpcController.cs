@@ -72,112 +72,174 @@ namespace BSkyClone.Controllers
         [HttpPost("com.atproto.repo.createRecord")]
         public async Task<IActionResult> CreateRecord([FromBody] CreateRecordRequest request)
         {
-            var userDid = User.FindFirst("did")?.Value;
-            var userHandle = User.FindFirst("handle")?.Value;
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            
-            bool isAuthorizedRepo = (!string.IsNullOrEmpty(userDid) && request.Repo == userDid) || 
-                                    (!string.IsNullOrEmpty(userHandle) && request.Repo == userHandle) || 
-                                    (!string.IsNullOrEmpty(userIdStr) && request.Repo == userIdStr);
-
-            if (string.IsNullOrEmpty(userIdStr) || !isAuthorizedRepo)
+            try
             {
-                return Unauthorized(new { error = "InvalidRepo", message = "You can only create records in your own repo" });
-            }
-
-            var rkey = request.Rkey ?? _postService.GenerateTid();
-            
-            if (!Guid.TryParse(userIdStr, out var userId))
-                return Unauthorized(new { error = "AuthFailed", message = "Invalid user ID" });
-            
-            _logger.LogInformation("Creating record {Collection}/{Rkey} for {Did}", request.Collection, rkey, userDid);
-
-            // 1. Store in Repo Storage (Source of Truth)
-            var cid = await _repoManager.CreateRecordAsync(userDid, request.Collection, request.Record);
-
-            // 2. Indexing Layer (SQL)
-            if (request.Collection == "app.bsky.feed.post")
-            {
-                var postRecordRaw = request.Record.ToString()!;
-                var postRecord = JsonSerializer.Deserialize<Lexicons.App.Bsky.Feed.Post>(postRecordRaw);
+                _logger.LogInformation("XRPC CreateRecord request received: {Repo}, {Collection}", request.Repo, request.Collection);
+                var userDid = User.FindFirst("did")?.Value;
+                var userHandle = User.FindFirst("handle")?.Value;
+                var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
                 
-                if (postRecord != null)
+                bool isAuthorizedRepo = (!string.IsNullOrEmpty(userDid) && request.Repo == userDid) || 
+                                        (!string.IsNullOrEmpty(userHandle) && request.Repo == userHandle) || 
+                                        (!string.IsNullOrEmpty(userIdStr) && request.Repo == userIdStr);
+
+                if (string.IsNullOrEmpty(userIdStr) || !isAuthorizedRepo)
                 {
-                    // Map Lexicon Post to internal CreatePostRequest
-                    var internalRequest = new DTOs.CreatePostRequest
-                    {
-                        Content = postRecord.Text,
-                        // Simplistic reply handling
-                        ReplyToPostId = postRecord.Reply?.Parent?.Uri?.Split('/').LastOrDefault() != null ? Guid.Parse(postRecord.Reply.Parent.Uri.Split('/').Last()) : null,
-                    };
-
-                    // Handle Embeds
-                    using var doc = JsonDocument.Parse(postRecordRaw);
-                    if (doc.RootElement.TryGetProperty("embed", out var embed) && embed.TryGetProperty("$type", out var typeProp))
-                    {
-                        var type = typeProp.GetString();
-
-                        if (type == "app.bsky.embed.images" && embed.TryGetProperty("images", out var imagesProp))
-                        {
-                            internalRequest.PreUploadedImageUrls = new List<string>();
-                            internalRequest.PreUploadedAltTexts = new List<string>();
-                            
-                            foreach (var img in imagesProp.EnumerateArray())
-                            {
-                                // In a real PDS, we would map the blob DID/CID to a real URL. 
-                                // Since we use synthetic CIDs in BSkyClone for XRPC, we just store it.
-                                if (img.TryGetProperty("image", out var imageBlob) && imageBlob.TryGetProperty("ref", out var imageRef) && imageRef.TryGetProperty("$link", out var linkProp))
-                                {
-                                    internalRequest.PreUploadedImageUrls.Add(linkProp.GetString() ?? "");
-                                }
-                                
-                                if (img.TryGetProperty("alt", out var altProp))
-                                {
-                                    internalRequest.PreUploadedAltTexts.Add(altProp.GetString() ?? "");
-                                }
-                                else 
-                                {
-                                    internalRequest.PreUploadedAltTexts.Add("");
-                                }
-                            }
-                        }
-                        else if (type == "app.bsky.embed.video" && embed.TryGetProperty("video", out var videoBlob) && videoBlob.TryGetProperty("ref", out var videoRef) && videoRef.TryGetProperty("$link", out var linkProp))
-                        {
-                            internalRequest.PreUploadedVideoUrl = linkProp.GetString();
-                        }
-                        else if (type == "app.bsky.embed.external" && embed.TryGetProperty("external", out var externalProp))
-                        {
-                            if (externalProp.TryGetProperty("uri", out var uriProp)) internalRequest.LinkPreviewUrl = uriProp.GetString();
-                            if (externalProp.TryGetProperty("title", out var titleProp)) internalRequest.LinkPreviewTitle = titleProp.GetString();
-                            if (externalProp.TryGetProperty("description", out var descProp)) internalRequest.LinkPreviewDescription = descProp.GetString();
-                            
-                            // Domain extraction
-                            try 
-                            { 
-                                if (!string.IsNullOrEmpty(internalRequest.LinkPreviewUrl))
-                                {
-                                    var uri = new Uri(internalRequest.LinkPreviewUrl);
-                                    internalRequest.LinkPreviewDomain = uri.Host.Replace("www.", "");
-                                }
-                            } catch { }
-
-                            // External thumbnail
-                            if (externalProp.TryGetProperty("thumb", out var thumbBlob) && thumbBlob.TryGetProperty("ref", out var thumbRef) && thumbRef.TryGetProperty("$link", out var thumbLinkProp))
-                            {
-                                internalRequest.LinkPreviewImage = thumbLinkProp.GetString();
-                            }
-                        }
-                    }
-                    
-                    await _postService.CreatePostAsync(userId, internalRequest);
+                    return Unauthorized(new { error = "InvalidRepo", message = "You can only create records in your own repo" });
                 }
-            }
 
-            return Ok(new CreateRecordResponse
+                var rkey = request.Rkey ?? _postService.GenerateTid();
+                
+                if (!Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized(new { error = "AuthFailed", message = "Invalid user ID" });
+                
+                _logger.LogInformation("Creating record {Collection}/{Rkey} for {Did}", request.Collection, rkey, userDid);
+
+                // 1. Store in Repo Storage (Source of Truth)
+                var cid = await _repoManager.CreateRecordAsync(userDid ?? userHandle ?? userIdStr, request.Collection, request.Record);
+
+                // 2. Indexing Layer (SQL)
+                if (request.Collection == "app.bsky.feed.post")
+                {
+                    var postRecordRaw = request.Record.ToString()!;
+                    var postRecord = JsonSerializer.Deserialize<Lexicons.App.Bsky.Feed.Post>(postRecordRaw);
+                    
+                    if (postRecord != null)
+                    {
+                        // Map Lexicon Post to internal CreatePostRequest
+                        var internalRequest = new DTOs.CreatePostRequest
+                        {
+                            Content = postRecord.Text,
+                        };
+
+                        // Robust Reply Handling
+                        if (postRecord.Reply != null)
+                        {
+                            var parentUri = postRecord.Reply.Parent?.Uri;
+                            if (!string.IsNullOrEmpty(parentUri))
+                            {
+                                var parentTid = parentUri.Split('/').LastOrDefault();
+                                if (!string.IsNullOrEmpty(parentTid))
+                                {
+                                    var parentPost = await _postService.GetPostByTidAsync(parentTid);
+                                    if (parentPost != null) internalRequest.ReplyToPostId = parentPost.Id;
+                                }
+                            }
+
+                            var rootUri = postRecord.Reply.Root?.Uri;
+                            if (!string.IsNullOrEmpty(rootUri))
+                            {
+                                var rootTid = rootUri.Split('/').LastOrDefault();
+                                if (!string.IsNullOrEmpty(rootTid))
+                                {
+                                    var rootPost = await _postService.GetPostByTidAsync(rootTid);
+                                    if (rootPost != null) internalRequest.RootPostId = rootPost.Id;
+                                }
+                            }
+                        }
+
+                        // Handle Embeds
+                        using var doc = JsonDocument.Parse(postRecordRaw);
+                        if (doc.RootElement.TryGetProperty("embed", out var embed) && embed.TryGetProperty("$type", out var typeProp))
+                        {
+                            var type = typeProp.GetString();
+
+                            if (type == "app.bsky.embed.images" && embed.TryGetProperty("images", out var imagesProp))
+                            {
+                                internalRequest.PreUploadedImageUrls = new List<string>();
+                                internalRequest.PreUploadedAltTexts = new List<string>();
+                                
+                                foreach (var img in imagesProp.EnumerateArray())
+                                {
+                                    if (img.TryGetProperty("image", out var imageBlob) && imageBlob.TryGetProperty("ref", out var imageRef) && imageRef.TryGetProperty("$link", out var linkProp))
+                                    {
+                                        internalRequest.PreUploadedImageUrls.Add(linkProp.GetString() ?? "");
+                                    }
+                                    
+                                    if (img.TryGetProperty("alt", out var altProp))
+                                    {
+                                        internalRequest.PreUploadedAltTexts.Add(altProp.GetString() ?? "");
+                                    }
+                                    else 
+                                    {
+                                        internalRequest.PreUploadedAltTexts.Add("");
+                                    }
+                                }
+                            }
+                            else if (type == "app.bsky.embed.video" && embed.TryGetProperty("video", out var videoBlob) && videoBlob.TryGetProperty("ref", out var videoRef) && videoRef.TryGetProperty("$link", out var linkProp))
+                            {
+                                internalRequest.PreUploadedVideoUrl = linkProp.GetString();
+                            }
+                            else if (type == "app.bsky.embed.external" && embed.TryGetProperty("external", out var externalProp))
+                            {
+                                if (externalProp.TryGetProperty("uri", out var uriProp)) internalRequest.LinkPreviewUrl = uriProp.GetString();
+                                if (externalProp.TryGetProperty("title", out var titleProp)) internalRequest.LinkPreviewTitle = titleProp.GetString();
+                                if (externalProp.TryGetProperty("description", out var descProp)) internalRequest.LinkPreviewDescription = descProp.GetString();
+                                
+                                try 
+                                { 
+                                    if (!string.IsNullOrEmpty(internalRequest.LinkPreviewUrl))
+                                    {
+                                        var uri = new Uri(internalRequest.LinkPreviewUrl);
+                                        internalRequest.LinkPreviewDomain = uri.Host.Replace("www.", "");
+                                    }
+                                } catch { }
+
+                                if (externalProp.TryGetProperty("thumb", out var thumbBlob) && thumbBlob.TryGetProperty("ref", out var thumbRef) && thumbRef.TryGetProperty("$link", out var thumbLinkProp))
+                                {
+                                    internalRequest.LinkPreviewImage = thumbLinkProp.GetString();
+                                }
+                            }
+                        }
+                        
+                        await _postService.CreatePostAsync(userId, internalRequest);
+                    }
+                }
+
+                _logger.LogInformation("Successfully created record for {Did}", userDid ?? userIdStr);
+                return Ok(new CreateRecordResponse
+                {
+                    Uri = $"at://{userDid ?? userIdStr}/{request.Collection}/{rkey}",
+                    Cid = cid
+                });
+            }
+            catch (Exception ex)
             {
-                Uri = $"at://{userDid}/{request.Collection}/{rkey}",
-                Cid = cid
-            });
+                _logger.LogError(ex, "Error in CreateRecord XRPC. Request Repo: {Repo}, Collection: {Collection}", request.Repo, request.Collection);
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.server.refreshSession")]
+        public async Task<IActionResult> RefreshSession()
+        {
+            try
+            {
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                    return Unauthorized(new { error = "AuthenticationRequired" });
+
+                var refreshToken = authHeader.Replace("Bearer ", "");
+                var authResponse = await _authService.RefreshTokenAsync(refreshToken);
+
+                if (authResponse == null)
+                    return Unauthorized(new { error = "ExpiredToken", message = "Token is invalid or expired" });
+
+                return Ok(new RefreshSessionResponse
+                {
+                    AccessJwt = authResponse.Token,
+                    RefreshJwt = authResponse.RefreshToken,
+                    Handle = authResponse.User.Handle,
+                    Did = authResponse.User.Did ?? "",
+                    DidDoc = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing session");
+                return StatusCode(500, new { error = "InternalError" });
+            }
         }
 
         [Authorize]

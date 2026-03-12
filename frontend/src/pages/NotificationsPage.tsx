@@ -15,7 +15,7 @@ import { openMobileMenu } from '../redux/slices/modalsSlice';
 const NotificationsPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { notifications, unreadCount } = useAppSelector((state: RootState) => state.notifications);
+    const { notifications, unreadCount, isLoading, error } = useAppSelector((state: RootState) => state.notifications);
     const [activeTab, setActiveTab] = useState<'all' | 'mentions'>('all');
 
     useEffect(() => {
@@ -93,7 +93,16 @@ const NotificationsPage: React.FC = () => {
 
                 {/* Notifications List */}
                 <div className="flex flex-col">
-                    {filteredNotifications.length > 0 ? (
+                    {error && (
+                        <div className="p-4 m-4 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-center text-sm">
+                            {error}
+                        </div>
+                    )}
+                    {isLoading && notifications.length === 0 ? (
+                        <div className="p-12 text-center">
+                            <div className="inline-block w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : filteredNotifications.length > 0 ? (
                         filteredNotifications.map((notification: Notification) => (
                             <NotificationItem
                                 key={notification.id}

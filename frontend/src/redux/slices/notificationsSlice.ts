@@ -8,9 +8,11 @@ export const fetchNotifications = createAsyncThunk<Notification[], void, { rejec
     async (_, { rejectWithValue }) => {
         try {
             const { data } = await agent.listNotifications();
-            return data.notifications.map(n => {
+            console.log('DEBUG: Notifications API data:', data);
+            const mapped: Notification[] = data.notifications.map(n => {
                 const author = n.author || {};
                 const reason = (n.reason || 'unknown').toLowerCase();
+                console.log('DEBUG: Mapping notification:', n.uri, reason);
                 return {
                     id: n.cid || n.uri || Math.random().toString(36).substring(7),
                     uri: n.uri || '',
@@ -29,11 +31,14 @@ export const fetchNotifications = createAsyncThunk<Notification[], void, { rejec
                     isRead: !!n.isRead,
                     createdAt: n.indexedAt || new Date().toISOString(),
                     record: n.record,
+                    content: (n.record as any)?.text || '',
                     subjectUri: n.reasonSubject,
                     postAuthorHandle: (n as any).postAuthorHandle,
                     postId: n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined
                 };
             });
+            console.log('DEBUG: Mapped notifications:', mapped);
+            return mapped;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch notifications');
         }
