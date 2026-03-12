@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -103,11 +103,11 @@ const ListsPage: React.FC = () => {
                                                 </h3>
                                             </div>
                                             <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                                {list.description || t('lists.list_by', { handle: list.owner.handle })}
+                                                {list.description || (list.owner ? t('lists.list_by', { handle: list.owner.handle }) : '')}
                                             </p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </Link>
+                                    </Link>
                             ))}
                         </div>
                     )

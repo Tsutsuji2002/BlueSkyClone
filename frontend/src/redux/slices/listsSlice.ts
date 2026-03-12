@@ -41,21 +41,38 @@ const getAuthHeaders = (): Record<string, string> => {
     return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
-const mapListFromXrpc = (list: any): ListDto => ({
-    id: list.uri?.split('/').pop() || list.id || '',
-    uri: list.uri || '',
-    cid: list.cid || '',
-    ownerId: list.creator?.did || '',
-    name: list.name || '',
-    description: list.description,
-    purpose: list.purpose,
-    avatarUrl: list.avatar || list.avatarUrl,
-    membersCount: list.membersCount || 0,
-    postsCount: list.postsCount || 0,
-    createdAt: list.indexedAt || list.createdAt,
-    isPinned: list.isPinned || false,
-    isOwner: list.isOwner || false
-});
+const mapListFromXrpc = (list: any): ListDto => {
+    const id = list.id || (list.uri ? list.uri.split('/').pop() : '');
+    const creator = list.creator || list.owner;
+    
+    return {
+        id: id || '',
+        uri: list.uri || '',
+        cid: list.cid || '',
+        ownerId: creator?.did || '',
+        owner: creator ? {
+            id: creator.did || '',
+            did: creator.did || '',
+            handle: creator.handle || '',
+            displayName: creator.displayName || creator.handle || '',
+            avatar: creator.avatar,
+            avatarUrl: creator.avatar,
+            username: creator.handle || '',
+            followersCount: 0,
+            followingCount: 0,
+            postsCount: 0
+        } : undefined,
+        name: list.name || '',
+        description: list.description,
+        purpose: list.purpose,
+        avatarUrl: list.avatar || list.avatarUrl,
+        membersCount: list.membersCount || 0,
+        postsCount: list.postsCount || 0,
+        createdAt: list.indexedAt || list.createdAt,
+        isPinned: list.isPinned || false,
+        isOwner: list.isOwner || false
+    };
+};
 
 // ---------- Async Thunks ----------
 
