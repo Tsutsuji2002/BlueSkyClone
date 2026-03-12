@@ -351,9 +351,11 @@ export interface PostsState {
     posts: Post[];
     discoverPosts: Post[];
     trendingPosts: Post[];
+    bookmarkedPosts: Post[];
     isLoading: boolean;
     timelineLoading: boolean;
     discoverLoading: boolean;
+    bookmarkedLoading: boolean;
     error: string | null;
     hasMore: boolean;
     discoverHasMore: boolean;

@@ -6,9 +6,11 @@ const initialState: PostsState = {
     posts: [],
     discoverPosts: [],
     trendingPosts: [],
+    bookmarkedPosts: [],
     isLoading: false,
     timelineLoading: false,
     discoverLoading: false,
+    bookmarkedLoading: false,
     error: null,
     hasMore: true,
     discoverHasMore: true,
@@ -255,7 +257,41 @@ export const fetchTrendingPosts = createAsyncThunk(
     }
 );
 
-// fetchBookmarkedPosts removed as not natively supported by AT Proto lexicon yet
+export const toggleBookmark = createAsyncThunk(
+    'posts/toggleBookmark',
+    async ({ uri, isBookmarked }: { uri: string; isBookmarked: boolean }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/bookmark`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) return rejectWithValue('Failed to toggle bookmark');
+            const data = await response.json();
+            return { uri, isBookmarked: data.isBookmarked };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchBookmarkedPosts = createAsyncThunk(
+    'posts/fetchBookmarks',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/posts/bookmarks`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
+            return await response.json() as Post[];
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
 
 export const fetchDiscoverPosts = createAsyncThunk(
     'posts/fetchDiscover',
@@ -297,6 +333,7 @@ const postsSlice = createSlice({
             updateInArray(state.posts);
             updateInArray(state.discoverPosts);
             updateInArray(state.trendingPosts);
+            updateInArray(state.bookmarkedPosts);
         },
         updateUserPostStatus: (state, action: PayloadAction<{ uri: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
             const { uri, timestamp, ...status } = action.payload;
@@ -312,12 +349,14 @@ const postsSlice = createSlice({
             updateInArray(state.posts);
             updateInArray(state.discoverPosts);
             updateInArray(state.trendingPosts);
+            updateInArray(state.bookmarkedPosts);
         },
         removePost: (state, action: PayloadAction<string>) => {
             const postUri = action.payload;
             state.posts = state.posts.filter((p: Post) => p.uri !== postUri);
             state.discoverPosts = state.discoverPosts.filter((p: Post) => p.uri !== postUri);
             state.trendingPosts = state.trendingPosts.filter((p: Post) => p.uri !== postUri);
+            state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => p.uri !== postUri);
         }
     },
 
@@ -528,7 +567,74 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            // fetchBookmarkedPosts removed as not natively supported by AT Proto lexicon yet
+            // toggleBookmark
+            .addCase(toggleBookmark.pending, (state: PostsState, action) => {
+                const { uri } = action.meta.arg;
+                state.actionLoading[uri] = true;
+
+                // Optimistic Update
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.uri === uri);
+                    if (post) {
+                        const wasBookmarked = post.isBookmarked;
+                        post.isBookmarked = !wasBookmarked;
+                        post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
+            })
+            .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean }>) => {
+                state.actionLoading[action.payload.uri] = false;
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.uri === action.payload.uri);
+                    if (post) {
+                        post.isBookmarked = action.payload.isBookmarked;
+                        post.lastUpdated = new Date().toISOString();
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
+
+                // If unbookmarked, remove from bookmarkedPosts array
+                if (!action.payload.isBookmarked) {
+                    state.bookmarkedPosts = state.bookmarkedPosts.filter(p => p.uri !== action.payload.uri);
+                }
+            })
+            .addCase(toggleBookmark.rejected, (state: PostsState, action) => {
+                const { uri } = action.meta.arg;
+                state.actionLoading[uri] = false;
+
+                // Rollback
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.uri === uri);
+                    if (post) {
+                        const wasBookmarked = post.isBookmarked;
+                        post.isBookmarked = !wasBookmarked;
+                        post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
+            })
+            // Fetch Bookmarked Posts
+            .addCase(fetchBookmarkedPosts.pending, (state: PostsState) => {
+                state.bookmarkedLoading = true;
+            })
+            .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
+                state.bookmarkedLoading = false;
+                state.bookmarkedPosts = action.payload;
+            })
+            .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
+                state.bookmarkedLoading = false;
+                state.error = action.payload as string;
+            })
             // Fetch Posts By Tag
             .addCase(fetchPostsByTag.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;

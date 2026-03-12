@@ -1,7 +1,7 @@
 import React from 'react';
 import { Post } from '../../types';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
-import { toggleLike, repostPost } from '../../redux/slices/postsSlice';
+import { toggleLike, repostPost, toggleBookmark } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
 import { openReply, openEditPost, openQuote, openDeleteConfirm } from '../../redux/slices/modalsSlice';
@@ -478,7 +478,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                     <span className="text-[13px]">{post.likesCount > 1000 ? `${(post.likesCount / 1000).toFixed(1)} ${t('common.user').startsWith('N') ? 'N' : 'K'}` : post.likesCount}</span>
                                 </button>
 
-                                {/* Bookmark removed */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        dispatch(toggleBookmark({ uri: post.uri!, isBookmarked: !!post.isBookmarked }));
+                                    }}
+                                    disabled={!!actionLoading[post.uri!]}
+                                    className={cn(
+                                        "flex items-center gap-2 group transition-colors disabled:opacity-50",
+                                        post.isBookmarked ? "text-yellow-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-yellow-500"
+                                    )}
+                                >
+                                    <FiBookmark size={18} className={post.isBookmarked ? "fill-current" : ""} />
+                                    <span className="text-[13px]">{post.bookmarksCount}</span>
+                                </button>
 
                                 <div onClick={(e) => e.stopPropagation()}>
                                     <Dropdown
