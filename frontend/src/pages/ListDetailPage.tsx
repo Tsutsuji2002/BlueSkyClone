@@ -246,7 +246,7 @@ const ListDetailPage: React.FC = () => {
                                 {activeList.name}
                             </h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm flex items-center gap-2">
-                                <span>{activeList.isOwner ? t('lists.your_list') : t('lists.list_by', { handle: activeList.owner.handle })}</span>
+                                <span>{activeList.isOwner ? t('lists.your_list') : t('lists.list_by', { handle: activeList.owner?.handle || '' })}</span>
                                 <span>·</span>
                                 <span className="font-medium text-gray-700 dark:text-gray-300">{t('lists.members_count', { count: activeList.membersCount })}</span>
                                 <span>·</span>
