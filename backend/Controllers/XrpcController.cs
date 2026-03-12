@@ -273,14 +273,23 @@ namespace BSkyClone.Controllers
             }
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet("app.bsky.graph.getLists")]
-        public async Task<IActionResult> GetLists([FromQuery] string actor, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        public async Task<IActionResult> GetLists([FromQuery] string? actor, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
         {
             try
             {
+                if (string.IsNullOrEmpty(actor))
+                {
+                    return BadRequest(new { error = "InvalidRequest", message = "Actor is required" });
+                }
+
                 var viewerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                if (string.IsNullOrEmpty(viewerIdStr) || !Guid.TryParse(viewerIdStr, out var viewerId)) return Unauthorized();
+                Guid viewerId = Guid.Empty;
+                if (!string.IsNullOrEmpty(viewerIdStr))
+                {
+                    Guid.TryParse(viewerIdStr, out viewerId);
+                }
 
                 Guid actorId;
                 User? actorUser = null;
