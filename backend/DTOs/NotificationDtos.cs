@@ -5,9 +5,14 @@ namespace BSkyClone.DTOs;
 
 public record NotificationDto(
     [property: JsonPropertyName("id")] Guid Id,
+    [property: JsonPropertyName("uri")] string Uri,
+    [property: JsonPropertyName("cid")] string Cid,
     [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("reason")] string Reason,
+    [property: JsonPropertyName("reasonSubject")] string? ReasonSubject,
     [property: JsonPropertyName("sender")] UserDto Sender,
-    [property: JsonPropertyName("postId")] Guid? PostId,
+    [property: JsonPropertyName("postId")] string? PostId,
+    [property: JsonPropertyName("postAuthorHandle")] string? PostAuthorHandle,
     [property: JsonPropertyName("listId")] Guid? ListId,
     [property: JsonPropertyName("title")] string? Title,
     [property: JsonPropertyName("content")] string? Content,

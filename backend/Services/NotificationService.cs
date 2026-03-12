@@ -79,11 +79,39 @@ public class NotificationService : INotificationService
 
     private NotificationDto MapToDto(Notification n, int? invitationStatus)
     {
+        string uri = "";
+        string cid = "pseudo-cid-" + n.Id;
+        string reason = n.Type ?? "unknown";
+        string? reasonSubject = null;
+
+        if (n.Post != null)
+        {
+            var postUri = $"at://{n.Post.Author?.Did ?? "local"}/app.bsky.feed.post/{n.Post.Tid}";
+            if (n.Type == "like" || n.Type == "repost")
+            {
+                uri = $"at://local/app.bsky.notification.event/{n.Tid}";
+                reasonSubject = postUri;
+            }
+            else if (n.Type == "reply" || n.Type == "mention" || n.Type == "quote")
+            {
+                uri = postUri;
+            }
+        }
+        else if (n.Type == "follow")
+        {
+            uri = $"at://local/app.bsky.notification.event/{n.Tid}";
+        }
+
         return new NotificationDto(
             n.Id,
+            uri,
+            cid,
             n.Type ?? "unknown",
+            reason,
+            reasonSubject,
             MapToUserDto(n.Sender),
-            n.PostId,
+            n.Post?.Tid ?? (n.PostId?.ToString()),
+            n.Post?.Author?.Handle,
             n.ListId,
             n.Title,
             n.Content,

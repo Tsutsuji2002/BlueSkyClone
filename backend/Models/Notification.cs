@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -25,7 +25,10 @@ public partial class Notification
 
     public bool? IsDeleted { get; set; }
 
+
     public virtual User Recipient { get; set; } = null!;
 
     public virtual User Sender { get; set; } = null!;
+
+    public virtual Post? Post { get; set; }
 }

@@ -321,6 +321,11 @@ public partial class BSkyDbContext : DbContext
                 .HasForeignKey(d => d.SenderId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_NotifSender");
+
+            entity.HasOne(d => d.Post).WithMany()
+                .HasForeignKey(d => d.PostId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_NotificationPost");
         });
 
         modelBuilder.Entity<Post>(entity =>

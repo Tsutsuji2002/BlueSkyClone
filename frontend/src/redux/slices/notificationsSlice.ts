@@ -27,6 +27,7 @@ export const fetchNotifications = createAsyncThunk<Notification[], void, { rejec
                 createdAt: n.indexedAt,
                 record: n.record,
                 subjectUri: n.reasonSubject,
+                postAuthorHandle: (n as any).postAuthorHandle,
                 postId: n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined
             }));
         } catch (error: any) {

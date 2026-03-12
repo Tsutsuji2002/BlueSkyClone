@@ -205,6 +205,7 @@ export interface Notification {
     content?: string;
     title?: string;
     postId?: string; // Tail of URI for subject
+    postAuthorHandle?: string;
     subjectUri?: string;
     isRead: boolean;
     createdAt: string;

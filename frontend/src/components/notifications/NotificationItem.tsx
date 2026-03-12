@@ -34,9 +34,22 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
 
         if (notification.type === 'follow') {
             navigate(`/profile/${notification.sender.handle}`);
-        } else if (notification.postId && notification.sender.handle) {
-            // Navigate to the post detail page
-            navigate(`/profile/${notification.sender.handle}/post/${notification.uri}`);
+        } else if (notification.sender.handle) {
+            // Determine the target handle and post ID/TID
+            const targetHandle = notification.postAuthorHandle || notification.sender.handle;
+            
+            // For like/repost/quote/mention, we want to go to the subject post (postId is the TID of subject)
+            // For reply, notification.uri is the reply itself, notification.postId is the parent post.
+            // Usually we want to see the reply itself if it's a "someone replied to you" notification.
+            
+            let targetPostId = notification.postId;
+            if (notification.type === 'reply' || notification.type === 'mention' || notification.type === 'quote') {
+                targetPostId = notification.uri.split('/').pop();
+            }
+
+            if (targetPostId) {
+                navigate(`/profile/${targetHandle}/post/${targetPostId}`);
+            }
         }
     };
 

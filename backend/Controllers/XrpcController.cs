@@ -201,6 +201,76 @@ namespace BSkyClone.Controllers
             }
         }
 
+        [Authorize]
+        [HttpGet("app.bsky.notification.listNotifications")]
+        public async Task<IActionResult> ListNotifications([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+            var userId = Guid.Parse(userIdStr);
+            var notifications = await _notificationService.GetNotificationsAsync(userId, limit);
+
+            var response = new Lexicons.App.Bsky.Notification.ListNotificationsResponse
+            {
+                Notifications = notifications.Select(n => new Lexicons.App.Bsky.Notification.NotificationView
+                {
+                    Uri = n.Uri,
+                    Cid = n.Cid,
+                    Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
+                    {
+                        Did = n.Sender.Did ?? "",
+                        Handle = n.Sender.Handle,
+                        DisplayName = n.Sender.DisplayName,
+                        Avatar = n.Sender.AvatarUrl
+                    },
+                    Reason = n.Reason,
+                    ReasonSubject = n.ReasonSubject,
+                    PostAuthorHandle = n.PostAuthorHandle,
+                    PostId = n.PostId,
+                    IsRead = n.IsRead,
+                    IndexedAt = n.CreatedAt.ToString("o"),
+                    Record = new
+                    {
+                        @type = "app.bsky.notification.event",
+                        text = n.Content,
+                        createdAt = n.CreatedAt.ToString("o")
+                    }
+                }).ToList(),
+                Cursor = null // Pagination not fully implemented in service yet
+            };
+
+            return Ok(response);
+        }
+
+        [Authorize]
+        [HttpGet("app.bsky.notification.getUnreadCount")]
+        public async Task<IActionResult> GetUnreadCount()
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+            var userId = Guid.Parse(userIdStr);
+            var count = await _notificationService.GetUnreadCountAsync(userId);
+
+            return Ok(new Lexicons.App.Bsky.Notification.GetUnreadCountResponse
+            {
+                Count = count
+            });
+        }
+
+        [Authorize]
+        [HttpPost("app.bsky.notification.updateSeen")]
+        public async Task<IActionResult> UpdateSeen([FromBody] Lexicons.App.Bsky.Notification.UpdateSeenRequest request)
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+            var userId = Guid.Parse(userIdStr);
+            await _notificationService.MarkAllAsReadAsync(userId);
+            return Ok();
+        }
+
         [HttpGet("{*lexicon}")]
         public IActionResult HandleLexiconGet(string lexicon)
         {
