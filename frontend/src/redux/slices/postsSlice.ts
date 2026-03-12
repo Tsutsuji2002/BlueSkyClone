@@ -65,7 +65,7 @@ export const fetchUserPosts = createAsyncThunk(
 
 export const createPost = createAsyncThunk(
     'posts/createPost',
-    async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; replyToPostId?: string }, { rejectWithValue, getState }) => {
+    async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; replyToPostId?: string }, { rejectWithValue, getState }) => {
         try {
             const state = getState() as any;
             const user = state.auth.user;
@@ -75,7 +75,20 @@ export const createPost = createAsyncThunk(
             formData.append('Content', postData.content);
             if (postData.replyToPostId) formData.append('ReplyToPostId', postData.replyToPostId);
             if (postData.mediaFiles) {
-                postData.mediaFiles.forEach(f => formData.append('MediaFiles', f));
+                postData.mediaFiles.forEach(f => formData.append('Images', f));
+            }
+            if (postData.videoFile) {
+                formData.append('Video', postData.videoFile);
+            }
+            if (postData.linkPreview) {
+                if (postData.linkPreview.url) formData.append('LinkPreviewUrl', postData.linkPreview.url);
+                if (postData.linkPreview.title) formData.append('LinkPreviewTitle', postData.linkPreview.title);
+                if (postData.linkPreview.description) formData.append('LinkPreviewDescription', postData.linkPreview.description);
+                if (postData.linkPreview.image) formData.append('LinkPreviewImage', postData.linkPreview.image);
+                if (postData.linkPreview.domain) formData.append('LinkPreviewDomain', postData.linkPreview.domain);
+            }
+            if (postData.gifUrl) {
+                formData.append('GifUrl', postData.gifUrl);
             }
 
             const response = await fetch(`${API_BASE_URL}/posts`, {
@@ -230,7 +243,7 @@ export const fetchPostById = createAsyncThunk(
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch post');
-            return await response.json() as Post;
+            return await response.json() as Post[];
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -554,14 +567,17 @@ const postsSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(fetchPostById.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
+            .addCase(fetchPostById.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                const index = state.posts.findIndex(p => p.uri === action.payload.uri);
-                if (index !== -1) {
-                    state.posts[index] = action.payload;
-                } else {
-                    state.posts.push(action.payload);
-                }
+                const fetchedPosts: Post[] = Array.isArray(action.payload) ? action.payload : [action.payload];
+                fetchedPosts.forEach(fetchedPost => {
+                    const index = state.posts.findIndex(p => p.uri === fetchedPost.uri);
+                    if (index !== -1) {
+                        state.posts[index] = { ...state.posts[index], ...fetchedPost };
+                    } else {
+                        state.posts.push(fetchedPost);
+                    }
+                });
             })
             .addCase(fetchPostById.rejected, (state: PostsState, action) => {
                 state.isLoading = false;

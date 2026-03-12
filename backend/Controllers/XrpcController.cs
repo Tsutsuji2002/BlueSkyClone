@@ -73,9 +73,12 @@ namespace BSkyClone.Controllers
         public async Task<IActionResult> CreateRecord([FromBody] CreateRecordRequest request)
         {
             var userDid = User.FindFirst("did")?.Value;
+            var userHandle = User.FindFirst("handle")?.Value;
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             
-            if (string.IsNullOrEmpty(userDid) || string.IsNullOrEmpty(userIdStr) || request.Repo != userDid)
+            bool isAuthorizedRepo = request.Repo == userDid || (!string.IsNullOrEmpty(userHandle) && request.Repo == userHandle) || request.Repo == userIdStr;
+
+            if (string.IsNullOrEmpty(userDid) || string.IsNullOrEmpty(userIdStr) || !isAuthorizedRepo)
             {
                 return Unauthorized(new { error = "InvalidRepo", message = "You can only create records in your own repo" });
             }
@@ -106,14 +109,61 @@ namespace BSkyClone.Controllers
                         ReplyToPostId = postRecord.Reply?.Parent?.Uri?.Split('/').LastOrDefault() != null ? Guid.Parse(postRecord.Reply.Parent.Uri.Split('/').Last()) : null,
                     };
 
-                    // Handle Embeds (Images)
+                    // Handle Embeds
                     using var doc = JsonDocument.Parse(postRecordRaw);
-                    if (doc.RootElement.TryGetProperty("embed", out var embed))
+                    if (doc.RootElement.TryGetProperty("embed", out var embed) && embed.TryGetProperty("$type", out var typeProp))
                     {
-                        if (embed.TryGetProperty("$type", out var type) && type.GetString() == "app.bsky.embed.images")
+                        var type = typeProp.GetString();
+
+                        if (type == "app.bsky.embed.images" && embed.TryGetProperty("images", out var imagesProp))
                         {
-                            // In a real PDS, we would link the CID to the actual file
-                            // For now, we'll keep the existing media logic simple
+                            internalRequest.PreUploadedImageUrls = new List<string>();
+                            internalRequest.PreUploadedAltTexts = new List<string>();
+                            
+                            foreach (var img in imagesProp.EnumerateArray())
+                            {
+                                // In a real PDS, we would map the blob DID/CID to a real URL. 
+                                // Since we use synthetic CIDs in BSkyClone for XRPC, we just store it.
+                                if (img.TryGetProperty("image", out var imageBlob) && imageBlob.TryGetProperty("ref", out var imageRef) && imageRef.TryGetProperty("$link", out var linkProp))
+                                {
+                                    internalRequest.PreUploadedImageUrls.Add(linkProp.GetString() ?? "");
+                                }
+                                
+                                if (img.TryGetProperty("alt", out var altProp))
+                                {
+                                    internalRequest.PreUploadedAltTexts.Add(altProp.GetString() ?? "");
+                                }
+                                else 
+                                {
+                                    internalRequest.PreUploadedAltTexts.Add("");
+                                }
+                            }
+                        }
+                        else if (type == "app.bsky.embed.video" && embed.TryGetProperty("video", out var videoBlob) && videoBlob.TryGetProperty("ref", out var videoRef) && videoRef.TryGetProperty("$link", out var linkProp))
+                        {
+                            internalRequest.PreUploadedVideoUrl = linkProp.GetString();
+                        }
+                        else if (type == "app.bsky.embed.external" && embed.TryGetProperty("external", out var externalProp))
+                        {
+                            if (externalProp.TryGetProperty("uri", out var uriProp)) internalRequest.LinkPreviewUrl = uriProp.GetString();
+                            if (externalProp.TryGetProperty("title", out var titleProp)) internalRequest.LinkPreviewTitle = titleProp.GetString();
+                            if (externalProp.TryGetProperty("description", out var descProp)) internalRequest.LinkPreviewDescription = descProp.GetString();
+                            
+                            // Domain extraction
+                            try 
+                            { 
+                                if (!string.IsNullOrEmpty(internalRequest.LinkPreviewUrl))
+                                {
+                                    var uri = new Uri(internalRequest.LinkPreviewUrl);
+                                    internalRequest.LinkPreviewDomain = uri.Host.Replace("www.", "");
+                                }
+                            } catch { }
+
+                            // External thumbnail
+                            if (externalProp.TryGetProperty("thumb", out var thumbBlob) && thumbBlob.TryGetProperty("ref", out var thumbRef) && thumbRef.TryGetProperty("$link", out var thumbLinkProp))
+                            {
+                                internalRequest.LinkPreviewImage = thumbLinkProp.GetString();
+                            }
                         }
                     }
                     

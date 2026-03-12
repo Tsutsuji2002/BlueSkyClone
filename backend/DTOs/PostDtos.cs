@@ -91,6 +91,11 @@ public class CreatePostRequest
     public Guid? RootPostId { get; set; }
     public Guid? QuotePostId { get; set; }
 
+    // Direct URLs for XRPC/AT Protocol compatibility where media is already uploaded as blobs
+    public List<string>? PreUploadedImageUrls { get; set; }
+    public List<string>? PreUploadedAltTexts { get; set; }
+    public string? PreUploadedVideoUrl { get; set; }
+
     // Optional Link Preview Metadata
     public string? LinkPreviewUrl { get; set; }
     public string? LinkPreviewTitle { get; set; }

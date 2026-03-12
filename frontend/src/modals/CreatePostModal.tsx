@@ -314,11 +314,13 @@ const CreatePostModal: React.FC = () => {
             if (isEditing && postToEdit) {
                 dispatch(showToast({ message: t('post.editing_not_supported', 'Post editing is not supported'), type: 'info' }));
             } else {
-                // Collect image files from the images array
                 const mediaFiles = images.filter(img => img.file).map(img => img.file as File);
                 await dispatch(createPost({
                     content,
                     mediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined,
+                    videoFile: videoFile || undefined,
+                    linkPreview: linkPreview || undefined,
+                    gifUrl: selectedGifUrl || undefined,
                 })).unwrap();
                 dispatch(showToast({ message: t('post.created_success'), type: 'success' }));
             }
@@ -406,7 +408,7 @@ const CreatePostModal: React.FC = () => {
             {/* Main Modal */}
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={handleClose}>
                 <div
-                    className="bg-dark-surface rounded-[14px] border border-dark-border w-full max-w-[600px] shadow-2xl flex flex-col"
+                    className="bg-white dark:bg-dark-surface rounded-[14px] border border-gray-200 dark:border-dark-border w-full max-w-[600px] shadow-2xl flex flex-col"
                     style={{ maxHeight: 'min(90vh, 720px)' }}
                     onClick={e => e.stopPropagation()}
                 >
@@ -449,7 +451,7 @@ const CreatePostModal: React.FC = () => {
                                     value={content}
                                     onChange={handleContentChange}
                                     placeholder={t('common.whats_new', "What's up?")}
-                                    className="w-full min-h-[120px] py-2 text-[20px] bg-transparent border-none resize-none focus:outline-none text-white placeholder-gray-500"
+                                    className="w-full min-h-[120px] py-2 text-[20px] bg-transparent border-none resize-none focus:outline-none text-gray-900 dark:text-white placeholder-gray-500"
                                     autoFocus
                                 />
 

@@ -471,6 +471,23 @@ public class PostService : IPostService
                 });
             }
         }
+        else if (request.PreUploadedImageUrls != null && request.PreUploadedImageUrls.Any())
+        {
+             for (int i = 0; i < request.PreUploadedImageUrls.Count; i++)
+             {
+                 var altText = request.PreUploadedAltTexts != null && i < request.PreUploadedAltTexts.Count ? request.PreUploadedAltTexts[i] : null;
+                 post.PostMedia.Add(new PostMedium
+                 {
+                     Id = Guid.NewGuid(),
+                     PostId = post.Id,
+                     Type = "image",
+                     Url = request.PreUploadedImageUrls[i],
+                     AltText = altText,
+                     Position = i,
+                     CreatedAt = DateTime.UtcNow
+                 });
+             }
+        }
 
         if (request.Video != null)
         {
@@ -481,6 +498,17 @@ public class PostService : IPostService
                 PostId = post.Id,
                 Type = "video",
                 Url = videoPath,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        else if (!string.IsNullOrEmpty(request.PreUploadedVideoUrl))
+        {
+            post.PostMedia.Add(new PostMedium
+            {
+                Id = Guid.NewGuid(),
+                PostId = post.Id,
+                Type = "video",
+                Url = request.PreUploadedVideoUrl,
                 CreatedAt = DateTime.UtcNow
             });
         }

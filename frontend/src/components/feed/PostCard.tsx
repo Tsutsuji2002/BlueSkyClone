@@ -221,6 +221,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
         ...(isOwnPost ? [
             { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
             {
+                id: 'edit',
+                label: t('common.edit_post', 'Edit Post'),
+                icon: <FiType />,
+                onClick: () => dispatch(openEditPost(post)),
+            },
+            {
                 id: 'delete',
                 label: t('common.delete_post'),
                 icon: <FiTrash2 />,
@@ -228,6 +234,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                 danger: true,
             }
         ] : []),
+
     ];
 
     if (post.muteInfo?.isMuted && post.muteInfo?.behavior === 'warn' && !isUnmuted) {

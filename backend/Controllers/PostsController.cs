@@ -137,7 +137,34 @@ public class PostsController : ControllerBase
 
             var post = await _postService.GetPostByIdAsync(id, viewerId);
             if (post == null) return NotFound();
-            return Ok(post);
+
+            var thread = new List<PostDto> { post };
+
+            // Fetch Ancestors
+            var current = post;
+            for (int i = 0; i < 5; i++)
+            {
+                if (current.ReplyToPostId.HasValue)
+                {
+                    var parent = await _postService.GetPostByIdAsync(current.ReplyToPostId.Value, viewerId);
+                    if (parent != null)
+                    {
+                        if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
+                        current = parent;
+                    }
+                    else break;
+                }
+                else break;
+            }
+
+            // Fetch Replies
+            var replies = await _postService.GetPostRepliesAsync(post.Id, viewerId);
+            foreach (var reply in replies)
+            {
+                if (!thread.Any(p => p.Id == reply.Id)) thread.Add(reply);
+            }
+
+            return Ok(thread);
         }
         catch (Exception ex)
         {
@@ -156,7 +183,34 @@ public class PostsController : ControllerBase
 
             var post = await _postService.GetPostByTidAsync(tid, viewerId);
             if (post == null) return NotFound();
-            return Ok(post);
+
+            var thread = new List<PostDto> { post };
+
+            // Fetch Ancestors
+            var current = post;
+            for (int i = 0; i < 5; i++)
+            {
+                if (current.ReplyToPostId.HasValue)
+                {
+                    var parent = await _postService.GetPostByIdAsync(current.ReplyToPostId.Value, viewerId);
+                    if (parent != null)
+                    {
+                        if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
+                        current = parent;
+                    }
+                    else break;
+                }
+                else break;
+            }
+
+            // Fetch Replies
+            var replies = await _postService.GetPostRepliesAsync(post.Id, viewerId);
+            foreach (var reply in replies)
+            {
+                if (!thread.Any(p => p.Id == reply.Id)) thread.Add(reply);
+            }
+
+            return Ok(thread);
         }
         catch (Exception ex)
         {
