@@ -294,18 +294,21 @@ namespace BSkyClone.Controllers
                 Guid actorId;
                 User? actorUser = null;
 
-                if (actor.StartsWith("did:"))
+                if (Guid.TryParse(actor, out actorId))
+                {
+                    actorUser = await _userService.GetUserByIdAsync(actorId);
+                }
+                else if (actor.StartsWith("did:"))
                 {
                     actorUser = await _userService.GetUserByDidAsync(actor);
-                    if (actorUser == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
-                    actorId = actorUser.Id;
                 }
                 else
                 {
                     actorUser = await _userService.GetUserByHandleAsync(actor);
-                    if (actorUser == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
-                    actorId = actorUser.Id;
                 }
+
+                if (actorUser == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
+                actorId = actorUser.Id;
 
                 var lists = await _listService.GetUserListsAsync(actorId, viewerId);
 
