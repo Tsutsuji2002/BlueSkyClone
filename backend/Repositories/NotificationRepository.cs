@@ -18,7 +18,7 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
         return await _dbSet
             .Include(n => n.Sender)
             .Include(n => n.Post)
-                .ThenInclude(p => p.Author)
+                .ThenInclude(p => p!.Author)
             .Where(n => n.RecipientId == userId 
                 && n.Type != "message"
                 && (n.IsDeleted == false || n.IsDeleted == null))

@@ -15,17 +15,20 @@ namespace BSkyClone.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IPostService _postService;
+        private readonly INotificationService _notificationService;
         private readonly IRepoManager _repoManager;
         private readonly ILogger<XrpcController> _logger;
 
         public XrpcController(
             IAuthService authService, 
             IPostService postService,
+            INotificationService notificationService,
             IRepoManager repoManager,
             ILogger<XrpcController> logger)
         {
             _authService = authService;
             _postService = postService;
+            _notificationService = notificationService;
             _repoManager = repoManager;
             _logger = logger;
         }

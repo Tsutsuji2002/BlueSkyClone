@@ -519,9 +519,14 @@ public class ChatService : IChatService
     {
         var notificationDto = new NotificationDto(
             notification.Id,
+            $"at://local/app.bsky.notification.event/{notification.Tid}",
+            "pseudo-cid-" + notification.Id,
             notification.Type ?? "message",
+            notification.Type ?? "message",
+            null,
             MapToUserDto(notification.Sender),
-            notification.PostId,
+            notification.PostId?.ToString(),
+            null,
             notification.ListId,
             notification.Title,
             notification.Content,

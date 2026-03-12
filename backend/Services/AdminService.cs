@@ -794,9 +794,14 @@ public class AdminService : IAdminService
         {
             var dto = new NotificationDto(
                 notification.Id,
+                $"at://local/app.bsky.notification.event/{notification.Tid}",
+                "pseudo-cid-" + notification.Id,
                 notification.Type ?? "system",
+                notification.Type ?? "system",
+                null,
                 systemAdminDto,
-                notification.PostId,
+                notification.PostId?.ToString(),
+                null,
                 notification.ListId,
                 notification.Title,
                 notification.Content,

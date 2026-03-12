@@ -372,7 +372,11 @@ public class UserService : IUserService
             {
                 var notificationDto = new NotificationDto(
                     savedNotification.Id,
+                    $"at://local/app.bsky.notification.event/{savedNotification.Tid}",
+                    "pseudo-cid-" + savedNotification.Id,
                     savedNotification.Type ?? "follow",
+                    savedNotification.Type ?? "follow",
+                    null,
                     new UserDto(
                         savedNotification.Sender.Id,
                         savedNotification.Sender.Username,
@@ -393,7 +397,8 @@ public class UserService : IUserService
                         savedNotification.Sender.IsVerified,
                         savedNotification.Sender.Did
                     ),
-                    savedNotification.PostId,
+                    savedNotification.PostId?.ToString(),
+                    null,
                     savedNotification.ListId,
                     savedNotification.Title,
                     savedNotification.Content,
