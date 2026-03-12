@@ -8,6 +8,7 @@ public interface IUserService
     Task<User?> GetUserByIdAsync(Guid id);
     Task<User?> GetUserByHandleAsync(string handle);
     Task<User?> GetUserByUsernameAsync(string username);
+    Task<User?> GetUserByDidAsync(string did);
     Task<User> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
     Task<User> UpdateAccountAsync(Guid userId, UpdateAccountRequest request);
     Task<UserSetting> UpdateSettingsAsync(Guid userId, UserSettingDto request);

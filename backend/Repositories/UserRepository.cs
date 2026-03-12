@@ -29,4 +29,11 @@ public class UserRepository : Repository<User>, IUserRepository
             .Include(u => u.UserSetting)
             .FirstOrDefaultAsync(u => u.Username == username);
     }
+
+    public async Task<User?> GetByDidAsync(string did)
+    {
+        return await _dbSet
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Did == did);
+    }
 }

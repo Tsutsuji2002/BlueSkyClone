@@ -1,3 +1,7 @@
+using BSkyClone.Lexicons.App.Bsky.Graph;
+using BSkyClone.Lexicons.App.Bsky.Notification;
+using BSkyClone.Lexicons.App.Bsky.Actor.Defs;
+using BSkyClone.Lexicons.App.Bsky.Feed;
 using BSkyClone.Lexicons.Com.Atproto.Server;
 using BSkyClone.Lexicons.Com.Atproto.Repo;
 using BSkyClone.Models;
@@ -16,6 +20,8 @@ namespace BSkyClone.Controllers
         private readonly IAuthService _authService;
         private readonly IPostService _postService;
         private readonly INotificationService _notificationService;
+        private readonly IListService _listService;
+        private readonly IUserService _userService;
         private readonly IRepoManager _repoManager;
         private readonly ILogger<XrpcController> _logger;
 
@@ -23,12 +29,16 @@ namespace BSkyClone.Controllers
             IAuthService authService, 
             IPostService postService,
             INotificationService notificationService,
+            IListService listService,
+            IUserService userService,
             IRepoManager repoManager,
             ILogger<XrpcController> logger)
         {
             _authService = authService;
             _postService = postService;
             _notificationService = notificationService;
+            _listService = listService;
+            _userService = userService;
             _repoManager = repoManager;
             _logger = logger;
         }
@@ -225,33 +235,33 @@ namespace BSkyClone.Controllers
 
                 var notifications = await _notificationService.GetNotificationsAsync(userId, limit);
 
-                var response = new Lexicons.App.Bsky.Notification.ListNotificationsResponse
+                var response = new ListNotificationsResponse
                 {
-                    Notifications = notifications.Select(n => new Lexicons.App.Bsky.Notification.NotificationView
+                    Notifications = notifications.Select(n => new NotificationView
                     {
                         Uri = n.Uri,
                         Cid = n.Cid,
-                        Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
+                        Author = new ProfileViewBasic
                         {
                             Did = n.Sender?.Did ?? "",
                             Handle = n.Sender?.Handle ?? "unknown",
                             DisplayName = n.Sender?.DisplayName,
                             Avatar = n.Sender?.AvatarUrl
                         },
-                        Reason = n.Reason,
+                        Reason = n.Reason?.ToLowerInvariant() ?? "unknown",
                         ReasonSubject = n.ReasonSubject,
                         PostAuthorHandle = n.PostAuthorHandle,
                         PostId = n.PostId,
                         IsRead = n.IsRead,
-                        IndexedAt = (n.CreatedAt is DateTime dt) ? dt.ToString("o") : DateTime.UtcNow.ToString("o"),
+                        IndexedAt = n.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                         Record = new
                         {
-                            @type = "app.bsky.notification.event",
+                            @type = n.Reason?.ToLowerInvariant() == "follow" ? "app.bsky.graph.follow" : "app.bsky.notification.event",
                             text = n.Content,
-                            createdAt = (n.CreatedAt is DateTime dt2) ? dt2.ToString("o") : DateTime.UtcNow.ToString("o")
+                            createdAt = n.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
                         }
                     }).ToList(),
-                    Cursor = null // Pagination not fully implemented in service yet
+                    Cursor = null
                 };
 
                 return Ok(response);
@@ -259,7 +269,70 @@ namespace BSkyClone.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "XRPC ListNotifications error");
-                return Ok(new Lexicons.App.Bsky.Notification.ListNotificationsResponse { Notifications = new List<Lexicons.App.Bsky.Notification.NotificationView>() });
+                return Ok(new ListNotificationsResponse { Notifications = new List<NotificationView>() });
+            }
+        }
+
+        [Authorize]
+        [HttpGet("app.bsky.graph.getLists")]
+        public async Task<IActionResult> GetLists([FromQuery] string actor, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                var viewerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(viewerIdStr) || !Guid.TryParse(viewerIdStr, out var viewerId)) return Unauthorized();
+
+                Guid actorId;
+                User? actorUser = null;
+
+                if (actor.StartsWith("did:"))
+                {
+                    actorUser = await _userService.GetUserByDidAsync(actor);
+                    if (actorUser == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
+                    actorId = actorUser.Id;
+                }
+                else
+                {
+                    actorUser = await _userService.GetUserByHandleAsync(actor);
+                    if (actorUser == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
+                    actorId = actorUser.Id;
+                }
+
+                var lists = await _listService.GetUserListsAsync(actorId, viewerId);
+
+                var response = new GetListsResponse
+                {
+                    Lists = lists.Select(l => new ListView
+                    {
+                        Uri = $"at://{actorUser.Did}/app.bsky.graph.list/{l.Id}",
+                        Cid = "pseudo-cid-" + l.Id,
+                        Name = l.Name,
+                        Purpose = l.Purpose ?? "app.bsky.graph.defs#curatelist",
+                        Description = l.Description,
+                        Avatar = l.AvatarUrl,
+                        IndexedAt = l.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        Creator = new ProfileViewBasic
+                        {
+                            Did = actorUser.Did ?? "",
+                            Handle = actorUser.Handle,
+                            DisplayName = actorUser.DisplayName,
+                            Avatar = actorUser.AvatarUrl
+                        },
+                        Viewer = new ListViewerState
+                        {
+                            Muted = false,
+                            Blocked = null
+                        }
+                    }).ToList(),
+                    Cursor = null
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetLists error");
+                return StatusCode(500, new { error = "InternalError" });
             }
         }
 

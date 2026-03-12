@@ -8,28 +8,32 @@ export const fetchNotifications = createAsyncThunk<Notification[], void, { rejec
     async (_, { rejectWithValue }) => {
         try {
             const { data } = await agent.listNotifications();
-            return data.notifications.map(n => ({
-                id: n.cid,
-                uri: n.uri,
-                cid: n.cid,
-                type: n.reason as any,
-                reason: n.reason,
-                reasonSubject: n.reasonSubject,
-                sender: {
-                    id: n.author.did,
-                    did: n.author.did,
-                    handle: n.author.handle,
-                    username: n.author.handle,
-                    displayName: n.author.displayName || n.author.handle,
-                    avatarUrl: n.author.avatar,
-                } as any,
-                isRead: n.isRead,
-                createdAt: n.indexedAt,
-                record: n.record,
-                subjectUri: n.reasonSubject,
-                postAuthorHandle: (n as any).postAuthorHandle,
-                postId: n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined
-            }));
+            return data.notifications.map(n => {
+                const author = n.author || {};
+                const reason = (n.reason || 'unknown').toLowerCase();
+                return {
+                    id: n.cid || n.uri || Math.random().toString(36).substring(7),
+                    uri: n.uri || '',
+                    cid: n.cid || '',
+                    type: reason as any,
+                    reason: reason,
+                    reasonSubject: n.reasonSubject,
+                    sender: {
+                        id: author.did || 'unknown',
+                        did: author.did || 'unknown',
+                        handle: author.handle || 'unknown',
+                        username: author.handle || 'unknown',
+                        displayName: author.displayName || author.handle || 'Unknown',
+                        avatarUrl: author.avatar,
+                    } as any,
+                    isRead: !!n.isRead,
+                    createdAt: n.indexedAt || new Date().toISOString(),
+                    record: n.record,
+                    subjectUri: n.reasonSubject,
+                    postAuthorHandle: (n as any).postAuthorHandle,
+                    postId: n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined
+                };
+            });
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch notifications');
         }
