@@ -6,6 +6,7 @@ import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { updateInteractionSettings } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
@@ -24,7 +25,7 @@ interface PostInteractionSettingsModalProps {
     setReplyRestriction: (val: string) => void;
     allowQuotes: boolean;
     setAllowQuotes: (val: boolean) => void;
-    postId?: string; // Optional: if provided, will update the post on the backend
+    postUri?: string; // Optional: if provided, will update the post on the backend
 }
 
 const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> = ({
@@ -34,7 +35,7 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
     setReplyRestriction,
     allowQuotes,
     setAllowQuotes,
-    postId
+    postUri
 }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
@@ -88,10 +89,12 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
             finalRestriction = parts.join(',') || 'anyone';
         }
 
-        if (postId) {
-            // Per-post interaction settings are not yet supported via standard AT Protocol Lexicons (e.g. thread-gate)
-            // dispatch(updateInteractionSettings({ ... }));
-            dispatch(showToast({ message: t('post.per_post_settings_not_supported', 'Per-post settings are not yet supported on AT Protocol'), type: 'info' }));
+        if (postUri) {
+            await dispatch(updateInteractionSettings({
+                postUri,
+                replyRestriction: finalRestriction,
+                allowQuotes: localQuotes
+            })).unwrap();
         }
 
         setReplyRestriction(finalRestriction);

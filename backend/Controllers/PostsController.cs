@@ -82,46 +82,93 @@ public class PostsController : ControllerBase
         return Ok(post);
     }
 
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeletePost(Guid id)
-    {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var deletedIds = await _postService.DeletePostAsync(userId, id);
-        if (deletedIds == null) return BadRequest("Could not delete post");
-        return Ok(deletedIds);
-    }
-
-    [HttpPost("{id:guid}/like")]
-    public async Task<IActionResult> LikePost(Guid id)
-    {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var result = await _postService.ToggleLikeAsync(userId, id);
-        return Ok(result);
-    }
-
-    [HttpPost("{id:guid}/bookmark")]
-    public async Task<IActionResult> BookmarkPost(Guid id)
-    {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var result = await _postService.ToggleBookmarkAsync(userId, id);
-        return Ok(result);
-    }
-
-    [HttpPost("{id:guid}/repost")]
-    public async Task<IActionResult> RepostPost(Guid id)
-    {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var result = await _postService.ToggleRepostAsync(userId, id);
-        return Ok(result);
-    }
-
-    [HttpGet("{id:guid}/replies")]
-    public async Task<IActionResult> GetPostReplies(Guid id)
+    [HttpGet("tid/{tid}")]
+    public async Task<IActionResult> GetPostByTid(string tid)
     {
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-        var replies = await _postService.GetPostRepliesAsync(id, viewerId);
+        var post = await _postService.GetPostByTidAsync(tid, viewerId);
+        if (post == null) return NotFound();
+        return Ok(post);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeletePost(string id)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        Guid postId;
+        if (!Guid.TryParse(id, out postId))
+        {
+            var post = await _postService.GetPostByTidAsync(id);
+            if (post == null) return NotFound();
+            postId = post.Id;
+        }
+        var deletedIds = await _postService.DeletePostAsync(userId, postId);
+        if (deletedIds == null) return BadRequest("Could not delete post");
+        return Ok(deletedIds);
+    }
+
+    [HttpPost("{id}/like")]
+    public async Task<IActionResult> LikePost(string id)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        Guid postId;
+        if (!Guid.TryParse(id, out postId))
+        {
+            var post = await _postService.GetPostByTidAsync(id);
+            if (post == null) return NotFound();
+            postId = post.Id;
+        }
+        var result = await _postService.ToggleLikeAsync(userId, postId);
+        return Ok(result);
+    }
+
+    [HttpPost("{id}/bookmark")]
+    public async Task<IActionResult> BookmarkPost(string id)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        Guid postId;
+        if (!Guid.TryParse(id, out postId))
+        {
+            var post = await _postService.GetPostByTidAsync(id);
+            if (post == null) return NotFound();
+            postId = post.Id;
+        }
+        var result = await _postService.ToggleBookmarkAsync(userId, postId);
+        return Ok(result);
+    }
+
+    [HttpPost("{id}/repost")]
+    public async Task<IActionResult> RepostPost(string id)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        Guid postId;
+        if (!Guid.TryParse(id, out postId))
+        {
+            var post = await _postService.GetPostByTidAsync(id);
+            if (post == null) return NotFound();
+            postId = post.Id;
+        }
+        var result = await _postService.ToggleRepostAsync(userId, postId);
+        return Ok(result);
+    }
+
+    [HttpGet("{id}/replies")]
+    public async Task<IActionResult> GetPostReplies(string id)
+    {
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        Guid postId;
+        if (!Guid.TryParse(id, out postId))
+        {
+            var post = await _postService.GetPostByTidAsync(id);
+            if (post == null) return NotFound();
+            postId = post.Id;
+        }
+
+        var replies = await _postService.GetPostRepliesAsync(postId, viewerId);
         return Ok(replies);
     }
 
@@ -135,12 +182,19 @@ public class PostsController : ControllerBase
         return Ok(posts);
     }
 
-    [HttpPost("{id:guid}/interaction-settings")]
-    public async Task<IActionResult> UpdateInteractionSettings(Guid id, [FromBody] UpdateInteractionSettingsRequest request)
+    [HttpPost("{id}/interaction-settings")]
+    public async Task<IActionResult> UpdateInteractionSettings(string id, [FromBody] UpdateInteractionSettingsRequest request)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-        var post = await _postService.UpdateInteractionSettingsAsync(userId, id, request);
-        if (post == null) return NotFound("Post not found or you are not authorized to edit it.");
-        return Ok(post);
+        Guid postId;
+        if (!Guid.TryParse(id, out postId))
+        {
+            var post = await _postService.GetPostByTidAsync(id);
+            if (post == null) return NotFound();
+            postId = post.Id;
+        }
+        var postResult = await _postService.UpdateInteractionSettingsAsync(userId, postId, request);
+        if (postResult == null) return NotFound("Post not found or you are not authorized to edit it.");
+        return Ok(postResult);
     }
 }

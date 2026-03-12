@@ -152,7 +152,28 @@ export const deletePost = createAsyncThunk(
     }
 );
 
-// updateInteractionSettings removed to focus on standard AT Protocol post/feed flow.
+export const updateInteractionSettings = createAsyncThunk(
+    'posts/updateInteractionSettings',
+    async ({ postUri, replyRestriction, allowQuotes }: { postUri: string, replyRestriction: string, allowQuotes: boolean }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const postId = postUri.includes('/') ? postUri.split('/').pop()! : postUri;
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/interaction-settings`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ replyRestriction, allowQuotes })
+            });
+            if (!response.ok) return rejectWithValue('Failed to update interaction settings');
+            const post = await response.json();
+            return { postUri, replyRestriction: post.replyRestriction, allowQuotes: post.allowQuotes };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
 
 export const fetchPostsByTag = createAsyncThunk(
     'posts/fetchByTag',
@@ -195,10 +216,15 @@ export const fetchPostById = createAsyncThunk(
     async (uri: string, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            // uri may be a full AT URI or just a GUID
+            // uri may be a full AT URI or just a GUID or a TID
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
+            
+            // Check if it's a GUID
+            const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
+            const endpoint = isGuid ? `${API_BASE_URL}/posts/${postId}` : `${API_BASE_URL}/posts/tid/${postId}`;
+            
             const response = await fetch(
-                `${API_BASE_URL}/posts/${postId}`,
+                endpoint,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch post');
@@ -575,6 +601,33 @@ const postsSlice = createSlice({
             })
 
 
+            .addCase(deletePost.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Update Interaction Settings
+            .addCase(updateInteractionSettings.pending, (state: PostsState) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(updateInteractionSettings.fulfilled, (state: PostsState, action: PayloadAction<{ postUri: string, replyRestriction: string, allowQuotes: boolean }>) => {
+                state.isLoading = false;
+                const { postUri, replyRestriction, allowQuotes } = action.payload;
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.uri === postUri);
+                    if (post) {
+                        post.replyRestriction = replyRestriction;
+                        post.allowQuotes = allowQuotes;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
+            })
+            .addCase(updateInteractionSettings.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
     }
 });
 

@@ -10,6 +10,7 @@ public interface IPostService
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
     Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null);
+    Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null);
     Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId);
     Task<object> ToggleLikeAsync(Guid userId, Guid postId);
     Task<object> ToggleBookmarkAsync(Guid userId, Guid postId);

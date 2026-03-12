@@ -136,28 +136,12 @@ export const signUp = createAsyncThunk(
 
 export const getMe = createAsyncThunk(
     'auth/getMe',
-    async (_, { rejectWithValue, dispatch }) => {
+    async (_, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const refreshToken = localStorage.getItem('refreshToken');
 
-            if (!token || !refreshToken) return rejectWithValue('No session found');
+            if (!token) return rejectWithValue('No session found');
 
-            // Resume session with AtpAgent
-            const { data } = await agent.resumeSession({
-                accessJwt: token,
-                refreshJwt: refreshToken,
-                handle: '', // Will be populated by resumeSession
-                did: '',    // Will be populated by resumeSession
-                active: true
-            });
-
-            // After resume, we still need the user/settings which are in our custom response
-            // For now, assume the backend returns them in getSession or a separate call
-            // Or use the data from resumeSession if we modified the backend accordingly
-
-            // To keep legacy code working, we can call /auth/me or similar, 
-            // but now using the agent's authorized fetch.
             const response = await fetch(`${API_URL}/auth/me`, {
                 method: 'GET',
                 headers: {
@@ -167,6 +151,8 @@ export const getMe = createAsyncThunk(
             });
             const userData = await response.json();
             if (!response.ok) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('refreshToken');
                 return rejectWithValue(userData.message || 'Failed to fetch user');
             }
 

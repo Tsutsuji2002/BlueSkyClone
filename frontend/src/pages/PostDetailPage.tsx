@@ -96,7 +96,7 @@ const PostDetailPage: React.FC = () => {
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
-    const post = posts.find((p: Post) => p.id === postId);
+    const post = posts.find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId));
 
     // Helper to sort a list of posts by current sortOrder
     const sortPosts = React.useCallback((arr: Post[]) => {
@@ -113,16 +113,16 @@ const PostDetailPage: React.FC = () => {
     }, [sortOrder]);
 
     const replies = React.useMemo(() => {
-        const filtered = posts.filter((p: Post) => p.replyToPostId === postId);
+        const filtered = posts.filter((p: Post) => p.replyToPostId === post?.id || (p.replyToPostId && post?.id && p.replyToPostId === post.id));
         return sortPosts(filtered);
-    }, [posts, postId, sortPosts]);
+    }, [posts, post?.id, sortPosts]);
     const ancestors = React.useMemo(() => {
         const list: Post[] = [];
         if (!post) return list;
         let current: Post | undefined = post;
         while (current?.replyToPostId) {
             const replyToId: string = current.replyToPostId!;
-            const found: Post | undefined = posts.find((p: Post) => p.id === replyToId);
+            const found: Post | undefined = posts.find((p: Post) => p.id === replyToId || p.uri?.endsWith('/' + replyToId));
             if (found) {
                 list.unshift(found);
                 current = found;
@@ -234,7 +234,7 @@ const PostDetailPage: React.FC = () => {
 
     const handleDelete = async () => {
         try {
-            await dispatch(deletePost(post.id)).unwrap();
+            await dispatch(deletePost(post.uri!)).unwrap();
             dispatch(showToast({ message: t('common.post_deleted'), type: 'success' }));
             navigate(-1);
         } catch (error: any) {
@@ -345,10 +345,10 @@ const PostDetailPage: React.FC = () => {
             if (author.isFollowing && author.followingReference) {
                 await dispatch(unfollowUserAsync({ userId: author.id, followUri: author.followingReference })).unwrap();
                 // Optimistically update or re-fetch
-                dispatch(fetchPostById(post.id));
+                dispatch(fetchPostById(post.uri!));
             } else {
                 await dispatch(followUserAsync(post.author.id)).unwrap();
-                dispatch(fetchPostById(post.id));
+                dispatch(fetchPostById(post.uri!));
             }
         } catch (error: any) {
             console.error('Failed to toggle follow:', error);
@@ -576,19 +576,19 @@ const PostDetailPage: React.FC = () => {
                         <IconButton
                             icon={<FiRepeat size={22} className={post.isReposted ? 'text-primary-500' : ''} />}
                             onClick={handleRepost}
-                            disabled={actionLoading[post.id]}
+                            disabled={actionLoading[post.uri!]}
                             variant="default"
                         />
                         <IconButton
                             icon={<FiHeart size={22} className={post.isLiked ? 'fill-red-500 text-red-500' : ''} />}
                             onClick={handleLike}
-                            disabled={actionLoading[post.id]}
+                            disabled={actionLoading[post.uri!]}
                             variant="default"
                         />
                         <IconButton
                             icon={<FiBookmark size={22} className={post.isBookmarked ? 'fill-primary-500 text-primary-500' : ''} />}
                             onClick={handleBookmark}
-                            disabled={actionLoading[post.id]}
+                            disabled={actionLoading[post.uri!]}
                             variant="default"
                         />
                         <Dropdown
@@ -824,14 +824,10 @@ const PostDetailPage: React.FC = () => {
                         isOpen={isInteractionModalOpen}
                         onClose={() => setIsInteractionModalOpen(false)}
                         replyRestriction={post.replyRestriction || 'anyone'}
-                        setReplyRestriction={(val) => {
-                            // Handled by updateInteractionSettings thunk if postId is present
-                        }}
+                        setReplyRestriction={(val) => { }}
                         allowQuotes={post.allowQuotes !== false}
-                        setAllowQuotes={(val) => {
-                            // Handled by updateInteractionSettings thunk if postId is present
-                        }}
-                        postId={post.id}
+                        setAllowQuotes={(val) => { }}
+                        postUri={post.uri!}
                     />
                 )}
             </div>

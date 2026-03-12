@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -497,6 +497,7 @@ public partial class BSkyDbContext : DbContext
             entity.HasKey(e => new { e.FollowerId, e.FollowingId }).HasName("PK__UserFoll__79CB0335AE8EF105");
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.Tid).HasMaxLength(20);
 
             entity.HasOne(d => d.Follower).WithMany(p => p.UserFollowFollowers)
                 .HasForeignKey(d => d.FollowerId)

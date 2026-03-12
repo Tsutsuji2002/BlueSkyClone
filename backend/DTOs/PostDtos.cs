@@ -6,6 +6,10 @@ public class PostDto
 {
     public Guid Id { get; set; }
     public string Tid { get; set; } = null!;
+    /// <summary>AT-Protocol URI: at://{author.did}/app.bsky.feed.post/{tid}</summary>
+    public string? Uri { get; set; }
+    /// <summary>Synthetic CID — the post GUID stringified until real CID generation is added.</summary>
+    public string? Cid { get; set; }
     public string? Content { get; set; }
     public DateTime? CreatedAt { get; set; }
     public AuthorDto Author { get; set; } = null!;
@@ -73,6 +77,8 @@ public class AuthorDto
     public bool IsFollowing { get; set; }
     public bool IsVerified { get; set; }
     public string? Did { get; set; }
+    /// <summary>AT-URI of the follow record — needed to unfollow from post context.</summary>
+    public string? FollowingReference { get; set; }
 }
 
 public class CreatePostRequest

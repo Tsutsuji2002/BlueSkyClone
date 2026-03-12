@@ -286,6 +286,14 @@ public class PostService : IPostService
             post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
             post.IsReposted = repostedPostIds.Contains(post.Id);
             post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
+            if (post.Author.IsFollowing)
+            {
+                var followRecord = following.FirstOrDefault(f => f.FollowingId == post.Author.Id);
+                if (followRecord != null)
+                {
+                    post.Author.FollowingReference = $"at://local/app.bsky.graph.follow/{followRecord.Id}";
+                }
+            }
 
             // Calculate CanReply logic
             if (post.Author.Id == viewerId)
@@ -997,6 +1005,14 @@ public class PostService : IPostService
             postDto.IsBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
             postDto.IsReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == viewerId.Value);
             postDto.Author.IsFollowing = await _unitOfWork.Follows.IsFollowingAsync(viewerId.Value, postDto.Author.Id);
+            if (postDto.Author.IsFollowing)
+            {
+                var followRecord = await _unitOfWork.Follows.GetAsync(viewerId.Value, postDto.Author.Id);
+                if (followRecord != null)
+                {
+                    postDto.Author.FollowingReference = $"at://local/app.bsky.graph.follow/{followRecord.Id}";
+                }
+            }
 
             // Calculate CanReply
             if (postDto.Author.Id == viewerId.Value)
@@ -1047,6 +1063,17 @@ public class PostService : IPostService
 
         return postDto;
     }
+
+    public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null)
+    {
+        var post = await _unitOfWork.Posts.Query()
+            .FirstOrDefaultAsync(p => p.Tid == tid && (p.IsDeleted == false || p.IsDeleted == null));
+
+        if (post == null) return null;
+
+        return await GetPostByIdAsync(post.Id, viewerId);
+    }
+
 
     public async Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId)
     {
@@ -1662,7 +1689,12 @@ public class PostService : IPostService
             QuotePostId = post.QuotePostId,
             QuotePost = (includeQuote && post.QuotePost != null) ? MapToDto(post.QuotePost, false, false) : null,
             ParentPost = (includeParent && post.ReplyToPost != null) ? MapToDto(post.ReplyToPost, false, false) : null,
-            CanReply = true // Default
+            CanReply = true, // Default
+            // AT-Protocol URI and synthetic CID
+            Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
+                ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}"
+                : $"at://local/app.bsky.feed.post/{post.Id}",
+            Cid = post.Id.ToString()
         };
     }
 

@@ -205,7 +205,7 @@ const modalsSlice = createSlice({
             };
             (state as any).deleteConfirm = {
                 isOpen: false,
-                postId: null,
+                postUri: null,
                 onConfirm: undefined,
             };
         },

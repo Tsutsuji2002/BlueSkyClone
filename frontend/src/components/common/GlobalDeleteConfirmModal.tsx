@@ -14,14 +14,14 @@ const GlobalDeleteConfirmModal: React.FC = () => {
 
     if (!deleteConfirm) return null;
 
-    const { isOpen, postId, isListRemoval, onConfirm } = deleteConfirm;
+    const { isOpen, postUri, isListRemoval, onConfirm } = deleteConfirm;
 
     const handleConfirm = async () => {
         if (isListRemoval && onConfirm) {
             onConfirm();
-        } else if (postId) {
+        } else if (postUri) {
             try {
-                await dispatch(deletePost(postId)).unwrap();
+                await dispatch(deletePost(postUri)).unwrap();
                 dispatch(showToast({ message: t('common.post_deleted'), type: 'success' }));
             } catch (error: any) {
                 dispatch(showToast({ message: error || t('common.failed_to_delete'), type: 'error' }));

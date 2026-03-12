@@ -381,7 +381,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                             );
                         })()}
 
-                        {post.uri && post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
+                        {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
 
                         {post.quotePost && (
                             <div onClick={(e) => e.stopPropagation()}>
