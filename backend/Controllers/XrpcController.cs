@@ -251,9 +251,9 @@ namespace BSkyClone.Controllers
         public async Task<IActionResult> GetUnreadCount()
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                return Unauthorized();
 
-            var userId = Guid.Parse(userIdStr);
             var count = await _notificationService.GetUnreadCountAsync(userId);
 
             return Ok(new Lexicons.App.Bsky.Notification.GetUnreadCountResponse
@@ -267,9 +267,9 @@ namespace BSkyClone.Controllers
         public async Task<IActionResult> UpdateSeen([FromBody] Lexicons.App.Bsky.Notification.UpdateSeenRequest request)
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                return Unauthorized();
 
-            var userId = Guid.Parse(userIdStr);
             await _notificationService.MarkAllAsReadAsync(userId);
             return Ok();
         }

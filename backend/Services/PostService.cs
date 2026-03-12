@@ -137,74 +137,74 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 30, int offset = 0)
     {
-        if (viewerId.HasValue)
+        try
         {
-            var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(userId, viewerId.Value);
-            if (isBlocked) return new List<PostDto>();
-        }
-
-        // Redis caching for quick re-access (1 minute TTL)
-        var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}";
-        var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
-        
-        if (cached != null && cached.Count > 0)
-        {
-            // Enrich with viewer-specific interactions (not cached)
             if (viewerId.HasValue)
             {
-                cached = await EnrichAndFilterPostsAsync(cached, viewerId.Value);
+                var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(userId, viewerId.Value);
+                if (isBlocked) return new List<PostDto>();
             }
-            return cached;
-        }
 
-        var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type, limit, offset);
-        
-        var profileUser = await _unitOfWork.Users.GetByIdAsync(userId);
-        var profileUserDto = profileUser == null ? null : new AuthorDto
-        {
-            Id = profileUser.Id,
-            Username = profileUser.Username,
-            Handle = profileUser.Handle,
-            DisplayName = profileUser.DisplayName,
-            AvatarUrl = profileUser.AvatarUrl,
-            IsVerified = profileUser.IsVerified,
-            Did = profileUser.Did
-        };
-
-        var postDtos = posts.Select(p => {
-            var dto = MapToDto(p);
+            // Redis caching for quick re-access (1 minute TTL)
+            var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}";
+            var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
             
-            // Check if the post is shown because it was reposted by the profile owner
-            // In the "posts" tab, we show own posts AND reposts.
-            // If it's another person's post, it's definitely a repost.
-            // If it's own post, it's shown as a repost only if there's a repost record.
-            bool isRepost = (p.AuthorId != userId) || (p.Reposts?.Any(r => r.UserId == userId) ?? false);
-
-            if (isRepost && profileUserDto != null && (type == null || type == "posts"))
+            if (cached != null && cached.Count > 0)
             {
-                // For own posts, we only show the banner if it's NOT the primary authoring event
-                // This is slightly tricky without a separate FeedItem table, but for now 
-                // let's show it if it's not their own post, OR if we want to be explicit.
-                if (p.AuthorId != userId)
+                // Enrich with viewer-specific interactions (not cached)
+                if (viewerId.HasValue)
                 {
-                    dto.RepostedBy = profileUserDto;
+                    cached = await EnrichAndFilterPostsAsync(cached, viewerId.Value);
                 }
-                // If it's their own post, BlueSky usually doesn't show "Reposted by you" in your own "Posts" tab
-                // unless it's a separate entity in the feed. Our current query returns it once.
+                return cached;
             }
-            return dto;
-        }).ToList();
-        
-        // Cache for 1 minute
-        await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(1));
-        
-        if (viewerId.HasValue)
-        {
-            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
-        }
 
-        return postDtos;
+            var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type, limit, offset);
+            
+            var profileUser = await _unitOfWork.Users.GetByIdAsync(userId);
+            var profileUserDto = profileUser == null ? null : new AuthorDto
+            {
+                Id = profileUser.Id,
+                Username = profileUser.Username,
+                Handle = profileUser.Handle,
+                DisplayName = profileUser.DisplayName,
+                AvatarUrl = profileUser.AvatarUrl,
+                IsVerified = profileUser.IsVerified,
+                Did = profileUser.Did
+            };
+
+            var postDtos = posts.Select(p => {
+                var dto = MapToDto(p);
+                
+                bool isRepost = (p.AuthorId != userId) || (p.Reposts?.Any(r => r.UserId == userId) ?? false);
+
+                if (isRepost && profileUserDto != null && (type == null || type == "posts"))
+                {
+                    if (p.AuthorId != userId)
+                    {
+                        dto.RepostedBy = profileUserDto;
+                    }
+                }
+                return dto;
+            }).ToList();
+            
+            // Cache for 1 minute
+            await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(1));
+            
+            if (viewerId.HasValue)
+            {
+                postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
+            }
+
+            return postDtos;
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[PostService] GetUserPostsAsync: Error for userId={userId}, type={type}: {ex.Message}");
+            return new List<PostDto>();
+        }
     }
+
 
     public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
     {

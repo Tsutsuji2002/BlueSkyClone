@@ -301,40 +301,60 @@ public class FeedService : IFeedService
         );
     }
 
+
     public async Task<IEnumerable<PostDto>> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take)
     {
-        var feed = await _unitOfWork.Feeds.GetByIdAsync(feedId);
-        if (feed == null) return new List<PostDto>();
-
-        // 1. Special handling for Trending (still logic-based)
-        if (feed.IsOfficial && (feed.Name == "Trending" || feed.Tid == "official-trending"))
+        try
         {
-            return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
+            var feed = await _unitOfWork.Feeds.GetByIdAsync(feedId);
+            if (feed == null) return new List<PostDto>();
+
+            // 1. Special handling for Trending (still logic-based)
+            if (feed.IsOfficial && (feed.Name == "Trending" || feed.Tid == "official-trending"))
+            {
+                return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
+            }
+
+            // 2. Generic AI/Category Sort: Fetch posts tagged with an interest matching the feed name or handle
+            // Remove .Include(p => p.Interests) because PostInterests join table may not exist on VPS
+            List<PostDto> postDtos;
+            try
+            {
+                var posts = await _unitOfWork.Posts.Query()
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .Include(p => p.Interests)
+                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                                p.Interests.Any(i => i.Name == feed.Name))
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Skip(skip)
+                    .Take(take)
+                    .ToListAsync();
+
+                postDtos = posts.Select(p => _postService.MapToDto(p)).ToList();
+            }
+            catch (Exception ex)
+            {
+                // Fallback: Interests table/join may not exist on VPS — return trending instead
+                System.Console.WriteLine($"[FeedService] GetFeedPostsAsync: Error querying by Interests for feed '{feed.Name}': {ex.Message}. Falling back to trending.");
+                return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
+            }
+
+            if (userId.HasValue)
+            {
+                return await _postService.EnrichAndFilterPostsAsync(postDtos, userId.Value);
+            }
+
+            return postDtos;
         }
-
-        // 2. Generic AI/Category Sort: Fetch posts tagged with an interest matching the feed name or handle
-        // This works for any feed (Official or Community) if the system tagged the post correctly.
-        var posts = await _unitOfWork.Posts.Query()
-            .Include(p => p.Author)
-            .Include(p => p.PostMedia)
-            .Include(p => p.LinkPreview)
-            .Include(p => p.Interests)
-            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
-                        p.Interests.Any(i => i.Name == feed.Name))
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip(skip)
-            .Take(take)
-            .ToListAsync();
-
-        var postDtos = posts.Select(p => _postService.MapToDto(p)).ToList();
-
-        if (userId.HasValue)
+        catch (Exception ex)
         {
-            return await _postService.EnrichAndFilterPostsAsync(postDtos, userId.Value);
+            System.Console.WriteLine($"[FeedService] GetFeedPostsAsync: Outer error: {ex.Message}");
+            return new List<PostDto>();
         }
-
-        return postDtos;
     }
+
 
     public async Task PreSeedFeedsAsync()
     {
