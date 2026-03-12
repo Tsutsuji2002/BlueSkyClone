@@ -291,6 +291,7 @@ public class AuthService : IAuthService
             Subject = new ClaimsIdentity(new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim("sub", user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim("handle", user.Handle),
                 new Claim("did", user.Did),

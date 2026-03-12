@@ -97,7 +97,7 @@ public class PostService : IPostService
             var dto = MapToDto(post);
             
             // Repost banner logic
-            var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId) && r.UserId != post.AuthorId);
+            var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId) && (post.Author == null || r.UserId != post.Author.Id));
             if (reposter == null)
             {
                 reposter = post.Reposts?.FirstOrDefault(r => r.UserId == userId);
@@ -166,7 +166,7 @@ public class PostService : IPostService
             // In the "posts" tab, we show own posts AND reposts.
             // If it's another person's post, it's definitely a repost.
             // If it's own post, it's shown as a repost only if there's a repost record.
-            bool isRepost = p.AuthorId != userId || p.Reposts.Any(r => r.UserId == userId);
+            bool isRepost = (p.AuthorId != userId) || (p.Reposts?.Any(r => r.UserId == userId) ?? false);
 
             if (isRepost && profileUserDto != null && (type == null || type == "posts"))
             {

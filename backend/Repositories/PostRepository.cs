@@ -31,7 +31,6 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Include(p => p.Reposts).ThenInclude(r => r.User)
-            .AsSplitQuery()
             .Where(p => (followedUserIds.Contains(p.AuthorId) || p.Reposts.Any(r => followedUserIds.Contains(r.UserId)))
                 && (p.IsDeleted == false || p.IsDeleted == null)) // Allow replies in timeline
             .OrderByDescending(p => p.CreatedAt)
@@ -52,7 +51,6 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Include(p => p.Reposts)
-            .AsSplitQuery()
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null));
 
         if (type == "replies")
@@ -83,7 +81,6 @@ public class PostRepository : Repository<Post>, IPostRepository
                 .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.Author)
                 .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.PostMedia)
                 .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-                .AsSplitQuery()
                 .OrderByDescending(l => l.CreatedAt)
                 .Skip(offset)
                 .Take(limit)
@@ -115,7 +112,6 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-            .AsSplitQuery()
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
                         && p.ReplyToPostId == null
                         && p.CreatedAt >= dayAgo)
@@ -136,7 +132,6 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-            .AsSplitQuery()
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
                         && p.ReplyToPostId == null
                         && p.Hashtags.Any(h => h.Slug == tag.ToLower() || h.Name.ToLower() == tag.ToLower()))
