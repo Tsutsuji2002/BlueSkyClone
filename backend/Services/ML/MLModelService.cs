@@ -331,14 +331,14 @@ public class MLModelService : IMLModelService
         return Task.FromResult(_tokenizer);
     }
 
-    public async Task<float[]> GenerateEmbeddingAsync(string text)
+    public Task<float[]> GenerateEmbeddingAsync(string text)
     {
         try
         {
             var modelPath = Path.Combine(_modelPath, "text_semantics.onnx");
             var vocabPath = Path.Combine(_modelPath, "semantic_vocab.txt");
 
-            if (!File.Exists(modelPath) || !File.Exists(vocabPath)) return null;
+            if (!File.Exists(modelPath) || !File.Exists(vocabPath)) return Task.FromResult(Array.Empty<float>());
 
             using var session = new InferenceSession(modelPath);
             
@@ -368,12 +368,12 @@ public class MLModelService : IMLModelService
             };
 
             using var results = session.Run(inputs);
-            return results.First().AsEnumerable<float>().ToArray();
+            return Task.FromResult(results.First().AsEnumerable<float>().ToArray());
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Embedding generation error: {ex.Message}");
-            return null;
+            return Task.FromResult(Array.Empty<float>());
         }
     }
 

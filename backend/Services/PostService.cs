@@ -291,7 +291,7 @@ public class PostService : IPostService
                 var followRecord = following.FirstOrDefault(f => f.FollowingId == post.Author.Id);
                 if (followRecord != null)
                 {
-                    post.Author.FollowingReference = $"at://local/app.bsky.graph.follow/{followRecord.Id}";
+                    post.Author.FollowingReference = $"at://local/app.bsky.graph.follow/{followRecord.Tid}";
                 }
             }
 
@@ -1010,7 +1010,7 @@ public class PostService : IPostService
                 var followRecord = await _unitOfWork.Follows.GetAsync(viewerId.Value, postDto.Author.Id);
                 if (followRecord != null)
                 {
-                    postDto.Author.FollowingReference = $"at://local/app.bsky.graph.follow/{followRecord.Id}";
+                    postDto.Author.FollowingReference = $"at://local/app.bsky.graph.follow/{followRecord.Tid}";
                 }
             }
 
@@ -1710,7 +1710,7 @@ public class PostService : IPostService
         return await IsUserMentionedAsync(post.Content, user?.Handle);
     }
 
-    private async Task<bool> IsUserMentionedAsync(string? content, string? handle)
+    private Task<bool> IsUserMentionedAsync(string? content, string? handle)
     {
         if (string.IsNullOrEmpty(handle) || string.IsNullOrEmpty(content)) return false;
 
@@ -1723,7 +1723,7 @@ public class PostService : IPostService
             var prefix = lowerHandle.Split('.')[0];
             isMentioned = Regex.IsMatch(lowerContent, $@"\B@{Regex.Escape(lowerHandle.Split('.')[0])}\b", RegexOptions.IgnoreCase);
         }
-        return isMentioned;
+        return Task.FromResult(isMentioned);
     }
 
         public async Task<string> SaveBlobAsync(Stream stream, string contentType, string folder)
