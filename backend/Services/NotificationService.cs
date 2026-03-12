@@ -123,7 +123,7 @@ public class NotificationService : INotificationService
 
     private UserDto MapToUserDto(User u)
     {
-        if (u == null) return new UserDto(Guid.Empty, "unknown", "unknown", null, "Unknown", null, null, null, null, null, null, 0, 0, 0, "user", null, false, null);
+        if (u == null) return new UserDto(Guid.Empty, "unknown", "unknown", "unknown@local", "Unknown", null, null, null, null, null, null, 0, 0, 0, "user", null, false, null);
 
         return new UserDto(
             u.Id,
