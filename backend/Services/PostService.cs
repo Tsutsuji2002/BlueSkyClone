@@ -1712,7 +1712,7 @@ public class PostService : IPostService
 
     private Task<bool> IsUserMentionedAsync(string? content, string? handle)
     {
-        if (string.IsNullOrEmpty(handle) || string.IsNullOrEmpty(content)) return false;
+        if (string.IsNullOrEmpty(handle) || string.IsNullOrEmpty(content)) return Task.FromResult(false);
 
         var lowerContent = content.ToLower();
         var lowerHandle = handle.ToLower();
