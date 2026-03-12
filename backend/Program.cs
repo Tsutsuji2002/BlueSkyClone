@@ -538,6 +538,131 @@ using (var scope = app.Services.CreateScope())
         }
         catch (Exception ex) { logger.LogWarning(ex, "Manual update block 5 failed."); }
 
+        // 6. Core Entities Resilience (Reposts, Interests, etc.)
+        try
+        {
+            var sql = @"
+                -- Reposts Table
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Reposts' AND xtype='U')
+                BEGIN
+                    CREATE TABLE Reposts (
+                        UserId UNIQUEIDENTIFIER NOT NULL,
+                        PostId UNIQUEIDENTIFIER NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        Tid NVARCHAR(20) NULL,
+                        PRIMARY KEY (UserId, PostId),
+                        CONSTRAINT FK_RepostPost FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                        CONSTRAINT FK_RepostUser FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+                    );
+                    PRINT 'Created Reposts table';
+                END
+
+                -- Interests Table
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Interests' AND xtype='U')
+                BEGIN
+                    CREATE TABLE Interests (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        Name NVARCHAR(100) NOT NULL,
+                        Slug NVARCHAR(100) NOT NULL UNIQUE,
+                        Icon NVARCHAR(50) NULL,
+                        IsDeleted BIT NOT NULL DEFAULT 0
+                    );
+                    PRINT 'Created Interests table';
+                END
+
+                -- PostInterests Join Table
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostInterests' AND xtype='U')
+                BEGIN
+                    CREATE TABLE PostInterests (
+                        PostId UNIQUEIDENTIFIER NOT NULL,
+                        InterestId INT NOT NULL,
+                        PRIMARY KEY (PostId, InterestId),
+                        CONSTRAINT FK_PI_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                        CONSTRAINT FK_PI_Interest FOREIGN KEY (InterestId) REFERENCES Interests(Id) ON DELETE CASCADE
+                    );
+                    PRINT 'Created PostInterests table';
+                END
+
+                -- UserInterests Join Table
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserInterests' AND xtype='U')
+                BEGIN
+                    CREATE TABLE UserInterests (
+                        UserId UNIQUEIDENTIFIER NOT NULL,
+                        InterestId INT NOT NULL,
+                        PRIMARY KEY (UserId, InterestId),
+                        CONSTRAINT FK_UI_User FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+                        CONSTRAINT FK_UI_Interest FOREIGN KEY (InterestId) REFERENCES Interests(Id) ON DELETE CASCADE
+                    );
+                    PRINT 'Created UserInterests table';
+                END
+
+                -- PostMedia Table
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostMedia' AND xtype='U')
+                BEGIN
+                    CREATE TABLE PostMedia (
+                        Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                        PostId UNIQUEIDENTIFIER NOT NULL,
+                        Url NVARCHAR(MAX) NOT NULL,
+                        Type NVARCHAR(50) NOT NULL,
+                        Position INT NOT NULL DEFAULT 0,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        IsDeleted BIT NOT NULL DEFAULT 0,
+                        CONSTRAINT FK_MediaPost FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                    );
+                    PRINT 'Created PostMedia table';
+                END
+
+                -- LinkPreviews Table
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='LinkPreviews' AND xtype='U')
+                BEGIN
+                    CREATE TABLE LinkPreviews (
+                        Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                        PostId UNIQUEIDENTIFIER NULL,
+                        MessageId UNIQUEIDENTIFIER NULL,
+                        Url NVARCHAR(MAX) NOT NULL,
+                        Title NVARCHAR(MAX) NULL,
+                        Description NVARCHAR(MAX) NULL,
+                        ImageUrl NVARCHAR(MAX) NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        CONSTRAINT FK_LP_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                    );
+                    PRINT 'Created LinkPreviews table';
+                END
+
+                -- Verify Critical Columns
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'IsDeleted')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD IsDeleted BIT NOT NULL DEFAULT 0;
+                    PRINT 'Added IsDeleted to Posts';
+                END
+                
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'RepostsCount')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD RepostsCount INT NULL DEFAULT 0;
+                    PRINT 'Added RepostsCount to Posts';
+                END
+
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'LikesCount')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD LikesCount INT NULL DEFAULT 0;
+                END
+
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'RepliesCount')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD RepliesCount INT NULL DEFAULT 0;
+                END
+
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'BookmarksCount')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD BookmarksCount INT NULL DEFAULT 0;
+                END
+";
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied Block 6 - Core Entities Schema Repair.");
+        }
+        catch (Exception ex) { logger.LogError(ex, "Manual update block 6 (Core Entities) failed."); }
+
+
         // --- SEED AI FEEDS AND INTERESTS ---
         try
         {

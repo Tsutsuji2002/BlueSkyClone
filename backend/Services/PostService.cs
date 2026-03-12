@@ -33,107 +33,116 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)
     {
-        // Timeline filtering is viewer-specific (settings, mutes/blocks). Apply the major filters
-        // at the query level so pagination doesn't "run out" early due to post-fetch filtering.
-        UserSetting? userSettings = null;
         try
         {
-            userSettings = await _unitOfWork.UserSettings.Query()
-                .FirstOrDefaultAsync(s => s.UserId == userId);
+            // Timeline filtering is viewer-specific (settings, mutes/blocks). Apply the major filters
+            // at the query level so pagination doesn't "run out" early due to post-fetch filtering.
+            UserSetting? userSettings = null;
+            try
+            {
+                userSettings = await _unitOfWork.UserSettings.Query()
+                    .FirstOrDefaultAsync(s => s.UserId == userId);
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[PostService] GetTimelineAsync: Error fetching UserSettings for {userId}: {ex.Message}. Using defaults.");
+            }
+
+            var showReplies = userSettings?.ShowReplies ?? true;
+            var showQuotePosts = userSettings?.ShowQuotePosts ?? true;
+            var showReposts = userSettings?.ShowReposts ?? true;
+
+            var cacheKey = $"user:{userId}:timeline:{skip}:{take}:sr{showReplies}:sq{showQuotePosts}:sp{showReposts}";
+            var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
+            if (cached != null)
+            {
+                return await EnrichAndFilterPostsAsync(cached, userId, true);
+            }
+
+            var followedUserIds = await _unitOfWork.Follows.Query()
+                .Where(f => f.FollowerId == userId)
+                .Select(f => f.FollowingId)
+                .ToListAsync();
+            
+            // Include the user's own posts in the Following feed
+            followedUserIds.Add(userId);
+
+            var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
+            var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
+
+            var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(userId);
+            var blockedByUserIds = await _unitOfWork.Blocks.Query()
+                .Where(b => b.BlockedUserId == userId)
+                .Select(b => b.UserId)
+                .ToListAsync();
+
+            var postsQuery = _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Include(p => p.Hashtags)
+                .Include(p => p.Reposts).ThenInclude(r => r.User)
+                .Where(p =>
+                    followedUserIds.Contains(p.AuthorId) &&
+                    (p.IsDeleted == false || p.IsDeleted == null) &&
+                    !mutedUserIds.Contains(p.AuthorId) &&
+                    !blockedUserIds.Contains(p.AuthorId) &&
+                    !blockedByUserIds.Contains(p.AuthorId));
+
+            if (showReplies == false)
+            {
+                postsQuery = postsQuery.Where(p => p.ReplyToPostId == null);
+            }
+
+            if (showQuotePosts == false)
+            {
+                postsQuery = postsQuery.Where(p => p.QuotePostId == null);
+            }
+
+            var posts = await postsQuery
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+            
+            var postDtos = new List<PostDto>();
+            foreach (var post in posts)
+            {
+                var dto = MapToDto(post);
+                
+                // Repost banner logic
+                var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId) && (post.Author == null || r.UserId != post.Author.Id));
+                if (reposter == null)
+                {
+                    reposter = post.Reposts?.FirstOrDefault(r => r.UserId == userId);
+                }
+
+                if (reposter != null && reposter.User != null)
+                {
+                    dto.RepostedBy = new AuthorDto 
+                    {
+                        Id = reposter.User.Id,
+                        Username = reposter.User.Username,
+                        Handle = reposter.User.Handle,
+                        DisplayName = reposter.User.DisplayName,
+                        AvatarUrl = reposter.User.AvatarUrl,
+                        IsVerified = reposter.User.IsVerified,
+                        Did = reposter.User.Did
+                    };
+                }
+                postDtos.Add(dto);
+            }
+
+            await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(2));
+            return await EnrichAndFilterPostsAsync(postDtos, userId, true);
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"[PostService] GetTimelineAsync: Error fetching UserSettings for {userId}: {ex.Message}. Using defaults.");
+            System.Console.WriteLine($"[PostService] GetTimelineAsync: Critical Error: {ex.Message}");
+            return new List<PostDto>();
         }
-
-        var showReplies = userSettings?.ShowReplies ?? true;
-        var showQuotePosts = userSettings?.ShowQuotePosts ?? true;
-        var showReposts = userSettings?.ShowReposts ?? true;
-
-        var cacheKey = $"user:{userId}:timeline:{skip}:{take}:sr{showReplies}:sq{showQuotePosts}:sp{showReposts}";
-        var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
-        if (cached != null)
-        {
-            return await EnrichAndFilterPostsAsync(cached, userId, true);
-        }
-
-        var followedUserIds = await _unitOfWork.Follows.Query()
-            .Where(f => f.FollowerId == userId)
-            .Select(f => f.FollowingId)
-            .ToListAsync();
-        
-        // Include the user's own posts in the Following feed
-        followedUserIds.Add(userId);
-
-        var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
-        var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
-
-        var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(userId);
-        var blockedByUserIds = await _unitOfWork.Blocks.Query()
-            .Where(b => b.BlockedUserId == userId)
-            .Select(b => b.UserId)
-            .ToListAsync();
-
-        var postsQuery = _unitOfWork.Posts.Query()
-            .Include(p => p.Author)
-            .Include(p => p.PostMedia)
-            .Include(p => p.LinkPreview)
-            .Include(p => p.Hashtags)
-            .Include(p => p.Reposts).ThenInclude(r => r.User)
-            .Where(p =>
-                followedUserIds.Contains(p.AuthorId) &&
-                (p.IsDeleted == false || p.IsDeleted == null) &&
-                !mutedUserIds.Contains(p.AuthorId) &&
-                !blockedUserIds.Contains(p.AuthorId) &&
-                !blockedByUserIds.Contains(p.AuthorId));
-
-        if (showReplies == false)
-        {
-            postsQuery = postsQuery.Where(p => p.ReplyToPostId == null);
-        }
-
-        if (showQuotePosts == false)
-        {
-            postsQuery = postsQuery.Where(p => p.QuotePostId == null);
-        }
-
-        var posts = await postsQuery
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip(skip)
-            .Take(take)
-            .ToListAsync();
-        
-        var postDtos = new List<PostDto>();
-        foreach (var post in posts)
-        {
-            var dto = MapToDto(post);
-            
-            // Repost banner logic
-            var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId) && (post.Author == null || r.UserId != post.Author.Id));
-            if (reposter == null)
-            {
-                reposter = post.Reposts?.FirstOrDefault(r => r.UserId == userId);
-            }
-
-            if (reposter != null && reposter.User != null)
-            {
-                dto.RepostedBy = new AuthorDto 
-                {
-                    Id = reposter.User.Id,
-                    Username = reposter.User.Username,
-                    Handle = reposter.User.Handle,
-                    DisplayName = reposter.User.DisplayName,
-                    AvatarUrl = reposter.User.AvatarUrl,
-                    IsVerified = reposter.User.IsVerified,
-                    Did = reposter.User.Did
-                };
-            }
-            postDtos.Add(dto);
-        }
-
-        await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(2));
-        return await EnrichAndFilterPostsAsync(postDtos, userId, true);
     }
+
 
     public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 30, int offset = 0)
     {
