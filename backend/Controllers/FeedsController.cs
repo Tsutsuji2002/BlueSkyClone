@@ -102,98 +102,162 @@ public class FeedsController : ControllerBase
     [HttpGet("subscribed")]
     public async Task<IActionResult> GetSubscribed()
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var feeds = await _feedService.GetUserFeedsAsync(userId);
-        return Ok(feeds);
+            var feeds = await _feedService.GetUserFeedsAsync(userId);
+            return Ok(feeds);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] GetSubscribed error: {ex.Message}");
+            return Ok(new List<FeedDto>());
+        }
     }
 
     [HttpGet("{tid}")]
     public async Task<IActionResult> GetFeed(string tid)
     {
-        var feed = await _feedService.GetFeedByTidAsync(tid);
-        if (feed == null) return NotFound();
-        return Ok(feed);
+        try
+        {
+            var feed = await _feedService.GetFeedByTidAsync(tid);
+            if (feed == null) return NotFound();
+            return Ok(feed);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] GetFeed error: {ex.Message}");
+            return NotFound();
+        }
     }
 
     [HttpGet("info/{id}")]
     public async Task<IActionResult> GetFeedById(Guid id)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var feed = await _feedService.GetFeedByIdAsync(id, userId);
-        if (feed == null) return NotFound();
-        return Ok(feed);
+            var feed = await _feedService.GetFeedByIdAsync(id, userId);
+            if (feed == null) return NotFound();
+            return Ok(feed);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] GetFeedById error: {ex.Message}");
+            return NotFound();
+        }
     }
 
     [HttpPost("save/{feedId}")]
     public async Task<IActionResult> SaveFeed(Guid feedId)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var result = await _feedService.SaveFeedAsync(userId, feedId);
-        return Ok(result);
+            var result = await _feedService.SaveFeedAsync(userId, feedId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] SaveFeed error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("unsave/{feedId}")]
     public async Task<IActionResult> UnsaveFeed(Guid feedId)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var result = await _feedService.UnsaveFeedAsync(userId, feedId);
-        return Ok(result);
+            var result = await _feedService.UnsaveFeedAsync(userId, feedId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] UnsaveFeed error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("pin/{feedId}")]
     public async Task<IActionResult> PinFeed(Guid feedId)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var result = await _feedService.PinFeedAsync(userId, feedId);
-        return Ok(result);
+            var result = await _feedService.PinFeedAsync(userId, feedId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] PinFeed error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("unpin/{feedId}")]
     public async Task<IActionResult> UnpinFeed(Guid feedId)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var result = await _feedService.UnpinFeedAsync(userId, feedId);
-        return Ok(result);
+            var result = await _feedService.UnpinFeedAsync(userId, feedId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] UnpinFeed error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("reorder")]
     public async Task<IActionResult> ReorderFeeds([FromBody] List<Guid> feedIds)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var result = await _feedService.ReorderFeedsAsync(userId, feedIds);
-        return Ok(result);
+            var result = await _feedService.ReorderFeedsAsync(userId, feedIds);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] ReorderFeeds error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("search")]
     public async Task<IActionResult> SearchFeeds([FromQuery] string query, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdStr);
-        var feeds = await _feedService.SearchFeedsAsync(userId, query, skip, take);
-        return Ok(feeds);
+            var feeds = await _feedService.SearchFeedsAsync(userId, query, skip, take);
+            return Ok(feeds);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FeedsController] SearchFeeds error: {ex.Message}");
+            return Ok(new List<FeedDto>());
+        }
     }
 
     [HttpGet("{feedId}/posts")]

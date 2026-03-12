@@ -217,187 +217,179 @@ public class PostService : IPostService
 
     public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
     {
-        if (!posts.Any()) return posts;
-
-        var postIds = posts.Select(p => p.Id).ToList();
-
-        var likedPostIds = await _unitOfWork.Likes.Query()
-            .Where(l => l.UserId == viewerId && postIds.Contains(l.PostId))
-            .Select(l => l.PostId)
-            .ToListAsync();
-
-        var bookmarkedPostIds = await _unitOfWork.Bookmarks.Query()
-            .Where(b => b.UserId == viewerId && postIds.Contains(b.PostId))
-            .Select(b => b.PostId)
-            .ToListAsync();
-
-        var repostedPostIds = await _unitOfWork.Reposts.Query()
-            .Where(r => r.UserId == viewerId && postIds.Contains(r.PostId))
-            .Select(r => r.PostId)
-            .ToListAsync();
-
-        var following = await _unitOfWork.Follows.GetFollowingAsync(viewerId);
-        var followingIds = following.Select(f => f.FollowingId).ToList();
-
-        var mutedWords = await _unitOfWork.MutedWords.Query()
-            .Where(w => w.UserId == viewerId)
-            .ToListAsync();
-
-        var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId);
-        var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
-
-        var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
-        var blockedByUserIds = await _unitOfWork.Blocks.Query()
-            .Where(b => b.BlockedUserId == viewerId)
-            .Select(b => b.UserId)
-            .ToListAsync();
-
-        var usersFollowingViewerIds = await _unitOfWork.Follows.Query()
-            .Where(f => f.FollowingId == viewerId)
-            .Select(f => f.FollowerId)
-            .ToListAsync();
-
-        var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
-        var viewerHandle = viewerUser?.Handle?.ToLower();
-
-        // Fetch user settings for timeline filtering
-        UserSetting? userSettings = null;
-        if (isTimeline)
+        try
         {
-            try
-            {
-                userSettings = await _unitOfWork.UserSettings.Query()
-                    .FirstOrDefaultAsync(s => s.UserId == viewerId);
-            }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine($"[PostService] Error fetching UserSettings for {viewerId}: {ex.Message}");
-                // Fallback to null/defaults if table is missing columns
-            }
-        }
+            if (!posts.Any()) return posts;
 
-        var filteredPosts = new List<PostDto>();
-        foreach (var post in posts)
-        {
-            // Apply Timeline Filtering
+            var postIds = posts.Select(p => p.Id).ToList();
+
+            var likedPostIds = new List<Guid>();
+            try { likedPostIds = await _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).Select(l => l.PostId).ToListAsync(); } catch { }
+
+            var bookmarkedPostIds = new List<Guid>();
+            try { bookmarkedPostIds = await _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync(); } catch { }
+
+            var repostedPostIds = new List<Guid>();
+            try { repostedPostIds = await _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).Select(r => r.PostId).ToListAsync(); } catch { }
+
+            var followingIds = new List<Guid>();
+            try 
+            { 
+                var following = await _unitOfWork.Follows.GetFollowingAsync(viewerId);
+                followingIds = following.Select(f => f.FollowingId).ToList();
+            } catch { }
+
+            var mutedWords = new List<MutedWord>();
+            try { mutedWords = await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync(); } catch { }
+
+            var mutedUserIds = new List<Guid>();
+            try { var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId); mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList(); } catch { }
+
+            var blockedUserIds = new List<Guid>();
+            try { blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId); } catch { }
+
+            var blockedByUserIds = new List<Guid>();
+            try { blockedByUserIds = await _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync(); } catch { }
+
+            var usersFollowingViewerIds = new List<Guid>();
+            try { usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync(); } catch { }
+
+            var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
+            var viewerHandle = viewerUser?.Handle?.ToLower();
+
+            // Fetch user settings for timeline filtering
+            UserSetting? userSettings = null;
             if (isTimeline)
             {
-                var sReplies = userSettings?.ShowReplies ?? true;
-                var sQuotes = userSettings?.ShowQuotePosts ?? true;
-                var sReposts = userSettings?.ShowReposts ?? true;
+                try
+                {
+                    userSettings = await _unitOfWork.UserSettings.Query()
+                        .FirstOrDefaultAsync(s => s.UserId == viewerId);
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"[PostService] Error fetching UserSettings for {viewerId}: {ex.Message}");
+                }
+            }
 
-                // Filter Replies
-                if (sReplies == false && post.ReplyToPostId != null)
+            var filteredPosts = new List<PostDto>();
+            foreach (var post in posts)
+            {
+                // Apply Timeline Filtering
+                if (isTimeline)
+                {
+                    var sReplies = userSettings?.ShowReplies ?? true;
+                    var sQuotes = userSettings?.ShowQuotePosts ?? true;
+                    var sReposts = userSettings?.ShowReposts ?? true;
+
+                    // Filter Replies
+                    if (sReplies == false && post.ReplyToPostId != null)
+                    {
+                        continue;
+                    }
+
+                    // Filter Quote Posts
+                    if (sQuotes == false && post.QuotePostId != null)
+                    {
+                        continue;
+                    }
+
+                    // Filter Reposts
+                    if (sReposts == false && post.RepostedBy != null)
+                    {
+                        post.RepostedBy = null;
+                    }
+                }
+                // Filter out deleted, muted or blocked users
+                if (post.IsDeleted || post.Author == null ||
+                    mutedUserIds.Contains(post.Author.Id) || 
+                    blockedUserIds.Contains(post.Author.Id) || 
+                    blockedByUserIds.Contains(post.Author.Id))
                 {
                     continue;
                 }
 
-                // Filter Quote Posts
-                if (sQuotes == false && post.QuotePostId != null)
-                {
-                    continue;
-                }
+                post.IsLiked = likedPostIds.Contains(post.Id);
+                post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
+                post.IsReposted = repostedPostIds.Contains(post.Id);
+                post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
 
-                // Filter Reposts
-                if (sReposts == false && post.RepostedBy != null)
-                {
-                    // In this app the "repost" is a banner on a post (not a separate feed item),
-                    // so hiding reposts should hide the banner, not drop the post entirely.
-                    post.RepostedBy = null;
-                }
-            }
-            // Filter out deleted, muted or blocked users
-            if (post.IsDeleted || post.Author == null ||
-                mutedUserIds.Contains(post.Author.Id) || 
-                blockedUserIds.Contains(post.Author.Id) || 
-                blockedByUserIds.Contains(post.Author.Id))
-            {
-                continue;
-            }
-
-            post.IsLiked = likedPostIds.Contains(post.Id);
-            post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
-            post.IsReposted = repostedPostIds.Contains(post.Id);
-            post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
-            if (post.Author.IsFollowing)
-            {
-                var followRecord = following.FirstOrDefault(f => f.FollowingId == post.Author.Id);
-                if (followRecord != null)
-                {
-                    post.Author.FollowingReference = $"at://local/app.bsky.graph.follow/{followRecord.Tid}";
-                }
-            }
-
-            // Calculate CanReply logic
-            if (post.Author.Id == viewerId)
-            {
-                post.CanReply = true;
-            }
-            else
-            {
-                var restriction = post.ReplyRestriction?.ToLower()?.Trim() ?? "anyone";
-                if (restriction == "anyone")
+                // Calculate CanReply logic
+                if (post.Author.Id == viewerId)
                 {
                     post.CanReply = true;
                 }
-                else if (restriction == "none" || restriction == "no_one")
+                else
                 {
-                    post.CanReply = false;
-                }
-                else if (restriction == "followed")
-                {
-                    // Author follows viewer OR viewer is mentioned
-                    bool follows = usersFollowingViewerIds.Contains(post.Author.Id);
-                    if (follows)
+                    var restriction = post.ReplyRestriction?.ToLower()?.Trim() ?? "anyone";
+                    if (restriction == "anyone")
                     {
                         post.CanReply = true;
                     }
-                    else
+                    else if (restriction == "none" || restriction == "no_one")
+                    {
+                        post.CanReply = false;
+                    }
+                    else if (restriction == "followed")
+                    {
+                        // Author follows viewer OR viewer is mentioned
+                        bool follows = usersFollowingViewerIds.Contains(post.Author.Id);
+                        if (follows)
+                        {
+                            post.CanReply = true;
+                        }
+                        else
+                        {
+                            post.CanReply = await IsUserMentionedAsync(post.Content, viewerHandle);
+                        }
+                    }
+                    else if (restriction == "mentioned")
                     {
                         post.CanReply = await IsUserMentionedAsync(post.Content, viewerHandle);
                     }
-                }
-                else if (restriction == "mentioned")
-                {
-                    post.CanReply = await IsUserMentionedAsync(post.Content, viewerHandle);
-                }
-                else
-                {
-                    post.CanReply = false; // Default to false for unknown restrictions
-                }
-            }
-
-            if (mutedWords.Any())
-            {
-                var content = post.Content?.ToLower() ?? "";
-                var tags = (post.Tags ?? new List<string>())
-                    .Concat(post.Interests ?? new List<string>())
-                    .Where(t => t != null)
-                    .Select(t => t.ToLower());
-
-                var matchingWord = mutedWords.FirstOrDefault(mw => 
-                {
-                    if (string.IsNullOrEmpty(mw.Word)) return false;
-                    var word = mw.Word.ToLower();
-                    return content.Contains(word) || tags.Contains(word);
-                });
-
-                if (matchingWord != null)
-                {
-                    if (matchingWord.MuteBehavior == "hide") continue;
-                    
-                    post.MuteInfo = new PostMuteDto
+                    else
                     {
-                        IsMuted = true,
-                        Behavior = "warn",
-                        Reason = matchingWord.Word
-                    };
+                        post.CanReply = false; 
+                    }
                 }
-            }
-            filteredPosts.Add(post);
-        }
 
-        return filteredPosts;
+                if (mutedWords.Any())
+                {
+                    var content = post.Content?.ToLower() ?? "";
+                    var tags = (post.Tags ?? new List<string>())
+                        .Concat(post.Interests ?? new List<string>())
+                        .Where(t => t != null)
+                        .Select(t => t.ToLower());
+
+                    var matchingWord = mutedWords.FirstOrDefault(mw => 
+                    {
+                        if (string.IsNullOrEmpty(mw.Word)) return false;
+                        var word = mw.Word.ToLower();
+                        return content.Contains(word) || tags.Contains(word);
+                    });
+
+                    if (matchingWord != null)
+                    {
+                        if (matchingWord.MuteBehavior == "hide") continue;
+                        
+                        post.MuteInfo = new PostMuteDto
+                        {
+                            IsMuted = true,
+                            Behavior = "warn",
+                            Reason = matchingWord.Word
+                        };
+                    }
+                }
+                filteredPosts.Add(post);
+            }
+
+            return filteredPosts;
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[PostService] EnrichAndFilterPostsAsync Error: {ex.Message}");
+            return posts; // Return unenriched posts as fallback to prevent 500
+        }
     }
 
     public async Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request)
