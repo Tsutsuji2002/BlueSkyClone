@@ -84,6 +84,8 @@ builder.Services.AddSingleton<IMLModelService, MLModelService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
 builder.Services.AddScoped<IRepoManager, RepoManager>();
+builder.Services.AddScoped<IDidResolver, DidResolverService>();
+builder.Services.AddScoped<ICryptoService, CryptoService>();
 
 // Redis Caching
 if (builder.Environment.IsDevelopment())

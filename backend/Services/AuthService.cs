@@ -27,12 +27,14 @@ public class AuthService : IAuthService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
     private readonly IDistributedCache _cache;
+    private readonly ICryptoService _crypto;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _cache = cache;
+        _crypto = crypto;
     }
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
@@ -71,7 +73,8 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow,
             FollowersCount = 0,
             FollowingCount = 0,
-            PostsCount = 0
+            PostsCount = 0,
+            SigningPublicKey = _crypto.GenerateSecp256k1Keypair().publicKey
         };
 
         user.UserSetting = new UserSetting
@@ -110,6 +113,14 @@ public class AuthService : IAuthService
 
         var token = GenerateJwtToken(user, request.RememberMe);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id, request.RememberMe);
+
+        // Auto-generate key for existing users if missing
+        if (string.IsNullOrEmpty(user.SigningPublicKey))
+        {
+            user.SigningPublicKey = _crypto.GenerateSecp256k1Keypair().publicKey;
+            _unitOfWork.Users.Update(user);
+            await _unitOfWork.CompleteAsync();
+        }
 
         return MapToAuthResponse(user, token, refreshToken);
     }

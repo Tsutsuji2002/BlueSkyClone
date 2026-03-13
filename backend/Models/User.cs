@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -8,6 +8,7 @@ public partial class User
     public Guid Id { get; set; }
 
     public string Did { get; set; } = null!;
+    public string? SigningPublicKey { get; set; }
 
     public string Username { get; set; } = null!;
 

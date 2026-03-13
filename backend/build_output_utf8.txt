@@ -1,0 +1,19 @@
+﻿  Determining projects to restore...
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc [C:\Projects\BlueSky\backend\BSkyClone.sln]
+  All projects are up-to-date for restore.
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\CryptoService.cs(23,56): error CS0117: 'ECCurve' does not contain a definition for 'nistP256' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\ListService.cs(341,21): warning CS8601: Possible null reference assignment. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+
+Build FAILED.
+
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc [C:\Projects\BlueSky\backend\BSkyClone.sln]
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\ListService.cs(341,21): warning CS8601: Possible null reference assignment. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\CryptoService.cs(23,56): error CS0117: 'ECCurve' does not contain a definition for 'nistP256' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+    3 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:06.04
+
+Workload updates are available. Run `dotnet workload list` for more information.
