@@ -96,9 +96,19 @@ namespace BSkyClone.Controllers
                 _logger.LogInformation("Creating record {Collection}/{Rkey} for {Did}", request.Collection, rkey, userDid);
 
                 // 1. Store in Repo Storage (Source of Truth)
-                var cid = await _repoManager.CreateRecordAsync(userDid ?? userHandle ?? userIdStr, request.Collection, request.Record);
+                var cid = await _repoManager.CreateRecordAsync(userDid ?? userHandle ?? userIdStr!, request.Collection, request.Record);
 
-                // 2. Indexing Layer (SQL)
+                // 2. Sign the repository commitment (Phase 3)
+                try
+                {
+                    await _repoManager.SignRepoAsync(userDid ?? userHandle ?? userIdStr!, cid);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to sign repo commitment for {Repo}", request.Repo);
+                }
+
+                // 3. Indexing Layer (SQL)
                 if (request.Collection == "app.bsky.feed.post")
                 {
                     var postRecordRaw = request.Record.ToString()!;

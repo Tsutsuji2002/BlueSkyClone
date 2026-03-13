@@ -9,6 +9,9 @@ public partial class User
 
     public string Did { get; set; } = null!;
     public string? SigningPublicKey { get; set; }
+    public string? EncryptedSigningPrivateKey { get; set; }
+    public string? RepoRev { get; set; }
+    public string? RepoCommitSignature { get; set; }
 
     public string Username { get; set; } = null!;
 

@@ -10,5 +10,20 @@ namespace BSkyClone.Services
         /// For this implementation, we focus on the public key.
         /// </summary>
         (string publicKey, string privateKey) GenerateSecp256k1Keypair();
+
+        /// <summary>
+        /// Signs data using a Secp256k1 private key.
+        /// </summary>
+        byte[] Sign(byte[] data, string privateKey);
+
+        /// <summary>
+        /// Encrypts a private key for storage.
+        /// </summary>
+        string EncryptPrivateKey(string privateKey);
+
+        /// <summary>
+        /// Decrypts a private key from storage.
+        /// </summary>
+        string DecryptPrivateKey(string encryptedKey);
     }
 }

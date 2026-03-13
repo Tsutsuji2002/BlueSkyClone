@@ -10,18 +10,20 @@ namespace BSkyClone.Services
     public class RepoManager : IRepoManager
     {
         private readonly BSkyDbContext _dbContext;
+        private readonly ICryptoService _crypto;
 
-        public RepoManager(BSkyDbContext dbContext)
+        public RepoManager(BSkyDbContext dbContext, ICryptoService crypto)
         {
             _dbContext = dbContext;
+            _crypto = crypto;
         }
 
         public async Task<string> CreateRecordAsync(string did, string collection, object record)
         {
-            var json = JsonSerializer.Serialize(record);
-            var data = Encoding.UTF8.GetBytes(json);
+            // Use deterministic DAG-CBOR for the record
+            var data = CborUtils.Encode(record);
             
-            // In a real AT Proto PDS, this would be a dag-cbor CID.
+            // Generate protocol-compliant CID
             var cid = ProtocolUtils.GenerateCid(data);
 
             var block = new RepoBlock
@@ -40,7 +42,47 @@ namespace BSkyClone.Services
                 await _dbContext.SaveChangesAsync();
             }
 
+            // In a full implementation, we would now update the MST and sign the Repo Commit.
+            // For Phase 3, we've successfully moved to binary CBOR storage.
             return cid;
+        }
+
+        public async Task<string> SignRepoAsync(string identity, string dataCid)
+        {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => 
+                u.Did == identity || u.Handle == identity || u.Username == identity || u.Id.ToString() == identity);
+            
+            if (user == null) throw new Exception($"User '{identity}' not found.");
+            
+            if (string.IsNullOrEmpty(user.EncryptedSigningPrivateKey))
+                throw new Exception("User has no signing identity. Please log in again to generate one.");
+
+            // 1. Decrypt private key
+            var privateKey = _crypto.DecryptPrivateKey(user.EncryptedSigningPrivateKey);
+
+            // 2. Prepare Commit Object (Simplified AT Protocol format)
+            var rev = ProtocolUtils.GenerateTid();
+            var commitData = new Dictionary<string, object>
+            {
+                { "did", user.Did },
+                { "rev", rev },
+                { "data", dataCid },
+                { "version", 3 }
+            };
+
+            // 3. Serialize and Sign
+            var commitBytes = CborUtils.Encode(commitData);
+            var sig = _crypto.Sign(commitBytes, privateKey);
+            var sigHex = Convert.ToHexString(sig);
+
+            // 4. Update User state
+            user.RepoRev = rev;
+            user.RepoCommitSignature = sigHex;
+            
+            _dbContext.Users.Update(user);
+            await _dbContext.SaveChangesAsync();
+
+            return sigHex;
         }
 
         public async Task<RepoBlock?> GetBlockAsync(string cid)

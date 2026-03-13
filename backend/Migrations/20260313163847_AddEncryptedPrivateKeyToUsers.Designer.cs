@@ -4,6 +4,7 @@ using BSkyClone.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BSkyClone.Migrations
 {
     [DbContext(typeof(BSkyDbContext))]
-    partial class BSkyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313163847_AddEncryptedPrivateKeyToUsers")]
+    partial class AddEncryptedPrivateKeyToUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1019,12 +1022,6 @@ namespace BSkyClone.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
-
-                    b.Property<string>("RepoCommitSignature")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RepoRev")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Role")
                         .IsRequired()

@@ -1,0 +1,18 @@
+﻿  Determining projects to restore...
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc [C:\Projects\BlueSky\backend\BSkyClone.sln]
+  All projects are up-to-date for restore.
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\ListService.cs(341,21): warning CS8601: Possible null reference assignment. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+  BSkyClone -> C:\Projects\BlueSky\backend\bin\Debug\net9.0\BSkyClone.dll
+
+Build succeeded.
+
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc [C:\Projects\BlueSky\backend\BSkyClone.sln]
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\ListService.cs(341,21): warning CS8601: Possible null reference assignment. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+    3 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:06.79
+
+Workload updates are available. Run `dotnet workload list` for more information.

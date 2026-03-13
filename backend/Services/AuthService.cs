@@ -59,6 +59,7 @@ public class AuthService : IAuthService
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, salt);
 
         var userId = Guid.NewGuid();
+        var keys = _crypto.GenerateSecp256k1Keypair();
         var user = new User
         {
             Id = userId,
@@ -74,7 +75,8 @@ public class AuthService : IAuthService
             FollowersCount = 0,
             FollowingCount = 0,
             PostsCount = 0,
-            SigningPublicKey = _crypto.GenerateSecp256k1Keypair().publicKey
+            SigningPublicKey = keys.publicKey,
+            EncryptedSigningPrivateKey = _crypto.EncryptPrivateKey(keys.privateKey)
         };
 
         user.UserSetting = new UserSetting
@@ -117,7 +119,9 @@ public class AuthService : IAuthService
         // Auto-generate key for existing users if missing
         if (string.IsNullOrEmpty(user.SigningPublicKey))
         {
-            user.SigningPublicKey = _crypto.GenerateSecp256k1Keypair().publicKey;
+            var keys = _crypto.GenerateSecp256k1Keypair();
+            user.SigningPublicKey = keys.publicKey;
+            user.EncryptedSigningPrivateKey = _crypto.EncryptPrivateKey(keys.privateKey);
             _unitOfWork.Users.Update(user);
             await _unitOfWork.CompleteAsync();
         }
