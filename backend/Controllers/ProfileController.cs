@@ -225,6 +225,7 @@ public class ProfileController : ControllerBase
         var dtos = new List<UserDto>();
         foreach (var user in users)
         {
+            if (user == null) continue;
             dtos.Add(await MapUserToDtoWithStatus(user, currentUserId));
         }
         return Ok(dtos);
@@ -240,6 +241,7 @@ public class ProfileController : ControllerBase
         var dtos = new List<UserDto>();
         foreach (var user in users)
         {
+            if (user == null) continue;
             var dto = await MapUserToDtoWithStatus(user, currentUserId);
             // If viewing own following list, we definitely follow everyone in it
             if (userId == currentUserId && currentUserId.HasValue)
@@ -263,6 +265,7 @@ public class ProfileController : ControllerBase
         var dtos = new List<UserDto>();
         foreach (var user in users)
         {
+            if (user == null) continue;
             var dto = await MapUserToDtoWithStatus(user, currentUserId);
             dto = dto with { IsMuted = true };
             dtos.Add(dto);
@@ -282,6 +285,7 @@ public class ProfileController : ControllerBase
         var dtos = new List<UserDto>();
         foreach (var user in users)
         {
+            if (user == null) continue;
             var dto = await MapUserToDtoWithStatus(user, currentUserId);
             dto = dto with { IsBlocking = true };
             dtos.Add(dto);
@@ -293,9 +297,9 @@ public class ProfileController : ControllerBase
     {
         var dto = new UserDto(
             user.Id,
-            user.Username,
-            user.Handle,
-            user.Email,
+            user.Username ?? "unknown",
+            user.Handle ?? "unknown",
+            user.Email ?? "unknown",
             user.DisplayName,
             user.AvatarUrl,
             user.CoverImageUrl,
@@ -306,7 +310,7 @@ public class ProfileController : ControllerBase
             user.FollowersCount,
             user.FollowingCount,
             user.PostsCount,
-            user.Role,
+            user.Role ?? "user",
             null,
             user.IsVerified,
             user.Did

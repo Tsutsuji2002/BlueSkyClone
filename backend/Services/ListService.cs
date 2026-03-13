@@ -331,7 +331,9 @@ public class ListService : IListService
             .CountAsync(lm => lm.ListId == list.Id && lm.Status == 1);
 
         int postsCount = await _unitOfWork.ListPosts.Query()
-            .CountAsync(lp => lp.ListId == list.Id);
+            .Where(lp => lp.ListId == list.Id)
+            .Join(_unitOfWork.Posts.Query(), lp => lp.PostId, p => p.Id, (lp, p) => p)
+            .CountAsync(p => p.IsDeleted == false || p.IsDeleted == null);
 
         return new ListDto
         {
@@ -376,12 +378,12 @@ public class ListService : IListService
             var list = await _unitOfWork.Lists.GetByIdAsync(listId);
             if (list == null) return new List<PostDto>();
 
-            var listPostsQuery = _unitOfWork.ListPosts.Query()
+            var listPosts = await _unitOfWork.ListPosts.Query()
                 .AsNoTracking()
-                .Where(lp => lp.ListId == listId);
-            
-            var listPosts = await listPostsQuery.Select(lp => lp.PostId).ToListAsync();
-            Console.WriteLine($"[ListService] List {listId} has {listPosts.Count} curated posts.");
+                .Where(lp => lp.ListId == listId)
+                .Join(_unitOfWork.Posts.Query(), lp => lp.PostId, p => p.Id, (lp, p) => p.Id)
+                .ToListAsync();
+            Console.WriteLine($"[ListService] List {listId} has {listPosts.Count} curated posts (existing).");
 
             // 2. Get all approved members of this list
             var memberIds = await _unitOfWork.ListMembers.Query()

@@ -31,8 +31,17 @@ const SavedPage: React.FC = () => {
                 {bookmarkedLoading && bookmarkedPosts.length === 0 ? (
                     <LoadingIndicator text={t('common.loading')} />
                 ) : error ? (
-                    <div className="p-8 text-center text-red-500">
-                        <p>{error}</p>
+                    <div className="p-12 text-center text-red-500 flex flex-col items-center">
+                        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl mb-4">
+                            <p className="font-bold mb-2">{t('common.error_occurred', 'An error occurred')}</p>
+                            <p className="text-sm opacity-80">{error}</p>
+                        </div>
+                        <button 
+                            onClick={() => dispatch(fetchBookmarkedPosts())}
+                            className="text-primary-500 font-bold hover:underline"
+                        >
+                            {t('common.retry', 'Try again')}
+                        </button>
                     </div>
                 ) : bookmarkedPosts.length === 0 ? (
                     <div className="p-12 text-center text-gray-500">
