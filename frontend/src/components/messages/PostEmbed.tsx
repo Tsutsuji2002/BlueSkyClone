@@ -58,7 +58,7 @@ const PostEmbed: React.FC<PostEmbedProps> = ({ postId }) => {
             className="mt-2 text-left border border-gray-200 dark:border-dark-border/50 rounded-xl overflow-hidden bg-white dark:bg-dark-bg cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors shadow-sm"
             onClick={(e) => {
                 e.stopPropagation(); // Prevent message bubble click
-                navigate(`/profile/${post.author.handle}/post/${post.id}`);
+                navigate(`/profile/${post.author.handle}/post/${post.uri?.split('/').pop() || post.id}`);
             }}
         >
             {/* Header */}

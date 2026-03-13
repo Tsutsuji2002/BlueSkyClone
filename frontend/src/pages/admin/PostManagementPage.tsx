@@ -179,7 +179,7 @@ const PostManagementPage: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                     <button
-                                        onClick={() => navigate(`/profile/${post.authorHandle}/post/${post.id}`)}
+                                        onClick={() => navigate(`/profile/${post.authorHandle}/post/${post.tid || post.id}`)}
                                         className="p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-dark-bg rounded-lg transition-colors"
                                         title={t('admin.posts.view_post')}
                                     >
