@@ -57,7 +57,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
             
             let targetPostId = notification.postId;
             if (notification.type === 'reply' || notification.type === 'mention' || notification.type === 'quote') {
-                targetPostId = notification.uri.split('/').pop();
+                targetPostId = notification.tid || notification.uri.split('/').pop();
             }
 
             if (targetPostId) {

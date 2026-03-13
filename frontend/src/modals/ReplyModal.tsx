@@ -111,7 +111,7 @@ const ReplyModal: React.FC = () => {
     const [content, setContent] = useState('');
     const [images, setImages] = useState<PostImage[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
-    const [video, setVideo] = useState<PostVideo | null>(null);
+    const [video, setVideo] = useState<{ url: string; file?: File } | null>(null);
     const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null);
 
     // Link preview
@@ -230,13 +230,16 @@ const ReplyModal: React.FC = () => {
 
         try {
             const mediaFiles = imageFiles.length > 0 ? imageFiles : undefined;
-            // Extract string ID from post for replyToPostId
+            const videoFile = video?.file;
+            const gifUrl = selectedGifUrl || undefined;
             const replyToPostId = post.id;
 
             await dispatch(createPost({
                 content,
                 replyToPostId,
                 mediaFiles,
+                videoFile,
+                gifUrl,
             })).unwrap();
 
             performClose();
@@ -252,7 +255,7 @@ const ReplyModal: React.FC = () => {
             if (file.type.startsWith('video/')) {
                 if (images.length > 0 || video) return;
                 const r = new FileReader();
-                r.onloadend = () => setVideo({ url: r.result as string });
+                r.onloadend = () => setVideo({ url: r.result as string, file });
                 r.readAsDataURL(file); return;
             }
             if (video || images.length >= 4) return;

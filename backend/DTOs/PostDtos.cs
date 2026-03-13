@@ -90,6 +90,7 @@ public class CreatePostRequest
     public Guid? ReplyToPostId { get; set; }
     public Guid? RootPostId { get; set; }
     public Guid? QuotePostId { get; set; }
+    public List<Guid>? ExistingMediaIdsToKeep { get; set; }
 
     // Direct URLs for XRPC/AT Protocol compatibility where media is already uploaded as blobs
     public List<string>? PreUploadedImageUrls { get; set; }

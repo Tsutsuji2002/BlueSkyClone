@@ -69,7 +69,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
 
     const handleCardClick = () => {
-        navigate(`/profile/${post.author.handle}/post/${post.uri!.split('/').pop()}`);
+        navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}`);
     };
 
     // handleBookmark removed as not supported by standard BSky lexicons yet
@@ -85,7 +85,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             id: 'copy-link',
             label: t('post.copy_link'),
             icon: <FiLink />,
-            onClick: () => handleCopyLink(post.author.handle, post.uri!.split('/').pop() || ''),
+            onClick: () => handleCopyLink(post.author.handle, post.tid || post.id),
         },
         {
             id: 'send-message',
@@ -97,7 +97,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             id: 'embed',
             label: t('post.embed_post'),
             icon: <FiCode />,
-            onClick: () => handleEmbedPost(post.author.handle, post.uri!.split('/').pop() || '', post.content),
+            onClick: () => handleEmbedPost(post.author.handle, post.tid || post.id, post.content),
         },
     ];
 
@@ -120,7 +120,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             id: 'copy-link',
             label: t('post.copy_link'),
             icon: <FiLink />,
-            onClick: () => handleCopyLink(post.author.handle, post.uri?.split('/').pop() || post.id),
+            onClick: () => handleCopyLink(post.author.handle, post.tid || post.id),
         },
         ...(onRemoveFromList ? [
             { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
@@ -405,9 +405,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                 video={post.video}
                                 videoUrl={post.videoUrl}
                                 onImageClick={(index: number) => {
-                                    if (!post.uri) return;
-                                    const postShortId = post.uri.split('/').pop() || '';
-                                    navigate(`/profile/${post.author.handle}/post/${postShortId}/media/${index}`);
+                                    navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/media/${index}`);
                                 }}
                             />
                         </div>

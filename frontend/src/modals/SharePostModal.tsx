@@ -50,7 +50,7 @@ const SharePostModal: React.FC = () => {
 
         setIsSending(true);
         try {
-            const postUrl = `${window.location.origin}/profile/${post.author.handle}/post/${post.uri?.split('/').pop() || post.id}`;
+            const postUrl = `${window.location.origin}/profile/${post.author.handle}/post/${post.tid || post.id}`;
             const fullMessage = message ? `${message}\n${postUrl}` : postUrl;
 
             await signalrService.sendMessage(selectedConversationId, fullMessage);

@@ -171,6 +171,7 @@ export interface Post {
     repostedBy?: Partial<User>;
     lastUpdated?: string; // ISO string for local cross-event ordering
     uri?: string;
+    tid?: string;
     cid?: string;
     viewer?: {
         like?: string;
@@ -205,6 +206,7 @@ export interface Notification {
     content?: string;
     title?: string;
     postId?: string; // Tail of URI for subject
+    tid?: string; // TID for subject
     postAuthorHandle?: string;
     subjectUri?: string;
     listId?: string; // For list invitations

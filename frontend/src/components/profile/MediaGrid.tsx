@@ -67,7 +67,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ posts }) => {
             {allMedia.map((media, index) => (
                 <Link
                     key={`${media.post.id}-${media.mediaIndex}-${index}`}
-                    to={`/profile/${media.post.author.handle}/post/${media.post.uri?.split('/').pop() || media.post.id}/media/${media.mediaIndex}`}
+                    to={`/profile/${media.post.author.handle}/post/${media.post.tid || media.post.id}/media/${media.mediaIndex}`}
                     className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-dark-surface group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset block"
                 >
                     {media.type === 'video' ? (

@@ -19,8 +19,9 @@ public class PostService : IPostService
     private readonly ICacheService _cacheService;
     private readonly ICategorizationService _categorizationService;
     private readonly ISearchService _searchService;
+    private readonly IRepoManager _repoManager;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -30,6 +31,7 @@ public class PostService : IPostService
         _cacheService = cacheService;
         _categorizationService = categorizationService;
         _searchService = searchService;
+        _repoManager = repoManager;
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)
@@ -717,6 +719,28 @@ public class PostService : IPostService
 
         await _unitOfWork.CompleteAsync();
 
+        // --- Phase 3: Repo Signing ---
+        try
+        {
+            var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
+            {
+                var postRecord = new Dictionary<string, object>
+                {
+                    { "$type", "app.bsky.feed.post" },
+                    { "text", post.Content ?? "" },
+                    { "createdAt", post.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                };
+                var cid = await _repoManager.CreateRecordAsync(authorUser.Did, "app.bsky.feed.post", postRecord);
+                await _repoManager.SignRepoAsync(authorUser.Did, cid);
+                Console.WriteLine($"[CreatePostAsync] Repo updated and signed for User {userId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CreatePostAsync] Phase 3 Error: {ex.Message}");
+        }
+
         // Detect Mentions
         var mentions = Regex.Matches(request.Content ?? "", @"@(\w+)")
             .Cast<Match>()
@@ -845,13 +869,23 @@ public class PostService : IPostService
                 return null;
             }
 
-            // Update fields
+            // Update basic fields
             post.Content = request.Content;
             post.Language = request.Language ?? post.Language;
             post.ReplyRestriction = request.ReplyRestriction ?? post.ReplyRestriction;
             post.AllowQuotes = request.AllowQuotes ?? post.AllowQuotes;
 
-            // Update GifUrl
+            // --- Media Management ---
+            var mediaToRemove = post.PostMedia
+                .Where(m => request.ExistingMediaIdsToKeep == null || !request.ExistingMediaIdsToKeep.Contains(m.Id))
+                .ToList();
+
+            foreach (var m in mediaToRemove)
+            {
+                post.PostMedia.Remove(m);
+            }
+
+            // Handle GifUrl
             if (!string.IsNullOrEmpty(request.GifUrl))
             {
                 var existingGif = post.PostMedia.FirstOrDefault(m => m.Type == "gif");
@@ -880,47 +914,65 @@ public class PostService : IPostService
                }
             }
 
-            // Update AltTexts for existing media if provided
-            if (request.AltTexts != null && post.PostMedia != null)
+            // Handle Video
+            if (request.Video != null)
             {
-                var existingMedia = post.PostMedia.OrderBy(m => m.Position ?? 0).ToList();
-                int existingCount = existingMedia.Count;
-                
-                for (int i = 0; i < existingCount && i < request.AltTexts.Count; i++)
+                var videoPath = await SaveFileAsync(request.Video, "posts");
+                var existingVideo = post.PostMedia.FirstOrDefault(m => m.Type == "video");
+                if (existingVideo != null)
                 {
-                    existingMedia[i].AltText = request.AltTexts[i];
+                    existingVideo.Url = videoPath;
                 }
-
-                // Handle New Images if any
-                if (request.Images != null && request.Images.Any())
+                else
                 {
-                    for (int i = 0; i < request.Images.Count; i++)
+                    post.PostMedia.Add(new PostMedium
                     {
-                        var file = request.Images[i];
-                        var altText = (existingCount + i) < request.AltTexts.Count ? request.AltTexts[existingCount + i] : null;
-                        var imagePath = await SaveFileAsync(file, "posts");
-                        post.PostMedia.Add(new PostMedium
-                        {
-                            Id = Guid.NewGuid(),
-                            PostId = post.Id,
-                            Type = "image",
-                            Url = imagePath,
-                            AltText = altText,
-                            Position = existingCount + i,
-                            CreatedAt = DateTime.UtcNow
-                        });
-                    }
+                        Id = Guid.NewGuid(),
+                        PostId = post.Id,
+                        Type = "video",
+                        Url = videoPath,
+                        CreatedAt = DateTime.UtcNow
+                    });
                 }
             }
-            else if (request.Images != null && request.Images.Any())
+            else if (!string.IsNullOrEmpty(request.PreUploadedVideoUrl))
             {
-                // This case handles adding images to a post that had none
+                var existingVideo = post.PostMedia.FirstOrDefault(m => m.Type == "video");
+                if (existingVideo != null)
+                {
+                    existingVideo.Url = request.PreUploadedVideoUrl;
+                }
+                else
+                {
+                    post.PostMedia.Add(new PostMedium
+                    {
+                        Id = Guid.NewGuid(),
+                        PostId = post.Id,
+                        Type = "video",
+                        Url = request.PreUploadedVideoUrl,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+            else if (request.ExistingMediaIdsToKeep != null && !request.ExistingMediaIdsToKeep.Any(id => post.PostMedia.Any(m => m.Id == id && m.Type == "video")))
+            {
+                // If it was a video post and now video is removed
+                var v = post.PostMedia.FirstOrDefault(m => m.Type == "video");
+                if (v != null && (request.ExistingMediaIdsToKeep == null || !request.ExistingMediaIdsToKeep.Contains(v.Id)))
+                {
+                    post.PostMedia.Remove(v);
+                }
+            }
+
+            // Handle New Images
+            if (request.Images != null && request.Images.Any())
+            {
+                int currentMaxPos = post.PostMedia.Where(m => m.Position != null).Select(m => m.Position.Value).DefaultIfEmpty(-1).Max();
                 for (int i = 0; i < request.Images.Count; i++)
                 {
                     var file = request.Images[i];
                     var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
                     var imagePath = await SaveFileAsync(file, "posts");
-                    post.PostMedia ??= new List<PostMedium>();
                     post.PostMedia.Add(new PostMedium
                     {
                         Id = Guid.NewGuid(),
@@ -928,13 +980,25 @@ public class PostService : IPostService
                         Type = "image",
                         Url = imagePath,
                         AltText = altText,
-                        Position = i,
+                        Position = currentMaxPos + 1 + i,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
             }
 
-            // Handle Link Preview - Safer update logic
+            // Update AltTexts for existing images
+            if (request.AltTexts != null && request.ExistingMediaIdsToKeep != null)
+            {
+                 // Logic to map AltTexts to correct existing media would be complex without index alignment in request
+                 // But typically the frontend should send them in order
+                 var existingImages = post.PostMedia.Where(m => m.Type == "image").OrderBy(m => m.Position ?? 0).ToList();
+                 for (int i = 0; i < existingImages.Count && i < request.AltTexts.Count; i++)
+                 {
+                     existingImages[i].AltText = request.AltTexts[i];
+                 }
+            }
+
+            // --- Link Preview ---
             if (!string.IsNullOrEmpty(request.LinkPreviewUrl))
             {
                 string domain = request.LinkPreviewDomain ?? "unknown";
@@ -952,7 +1016,6 @@ public class PostService : IPostService
 
                 if (post.LinkPreview != null)
                 {
-                    // Update existing LinkPreview properties
                     post.LinkPreview.Url = request.LinkPreviewUrl;
                     post.LinkPreview.Title = request.LinkPreviewTitle;
                     post.LinkPreview.Description = request.LinkPreviewDescription;
@@ -961,7 +1024,6 @@ public class PostService : IPostService
                 }
                 else
                 {
-                    // Create new LinkPreview
                     post.LinkPreview = new LinkPreview
                     {
                         Id = Guid.NewGuid(),
@@ -977,15 +1039,37 @@ public class PostService : IPostService
             }
             else if (post.LinkPreview != null)
             {
-                // If URL is empty but preview exists, user might have removed it
                 _unitOfWork.LinkPreviews.Remove(post.LinkPreview);
                 post.LinkPreview = null;
             }
 
-            // DO NOT call _unitOfWork.Posts.Update(post) - standard EF change tracking handles it
+            // Save basic DB changes
             await _unitOfWork.CompleteAsync();
-            Console.WriteLine("[UpdatePostAsync] DB changes saved successfully");
-            
+
+            // --- Phase 3: Repo Signing ---
+            try
+            {
+                var author = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (author != null && !string.IsNullOrEmpty(author.Did))
+                {
+                    var postRecord = new Dictionary<string, object>
+                    {
+                        { "$type", "app.bsky.feed.post" },
+                        { "text", post.Content ?? "" },
+                        { "createdAt", post.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                    };
+                    // Simplified: just text for now, full AT records would include facets/embeds
+                    var cid = await _repoManager.CreateRecordAsync(author.Did, "app.bsky.feed.post", postRecord);
+                    await _repoManager.SignRepoAsync(author.Did, cid);
+                    Console.WriteLine($"[UpdatePostAsync] Repo updated and signed for User {userId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UpdatePostAsync] Phase 3 Error: {ex.Message}");
+                // Don't fail the entire request if signing fails, but log it
+            }
+
             // Invalidate caches
             await _cacheService.RemoveAsync($"post:{postId}");
             await _cacheService.RemoveAsync($"user:{userId}:timeline");

@@ -96,7 +96,7 @@ const PostDetailPage: React.FC = () => {
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
-    const post = posts.find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId));
+    const post = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId));
 
     // Helper to sort a list of posts by current sortOrder
     const sortPosts = React.useCallback((arr: Post[]) => {
@@ -122,7 +122,7 @@ const PostDetailPage: React.FC = () => {
         let current: Post | undefined = post;
         while (current?.replyToPostId) {
             const replyToId: string = current.replyToPostId!;
-            const found: Post | undefined = posts.find((p: Post) => p.id === replyToId || p.uri?.endsWith('/' + replyToId));
+            const found: Post | undefined = posts.find((p: Post) => p.id === replyToId || p.tid === replyToId || p.uri?.endsWith('/' + replyToId));
             if (found) {
                 list.unshift(found);
                 current = found;
@@ -152,7 +152,7 @@ const PostDetailPage: React.FC = () => {
     const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
     React.useEffect(() => {
         if (oldestKnown?.replyToPostId) {
-            const hasParent = posts.some(p => p.id === oldestKnown?.replyToPostId);
+            const hasParent = posts.some(p => p.id === oldestKnown?.replyToPostId || p.tid === oldestKnown?.replyToPostId);
             if (!hasParent) {
                 dispatch(fetchPostById(oldestKnown.replyToPostId));
             }
@@ -249,7 +249,7 @@ const PostDetailPage: React.FC = () => {
             id: 'copy-link',
             label: t('post.copy_link'),
             icon: <FiLink />,
-            onClick: () => handleCopyLink(post.author.handle, post.uri?.split('/').pop() || post.id),
+            onClick: () => handleCopyLink(post.author.handle, post.tid || post.id),
         },
         {
             id: 'send-message',
@@ -261,7 +261,7 @@ const PostDetailPage: React.FC = () => {
             id: 'copy-link', // duplicate ID intentionally handled
             label: t('post.embed_post'),
             icon: <FiCode />,
-            onClick: () => handleEmbedPost(post.author.handle, post.uri?.split('/').pop() || post.id, post.content),
+            onClick: () => handleEmbedPost(post.author.handle, post.tid || post.id, post.content),
         },
     ];
 
@@ -405,7 +405,7 @@ const PostDetailPage: React.FC = () => {
                     <div
                         key={ancestor.id}
                         className="bg-white dark:bg-dark-bg cursor-pointer"
-                        onClick={() => navigate(`/profile/${ancestor.author.handle}/post/${ancestor.uri?.split('/').pop() || ancestor.id}`)}
+                        onClick={() => navigate(`/profile/${ancestor.author.handle}/post/${ancestor.tid || ancestor.id}`)}
                     >
                         <PostCard
                             post={ancestor}
@@ -485,7 +485,7 @@ const PostDetailPage: React.FC = () => {
                             videoUrl={post.videoUrl}
                             isDetailView={true}
                             onImageClick={(index: number) => {
-                                const currentPostId = post.uri?.split('/').pop() || post.id;
+                                const currentPostId = post.tid || post.id;
                                 navigate(`/profile/${post.author.handle}/post/${currentPostId}/media/${index}`);
                             }}
                         />

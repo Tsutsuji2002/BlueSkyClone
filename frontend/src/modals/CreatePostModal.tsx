@@ -40,7 +40,7 @@ const CreatePostModal: React.FC = () => {
     const isPostLoading = useAppSelector((state) => state.posts.isLoading);
 
     const [content, setContent] = useState('');
-    const [images, setImages] = useState<(PostImage & { file?: File })[]>([]);
+    const [images, setImages] = useState<(PostImage & { file?: File, id?: string })[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]); // Keep for now but we'll use images[].file
     const [video, setVideo] = useState<PostVideo | null>(null);
     const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -82,6 +82,7 @@ const CreatePostModal: React.FC = () => {
                 const loadedImages = postToEdit.media
                     .filter(m => m.type === 'image' || !m.type)
                     .map(m => ({
+                        id: m.id,
                         url: m.url,
                         alt: m.altText || ''
                     }));
@@ -97,7 +98,8 @@ const CreatePostModal: React.FC = () => {
             if (postToEdit.video) {
                 setVideo(postToEdit.video);
             } else if (postToEdit.videoUrl) {
-                setVideo({ url: postToEdit.videoUrl });
+                const videoMedium = postToEdit.media?.find(m => m.type === 'video');
+                setVideo({ id: videoMedium?.id, url: postToEdit.videoUrl });
             }
 
             // Handle GIF
@@ -313,6 +315,12 @@ const CreatePostModal: React.FC = () => {
         try {
             if (isEditing && postToEdit) {
                 const mediaFiles = images.filter(img => img.file).map(img => img.file as File);
+                const existingMediaIdsToKeep = [
+                    ...images.filter(img => !img.file && img.id).map(img => img.id as string),
+                    ...(video?.id ? [video.id] : []),
+                    ...(postToEdit.media?.find(m => m.type === 'gif' && m.url === selectedGifUrl)?.id ? [postToEdit.media.find(m => m.type === 'gif')!.id] : [])
+                ];
+
                 await dispatch(updatePost({
                     id: postToEdit.id,
                     content,
@@ -320,6 +328,7 @@ const CreatePostModal: React.FC = () => {
                     videoFile: videoFile || undefined,
                     linkPreview: linkPreview || undefined,
                     gifUrl: selectedGifUrl || undefined,
+                    existingMediaIdsToKeep: existingMediaIdsToKeep.length > 0 ? existingMediaIdsToKeep : undefined,
                 })).unwrap();
                 dispatch(showToast({ message: t('post.updated_success', 'Post updated successfully'), type: 'success' }));
             } else {
