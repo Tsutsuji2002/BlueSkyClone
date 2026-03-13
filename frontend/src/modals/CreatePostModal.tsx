@@ -96,7 +96,12 @@ const CreatePostModal: React.FC = () => {
             }
 
             if (postToEdit.video) {
-                setVideo(postToEdit.video);
+                setVideo({
+                    id: postToEdit.video.id,
+                    url: postToEdit.video.url,
+                    thumbnail: postToEdit.video.thumbnail,
+                    alt: postToEdit.video.alt
+                });
             } else if (postToEdit.videoUrl) {
                 const videoMedium = postToEdit.media?.find(m => m.type === 'video');
                 setVideo({ id: videoMedium?.id, url: postToEdit.videoUrl });
@@ -315,10 +320,11 @@ const CreatePostModal: React.FC = () => {
         try {
             if (isEditing && postToEdit) {
                 const mediaFiles = images.filter(img => img.file).map(img => img.file as File);
-                const existingMediaIdsToKeep = [
+                const gifMedia = postToEdit.media?.find(m => m.type === 'gif' && m.url === selectedGifUrl);
+                const existingMediaIdsToKeep: string[] = [
                     ...images.filter(img => !img.file && img.id).map(img => img.id as string),
-                    ...(video?.id ? [video.id] : []),
-                    ...(postToEdit.media?.find(m => m.type === 'gif' && m.url === selectedGifUrl)?.id ? [postToEdit.media.find(m => m.type === 'gif')!.id] : [])
+                    ...(video?.id ? [video.id as string] : []),
+                    ...(gifMedia?.id ? [gifMedia.id as string] : [])
                 ];
 
                 await dispatch(updatePost({

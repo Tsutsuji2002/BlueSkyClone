@@ -65,13 +65,16 @@ export const fetchUserPosts = createAsyncThunk(
 
 export const updatePost = createAsyncThunk(
     'posts/updatePost',
-    async ({ id, content, mediaFiles, videoFile, linkPreview, gifUrl }: { id: string; content: string; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string }, { rejectWithValue }) => {
+    async ({ id, content, mediaFiles, videoFile, linkPreview, gifUrl, existingMediaIdsToKeep }: { id: string; content: string; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; existingMediaIdsToKeep?: string[] }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const formData = new FormData();
             formData.append('Content', content);
             if (mediaFiles) {
                 mediaFiles.forEach(f => formData.append('Images', f));
+            }
+            if (existingMediaIdsToKeep && existingMediaIdsToKeep.length > 0) {
+                existingMediaIdsToKeep.forEach(id => formData.append('ExistingMediaIdsToKeep', id));
             }
             if (videoFile) {
                 formData.append('Video', videoFile);

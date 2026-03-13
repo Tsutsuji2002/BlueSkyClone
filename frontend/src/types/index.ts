@@ -114,17 +114,20 @@ export interface LinkPreview {
 }
 
 export interface PostImage {
+    id?: string;
     url: string;
     alt?: string;
 }
 
 export interface PostVideo {
+    id?: string;
     url: string;
     thumbnail?: string;
     alt?: string;
 }
 
 export interface PostMedia {
+    id?: string;
     url: string;
     altText?: string;
     type?: string;
