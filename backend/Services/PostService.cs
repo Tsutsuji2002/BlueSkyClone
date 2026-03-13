@@ -876,92 +876,62 @@ public class PostService : IPostService
             post.AllowQuotes = request.AllowQuotes ?? post.AllowQuotes;
 
             // --- Media Management ---
+            // Consolidate all media items to remove
             var mediaToRemove = post.PostMedia
                 .Where(m => request.ExistingMediaIdsToKeep == null || !request.ExistingMediaIdsToKeep.Contains(m.Id))
                 .ToList();
+
+            // If we are providing a NEW video or GIF, ensure the existing ones are removed even if not explicitly in ExistingMediaIdsToKeep
+            if (request.Video != null || !string.IsNullOrEmpty(request.PreUploadedVideoUrl))
+            {
+                var existingVideo = post.PostMedia.FirstOrDefault(m => m.Type == "video");
+                if (existingVideo != null && !mediaToRemove.Contains(existingVideo)) mediaToRemove.Add(existingVideo);
+            }
+            if (!string.IsNullOrEmpty(request.GifUrl))
+            {
+                var existingGif = post.PostMedia.FirstOrDefault(m => m.Type == "gif");
+                if (existingGif != null && !mediaToRemove.Contains(existingGif)) mediaToRemove.Add(existingGif);
+            }
 
             foreach (var m in mediaToRemove)
             {
                 post.PostMedia.Remove(m);
             }
 
-            // Handle GifUrl
             if (!string.IsNullOrEmpty(request.GifUrl))
             {
-                var existingGif = post.PostMedia.FirstOrDefault(m => m.Type == "gif");
-                if (existingGif != null)
+                post.PostMedia.Add(new PostMedium
                 {
-                    existingGif.Url = request.GifUrl;
-                }
-                else
-                {
-                    post.PostMedia.Add(new PostMedium
-                    {
-                        Id = Guid.NewGuid(),
-                        PostId = post.Id,
-                        Type = "gif",
-                        Url = request.GifUrl,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
-            }
-            else
-            {
-               var existingGif = post.PostMedia.FirstOrDefault(m => m.Type == "gif");
-               if (existingGif != null)
-               {
-                   post.PostMedia.Remove(existingGif);
-               }
+                    Id = Guid.NewGuid(),
+                    PostId = post.Id,
+                    Type = "gif",
+                    Url = request.GifUrl,
+                    CreatedAt = DateTime.UtcNow
+                });
             }
 
-            // Handle Video
             if (request.Video != null)
             {
                 var videoPath = await SaveFileAsync(request.Video, "posts");
-                var existingVideo = post.PostMedia.FirstOrDefault(m => m.Type == "video");
-                if (existingVideo != null)
+                post.PostMedia.Add(new PostMedium
                 {
-                    existingVideo.Url = videoPath;
-                }
-                else
-                {
-                    post.PostMedia.Add(new PostMedium
-                    {
-                        Id = Guid.NewGuid(),
-                        PostId = post.Id,
-                        Type = "video",
-                        Url = videoPath,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
+                    Id = Guid.NewGuid(),
+                    PostId = post.Id,
+                    Type = "video",
+                    Url = videoPath,
+                    CreatedAt = DateTime.UtcNow
+                });
             }
             else if (!string.IsNullOrEmpty(request.PreUploadedVideoUrl))
             {
-                var existingVideo = post.PostMedia.FirstOrDefault(m => m.Type == "video");
-                if (existingVideo != null)
+                post.PostMedia.Add(new PostMedium
                 {
-                    existingVideo.Url = request.PreUploadedVideoUrl;
-                }
-                else
-                {
-                    post.PostMedia.Add(new PostMedium
-                    {
-                        Id = Guid.NewGuid(),
-                        PostId = post.Id,
-                        Type = "video",
-                        Url = request.PreUploadedVideoUrl,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
-            }
-            else if (request.ExistingMediaIdsToKeep != null && !request.ExistingMediaIdsToKeep.Any(id => post.PostMedia.Any(m => m.Id == id && m.Type == "video")))
-            {
-                // If it was a video post and now video is removed
-                var v = post.PostMedia.FirstOrDefault(m => m.Type == "video");
-                if (v != null && (request.ExistingMediaIdsToKeep == null || !request.ExistingMediaIdsToKeep.Contains(v.Id)))
-                {
-                    post.PostMedia.Remove(v);
-                }
+                    Id = Guid.NewGuid(),
+                    PostId = post.Id,
+                    Type = "video",
+                    Url = request.PreUploadedVideoUrl,
+                    CreatedAt = DateTime.UtcNow
+                });
             }
 
             // Handle New Images
@@ -1044,7 +1014,27 @@ public class PostService : IPostService
             }
 
             // Save basic DB changes
-            await _unitOfWork.CompleteAsync();
+            try
+            {
+                await _unitOfWork.CompleteAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                Console.WriteLine($"[UpdatePostAsync] DbUpdateConcurrencyException caught!");
+                foreach (var entry in ex.Entries)
+                {
+                    var databaseValues = await entry.GetDatabaseValuesAsync();
+                    if (databaseValues == null)
+                    {
+                        Console.WriteLine($"[UpdatePostAsync] Concurrency error: Entity {entry.Entity.GetType().Name} was deleted in the database.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[UpdatePostAsync] Concurrency error: Entity {entry.Entity.GetType().Name} modified. Current state: {entry.State}");
+                    }
+                }
+                throw; // Re-throw to inform the controller
+            }
 
             // --- Phase 3: Repo Signing ---
             try
@@ -1820,6 +1810,7 @@ public class PostService : IPostService
             ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
             Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
             {
+                Id = m.Id,
                 Url = m.Url,
                 AltText = m.AltText,
                 Type = m.Type

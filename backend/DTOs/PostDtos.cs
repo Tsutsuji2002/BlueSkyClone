@@ -46,6 +46,7 @@ public class PostDto
 
 public class MediaDto
 {
+    public Guid Id { get; set; }
     public string Url { get; set; } = null!;
     public string? AltText { get; set; }
     public string? Type { get; set; } // "image", "video"
