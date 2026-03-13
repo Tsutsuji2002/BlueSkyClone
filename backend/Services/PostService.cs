@@ -859,6 +859,8 @@ public class PostService : IPostService
                 .Include(p => p.Interests)
                 .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
 
+            Console.WriteLine($"[UpdatePostAsync] Request Info - Content: {request.Content?.Length ?? 0} chars, Images: {request.Images?.Count ?? 0}, Video: {request.Video != null}, GifUrl: {request.GifUrl}, ExistingMediaIdsToKeep: {request.ExistingMediaIdsToKeep?.Count ?? 0}");
+
             if (post == null)
             {
                 Console.WriteLine($"[UpdatePostAsync] Post {postId} not found");
@@ -879,8 +881,10 @@ public class PostService : IPostService
             // --- Media Management ---
             // Consolidate all media items to remove
             var mediaToRemove = post.PostMedia
-                .Where(m => request.ExistingMediaIdsToKeep == null || !request.ExistingMediaIdsToKeep.Contains(m.Id))
+                .Where(m => request.ExistingMediaIdsToKeep != null && !request.ExistingMediaIdsToKeep.Contains(m.Id))
                 .ToList();
+
+            Console.WriteLine($"[UpdatePostAsync] Post has {post.PostMedia.Count} existing media. mediaToRemove count: {mediaToRemove.Count}");
 
             // If we are providing a NEW video or GIF, ensure the existing ones are removed even if not explicitly in ExistingMediaIdsToKeep
             if (request.Video != null || !string.IsNullOrEmpty(request.PreUploadedVideoUrl))
@@ -905,50 +909,64 @@ public class PostService : IPostService
 
             if (!string.IsNullOrEmpty(request.GifUrl))
             {
-                post.PostMedia.Add(new PostMedium
+                // Only add if it's a NEW GIF (not already in post.PostMedia)
+                if (!post.PostMedia.Any(m => m.Type == "gif" && m.Url == request.GifUrl))
                 {
-                    Id = Guid.NewGuid(),
-                    PostId = post.Id,
-                    Type = "gif",
-                    Url = request.GifUrl,
-                    CreatedAt = DateTime.UtcNow
-                });
+                    var gifMedia = new PostMedium
+                    {
+                        Id = Guid.NewGuid(),
+                        PostId = post.Id,
+                        Type = "gif",
+                        Url = request.GifUrl,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _unitOfWork.PostMedia.AddAsync(gifMedia);
+                    post.PostMedia.Add(gifMedia);
+                    Console.WriteLine($"[UpdatePostAsync] Added new GIF record: {request.GifUrl}");
+                }
             }
 
             if (request.Video != null)
             {
                 var videoPath = await SaveFileAsync(request.Video, "posts");
-                post.PostMedia.Add(new PostMedium
+                var videoMedia = new PostMedium
                 {
                     Id = Guid.NewGuid(),
                     PostId = post.Id,
                     Type = "video",
                     Url = videoPath,
                     CreatedAt = DateTime.UtcNow
-                });
+                };
+                await _unitOfWork.PostMedia.AddAsync(videoMedia);
+                post.PostMedia.Add(videoMedia);
+                Console.WriteLine($"[UpdatePostAsync] Added new video: {videoPath}");
             }
             else if (!string.IsNullOrEmpty(request.PreUploadedVideoUrl))
             {
-                post.PostMedia.Add(new PostMedium
+                var videoMedia = new PostMedium
                 {
                     Id = Guid.NewGuid(),
                     PostId = post.Id,
                     Type = "video",
                     Url = request.PreUploadedVideoUrl,
                     CreatedAt = DateTime.UtcNow
-                });
+                };
+                await _unitOfWork.PostMedia.AddAsync(videoMedia);
+                post.PostMedia.Add(videoMedia);
+                Console.WriteLine($"[UpdatePostAsync] Added pre-uploaded video: {request.PreUploadedVideoUrl}");
             }
 
             // Handle New Images
             if (request.Images != null && request.Images.Any())
             {
+                Console.WriteLine($"[UpdatePostAsync] Processing {request.Images.Count} new images");
                 int currentMaxPos = post.PostMedia.Where(m => m.Position != null).Select(m => m.Position.Value).DefaultIfEmpty(-1).Max();
                 for (int i = 0; i < request.Images.Count; i++)
                 {
                     var file = request.Images[i];
                     var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
                     var imagePath = await SaveFileAsync(file, "posts");
-                    post.PostMedia.Add(new PostMedium
+                    var imageMedia = new PostMedium
                     {
                         Id = Guid.NewGuid(),
                         PostId = post.Id,
@@ -957,7 +975,10 @@ public class PostService : IPostService
                         AltText = altText,
                         Position = currentMaxPos + 1 + i,
                         CreatedAt = DateTime.UtcNow
-                    });
+                    };
+                    await _unitOfWork.PostMedia.AddAsync(imageMedia);
+                    post.PostMedia.Add(imageMedia);
+                    Console.WriteLine($"[UpdatePostAsync] Added new image {i}: {imagePath}");
                 }
             }
 
@@ -1105,8 +1126,9 @@ public class PostService : IPostService
             await _cacheService.RemoveAsync($"post:{postId}");
             await _cacheService.RemoveAsync($"user:{userId}:timeline");
             
-            // Re-fetch for DTO mapping
+            // Re-fetch for DTO mapping - USE AS NO TRACKING to get clean DB state
             var savedPost = await _unitOfWork.Posts.Query()
+                .AsNoTracking()
                 .Include(p => p.Author)
                 .Include(p => p.PostMedia)
                 .Include(p => p.LinkPreview)
@@ -1118,6 +1140,8 @@ public class PostService : IPostService
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                 .AsSplitQuery()
                 .FirstOrDefaultAsync(p => p.Id == postId);
+
+            Console.WriteLine($"[UpdatePostAsync] Final re-fetch media count: {savedPost?.PostMedia.Count ?? 0}");
                 
             if (savedPost == null)
             {
