@@ -22,8 +22,8 @@ public class ListsController : ControllerBase
 
     private Guid GetUserId()
     {
-        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-        if (idClaim != null && Guid.TryParse(idClaim.Value, out Guid userId))
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (userIdStr != null && Guid.TryParse(userIdStr, out Guid userId))
         {
             return userId;
         }
@@ -122,9 +122,16 @@ public class ListsController : ControllerBase
     [HttpGet("{id}/feed")]
     public async Task<IActionResult> GetListFeed(Guid id, [FromQuery] int limit = 50, [FromQuery] int offset = 0)
     {
-        var userId = GetUserId();
-        var posts = await _listService.GetListFeedAsync(userId, id, limit, offset);
-        return Ok(posts);
+        try
+        {
+            var userId = GetUserId();
+            var posts = await _listService.GetListFeedAsync(userId, id, limit, offset);
+            return Ok(posts);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "InternalError", message = ex.Message });
+        }
     }
 
     [HttpGet("{id}/members")]
@@ -137,9 +144,16 @@ public class ListsController : ControllerBase
     [HttpGet("{id}/candidates")]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetCandidateMembers(Guid id, [FromQuery] string? q)
     {
-        var userId = GetUserId(); // Retained original GetUserId() call
-        var candidates = await _listService.GetCandidateMembersAsync(id, userId, q);
-        return Ok(candidates);
+        try
+        {
+            var userId = GetUserId();
+            var candidates = await _listService.GetCandidateMembersAsync(id, userId, q);
+            return Ok(candidates);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "InternalError", message = ex.Message });
+        }
     }
 
     [HttpGet("{id}/candidate-posts")]

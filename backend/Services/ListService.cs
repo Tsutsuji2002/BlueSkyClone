@@ -360,38 +360,56 @@ public class ListService : IListService
 
     public async Task<IEnumerable<PostDto>> GetListFeedAsync(Guid userId, Guid listId, int limit = 50, int offset = 0)
     {
-        var list = await _unitOfWork.Lists.GetByIdAsync(listId);
-        if (list == null) return new List<PostDto>();
+        try
+        {
+            var list = await _unitOfWork.Lists.GetByIdAsync(listId);
+            if (list == null) return new List<PostDto>();
 
-        var listPosts = await _unitOfWork.ListPosts.Query()
-            .AsNoTracking()
-            .Include(lp => lp.Post).ThenInclude(p => p.Author)
-            .Include(lp => lp.Post).ThenInclude(p => p.PostMedia)
-            .Include(lp => lp.Post).ThenInclude(p => p.LinkPreview)
-            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
-            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
-            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
-            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.Author)
-            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
-            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-            .Where(lp => lp.ListId == listId)
-            .OrderByDescending(lp => lp.AddedAt)
-            .Skip(offset)
-            .Take(limit)
-            .ToListAsync();
+            var listPosts = await _unitOfWork.ListPosts.Query()
+                .AsNoTracking()
+                .Include(lp => lp.Post).ThenInclude(p => p.Author)
+                .Include(lp => lp.Post).ThenInclude(p => p.PostMedia)
+                .Include(lp => lp.Post).ThenInclude(p => p.LinkPreview)
+                .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+                .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+                .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+                .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                .Where(lp => lp.ListId == listId)
+                .OrderByDescending(lp => lp.AddedAt)
+                .Skip(offset)
+                .Take(limit)
+                .ToListAsync();
 
-        var curatedDtos = listPosts
-            .Where(lp => lp.Post != null)
-            .Select(lp => {
-                var dto = MapToPostDto(lp.Post);
-                dto.ListCaption = lp.Caption;
-                dto.AddedByUserId = lp.AddedByUserId;
-                return dto;
-            }).ToList();
+            var curatedDtos = new List<PostDto>();
+            foreach(var lp in listPosts)
+            {
+                if (lp.Post == null) continue;
+                try 
+                {
+                    var dto = MapToPostDto(lp.Post);
+                    dto.ListCaption = lp.Caption;
+                    dto.AddedByUserId = lp.AddedByUserId;
+                    curatedDtos.Add(dto);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ListService] Error mapping post {lp.PostId}: {ex.Message}");
+                }
+            }
 
-        
-        await EnrichPostsWithInteractions(curatedDtos, userId);
-        return curatedDtos;
+            if (curatedDtos.Any())
+            {
+                await EnrichPostsWithInteractions(curatedDtos, userId);
+            }
+            return curatedDtos;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ListService] GetListFeedAsync Critical Error: {ex}");
+            return new List<PostDto>();
+        }
     }
 
     // Helper from PostService
@@ -399,31 +417,33 @@ public class ListService : IListService
 
     private PostDto MapToPostDto(Post post, bool includeQuote, bool includeParent)
     {
+        if (post == null) return new PostDto { Author = new AuthorDto { Username = "unknown", Handle = "unknown" } };
+
         return new PostDto
         {
             Id = post.Id,
-            Tid = post.Tid,
+            Tid = post.Tid ?? "",
             Content = post.Content,
             CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : null,
-            Author = post.Author == null ? new AuthorDto { Username = "unknown", Handle = "unknown" } : new AuthorDto
+            Author = post.Author == null ? new AuthorDto { Id = post.AuthorId, Username = "unknown", Handle = "unknown" } : new AuthorDto
             {
                 Id = post.Author.Id,
-                Username = post.Author.Username,
-                Handle = post.Author.Handle,
+                Username = post.Author.Username ?? "unknown",
+                Handle = post.Author.Handle ?? "unknown",
                 DisplayName = post.Author.DisplayName,
                 AvatarUrl = post.Author.AvatarUrl,
                 IsFollowing = false,
                 IsVerified = post.Author.IsVerified,
                 Did = post.Author.Did
             },
-            ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
-            Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
+            ImageUrls = post.PostMedia?.Where(m => m.Type == "image").Select(m => m.Url).ToList() ?? new List<string>(),
+            Media = post.PostMedia?.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
             {
                 Url = m.Url,
                 AltText = m.AltText,
                 Type = m.Type
-            }).ToList(),
-            VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,
+            }).ToList() ?? new List<MediaDto>(),
+            VideoUrl = post.PostMedia?.FirstOrDefault(m => m.Type == "video")?.Url,
             LikesCount = post.LikesCount ?? 0,
             RepostsCount = post.RepostsCount ?? 0,
             RepliesCount = post.RepliesCount ?? 0,
@@ -437,7 +457,7 @@ public class ListService : IListService
             IsReposted = false,
             LinkPreview = post.LinkPreview == null ? null : new LinkPreviewDto
             {
-                Url = post.LinkPreview.Url,
+                Url = post.LinkPreview.Url ?? "",
                 Title = post.LinkPreview.Title,
                 Description = post.LinkPreview.Description,
                 Image = post.LinkPreview.Image,
@@ -447,7 +467,11 @@ public class ListService : IListService
             QuotePost = (includeQuote && post.QuotePost != null) ? MapToPostDto(post.QuotePost, false, false) : null,
             ParentPost = (includeParent && post.ReplyToPost != null) ? MapToPostDto(post.ReplyToPost, false, false) : null,
             IsDeleted = post.IsDeleted ?? false,
-            CanReply = true
+            CanReply = true,
+            Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
+                ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}"
+                : $"at://local/app.bsky.feed.post/{post.Id}",
+            Cid = post.Id.ToString()
         };
     }
 
@@ -533,67 +557,79 @@ public class ListService : IListService
 
     public async Task<IEnumerable<UserDto>> GetCandidateMembersAsync(Guid listId, Guid userId, string? query)
     {
-        // Get existing members safely handling potential duplicates or orphaned entries
-        var membersList = await _unitOfWork.ListMembers.Query()
-            .AsNoTracking()
-            .Where(lm => lm.ListId == listId)
-            .ToListAsync();
-
-        var existingMembers = membersList
-            .GroupBy(lm => lm.UserId)
-            .ToDictionary(g => g.Key, g => g.First().Status);
-
-        List<User> users;
-
-        if (string.IsNullOrWhiteSpace(query))
+        try
         {
-            // Get follows
-            var allFollows = await _unitOfWork.Follows.GetFollowingAsync(userId);
-            users = allFollows
-                .Where(f => f.Following != null)
-                .OrderByDescending(f => f.CreatedAt)
-                .Take(20)
-                .Select(f => f.Following)
-                .ToList();
-        }
-        else
-        {
-            // Search
-            query = query.ToLower();
-            users = await _unitOfWork.Users.Query()
-                .Where(u => u.Id != userId && 
-                           (u.Username.ToLower().Contains(query) || 
-                            (u.DisplayName != null && u.DisplayName.ToLower().Contains(query)) ||
-                            u.Handle.ToLower().Contains(query)))
-                .Take(20)
+            // Get existing members safely handling potential duplicates or orphaned entries
+            var membersList = await _unitOfWork.ListMembers.Query()
+                .AsNoTracking()
+                .Where(lm => lm.ListId == listId)
                 .ToListAsync();
+
+            var existingMembers = membersList
+                .GroupBy(lm => lm.UserId)
+                .ToDictionary(g => g.Key, g => g.First().Status);
+
+            List<User> users;
+
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                // Get follows
+                var allFollows = await _unitOfWork.Follows.GetFollowingAsync(userId);
+                users = allFollows
+                    .Where(f => f.Following != null)
+                    .OrderByDescending(f => f.CreatedAt)
+                    .Take(20)
+                    .Select(f => f.Following)
+                    .ToList();
+            }
+            else
+            {
+                // Search
+                var lowerQuery = query.ToLower();
+                users = await _unitOfWork.Users.Query()
+                    .Where(u => u.Id != userId && 
+                               ((u.Username != null && u.Username.ToLower().Contains(lowerQuery)) || 
+                                (u.DisplayName != null && u.DisplayName.ToLower().Contains(lowerQuery)) ||
+                                (u.Handle != null && u.Handle.ToLower().Contains(lowerQuery))))
+                    .Take(20)
+                    .ToListAsync();
+            }
+
+            // Map to DTO with status
+            var result = new List<UserDto>();
+            foreach (var user in users)
+            {
+                if (user == null) continue;
+                int? status = existingMembers.ContainsKey(user.Id) ? existingMembers[user.Id] : null;
+
+                result.Add(new UserDto(
+                    user.Id,
+                    user.Username ?? "unknown",
+                    user.Handle ?? "unknown",
+                    user.Email ?? "unknown",
+                    user.DisplayName,
+                    user.AvatarUrl,
+                    user.CoverImageUrl,
+                    user.Bio,
+                    user.Location,
+                    user.Website,
+                    user.DateOfBirth,
+                    user.FollowersCount,
+                    user.FollowingCount,
+                    user.PostsCount,
+                    user.Role ?? "user",
+                    status,
+                    user.IsVerified,
+                    user.Did
+                ));
+            }
+            return result;
         }
-
-        // Map to DTO with status
-        return users.Select(user => {
-            int? status = existingMembers.ContainsKey(user.Id) ? existingMembers[user.Id] : null;
-
-            return new UserDto(
-                user.Id,
-                user.Username,
-                user.Handle,
-                user.Email,
-                user.DisplayName,
-                user.AvatarUrl,
-                user.CoverImageUrl,
-                user.Bio,
-                user.Location,
-                user.Website,
-                user.DateOfBirth,
-                user.FollowersCount,
-                user.FollowingCount,
-                user.PostsCount,
-                user.Role,
-                status, // New field: ListMembershipStatus
-                user.IsVerified,
-                user.Did
-            );
-        });
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ListService] GetCandidateMembersAsync Critical Error: {ex}");
+            return new List<UserDto>();
+        }
     }
 
     public async Task<bool> AddPostAsync(Guid userId, Guid listId, Guid postId, string? caption = null)
