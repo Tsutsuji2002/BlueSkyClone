@@ -39,11 +39,20 @@ const MediaViewerPage: React.FC = () => {
 
     const allPosts = useAppSelector((state: RootState) => state.posts.posts);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
-    const currentPost = useMemo(() => allPosts.find((p: Post) => p.id === postId), [allPosts, postId]);
+    const currentPost = useMemo(() => 
+        allPosts.find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId)), 
+        [allPosts, postId]
+    );
 
     // Media posts for swiping across feed
-    const mediaPosts = useMemo(() => allPosts.filter((p: Post) => (p.media && p.media.length > 0) || (p.imageUrls && p.imageUrls.length > 0) || p.videoUrl), [allPosts]);
-    const currentPostIdx = useMemo(() => mediaPosts.findIndex((p: Post) => p.id === postId), [mediaPosts, postId]);
+    const mediaPosts = useMemo(() => 
+        allPosts.filter((p: Post) => (p.media && p.media.length > 0) || (p.imageUrls && p.imageUrls.length > 0) || p.videoUrl), 
+        [allPosts]
+    );
+    const currentPostIdx = useMemo(() => 
+        mediaPosts.findIndex((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId)), 
+        [mediaPosts, postId]
+    );
 
     useEffect(() => {
         if (indexParam) {
@@ -88,21 +97,27 @@ const MediaViewerPage: React.FC = () => {
 
     // Navigation
     const handlePrevMedia = () => {
+        if (!currentPost) return;
+        const currentPostId = currentPost.uri?.split('/').pop() || currentPost.id;
         if (currentIndex > 0) {
-            navigate(`/profile/${currentPost.author.handle}/post/${currentPost.id}/media/${currentIndex - 1}`, { replace: true });
+            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${currentIndex - 1}`, { replace: true });
         } else if (currentPostIdx > 0) {
             const prevPost = mediaPosts[currentPostIdx - 1];
+            const prevPostId = prevPost.uri?.split('/').pop() || prevPost.id;
             const prevMediaCount = (prevPost.media?.length || prevPost.imageUrls?.length || 0) + (prevPost.videoUrl ? 1 : 0);
-            navigate(`/profile/${prevPost.author.handle}/post/${prevPost.id}/media/${prevMediaCount - 1}`, { replace: true });
+            navigate(`/profile/${prevPost.author.handle}/post/${prevPostId}/media/${prevMediaCount - 1}`, { replace: true });
         }
     };
 
     const handleNextMedia = () => {
+        if (!currentPost) return;
+        const currentPostId = currentPost.uri?.split('/').pop() || currentPost.id;
         if (currentIndex < allMedia.length - 1) {
-            navigate(`/profile/${currentPost.author.handle}/post/${currentPost.id}/media/${currentIndex + 1}`, { replace: true });
+            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${currentIndex + 1}`, { replace: true });
         } else if (currentPostIdx < mediaPosts.length - 1) {
             const nextPost = mediaPosts[currentPostIdx + 1];
-            navigate(`/profile/${nextPost.author.handle}/post/${nextPost.id}/media/0`, { replace: true });
+            const nextPostId = nextPost.uri?.split('/').pop() || nextPost.id;
+            navigate(`/profile/${nextPost.author.handle}/post/${nextPostId}/media/0`, { replace: true });
         }
     };
 
@@ -136,7 +151,8 @@ const MediaViewerPage: React.FC = () => {
 
     const handleComment = (e: React.MouseEvent) => {
         e.stopPropagation();
-        navigate(`/profile/${currentPost.author.handle}/post/${currentPost.id}`, { replace: true });
+        const currentPostId = currentPost.uri?.split('/').pop() || currentPost.id;
+        navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}`, { replace: true });
         setTimeout(() => dispatch(openReply(currentPost)), 150);
     };
 
@@ -305,7 +321,13 @@ const MediaViewerPage: React.FC = () => {
                 </div>
 
                 <div className="p-4 border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-surface/10">
-                    <button onClick={() => navigate(`/profile/${currentPost.author.handle}/post/${currentPost.id}`)} className="w-full py-3.5 text-center text-primary-500 font-bold hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full border border-primary-200 dark:border-primary-800 text-[16px]">
+                    <button 
+                        onClick={() => {
+                            const currentPostId = currentPost.uri?.split('/').pop() || currentPost.id;
+                            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}`);
+                        }} 
+                        className="w-full py-3.5 text-center text-primary-500 font-bold hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full border border-primary-200 dark:border-primary-800 text-[16px]"
+                    >
                         {t('post.view_full_post')}
                     </button>
                 </div>
@@ -316,7 +338,14 @@ const MediaViewerPage: React.FC = () => {
                 <div className="fixed inset-0 z-[200] bg-black/70 flex items-end animate-in fade-in duration-200" onClick={() => setShowOptionsMenu(false)}>
                     <div className="w-full bg-white dark:bg-dark-bg rounded-t-[32px] p-6 pb-12 animate-in slide-in-from-bottom duration-300 shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="w-12 h-1.5 bg-gray-200 dark:bg-dark-border rounded-full mx-auto mb-10" />
-                        <button onClick={() => { navigate(`/profile/${currentPost.author.handle}/post/${currentPost.id}`); setShowOptionsMenu(false); }} className="w-full text-left py-5 px-6 text-[19px] font-bold text-gray-900 dark:text-dark-text border-b border-gray-50 dark:border-dark-border">
+                        <button 
+                            onClick={() => { 
+                                const currentPostId = currentPost.uri?.split('/').pop() || currentPost.id;
+                                navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}`); 
+                                setShowOptionsMenu(false); 
+                            }} 
+                            className="w-full text-left py-5 px-6 text-[19px] font-bold text-gray-900 dark:text-dark-text border-b border-gray-50 dark:border-dark-border"
+                        >
                             {i18n.language === 'vi' ? 'Xem bài đăng' : 'View post'}
                         </button>
                         <button onClick={() => setShowOptionsMenu(false)} className="w-full py-5 mt-6 text-[19px] font-bold text-gray-700 dark:text-dark-text-secondary bg-gray-100 dark:bg-dark-surface rounded-full">

@@ -120,7 +120,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             id: 'copy-link',
             label: t('post.copy_link'),
             icon: <FiLink />,
-            onClick: () => handleCopyLink(post.author.handle, post.id),
+            onClick: () => handleCopyLink(post.author.handle, post.uri?.split('/').pop() || post.id),
         },
         ...(onRemoveFromList ? [
             { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
