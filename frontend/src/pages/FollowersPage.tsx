@@ -7,7 +7,7 @@ import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchFollowers, fetchUserProfileById, followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
+import { fetchFollowers, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
 
