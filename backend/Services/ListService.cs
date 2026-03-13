@@ -51,6 +51,7 @@ public class ListService : IListService
         var result = new List<ListDto>();
         foreach (var list in lists)
         {
+            if (list == null) continue;
             result.Add(await MapToListDto(list, userId));
         }
         return result;
@@ -67,6 +68,7 @@ public class ListService : IListService
         var result = new List<ListDto>();
         foreach (var list in lists)
         {
+            if (list == null) continue;
             result.Add(await MapToListDto(list, viewerId));
         }
         return result;
@@ -362,6 +364,7 @@ public class ListService : IListService
         if (list == null) return new List<PostDto>();
 
         var listPosts = await _unitOfWork.ListPosts.Query()
+            .AsNoTracking()
             .Include(lp => lp.Post).ThenInclude(p => p.Author)
             .Include(lp => lp.Post).ThenInclude(p => p.PostMedia)
             .Include(lp => lp.Post).ThenInclude(p => p.LinkPreview)
@@ -375,17 +378,17 @@ public class ListService : IListService
             .OrderByDescending(lp => lp.AddedAt)
             .Skip(offset)
             .Take(limit)
-            .Select(lp => new { lp.Post, lp.Caption, lp.AddedByUserId })
             .ToListAsync();
 
         var curatedDtos = listPosts
-            .Where(x => x.Post != null)
-            .Select(x => {
-                var dto = MapToPostDto(x.Post);
-                dto.ListCaption = x.Caption;
-                dto.AddedByUserId = x.AddedByUserId;
+            .Where(lp => lp.Post != null)
+            .Select(lp => {
+                var dto = MapToPostDto(lp.Post);
+                dto.ListCaption = lp.Caption;
+                dto.AddedByUserId = lp.AddedByUserId;
                 return dto;
             }).ToList();
+
         
         await EnrichPostsWithInteractions(curatedDtos, userId);
         return curatedDtos;
@@ -502,6 +505,7 @@ public class ListService : IListService
         var result = new List<ListDto>();
         foreach (var list in lists)
         {
+            if (list == null) continue;
             result.Add(await MapToListDto(list, userId));
         }
         return result;
@@ -529,10 +533,15 @@ public class ListService : IListService
 
     public async Task<IEnumerable<UserDto>> GetCandidateMembersAsync(Guid listId, Guid userId, string? query)
     {
-        // Get existing members to check status (including pending and accepted)
-        var existingMembers = await _unitOfWork.ListMembers.Query()
+        // Get existing members safely handling potential duplicates or orphaned entries
+        var membersList = await _unitOfWork.ListMembers.Query()
+            .AsNoTracking()
             .Where(lm => lm.ListId == listId)
-            .ToDictionaryAsync(lm => lm.UserId, lm => lm.Status);
+            .ToListAsync();
+
+        var existingMembers = membersList
+            .GroupBy(lm => lm.UserId)
+            .ToDictionary(g => g.Key, g => g.First().Status);
 
         List<User> users;
 
