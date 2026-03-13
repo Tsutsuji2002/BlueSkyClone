@@ -43,13 +43,24 @@ public class ListService : IListService
 
     public async Task<IEnumerable<ListDto>> GetMyListsAsync(Guid userId)
     {
-        var lists = await _unitOfWork.Lists.Query()
+        var ownedLists = await _unitOfWork.Lists.Query()
             .Where(l => l.OwnerId == userId && l.IsDeleted != true)
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
 
+        // Also include lists the user has subscribed to (followed)
+        var subscribedLists = await _unitOfWork.UserListSubscriptions.Query()
+            .Where(uls => uls.UserId == userId)
+            .Include(uls => uls.List)
+            .ThenInclude(l => l.Owner)
+            .Select(uls => uls.List)
+            .Where(l => l != null && l.OwnerId != userId && l.IsDeleted != true)
+            .ToListAsync();
+
+        var allLists = ownedLists.Concat(subscribedLists).DistinctBy(l => l.Id).OrderByDescending(l => l.CreatedAt).ToList();
+
         var result = new List<ListDto>();
-        foreach (var list in lists)
+        foreach (var list in allLists)
         {
             if (list == null) continue;
             result.Add(await MapToListDto(list, userId));
@@ -365,12 +376,12 @@ public class ListService : IListService
             var list = await _unitOfWork.Lists.GetByIdAsync(listId);
             if (list == null) return new List<PostDto>();
 
-            // 1. Get posts manually added to the list (curated posts)
-            var listPosts = await _unitOfWork.ListPosts.Query()
+            var listPostsQuery = _unitOfWork.ListPosts.Query()
                 .AsNoTracking()
-                .Where(lp => lp.ListId == listId)
-                .Select(lp => lp.PostId)
-                .ToListAsync();
+                .Where(lp => lp.ListId == listId);
+            
+            var listPosts = await listPostsQuery.Select(lp => lp.PostId).ToListAsync();
+            Console.WriteLine($"[ListService] List {listId} has {listPosts.Count} curated posts.");
 
             // 2. Get all approved members of this list
             var memberIds = await _unitOfWork.ListMembers.Query()
@@ -378,6 +389,7 @@ public class ListService : IListService
                 .Where(lm => lm.ListId == listId && lm.Status == 1)
                 .Select(lm => lm.UserId)
                 .ToListAsync();
+            Console.WriteLine($"[ListService] List {listId} has {memberIds.Count} approved members.");
 
             // 3. Aggregate: Curated Posts + All Posts from Members
             var posts = await _unitOfWork.Posts.Query()
@@ -392,6 +404,8 @@ public class ListService : IListService
                 .Skip(offset)
                 .Take(limit)
                 .ToListAsync();
+
+            Console.WriteLine($"[ListService] Found {posts.Count} posts for feed {listId}.");
 
             var dtos = posts.Select(p => MapToPostDto(p)).ToList();
             await EnrichPostsWithInteractions(dtos, userId);

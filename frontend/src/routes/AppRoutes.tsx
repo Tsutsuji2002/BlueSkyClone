@@ -86,9 +86,9 @@ const AppRoutes: React.FC = () => {
                     <Route path="/about/privacy-policy" element={<PrivacyPolicyPage />} />
                     <Route path="/profile" element={<Navigate to={`/profile/${currentUser?.handle || 'unknown'}`} replace />} />
                     <Route path="/profile/:handle" element={<ProfilePage />} />
+                    <Route path="/profile/:handle/followers" element={<FollowersPage />} />
+                    <Route path="/profile/:handle/following" element={<FollowingPage />} />
                     <Route path="/profile/user/:userId" element={<SampleProfilePage />} />
-                    <Route path="/profile/user/:userId/followers" element={<FollowersPage />} />
-                    <Route path="/profile/user/:userId/following" element={<FollowingPage />} />
                     <Route path="/notifications" element={<NotificationsPage />} />
                     <Route path="/explore" element={<ExplorePage />} />
                     <Route path="/messages" element={<MessagesPage />} />

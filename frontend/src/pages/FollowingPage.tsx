@@ -12,7 +12,8 @@ import { RootState } from '../redux/store';
 import { User } from '../types';
 
 const FollowingPage: React.FC = () => {
-    const { userId } = useParams<{ userId: string }>();
+    const { userId, handle } = useParams<{ userId?: string; handle?: string }>();
+    const effectiveId = userId || handle;
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
@@ -20,11 +21,22 @@ const FollowingPage: React.FC = () => {
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
 
     useEffect(() => {
-        if (userId) {
-            dispatch(fetchUserProfileById(userId));
-            dispatch(fetchFollowing(userId));
+        if (effectiveId) {
+            if (effectiveId.includes('.')) {
+                // It's a handle
+                dispatch(fetchUserProfile(effectiveId));
+            } else {
+                dispatch(fetchUserProfileById(effectiveId));
+                dispatch(fetchFollowing(effectiveId));
+            }
         }
-    }, [dispatch, userId]);
+    }, [dispatch, effectiveId]);
+
+    useEffect(() => {
+        if (profile?.id && effectiveId?.includes('.')) {
+            dispatch(fetchFollowing(profile.id));
+        }
+    }, [dispatch, profile?.id, effectiveId]);
 
     const profileUser = profile;
     const following = users;
