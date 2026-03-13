@@ -11,6 +11,7 @@ public class UnitOfWork : IUnitOfWork
     private IFeedRepository? _feeds;
     private IFollowRepository? _follows;
     private IUserFeedSubscriptionRepository? _userFeedSubscriptions;
+    private IRepository<PostMedium>? _postMedia;
 
     public UnitOfWork(BSkyDbContext context)
     {
@@ -41,6 +42,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<Hashtag> Hashtags => _hashtags ??= new Repository<Hashtag>(_context);
     public IRepository<MutedWord> MutedWords => _mutedWords ??= new Repository<MutedWord>(_context);
     public IRepository<UserSetting> UserSettings => _userSettings ??= new Repository<UserSetting>(_context);
+    public IRepository<PostMedium> PostMedia => _postMedia ??= new Repository<PostMedium>(_context);
 
     private IBlockRepository? _blocks;
     private IMuteRepository? _mutes;

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using BSkyClone.Hubs;
 using System.Text.RegularExpressions;
+using System.Text;
 using BSkyClone.Utilities;
 
 namespace BSkyClone.Services;
@@ -895,6 +896,7 @@ public class PostService : IPostService
 
             foreach (var m in mediaToRemove)
             {
+                _unitOfWork.PostMedia.Remove(m);
                 post.PostMedia.Remove(m);
             }
 
@@ -1020,20 +1022,22 @@ public class PostService : IPostService
             }
             catch (DbUpdateConcurrencyException ex)
             {
-                Console.WriteLine($"[UpdatePostAsync] DbUpdateConcurrencyException caught!");
+                var sb = new StringBuilder();
+                sb.AppendLine("A concurrency error occurred while updating the post.");
                 foreach (var entry in ex.Entries)
                 {
                     var databaseValues = await entry.GetDatabaseValuesAsync();
                     if (databaseValues == null)
                     {
-                        Console.WriteLine($"[UpdatePostAsync] Concurrency error: Entity {entry.Entity.GetType().Name} was deleted in the database.");
+                        sb.AppendLine($"Entity {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}) was deleted in the database.");
                     }
                     else
                     {
-                        Console.WriteLine($"[UpdatePostAsync] Concurrency error: Entity {entry.Entity.GetType().Name} modified. Current state: {entry.State}");
+                        sb.AppendLine($"Entity {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}) was modified by another user. State: {entry.State}");
                     }
                 }
-                throw; // Re-throw to inform the controller
+                Console.WriteLine($"[UpdatePostAsync] DbUpdateConcurrencyException: {sb}");
+                throw new Exception(sb.ToString(), ex);
             }
 
             // --- Phase 3: Repo Signing ---
