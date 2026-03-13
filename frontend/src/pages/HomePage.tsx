@@ -8,10 +8,11 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts } from '../redux/slices/feedsSlice';
 import { fetchTimeline, fetchTrendingPosts, fetchDiscoverPosts } from '../redux/slices/postsSlice';
+import { fetchPinnedLists, fetchListFeed } from '../redux/slices/listsSlice';
 import { RootState } from '../redux/store';
 import { useNavigate } from 'react-router-dom';
 import { FiHash, FiMenu, FiSettings } from 'react-icons/fi';
-import { Feed as FeedType } from '../types';
+import { Feed as FeedType, ListDto } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import ButterflyLogo from '../components/common/ButterflyLogo';
 
@@ -34,11 +35,16 @@ const HomePage: React.FC = () => {
         lastTimelineFetch,
         lastDiscoverFetch
     } = useAppSelector((state: RootState) => state.posts);
+    
+    // Lists state
+    const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
+    
     const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
 
     useEffect(() => {
         // Fetch feeds first
         dispatch(fetchSubscribedFeeds());
+        dispatch(fetchPinnedLists());
 
         const now = Date.now();
 
@@ -53,6 +59,10 @@ const HomePage: React.FC = () => {
             if (discoverPosts.length === 0 || isStale) {
                 dispatch(fetchDiscoverPosts({ skip: 0 }));
             }
+        } else if (activeTab.startsWith('list:')) {
+            const listId = activeTab.replace('list:', '');
+            // Simple approach for lists: just fetch fresh when switching to it for now
+            dispatch(fetchListFeed(listId));
         } else {
             // Check if it's a custom feed
             const lastFetch = feedLastFetch[activeTab] || 0;
@@ -101,6 +111,9 @@ const HomePage: React.FC = () => {
             if (discoverPosts.length === 0 || isStale) {
                 dispatch(fetchDiscoverPosts({ skip: 0 }));
             }
+        } else if (tabId.startsWith('list:')) {
+            const listId = tabId.replace('list:', '');
+            dispatch(fetchListFeed(listId));
         } else {
             const lastFetch = feedLastFetch[tabId] || 0;
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
@@ -116,25 +129,33 @@ const HomePage: React.FC = () => {
             dispatch(fetchTimeline({ skip: followingPosts.length }));
         } else if (activeTab === 'discover') {
             dispatch(fetchDiscoverPosts({ skip: discoverPosts.length }));
+        } else if (activeTab.startsWith('list:')) {
+            const listId = activeTab.replace('list:', '');
+            // activeListFeed doesn't properly paginate right now in listsSlice, it just fetches all
+            dispatch(fetchListFeed(listId));
         } else {
             const currentFeedPosts = feedPosts[activeTab] || [];
             dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: 20 }));
         }
     };
 
-    const pinnedFeeds = subscribedFeeds
+    const pinnedCustomFeeds = subscribedFeeds
         .filter((f: FeedType) => f.handle !== 'following' && f.handle !== 'discover' && f.name !== 'Following' && f.name !== 'Discover' && f.isPinned)
         .sort((a: FeedType, b: FeedType) => (a.pinnedOrder || 0) - (b.pinnedOrder || 0));
 
-    // Display feeds: Following, Discover, then top pinned feeds (up to 5 total)
+    // Display feeds: Following, Discover, then pinned lists, then pinned sub feeds
     const tabs = useMemo(() => [
         { id: 'following', label: t('nav.following') },
         { id: 'discover', label: t('nav.discover') },
-        ...pinnedFeeds.slice(0, 10).map((f: FeedType) => ({
+        ...pinnedLists.map((l: ListDto) => ({
+            id: `list:${l.id}`,
+            label: l.name
+        })),
+        ...pinnedCustomFeeds.slice(0, 10).map((f: FeedType) => ({
             id: f.id,
             label: f.name
         }))
-    ], [pinnedFeeds, t]);
+    ], [pinnedCustomFeeds, pinnedLists, t]);
 
     // Ensure a valid tab is always selected
     useEffect(() => {
@@ -213,7 +234,25 @@ const HomePage: React.FC = () => {
                     <Feed posts={discoverPosts} isLoading={discoverLoading} hasMore={discoverHasMore} onLoadMore={handleLoadMore} />
                 </div>
 
-                {pinnedFeeds.map((feed: FeedType) => (
+                {/* Pinned Lists Panels */}
+                {pinnedLists.map((list: ListDto) => {
+                    const tabId = `list:${list.id}`;
+                    return (
+                        <div key={tabId} style={{ display: activeTab === tabId ? 'block' : 'none' }}>
+                            <Feed
+                                posts={activeListFeed}
+                                isLoading={listsLoading && activeTab === tabId}
+                                hasMore={true} // Simplify list pagination for now
+                                onLoadMore={handleLoadMore}
+                                endMessage={t('lists.feed_end', 'No more posts in this list...')}
+                                emptyMessage={t('lists.feed_empty', 'No posts in this list yet.')}
+                            />
+                        </div>
+                    );
+                })}
+
+                {/* Custom Feeds Panels */}
+                {pinnedCustomFeeds.map((feed: FeedType) => (
                     <div key={feed.id} style={{ display: activeTab === feed.id ? 'block' : 'none' }}>
                         <Feed
                             posts={feedPosts[feed.id] || []}

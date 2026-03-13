@@ -44,7 +44,10 @@ export const fetchNotifications = createAsyncThunk<Notification[], void, { rejec
                     isRead: !!n.isRead,
                     createdAt: n.indexedAt || new Date().toISOString(),
                     record: n.record,
-                    content: n.record?.text || '',
+                    content: n.content || n.record?.text || '',
+                    title: n.title,
+                    listId: n.listId,
+                    invitationStatus: n.invitationStatus,
                     subjectUri: n.reasonSubject,
                     postAuthorHandle: n.postAuthorHandle,
                     postId: n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined

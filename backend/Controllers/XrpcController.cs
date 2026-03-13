@@ -368,6 +368,11 @@ namespace BSkyClone.Controllers
                         PostId = n.PostId,
                         IsRead = n.IsRead,
                         IndexedAt = n.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        // Custom fields for list invitations
+                        ListId = n.ListId,
+                        InvitationStatus = n.InvitationStatus,
+                        Title = n.Title,
+                        Content = n.Content,
                         Record = new Dictionary<string, object>
                         {
                             { "$type", n.Reason?.ToLowerInvariant() == "follow" ? "app.bsky.graph.follow" : "app.bsky.notification.event" },
@@ -377,6 +382,7 @@ namespace BSkyClone.Controllers
                     }).ToList(),
                     Cursor = null
                 };
+
 
                 return Ok(response);
             }

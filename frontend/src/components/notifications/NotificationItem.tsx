@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Notification } from '../../types';
 import Avatar from '../common/Avatar';
 import { formatPostDate } from '../../utils/formatDate';
@@ -7,8 +7,7 @@ import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { useAppDispatch } from '../../hooks/useAppDispatch';
-import { acceptInvitation, rejectInvitation } from '../../redux/slices/listsSlice';
+import listsService from '../../services/listsService';
 
 interface NotificationItemProps {
     notification: Notification;
@@ -18,11 +17,16 @@ interface NotificationItemProps {
 const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClick }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const dispatch = useAppDispatch();
-    const [responded, setResponded] = useState<'accepted' | 'rejected' | null>(null);
+    const [responded, setResponded] = useState<'accepted' | 'rejected' | null>(
+        notification.invitationStatus === 1 ? 'accepted' : 
+        notification.invitationStatus === 2 ? 'rejected' : null
+    );
     const [loading, setLoading] = useState(false);
 
-    // invitationStatus removed from Notification type
+    useEffect(() => {
+        if (notification.invitationStatus === 1) setResponded('accepted');
+        else if (notification.invitationStatus === 2) setResponded('rejected');
+    }, [notification.invitationStatus]);
 
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -32,6 +36,11 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
     };
 
     const handleNotificationClick = (e: React.MouseEvent) => {
+        // Don't navigate if it's a list invitation that needs a response
+        if (notification.type === 'list_invitation' && !responded && (!e.target || !(e.target as HTMLElement).closest('button'))) {
+            return;
+        }
+
         if (onClick) onClick();
 
         if (notification.type === 'follow') {
@@ -62,7 +71,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
         e.stopPropagation();
         setLoading(true);
         try {
-            await dispatch(acceptInvitation(notification.listId)).unwrap();
+            await listsService.acceptInvitation(notification.listId);
             setResponded('accepted');
         } catch (error) {
             console.error('Failed to accept invitation', error);
@@ -76,7 +85,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
         e.stopPropagation();
         setLoading(true);
         try {
-            await dispatch(rejectInvitation(notification.listId)).unwrap();
+            await listsService.rejectInvitation(notification.listId);
             setResponded('rejected');
         } catch (error) {
             console.error('Failed to reject invitation', error);

@@ -43,26 +43,14 @@ public class ListService : IListService
 
     public async Task<IEnumerable<ListDto>> GetMyListsAsync(Guid userId)
     {
-        var ownedLists = await _unitOfWork.Lists.Query()
+        var lists = await _unitOfWork.Lists.Query()
             .Where(l => l.OwnerId == userId && l.IsDeleted != true)
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
 
-        // Also include lists the user has subscribed to (followed)
-        var subscribedLists = await _unitOfWork.UserListSubscriptions.Query()
-            .Where(uls => uls.UserId == userId)
-            .Include(uls => uls.List)
-            .ThenInclude(l => l.Owner)
-            .Select(uls => uls.List)
-            .Where(l => l != null && l.OwnerId != userId && l.IsDeleted != true)
-            .ToListAsync();
-
-        var allLists = ownedLists.Concat(subscribedLists).DistinctBy(l => l.Id).OrderByDescending(l => l.CreatedAt).ToList();
-
         var result = new List<ListDto>();
-        foreach (var list in allLists)
+        foreach (var list in lists)
         {
-            if (list == null) continue;
             result.Add(await MapToListDto(list, userId));
         }
         return result;
@@ -373,52 +361,34 @@ public class ListService : IListService
 
     public async Task<IEnumerable<PostDto>> GetListFeedAsync(Guid userId, Guid listId, int limit = 50, int offset = 0)
     {
-        try
-        {
-            var list = await _unitOfWork.Lists.GetByIdAsync(listId);
-            if (list == null) return new List<PostDto>();
+        var list = await _unitOfWork.Lists.GetByIdAsync(listId);
+        if (list == null) return new List<PostDto>();
 
-            var listPosts = await _unitOfWork.ListPosts.Query()
-                .AsNoTracking()
-                .Where(lp => lp.ListId == listId)
-                .Join(_unitOfWork.Posts.Query(), lp => lp.PostId, p => p.Id, (lp, p) => p.Id)
-                .ToListAsync();
-            Console.WriteLine($"[ListService] List {listId} has {listPosts.Count} curated posts (existing).");
+        var listPosts = await _unitOfWork.ListPosts.Query()
+            .Include(lp => lp.Post).ThenInclude(p => p.Author)
+            .Include(lp => lp.Post).ThenInclude(p => p.PostMedia)
+            .Include(lp => lp.Post).ThenInclude(p => p.LinkPreview)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .Where(lp => lp.ListId == listId)
+            .OrderByDescending(lp => lp.AddedAt)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
 
-            // 2. Get all approved members of this list
-            var memberIds = await _unitOfWork.ListMembers.Query()
-                .AsNoTracking()
-                .Where(lm => lm.ListId == listId && lm.Status == 1)
-                .Select(lm => lm.UserId)
-                .ToListAsync();
-            Console.WriteLine($"[ListService] List {listId} has {memberIds.Count} approved members.");
-
-            // 3. Aggregate: Curated Posts + All Posts from Members
-            var posts = await _unitOfWork.Posts.Query()
-                .AsNoTracking()
-                .Include(p => p.Author)
-                .Include(p => p.PostMedia)
-                .Include(p => p.LinkPreview)
-                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
-                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
-                .Where(p => (listPosts.Contains(p.Id) || memberIds.Contains(p.AuthorId)) && (p.IsDeleted == false || p.IsDeleted == null))
-                .OrderByDescending(p => p.CreatedAt)
-                .Skip(offset)
-                .Take(limit)
-                .ToListAsync();
-
-            Console.WriteLine($"[ListService] Found {posts.Count} posts for feed {listId}.");
-
-            var dtos = posts.Select(p => MapToPostDto(p)).ToList();
-            await EnrichPostsWithInteractions(dtos, userId);
-            
-            return dtos;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ListService] GetListFeedAsync Critical Error: {ex}");
-            return new List<PostDto>();
-        }
+        var curatedDtos = listPosts.Select(lp => {
+            var dto = MapToPostDto(lp.Post);
+            dto.ListCaption = lp.Caption;
+            dto.AddedByUserId = lp.AddedByUserId;
+            return dto;
+        }).ToList();
+        
+        await EnrichPostsWithInteractions(curatedDtos, userId);
+        return curatedDtos;
     }
 
     // Helper from PostService
@@ -656,8 +626,8 @@ public class ListService : IListService
         var list = await _unitOfWork.Lists.GetByIdAsync(listId);
         if (list == null) return false;
 
-        // Check if member (must be accepted) or owner
-        bool isMember = await _unitOfWork.ListMembers.Query().AnyAsync(lm => lm.ListId == listId && lm.UserId == userId && lm.Status == 1);
+        // Check if member or owner (any member status allowed)
+        bool isMember = await _unitOfWork.ListMembers.Query().AnyAsync(lm => lm.ListId == listId && lm.UserId == userId);
         if (list.OwnerId != userId && !isMember) return false;
 
         // Check if already added

@@ -44,6 +44,23 @@ namespace BSkyClone.Lexicons.App.Bsky.Notification
 
         [JsonPropertyName("indexedAt")]
         public string IndexedAt { get; set; } = string.Empty;
+
+        // Extended fields for custom notification types (list_invitation etc.)
+        [JsonPropertyName("listId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Guid? ListId { get; set; }
+
+        [JsonPropertyName("invitationStatus")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? InvitationStatus { get; set; }
+
+        [JsonPropertyName("title")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("content")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Content { get; set; }
     }
 
     public class GetUnreadCountResponse
