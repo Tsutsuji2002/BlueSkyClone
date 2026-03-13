@@ -333,7 +333,7 @@ public class ListService : IListService
             CreatedAt = list.CreatedAt ?? DateTime.UtcNow,
             IsPinned = pinned,
             IsOwner = list.OwnerId == currentUserId,
-            Owner = new UserDto(
+            Owner = list.Owner != null ? new UserDto(
                 list.Owner.Id,
                 list.Owner.Username,
                 list.Owner.Handle,
@@ -352,7 +352,7 @@ public class ListService : IListService
                 null,
                 list.Owner.IsVerified,
                 list.Owner.Did
-            )
+            ) : null
         };
     }
 
@@ -378,12 +378,14 @@ public class ListService : IListService
             .Select(lp => new { lp.Post, lp.Caption, lp.AddedByUserId })
             .ToListAsync();
 
-        var curatedDtos = listPosts.Select(x => {
-            var dto = MapToPostDto(x.Post);
-            dto.ListCaption = x.Caption;
-            dto.AddedByUserId = x.AddedByUserId;
-            return dto;
-        }).ToList();
+        var curatedDtos = listPosts
+            .Where(x => x.Post != null)
+            .Select(x => {
+                var dto = MapToPostDto(x.Post);
+                dto.ListCaption = x.Caption;
+                dto.AddedByUserId = x.AddedByUserId;
+                return dto;
+            }).ToList();
         
         await EnrichPostsWithInteractions(curatedDtos, userId);
         return curatedDtos;
@@ -476,7 +478,10 @@ public class ListService : IListService
             post.IsLiked = likedPostIds.Contains(post.Id);
             post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
             post.IsReposted = repostedPostIds.Contains(post.Id);
-            post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
+            if (post.Author != null)
+            {
+                post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
+            }
         }
     }
     public async Task<IEnumerable<ListDto>> GetListsIAmOnAsync(Guid userId)
@@ -536,6 +541,7 @@ public class ListService : IListService
             // Get follows
             var allFollows = await _unitOfWork.Follows.GetFollowingAsync(userId);
             users = allFollows
+                .Where(f => f.Following != null)
                 .OrderByDescending(f => f.CreatedAt)
                 .Take(20)
                 .Select(f => f.Following)
