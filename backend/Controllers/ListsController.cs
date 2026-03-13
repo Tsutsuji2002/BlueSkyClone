@@ -141,7 +141,8 @@ public class ListsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            Console.WriteLine($"[ListsController] GetListFeed Exception: {ex.ToString()}");
+            return StatusCode(500, new { message = ex.Message });
         }
     }
 

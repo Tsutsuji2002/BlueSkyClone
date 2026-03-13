@@ -14,11 +14,13 @@ public class ListService : IListService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> _hubContext;
+    private readonly IPostService _postService;
 
-    public ListService(IUnitOfWork unitOfWork, Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> hubContext)
+    public ListService(IUnitOfWork unitOfWork, Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> hubContext, IPostService postService)
     {
         _unitOfWork = unitOfWork;
         _hubContext = hubContext;
+        _postService = postService;
     }
 
     public async Task<ListDto> CreateListAsync(Guid userId, CreateListDto dto)
@@ -364,132 +366,51 @@ public class ListService : IListService
         var list = await _unitOfWork.Lists.GetByIdAsync(listId);
         if (list == null) return new List<PostDto>();
 
+        // Step 1: Get ListPost metadata first (fast)
         var listPosts = await _unitOfWork.ListPosts.Query()
-            .Include(lp => lp.Post).ThenInclude(p => p.Author)
-            .Include(lp => lp.Post).ThenInclude(p => p.PostMedia)
-            .Include(lp => lp.Post).ThenInclude(p => p.LinkPreview)
-            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
-            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
-            .Include(lp => lp.Post).ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
-            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.Author)
-            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
-            .Include(lp => lp.Post).ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Where(lp => lp.ListId == listId)
             .OrderByDescending(lp => lp.AddedAt)
             .Skip(offset)
             .Take(limit)
             .ToListAsync();
 
-        var curatedDtos = listPosts.Select(lp => {
-            var dto = MapToPostDto(lp.Post);
-            dto.ListCaption = lp.Caption;
-            dto.AddedByUserId = lp.AddedByUserId;
-            return dto;
-        }).ToList();
+        if (!listPosts.Any()) return new List<PostDto>();
+
+        var postIds = listPosts.Select(lp => lp.PostId).ToList();
+
+        // Step 2: Fetch heavy Post data separately with optimization
+        var posts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+            .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+            .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .AsSplitQuery()
+            .Where(p => postIds.Contains(p.Id))
+            .ToListAsync();
+
+        var postMap = posts.ToDictionary(p => p.Id);
+
+        // Step 3: Map and combine
+        var curatedDtos = listPosts
+            .Where(lp => postMap.ContainsKey(lp.PostId))
+            .Select(lp => {
+                var post = postMap[lp.PostId];
+                var dto = _postService.MapToDto(post);
+                dto.ListCaption = lp.Caption;
+                dto.AddedByUserId = lp.AddedByUserId;
+                return dto;
+            }).OrderByDescending(d => listPosts.First(lp => lp.PostId == d.Id).AddedAt).ToList();
         
-        await EnrichPostsWithInteractions(curatedDtos, userId);
+        await _postService.EnrichAndFilterPostsAsync(curatedDtos, userId);
         return curatedDtos;
     }
 
-    // Helper from PostService
-    private PostDto MapToPostDto(Post post) => MapToPostDto(post, true, true);
 
-    private PostDto MapToPostDto(Post post, bool includeQuote, bool includeParent)
-    {
-        if (post == null) return new PostDto { Author = new AuthorDto { Username = "unknown", Handle = "unknown" } };
-
-        return new PostDto
-        {
-            Id = post.Id,
-            Tid = post.Tid ?? "",
-            Content = post.Content,
-            CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : null,
-            Author = post.Author == null ? new AuthorDto { Id = post.AuthorId, Username = "unknown", Handle = "unknown" } : new AuthorDto
-            {
-                Id = post.Author.Id,
-                Username = post.Author.Username ?? "unknown",
-                Handle = post.Author.Handle ?? "unknown",
-                DisplayName = post.Author.DisplayName,
-                AvatarUrl = post.Author.AvatarUrl,
-                IsFollowing = false,
-                IsVerified = post.Author.IsVerified,
-                Did = post.Author.Did
-            },
-            ImageUrls = post.PostMedia?.Where(m => m.Type == "image").Select(m => m.Url).ToList() ?? new List<string>(),
-            Media = post.PostMedia?.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
-            {
-                Url = m.Url,
-                AltText = m.AltText,
-                Type = m.Type
-            }).ToList() ?? new List<MediaDto>(),
-            VideoUrl = post.PostMedia?.FirstOrDefault(m => m.Type == "video")?.Url,
-            LikesCount = post.LikesCount ?? 0,
-            RepostsCount = post.RepostsCount ?? 0,
-            RepliesCount = post.RepliesCount ?? 0,
-            QuotesCount = post.QuotesCount ?? 0,
-            BookmarksCount = post.BookmarksCount ?? 0,
-            ReplyToPostId = post.ReplyToPostId,
-            ReplyToHandle = post.ReplyToPost?.Author?.Handle,
-            RootPostId = post.RootPostId,
-            IsLiked = false,
-            IsBookmarked = false,
-            IsReposted = false,
-            LinkPreview = post.LinkPreview == null ? null : new LinkPreviewDto
-            {
-                Url = post.LinkPreview.Url ?? "",
-                Title = post.LinkPreview.Title,
-                Description = post.LinkPreview.Description,
-                Image = post.LinkPreview.Image,
-                Domain = post.LinkPreview.Domain
-            },
-            QuotePostId = post.QuotePostId,
-            QuotePost = (includeQuote && post.QuotePost != null) ? MapToPostDto(post.QuotePost, false, false) : null,
-            ParentPost = (includeParent && post.ReplyToPost != null) ? MapToPostDto(post.ReplyToPost, false, false) : null,
-            IsDeleted = post.IsDeleted ?? false,
-            CanReply = true,
-            Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
-                ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}"
-                : $"at://local/app.bsky.feed.post/{post.Id}",
-            Cid = post.Id.ToString()
-        };
-    }
-
-    private async Task EnrichPostsWithInteractions(List<PostDto> posts, Guid viewerId)
-    {
-        if (!posts.Any()) return;
-
-        var postIds = posts.Select(p => p.Id).ToList();
-
-        var likedPostIds = await _unitOfWork.Likes.Query()
-            .Where(l => l.UserId == viewerId && postIds.Contains(l.PostId))
-            .Select(l => l.PostId)
-            .ToListAsync();
-
-        var bookmarkedPostIds = await _unitOfWork.Bookmarks.Query()
-            .Where(b => b.UserId == viewerId && postIds.Contains(b.PostId))
-            .Select(b => b.PostId)
-            .ToListAsync();
-
-        var repostedPostIds = await _unitOfWork.Reposts.Query()
-            .Where(r => r.UserId == viewerId && postIds.Contains(r.PostId))
-            .Select(r => r.PostId)
-            .ToListAsync();
-
-        var followedUserIds = await _unitOfWork.Follows.GetFollowingAsync(viewerId); 
-             
-        var followingIds = followedUserIds.Select(f => f.FollowingId).ToHashSet();
-
-        foreach (var post in posts)
-        {
-            post.IsLiked = likedPostIds.Contains(post.Id);
-            post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
-            post.IsReposted = repostedPostIds.Contains(post.Id);
-            if (post.Author != null)
-            {
-                post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
-            }
-        }
-    }
     public async Task<IEnumerable<ListDto>> GetListsIAmOnAsync(Guid userId)
     {
         var listIds = await _unitOfWork.ListMembers.Query()
@@ -531,7 +452,7 @@ public class ListService : IListService
             .Take(limit)
             .ToListAsync();
 
-        return posts.Select(MapToPostDto);
+        return posts.Select(p => _postService.MapToDto(p));
     }
 
     public async Task<IEnumerable<UserDto>> GetCandidateMembersAsync(Guid listId, Guid userId, string? query)
