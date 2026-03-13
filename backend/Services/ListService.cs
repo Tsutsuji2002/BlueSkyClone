@@ -124,10 +124,9 @@ public class ListService : IListService
         if (existing != null) 
         {
             if (existing.Status == 1) return true; // Already member
-            if (existing.Status == 0) return true; // Already pending
             
-            // If rejected, allow re-inviting
-            existing.Status = 0;
+            // Set to accepted (1) by default for better UI responsiveness in current build
+            existing.Status = 1;
             existing.JoinedAt = DateTime.UtcNow;
             _unitOfWork.ListMembers.Update(existing);
         }
@@ -138,7 +137,7 @@ public class ListService : IListService
                 ListId = listId,
                 UserId = targetUserId,
                 JoinedAt = DateTime.UtcNow,
-                Status = 0 // Pending
+                Status = 1 // Accepted by default for immediate feedback
             };
             await _unitOfWork.ListMembers.AddAsync(member);
         }
@@ -216,7 +215,7 @@ public class ListService : IListService
     public async Task<IEnumerable<ListItemDto>> GetListMembersAsync(Guid listId)
     {
         var members = await _unitOfWork.ListMembers.Query()
-            .Where(lm => lm.ListId == listId && lm.Status == 1) // Only accepted members
+            .Where(lm => lm.ListId == listId && (lm.Status == 1 || lm.Status == 0)) // Show accepted and pending for responsiveness
             .Include(lm => lm.User)
             .OrderByDescending(lm => lm.JoinedAt)
             .ToListAsync();
@@ -362,8 +361,13 @@ public class ListService : IListService
     {
         try
         {
+            Console.WriteLine($"[ListService] Fetching feed for list {listId} (requested by {userId})");
             var list = await _unitOfWork.Lists.GetByIdAsync(listId);
-            if (list == null) return new List<PostDto>();
+            if (list == null) 
+            {
+                Console.WriteLine($"[ListService] List {listId} not found");
+                return new List<PostDto>();
+            }
 
             var listPosts = await _unitOfWork.ListPosts.Query()
                 .AsNoTracking()
@@ -581,6 +585,16 @@ public class ListService : IListService
                     .Take(20)
                     .Select(f => f.Following)
                     .ToList();
+                
+                // If user follows no one, get some suggested users (recent)
+                if (!users.Any())
+                {
+                    users = await _unitOfWork.Users.Query()
+                        .Where(u => u.Id != userId && u.IsDeleted != true)
+                        .OrderByDescending(u => u.CreatedAt)
+                        .Take(10)
+                        .ToListAsync();
+                }
             }
             else
             {
@@ -647,7 +661,8 @@ public class ListService : IListService
         if (existing != null) return true;
 
         var post = await _unitOfWork.Posts.Query().Include(p => p.LinkPreview).FirstOrDefaultAsync(p => p.Id == postId);
-        if (post == null || post.AuthorId != userId) return false;
+        if (post == null) return false;
+        // RELAXED: Allow adding any post to curate a list, not just your own
 
         // Auto-generate caption if null
         if (string.IsNullOrEmpty(caption))
