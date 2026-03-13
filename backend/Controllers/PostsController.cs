@@ -108,22 +108,31 @@ public class PostsController : ControllerBase
         }
     }
 
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdatePost(Guid id, [FromForm] CreatePostRequest request)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdatePost(string id, [FromForm] CreatePostRequest request)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
             
-            var post = await _postService.UpdatePostAsync(userId, id, request);
+            Guid postId;
+            if (!Guid.TryParse(id, out postId))
+            {
+                var p = await _postService.GetPostByTidAsync(id);
+                if (p == null) return NotFound("Post not found by TID.");
+                postId = p.Id;
+            }
+
+            var post = await _postService.UpdatePostAsync(userId, postId, request);
             if (post == null) return NotFound("Post not found or you are not authorized to edit it.");
             return Ok(post);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[PostsController] UpdatePost error: {ex.Message}");
-            return BadRequest(new { message = ex.Message });
+            // Return detailed message to help debug concurrency
+            return BadRequest(new { message = ex.Message, detailed = ex.ToString() });
         }
     }
 

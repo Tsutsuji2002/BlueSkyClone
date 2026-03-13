@@ -896,7 +896,10 @@ public class PostService : IPostService
 
             foreach (var m in mediaToRemove)
             {
-                _unitOfWork.PostMedia.Remove(m);
+                if (_unitOfWork.PostMedia.Query().Any(pm => pm.Id == m.Id))
+                {
+                    _unitOfWork.PostMedia.Remove(m);
+                }
                 post.PostMedia.Remove(m);
             }
 
@@ -1023,21 +1026,27 @@ public class PostService : IPostService
             catch (DbUpdateConcurrencyException ex)
             {
                 var sb = new StringBuilder();
-                sb.AppendLine("A concurrency error occurred while updating the post.");
+                sb.AppendLine("CONCURRENCY ERROR DETAILS:");
                 foreach (var entry in ex.Entries)
                 {
                     var databaseValues = await entry.GetDatabaseValuesAsync();
                     if (databaseValues == null)
                     {
-                        sb.AppendLine($"Entity {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}) was deleted in the database.");
+                        sb.AppendLine($"- {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}): Deleted in DB");
                     }
                     else
                     {
-                        sb.AppendLine($"Entity {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}) was modified by another user. State: {entry.State}");
+                        sb.AppendLine($"- {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}): Modified in DB. Current State: {entry.State}");
                     }
                 }
-                Console.WriteLine($"[UpdatePostAsync] DbUpdateConcurrencyException: {sb}");
+                Console.WriteLine($"[UpdatePostAsync] Concurrency Error: {sb}");
                 throw new Exception(sb.ToString(), ex);
+            }
+            catch (DbUpdateException ex)
+            {
+                var inner = ex.InnerException?.Message ?? "No inner exception";
+                Console.WriteLine($"[UpdatePostAsync] DbUpdateException: {ex.Message}. Inner: {inner}");
+                throw new Exception($"Database update failed: {ex.Message}. Inner: {inner}", ex);
             }
 
             // --- Phase 3: Repo Signing ---
