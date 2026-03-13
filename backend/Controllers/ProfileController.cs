@@ -243,7 +243,6 @@ public class ProfileController : ControllerBase
         {
             if (user == null) continue;
             var dto = await MapUserToDtoWithStatus(user, currentUserId);
-            // If viewing own following list, we definitely follow everyone in it
             if (userId == currentUserId && currentUserId.HasValue)
             {
                 dto = dto with { IsFollowing = true };
