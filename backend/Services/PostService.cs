@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using BSkyClone.Hubs;
 using System.Text.RegularExpressions;
+using BSkyClone.Utilities;
 
 namespace BSkyClone.Services;
 
@@ -1779,8 +1780,7 @@ public class PostService : IPostService
 
     public string GenerateTid()
     {
-        // Simple TID generator for now (333rd-style)
-        return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+        return ProtocolUtils.GenerateTid();
     }
 
     private async Task<bool> IsUserMentionedAsync(Post post, Guid userId)

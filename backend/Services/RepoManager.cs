@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using BSkyClone.Utilities;
 
 namespace BSkyClone.Services
 {
@@ -20,9 +21,8 @@ namespace BSkyClone.Services
             var json = JsonSerializer.Serialize(record);
             var data = Encoding.UTF8.GetBytes(json);
             
-            // Simplified CID generation (v1-like)
             // In a real AT Proto PDS, this would be a dag-cbor CID.
-            var cid = GenerateCid(data);
+            var cid = ProtocolUtils.GenerateCid(data);
 
             var block = new RepoBlock
             {
@@ -65,15 +65,6 @@ namespace BSkyClone.Services
             return ms.ToArray();
         }
 
-        private string GenerateCid(byte[] data)
-        {
-            using var sha256 = SHA256.Create();
-            var hash = sha256.ComputeHash(data);
-            
-            // Format as a simple string prefix + hex for now.
-            // Real CID would be base32 multihash.
-            var hex = BitConverter.ToString(hash).Replace("-", "").ToLower();
-            return $"bafyreib{hex}"; // Pseudo-CID
-        }
+
     }
 }

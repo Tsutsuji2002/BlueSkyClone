@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using BSkyClone.Hubs;
 using System;
 using System.Collections.Generic;
+using BSkyClone.Utilities;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -512,7 +513,7 @@ public class ChatService : IChatService
 
     private string GenerateTid()
     {
-        return DateTime.UtcNow.Ticks.ToString();
+        return ProtocolUtils.GenerateTid();
     }
 
     private async Task SendNotificationAsync(Notification notification)

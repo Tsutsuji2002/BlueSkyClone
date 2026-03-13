@@ -3,6 +3,7 @@ using BSkyClone.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using BSkyClone.Hubs;
+using BSkyClone.Utilities;
 
 namespace BSkyClone.Services;
 
@@ -818,8 +819,7 @@ public class AdminService : IAdminService
 
     private string GenerateTid()
     {
-        // Generate a high-precision hex TID based on Ticks (100ns resolution)
-        return DateTime.UtcNow.Ticks.ToString("x");
+        return ProtocolUtils.GenerateTid();
     }
     public async Task ReindexSystemAsync()
     {
