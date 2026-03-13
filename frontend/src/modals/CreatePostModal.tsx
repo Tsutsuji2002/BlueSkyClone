@@ -328,7 +328,7 @@ const CreatePostModal: React.FC = () => {
                 ];
 
                 await dispatch(updatePost({
-                    id: postToEdit.id,
+                    id: postToEdit.tid || postToEdit.id,
                     content,
                     mediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined,
                     videoFile: videoFile || undefined,

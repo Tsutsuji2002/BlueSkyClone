@@ -1018,35 +1018,63 @@ public class PostService : IPostService
                 post.LinkPreview = null;
             }
 
-            // Save basic DB changes
-            try
+            // Save basic DB changes with retry logic for concurrency
+            int maxRetries = 3;
+            int retryCount = 0;
+            bool saved = false;
+
+            while (!saved && retryCount < maxRetries)
             {
-                await _unitOfWork.CompleteAsync();
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("CONCURRENCY ERROR DETAILS:");
-                foreach (var entry in ex.Entries)
+                try
                 {
-                    var databaseValues = await entry.GetDatabaseValuesAsync();
-                    if (databaseValues == null)
+                    await _unitOfWork.CompleteAsync();
+                    saved = true;
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    retryCount++;
+                    bool handled = false;
+                    foreach (var entry in ex.Entries)
                     {
-                        sb.AppendLine($"- {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}): Deleted in DB");
+                        if (entry.Entity is PostMedium pm)
+                        {
+                            var databaseValues = await entry.GetDatabaseValuesAsync();
+                            if (databaseValues == null)
+                            {
+                                // Entity was already deleted in DB, detach it so EF skips it in the next attempt
+                                entry.State = EntityState.Detached;
+                                handled = true;
+                                Console.WriteLine($"[UpdatePostAsync] Detached missing PostMedium {pm.Id} during retry {retryCount}");
+                            }
+                        }
                     }
-                    else
+
+                    if (!handled || retryCount >= maxRetries)
                     {
-                        sb.AppendLine($"- {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}): Modified in DB. Current State: {entry.State}");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("CONCURRENCY ERROR DETAILS:");
+                        foreach (var entry in ex.Entries)
+                        {
+                            var dbValues = await entry.GetDatabaseValuesAsync();
+                            if (dbValues == null)
+                            {
+                                sb.AppendLine($"- {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}): Deleted in DB");
+                            }
+                            else
+                            {
+                                sb.AppendLine($"- {entry.Entity.GetType().Name} (ID: {entry.Property("Id").CurrentValue}): Modified in DB. Current State: {entry.State}");
+                            }
+                        }
+                        Console.WriteLine($"[UpdatePostAsync] Fatal Concurrency Error: {sb}");
+                        throw new Exception(sb.ToString(), ex);
                     }
                 }
-                Console.WriteLine($"[UpdatePostAsync] Concurrency Error: {sb}");
-                throw new Exception(sb.ToString(), ex);
-            }
-            catch (DbUpdateException ex)
-            {
-                var inner = ex.InnerException?.Message ?? "No inner exception";
-                Console.WriteLine($"[UpdatePostAsync] DbUpdateException: {ex.Message}. Inner: {inner}");
-                throw new Exception($"Database update failed: {ex.Message}. Inner: {inner}", ex);
+                catch (DbUpdateException ex)
+                {
+                    var inner = ex.InnerException?.Message ?? "No inner exception";
+                    Console.WriteLine($"[UpdatePostAsync] DbUpdateException: {ex.Message}. Inner: {inner}");
+                    throw new Exception($"Database update failed: {ex.Message}. Inner: {inner}", ex);
+                }
             }
 
             // --- Phase 3: Repo Signing ---
