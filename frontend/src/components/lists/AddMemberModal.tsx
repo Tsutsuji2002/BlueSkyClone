@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
@@ -75,12 +75,12 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose, listId
     return (
         <>
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                <div className="bg-white dark:bg-dark-elem w-full max-w-md rounded-xl shadow-xl overflow-hidden max-h-[80vh] flex flex-col">
+                <div className="bg-white dark:bg-dark-surface w-full max-w-md rounded-xl shadow-xl overflow-hidden max-h-[80vh] flex flex-col">
                     <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-dark-border">
                         <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text">
                             {t('lists.add_people')}
                         </h2>
-                        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-full">
+                        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full">
                             <FiX size={20} className="text-gray-500" />
                         </button>
                     </div>

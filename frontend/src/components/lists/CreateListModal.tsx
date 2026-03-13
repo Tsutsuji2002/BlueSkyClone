@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiCamera } from 'react-icons/fi';
 import { uploadImage } from '../../services/mediaService';
@@ -80,7 +80,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({ isOpen, onClose, onSu
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white dark:bg-dark-elem w-full max-w-md rounded-xl shadow-xl overflow-hidden">
+            <div className="bg-white dark:bg-dark-surface w-full max-w-md rounded-xl shadow-xl overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-dark-border">
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                         {t('lists.cancel')}

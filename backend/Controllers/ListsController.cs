@@ -20,21 +20,22 @@ public class ListsController : ControllerBase
         _listService = listService;
     }
 
-    private Guid GetUserId()
+    private Guid? GetUserId()
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (userIdStr != null && Guid.TryParse(userIdStr, out Guid userId))
         {
             return userId;
         }
-        throw new UnauthorizedAccessException("User ID not found in token");
+        return null;
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateList([FromBody] CreateListDto dto)
     {
         var userId = GetUserId();
-        var list = await _listService.CreateListAsync(userId, dto);
+        if (userId == null) return Unauthorized();
+        var list = await _listService.CreateListAsync(userId.Value, dto);
         return Ok(list);
     }
 
@@ -42,7 +43,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> GetMyLists()
     {
         var userId = GetUserId();
-        var lists = await _listService.GetMyListsAsync(userId);
+        if (userId == null) return Unauthorized();
+        var lists = await _listService.GetMyListsAsync(userId.Value);
         return Ok(lists);
     }
 
@@ -50,7 +52,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> GetListsIAmOn()
     {
         var userId = GetUserId();
-        var lists = await _listService.GetListsIAmOnAsync(userId);
+        if (userId == null) return Unauthorized();
+        var lists = await _listService.GetListsIAmOnAsync(userId.Value);
         return Ok(lists);
     }
 
@@ -58,7 +61,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> GetUserLists(Guid userId)
     {
         var viewerId = GetUserId();
-        var lists = await _listService.GetUserListsAsync(userId, viewerId);
+        if (viewerId == null) return Unauthorized();
+        var lists = await _listService.GetUserListsAsync(userId, viewerId.Value);
         return Ok(lists);
     }
 
@@ -66,7 +70,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> GetPinnedLists()
     {
         var userId = GetUserId();
-        var lists = await _listService.GetPinnedListsAsync(userId);
+        if (userId == null) return Unauthorized();
+        var lists = await _listService.GetPinnedListsAsync(userId.Value);
         return Ok(lists);
     }
 
@@ -74,7 +79,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> GetList(Guid id)
     {
         var userId = GetUserId();
-        var list = await _listService.GetListByIdAsync(userId, id);
+        if (userId == null) return Unauthorized();
+        var list = await _listService.GetListByIdAsync(userId.Value, id);
         if (list == null) return NotFound();
         return Ok(list);
     }
@@ -83,9 +89,10 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> UpdateList(Guid id, [FromBody] UpdateListDto dto)
     {
         var userId = GetUserId();
+        if (userId == null) return Unauthorized();
         try
         {
-            var list = await _listService.UpdateListAsync(userId, id, dto);
+            var list = await _listService.UpdateListAsync(userId.Value, id, dto);
             return Ok(list);
         }
         catch (UnauthorizedAccessException)
@@ -98,7 +105,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> DeleteList(Guid id)
     {
         var userId = GetUserId();
-        var success = await _listService.DeleteListAsync(userId, id);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.DeleteListAsync(userId.Value, id);
         if (!success) return BadRequest("Failed to delete list or not owner");
         return Ok();
     }
@@ -107,7 +115,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> PinList(Guid id)
     {
         var userId = GetUserId();
-        var success = await _listService.PinListAsync(userId, id);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.PinListAsync(userId.Value, id);
         return success ? Ok() : BadRequest();
     }
 
@@ -115,7 +124,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> UnpinList(Guid id)
     {
         var userId = GetUserId();
-        var success = await _listService.UnpinListAsync(userId, id);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.UnpinListAsync(userId.Value, id);
         return success ? Ok() : BadRequest();
     }
 
@@ -125,7 +135,8 @@ public class ListsController : ControllerBase
         try
         {
             var userId = GetUserId();
-            var posts = await _listService.GetListFeedAsync(userId, id, limit, offset);
+            if (userId == null) return Unauthorized();
+            var posts = await _listService.GetListFeedAsync(userId.Value, id, limit, offset);
             return Ok(posts);
         }
         catch (Exception ex)
@@ -147,7 +158,8 @@ public class ListsController : ControllerBase
         try
         {
             var userId = GetUserId();
-            var candidates = await _listService.GetCandidateMembersAsync(id, userId, q);
+            if (userId == null) return Unauthorized();
+            var candidates = await _listService.GetCandidateMembersAsync(id, userId.Value, q);
             return Ok(candidates);
         }
         catch (Exception ex)
@@ -157,9 +169,11 @@ public class ListsController : ControllerBase
     }
 
     [HttpGet("{id}/candidate-posts")]
-    public async Task<IActionResult> GetCandidatePosts(Guid id, [FromQuery] Guid userId, [FromQuery] int limit = 10, [FromQuery] int offset = 0)
+    public async Task<IActionResult> GetCandidatePosts(Guid id, [FromQuery] Guid? userId, [FromQuery] int limit = 10, [FromQuery] int offset = 0)
     {
-        var posts = await _listService.GetCandidatePostsAsync(id, userId, limit, offset);
+        var myUserId = GetUserId();
+        if (myUserId == null) return Unauthorized();
+        var posts = await _listService.GetCandidatePostsAsync(id, userId ?? myUserId.Value, limit, offset);
         return Ok(posts);
     }
 
@@ -167,7 +181,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> AddPost(Guid id, [FromBody] AddListPostRequest dto)
     {
         var userId = GetUserId(); // Retained original GetUserId() call
-        var success = await _listService.AddPostAsync(userId, id, dto.PostId, dto.Caption);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.AddPostAsync(userId.Value, id, dto.PostId, dto.Caption);
         if (!success) return BadRequest("Failed to add post");
         return Ok();
     }
@@ -176,7 +191,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> RemovePost(Guid id, Guid postId)
     {
         var userId = GetUserId(); // Retained original GetUserId() call
-        var success = await _listService.RemovePostAsync(userId, id, postId);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.RemovePostAsync(userId.Value, id, postId);
         if (!success) return BadRequest("Failed to remove post");
         return Ok();
     }
@@ -185,7 +201,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> AddMember(Guid id, [FromBody] AddListMemberDto dto)
     {
         var userId = GetUserId();
-        var success = await _listService.AddMemberAsync(userId, id, dto.UserId);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.AddMemberAsync(userId.Value, id, dto.UserId);
         return success ? Ok() : BadRequest("Failed to add member");
     }
 
@@ -193,7 +210,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> RemoveMember(Guid id, Guid targetId)
     {
         var userId = GetUserId();
-        var success = await _listService.RemoveMemberAsync(userId, id, targetId);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.RemoveMemberAsync(userId.Value, id, targetId);
         return success ? Ok() : BadRequest("Failed to remove member");
     }
 
@@ -201,7 +219,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> AcceptInvitation(Guid id)
     {
         var userId = GetUserId();
-        var success = await _listService.AcceptInvitationAsync(userId, id);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.AcceptInvitationAsync(userId.Value, id);
         return success ? Ok() : BadRequest("Failed to accept invitation");
     }
 
@@ -209,7 +228,8 @@ public class ListsController : ControllerBase
     public async Task<IActionResult> RejectInvitation(Guid id)
     {
         var userId = GetUserId();
-        var success = await _listService.RejectInvitationAsync(userId, id);
+        if (userId == null) return Unauthorized();
+        var success = await _listService.RejectInvitationAsync(userId.Value, id);
         return success ? Ok() : BadRequest("Failed to reject invitation");
     }
 }

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
@@ -171,9 +171,9 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white dark:bg-dark-elem w-full max-w-md rounded-xl shadow-xl overflow-hidden max-h-[80vh] flex flex-col relative">
+            <div className="bg-white dark:bg-dark-surface w-full max-w-md rounded-xl shadow-xl overflow-hidden max-h-[80vh] flex flex-col relative">
                 {isProcessing && (
-                    <div className="absolute inset-0 z-10 bg-white/50 dark:bg-dark-elem/50 flex flex-col items-center justify-center gap-2 backdrop-blur-[1px]">
+                    <div className="absolute inset-0 z-10 bg-white/50 dark:bg-dark-surface/50 flex flex-col items-center justify-center gap-2 backdrop-blur-[1px]">
                         <div className="animate-spin w-8 h-8 border-4 border-primary-500 rounded-full border-t-transparent" />
                         <span className="font-bold text-gray-900 dark:text-dark-text">{t('common.adding')}</span>
                     </div>

@@ -156,7 +156,7 @@ const ListDetailPage: React.FC = () => {
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
                     <div className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-elem rounded-full">
+                            <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-full">
                                 <FiArrowLeft size={20} className="text-gray-900 dark:text-dark-text" />
                             </button>
                             <div>
@@ -182,7 +182,7 @@ const ListDetailPage: React.FC = () => {
                                 onClick={handlePin}
                                 className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${isPinned
                                     ? 'bg-primary-50 text-primary-600 hover:bg-primary-100'
-                                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-dark-elem dark:text-white dark:hover:bg-gray-700'
+                                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-dark-surface dark:text-white dark:hover:bg-gray-800'
                                     }`}
                             >
                                 {isPinned ? t('feeds.pinned') : t('lists.pin_to_home')}
@@ -190,12 +190,12 @@ const ListDetailPage: React.FC = () => {
                             <div className="relative">
                                 <button
                                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                    className="p-2 hover:bg-gray-100 dark:hover:bg-dark-elem rounded-full"
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-full"
                                 >
                                     <FiMoreHorizontal size={20} className="text-gray-900 dark:text-dark-text" />
                                 </button>
                                 {isMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-dark-elem rounded-xl shadow-xl border border-gray-200 dark:border-dark-border py-2 z-20">
+                                    <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-dark-surface rounded-xl shadow-xl border border-gray-200 dark:border-dark-border py-2 z-20">
                                         <button className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-hover flex items-center gap-3 text-gray-700 dark:text-gray-200">
                                             <FiCopy size={18} />
                                             {t('lists.copy_link')}
@@ -236,7 +236,7 @@ const ListDetailPage: React.FC = () => {
                 </div>
 
                 {/* List Info */}
-                <div className="p-4 bg-gray-50 dark:bg-dark-hover/10">
+                <div className="p-4 bg-gray-50 dark:bg-dark-surface/50">
                     <div className="flex gap-4 items-start">
                         <div className="shrink-0">
                             <ListAvatar src={activeList.avatarUrl} alt={activeList.name} size="xl" />

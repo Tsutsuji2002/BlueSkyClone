@@ -306,6 +306,30 @@ export const removeListPost = createAsyncThunk(
     }
 );
 
+export const acceptInvitation = createAsyncThunk(
+    'lists/acceptInvitation',
+    async (id: string, { rejectWithValue }) => {
+        try {
+            await listService.acceptInvitation(id);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to accept invitation');
+        }
+    }
+);
+
+export const rejectInvitation = createAsyncThunk(
+    'lists/rejectInvitation',
+    async (id: string, { rejectWithValue }) => {
+        try {
+            await listService.rejectInvitation(id);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to reject invitation');
+        }
+    }
+);
+
 const listsSlice = createSlice({
     name: 'lists',
     initialState,
@@ -449,6 +473,17 @@ const listsSlice = createSlice({
         // Remove Post
         builder.addCase(removeListPost.fulfilled, (state, action) => {
             state.activeListFeed = state.activeListFeed.filter(p => p.id !== action.payload.postId);
+        });
+
+        // Accept Invitation
+        builder.addCase(acceptInvitation.fulfilled, (state, action) => {
+            // Remove from listsIAmOn if we want to refresh or update it
+            // Typically we'd refetch listsIAmOn after this
+        });
+
+        // Reject Invitation
+        builder.addCase(rejectInvitation.fulfilled, (state, action) => {
+            state.listsIAmOn = state.listsIAmOn.filter(l => l.id !== action.payload);
         });
 
         // Candidate Posts

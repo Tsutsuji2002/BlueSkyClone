@@ -38,7 +38,7 @@ const ListsPage: React.FC = () => {
                         </div>
                         <button
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 dark:bg-dark-elem dark:hover:bg-gray-800 text-gray-900 dark:text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors"
+                            className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 dark:bg-dark-surface dark:hover:bg-gray-800 text-gray-900 dark:text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors"
                         >
                             <FiPlus size={16} />
                             {t('lists.create_new')}

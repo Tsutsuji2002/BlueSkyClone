@@ -198,8 +198,8 @@ export interface Notification {
     id: string; // CID or URI
     uri: string;
     cid: string;
-    type: 'like' | 'repost' | 'follow' | 'reply' | 'mention' | 'quote' | 'system';
-    reason: 'like' | 'repost' | 'follow' | 'reply' | 'mention' | 'quote' | string;
+    type: 'like' | 'repost' | 'follow' | 'reply' | 'mention' | 'quote' | 'list_invitation' | 'system';
+    reason: 'like' | 'repost' | 'follow' | 'reply' | 'mention' | 'quote' | 'list_invitation' | string;
     reasonSubject?: string; // URI of the subject
     sender: User;
     content?: string;
@@ -207,6 +207,8 @@ export interface Notification {
     postId?: string; // Tail of URI for subject
     postAuthorHandle?: string;
     subjectUri?: string;
+    listId?: string; // For list invitations
+    invitationStatus?: number; // 0: Pending, 1: Accepted, 2: Rejected
     isRead: boolean;
     createdAt: string;
     record?: any;

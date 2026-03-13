@@ -27,6 +27,7 @@ module.exports = {
           border: 'rgb(var(--border-color) / <alpha-value>)',
           text: 'rgb(var(--text-primary) / <alpha-value>)',
           'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
+          hover: 'rgb(var(--bg-hover) / <alpha-value>)',
         },
         // Light theme colors
         light: {

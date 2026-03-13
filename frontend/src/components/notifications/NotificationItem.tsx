@@ -7,7 +7,8 @@ import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-// import listsService from '../../services/listsService'; // Removed legacy service
+import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { acceptInvitation, rejectInvitation } from '../../redux/slices/listsSlice';
 
 interface NotificationItemProps {
     notification: Notification;
@@ -17,6 +18,7 @@ interface NotificationItemProps {
 const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClick }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const dispatch = useAppDispatch();
     const [responded, setResponded] = useState<'accepted' | 'rejected' | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -34,6 +36,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
 
         if (notification.type === 'follow') {
             navigate(`/profile/${notification.sender.handle}`);
+        } else if (notification.type === 'list_invitation' && notification.listId) {
+            navigate(`/lists/${notification.listId}`);
         } else if (notification.sender.handle) {
             // Determine the target handle and post ID/TID
             const targetHandle = notification.postAuthorHandle || notification.sender.handle;
@@ -54,16 +58,31 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
     };
 
     const handleAccept = async (e: React.MouseEvent) => {
-        // AT Protocol doesn't have a direct "accept invitation" in the same way.
-        // Usually, you just follow the list or it's a different mechanism.
-        // For now, let's just mark as responded.
+        if (!notification.listId || loading) return;
         e.stopPropagation();
-        setResponded('accepted');
+        setLoading(true);
+        try {
+            await dispatch(acceptInvitation(notification.listId)).unwrap();
+            setResponded('accepted');
+        } catch (error) {
+            console.error('Failed to accept invitation', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleReject = async (e: React.MouseEvent) => {
+        if (!notification.listId || loading) return;
         e.stopPropagation();
-        setResponded('rejected');
+        setLoading(true);
+        try {
+            await dispatch(rejectInvitation(notification.listId)).unwrap();
+            setResponded('rejected');
+        } catch (error) {
+            console.error('Failed to reject invitation', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const getIcon = () => {
@@ -82,6 +101,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                 return <FiRepeat className="text-indigo-500" size={18} />;
             case 'system':
                 return <FiBell className="text-primary-500" size={18} />;
+            case 'list_invitation':
+                return <FiList className="text-primary-500" size={18} />;
             default:
                 return null;
         }
@@ -103,6 +124,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                 return t('notifications.quoted_post');
             case 'system':
                 return notification.title || t('notifications.system_announcement', 'System Announcement');
+            case 'list_invitation':
+                return notification.content || t('lists.invited_to_join', 'invited you to join a list');
             default:
                 return '';
         }
@@ -160,7 +183,26 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
                             </div>
                         )}
 
-                        {/* list_invitation removed */}
+                        {notification.type === 'list_invitation' && !responded && (
+                            <div className="mt-3 flex gap-2">
+                                <button
+                                    onClick={handleAccept}
+                                    disabled={loading}
+                                    className="px-4 py-1.5 bg-primary-500 text-white rounded-full text-sm font-bold hover:bg-primary-600 transition-colors flex items-center gap-1"
+                                >
+                                    {loading ? <div className="animate-spin w-3 h-3 border-2 border-white rounded-full border-t-transparent" /> : <FiCheck size={14} />}
+                                    {t('common.accept', 'Accept')}
+                                </button>
+                                <button
+                                    onClick={handleReject}
+                                    disabled={loading}
+                                    className="px-4 py-1.5 bg-gray-100 dark:bg-dark-surface text-gray-700 dark:text-dark-text rounded-full text-sm font-bold hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors flex items-center gap-1"
+                                >
+                                    <FiX size={14} />
+                                    {t('common.reject', 'Reject')}
+                                </button>
+                            </div>
+                        )}
 
                         {responded && (
                             <div className="mt-2 text-sm font-medium italic text-gray-500 dark:text-dark-text-secondary">
