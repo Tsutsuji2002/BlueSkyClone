@@ -222,7 +222,6 @@ app.MapControllers();
 app.MapHub<BSkyClone.Hubs.ChatHub>("/hubs/chat");
 app.MapHub<BSkyClone.Hubs.PostHub>("/hubs/posts");
 
-#if false
 // Apply database migrations automatically
 using (var scope = app.Services.CreateScope())
 {
@@ -807,7 +806,7 @@ using (var scope = app.Services.CreateScope())
         }
         catch (Exception ex) { logger.LogError(ex, "Manual update block 7 (Relationships) failed."); }
 
-        // 8. AT Protocol Metadata Columns (Likes, Reposts, Follows)
+        // 8. AT Protocol Metadata Columns (Likes, Reposts, Follows, Bookmarks, Media)
         try
         {
             var sql = @"
@@ -825,6 +824,21 @@ using (var scope = app.Services.CreateScope())
                 BEGIN
                     ALTER TABLE dbo.UserFollows ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
                     PRINT 'Added Cid and Uri to UserFollows';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Bookmarks') AND name = 'Cid')
+                BEGIN
+                    ALTER TABLE dbo.Bookmarks ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                    PRINT 'Added Cid and Uri to Bookmarks';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Bookmarks') AND name = 'Tid')
+                BEGIN
+                    ALTER TABLE dbo.Bookmarks ADD Tid NVARCHAR(20) NULL;
+                    PRINT 'Added Tid to Bookmarks';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.PostMedia') AND name = 'Cid')
+                BEGIN
+                    ALTER TABLE dbo.PostMedia ADD Cid NVARCHAR(100) NULL;
+                    PRINT 'Added Cid to PostMedia';
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied Block 8 - AT Protocol Metadata Schema Repair.");
@@ -849,7 +863,6 @@ using (var scope = app.Services.CreateScope())
         logger.LogError(ex, "An error occurred while migrating the database.");
     }
 }
-#endif
 
 
 // WeatherForecast remains as a minimal API example
