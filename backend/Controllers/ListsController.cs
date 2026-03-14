@@ -75,6 +75,7 @@ public class ListsController : ControllerBase
         return Ok(lists);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetList(Guid id)
     {
@@ -129,14 +130,14 @@ public class ListsController : ControllerBase
         return success ? Ok() : BadRequest();
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}/feed")]
     public async Task<IActionResult> GetListFeed(Guid id, [FromQuery] int limit = 50, [FromQuery] int offset = 0)
     {
         try
         {
             var userId = GetUserId();
-            if (userId == null) return Unauthorized();
-            var posts = await _listService.GetListFeedAsync(userId.Value, id, limit, offset);
+            var posts = await _listService.GetListFeedAsync(userId ?? Guid.Empty, id, limit, offset);
             return Ok(posts);
         }
         catch (Exception ex)

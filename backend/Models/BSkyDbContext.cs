@@ -98,6 +98,7 @@ public partial class BSkyDbContext : DbContext
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Tid).HasMaxLength(20);
+            entity.Property(e => e.Cid).HasMaxLength(100);
 
             entity.HasOne(d => d.Post).WithMany(p => p.Bookmarks)
                 .HasForeignKey(d => d.PostId)
