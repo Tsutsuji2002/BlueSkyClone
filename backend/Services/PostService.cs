@@ -1541,11 +1541,17 @@ public class PostService : IPostService
 
     public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null)
     {
+        _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid='{Tid}'", tid);
         var post = await _unitOfWork.Posts.Query()
             .FirstOrDefaultAsync(p => p.Tid == tid && (p.IsDeleted == false || p.IsDeleted == null));
 
-        if (post == null) return null;
+        if (post == null) 
+        {
+            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with Tid='{Tid}' NOT FOUND in database.", tid);
+            return null;
+        }
 
+        _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} for Tid='{Tid}'. Fetching full DTO...", post.Id, tid);
         return await GetPostByIdAsync(post.Id, viewerId);
     }
 

@@ -141,6 +141,7 @@ public class PostsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetPost(Guid id)
     {
@@ -187,6 +188,7 @@ public class PostsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("tid/{tid}")]
     public async Task<IActionResult> GetPostByTid(string tid)
     {
@@ -195,8 +197,14 @@ public class PostsController : ControllerBase
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
+            _logger.LogInformation("[PostsController] GetPostByTid: Requested Tid={Tid}, ViewerId={ViewerId}", tid, viewerId);
+
             var post = await _postService.GetPostByTidAsync(tid, viewerId);
-            if (post == null) return NotFound();
+            if (post == null) 
+            {
+                _logger.LogWarning("[PostsController] GetPostByTid: Post NOT FOUND for Tid={Tid}", tid);
+                return NotFound();
+            }
 
             var thread = new List<PostDto> { post };
 
