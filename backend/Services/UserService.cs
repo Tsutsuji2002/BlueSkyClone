@@ -422,6 +422,7 @@ public class UserService : IUserService
         {
             FollowerId = followerId,
             FollowingId = followingId,
+            Tid = ProtocolUtils.GenerateTid(),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -465,7 +466,7 @@ public class UserService : IUserService
             notification = new Notification
             {
                 Id = Guid.NewGuid(),
-                Tid = Guid.NewGuid().ToString().Substring(0, 20),
+                Tid = ProtocolUtils.GenerateTid(),
                 Type = "follow",
                 SenderId = followerId,
                 RecipientId = followingId,

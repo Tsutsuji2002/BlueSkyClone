@@ -269,6 +269,18 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Feeds') OR object_id = OBJECT_ID('Feeds')) AND name = 'IsOfficial')
                 BEGIN
                     ALTER TABLE dbo.Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Cid')
+                BEGIN
+                    ALTER TABLE dbo.Notifications ADD Cid NVARCHAR(100) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Uri')
+                BEGIN
+                    ALTER TABLE dbo.Notifications ADD Uri NVARCHAR(200) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Tid')
+                BEGIN
+                    ALTER TABLE dbo.Notifications ADD Tid NVARCHAR(20) NULL;
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied/Verified manual schema updates for Notifications and User properties.");
@@ -320,6 +332,21 @@ using (var scope = app.Services.CreateScope())
                 BEGIN
                     ALTER TABLE dbo.Posts ADD Language NVARCHAR(MAX) NULL;
                     PRINT 'Added Language to Posts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'Cid')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD Cid NVARCHAR(100) NULL;
+                    PRINT 'Added Cid to Posts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'Uri')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD Uri NVARCHAR(200) NULL;
+                    PRINT 'Added Uri to Posts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'Tid')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD Tid NVARCHAR(20) NULL;
+                    PRINT 'Added Tid to Posts';
                 END";
             context.Database.ExecuteSqlRaw(sql);
             
@@ -329,6 +356,24 @@ using (var scope = app.Services.CreateScope())
                 BEGIN
                     ALTER TABLE dbo.Posts ADD CONSTRAINT FK_PostQuote FOREIGN KEY (QuotePostId) REFERENCES dbo.Posts(Id);
                     PRINT 'Added FK_PostQuote to Posts';
+                END
+                
+                -- Ensure unique index on Tid for Posts
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'UQ_Posts_Tid')
+                BEGIN
+                    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'Tid')
+                    BEGIN
+                        CREATE UNIQUE INDEX UQ_Posts_Tid ON dbo.Posts(Tid) WHERE Tid IS NOT NULL;
+                    END
+                END
+
+                -- Ensure unique index on Tid for Notifications
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'UQ_Notifications_Tid')
+                BEGIN
+                    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'Tid')
+                    BEGIN
+                        CREATE UNIQUE INDEX UQ_Notifications_Tid ON dbo.Notifications(Tid) WHERE Tid IS NOT NULL;
+                    END
                 END";
             context.Database.ExecuteSqlRaw(fkSql);
             logger.LogInformation("Finished checking/applying Post interaction schema updates.");
