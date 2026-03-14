@@ -350,6 +350,7 @@ public partial class BSkyDbContext : DbContext
                 .HasDefaultValue("anyone");
             entity.Property(e => e.RepostsCount).HasDefaultValue(0);
             entity.Property(e => e.Tid).HasMaxLength(20);
+            entity.Property(e => e.Cid).HasMaxLength(100);
 
             entity.HasOne(d => d.Author).WithMany(p => p.Posts)
                 .HasForeignKey(d => d.AuthorId)
@@ -410,6 +411,7 @@ public partial class BSkyDbContext : DbContext
 
             entity.Property(e => e.Position).HasDefaultValue(0);
             entity.Property(e => e.Type).HasMaxLength(50);
+            entity.Property(e => e.Cid).HasMaxLength(100);
 
             entity.HasOne(d => d.Post).WithMany(p => p.PostMedia)
                 .HasForeignKey(d => d.PostId)

@@ -1,0 +1,15 @@
+Using launch settings from backend\Properties\launchSettings.json...
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Projects\BlueSky\backend
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (46ms) [Parameters=[@__handle_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [u].[Id], [u].[AvatarUrl], [u].[Bio], [u].[CoverImageUrl], [u].[CreatedAt], [u].[DateOfBirth], [u].[Did], [u].[DisplayName], [u].[Email], [u].[EncryptedSigningPrivateKey], [u].[FollowersCount], [u].[FollowingCount], [u].[Handle], [u].[IsBanned], [u].[IsDeleted], [u].[IsOnline], [u].[IsPrivate], [u].[IsVerified], [u].[LastLoginAt], [u].[Location], [u].[PasswordHash], [u].[PostsCount], [u].[RepoCommitSignature], [u].[RepoRev], [u].[Role], [u].[Salt], [u].[SigningPublicKey], [u].[Username], [u].[Website], [u0].[UserId], [u0].[AdultContentFilter], [u0].[AppLanguage], [u0].[AutoplayVideoGif], [u0].[DefaultAllowQuotes], [u0].[DefaultReplyRestriction], [u0].[EnableAdultContent], [u0].[EnableDiscoverVideo], [u0].[EnableTreeView], [u0].[EnableTrending], [u0].[EnabledMediaProviders], [u0].[FontSize], [u0].[InAppNotifyActivity], [u0].[InAppNotifyFollowers], [u0].[InAppNotifyLikes], [u0].[InAppNotifyLikesOfReposts], [u0].[InAppNotifyMentions], [u0].[InAppNotifyOthers], [u0].[InAppNotifyQuotes], [u0].[InAppNotifyReplies], [u0].[InAppNotifyReposts], [u0].[InAppNotifyRepostsOfReposts], [u0].[LargerAltBadge], [u0].[NotifyActivity], [u0].[NotifyFollowers], [u0].[NotifyLikes], [u0].[NotifyLikesOfReposts], [u0].[NotifyMentions], [u0].[NotifyOthers], [u0].[NotifyQuotes], [u0].[NotifyReplies], [u0].[NotifyReposts], [u0].[NotifyRepostsOfReposts], [u0].[PushNotifyActivity], [u0].[PushNotifyFollowers], [u0].[PushNotifyLikes], [u0].[PushNotifyLikesOfReposts], [u0].[PushNotifyMentions], [u0].[PushNotifyOthers], [u0].[PushNotifyQuotes], [u0].[PushNotifyReplies], [u0].[PushNotifyReposts], [u0].[PushNotifyRepostsOfReposts], [u0].[RequireAltText], [u0].[RequireLogoutVisibility], [u0].[SelectedInterests], [u0].[ShowQuotePosts], [u0].[ShowReplies], [u0].[ShowReposts], [u0].[ShowSampleSavedFeeds], [u0].[SortReplies], [u0].[ThemeMode]
+      FROM [Users] AS [u]
+      LEFT JOIN [UserSettings] AS [u0] ON [u].[Id] = [u0].[UserId]
+      WHERE [u].[Handle] = @__handle_0

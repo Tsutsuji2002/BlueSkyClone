@@ -220,6 +220,7 @@ app.MapControllers();
 app.MapHub<BSkyClone.Hubs.ChatHub>("/hubs/chat");
 app.MapHub<BSkyClone.Hubs.PostHub>("/hubs/posts");
 
+#if false
 // Apply database migrations automatically
 using (var scope = app.Services.CreateScope())
 {
@@ -822,6 +823,7 @@ using (var scope = app.Services.CreateScope())
         logger.LogError(ex, "An error occurred while migrating the database.");
     }
 }
+#endif
 
 
 // WeatherForecast remains as a minimal API example

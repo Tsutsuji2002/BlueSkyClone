@@ -50,6 +50,7 @@ public class MediaDto
     public string Url { get; set; } = null!;
     public string? AltText { get; set; }
     public string? Type { get; set; } // "image", "video"
+    public string? Cid { get; set; }
 }
 
 public class PostMuteDto

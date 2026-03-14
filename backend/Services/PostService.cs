@@ -56,7 +56,7 @@ public class PostService : IPostService
             var showQuotePosts = userSettings?.ShowQuotePosts ?? true;
             var showReposts = userSettings?.ShowReposts ?? true;
 
-            var cacheKey = $"user:{userId}:timeline:{skip}:{take}:sr{showReplies}:sq{showQuotePosts}:sp{showReposts}";
+            var cacheKey = $"user:{userId}:timeline:{skip}:{take}:sr{showReplies}:sq{showQuotePosts}:sp{showReposts}:v2";
             var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
             if (cached != null)
             {
@@ -109,6 +109,9 @@ public class PostService : IPostService
                 .Take(take)
                 .ToListAsync();
             
+            System.Console.WriteLine($"[PostService] GetTimelineAsync: Fetched {posts.Count} posts for User {userId}. CacheKey: {cacheKey}");
+            System.Console.WriteLine($"[PostService] GetTimelineAsync: followedUserIds Count: {followedUserIds.Count}, mutedUserIds Count: {mutedUserIds.Count}, blockedUserIds Count: {blockedUserIds.Count}, blockedByUserIds Count: {blockedByUserIds.Count}");
+            
             var postDtos = new List<PostDto>();
             foreach (var post in posts)
             {
@@ -159,7 +162,7 @@ public class PostService : IPostService
             }
 
             // Redis caching for quick re-access (1 minute TTL)
-            var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}";
+            var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}:v2";
             var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
             
             if (cached != null && cached.Count > 0)
@@ -310,6 +313,7 @@ public class PostService : IPostService
                     blockedUserIds.Contains(post.Author.Id) || 
                     blockedByUserIds.Contains(post.Author.Id))
                 {
+                    System.Console.WriteLine($"[PostService] EnrichAndFilterPostsAsync: Filtering out Post {post.Id} - Deleted: {post.IsDeleted}, AuthorNull: {post.Author == null}, Muted: {post.Author != null && mutedUserIds.Contains(post.Author.Id)}, Blocked: {post.Author != null && (blockedUserIds.Contains(post.Author.Id) || blockedByUserIds.Contains(post.Author.Id))}");
                     continue;
                 }
 
@@ -2197,7 +2201,8 @@ public class PostService : IPostService
                 Id = m.Id,
                 Url = m.Url,
                 AltText = m.AltText,
-                Type = m.Type
+                Type = m.Type,
+                Cid = m.Cid
             }).ToList(),
             VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,
             LikesCount = post.LikesCount ?? 0,
@@ -2233,7 +2238,7 @@ public class PostService : IPostService
             Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
                 ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}"
                 : $"at://local/app.bsky.feed.post/{post.Id}",
-            Cid = post.Id.ToString()
+            Cid = post.Cid ?? post.Id.ToString()
         };
     }
 
