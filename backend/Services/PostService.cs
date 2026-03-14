@@ -21,8 +21,9 @@ public class PostService : IPostService
     private readonly ICategorizationService _categorizationService;
     private readonly ISearchService _searchService;
     private readonly IRepoManager _repoManager;
+    private readonly ILogger<PostService> _logger;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, ILogger<PostService> logger)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -33,6 +34,7 @@ public class PostService : IPostService
         _categorizationService = categorizationService;
         _searchService = searchService;
         _repoManager = repoManager;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)
@@ -49,7 +51,7 @@ public class PostService : IPostService
             }
             catch (Exception ex)
             {
-                System.Console.WriteLine($"[PostService] GetTimelineAsync: Error fetching UserSettings for {userId}: {ex.Message}. Using defaults.");
+                _logger.LogError(ex, "Error fetching UserSettings for {UserId}", userId);
             }
 
             var showReplies = userSettings?.ShowReplies ?? true;
@@ -279,6 +281,7 @@ public class PostService : IPostService
                 }
             }
 
+            _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, IsTimeline={IsTimeline}", posts.Count, viewerId, isTimeline);
             var filteredPosts = new List<PostDto>();
             foreach (var post in posts)
             {
@@ -313,7 +316,10 @@ public class PostService : IPostService
                     blockedUserIds.Contains(post.Author.Id) || 
                     blockedByUserIds.Contains(post.Author.Id))
                 {
-                    System.Console.WriteLine($"[PostService] EnrichAndFilterPostsAsync: Filtering out Post {post.Id} - Deleted: {post.IsDeleted}, AuthorNull: {post.Author == null}, Muted: {post.Author != null && mutedUserIds.Contains(post.Author.Id)}, Blocked: {post.Author != null && (blockedUserIds.Contains(post.Author.Id) || blockedByUserIds.Contains(post.Author.Id))}");
+                    _logger.LogWarning("[PostService] EnrichAndFilterPostsAsync: Filtering out Post {PostId} - Deleted: {IsDeleted}, AuthorNull: {AuthorNull}, Muted: {Muted}, Blocked: {Blocked}", 
+                        post.Id, post.IsDeleted, post.Author == null, 
+                        post.Author != null && mutedUserIds.Contains(post.Author.Id), 
+                        post.Author != null && (blockedUserIds.Contains(post.Author.Id) || blockedByUserIds.Contains(post.Author.Id)));
                     continue;
                 }
 
@@ -391,6 +397,7 @@ public class PostService : IPostService
                 filteredPosts.Add(post);
             }
 
+            _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Output Count={OutputCount}", filteredPosts.Count);
             return filteredPosts;
         }
         catch (Exception ex)
@@ -2502,7 +2509,7 @@ public class PostService : IPostService
 
             // Recency Score (decay)
             var hoursOld = (DateTime.UtcNow - (post.CreatedAt ?? DateTime.UtcNow)).TotalHours;
-            var recencyFactor = (float)Math.Exp(-hoursOld / 48.0); // 48h half-life for Discover to include broader matches
+            var recencyFactor = (float)Math.Exp(-hoursOld / 168.0); // 7 days half-life for Discover
             score *= recencyFactor;
 
             // Add a small random factor to provide variety (the "variable of trending/new" effect)
@@ -2510,7 +2517,7 @@ public class PostService : IPostService
             score += varietyBoost;
 
             // Include either interest matches, or highly engaging trending posts, or fresh posts
-            if (matchedInterest || score > 5.0f || hoursOld < 2.0)
+            if (matchedInterest || score > 1.0f || hoursOld < 168.0)
             {
                 scoredPosts.Add((post, score));
             }

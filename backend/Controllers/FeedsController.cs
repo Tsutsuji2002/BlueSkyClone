@@ -13,11 +13,13 @@ public class FeedsController : ControllerBase
 {
     private readonly IFeedService _feedService;
     private readonly IRecommendationService _recommendationService;
+    private readonly ILogger<FeedsController> _logger;
 
-    public FeedsController(IFeedService feedService, IRecommendationService recommendationService)
+    public FeedsController(IFeedService feedService, IRecommendationService recommendationService, ILogger<FeedsController> logger)
     {
         _feedService = feedService;
         _recommendationService = recommendationService;
+        _logger = logger;
     }
 
     [HttpGet("recommended")]
@@ -67,6 +69,7 @@ public class FeedsController : ControllerBase
             Guid? userId = Guid.TryParse(userIdString, out var cid) ? cid : null;
             
             var posts = await postService.GetTrendingPosts24hAsync(userId, limit, skip);
+            _logger.LogInformation("[FeedsController] GetTrendingPosts: UserId={UserId}, Count={Count}", userId, posts.Count());
             return Ok(posts);
         }
         catch (Exception ex)
@@ -90,6 +93,7 @@ public class FeedsController : ControllerBase
             }
 
             var posts = await postService.GetDiscoverPostsAsync(userId, take, skip);
+            _logger.LogInformation("[FeedsController] GetDiscoverPosts: UserId={UserId}, Count={Count}", userId, posts.Count());
             return Ok(posts);
         }
         catch (Exception ex)

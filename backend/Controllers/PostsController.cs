@@ -12,10 +12,12 @@ namespace BSkyClone.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly IPostService _postService;
+    private readonly ILogger<PostsController> _logger;
 
-    public PostsController(IPostService postService)
+    public PostsController(IPostService postService, ILogger<PostsController> logger)
     {
         _postService = postService;
+        _logger = logger;
     }
 
     [HttpGet("timeline")]
@@ -27,6 +29,7 @@ public class PostsController : ControllerBase
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
             
             var posts = await _postService.GetTimelineAsync(userId, skip, take);
+            _logger.LogInformation("[PostsController] GetTimeline: UserId={UserId}, Count={Count}", userId, posts.Count());
             return Ok(posts);
         }
         catch (Exception ex)
@@ -46,6 +49,7 @@ public class PostsController : ControllerBase
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
             var posts = await _postService.GetTrendingPostsAsync(viewerId);
+            _logger.LogInformation("[PostsController] GetTrending: ViewerId={ViewerId}, Count={Count}", viewerId, posts.Count());
             return Ok(posts);
         }
         catch (Exception ex)
