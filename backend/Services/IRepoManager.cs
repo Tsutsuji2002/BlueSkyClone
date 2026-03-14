@@ -9,5 +9,6 @@ namespace BSkyClone.Services
         Task<RepoBlock?> GetBlockAsync(string cid);
         Task<byte[]> GetRepoCheckoutAsync(string did);
         Task<string> SignRepoAsync(string did, string dataCid);
+        Task<string> UploadBlobAsync(string did, System.IO.Stream stream, string mimeType);
     }
 }

@@ -20,8 +20,9 @@ public class UserService : IUserService
     private readonly ICacheService _cacheService;
     private readonly ISearchService _searchService;
     private readonly IFileService _fileService;
+    private readonly IRepoManager _repoManager;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -29,6 +30,7 @@ public class UserService : IUserService
         _cacheService = cacheService;
         _searchService = searchService;
         _fileService = fileService;
+        _repoManager = repoManager;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
@@ -127,8 +129,34 @@ public class UserService : IUserService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
 
-        _unitOfWork.Users.Update(user);
-        await _unitOfWork.CompleteAsync();
+        // --- Phase 4: Repo Signing for Profile Updates ---
+        try
+        {
+            if (!string.IsNullOrEmpty(user.Did))
+            {
+                var profileRecord = new Dictionary<string, object>
+                {
+                    { "$type", "app.bsky.actor.profile" }
+                };
+
+                if (!string.IsNullOrEmpty(user.DisplayName)) profileRecord.Add("displayName", user.DisplayName);
+                if (!string.IsNullOrEmpty(user.Bio)) profileRecord.Add("description", user.Bio);
+                
+                // Note: AT Protocol expects Blobs (CIDs) for avatar/banner.
+                // Since full Blob CAB management isn't implemented yet, we pass URLs temporarily or omit
+                // depending on strict Lexicon validation. For now, we'll include them as strings.
+                if (!string.IsNullOrEmpty(user.AvatarUrl)) profileRecord.Add("avatar", user.AvatarUrl);
+                if (!string.IsNullOrEmpty(user.CoverImageUrl)) profileRecord.Add("banner", user.CoverImageUrl);
+
+                var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.actor.profile", profileRecord);
+                await _repoManager.SignRepoAsync(user.Did, cid);
+                Console.WriteLine($"[UpdateProfileAsync] Profile Repo updated and signed for User {userId}");
+            }
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"[UpdateProfileAsync] Profile Repo Signing Error: {ex.Message}");
+        }
 
         // Index in Elasticsearch
         await _searchService.IndexUserAsync(user);
@@ -358,6 +386,28 @@ public class UserService : IUserService
         
         follower.FollowingCount++;
         following.FollowersCount++;
+
+        // --- Phase 4: Repo Signing for Follows ---
+        try
+        {
+            if (!string.IsNullOrEmpty(follower.Did) && !string.IsNullOrEmpty(following.Did))
+            {
+                var followRecord = new Dictionary<string, object>
+                {
+                    { "$type", "app.bsky.graph.follow" },
+                    { "subject", following.Did },
+                    { "createdAt", follow.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                };
+                
+                var cid = await _repoManager.CreateRecordAsync(follower.Did, "app.bsky.graph.follow", followRecord);
+                await _repoManager.SignRepoAsync(follower.Did, cid);
+                Console.WriteLine($"[FollowUserAsync] Repo updated and signed for User {followerId}");
+            }
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"[FollowUserAsync] Repo Signing Error: {ex.Message}");
+        }
 
         // Create notification
         bool createNotif = await ShouldCreateNotificationAsync(followingId, "follow");

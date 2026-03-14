@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -8,6 +8,7 @@ public partial class Post
     public Guid Id { get; set; }
 
     public string Tid { get; set; } = null!;
+    public string? Cid { get; set; }
 
     public Guid AuthorId { get; set; }
 

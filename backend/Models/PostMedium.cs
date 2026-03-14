@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -12,6 +12,7 @@ public partial class PostMedium
     public string? Type { get; set; }
 
     public string Url { get; set; } = null!;
+    public string? Cid { get; set; }
 
     public string? AltText { get; set; }
 

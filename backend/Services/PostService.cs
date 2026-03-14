@@ -732,9 +732,163 @@ public class PostService : IPostService
                     { "text", post.Content ?? "" },
                     { "createdAt", post.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
                 };
+
+                // 0. Facets (Mentions/Links)
+                if (!string.IsNullOrEmpty(post.Content))
+                {
+                    var facets = await GetFacetsAsync(post.Content);
+                    if (facets.Any())
+                    {
+                        postRecord["facets"] = facets;
+                    }
+                }
+
+                // 1. Reply Lexicon
+                if (post.ReplyToPostId.HasValue && post.RootPostId.HasValue)
+                {
+                    var parentPost = await _unitOfWork.Posts.Query()
+                        .Include(p => p.Author)
+                        .FirstOrDefaultAsync(p => p.Id == post.ReplyToPostId.Value);
+
+                    var rootPost = await _unitOfWork.Posts.Query()
+                        .Include(p => p.Author)
+                        .FirstOrDefaultAsync(p => p.Id == post.RootPostId.Value);
+
+                    if (parentPost != null && rootPost != null)
+                    {
+                        var parentUri = $"at://{parentPost.Author.Did}/app.bsky.feed.post/{parentPost.Tid}";
+                        var rootUri = $"at://{rootPost.Author.Did}/app.bsky.feed.post/{rootPost.Tid}";
+
+                        // Use actual CID if available, fallback to Tid
+                        var parentCid = parentPost.Cid ?? parentPost.Tid;
+                        var rootCid = rootPost.Cid ?? rootPost.Tid;
+
+                        postRecord["reply"] = new Dictionary<string, object>
+                        {
+                            { "root", new Dictionary<string, object> { { "uri", rootUri }, { "cid", rootCid } } },
+                            { "parent", new Dictionary<string, object> { { "uri", parentUri }, { "cid", parentCid } } }
+                        };
+                    }
+                }
+
+                // 2. Embed Lexicon (Media & Quotes & Links)
+                Dictionary<string, object>? embedRecord = null;
+                
+                // Embed: Quote
+                if (post.QuotePostId.HasValue)
+                {
+                    var quotePost = await _unitOfWork.Posts.Query()
+                        .Include(p => p.Author)
+                        .FirstOrDefaultAsync(p => p.Id == post.QuotePostId.Value);
+                        
+                    if (quotePost != null)
+                    {
+                        var quoteUri = $"at://{quotePost.Author.Did}/app.bsky.feed.post/{quotePost.Tid}";
+                        var quoteCid = quotePost.Cid ?? quotePost.Tid;
+
+                        embedRecord = new Dictionary<string, object>
+                        {
+                            { "$type", "app.bsky.embed.record" },
+                            { "record", new Dictionary<string, object> { { "uri", quoteUri }, { "cid", quoteCid } } }
+                        };
+                    }
+                }
+                
+                // Embed: Images (Content-Addressed Blobs)
+                if (post.PostMedia.Any(m => m.Type == "image"))
+                {
+                    var images = new List<Dictionary<string, object>>();
+                    foreach (var img in post.PostMedia.Where(m => m.Type == "image" && !string.IsNullOrEmpty(m.Url)))
+                    {
+                        try
+                        {
+                            // 1. Upload the media file as an AT Protocol Blob
+                            string fullPath = Path.Combine(_environment.WebRootPath, img.Url.TrimStart('/'));
+                            if (File.Exists(fullPath))
+                            {
+                                using var stream = File.OpenRead(fullPath);
+                                // Determine MimeType (naive check)
+                                string mimeType = "image/jpeg";
+                                if (img.Url.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) mimeType = "image/png";
+                                if (img.Url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)) mimeType = "image/gif";
+                                if (img.Url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)) mimeType = "image/webp";
+
+                                var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
+                                img.Cid = blobCid; // Store for SQL
+
+                                images.Add(new Dictionary<string, object>
+                                {
+                                    { "alt", img.AltText ?? "" },
+                                    { "image", new Dictionary<string, object> 
+                                        { 
+                                            { "$type", "blob" }, 
+                                            { "ref", new Dictionary<string, object> { { "$link", blobCid } } },
+                                            { "mimeType", mimeType },
+                                            { "size", (int)new FileInfo(fullPath).Length }
+                                        } 
+                                    }
+                                });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[CreatePostAsync] Blob Upload Error for {img.Url}: {ex.Message}");
+                        }
+                    }
+                    
+                    if (images.Any())
+                    {
+                        var imageEmbed = new Dictionary<string, object>
+                        {
+                            { "$type", "app.bsky.embed.images" },
+                            { "images", images }
+                        };
+                        
+                        // If there was already a quote embed, AT Protocol uses 'app.bsky.embed.recordWithMedia'
+                        if (embedRecord != null && embedRecord["$type"].ToString() == "app.bsky.embed.record")
+                        {
+                             embedRecord = new Dictionary<string, object>
+                             {
+                                 { "$type", "app.bsky.embed.recordWithMedia" },
+                                 { "record", embedRecord },
+                                 { "media", imageEmbed }
+                             };
+                        }
+                        else
+                        {
+                            embedRecord = imageEmbed;
+                        }
+                    }
+                }
+                
+                // Embed: External Link
+                if (post.LinkPreview != null && embedRecord == null) // Skipping recordWithMedia for links for simplicity here
+                {
+                    embedRecord = new Dictionary<string, object>
+                    {
+                        { "$type", "app.bsky.embed.external" },
+                        { "external", new Dictionary<string, object>
+                            {
+                                { "uri", post.LinkPreview.Url },
+                                { "title", post.LinkPreview.Title ?? "" },
+                                { "description", post.LinkPreview.Description ?? "" }
+                            }
+                        }
+                    };
+                }
+
+                if (embedRecord != null)
+                {
+                    postRecord["embed"] = embedRecord;
+                }
                 var cid = await _repoManager.CreateRecordAsync(authorUser.Did, "app.bsky.feed.post", postRecord);
                 await _repoManager.SignRepoAsync(authorUser.Did, cid);
-                Console.WriteLine($"[CreatePostAsync] Repo updated and signed for User {userId}");
+                
+                post.Cid = cid;
+                _unitOfWork.Posts.Update(post);
+                await _unitOfWork.CompleteAsync();
+
+                Console.WriteLine($"[CreatePostAsync] Repo updated and signed for User {userId}, CID: {cid}");
             }
         }
         catch (Exception ex)
@@ -1110,6 +1264,113 @@ public class PostService : IPostService
                         { "text", post.Content ?? "" },
                         { "createdAt", post.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
                     };
+
+                    // 0. Facets (Mentions/Links)
+                    if (!string.IsNullOrEmpty(post.Content))
+                    {
+                        var facets = await GetFacetsAsync(post.Content);
+                        if (facets.Any())
+                        {
+                            postRecord["facets"] = facets;
+                        }
+                    }
+
+                    // 1. Reply Lexicon
+                    if (post.ReplyToPostId.HasValue && post.RootPostId.HasValue)
+                    {
+                        var parentPost = await _unitOfWork.Posts.Query()
+                            .Include(p => p.Author)
+                            .FirstOrDefaultAsync(p => p.Id == post.ReplyToPostId.Value);
+
+                        var rootPost = await _unitOfWork.Posts.Query()
+                            .Include(p => p.Author)
+                            .FirstOrDefaultAsync(p => p.Id == post.RootPostId.Value);
+
+                        if (parentPost != null && rootPost != null)
+                        {
+                            var parentUri = $"at://{parentPost.Author.Did}/app.bsky.feed.post/{parentPost.Tid}";
+                            var rootUri = $"at://{rootPost.Author.Did}/app.bsky.feed.post/{rootPost.Tid}";
+
+                            postRecord["reply"] = new Dictionary<string, object>
+                            {
+                                { "root", new Dictionary<string, object> { { "uri", rootUri }, { "cid", rootPost.Tid } } },
+                                { "parent", new Dictionary<string, object> { { "uri", parentUri }, { "cid", parentPost.Tid } } }
+                            };
+                        }
+                    }
+
+                    // 2. Embed Lexicon
+                    Dictionary<string, object>? embedRecord = null;
+                    
+                    if (post.QuotePostId.HasValue)
+                    {
+                        var quotePost = await _unitOfWork.Posts.Query()
+                            .Include(p => p.Author)
+                            .FirstOrDefaultAsync(p => p.Id == post.QuotePostId.Value);
+                            
+                        if (quotePost != null)
+                        {
+                            var quoteUri = $"at://{quotePost.Author.Did}/app.bsky.feed.post/{quotePost.Tid}";
+                            embedRecord = new Dictionary<string, object>
+                            {
+                                { "$type", "app.bsky.embed.record" },
+                                { "record", new Dictionary<string, object> { { "uri", quoteUri }, { "cid", quotePost.Tid } } }
+                            };
+                        }
+                    }
+                    
+                    if (post.PostMedia.Any(m => m.Type == "image"))
+                    {
+                        var images = new List<Dictionary<string, object>>();
+                        foreach (var img in post.PostMedia.Where(m => m.Type == "image"))
+                        {
+                            images.Add(new Dictionary<string, object>
+                            {
+                                { "alt", img.AltText ?? "" },
+                                { "image", new Dictionary<string, object> { { "$type", "blob" }, { "ref", img.Id.ToString() } } }
+                            });
+                        }
+                        
+                        var imageEmbed = new Dictionary<string, object>
+                        {
+                            { "$type", "app.bsky.embed.images" },
+                            { "images", images }
+                        };
+                        
+                        if (embedRecord != null && embedRecord["$type"].ToString() == "app.bsky.embed.record")
+                        {
+                             embedRecord = new Dictionary<string, object>
+                             {
+                                 { "$type", "app.bsky.embed.recordWithMedia" },
+                                 { "record", embedRecord },
+                                 { "media", imageEmbed }
+                             };
+                        }
+                        else
+                        {
+                            embedRecord = imageEmbed;
+                        }
+                    }
+                    
+                    if (post.LinkPreview != null && embedRecord == null)
+                    {
+                        embedRecord = new Dictionary<string, object>
+                        {
+                            { "$type", "app.bsky.embed.external" },
+                            { "external", new Dictionary<string, object>
+                                {
+                                    { "uri", post.LinkPreview.Url },
+                                    { "title", post.LinkPreview.Title ?? "" },
+                                    { "description", post.LinkPreview.Description ?? "" }
+                                }
+                            }
+                        };
+                    }
+
+                    if (embedRecord != null)
+                    {
+                        postRecord["embed"] = embedRecord;
+                    }
                     // Simplified: just text for now, full AT records would include facets/embeds
                     var cid = await _repoManager.CreateRecordAsync(author.Did, "app.bsky.feed.post", postRecord);
                     await _repoManager.SignRepoAsync(author.Did, cid);
@@ -1398,15 +1659,44 @@ public class PostService : IPostService
         }
         else
         {
-            await _unitOfWork.Likes.AddAsync(new Like
+            var newLike = new Like
             {
                 PostId = postId,
                 UserId = userId,
                 Tid = GenerateTid(),
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            await _unitOfWork.Likes.AddAsync(newLike);
             isLiked = true;
             post.LikesCount = (post.LikesCount ?? 0) + 1;
+
+            // --- Phase 4: Repo Signing for Likes ---
+            try
+            {
+                var liker = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (liker != null && !string.IsNullOrEmpty(liker.Did))
+                {
+                    var likeRecord = new Dictionary<string, object>
+                    {
+                        { "$type", "app.bsky.feed.like" },
+                        { "subject", new Dictionary<string, object> 
+                            { 
+                                { "uri", $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}" }, 
+                                { "cid", post.Tid } // Ideally actual CID, using Tid placeholder here as in Post creation
+                            } 
+                        },
+                        { "createdAt", newLike.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                    };
+                    
+                    var cid = await _repoManager.CreateRecordAsync(liker.Did, "app.bsky.feed.like", likeRecord);
+                    await _repoManager.SignRepoAsync(liker.Did, cid);
+                    Console.WriteLine($"[ToggleLikeAsync] Repo updated and signed for User {userId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine($"[ToggleLikeAsync] Repo Signing Error: {ex.Message}");
+            }
 
             // Create notification for post author (only if liker is not the author)
             if (userId != post.AuthorId && await ShouldCreateNotificationAsync(post.AuthorId, "like"))
@@ -1612,15 +1902,44 @@ public class PostService : IPostService
         }
         else
         {
-            await _unitOfWork.Reposts.AddAsync(new Repost
+            var newRepost = new Repost
             {
                 PostId = postId,
                 UserId = userId,
                 Tid = GenerateTid(),
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            await _unitOfWork.Reposts.AddAsync(newRepost);
             isReposted = true;
             post.RepostsCount = (post.RepostsCount ?? 0) + 1;
+
+            // --- Phase 4: Repo Signing for Reposts ---
+            try
+            {
+                var reposter = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (reposter != null && !string.IsNullOrEmpty(reposter.Did))
+                {
+                    var repostRecord = new Dictionary<string, object>
+                    {
+                        { "$type", "app.bsky.feed.repost" },
+                        { "subject", new Dictionary<string, object> 
+                            { 
+                                { "uri", $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}" }, 
+                                { "cid", post.Tid } // Ideally actual CID, using Tid placeholder here as in Post creation
+                            } 
+                        },
+                        { "createdAt", newRepost.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                    };
+                    
+                    var cid = await _repoManager.CreateRecordAsync(reposter.Did, "app.bsky.feed.repost", repostRecord);
+                    await _repoManager.SignRepoAsync(reposter.Did, cid);
+                    Console.WriteLine($"[ToggleRepostAsync] Repo updated and signed for User {userId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine($"[ToggleRepostAsync] Repo Signing Error: {ex.Message}");
+            }
 
             // Create notification for post author (only if reposter is not the author)
             if (userId != post.AuthorId && await ShouldCreateNotificationAsync(post.AuthorId, "repost"))
@@ -2219,5 +2538,52 @@ public class PostService : IPostService
         var dto = MapToDto(post);
         var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { dto }, userId);
         return enriched.FirstOrDefault();
+    }
+
+    private async Task<List<Dictionary<string, object>>> GetFacetsAsync(string text)
+    {
+        var facets = new List<Dictionary<string, object>>();
+        var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(text);
+
+        // 1. Mentions (@handle)
+        var mentionMatches = System.Text.RegularExpressions.Regex.Matches(text, @"(?:^|\s)@([a-zA-Z0-9.-]+)");
+        foreach (System.Text.RegularExpressions.Match match in mentionMatches)
+        {
+            var handle = match.Groups[1].Value;
+            var user = await _unitOfWork.Users.GetByHandleAsync($"{handle}.bsky.social") ?? await _unitOfWork.Users.GetByHandleAsync(handle);
+            
+            if (user != null && !string.IsNullOrEmpty(user.Did))
+            {
+                int charStart = match.Groups[1].Index - 1; // Include the '@'
+                int charEnd = match.Groups[1].Index + match.Groups[1].Length;
+                int byteStart = System.Text.Encoding.UTF8.GetByteCount(text.Substring(0, charStart));
+                int byteEnd = byteStart + System.Text.Encoding.UTF8.GetByteCount(text.Substring(charStart, charEnd - charStart));
+
+                facets.Add(new Dictionary<string, object>
+                {
+                    { "index", new Dictionary<string, object> { { "byteStart", byteStart }, { "byteEnd", byteEnd } } },
+                    { "features", new List<Dictionary<string, object>> { new Dictionary<string, object> { { "$type", "app.bsky.richtext.facet#mention" }, { "did", user.Did } } } }
+                });
+            }
+        }
+
+        // 2. Links (http/https)
+        var linkMatches = System.Text.RegularExpressions.Regex.Matches(text, @"(?:^|\s)(https?://[^\s]+)");
+        foreach (System.Text.RegularExpressions.Match match in linkMatches)
+        {
+            var url = match.Groups[1].Value;
+            int charStart = match.Groups[1].Index;
+            int charEnd = charStart + match.Groups[1].Length;
+            int byteStart = System.Text.Encoding.UTF8.GetByteCount(text.Substring(0, charStart));
+            int byteEnd = byteStart + System.Text.Encoding.UTF8.GetByteCount(text.Substring(charStart, charEnd - charStart));
+
+            facets.Add(new Dictionary<string, object>
+            {
+                { "index", new Dictionary<string, object> { { "byteStart", byteStart }, { "byteEnd", byteEnd } } },
+                { "features", new List<Dictionary<string, object>> { new Dictionary<string, object> { { "$type", "app.bsky.richtext.facet#link" }, { "uri", url } } } }
+            });
+        }
+
+        return facets.OrderBy(f => ((Dictionary<string, object>)f["index"])["byteStart"]).ToList();
     }
 }

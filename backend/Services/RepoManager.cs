@@ -108,5 +108,32 @@ namespace BSkyClone.Services
         }
 
 
+        public async Task<string> UploadBlobAsync(string did, System.IO.Stream stream, string mimeType)
+        {
+            using var ms = new System.IO.MemoryStream();
+            await stream.CopyToAsync(ms);
+            var data = ms.ToArray();
+
+            // Generate CID for the raw data
+            var cid = ProtocolUtils.GenerateCid(data);
+
+            var block = new RepoBlock
+            {
+                Cid = cid,
+                Data = data,
+                Did = did,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Check if block already exists
+            var existing = await _dbContext.RepoBlocks.FindAsync(cid);
+            if (existing == null)
+            {
+                _dbContext.RepoBlocks.Add(block);
+                await _dbContext.SaveChangesAsync();
+            }
+
+            return cid;
+        }
     }
 }
