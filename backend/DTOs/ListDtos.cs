@@ -7,7 +7,7 @@ public class ListDto
 {
     public Guid Id { get; set; }
     public Guid OwnerId { get; set; }
-    public UserDto Owner { get; set; } = null!;
+    public UserDto? Owner { get; set; }
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public string? Purpose { get; set; }

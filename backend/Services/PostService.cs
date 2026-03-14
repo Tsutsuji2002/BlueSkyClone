@@ -1125,7 +1125,7 @@ public class PostService : IPostService
             if (request.Images != null && request.Images.Any())
             {
                 Console.WriteLine($"[UpdatePostAsync] Processing {request.Images.Count} new images");
-                int currentMaxPos = post.PostMedia.Where(m => m.Position != null).Select(m => m.Position.Value).DefaultIfEmpty(-1).Max();
+                int currentMaxPos = post.PostMedia.Select(m => m.Position ?? -1).DefaultIfEmpty(-1).Max();
                 for (int i = 0; i < request.Images.Count; i++)
                 {
                     var file = request.Images[i];
