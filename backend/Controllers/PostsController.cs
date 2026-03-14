@@ -37,6 +37,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("trending")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetTrending()
     {
         try

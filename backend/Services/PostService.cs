@@ -1686,7 +1686,7 @@ public class PostService : IPostService
                         { "subject", new Dictionary<string, object> 
                             { 
                                 { "uri", $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}" }, 
-                                { "cid", post.Tid } // Ideally actual CID, using Tid placeholder here as in Post creation
+                                { "cid", post.Cid ?? post.Tid } 
                             } 
                         },
                         { "createdAt", newLike.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
@@ -1694,6 +1694,11 @@ public class PostService : IPostService
                     
                     var cid = await _repoManager.CreateRecordAsync(liker.Did, "app.bsky.feed.like", likeRecord);
                     await _repoManager.SignRepoAsync(liker.Did, cid);
+                    
+                    newLike.Cid = cid;
+                    newLike.Uri = likeRecord["subject"] is Dictionary<string, object> subj && subj.TryGetValue("uri", out var u) ? u.ToString() : $"at://{liker.Did}/app.bsky.feed.like/{newLike.Tid}";
+                    _unitOfWork.Likes.Update(newLike);
+
                     Console.WriteLine($"[ToggleLikeAsync] Repo updated and signed for User {userId}");
                 }
             }
@@ -1929,7 +1934,7 @@ public class PostService : IPostService
                         { "subject", new Dictionary<string, object> 
                             { 
                                 { "uri", $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}" }, 
-                                { "cid", post.Tid } // Ideally actual CID, using Tid placeholder here as in Post creation
+                                { "cid", post.Cid ?? post.Tid } 
                             } 
                         },
                         { "createdAt", newRepost.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
@@ -1937,6 +1942,11 @@ public class PostService : IPostService
                     
                     var cid = await _repoManager.CreateRecordAsync(reposter.Did, "app.bsky.feed.repost", repostRecord);
                     await _repoManager.SignRepoAsync(reposter.Did, cid);
+
+                    newRepost.Cid = cid;
+                    newRepost.Uri = repostRecord["subject"] is Dictionary<string, object> subj && subj.TryGetValue("uri", out var u) ? u.ToString() : $"at://{reposter.Did}/app.bsky.feed.repost/{newRepost.Tid}";
+                    _unitOfWork.Reposts.Update(newRepost);
+
                     Console.WriteLine($"[ToggleRepostAsync] Repo updated and signed for User {userId}");
                 }
             }

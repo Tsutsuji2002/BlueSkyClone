@@ -184,6 +184,8 @@ var app = builder.Build();
 // Handle Forwarded Headers from Nginx
 app.UseForwardedHeaders();
 
+app.UseMiddleware<BSkyClone.Middleware.RequestLoggingMiddleware>();
+
 // Configure the HTTP request pipeline.
 // Enable Swagger in production for easy debugging
 app.UseSwagger();
@@ -804,6 +806,30 @@ using (var scope = app.Services.CreateScope())
             logger.LogInformation("Applied Block 7 - Relationship and System Schema Repair.");
         }
         catch (Exception ex) { logger.LogError(ex, "Manual update block 7 (Relationships) failed."); }
+
+        // 8. AT Protocol Metadata Columns (Likes, Reposts, Follows)
+        try
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Likes') AND name = 'Cid')
+                BEGIN
+                    ALTER TABLE dbo.Likes ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                    PRINT 'Added Cid and Uri to Likes';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Reposts') AND name = 'Cid')
+                BEGIN
+                    ALTER TABLE dbo.Reposts ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                    PRINT 'Added Cid and Uri to Reposts';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserFollows') AND name = 'Cid')
+                BEGIN
+                    ALTER TABLE dbo.UserFollows ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                    PRINT 'Added Cid and Uri to UserFollows';
+                END";
+            context.Database.ExecuteSqlRaw(sql);
+            logger.LogInformation("Applied Block 8 - AT Protocol Metadata Schema Repair.");
+        }
+        catch (Exception ex) { logger.LogError(ex, "Manual update block 8 (AT Metadata) failed."); }
 
 
         // --- SEED AI FEEDS AND INTERESTS ---

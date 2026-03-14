@@ -142,11 +142,54 @@ public class UserService : IUserService
                 if (!string.IsNullOrEmpty(user.DisplayName)) profileRecord.Add("displayName", user.DisplayName);
                 if (!string.IsNullOrEmpty(user.Bio)) profileRecord.Add("description", user.Bio);
                 
-                // Note: AT Protocol expects Blobs (CIDs) for avatar/banner.
-                // Since full Blob CAB management isn't implemented yet, we pass URLs temporarily or omit
-                // depending on strict Lexicon validation. For now, we'll include them as strings.
-                if (!string.IsNullOrEmpty(user.AvatarUrl)) profileRecord.Add("avatar", user.AvatarUrl);
-                if (!string.IsNullOrEmpty(user.CoverImageUrl)) profileRecord.Add("banner", user.CoverImageUrl);
+                // --- AT Protocol Blobs for Profile Images ---
+                if (!string.IsNullOrEmpty(user.AvatarUrl))
+                {
+                    try
+                    {
+                        string fullPath = Path.Combine(_environment.WebRootPath, user.AvatarUrl.TrimStart('/'));
+                        if (File.Exists(fullPath))
+                        {
+                            using var stream = File.OpenRead(fullPath);
+                            string mimeType = "image/jpeg";
+                            if (user.AvatarUrl.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) mimeType = "image/png";
+                            
+                            var blobCid = await _repoManager.UploadBlobAsync(user.Did, stream, mimeType);
+                            profileRecord["avatar"] = new Dictionary<string, object>
+                            {
+                                { "$type", "blob" },
+                                { "ref", new Dictionary<string, object> { { "$link", blobCid } } },
+                                { "mimeType", mimeType },
+                                { "size", (int)new FileInfo(fullPath).Length }
+                            };
+                        }
+                    }
+                    catch (Exception ex) { Console.WriteLine($"[UpdateProfileAsync] Avatar Blob error: {ex.Message}"); }
+                }
+
+                if (!string.IsNullOrEmpty(user.CoverImageUrl))
+                {
+                    try
+                    {
+                        string fullPath = Path.Combine(_environment.WebRootPath, user.CoverImageUrl.TrimStart('/'));
+                        if (File.Exists(fullPath))
+                        {
+                            using var stream = File.OpenRead(fullPath);
+                            string mimeType = "image/jpeg";
+                            if (user.CoverImageUrl.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) mimeType = "image/png";
+
+                            var blobCid = await _repoManager.UploadBlobAsync(user.Did, stream, mimeType);
+                            profileRecord["banner"] = new Dictionary<string, object>
+                            {
+                                { "$type", "blob" },
+                                { "ref", new Dictionary<string, object> { { "$link", blobCid } } },
+                                { "mimeType", mimeType },
+                                { "size", (int)new FileInfo(fullPath).Length }
+                            };
+                        }
+                    }
+                    catch (Exception ex) { Console.WriteLine($"[UpdateProfileAsync] Banner Blob error: {ex.Message}"); }
+                }
 
                 var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.actor.profile", profileRecord);
                 await _repoManager.SignRepoAsync(user.Did, cid);
@@ -401,6 +444,11 @@ public class UserService : IUserService
                 
                 var cid = await _repoManager.CreateRecordAsync(follower.Did, "app.bsky.graph.follow", followRecord);
                 await _repoManager.SignRepoAsync(follower.Did, cid);
+
+                follow.Cid = cid;
+                follow.Uri = $"at://{follower.Did}/app.bsky.graph.follow/{follow.Tid}";
+                _unitOfWork.Follows.Update(follow);
+
                 Console.WriteLine($"[FollowUserAsync] Repo updated and signed for User {followerId}");
             }
         }

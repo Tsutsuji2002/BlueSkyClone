@@ -280,7 +280,7 @@ namespace BSkyClone.Controllers
                     Post = new Lexicons.App.Bsky.Feed.PostView
                     {
                         Uri = $"at://{p.Author?.Did ?? "unknown"}/app.bsky.feed.post/{p.Tid}",
-                        Cid = "pseudo-cid-" + p.Id, 
+                        Cid = p.Cid ?? p.Id.ToString(), 
                         Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
                         {
                             Did = p.Author?.Did ?? "",
@@ -447,7 +447,7 @@ namespace BSkyClone.Controllers
                     Lists = lists.Select(l => new ListView
                     {
                         Uri = $"at://{actorUser.Did}/app.bsky.graph.list/{l.Id}",
-                        Cid = "pseudo-cid-" + l.Id,
+                        Cid = l.Tid ?? l.Id.ToString(),
                         Name = l.Name,
                         Purpose = l.Purpose ?? "app.bsky.graph.defs#curatelist",
                         Description = l.Description,

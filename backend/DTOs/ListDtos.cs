@@ -17,6 +17,9 @@ public class ListDto
     public DateTime CreatedAt { get; set; }
     public bool IsPinned { get; set; }
     public bool IsOwner { get; set; }
+    public string? Tid { get; set; }
+    public string? Cid { get; set; }
+    public string? Uri { get; set; }
 }
 
 public class CreateListDto

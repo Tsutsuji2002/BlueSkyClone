@@ -11,6 +11,8 @@ public partial class UserFollow
 
     public DateTime? CreatedAt { get; set; }
     public string Tid { get; set; } = null!;
+    public string? Cid { get; set; }
+    public string? Uri { get; set; }
 
     public virtual User Follower { get; set; } = null!;
 

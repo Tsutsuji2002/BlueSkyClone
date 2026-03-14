@@ -174,6 +174,8 @@ public partial class BSkyDbContext : DbContext
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Tid).HasMaxLength(20);
+            entity.Property(e => e.Cid).HasMaxLength(100);
+            entity.Property(e => e.Uri).HasMaxLength(200);
 
             entity.HasOne(d => d.Post).WithMany(p => p.Likes)
                 .HasForeignKey(d => d.PostId)
@@ -426,6 +428,8 @@ public partial class BSkyDbContext : DbContext
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Tid).HasMaxLength(20);
+            entity.Property(e => e.Cid).HasMaxLength(100);
+            entity.Property(e => e.Uri).HasMaxLength(200);
 
             entity.HasOne(d => d.Post).WithMany(p => p.Reposts)
                 .HasForeignKey(d => d.PostId)
@@ -505,6 +509,8 @@ public partial class BSkyDbContext : DbContext
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Tid).HasMaxLength(20);
+            entity.Property(e => e.Cid).HasMaxLength(100);
+            entity.Property(e => e.Uri).HasMaxLength(200);
 
             entity.HasOne(d => d.Follower).WithMany(p => p.UserFollowFollowers)
                 .HasForeignKey(d => d.FollowerId)

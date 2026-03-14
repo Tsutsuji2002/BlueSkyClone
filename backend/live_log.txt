@@ -1,4 +1,3 @@
-Using launch settings from backend\Properties\launchSettings.json...
 info: Microsoft.Hosting.Lifetime[14]
       Now listening on: http://localhost:5000
 info: Microsoft.Hosting.Lifetime[0]
@@ -7,9 +6,54 @@ info: Microsoft.Hosting.Lifetime[0]
       Hosting environment: Development
 info: Microsoft.Hosting.Lifetime[0]
       Content root path: C:\Projects\BlueSky\backend
+info: BSkyClone.Middleware.RequestLoggingMiddleware[0]
+      Incoming Request: GET /api/posts/trending
 info: Microsoft.EntityFrameworkCore.Database.Command[20101]
-      Executed DbCommand (46ms) [Parameters=[@__handle_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
-      SELECT TOP(1) [u].[Id], [u].[AvatarUrl], [u].[Bio], [u].[CoverImageUrl], [u].[CreatedAt], [u].[DateOfBirth], [u].[Did], [u].[DisplayName], [u].[Email], [u].[EncryptedSigningPrivateKey], [u].[FollowersCount], [u].[FollowingCount], [u].[Handle], [u].[IsBanned], [u].[IsDeleted], [u].[IsOnline], [u].[IsPrivate], [u].[IsVerified], [u].[LastLoginAt], [u].[Location], [u].[PasswordHash], [u].[PostsCount], [u].[RepoCommitSignature], [u].[RepoRev], [u].[Role], [u].[Salt], [u].[SigningPublicKey], [u].[Username], [u].[Website], [u0].[UserId], [u0].[AdultContentFilter], [u0].[AppLanguage], [u0].[AutoplayVideoGif], [u0].[DefaultAllowQuotes], [u0].[DefaultReplyRestriction], [u0].[EnableAdultContent], [u0].[EnableDiscoverVideo], [u0].[EnableTreeView], [u0].[EnableTrending], [u0].[EnabledMediaProviders], [u0].[FontSize], [u0].[InAppNotifyActivity], [u0].[InAppNotifyFollowers], [u0].[InAppNotifyLikes], [u0].[InAppNotifyLikesOfReposts], [u0].[InAppNotifyMentions], [u0].[InAppNotifyOthers], [u0].[InAppNotifyQuotes], [u0].[InAppNotifyReplies], [u0].[InAppNotifyReposts], [u0].[InAppNotifyRepostsOfReposts], [u0].[LargerAltBadge], [u0].[NotifyActivity], [u0].[NotifyFollowers], [u0].[NotifyLikes], [u0].[NotifyLikesOfReposts], [u0].[NotifyMentions], [u0].[NotifyOthers], [u0].[NotifyQuotes], [u0].[NotifyReplies], [u0].[NotifyReposts], [u0].[NotifyRepostsOfReposts], [u0].[PushNotifyActivity], [u0].[PushNotifyFollowers], [u0].[PushNotifyLikes], [u0].[PushNotifyLikesOfReposts], [u0].[PushNotifyMentions], [u0].[PushNotifyOthers], [u0].[PushNotifyQuotes], [u0].[PushNotifyReplies], [u0].[PushNotifyReposts], [u0].[PushNotifyRepostsOfReposts], [u0].[RequireAltText], [u0].[RequireLogoutVisibility], [u0].[SelectedInterests], [u0].[ShowQuotePosts], [u0].[ShowReplies], [u0].[ShowReposts], [u0].[ShowSampleSavedFeeds], [u0].[SortReplies], [u0].[ThemeMode]
-      FROM [Users] AS [u]
-      LEFT JOIN [UserSettings] AS [u0] ON [u].[Id] = [u0].[UserId]
-      WHERE [u].[Handle] = @__handle_0
+      Executed DbCommand (64ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT [p0].[Id], [p0].[AllowQuotes], [p0].[AuthorId], [p0].[BookmarksCount], [p0].[Cid], [p0].[Content], [p0].[CreatedAt], [p0].[IsDeleted], [p0].[Language], [p0].[LikesCount], [p0].[QuotePostId], [p0].[QuotesCount], [p0].[RepliesCount], [p0].[ReplyRestriction], [p0].[ReplyToPostId], [p0].[RepostsCount], [p0].[RootPostId], [p0].[Tid], [u].[Id], [u].[AvatarUrl], [u].[Bio], [u].[CoverImageUrl], [u].[CreatedAt], [u].[DateOfBirth], [u].[Did], [u].[DisplayName], [u].[Email], [u].[EncryptedSigningPrivateKey], [u].[FollowersCount], [u].[FollowingCount], [u].[Handle], [u].[IsBanned], [u].[IsDeleted], [u].[IsOnline], [u].[IsPrivate], [u].[IsVerified], [u].[LastLoginAt], [u].[Location], [u].[PasswordHash], [u].[PostsCount], [u].[RepoCommitSignature], [u].[RepoRev], [u].[Role], [u].[Salt], [u].[SigningPublicKey], [u].[Username], [u].[Website], [l].[Id], [p1].[Id], [u0].[Id], [l0].[Id], [l].[CreatedAt], [l].[Description], [l].[Domain], [l].[Image], [l].[MessageId], [l].[PostId], [l].[Title], [l].[Url], [p1].[AllowQuotes], [p1].[AuthorId], [p1].[BookmarksCount], [p1].[Cid], [p1].[Content], [p1].[CreatedAt], [p1].[IsDeleted], [p1].[Language], [p1].[LikesCount], [p1].[QuotePostId], [p1].[QuotesCount], [p1].[RepliesCount], [p1].[ReplyRestriction], [p1].[ReplyToPostId], [p1].[RepostsCount], [p1].[RootPostId], [p1].[Tid], [u0].[AvatarUrl], [u0].[Bio], [u0].[CoverImageUrl], [u0].[CreatedAt], [u0].[DateOfBirth], [u0].[Did], [u0].[DisplayName], [u0].[Email], [u0].[EncryptedSigningPrivateKey], [u0].[FollowersCount], [u0].[FollowingCount], [u0].[Handle], [u0].[IsBanned], [u0].[IsDeleted], [u0].[IsOnline], [u0].[IsPrivate], [u0].[IsVerified], [u0].[LastLoginAt], [u0].[Location], [u0].[PasswordHash], [u0].[PostsCount], [u0].[RepoCommitSignature], [u0].[RepoRev], [u0].[Role], [u0].[Salt], [u0].[SigningPublicKey], [u0].[Username], [u0].[Website], [l0].[CreatedAt], [l0].[Description], [l0].[Domain], [l0].[Image], [l0].[MessageId], [l0].[PostId], [l0].[Title], [l0].[Url]
+      FROM (
+          SELECT TOP(@__p_0) [p].[Id], [p].[AllowQuotes], [p].[AuthorId], [p].[BookmarksCount], [p].[Cid], [p].[Content], [p].[CreatedAt], [p].[IsDeleted], [p].[Language], [p].[LikesCount], [p].[QuotePostId], [p].[QuotesCount], [p].[RepliesCount], [p].[ReplyRestriction], [p].[ReplyToPostId], [p].[RepostsCount], [p].[RootPostId], [p].[Tid], COALESCE([p].[LikesCount], 0) + COALESCE([p].[RepostsCount], 0) AS [c]
+          FROM [Posts] AS [p]
+          WHERE ([p].[IsDeleted] IS NULL OR [p].[IsDeleted] = CAST(0 AS bit)) AND [p].[ReplyToPostId] IS NULL
+          ORDER BY COALESCE([p].[LikesCount], 0) + COALESCE([p].[RepostsCount], 0) DESC
+      ) AS [p0]
+      INNER JOIN [Users] AS [u] ON [p0].[AuthorId] = [u].[Id]
+      LEFT JOIN [LinkPreviews] AS [l] ON [p0].[Id] = [l].[PostId]
+      LEFT JOIN [Posts] AS [p1] ON [p0].[QuotePostId] = [p1].[Id]
+      LEFT JOIN [Users] AS [u0] ON [p1].[AuthorId] = [u0].[Id]
+      LEFT JOIN [LinkPreviews] AS [l0] ON [p1].[Id] = [l0].[PostId]
+      ORDER BY [p0].[c] DESC, [p0].[Id], [u].[Id], [l].[Id], [p1].[Id], [u0].[Id], [l0].[Id]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (18ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT [p2].[Id], [p2].[AltText], [p2].[Cid], [p2].[CreatedAt], [p2].[IsDeleted], [p2].[Position], [p2].[PostId], [p2].[Type], [p2].[Url], [p0].[Id], [u].[Id], [l].[Id], [p1].[Id], [u0].[Id], [l0].[Id]
+      FROM (
+          SELECT TOP(@__p_0) [p].[Id], [p].[AuthorId], [p].[QuotePostId], COALESCE([p].[LikesCount], 0) + COALESCE([p].[RepostsCount], 0) AS [c]
+          FROM [Posts] AS [p]
+          WHERE ([p].[IsDeleted] IS NULL OR [p].[IsDeleted] = CAST(0 AS bit)) AND [p].[ReplyToPostId] IS NULL
+          ORDER BY COALESCE([p].[LikesCount], 0) + COALESCE([p].[RepostsCount], 0) DESC
+      ) AS [p0]
+      INNER JOIN [Users] AS [u] ON [p0].[AuthorId] = [u].[Id]
+      LEFT JOIN [LinkPreviews] AS [l] ON [p0].[Id] = [l].[PostId]
+      LEFT JOIN [Posts] AS [p1] ON [p0].[QuotePostId] = [p1].[Id]
+      LEFT JOIN [Users] AS [u0] ON [p1].[AuthorId] = [u0].[Id]
+      LEFT JOIN [LinkPreviews] AS [l0] ON [p1].[Id] = [l0].[PostId]
+      INNER JOIN [PostMedia] AS [p2] ON [p0].[Id] = [p2].[PostId]
+      ORDER BY [p0].[c] DESC, [p0].[Id], [u].[Id], [l].[Id], [p1].[Id], [u0].[Id], [l0].[Id]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (9ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT [p3].[Id], [p3].[AltText], [p3].[Cid], [p3].[CreatedAt], [p3].[IsDeleted], [p3].[Position], [p3].[PostId], [p3].[Type], [p3].[Url], [p0].[Id], [u].[Id], [l].[Id], [p1].[Id], [u0].[Id], [l0].[Id]
+      FROM (
+          SELECT TOP(@__p_0) [p].[Id], [p].[AuthorId], [p].[QuotePostId], COALESCE([p].[LikesCount], 0) + COALESCE([p].[RepostsCount], 0) AS [c]
+          FROM [Posts] AS [p]
+          WHERE ([p].[IsDeleted] IS NULL OR [p].[IsDeleted] = CAST(0 AS bit)) AND [p].[ReplyToPostId] IS NULL
+          ORDER BY COALESCE([p].[LikesCount], 0) + COALESCE([p].[RepostsCount], 0) DESC
+      ) AS [p0]
+      INNER JOIN [Users] AS [u] ON [p0].[AuthorId] = [u].[Id]
+      LEFT JOIN [LinkPreviews] AS [l] ON [p0].[Id] = [l].[PostId]
+      LEFT JOIN [Posts] AS [p1] ON [p0].[QuotePostId] = [p1].[Id]
+      LEFT JOIN [Users] AS [u0] ON [p1].[AuthorId] = [u0].[Id]
+      LEFT JOIN [LinkPreviews] AS [l0] ON [p1].[Id] = [l0].[PostId]
+      INNER JOIN [PostMedia] AS [p3] ON [p1].[Id] = [p3].[PostId]
+      ORDER BY [p0].[c] DESC, [p0].[Id], [u].[Id], [l].[Id], [p1].[Id], [u0].[Id], [l0].[Id]
+info: BSkyClone.Middleware.RequestLoggingMiddleware[0]
+      Outgoing Response: 200 for GET /api/posts/trending
