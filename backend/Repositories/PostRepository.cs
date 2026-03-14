@@ -101,7 +101,7 @@ public class PostRepository : Repository<Post>, IPostRepository
 
     public async Task<IEnumerable<Post>> GetTrendingPosts24hAsync(int limit = 50, int offset = 0)
     {
-        var dayAgo = DateTime.UtcNow.AddHours(-24);
+        var window = DateTime.UtcNow.AddDays(-7);
         return await _dbSet
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
@@ -114,7 +114,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
                         && p.ReplyToPostId == null
-                        && p.CreatedAt >= dayAgo)
+                        && p.CreatedAt >= window)
             .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
             .ThenByDescending(p => p.CreatedAt)
             .Skip(offset)
