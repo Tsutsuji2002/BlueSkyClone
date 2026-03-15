@@ -495,7 +495,8 @@ const userSlice = createSlice({
             .addCase(fetchUserProfile.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
-                if (state.profile?.handle !== action.meta.arg) {
+                // Only clear if we're switching to a DIFFERENT profile
+                if (state.profile && state.profile.handle !== action.meta.arg) {
                     state.profile = null;
                 }
             })

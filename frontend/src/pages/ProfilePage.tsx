@@ -56,12 +56,14 @@ const ProfilePage: React.FC = () => {
 
     useEffect(() => {
         if (handle) {
-            dispatch(fetchUserProfile(handle));
+            // Only fetch if we don't have this profile or it's different
+            if (!profileUser || profileUser.handle !== handle) {
+                dispatch(fetchUserProfile(handle));
+            }
         }
-        return () => {
-            dispatch(clearProfile());
-        };
-    }, [dispatch, handle]);
+        // Remove clearProfile() from unmount to prevent flicker during navigation
+        // It will be cleared by the next fetch or a explicit logout if needed
+    }, [dispatch, handle, profileUser?.handle]);
 
     useEffect(() => {
         if (profileUser?.id) {
@@ -102,7 +104,28 @@ const ProfilePage: React.FC = () => {
         }
 
         return () => observer.disconnect();
-    }, [dispatch, profileUser?.id, activeTab, hasMore, isPostsLoading, reduxPosts.length]);
+    }, [dispatch, profileUser?.id, activeTab, hasMore, isPostsLoading, cursor]);
+
+    // Scroll Persistence Logic
+    useEffect(() => {
+        if (!profileUser?.id || isPostsLoading) return;
+
+        const scrollKey = `profile_scroll_${profileUser.id}_${activeTab}`;
+        
+        // Restoration
+        const savedScroll = sessionStorage.getItem(scrollKey);
+        if (savedScroll && reduxPosts.length > 0) {
+            window.scrollTo(0, parseInt(savedScroll, 10));
+        }
+
+        // Saving
+        const handleScroll = () => {
+            sessionStorage.setItem(scrollKey, window.scrollY.toString());
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [profileUser?.id, activeTab, isPostsLoading, reduxPosts.length]);
 
     const handleTabChange = (tabId: string) => {
         dispatch(setActiveProfileTab(tabId));
