@@ -35,4 +35,5 @@ public interface IUserService
     Task<List<string>> GetSelectedInterestsAsync(Guid userId);
     Task SaveSelectedInterestsAsync(Guid userId, List<string> interests);
     Task<bool> VerifyDomainAsync(Guid userId, string? handle = null);
+    Task<bool> UpdateHandleAsync(Guid userId, string newHandle);
 }

@@ -121,19 +121,38 @@ namespace BSkyClone.Services
 
         public async Task<byte[]> GetRepoCheckoutAsync(string did)
         {
-            // In a real PDS, this would return a .car file containing the MST.
-            // For now, we'll return a concatenated byte array of all blocks for that DID.
+            using var ms = await GetRepoCheckoutStreamAsync(did);
+            return ((MemoryStream)ms).ToArray();
+        }
+
+        public async Task<Stream> GetRepoCheckoutStreamAsync(string did)
+        {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Did == did);
+            if (user == null) throw new Exception("User not found");
+
             var blocks = await _dbContext.RepoBlocks
                 .Where(b => b.Did == did)
                 .OrderBy(b => b.CreatedAt)
                 .ToListAsync();
 
-            using var ms = new MemoryStream();
+            var ms = new MemoryStream();
+            
+            // Write CAR v1 header with the current repo root
+            await CarUtils.WriteHeaderAsync(ms, user.RepoRoot);
+
             foreach (var block in blocks)
             {
-                ms.Write(block.Data, 0, block.Data.Length);
+                await CarUtils.WriteBlockAsync(ms, block.Cid, block.Data);
             }
-            return ms.ToArray();
+
+            ms.Position = 0;
+            return ms;
+        }
+
+        public async Task<string?> GetLatestCommitAsync(string did)
+        {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Did == did);
+            return user?.RepoCommit;
         }
 
 

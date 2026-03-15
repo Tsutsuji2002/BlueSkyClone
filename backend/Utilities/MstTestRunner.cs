@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using BSkyClone.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using BSkyClone.Services;
 
 namespace BSkyClone.Utilities
 {
@@ -109,10 +110,74 @@ namespace BSkyClone.Utilities
                 }
                 results.Add(ex.StackTrace);
             }
-            
-            results.Add("=== MST Tests Completed ===");
-            await System.IO.File.WriteAllLinesAsync("mst_test_results.txt", results);
-            Console.WriteLine("MST results written to mst_test_results.txt");
+        }
+        public static async Task SeedRepo(IServiceProvider services)
+        {
+            try
+            {
+                var dbContext = services.GetRequiredService<BSkyDbContext>();
+                var mst = services.GetRequiredService<MstService>();
+                var repo = services.GetRequiredService<IRepoManager>();
+
+                string testDid = "did:plc:sync-test-user";
+                var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Did == testDid);
+                
+                if (user == null)
+                {
+                    user = new User 
+                    { 
+                        Did = testDid, 
+                        Username = "synctest", 
+                        Handle = "synctest.test", 
+                        Email = "sync@test.com", 
+                        PasswordHash = "x", 
+                        Salt = "x" 
+                    };
+                    dbContext.Users.Add(user);
+                    await dbContext.SaveChangesAsync();
+                    
+                    // Ensure user has signing keys (SignRepoAsync needs them)
+                    var crypto = services.GetRequiredService<ICryptoService>();
+                    var keys = crypto.GenerateSecp256k1Keypair();
+                    user.EncryptedSigningPrivateKey = crypto.EncryptPrivateKey(keys.privateKey);
+                    user.SigningPublicKey = keys.publicKey;
+                    await dbContext.SaveChangesAsync();
+                }
+
+                var records = new Dictionary<string, string>
+                {
+                    { "app.bsky.feed.post/1", "bafyreib-post1" },
+                    { "app.bsky.feed.post/2", "bafyreib-post2" },
+                    { "app.bsky.feed.post/3", "bafyreib-post3" }
+                };
+
+                Console.WriteLine($"Seeding repo for {testDid}...");
+                foreach (var kv in records)
+                {
+                    var rec = new Dictionary<string, object>
+                    {
+                        { "text", kv.Value },
+                        { "createdAt", DateTime.UtcNow.ToString("o") }
+                    };
+                    await repo.CreateRecordAsync(testDid, kv.Key.Split('/')[0], rec);
+                }
+                Console.WriteLine("Seeding completed.");
+            }
+            catch (Exception ex)
+            {
+                var errorLines = new List<string>
+                {
+                    $"SEED ERROR: {ex.Message}",
+                    ex.StackTrace ?? ""
+                };
+                if (ex.InnerException != null)
+                {
+                    errorLines.Add($"INNER: {ex.InnerException.Message}");
+                    errorLines.Add(ex.InnerException.StackTrace ?? "");
+                }
+                System.IO.File.WriteAllLines("seed_error.txt", errorLines);
+                Console.WriteLine("Seed failed. Error written to seed_error.txt");
+            }
         }
     }
 }

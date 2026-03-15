@@ -85,6 +85,7 @@ builder.Services.AddSingleton<IMLModelService, MLModelService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
 builder.Services.AddScoped<IRepoManager, RepoManager>();
+builder.Services.AddScoped<IPlcService, PlcService>();
 builder.Services.AddScoped<MstService>();
 builder.Services.AddScoped<IDidResolver, DidResolverService>();
 builder.Services.AddScoped<ICryptoService, CryptoService>();
@@ -282,6 +283,11 @@ using (var scope = app.Services.CreateScope())
                 BEGIN
                     ALTER TABLE dbo.Users ADD RepoCommitSignature NVARCHAR(256) NULL;
                     PRINT 'Added RepoCommitSignature to Users';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'RepoRev')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD RepoRev NVARCHAR(100) NULL;
+                    PRINT 'Added RepoRev to Users';
                 END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Feeds') OR object_id = OBJECT_ID('Feeds')) AND name = 'IsOfficial')
                 BEGIN
@@ -987,6 +993,13 @@ using (var scope = app.Services.CreateScope())
     if (args.Contains("--test-mst"))
     {
         await MstTestRunner.RunTests(services);
+        Environment.Exit(0);
+    }
+
+    if (args.Contains("--seed-sync-test"))
+    {
+        await MstTestRunner.SeedRepo(services);
+        Environment.Exit(0);
     }
 }
 

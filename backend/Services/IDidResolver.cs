@@ -17,8 +17,8 @@ namespace BSkyClone.Services
         Task<User?> ResolveHandleAsync(string handle);
 
         /// <summary>
-        /// Resolves a DID to its current Handle.
+        /// Resolves a DID to its full DID Document.
         /// </summary>
-        Task<string?> GetHandleByDidAsync(string did);
+        Task<DidDocument?> ResolveToDocumentAsync(string did);
     }
 }

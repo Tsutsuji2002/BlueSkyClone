@@ -54,7 +54,7 @@ namespace BSkyClone.Utilities
             return new string(result);
         }
 
-        private static string EncodeBase32Raw(byte[] data)
+        public static string EncodeBase32Raw(byte[] data)
         {
             StringBuilder result = new StringBuilder((data.Length * 8 + 4) / 5);
             int buffer = 0;
@@ -78,6 +78,42 @@ namespace BSkyClone.Utilities
             }
 
             return result.ToString();
+        }
+
+        /// <summary>
+        /// Decodes a simplified CID string back to its byte representation.
+        /// </summary>
+        public static byte[] DecodeCid(string cid)
+        {
+            if (cid.StartsWith("bafyreib"))
+            {
+                var raw = cid.Substring(8);
+                return DecodeBase32Raw(raw);
+            }
+            throw new NotSupportedException("Only simplified CIDv1 (bafyreib) is supported for decoding.");
+        }
+
+        private static byte[] DecodeBase32Raw(string input)
+        {
+            var result = new List<byte>();
+            int buffer = 0;
+            int bufferLength = 0;
+
+            foreach (char c in input.ToLowerInvariant())
+            {
+                int val = Base32Chars.IndexOf(c);
+                if (val == -1) continue;
+
+                buffer = (buffer << 5) | val;
+                bufferLength += 5;
+
+                if (bufferLength >= 8)
+                {
+                    result.Add((byte)((buffer >> (bufferLength - 8)) & 0xFF));
+                    bufferLength -= 8;
+                }
+            }
+            return result.ToArray();
         }
     }
 }

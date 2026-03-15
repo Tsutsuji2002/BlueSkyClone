@@ -1,0 +1,35 @@
+﻿  Determining projects to restore...
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+  All projects are up-to-date for restore.
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(23,27): error CS0246: The type or namespace name 'User' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(31,27): error CS0246: The type or namespace name 'User' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(58,27): error CS0246: The type or namespace name 'DidDocument' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(86,28): error CS0246: The type or namespace name 'DidDocument' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(98,28): error CS0246: The type or namespace name 'DidDocument' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(8,39): error CS0738: 'DidResolverService' does not implement interface member 'IDidResolver.ResolveDidAsync(string)'. 'DidResolverService.ResolveDidAsync(string)' cannot implement 'IDidResolver.ResolveDidAsync(string)' because it does not have the matching return type of 'Task<User?>'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(8,39): error CS0738: 'DidResolverService' does not implement interface member 'IDidResolver.ResolveHandleAsync(string)'. 'DidResolverService.ResolveHandleAsync(string)' cannot implement 'IDidResolver.ResolveHandleAsync(string)' because it does not have the matching return type of 'Task<User?>'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(8,39): error CS0738: 'DidResolverService' does not implement interface member 'IDidResolver.ResolveToDocumentAsync(string)'. 'DidResolverService.ResolveToDocumentAsync(string)' cannot implement 'IDidResolver.ResolveToDocumentAsync(string)' because it does not have the matching return type of 'Task<DidDocument?>'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(10,26): error CS0246: The type or namespace name 'IUnitOfWork' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(15,35): error CS0246: The type or namespace name 'IUnitOfWork' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+
+Build FAILED.
+
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(23,27): error CS0246: The type or namespace name 'User' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(31,27): error CS0246: The type or namespace name 'User' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(58,27): error CS0246: The type or namespace name 'DidDocument' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(86,28): error CS0246: The type or namespace name 'DidDocument' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(98,28): error CS0246: The type or namespace name 'DidDocument' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(8,39): error CS0738: 'DidResolverService' does not implement interface member 'IDidResolver.ResolveDidAsync(string)'. 'DidResolverService.ResolveDidAsync(string)' cannot implement 'IDidResolver.ResolveDidAsync(string)' because it does not have the matching return type of 'Task<User?>'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(8,39): error CS0738: 'DidResolverService' does not implement interface member 'IDidResolver.ResolveHandleAsync(string)'. 'DidResolverService.ResolveHandleAsync(string)' cannot implement 'IDidResolver.ResolveHandleAsync(string)' because it does not have the matching return type of 'Task<User?>'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(8,39): error CS0738: 'DidResolverService' does not implement interface member 'IDidResolver.ResolveToDocumentAsync(string)'. 'DidResolverService.ResolveToDocumentAsync(string)' cannot implement 'IDidResolver.ResolveToDocumentAsync(string)' because it does not have the matching return type of 'Task<DidDocument?>'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(10,26): error CS0246: The type or namespace name 'IUnitOfWork' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\DidResolverService.cs(15,35): error CS0246: The type or namespace name 'IUnitOfWork' could not be found (are you missing a using directive or an assembly reference?) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+    2 Warning(s)
+    10 Error(s)
+
+Time Elapsed 00:00:02.23
+
+Workload updates are available. Run `dotnet workload list` for more information.

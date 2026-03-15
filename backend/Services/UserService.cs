@@ -873,4 +873,26 @@ public class UserService : IUserService
 
         return verified;
     }
+
+    public async Task<bool> UpdateHandleAsync(Guid userId, string newHandle)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        var oldHandle = user.Handle;
+        user.Handle = newHandle.ToLower().Trim();
+        user.Username = user.Handle.Split('.').First();
+
+        _unitOfWork.Users.Update(user);
+        var success = await _unitOfWork.CompleteAsync() > 0;
+
+        if (success)
+        {
+            // Update search index
+            await _searchService.IndexUserAsync(user);
+            Console.WriteLine($"[UserService] Handle updated for {userId}: {oldHandle} -> {newHandle}");
+        }
+
+        return success;
+    }
 }

@@ -1,0 +1,5 @@
+SEED ERROR: Type <>f__AnonymousType78`2 is not supported for CBOR encoding.
+   at BSkyClone.Utilities.CborUtils.EncodeToStream(Object obj, Stream stream) in C:\Projects\BlueSky\backend\Utilities\CborUtils.cs:line 34
+   at BSkyClone.Utilities.CborUtils.Encode(Object obj) in C:\Projects\BlueSky\backend\Utilities\CborUtils.cs:line 18
+   at BSkyClone.Services.RepoManager.CreateRecordAsync(String did, String collection, Object record) in C:\Projects\BlueSky\backend\Services\RepoManager.cs:line 27
+   at BSkyClone.Utilities.MstTestRunner.SeedRepo(IServiceProvider services) in C:\Projects\BlueSky\backend\Utilities\MstTestRunner.cs:line 157
