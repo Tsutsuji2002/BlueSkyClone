@@ -22,7 +22,6 @@ const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const dispatch = useAppDispatch();
     const lastTab = React.useRef<string>('');
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
     const {
