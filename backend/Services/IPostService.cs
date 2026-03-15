@@ -13,6 +13,7 @@ public interface IPostService
     Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null);
     Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null);
     Task FetchRemoteAuthorFeedAsync(string did);
+    Task ProcessRemotePostAsync(string did, string path, string cid, byte[] recordData);
     Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId);
     Task<object> ToggleLikeAsync(Guid userId, Guid postId);
     Task<object> ToggleBookmarkAsync(Guid userId, Guid postId);

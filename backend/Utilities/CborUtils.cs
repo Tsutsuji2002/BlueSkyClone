@@ -80,7 +80,7 @@ namespace BSkyClone.Utilities
             return DecodeFromStream(ms);
         }
 
-        private static object DecodeFromStream(Stream stream)
+        public static object DecodeFromStream(Stream stream)
         {
             int b = stream.ReadByte();
             if (b == -1) throw new EndOfStreamException();
@@ -112,6 +112,24 @@ namespace BSkyClone.Utilities
                             dict[key] = val;
                         }
                         return dict;
+                    }
+                case 6:
+                    {
+                        var tag = ReadUint(info, stream);
+                        var taggedVal = DecodeFromStream(stream);
+                        if (tag == 42 && taggedVal is byte[] cidBytes)
+                        {
+                            // AT Protocol CID tag is 42 followed by byte string starting with 0x00
+                            // We return it as a string representation if possible, or just the bytes
+                            if (cidBytes.Length > 0 && cidBytes[0] == 0x00)
+                            {
+                                // Skip the leading 0x00 and decode as CID
+                                var actualBytes = cidBytes.Skip(1).ToArray();
+                                return ProtocolUtils.EncodeCid(actualBytes); // Convert back to string CID
+                            }
+                            return cidBytes;
+                        }
+                        return taggedVal;
                     }
                 case 7:
                     if (info == 20) return false;

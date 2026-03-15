@@ -415,6 +415,22 @@ const postsSlice = createSlice({
             state.discoverPosts = state.discoverPosts.filter((p: Post) => p.uri !== postUri);
             state.trendingPosts = state.trendingPosts.filter((p: Post) => p.uri !== postUri);
             state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => p.uri !== postUri);
+        },
+        receiveNewPost: (state, action: PayloadAction<Post>) => {
+            const newPost = action.payload;
+            // Avoid duplicates
+            const exists = state.posts.some(p => p.uri === newPost.uri);
+            if (!exists) {
+                // Prepend to the main feed
+                state.posts = [newPost, ...state.posts];
+            }
+        },
+        receiveGlobalPost: (state, action: PayloadAction<Post>) => {
+            const newPost = action.payload;
+            // Add to discover/trending if not exists
+            if (!state.discoverPosts.some(p => p.uri === newPost.uri)) {
+                state.discoverPosts = [newPost, ...state.discoverPosts];
+            }
         }
     },
 
@@ -852,7 +868,7 @@ const postsSlice = createSlice({
 });
 
 
-export const { clearPosts, updatePostStats, updateUserPostStatus, removePost } = postsSlice.actions;
+export const { clearPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost, receiveGlobalPost } = postsSlice.actions;
 
 
 export default postsSlice.reducer;

@@ -1737,6 +1737,88 @@ public class PostService : IPostService
     }
 
 
+    public async Task ProcessRemotePostAsync(string did, string path, string cid, byte[] recordData)
+    {
+        try
+        {
+            var uri = $"at://{did}/{path}";
+            var tid = path.Split('/').Last();
+
+            // Check if post already exists locally
+            var existing = await _unitOfWork.Posts.Query().AnyAsync(p => p.Uri == uri || p.Cid == cid);
+            if (existing) return;
+
+            // Decode DAG-CBOR record
+            var record = CborUtils.Decode(recordData) as Dictionary<string, object>;
+            if (record == null) return;
+
+            // Find or create stub author
+            var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+            if (author == null)
+            {
+                author = new User
+                {
+                    Id = Guid.NewGuid(),
+                    Did = did,
+                    Handle = did, // Placeholder handle
+                    Username = did,
+                    Email = $"{did}@placeholder.com", // Dummy email for remote users
+                    PasswordHash = "remote",
+                    Salt = "remote",
+                    IsVerified = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.Users.AddAsync(author);
+                await _unitOfWork.CompleteAsync();
+            }
+
+            var newPost = new Post
+            {
+                Id = Guid.NewGuid(),
+                AuthorId = author.Id,
+                Content = record.ContainsKey("text") ? record["text"].ToString() : "",
+                CreatedAt = record.ContainsKey("createdAt") ? DateTime.Parse(record["createdAt"].ToString() ?? DateTime.UtcNow.ToString()) : DateTime.UtcNow,
+                Uri = uri,
+                Cid = cid,
+                Tid = tid,
+                IsDeleted = false
+            };
+
+            await _unitOfWork.Posts.AddAsync(newPost);
+            await _unitOfWork.CompleteAsync();
+
+            _logger.LogInformation("Firehose: Ingested remote post {Uri}", uri);
+
+            // Real-time notification via SignalR
+            try
+            {
+                var dto = MapToDto(newPost);
+                
+                // Get followers to notify them in real-time
+                var followerIds = await _unitOfWork.Follows.Query()
+                    .Where(f => f.FollowingId == author.Id)
+                    .Select(f => f.FollowerId.ToString()) // group names are strings
+                    .ToListAsync();
+
+                foreach (var followerId in followerIds)
+                {
+                    await _postHubContext.Clients.Group($"user-{followerId}").SendAsync("newPost", dto);
+                }
+
+                // Also push to a global discovery feed if active
+                await _postHubContext.Clients.All.SendAsync("newGlobalPost", dto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "SignalR notification failed for remote post {Uri}", uri);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing remote firehose post");
+        }
+    }
+
     public async Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId)
     {
         var rootPost = await _unitOfWork.Posts.Query()

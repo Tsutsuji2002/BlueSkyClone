@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr';
-import { updatePostStats, updateUserPostStatus, removePost } from '../redux/slices/postsSlice';
+import { updatePostStats, updateUserPostStatus, removePost, receiveNewPost, receiveGlobalPost } from '../redux/slices/postsSlice';
 import { store } from '../redux/store';
 import { API_BASE_URL } from '../constants';
 
@@ -28,6 +28,14 @@ class PostSignalRService {
 
         this.connection.on('PostDeleted', (postId: string) => {
             store.dispatch(removePost(postId));
+        });
+        
+        this.connection.on('newPost', (post: any) => {
+            store.dispatch(receiveNewPost(post));
+        });
+
+        this.connection.on('newGlobalPost', (post: any) => {
+            store.dispatch(receiveGlobalPost(post));
         });
 
         try {

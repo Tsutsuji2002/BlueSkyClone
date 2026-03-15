@@ -93,6 +93,12 @@ namespace BSkyClone.Utilities
             throw new NotSupportedException("Only simplified CIDv1 (bafyreib) is supported for decoding.");
         }
 
+        public static string EncodeCid(byte[] multihash)
+        {
+            // Reverse of DecodeCid - assumes it's a raw multihash we want to wrap in our simplified CIDv1
+            return "bafyreib" + EncodeBase32Raw(multihash);
+        }
+
         private static byte[] DecodeBase32Raw(string input)
         {
             var result = new List<byte>();

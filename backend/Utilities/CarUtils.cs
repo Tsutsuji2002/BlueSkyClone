@@ -53,5 +53,66 @@ namespace BSkyClone.Utilities
             }
             stream.WriteByte((byte)value);
         }
+
+        public static ulong ReadVarint(Stream stream)
+        {
+            ulong value = 0;
+            int shift = 0;
+            while (true)
+            {
+                int b = stream.ReadByte();
+                if (b == -1) throw new EndOfStreamException();
+                value |= (ulong)(b & 0x7F) << shift;
+                if ((b & 0x80) == 0) break;
+                shift += 7;
+            }
+            return value;
+        }
+
+        public static async Task<List<(string Cid, byte[] Data)>> ReadBlocksAsync(Stream stream)
+        {
+            var results = new List<(string Cid, byte[] Data)>();
+            
+            // Read CAR Header length
+            var headerLen = ReadVarint(stream);
+            var headerBytes = new byte[headerLen];
+            await stream.ReadAsync(headerBytes, 0, (int)headerLen);
+            // We don't necessarily need to parse header roots for firehose ingest, but we could.
+
+            while (stream.Position < stream.Length)
+            {
+                var blockLen = ReadVarint(stream);
+                if (blockLen == 0) break;
+
+                // CID is at the start of the block. In AT Protocol, it's usually 36 bytes for CIDv1.
+                // However, we need to read it dynamically if possible.
+                // For simplicity in our PDS logic, we assume CIDv1 starts with 0x01.
+                // In firehose CARs, the CID is binary encoded (not string).
+                
+                // Let's use a smarter way: read the whole block then split.
+                var blockData = new byte[blockLen];
+                await stream.ReadAsync(blockData, 0, (int)blockLen);
+                
+                // First byte of CIDv1 is 0x01
+                if (blockData[0] == 0x01)
+                {
+                    // CIDv1: [version][codec][multihash]
+                    // In AT Protocol, it's typically 1 (ver) + 1 (codec) + multihash
+                    // Multihash for sha2-256 starts with 0x12 0x20
+                    // Total CID length is usually 1+1+2+32 = 36 bytes.
+                    int cidLen = 36; 
+                    var cidBytes = blockData.Take(cidLen).ToArray();
+                    var recordData = blockData.Skip(cidLen).ToArray();
+                    
+                    // We need to convert binary CID to string for our internal indexing
+                    // Our current ProtocolUtils.EncodeCid expects raw multihash (without 0x01 0x71 prefix)
+                    var multihashOnly = cidBytes.Skip(2).ToArray();
+                    var cidString = ProtocolUtils.EncodeCid(multihashOnly);
+                    
+                    results.Add((cidString, recordData));
+                }
+            }
+            return results;
+        }
     }
 }
