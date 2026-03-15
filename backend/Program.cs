@@ -16,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddMemoryCache();
 
 // Increase Max Upload Size (500MB)
 builder.WebHost.ConfigureKestrel(options =>

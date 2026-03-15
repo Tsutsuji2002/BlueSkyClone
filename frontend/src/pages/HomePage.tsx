@@ -23,6 +23,7 @@ const HomePage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const lastTab = React.useRef<string>('');
+    const hasRestoredScroll = React.useRef<Record<string, boolean>>({});
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
     const {
         posts: followingPosts,
@@ -75,28 +76,50 @@ const HomePage: React.FC = () => {
         lastTab.current = activeTab;
     }, [dispatch]);
 
-    // Handle scroll persistence
+    // Restore scroll position once (only when switching to a tab that already has posts)
     useEffect(() => {
         if (!activeTab) return;
+        // Already restored scroll for this tab session — don't re-run on load-more
+        if (hasRestoredScroll.current[activeTab]) return;
+
+        const hasPosts = (
+            (activeTab === 'following' && followingPosts.length > 0) ||
+            (activeTab === 'discover' && discoverPosts.length > 0) ||
+            (activeTab.startsWith('list:') && activeListFeed.length > 0) ||
+            (!['following', 'discover'].includes(activeTab) && !activeTab.startsWith('list:'))
+        );
+        if (!hasPosts) return;
 
         const scrollKey = `home_scroll_${activeTab}`;
-
-        // Restoration - do it in a timeout to ensure DOM is ready
         const savedScroll = sessionStorage.getItem(scrollKey);
-        if (savedScroll && ((activeTab === 'following' && followingPosts.length > 0) || (activeTab === 'discover' && discoverPosts.length > 0) || (activeTab.startsWith('list:') && activeListFeed.length > 0))) {
+        if (savedScroll) {
+            hasRestoredScroll.current[activeTab] = true;
             setTimeout(() => {
                 window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'auto' });
-            }, 0);
+            }, 50);
+        } else {
+            hasRestoredScroll.current[activeTab] = true;
+        }
+    }, [activeTab, followingPosts.length, discoverPosts.length, activeListFeed.length]);
+
+    // Reset restore flag when user switches tabs, and save scroll position
+    useEffect(() => {
+        if (!activeTab) return;
+        // When switching to a new tab, allow scroll restoration for that tab
+        if (lastTab.current !== activeTab) {
+            // Don't reset hasRestored — we handle this by tab key in the ref object above
+            lastTab.current = activeTab;
+            // Reset scroll for the new tab so restoration runs again
+            hasRestoredScroll.current[activeTab] = false;
         }
 
-        // Saving
+        const scrollKey = `home_scroll_${activeTab}`;
         const handleScroll = () => {
             sessionStorage.setItem(scrollKey, window.scrollY.toString());
         };
-
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [activeTab, followingPosts.length, discoverPosts.length, activeListFeed.length]);
+    }, [activeTab]);
 
     const handleTabChange = (tabId: string) => {
         dispatch(setActiveTab(tabId));
