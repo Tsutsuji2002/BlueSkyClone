@@ -379,6 +379,9 @@ export interface PostsState {
     cursor: string | null;
     discoverCursor: string | null;
     lastUpdated?: string;
+    lastUserPostsFetch: number;
+    lastUserPostsUserId: string | null;
+    lastUserPostsType: string | null;
 }
 
 export interface UserState {

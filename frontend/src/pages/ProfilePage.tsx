@@ -41,6 +41,11 @@ const ProfilePage: React.FC = () => {
     const userLists = useAppSelector((state: RootState) => state.lists.userLists);
     const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
     const actionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
+    const { 
+        lastUserPostsFetch, 
+        lastUserPostsUserId, 
+        lastUserPostsType 
+    } = useAppSelector((state: RootState) => state.posts);
     const [activeTab, setActiveTab] = useState('posts');
     const observerTarget = React.useRef(null);
     const [confirmModal, setConfirmModal] = useState<{
@@ -62,11 +67,20 @@ const ProfilePage: React.FC = () => {
             if (activeTab === 'lists') {
                 dispatch(fetchUserLists(profileUser.id));
             } else {
-                dispatch(clearPosts());
-                dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20 }));
+                const RELOAD_TIMEOUT = 5 * 60 * 1000;
+                const now = Date.now();
+                const isStale = (now - lastUserPostsFetch) > RELOAD_TIMEOUT;
+                const matchesCurrent = 
+                    lastUserPostsUserId === profileUser.id && 
+                    lastUserPostsType === activeTab;
+
+                if (!matchesCurrent || isStale || reduxPosts.length === 0) {
+                    dispatch(clearPosts());
+                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20 }));
+                }
             }
         }
-    }, [dispatch, profileUser?.id, activeTab]);
+    }, [dispatch, profileUser?.id, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(

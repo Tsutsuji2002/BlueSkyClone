@@ -19,6 +19,9 @@ const initialState: PostsState = {
     lastDiscoverFetch: 0,
     cursor: null,
     discoverCursor: null,
+    lastUserPostsFetch: 0,
+    lastUserPostsUserId: null,
+    lastUserPostsType: null,
 };
 
 export const fetchTimeline = createAsyncThunk(

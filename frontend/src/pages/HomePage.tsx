@@ -145,8 +145,8 @@ const HomePage: React.FC = () => {
 
     // Display feeds: Following, Discover, then pinned lists, then pinned sub feeds
     const tabs = useMemo(() => [
-        { id: 'following', label: t('nav.following') },
         { id: 'discover', label: t('nav.discover') },
+        { id: 'following', label: t('nav.following') },
         ...pinnedLists.map((l: ListDto) => ({
             id: `list:${l.id}`,
             label: l.name
@@ -218,6 +218,11 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
+                <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>
+                    <InterestsSection />
+                    <Feed posts={discoverPosts} isLoading={discoverLoading} hasMore={discoverHasMore} onLoadMore={handleLoadMore} />
+                </div>
+
                 <div style={{ display: activeTab === 'following' ? 'block' : 'none' }}>
                     <Feed
                         posts={followingPosts}
@@ -227,11 +232,6 @@ const HomePage: React.FC = () => {
                         endMessage={t('feeds.following_end', 'Follow more people to get more content...')}
                         emptyMessage={t('feeds.follow_more_cta', 'Follow more accounts to see more content.')}
                     />
-                </div>
-
-                <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>
-                    <InterestsSection />
-                    <Feed posts={discoverPosts} isLoading={discoverLoading} hasMore={discoverHasMore} onLoadMore={handleLoadMore} />
                 </div>
 
                 {/* Pinned Lists Panels */}
