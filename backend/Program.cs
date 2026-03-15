@@ -960,6 +960,11 @@ using (var scope = app.Services.CreateScope())
                 BEGIN
                     ALTER TABLE dbo.PostMedia ADD Cid NVARCHAR(100) NULL;
                     PRINT 'Added Cid to PostMedia';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'FacetsJson')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD FacetsJson NVARCHAR(MAX) NULL;
+                    PRINT 'Added FacetsJson to Posts';
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied Block 8 - AT Protocol Metadata Schema Repair.");

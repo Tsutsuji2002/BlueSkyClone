@@ -1766,7 +1766,21 @@ public class PostService : IPostService
                 return thread;
             }
 
-            // 2. Remote post - Proxy request
+            // 2. Remote post - resolve handle to DID if needed, then proxy
+            string didForProxy = didOrHandle;
+
+            if (!didOrHandle.StartsWith("did:"))
+            {
+                // It's a handle — resolve to DID via .well-known
+                try
+                {
+                    var response = await new System.Net.Http.HttpClient().GetAsync($"https://{didOrHandle}/.well-known/atproto-did");
+                    if (response.IsSuccessStatusCode)
+                        didForProxy = (await response.Content.ReadAsStringAsync()).Trim();
+                }
+                catch { /* Use handle as-is; proxy will fail gracefully */ }
+            }
+
             var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
             {
                 { "uri", uri },
@@ -1775,7 +1789,7 @@ public class PostService : IPostService
             };
             var qCollection = new QueryCollection(qDict);
 
-            var proxyResult = await _xrpcProxy.ProxyRequestAsync(didOrHandle, "app.bsky.feed.getPostThread", qCollection);
+            var proxyResult = await _xrpcProxy.ProxyRequestAsync(didForProxy, "app.bsky.feed.getPostThread", qCollection);
             
             if (proxyResult.Success)
             {
