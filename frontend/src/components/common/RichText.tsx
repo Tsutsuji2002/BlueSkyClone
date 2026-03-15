@@ -44,73 +44,80 @@ const RichText: React.FC<RichTextProps> = ({ content, facets, className }) => {
         );
     }
 
-    const utf8Encoder = new TextEncoder();
-    const utf8Decoder = new TextDecoder();
-    const bytes = utf8Encoder.encode(content);
-    const elements: React.ReactNode[] = [];
-    let lastByteOffset = 0;
+    try {
+        const utf8Encoder = new TextEncoder();
+        const utf8Decoder = new TextDecoder();
+        const bytes = utf8Encoder.encode(content);
+        const elements: React.ReactNode[] = [];
+        let lastByteOffset = 0;
 
-    // Facets are sorted by byteStart from backend
-    facets.forEach((facet, i) => {
-        const { byteStart, byteEnd } = facet.index;
+        // Sort facets by byteStart defensively
+        const sortedFacets = [...facets].sort((a, b) => a.index.byteStart - b.index.byteStart);
 
-        // Text before facet
-        if (byteStart > lastByteOffset) {
-            elements.push(<span key={`text-${i}`}>{utf8Decoder.decode(bytes.slice(lastByteOffset, byteStart))}</span>);
+        sortedFacets.forEach((facet, i) => {
+            const { byteStart, byteEnd } = facet.index;
+            // Guard against invalid ranges
+            if (byteStart < lastByteOffset || byteEnd <= byteStart || byteEnd > bytes.length) return;
+
+            if (byteStart > lastByteOffset) {
+                elements.push(<span key={`text-${i}`}>{utf8Decoder.decode(bytes.slice(lastByteOffset, byteStart))}</span>);
+            }
+
+            const facetBytes = bytes.slice(byteStart, byteEnd);
+            const facetText = utf8Decoder.decode(facetBytes);
+            const feature = facet.features?.[0];
+
+            if (feature?.$type === 'app.bsky.richtext.facet#mention') {
+                elements.push(
+                    <Link
+                        key={`facet-${i}`}
+                        to={`/profile/${feature.did || facetText.substring(1)}`}
+                        className="text-primary-500 hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {facetText}
+                    </Link>
+                );
+            } else if (feature?.$type === 'app.bsky.richtext.facet#link') {
+                elements.push(
+                    <a
+                        key={`facet-${i}`}
+                        href={feature.uri}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-500 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {facetText.length > 40 ? facetText.substring(0, 37) + '...' : facetText}
+                    </a>
+                );
+            } else if (feature?.$type === 'app.bsky.richtext.facet#tag') {
+                elements.push(
+                    <Link
+                        key={`facet-${i}`}
+                        to={`/tag/${feature.tag || facetText.substring(1)}`}
+                        className="text-primary-500 hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {facetText}
+                    </Link>
+                );
+            } else {
+                elements.push(<span key={`facet-${i}`}>{facetText}</span>);
+            }
+
+            lastByteOffset = byteEnd;
+        });
+
+        if (lastByteOffset < bytes.length) {
+            elements.push(<span key="text-end">{utf8Decoder.decode(bytes.slice(lastByteOffset))}</span>);
         }
 
-        const facetBytes = bytes.slice(byteStart, byteEnd);
-        const facetText = utf8Decoder.decode(facetBytes);
-        const feature = facet.features[0];
-
-        if (feature?.$type === 'app.bsky.richtext.facet#mention') {
-            elements.push(
-                <Link
-                    key={`facet-${i}`}
-                    to={`/profile/${feature.did || facetText.substring(1)}`}
-                    className="text-primary-500 hover:underline font-medium"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {facetText}
-                </Link>
-            );
-        } else if (feature?.$type === 'app.bsky.richtext.facet#link') {
-            elements.push(
-                <a
-                    key={`facet-${i}`}
-                    href={feature.uri}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary-500 hover:underline"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {facetText.length > 40 ? facetText.substring(0, 37) + '...' : facetText}
-                </a>
-            );
-        } else if (feature?.$type === 'app.bsky.richtext.facet#tag') {
-            elements.push(
-                <Link
-                    key={`facet-${i}`}
-                    to={`/tag/${feature.tag || facetText.substring(1)}`}
-                    className="text-primary-500 hover:underline font-medium"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {facetText}
-                </Link>
-            );
-        } else {
-            elements.push(<span key={`facet-${i}`}>{facetText}</span>);
-        }
-
-        lastByteOffset = byteEnd;
-    });
-
-    // Remaining text
-    if (lastByteOffset < bytes.length) {
-        elements.push(<span key="text-end">{utf8Decoder.decode(bytes.slice(lastByteOffset))}</span>);
+        return <p className={className}>{elements}</p>;
+    } catch {
+        // Fallback to plain text if facet processing fails
+        return <p className={className}>{content}</p>;
     }
-
-    return <p className={className}>{elements}</p>;
 };
 
 export default RichText;

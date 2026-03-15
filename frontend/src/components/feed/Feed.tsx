@@ -1,10 +1,23 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, Component, ReactNode, ErrorInfo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import PostCard from './PostCard';
 import { Post } from '../../types';
 import { FiBookmark } from 'react-icons/fi';
 import { detectLanguage } from '../../utils/languageDetector';
+
+// Per-post error boundary: catches crashes in a single PostCard without killing the whole feed
+class PostErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+    state = { failed: false };
+    static getDerivedStateFromError() { return { failed: true }; }
+    componentDidCatch(error: Error, info: ErrorInfo) {
+        console.error('[PostCard] render error (hidden from user):', error, info);
+    }
+    render() {
+        if (this.state.failed) return null; // silently hide the broken post
+        return this.props.children;
+    }
+}
 
 interface FeedProps {
     posts?: Post[]; // Optional prop to override Redux posts
@@ -116,19 +129,21 @@ const Feed: React.FC<FeedProps> = ({
     return (
         <div className="divide-y-0">
             {posts.map((post) => (
-                <div key={post.uri!} className="relative z-10 bg-white dark:bg-dark-bg">
-                    {post.parentPost && (
+                <PostErrorBoundary key={post.uri || post.id}>
+                    <div className="relative z-10 bg-white dark:bg-dark-bg">
+                        {post.parentPost && (
+                            <PostCard
+                                post={post.parentPost}
+                                hasBottomLine={true}
+                                hideBorder={true}
+                            />
+                        )}
                         <PostCard
-                            post={post.parentPost}
-                            hasBottomLine={true}
-                            hideBorder={true}
+                            post={post}
+                            hasTopLine={!!post.parentPost}
                         />
-                    )}
-                    <PostCard
-                        post={post}
-                        hasTopLine={!!post.parentPost}
-                    />
-                </div>
+                    </div>
+                </PostErrorBoundary>
             ))}
 
             {/* Infinite Scroll Trigger */}
