@@ -516,6 +516,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
             })
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isLiked: boolean, likeUri?: string }>) => {
                 state.actionLoading[action.payload.uri] = false;
@@ -532,6 +533,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
             })
             .addCase(toggleLike.rejected, (state: PostsState, action) => {
                 const { uri } = action.meta.arg;
@@ -549,6 +551,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
                 state.error = action.payload as string;
             })
             .addCase(repostPost.pending, (state: PostsState, action) => {
@@ -567,6 +570,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
             })
             .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isReposted: boolean, repostUri?: string }>) => {
                 state.actionLoading[action.payload.uri] = false;
@@ -582,6 +586,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
             })
             .addCase(repostPost.rejected, (state: PostsState, action) => {
                 const { uri } = action.meta.arg;
@@ -599,6 +604,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
             })
             // Update Post
             .addCase(updatePost.pending, (state) => {
@@ -616,6 +622,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.bookmarkedPosts);
                 state.lastUpdated = new Date().toISOString();
             })
             .addCase(updatePost.rejected, (state, action) => {

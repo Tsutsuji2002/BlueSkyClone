@@ -595,6 +595,46 @@ const feedsSlice = createSlice({
                     });
                 }
             )
+            // Synchronize Real-time SignalR updates (Stats)
+            .addMatcher(
+                (action) => action.type === 'posts/updatePostStats',
+                (state: FeedsState, action: any) => {
+                    const { uri, likesCount, repostsCount, bookmarksCount, repliesCount, quotesCount } = action.payload;
+                    if (!uri) return;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        const posts = state.feedPosts[feedId];
+                        const post = posts.find(p => p.uri === uri || p.id === uri);
+                        if (post) {
+                            if (likesCount !== undefined) post.likesCount = likesCount;
+                            if (repostsCount !== undefined) post.repostsCount = repostsCount;
+                            if (bookmarksCount !== undefined) post.bookmarksCount = bookmarksCount;
+                            if (repliesCount !== undefined) post.repliesCount = repliesCount;
+                            if (quotesCount !== undefined) post.quotesCount = quotesCount;
+                            post.lastUpdated = new Date().toISOString();
+                        }
+                    });
+                }
+            )
+            // Synchronize Real-time SignalR updates (User Status)
+            .addMatcher(
+                (action) => action.type === 'posts/updateUserPostStatus',
+                (state: FeedsState, action: any) => {
+                    const { uri, isLiked, isReposted, isBookmarked } = action.payload;
+                    if (!uri) return;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        const posts = state.feedPosts[feedId];
+                        const post = posts.find(p => p.uri === uri || p.id === uri);
+                        if (post) {
+                            if (isLiked !== undefined) post.isLiked = isLiked;
+                            if (isReposted !== undefined) post.isReposted = isReposted;
+                            if (isBookmarked !== undefined) post.isBookmarked = isBookmarked;
+                            post.lastUpdated = new Date().toISOString();
+                        }
+                    });
+                }
+            )
             // Synchronize Profile Updates
             .addMatcher(
                 (action) => action.type.endsWith('/updateProfile/fulfilled'),

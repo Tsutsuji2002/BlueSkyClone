@@ -496,41 +496,183 @@ const listsSlice = createSlice({
             }
         });
 
-        builder.addMatcher(
+        builder
+            // Synchronize interactions across list feeds (Optimistic)
+            .addMatcher(
+            (action) => action.type.endsWith('/toggleLike/pending') ||
+                action.type.endsWith('/repostPost/pending') ||
+                action.type.endsWith('/toggleBookmark/pending'),
+            (state: ListsState, action: any) => {
+                const { uri } = action.meta.arg;
+                const type = action.type;
+
+                const applyOptimistic = (posts: Post[]) => {
+                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    if (post) {
+                        if (type.includes('toggleLike')) {
+                            const wasLiked = post.isLiked;
+                            post.isLiked = !wasLiked;
+                            post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
+                        } else if (type.includes('repostPost')) {
+                            const wasReposted = post.isReposted;
+                            post.isReposted = !wasReposted;
+                            post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
+                        } else if (type.includes('toggleBookmark')) {
+                            const wasBookmarked = post.isBookmarked;
+                            post.isBookmarked = !wasBookmarked;
+                            post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
+                        }
+                    }
+                };
+
+                applyOptimistic(state.activeListFeed);
+                applyOptimistic(state.candidatePosts);
+            }
+        )
+        // Synchronize interactions across list feeds (Fulfilled/Final)
+        .addMatcher(
             (action) => action.type.endsWith('/toggleLike/fulfilled') ||
                 action.type.endsWith('/repostPost/fulfilled') ||
-                action.type.endsWith('/bookmarkPost/fulfilled'),
-            (state, action: any) => {
+                action.type.endsWith('/toggleBookmark/fulfilled'),
+            (state: ListsState, action: any) => {
+                const payload = action.payload;
+                const uri = payload.uri || payload.postId; // Fallback to postId for backward compatibility
+                if (!uri) return;
+
+                const applyFinal = (posts: Post[]) => {
+                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    if (post) {
+                        if (payload.isLiked !== undefined) post.isLiked = payload.isLiked;
+                        if (payload.isReposted !== undefined) post.isReposted = payload.isReposted;
+                        if (payload.isBookmarked !== undefined) post.isBookmarked = payload.isBookmarked;
+                        if (payload.likesCount !== undefined) post.likesCount = payload.likesCount;
+                        if (payload.repostsCount !== undefined) post.repostsCount = payload.repostsCount;
+                        if (payload.bookmarksCount !== undefined) post.bookmarksCount = payload.bookmarksCount;
+                        
+                        if (payload.likeUri !== undefined) {
+                            if (!post.viewer) post.viewer = {};
+                            post.viewer.like = payload.likeUri;
+                        }
+                        if (payload.repostUri !== undefined) {
+                            if (!post.viewer) post.viewer = {};
+                            post.viewer.repost = payload.repostUri;
+                        }
+                    }
+                };
+
+                applyFinal(state.activeListFeed);
+                applyFinal(state.candidatePosts);
+            }
+        )
+        // Rollback on Error
+        .addMatcher(
+            (action) => action.type.endsWith('/toggleLike/rejected') ||
+                action.type.endsWith('/repostPost/rejected') ||
+                action.type.endsWith('/toggleBookmark/rejected'),
+            (state: ListsState, action: any) => {
+                const { uri } = action.meta.arg;
+                const type = action.type;
+
+                const rollback = (posts: Post[]) => {
+                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    if (post) {
+                        if (type.includes('toggleLike')) {
+                            const wasLiked = post.isLiked;
+                            post.isLiked = !wasLiked;
+                            post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
+                        } else if (type.includes('repostPost')) {
+                            const wasReposted = post.isReposted;
+                            post.isReposted = !wasReposted;
+                            post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
+                        } else if (type.includes('toggleBookmark')) {
+                            const wasBookmarked = post.isBookmarked;
+                            post.isBookmarked = !wasBookmarked;
+                            post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
+                        }
+                    }
+                };
+
+                rollback(state.activeListFeed);
+                rollback(state.candidatePosts);
+            }
+        )
+        // Synchronize Real-time SignalR updates (Stats)
+        .addMatcher(
+            (action) => action.type === 'posts/updatePostStats',
+            (state: ListsState, action: any) => {
+                const { uri, likesCount, repostsCount, bookmarksCount, repliesCount, quotesCount } = action.payload;
+                if (!uri) return;
+
+                const updateStats = (posts: Post[]) => {
+                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    if (post) {
+                        if (likesCount !== undefined) post.likesCount = likesCount;
+                        if (repostsCount !== undefined) post.repostsCount = repostsCount;
+                        if (bookmarksCount !== undefined) post.bookmarksCount = bookmarksCount;
+                        if (repliesCount !== undefined) post.repliesCount = repliesCount;
+                        if (quotesCount !== undefined) post.quotesCount = quotesCount;
+                    }
+                };
+
+                updateStats(state.activeListFeed);
+                updateStats(state.candidatePosts);
+            }
+        )
+        // Synchronize Real-time SignalR updates (User Status)
+        .addMatcher(
+            (action) => action.type === 'posts/updateUserPostStatus',
+            (state: ListsState, action: any) => {
+                const { uri, isLiked, isReposted, isBookmarked } = action.payload;
+                if (!uri) return;
+
+                const updateStatus = (posts: Post[]) => {
+                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    if (post) {
+                        if (isLiked !== undefined) post.isLiked = isLiked;
+                        if (isReposted !== undefined) post.isReposted = isReposted;
+                        if (isBookmarked !== undefined) post.isBookmarked = isBookmarked;
+                    }
+                };
+
+                updateStatus(state.activeListFeed);
+                updateStatus(state.candidatePosts);
+            }
+        )
+        // Synchronize Content Updates
+        .addMatcher(
+            (action) => action.type.endsWith('/updatePost/fulfilled'),
+            (state: ListsState, action: any) => {
                 const updatedPost = action.payload;
-                if (!updatedPost || !updatedPost.postId) return;
+                if (!updatedPost || !updatedPost.id) return;
 
-                // Update activeListFeed
-                const index = state.activeListFeed.findIndex(p => p.id === updatedPost.postId);
-                if (index !== -1) {
-                    state.activeListFeed[index] = {
-                        ...state.activeListFeed[index],
-                        isLiked: updatedPost.isLiked !== undefined ? updatedPost.isLiked : state.activeListFeed[index].isLiked,
-                        isReposted: updatedPost.isReposted !== undefined ? updatedPost.isReposted : state.activeListFeed[index].isReposted,
-                        isBookmarked: updatedPost.isBookmarked !== undefined ? updatedPost.isBookmarked : state.activeListFeed[index].isBookmarked,
-                        likesCount: updatedPost.likesCount !== undefined ? updatedPost.likesCount : state.activeListFeed[index].likesCount,
-                        repostsCount: updatedPost.repostsCount !== undefined ? updatedPost.repostsCount : state.activeListFeed[index].repostsCount,
-                        bookmarksCount: updatedPost.bookmarksCount !== undefined ? updatedPost.bookmarksCount : state.activeListFeed[index].bookmarksCount,
-                    };
-                }
+                const updateContent = (posts: Post[]) => {
+                    const index = posts.findIndex(p => p.id === updatedPost.id);
+                    if (index !== -1) {
+                        posts[index] = { ...posts[index], ...updatedPost };
+                    }
+                };
 
-                // Update candidatePosts
-                const cIndex = state.candidatePosts.findIndex(p => p.id === updatedPost.postId);
-                if (cIndex !== -1) {
-                    state.candidatePosts[cIndex] = {
-                        ...state.candidatePosts[cIndex],
-                        isLiked: updatedPost.isLiked !== undefined ? updatedPost.isLiked : state.candidatePosts[cIndex].isLiked,
-                        isReposted: updatedPost.isReposted !== undefined ? updatedPost.isReposted : state.candidatePosts[cIndex].isReposted,
-                        isBookmarked: updatedPost.isBookmarked !== undefined ? updatedPost.isBookmarked : state.candidatePosts[cIndex].isBookmarked,
-                        likesCount: updatedPost.likesCount !== undefined ? updatedPost.likesCount : state.candidatePosts[cIndex].likesCount,
-                        repostsCount: updatedPost.repostsCount !== undefined ? updatedPost.repostsCount : state.candidatePosts[cIndex].repostsCount,
-                        bookmarksCount: updatedPost.bookmarksCount !== undefined ? updatedPost.bookmarksCount : state.candidatePosts[cIndex].bookmarksCount,
-                    };
-                }
+                updateContent(state.activeListFeed);
+                updateContent(state.candidatePosts);
+            }
+        )
+        // Synchronize Profile Updates
+        .addMatcher(
+            (action) => action.type.endsWith('/updateProfile/fulfilled'),
+            (state: ListsState, action: any) => {
+                const updatedUser = action.payload;
+                if (!updatedUser || !updatedUser.id) return;
+
+                const updateAuthor = (posts: Post[]) => {
+                    posts.forEach(post => {
+                        if (post.author && post.author.id === updatedUser.id) {
+                            post.author = { ...post.author, ...updatedUser };
+                        }
+                    });
+                };
+
+                updateAuthor(state.activeListFeed);
+                updateAuthor(state.candidatePosts);
             }
         );
     }
