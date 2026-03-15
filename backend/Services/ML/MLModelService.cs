@@ -18,7 +18,7 @@ using BSkyClone.UnitOfWork;
 
 namespace BSkyClone.Services.ML;
 
-public interface IMLModelService
+public interface IMLModelService : IDisposable
 {
     Task<string> PredictTextCategoryAsync(string content);
     Task<(string Label, float Probability)> PredictTextCategoryWithScoreAsync(string content);
@@ -30,13 +30,23 @@ public interface IMLModelService
     void TrainModels();
 }
 
-public class MLModelService : IMLModelService
+public class MLModelService : IMLModelService, IDisposable
 {
     private readonly MLContext _mlContext;
     private readonly HttpClient _httpClient;
     private ITransformer? _textModel;
     private PredictionEngine<TextData, TextPrediction>? _textPredictionEngine;
     private readonly string _modelPath = Path.Combine(AppContext.BaseDirectory, "MLModels");
+
+    // ONNX Sessions (Singleton instances)
+    private InferenceSession? _textClassifierSession;
+    private InferenceSession? _textSemanticsSession;
+    private InferenceSession? _imageClassifierSession;
+    private InferenceSession? _visionModelSession;
+
+    // Tokenizers
+    private SimpleBertTokenizer? _bertTokenizer;
+    private SimpleBertTokenizer? _semanticTokenizer;
 
     // Python-trained model artifacts
     private Dictionary<string, int>? _textLabelMap;
@@ -48,7 +58,6 @@ public class MLModelService : IMLModelService
     private readonly IServiceScopeFactory _scopeFactory;
     private Dictionary<string, float[]>? _interestEmbeddings;
     private DateTime _lastInterestsUpdate = DateTime.MinValue;
-    private SimpleBertTokenizer? _semanticTokenizer;
 
     public MLModelService(HttpClient httpClient, IServiceScopeFactory scopeFactory)
     {
@@ -61,6 +70,55 @@ public class MLModelService : IMLModelService
         }
         LoadLabelMaps();
         LoadCategoryEmbeddings();
+        InitializeSessions();
+    }
+
+    private void InitializeSessions()
+    {
+        try
+        {
+            // 1. Text Classifier (Fine-tuned DistilBERT)
+            var textOnnxPath = Path.Combine(_modelPath, "text_classifier.onnx");
+            var vocabPath = Path.Combine(_modelPath, "bert_vocab.txt");
+            if (File.Exists(textOnnxPath) && File.Exists(vocabPath))
+            {
+                _textClassifierSession = new InferenceSession(textOnnxPath);
+                using var vocabStream = File.OpenRead(vocabPath);
+                _bertTokenizer = new SimpleBertTokenizer(vocabStream);
+                Console.WriteLine("[ML] Initialized Text Classifier Session.");
+            }
+
+            // 2. Semantic Similarity
+            var semanticOnnxPath = Path.Combine(_modelPath, "text_semantics.onnx");
+            var semanticVocabPath = Path.Combine(_modelPath, "semantic_vocab.txt");
+            if (File.Exists(semanticOnnxPath) && File.Exists(semanticVocabPath))
+            {
+                _textSemanticsSession = new InferenceSession(semanticOnnxPath);
+                using var vocabStream = File.OpenRead(semanticVocabPath);
+                _semanticTokenizer = new SimpleBertTokenizer(vocabStream);
+                Console.WriteLine("[ML] Initialized Semantic Similarity Session.");
+            }
+
+            // 3. Image Classifier (CLIP)
+            var clipOnnxPath = Path.Combine(_modelPath, "image_classifier.onnx");
+            if (File.Exists(clipOnnxPath))
+            {
+                _imageClassifierSession = new InferenceSession(clipOnnxPath);
+                Console.WriteLine("[ML] Initialized CLIP Image Classifier Session.");
+            }
+
+            // 4. Vision Model (MobileNet/ResNet)
+            var visionOnnxPath = Path.Combine(_modelPath, "vision_model.onnx");
+            if (File.Exists(visionOnnxPath))
+            {
+                _visionModelSession = new InferenceSession(visionOnnxPath);
+                Console.WriteLine("[ML] Initialized Vision Model Session.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ML] Error initializing sessions: {ex.Message}");
+        }
     }
 
     public void TrainModels()
@@ -83,12 +141,9 @@ public class MLModelService : IMLModelService
         // 1. Try Python-trained ONNX (fine-tuned DistilBERT) first
         try 
         {
-            var onnxPath = Path.Combine(_modelPath, "text_classifier.onnx");
-            var vocabPath = Path.Combine(_modelPath, "bert_vocab.txt");
-            
-            if (File.Exists(onnxPath) && File.Exists(vocabPath) && _textIdToLabel != null)
+            if (_textClassifierSession != null && _textIdToLabel != null)
             {
-                return await PredictTextWithPythonOnnxAsync(content, onnxPath, vocabPath);
+                return await PredictTextWithPythonOnnxAsync(content);
             }
         }
         catch (Exception ex)
@@ -99,12 +154,11 @@ public class MLModelService : IMLModelService
         // 2. Try legacy ONNX (old export_text_model.py)
         try 
         {
-            var onnxPath = Path.Combine(_modelPath, "text_model.onnx");
-            var vocabPath = Path.Combine(_modelPath, "bert_vocab.txt");
-            
-            if (File.Exists(onnxPath) && File.Exists(vocabPath))
+            // Note: Reuse the same classifier session if compatible, or add a specific legacy field if needed.
+            // For now, we assume the main one is the one we want.
+            if (_textClassifierSession != null)
             {
-                return await PredictTextWithOnnxAsync(content, onnxPath, vocabPath);
+                return await PredictTextWithOnnxAsync(content);
             }
         }
         catch (Exception ex)
@@ -140,13 +194,10 @@ public class MLModelService : IMLModelService
         try
         {
             // 1. Try Semantic Similarity (Dynamic interests) - NEW & BEST
-            var semanticOnnxPath = Path.Combine(_modelPath, "text_semantics.onnx");
-            var semanticVocabPath = Path.Combine(_modelPath, "semantic_vocab.txt");
-
-            if (File.Exists(semanticOnnxPath) && File.Exists(semanticVocabPath))
+            if (_textSemanticsSession != null)
             {
                 var textEmbedding = await GenerateEmbeddingAsync(content);
-                if (textEmbedding != null)
+                if (textEmbedding != null && textEmbedding.Length > 0)
                 {
                     await RefreshInterestEmbeddingsAsync();
                     if (_interestEmbeddings != null && _interestEmbeddings.Any())
@@ -170,12 +221,9 @@ public class MLModelService : IMLModelService
             }
 
             // 2. Fallback to fine-tuned classification
-            var onnxPath = Path.Combine(_modelPath, "text_classifier.onnx");
-            var vocabPath = Path.Combine(_modelPath, "bert_vocab.txt");
-
-            if (File.Exists(onnxPath) && File.Exists(vocabPath) && _textIdToLabel != null)
+            if (_textClassifierSession != null && _textIdToLabel != null)
             {
-                return await PredictTextMultiLabelWithOnnxAsync(content, onnxPath, vocabPath);
+                return await PredictTextMultiLabelWithOnnxAsync(content);
             }
         }
         catch (Exception ex)
@@ -192,14 +240,12 @@ public class MLModelService : IMLModelService
         return results;
     }
 
-    private async Task<(string Label, float Probability)> PredictTextWithPythonOnnxAsync(
-        string text, string modelPath, string vocabPath)
+    private async Task<(string Label, float Probability)> PredictTextWithPythonOnnxAsync(string text)
     {
-        using var session = new InferenceSession(modelPath);
-        var tokenizer = await GetTokenizerAsync(vocabPath);
-        
+        if (_textClassifierSession == null || _bertTokenizer == null) return ("unknown", 0f);
+
         var maxLen = 128;
-        var encoded = tokenizer.Encode(text).Take(maxLen).ToList();
+        var encoded = _bertTokenizer.Encode(text).Take(maxLen).ToList();
         while (encoded.Count < maxLen) encoded.Add(0);
         
         var inputIds = new DenseTensor<long>(new[] { 1, maxLen });
@@ -217,7 +263,7 @@ public class MLModelService : IMLModelService
             NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask)
         };
 
-        using var results = session.Run(inputs);
+        using var results = _textClassifierSession.Run(inputs);
         var logits = results.First().AsEnumerable<float>().ToArray();
         
         // Softmax
@@ -238,16 +284,13 @@ public class MLModelService : IMLModelService
         return ("unknown", 0f);
     }
 
-    private async Task<Dictionary<string, float>> PredictTextMultiLabelWithOnnxAsync(
-        string text, string modelPath, string vocabPath)
+    private async Task<Dictionary<string, float>> PredictTextMultiLabelWithOnnxAsync(string text)
     {
         var results = new Dictionary<string, float>();
-
-        using var session = new InferenceSession(modelPath);
-        var tokenizer = await GetTokenizerAsync(vocabPath);
+        if (_textClassifierSession == null || _bertTokenizer == null) return results;
         
         var maxLen = 128;
-        var encoded = tokenizer.Encode(text).Take(maxLen).ToList();
+        var encoded = _bertTokenizer.Encode(text).Take(maxLen).ToList();
         while (encoded.Count < maxLen) encoded.Add(0);
         
         var inputIds = new DenseTensor<long>(new[] { 1, maxLen });
@@ -265,7 +308,7 @@ public class MLModelService : IMLModelService
             NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask)
         };
 
-        using var onnxResults = session.Run(inputs);
+        using var onnxResults = _textClassifierSession.Run(inputs);
         var logits = onnxResults.First().AsEnumerable<float>().ToArray();
         
         // Softmax
@@ -289,14 +332,12 @@ public class MLModelService : IMLModelService
         return results;
     }
 
-    private async Task<(string Label, float Probability)> PredictTextWithOnnxAsync(
-        string text, string modelPath, string vocabPath)
+    private async Task<(string Label, float Probability)> PredictTextWithOnnxAsync(string text)
     {
-        using var session = new InferenceSession(modelPath);
-        var tokenizer = await GetTokenizerAsync(vocabPath);
+        if (_textClassifierSession == null || _bertTokenizer == null) return ("unknown", 0f);
         
         var maxLen = 128;
-        var encoded = tokenizer.Encode(text).Take(maxLen).ToList();
+        var encoded = _bertTokenizer.Encode(text).Take(maxLen).ToList();
         while (encoded.Count < maxLen) encoded.Add(0);
         
         var inputIds = new DenseTensor<long>(new[] { 1, maxLen });
@@ -314,7 +355,7 @@ public class MLModelService : IMLModelService
             NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask)
         };
 
-        using var results = session.Run(inputs);
+        using var results = _textClassifierSession.Run(inputs);
         var logits = results.First().AsEnumerable<float>().ToArray();
         
         var (category, confidence) = MapBertLogitsToCategory(logits);
@@ -331,22 +372,11 @@ public class MLModelService : IMLModelService
         return Task.FromResult(_tokenizer);
     }
 
-    public Task<float[]> GenerateEmbeddingAsync(string text)
+    public async Task<float[]> GenerateEmbeddingAsync(string text)
     {
         try
         {
-            var modelPath = Path.Combine(_modelPath, "text_semantics.onnx");
-            var vocabPath = Path.Combine(_modelPath, "semantic_vocab.txt");
-
-            if (!File.Exists(modelPath) || !File.Exists(vocabPath)) return Task.FromResult(Array.Empty<float>());
-
-            using var session = new InferenceSession(modelPath);
-            
-            if (_semanticTokenizer == null)
-            {
-                using var vocabStream = File.OpenRead(vocabPath);
-                _semanticTokenizer = new SimpleBertTokenizer(vocabStream);
-            }
+            if (_textSemanticsSession == null || _semanticTokenizer == null) return Array.Empty<float>();
 
             var maxLen = 128;
             var encoded = _semanticTokenizer.Encode(text).Take(maxLen).ToList();
@@ -367,13 +397,13 @@ public class MLModelService : IMLModelService
                 NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask)
             };
 
-            using var results = session.Run(inputs);
-            return Task.FromResult(results.First().AsEnumerable<float>().ToArray());
+            using var results = _textSemanticsSession.Run(inputs);
+            return results.First().AsEnumerable<float>().ToArray();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Embedding generation error: {ex.Message}");
-            return Task.FromResult(Array.Empty<float>());
+            return Array.Empty<float>();
         }
     }
 
@@ -450,26 +480,22 @@ public class MLModelService : IMLModelService
         try
         {
             // 1. Try Python-trained CLIP model first
-            var clipOnnxPath = Path.Combine(_modelPath, "image_classifier.onnx");
-            var embeddingsPath = Path.Combine(_modelPath, "category_embeddings.bin");
-
-            if (File.Exists(clipOnnxPath) && File.Exists(embeddingsPath) && _categoryEmbeddings != null)
+            if (_imageClassifierSession != null && _categoryEmbeddings != null)
             {
                 var imageBytes = await DownloadImageAsync(imageUrl);
                 if (imageBytes.Length > 0)
                 {
-                    return await PredictWithClipAsync(imageBytes, clipOnnxPath);
+                    return await PredictWithClipAsync(imageBytes);
                 }
             }
 
             // 2. Fallback to MobileNet/ResNet ONNX
-            var onnxModelPath = Path.Combine(_modelPath, "vision_model.onnx");
-            if (File.Exists(onnxModelPath))
+            if (_visionModelSession != null)
             {
                 var imageBytes = await DownloadImageAsync(imageUrl);
                 if (imageBytes.Length > 0)
                 {
-                    return await PredictWithMobileNetAsync(imageBytes, onnxModelPath);
+                    return await PredictWithMobileNetAsync(imageBytes);
                 }
             }
 
@@ -497,13 +523,12 @@ public class MLModelService : IMLModelService
         var results = new Dictionary<string, float>();
         try
         {
-            var clipOnnxPath = Path.Combine(_modelPath, "image_classifier.onnx");
-            if (File.Exists(clipOnnxPath) && _categoryEmbeddings != null)
+            if (_imageClassifierSession != null && _categoryEmbeddings != null)
             {
                 var imageBytes = await DownloadImageAsync(imageUrl);
                 if (imageBytes.Length > 0)
                 {
-                    return await PredictImageMultiLabelWithClipAsync(imageBytes, clipOnnxPath);
+                    return await PredictImageMultiLabelWithClipAsync(imageBytes);
                 }
             }
 
@@ -521,23 +546,21 @@ public class MLModelService : IMLModelService
         return results;
     }
 
-    private async Task<string> PredictWithClipAsync(byte[] imageBytes, string modelPath)
+    private async Task<string> PredictWithClipAsync(byte[] imageBytes)
     {
-        var scores = await PredictImageMultiLabelWithClipAsync(imageBytes, modelPath);
+        var scores = await PredictImageMultiLabelWithClipAsync(imageBytes);
         if (scores.Count == 0) return "neutral";
         var top = scores.OrderByDescending(x => x.Value).First();
         return top.Value > 0.15f ? top.Key : "neutral";
     }
 
-    private Task<Dictionary<string, float>> PredictImageMultiLabelWithClipAsync(byte[] imageBytes, string modelPath)
+    private Task<Dictionary<string, float>> PredictImageMultiLabelWithClipAsync(byte[] imageBytes)
     {
         var results = new Dictionary<string, float>();
-        if (_categoryEmbeddings == null || _categoryNames == null) return Task.FromResult(results);
+        if (_imageClassifierSession == null || _categoryEmbeddings == null || _categoryNames == null) return Task.FromResult(results);
         
         try
         {
-            using var session = new InferenceSession(modelPath);
-            
             // Preprocess image for CLIP (224x224, normalize with CLIP stats)
             using var image = Image.Load<Rgb24>(imageBytes);
             image.Mutate(x => x.Resize(new ResizeOptions {
@@ -558,10 +581,10 @@ public class MLModelService : IMLModelService
                 }
             }
 
-            var inputName = session.InputMetadata.Keys.First();
+            var inputName = _imageClassifierSession.InputMetadata.Keys.First();
             var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor(inputName, inputTensor) };
             
-            using var onnxResults = session.Run(inputs);
+            using var onnxResults = _imageClassifierSession.Run(inputs);
             var imageEmbedding = onnxResults.First().AsEnumerable<float>().ToArray();
 
             // Cosine similarity with pre-computed category embeddings
@@ -598,12 +621,11 @@ public class MLModelService : IMLModelService
         return denom > 0 ? (float)(dot / denom) : 0f;
     }
 
-    private Task<string> PredictWithMobileNetAsync(byte[] imageBytes, string modelPath)
+    private Task<string> PredictWithMobileNetAsync(byte[] imageBytes)
     {
+        if (_visionModelSession == null) return Task.FromResult("neutral");
         try 
         {
-            using var session = new InferenceSession(modelPath);
-            
             using var image = Image.Load<Rgb24>(imageBytes);
             image.Mutate(x => x.Resize(new ResizeOptions {
                 Size = new Size(224, 224),
@@ -622,10 +644,10 @@ public class MLModelService : IMLModelService
                 }
             }
 
-            var inputName = session.InputMetadata.Keys.First();
+            var inputName = _visionModelSession.InputMetadata.Keys.First();
             var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor(inputName, inputTensor) };
             
-            using var results = session.Run(inputs);
+            using var results = _visionModelSession.Run(inputs);
             var output = results.First().AsEnumerable<float>().ToArray();
             
             var (category, confidence) = ImageNetCategoryMapper.MapWithConfidence(output);
@@ -844,5 +866,14 @@ public class MLModelService : IMLModelService
         {
             TrainTextModel();
         }
+    }
+
+    public void Dispose()
+    {
+        _textClassifierSession?.Dispose();
+        _textSemanticsSession?.Dispose();
+        _imageClassifierSession?.Dispose();
+        _visionModelSession?.Dispose();
+        _textPredictionEngine?.Dispose();
     }
 }

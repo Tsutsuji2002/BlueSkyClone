@@ -8,17 +8,21 @@ using BSkyClone.Constants;
 using BSkyClone.Services.ML;
 using Microsoft.EntityFrameworkCore;
 
+using Microsoft.Extensions.Caching.Memory;
+
 namespace BSkyClone.Services;
 
 public class CategorizationService : ICategorizationService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMLModelService _mlService;
+    private readonly IMemoryCache _cache;
 
-    public CategorizationService(IUnitOfWork unitOfWork, IMLModelService mlService)
+    public CategorizationService(IUnitOfWork unitOfWork, IMLModelService mlService, IMemoryCache cache)
     {
         _unitOfWork = unitOfWork;
         _mlService = mlService;
+        _cache = cache;
     }
 
     public async Task<List<int>> CategorizePostAsync(string content, List<string>? imageUrls = null)
@@ -117,6 +121,14 @@ public class CategorizationService : ICategorizationService
     /// </summary>
     public async Task<Dictionary<string, float>> ScorePostForDiscoverAsync(string content, List<string>? imageUrls = null)
     {
+        var contentHash = string.IsNullOrEmpty(content) ? "empty" : content.GetHashCode().ToString();
+        var cacheKey = $"post_score:{contentHash}:{imageUrls?.Count ?? 0}";
+        
+        if (_cache.TryGetValue(cacheKey, out Dictionary<string, float>? cachedScores))
+        {
+            return cachedScores!;
+        }
+
         var scores = new Dictionary<string, float>();
         if (string.IsNullOrWhiteSpace(content) && (imageUrls == null || !imageUrls.Any()))
             return scores;
@@ -183,6 +195,7 @@ public class CategorizationService : ICategorizationService
             }
         }
 
+        _cache.Set(cacheKey, scores, TimeSpan.FromHours(24));
         return scores;
     }
 

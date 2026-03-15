@@ -2868,6 +2868,10 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0)
     {
+        var cacheKey = $"posts:discover:{userId}:{limit}:{skip}";
+        var cachedResult = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
+        if (cachedResult != null) return cachedResult;
+
         // 1. Get user interests
         List<string> userInterests = new();
         try
@@ -2921,8 +2925,8 @@ public class PostService : IPostService
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                 .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-                .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
-                .Take(5000) // Increase pool size to 5000 to ensure we find matching topics
+                .OrderByDescending(p => p.CreatedAt) // Order by Recency first, then score
+                .Take(500) // Reduced pool size from 5000 to 500 for massive performance gain
                 .ToListAsync();
         }
         catch (Exception ex)
@@ -2986,7 +2990,9 @@ public class PostService : IPostService
             .Select(x => MapToDto(x.Post))
             .ToList();
 
-        return await EnrichAndFilterPostsAsync(result, userId);
+        var enriched = await EnrichAndFilterPostsAsync(result, userId);
+        await _cacheService.SetAsync(cacheKey, enriched, TimeSpan.FromMinutes(5));
+        return enriched;
     }
 
     public async Task<PostDto?> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request)
