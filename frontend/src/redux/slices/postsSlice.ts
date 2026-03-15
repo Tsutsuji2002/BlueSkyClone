@@ -167,7 +167,7 @@ export const toggleLike = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to toggle like');
             const data = await response.json();
-            return { uri, isLiked: data.isLiked, likeUri: data.likeUri };
+            return { uri, isLiked: data.isLiked, likeUri: data.likeUri, likesCount: data.likesCount };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -186,7 +186,7 @@ export const repostPost = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to toggle repost');
             const data = await response.json();
-            return { uri, isReposted: data.isReposted, repostUri: data.repostUri };
+            return { uri, isReposted: data.isReposted, repostUri: data.repostUri, repostsCount: data.repostsCount };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -327,7 +327,7 @@ export const toggleBookmark = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to toggle bookmark');
             const data = await response.json();
-            return { uri, isBookmarked: data.isBookmarked };
+            return { uri, isBookmarked: data.isBookmarked, bookmarksCount: data.bookmarksCount };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -534,12 +534,13 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
             })
-            .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isLiked: boolean, likeUri?: string }>) => {
+            .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isLiked: boolean, likeUri?: string, likesCount?: number }>) => {
                 state.actionLoading[action.payload.uri] = false;
                 const updateInArray = (arr: Post[]) => {
                     const post = arr.find(p => p.uri === action.payload.uri);
                     if (post) {
                         post.isLiked = action.payload.isLiked;
+                        if (action.payload.likesCount !== undefined) post.likesCount = action.payload.likesCount;
                         // We store the like record URI in the viewer object to allow deletion later
                         if (!post.viewer) post.viewer = {};
                         post.viewer.like = action.payload.likeUri;
@@ -588,12 +589,13 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
             })
-            .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isReposted: boolean, repostUri?: string }>) => {
+            .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isReposted: boolean, repostUri?: string, repostsCount?: number }>) => {
                 state.actionLoading[action.payload.uri] = false;
                 const updateInArray = (arr: Post[]) => {
                     const post = arr.find(p => p.uri === action.payload.uri);
                     if (post) {
                         post.isReposted = action.payload.isReposted;
+                        if (action.payload.repostsCount !== undefined) post.repostsCount = action.payload.repostsCount;
                         if (!post.viewer) post.viewer = {};
                         post.viewer.repost = action.payload.repostUri;
                         post.lastUpdated = new Date().toISOString();
@@ -692,12 +694,13 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
             })
-            .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean }>) => {
+            .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, bookmarksCount?: number }>) => {
                 state.actionLoading[action.payload.uri] = false;
                 const updateInArray = (arr: Post[]) => {
                     const post = arr.find(p => p.uri === action.payload.uri);
                     if (post) {
                         post.isBookmarked = action.payload.isBookmarked;
+                        if (action.payload.bookmarksCount !== undefined) post.bookmarksCount = action.payload.bookmarksCount;
                         post.lastUpdated = new Date().toISOString();
                     }
                 };
