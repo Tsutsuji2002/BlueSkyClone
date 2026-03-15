@@ -51,18 +51,22 @@ namespace BSkyClone.Services
         private async Task ReceiveLoop(ClientWebSocket webSocket, CancellationToken stoppingToken)
         {
             var buffer = new byte[1024 * 1024]; // 1MB buffer
+            using var ms = new MemoryStream();
+
             while (webSocket.State == WebSocketState.Open && !stoppingToken.IsCancellationRequested)
             {
                 var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), stoppingToken);
                 if (result.MessageType == WebSocketMessageType.Close) break;
 
-                // Firehose messages can be multi-part, but ClientWebSocket.ReceiveAsync might not return the whole message in one call.
-                // However, for simplicity in this initial version, we assume small enough messages OR we handle accumulation.
+                await ms.WriteAsync(buffer, 0, result.Count, stoppingToken);
+
                 if (result.EndOfMessage)
                 {
-                    var messageData = new byte[result.Count];
-                    Array.Copy(buffer, messageData, result.Count);
+                    var messageData = ms.ToArray();
+                    ms.SetLength(0); // Reset for next message
                     
+                    _logger.LogDebug("Received full firehose message, size: {Size}", messageData.Length);
+
                     _ = Task.Run(async () => {
                         try {
                             await ProcessMessageAsync(messageData);
@@ -70,12 +74,6 @@ namespace BSkyClone.Services
                             _logger.LogError(ex, "Error processing firehose message");
                         }
                     });
-                }
-                else 
-                {
-                    // Accumulation logic would go here if messages exceed 1MB
-                    _logger.LogWarning("Received partial message too large for 1MB buffer. Skipping for now.");
-                    // In a production environment, we should use a MemoryStream to accumulate.
                 }
             }
         }
@@ -89,18 +87,24 @@ namespace BSkyClone.Services
             var header = CborUtils.DecodeFromStream(ms) as Dictionary<string, object>;
             var body = CborUtils.DecodeFromStream(ms) as Dictionary<string, object>;
 
-            if (header == null || body == null) return;
-            
-            // Firehose header typically uses 't' for the type string
-            var type = header.ContainsKey("t") ? header["t"].ToString() : ""; 
+            if (header == null) {
+                _logger.LogWarning("Firehose message header is null or not a dictionary");
+                return;
+            }
 
-            if (type == "#commit")
+            _logger.LogTrace("Processing firehose message type: {Type}", header.ContainsKey("t") ? header["t"] : "unknown");
+
+            if (header.TryGetValue("t", out var t) && t?.ToString() == "#commit")
             {
                 await HandleCommitEventAsync(body);
             }
-            else if (type == "#handle")
+            else if (header.TryGetValue("t", out var type))
             {
-                _logger.LogInformation("Firehose: Handle update for {Did}", body["did"]);
+                if (type?.ToString() == "#handle")
+                {
+                    var did = body?.ContainsKey("did") == true ? body["did"]?.ToString() : "unknown";
+                    _logger.LogInformation("Firehose: Handle update for {Did}", did);
+                }
             }
         }
 
@@ -111,11 +115,13 @@ namespace BSkyClone.Services
             // body["ops"] is a list of operations (create/update/delete)
             // body["repo"] is the DID
             
+            if (!body.ContainsKey("repo") || body["repo"] == null) return;
             var did = body["repo"].ToString();
-            var blocks = body["blocks"] as byte[];
-            var ops = body["ops"] as List<object>;
+            
+            var blocks = body.ContainsKey("blocks") ? body["blocks"] as byte[] : null;
+            var ops = body.ContainsKey("ops") ? body["ops"] as List<object> : null;
 
-            if (blocks != null && ops != null)
+            if (did != null && blocks != null && ops != null)
             {
                 using var scope = _serviceProvider.CreateScope();
                 var postService = scope.ServiceProvider.GetRequiredService<IPostService>();
@@ -130,18 +136,22 @@ namespace BSkyClone.Services
                     var op = opObj as Dictionary<string, object>;
                     if (op == null) continue;
 
-                    var action = op["action"].ToString();
-                    var path = op["path"].ToString(); // e.g., app.bsky.feed.post/tid
-                    var cid = op.ContainsKey("cid") ? op["cid"].ToString() : null;
+                    var action = op.ContainsKey("action") ? op["action"]?.ToString() : null;
+                    var path = op.ContainsKey("path") ? op["path"]?.ToString() : null;
+                    var cid = op.ContainsKey("cid") ? op["cid"]?.ToString() : null;
 
-                    if (action == "create" && path.StartsWith("app.bsky.feed.post/") && cid != null)
+                    if (action == "create" && path != null && path.StartsWith("app.bsky.feed.post/") && cid != null)
                     {
-                        // Find the record data in extracted blocks
+                        _logger.LogTrace("Firehose: Looking for CID {Cid}. Found {Count} blocks.", cid, extractedBlocks.Count);
                         var block = extractedBlocks.Find(b => b.Cid == cid);
                         if (block.Data != null)
                         {
-                            // Ingest into database
+                            _logger.LogDebug("Firehose: Found record for post {Path}, ingesting...", path);
                             await postService.ProcessRemotePostAsync(did, path, cid, block.Data);
+                        }
+                        else 
+                        {
+                            _logger.LogWarning("Firehose: Could not find block data for post CID {Cid}", cid);
                         }
                     }
                 }

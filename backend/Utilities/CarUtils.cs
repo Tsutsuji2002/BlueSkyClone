@@ -105,9 +105,7 @@ namespace BSkyClone.Utilities
                     var recordData = blockData.Skip(cidLen).ToArray();
                     
                     // We need to convert binary CID to string for our internal indexing
-                    // Our current ProtocolUtils.EncodeCid expects raw multihash (without 0x01 0x71 prefix)
-                    var multihashOnly = cidBytes.Skip(2).ToArray();
-                    var cidString = ProtocolUtils.EncodeCid(multihashOnly);
+                    var cidString = ProtocolUtils.EncodeCid(cidBytes);
                     
                     results.Add((cidString, recordData));
                 }

@@ -107,7 +107,8 @@ namespace BSkyClone.Utilities
                         var dict = new Dictionary<string, object>(count);
                         for (int i = 0; i < count; i++)
                         {
-                            var key = (string)DecodeFromStream(stream);
+                            var keyObj = DecodeFromStream(stream);
+                            var key = keyObj?.ToString() ?? $"key_{i}";
                             var val = DecodeFromStream(stream);
                             dict[key] = val;
                         }
@@ -119,26 +120,37 @@ namespace BSkyClone.Utilities
                         var taggedVal = DecodeFromStream(stream);
                         if (tag == 42 && taggedVal is byte[] cidBytes)
                         {
-                            // AT Protocol CID tag is 42 followed by byte string starting with 0x00
-                            // We return it as a string representation if possible, or just the bytes
                             if (cidBytes.Length > 0 && cidBytes[0] == 0x00)
                             {
-                                // Skip the leading 0x00 and decode as CID
                                 var actualBytes = cidBytes.Skip(1).ToArray();
-                                return ProtocolUtils.EncodeCid(actualBytes); // Convert back to string CID
+                                return ProtocolUtils.EncodeCid(actualBytes);
                             }
                             return cidBytes;
                         }
                         return taggedVal;
                     }
                 case 7:
-                    if (info == 20) return false;
-                    if (info == 21) return true;
-                    if (info == 22) return null;
+                    if (info <= 23)
+                    {
+                        if (info == 20) return false;
+                        if (info == 21) return true;
+                        if (info == 22) return null;
+                        if (info == 23) return null; // Undefined
+                        return (int)info; // Simple value
+                    }
+                    if (info == 24) return (int)stream.ReadByte(); // Simple value next byte
+                    if (info >= 25 && info <= 27)
+                    {
+                        // Floats - we don't strictly need them for firehose commit metadata, but let's at least skip them
+                        int size = (info == 25) ? 2 : (info == 26 ? 4 : 8);
+                        byte[] floatBytes = new byte[size];
+                        stream.Read(floatBytes, 0, size);
+                        return null; // Return null for floats for now
+                    }
                     break;
             }
 
-            throw new NotSupportedException($"Major type {major} is not supported.");
+            throw new NotSupportedException($"Major type {major} info {info} is not supported.");
         }
 
         private static ulong ReadUint(byte info, Stream stream)

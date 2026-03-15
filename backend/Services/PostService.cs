@@ -1787,7 +1787,10 @@ public class PostService : IPostService
 
             // Decode DAG-CBOR record
             var record = CborUtils.Decode(recordData) as Dictionary<string, object>;
-            if (record == null) return;
+            if (record == null) {
+                _logger.LogWarning("Firehose: Failed to decode record CBOR for {Uri}", uri);
+                return;
+            }
 
             // Find or create stub author
             var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
@@ -1807,6 +1810,17 @@ public class PostService : IPostService
                 };
                 await _unitOfWork.Users.AddAsync(author);
                 await _unitOfWork.CompleteAsync();
+                _logger.LogInformation("Firehose: Created stub user for remote DID {Did}", did);
+            }
+
+            string? facetsJson = null;
+            if (record.TryGetValue("facets", out var facetsObj))
+            {
+                try {
+                    facetsJson = System.Text.Json.JsonSerializer.Serialize(facetsObj);
+                } catch (Exception ex) {
+                    _logger.LogWarning(ex, "Firehose: Failed to serialize facets for {Uri}", uri);
+                }
             }
 
             var newPost = new Post
@@ -1818,6 +1832,7 @@ public class PostService : IPostService
                 Uri = uri,
                 Cid = cid,
                 Tid = tid,
+                FacetsJson = facetsJson,
                 IsDeleted = false
             };
 

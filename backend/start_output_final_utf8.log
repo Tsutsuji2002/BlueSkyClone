@@ -1,0 +1,1327 @@
+﻿Using launch settings from C:\Projects\BlueSky\backend\Properties\launchSettings.json...
+Building...
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\BSkyClone.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Projects\BlueSky\backend\DbCheck.cs(12,34): warning CS7022: The entry point of the program is global code; ignoring 'DbCheck.Main(string[])' entry point. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(46,30): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(49,54): warning CS8604: Possible null reference argument for parameter 'nodeCid' in 'Task<string> MstService.InsertRecursiveAsync(string nodeCid, string key, string value, int keyLevel, string did)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstTestRunner.cs(54,32): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstTestRunner.cs(79,32): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstTestRunner.cs(111,29): warning CS8604: Possible null reference argument for parameter 'item' in 'void List<string>.Add(string item)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(62,30): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(64,54): warning CS8604: Possible null reference argument for parameter 'nodeCid' in 'Task<string> MstService.DeleteRecursiveAsync(string nodeCid, string key, string did)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(26,23): warning CS8618: Non-nullable property 'LeftChild' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(15,23): warning CS8618: Non-nullable property 'Key' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(16,23): warning CS8618: Non-nullable property 'Value' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(17,23): warning CS8618: Non-nullable property 'Subtree' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(21,23): warning CS8618: Non-nullable property 'KeySuffix' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(75,38): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(228,55): warning CS8619: Nullability of reference types in value of type '(string?, string?)' doesn't match target type '(string left, string right)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(231,38): warning CS8619: Nullability of reference types in value of type '(string?, string?)' doesn't match target type '(string left, string right)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(266,51): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(268,39): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(277,38): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(278,89): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(379,38): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(382,71): warning CS8601: Possible null reference assignment. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(392,36): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(398,37): warning CS8601: Possible null reference assignment. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(399,39): warning CS8601: Possible null reference assignment. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\MstService.cs(401,41): warning CS8601: Possible null reference assignment. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CborUtils.cs(137,48): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CborUtils.cs(138,48): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CborUtils.cs(148,32): warning CS8603: Possible null reference return. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Middleware\XrpcMiddleware.cs(37,28): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Program.cs(760,115): warning CS8604: Possible null reference argument for parameter 'valueCid' in 'Task<string> MstService.UpdateRecordAsync(string did, string key, string valueCid)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Program.cs(764,115): warning CS8604: Possible null reference argument for parameter 'valueCid' in 'Task<string> MstService.UpdateRecordAsync(string did, string key, string valueCid)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Program.cs(768,120): warning CS8604: Possible null reference argument for parameter 'valueCid' in 'Task<string> MstService.UpdateRecordAsync(string did, string key, string valueCid)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Program.cs(772,119): warning CS8604: Possible null reference argument for parameter 'valueCid' in 'Task<string> MstService.UpdateRecordAsync(string did, string key, string valueCid)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\FirehoseService.cs(99,46): warning CS8604: Possible null reference argument for parameter 'body' in 'Task FirehoseService.HandleCommitEventAsync(Dictionary<string, object> body)'. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PlcService.cs(77,33): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\RepoManager.cs(51,96): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Services\PostService.cs(373,21): warning CS8602: Dereference of a possibly null reference. [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CarUtils.cs(79,19): warning CA2022: Avoid inexact read with 'System.IO.Stream.ReadAsync(byte[], int, int)' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2022) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CarUtils.cs(94,23): warning CA2022: Avoid inexact read with 'System.IO.Stream.ReadAsync(byte[], int, int)' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2022) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CborUtils.cs(147,25): warning CA2022: Avoid inexact read with 'System.IO.Stream.Read(byte[], int, int)' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2022) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CborUtils.cs(163,17): warning CA2022: Avoid inexact read with 'System.IO.Stream.Read(byte[], int, int)' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2022) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CborUtils.cs(169,17): warning CA2022: Avoid inexact read with 'System.IO.Stream.Read(byte[], int, int)' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2022) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CborUtils.cs(175,17): warning CA2022: Avoid inexact read with 'System.IO.Stream.Read(byte[], int, int)' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2022) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+C:\Projects\BlueSky\backend\Utilities\CborUtils.cs(185,13): warning CA2022: Avoid inexact read with 'System.IO.Stream.Read(byte[], int, int)' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2022) [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (44ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Migrations[20411]
+      Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (72ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DECLARE @result int;
+      EXEC @result = sp_getapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session', @LockMode = 'Exclusive';
+      SELECT @result
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (18ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+      BEGIN
+          CREATE TABLE [__EFMigrationsHistory] (
+              [MigrationId] nvarchar(150) NOT NULL,
+              [ProductVersion] nvarchar(32) NOT NULL,
+              CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+          );
+      END;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT OBJECT_ID(N'[__EFMigrationsHistory]');
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (24ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [MigrationId], [ProductVersion]
+      FROM [__EFMigrationsHistory]
+      ORDER BY [MigrationId];
+info: Microsoft.EntityFrameworkCore.Migrations[20405]
+      No migrations were applied. The database is already up to date.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DECLARE @result int;
+      EXEC @result = sp_releaseapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session';
+      SELECT @result
+info: Program[0]
+      Database migrations applied successfully.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (433ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Title')
+                      BEGIN
+                          ALTER TABLE dbo.Notifications ADD Title NVARCHAR(MAX) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Content')
+                      BEGIN
+                          ALTER TABLE dbo.Notifications ADD Content NVARCHAR(MAX) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'IsBanned')
+                      BEGIN
+                          ALTER TABLE dbo.Users ADD IsBanned BIT NOT NULL DEFAULT 0;
+                          PRINT 'Added IsBanned to Users';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'IsVerified')
+                      BEGIN
+                          ALTER TABLE dbo.Users ADD IsVerified BIT NOT NULL DEFAULT 0;
+                          PRINT 'Added IsVerified to Users';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'RepoRoot')
+                      BEGIN
+                          ALTER TABLE dbo.Users ADD RepoRoot NVARCHAR(100) NULL;
+                          PRINT 'Added RepoRoot to Users';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'RepoCommit')
+                      BEGIN
+                          ALTER TABLE dbo.Users ADD RepoCommit NVARCHAR(100) NULL;
+                          PRINT 'Added RepoCommit to Users';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'RepoCommitSignature')
+                      BEGIN
+                          ALTER TABLE dbo.Users ADD RepoCommitSignature NVARCHAR(256) NULL;
+                          PRINT 'Added RepoCommitSignature to Users';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'RepoRev')
+                      BEGIN
+                          ALTER TABLE dbo.Users ADD RepoRev NVARCHAR(100) NULL;
+                          PRINT 'Added RepoRev to Users';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Feeds') OR object_id = OBJECT_ID('Feeds')) AND name = 'IsOfficial')
+                      BEGIN
+                          ALTER TABLE dbo.Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Cid')
+                      BEGIN
+                          ALTER TABLE dbo.Notifications ADD Cid NVARCHAR(100) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Uri')
+                      BEGIN
+                          ALTER TABLE dbo.Notifications ADD Uri NVARCHAR(200) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Tid')
+                      BEGIN
+                          ALTER TABLE dbo.Notifications ADD Tid NVARCHAR(20) NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='RepoBlocks' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE RepoBlocks (
+                              Cid NVARCHAR(100) PRIMARY KEY,
+                              Data VARBINARY(MAX) NOT NULL,
+                              Did NVARCHAR(100) NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+                          );
+                          CREATE INDEX IX_RepoBlocks_Did ON RepoBlocks(Did);
+                          PRINT 'Created RepoBlocks table';
+                      END
+info: Program[0]
+      Applied/Verified manual schema updates for Notifications and User properties.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (28ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'MuteBehavior')
+                      BEGIN
+                          ALTER TABLE MutedWords ADD MuteBehavior NVARCHAR(20) NOT NULL DEFAULT 'hide';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'CreatedAt')
+                      BEGIN
+                          ALTER TABLE MutedWords ADD CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE();
+                      END
+info: Program[0]
+      Applied manual schema updates for MutedWords.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (88ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'ReplyRestriction')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD ReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                          PRINT 'Added ReplyRestriction to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'AllowQuotes')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD AllowQuotes BIT NULL DEFAULT 1;
+                          PRINT 'Added AllowQuotes to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'QuotesCount')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD QuotesCount INT NULL DEFAULT 0;
+                          PRINT 'Added QuotesCount to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'QuotePostId')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD QuotePostId UNIQUEIDENTIFIER NULL;
+                          PRINT 'Added QuotePostId to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'Language')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD Language NVARCHAR(MAX) NULL;
+                          PRINT 'Added Language to Posts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'Cid')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD Cid NVARCHAR(100) NULL;
+                          PRINT 'Added Cid to Posts';
+                      END
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (60ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_PostQuote')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD CONSTRAINT FK_PostQuote FOREIGN KEY (QuotePostId) REFERENCES dbo.Posts(Id);
+                          PRINT 'Added FK_PostQuote to Posts';
+                      END
+                      
+                      -- Ensure unique index on Tid for Posts
+                      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'UQ_Posts_Tid')
+                      BEGIN
+                          IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'Tid')
+                          BEGIN
+                              CREATE UNIQUE INDEX UQ_Posts_Tid ON dbo.Posts(Tid) WHERE Tid IS NOT NULL;
+                          END
+                      END
+      
+                      -- Ensure unique index on Tid for Notifications
+                      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'UQ_Notifications_Tid')
+                      BEGIN
+                          IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'Tid')
+                          BEGIN
+                              CREATE UNIQUE INDEX UQ_Notifications_Tid ON dbo.Notifications(Tid) WHERE Tid IS NOT NULL;
+                          END
+                      END
+info: Program[0]
+      Finished checking/applying Post interaction schema updates.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (319ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultReplyRestriction')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD DefaultReplyRestriction NVARCHAR(20) NULL DEFAULT 'anyone';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'DefaultAllowQuotes')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD DefaultAllowQuotes BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableTrending')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD EnableTrending BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableDiscoverVideo')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD EnableDiscoverVideo BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnableTreeView')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD EnableTreeView BIT NULL DEFAULT 0;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'RequireLogoutVisibility')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD RequireLogoutVisibility BIT NULL DEFAULT 0;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'LargerAltBadge')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD LargerAltBadge BIT NULL DEFAULT 0;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReplies')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD ShowReplies BIT NULL DEFAULT 1;
+                          PRINT 'Added ShowReplies to UserSettings';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD ShowReposts BIT NULL DEFAULT 1;
+                          PRINT 'Added ShowReposts to UserSettings';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowQuotePosts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD ShowQuotePosts BIT NULL DEFAULT 1;
+                          PRINT 'Added ShowQuotePosts to UserSettings';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'ShowSampleSavedFeeds')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD ShowSampleSavedFeeds BIT NULL DEFAULT 0;
+                          PRINT 'Added ShowSampleSavedFeeds to UserSettings';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'SelectedInterests')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD SelectedInterests NVARCHAR(MAX) NULL;
+                          PRINT 'Added SelectedInterests to UserSettings';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'EnabledMediaProviders')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD EnabledMediaProviders NVARCHAR(MAX) NULL;
+                          PRINT 'Added EnabledMediaProviders to UserSettings';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyActivity')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD NotifyActivity BIT NULL DEFAULT 1;
+                          PRINT 'Added NotifyActivity to UserSettings';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyLikesOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD NotifyLikesOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyRepostsOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD NotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NotifyOthers')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD NotifyOthers BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyActivity')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD PushNotifyActivity BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyLikesOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD PushNotifyLikesOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyRepostsOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD PushNotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'PushNotifyOthers')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD PushNotifyOthers BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyActivity')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD InAppNotifyActivity BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyLikesOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD InAppNotifyLikesOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyRepostsOfReposts')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD InAppNotifyRepostsOfReposts BIT NULL DEFAULT 1;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'InAppNotifyOthers')
+                      BEGIN
+                          ALTER TABLE UserSettings ADD InAppNotifyOthers BIT NULL DEFAULT 1;
+                      END
+info: Program[0]
+      Verified/Applied UserSettings resilience columns.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (166ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Hashtags' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Hashtags (
+                              Id INT IDENTITY(1,1) PRIMARY KEY,
+                              Name NVARCHAR(100) NOT NULL,
+                              Slug NVARCHAR(100) NOT NULL UNIQUE,
+                              PostsCount INT NOT NULL DEFAULT 0,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              IsDeleted BIT NOT NULL DEFAULT 0
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostHashtags' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE PostHashtags (
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              HashtagId INT NOT NULL,
+                              PRIMARY KEY (PostId, HashtagId),
+                              CONSTRAINT FK_PH_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                              CONSTRAINT FK_PH_Hashtag FOREIGN KEY (HashtagId) REFERENCES Hashtags(Id) ON DELETE CASCADE
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserListSubscriptions' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE UserListSubscriptions (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              ListId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              PinnedOrder INT NOT NULL DEFAULT 0,
+                              CONSTRAINT PK_UserListSubscription PRIMARY KEY (UserId, ListId),
+                              CONSTRAINT FK_ULS_User FOREIGN KEY (UserId) REFERENCES Users(Id),
+                              CONSTRAINT FK_ULS_List FOREIGN KEY (ListId) REFERENCES Lists(Id) ON DELETE CASCADE
+                          )
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Notifications') AND name = 'ListId')
+                      BEGIN
+                          ALTER TABLE Notifications ADD ListId UNIQUEIDENTIFIER NULL;
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ListMembers') AND name = 'Status')
+                      BEGIN
+                          ALTER TABLE ListMembers ADD Status INT NOT NULL DEFAULT 0;
+                      END
+                      -- Cleanup and Recalculations
+                      EXEC('IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(''dbo.ListMembers'') AND name = ''Status'') UPDATE ListMembers SET Status = 1 WHERE Status = 0');
+                      DELETE FROM Notifications WHERE Type = 'message';
+                      UPDATE u SET u.PostsCount = sub.ActualCount FROM Users u INNER JOIN (SELECT AuthorId, COUNT(*) AS ActualCount FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL GROUP BY AuthorId) sub ON u.Id = sub.AuthorId WHERE u.PostsCount != sub.ActualCount OR u.PostsCount IS NULL;
+                      UPDATE Users SET PostsCount = 0 WHERE PostsCount IS NULL AND Id NOT IN (SELECT DISTINCT AuthorId FROM Posts WHERE IsDeleted = 0 OR IsDeleted IS NULL);
+                      UPDATE Users SET Role = 'admin' WHERE Username = 'trungtrung';
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='SupportRequests' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE SupportRequests (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                              Email NVARCHAR(256) NOT NULL,
+                              Description NVARCHAR(MAX) NOT NULL,
+                              Username NVARCHAR(256) NULL,
+                              Category NVARCHAR(50) NOT NULL,
+                              DeviceType NVARCHAR(20) NOT NULL,
+                              Status NVARCHAR(20) NOT NULL DEFAULT 'pending',
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              UserId UNIQUEIDENTIFIER NULL,
+                              CONSTRAINT FK_Support_User FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE SET NULL
+                          )
+                      END;
+      
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PageContents' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE PageContents (
+                              Slug NVARCHAR(100) PRIMARY KEY,
+                              Title NVARCHAR(200) NOT NULL,
+                              HtmlContent NVARCHAR(MAX) NOT NULL,
+                              UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+                          )
+                      END;
+      
+                      IF NOT EXISTS (SELECT * FROM PageContents WHERE Slug = 'privacy-policy')
+                      BEGIN
+                          INSERT INTO PageContents (Slug, Title, HtmlContent, UpdatedAt)
+                          VALUES ('privacy-policy', 'Privacy Policy', '<h1>Privacy Policy</h1><p>This is the default privacy policy. Please edit it in the Admin UI.</p>', GETUTCDATE())
+                      END
+info: Program[0]
+      Applied manual schema updates for Hashtags, Lists, SupportRequests, and Cleanup.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (104ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      -- Reposts Table
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Reposts' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Reposts (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              Tid NVARCHAR(20) NULL,
+                              PRIMARY KEY (UserId, PostId),
+                              CONSTRAINT FK_RepostPost FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                              CONSTRAINT FK_RepostUser FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+                          );
+                          PRINT 'Created Reposts table';
+                      END
+      
+                      -- Interests Table
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Interests' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Interests (
+                              Id INT IDENTITY(1,1) PRIMARY KEY,
+                              Name NVARCHAR(100) NOT NULL,
+                              Slug NVARCHAR(100) NOT NULL UNIQUE,
+                              Icon NVARCHAR(50) NULL,
+                              IsDeleted BIT NOT NULL DEFAULT 0
+                          );
+                          PRINT 'Created Interests table';
+                      END
+      
+                      -- PostInterests Join Table
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostInterests' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE PostInterests (
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              InterestId INT NOT NULL,
+                              PRIMARY KEY (PostId, InterestId),
+                              CONSTRAINT FK_PI_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                              CONSTRAINT FK_PI_Interest FOREIGN KEY (InterestId) REFERENCES Interests(Id) ON DELETE CASCADE
+                          );
+                          PRINT 'Created PostInterests table';
+                      END
+      
+                      -- UserInterests Join Table
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserInterests' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE UserInterests (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              InterestId INT NOT NULL,
+                              PRIMARY KEY (UserId, InterestId),
+                              CONSTRAINT FK_UI_User FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+                              CONSTRAINT FK_UI_Interest FOREIGN KEY (InterestId) REFERENCES Interests(Id) ON DELETE CASCADE
+                          );
+                          PRINT 'Created UserInterests table';
+                      END
+      
+                      -- PostMedia Table
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PostMedia' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE PostMedia (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              Url NVARCHAR(MAX) NOT NULL,
+                              Type NVARCHAR(50) NOT NULL,
+                              Position INT NOT NULL DEFAULT 0,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              IsDeleted BIT NOT NULL DEFAULT 0,
+                              CONSTRAINT FK_MediaPost FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                          );
+                          PRINT 'Created PostMedia table';
+                      END
+      
+                      -- LinkPreviews Table
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='LinkPreviews' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE LinkPreviews (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                              PostId UNIQUEIDENTIFIER NULL,
+                              MessageId UNIQUEIDENTIFIER NULL,
+                              Url NVARCHAR(MAX) NOT NULL,
+                              Title NVARCHAR(MAX) NULL,
+                              Description NVARCHAR(MAX) NULL,
+                              ImageUrl NVARCHAR(MAX) NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              CONSTRAINT FK_LP_Post FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                          );
+                          PRINT 'Created LinkPreviews table';
+                      END
+      
+                      -- Verify Critical Columns
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'IsDeleted')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD IsDeleted BIT NOT NULL DEFAULT 0;
+                          PRINT 'Added IsDeleted to Posts';
+                      END
+                      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'RepostsCount')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD RepostsCount INT NULL DEFAULT 0;
+                      END
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'LikesCount')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD LikesCount INT NULL DEFAULT 0;
+                      END
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'RepliesCount')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD RepliesCount INT NULL DEFAULT 0;
+                      END
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'BookmarksCount')
+                      BEGIN
+                          ALTER TABLE dbo.Posts ADD BookmarksCount INT NULL DEFAULT 0;
+                      END
+info: Program[0]
+      Applied Block 6 - Core Entities Schema Repair.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (62ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserFollows' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE UserFollows (
+                              FollowerId UNIQUEIDENTIFIER NOT NULL,
+                              FollowingId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              Tid NVARCHAR(20) NULL,
+                              PRIMARY KEY (FollowerId, FollowingId),
+                              CONSTRAINT FK_Follower FOREIGN KEY (FollowerId) REFERENCES Users(Id),
+                              CONSTRAINT FK_Following FOREIGN KEY (FollowingId) REFERENCES Users(Id)
+                          );
+                          PRINT 'Created UserFollows table';
+                      END
+      
+                      -- Likes
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Likes' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Likes (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              Tid NVARCHAR(20) NULL,
+                              PRIMARY KEY (UserId, PostId),
+                              CONSTRAINT FK_LikeUser FOREIGN KEY (UserId) REFERENCES Users(Id),
+                              CONSTRAINT FK_LikePost FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                          );
+                          PRINT 'Created Likes table';
+                      END
+      
+                      -- Bookmarks
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Bookmarks' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Bookmarks (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              Tid NVARCHAR(20) NULL,
+                              PRIMARY KEY (UserId, PostId),
+                              CONSTRAINT FK_BookmarkUser FOREIGN KEY (UserId) REFERENCES Users(Id),
+                              CONSTRAINT FK_BookmarkPost FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                          );
+                          PRINT 'Created Bookmarks table';
+                      END
+      
+                      -- BlockedAccounts
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BlockedAccounts' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE BlockedAccounts (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              BlockedUserId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              PRIMARY KEY (UserId, BlockedUserId),
+                              CONSTRAINT FK_BlockedOwner FOREIGN KEY (UserId) REFERENCES Users(Id),
+                              CONSTRAINT FK_BlockedUser FOREIGN KEY (BlockedUserId) REFERENCES Users(Id)
+                          );
+                          PRINT 'Created BlockedAccounts table';
+                      END
+      
+                      -- MutedAccounts
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='MutedAccounts' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE MutedAccounts (
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              MutedUserId UNIQUEIDENTIFIER NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              PRIMARY KEY (UserId, MutedUserId),
+                              CONSTRAINT FK_MutedOwner FOREIGN KEY (UserId) REFERENCES Users(Id),
+                              CONSTRAINT FK_MutedUser FOREIGN KEY (MutedUserId) REFERENCES Users(Id)
+                          );
+                          PRINT 'Created MutedAccounts table';
+                      END
+      
+                      -- MutedWords (Full Table if missing)
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='MutedWords' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE MutedWords (
+                              Id INT IDENTITY(1,1) PRIMARY KEY,
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              Word NVARCHAR(256) NOT NULL,
+                              MuteBehavior NVARCHAR(20) NOT NULL DEFAULT 'hide',
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              CONSTRAINT FK_MutedWordUser FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+                          );
+                          PRINT 'Created MutedWords table';
+                      END
+      
+                      -- Conversations
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Conversations' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Conversations (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              IsDeleted BIT NOT NULL DEFAULT 0,
+                              LastMessageId UNIQUEIDENTIFIER NULL
+                          );
+                          PRINT 'Created Conversations table';
+                      END
+      
+                      -- ConversationParticipants
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ConversationParticipants' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE ConversationParticipants (
+                              ConversationId UNIQUEIDENTIFIER NOT NULL,
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              JoinedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              PRIMARY KEY (ConversationId, UserId),
+                              CONSTRAINT FK_CP_Conv FOREIGN KEY (ConversationId) REFERENCES Conversations(Id),
+                              CONSTRAINT FK_CP_User FOREIGN KEY (UserId) REFERENCES Users(Id)
+                          );
+                          PRINT 'Created ConversationParticipants table';
+                      END
+      
+                      -- Messages
+                      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Messages' AND xtype='U')
+                      BEGIN
+                          CREATE TABLE Messages (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                              ConversationId UNIQUEIDENTIFIER NOT NULL,
+                              SenderId UNIQUEIDENTIFIER NOT NULL,
+                              Content NVARCHAR(MAX) NOT NULL,
+                              CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                              IsDeleted BIT NOT NULL DEFAULT 0,
+                              IsRead BIT NOT NULL DEFAULT 0,
+                              Tid NVARCHAR(20) NULL,
+                              ReplyToId UNIQUEIDENTIFIER NULL,
+                              CONSTRAINT FK_MsgConv FOREIGN KEY (ConversationId) REFERENCES Conversations(Id),
+                              CONSTRAINT FK_MsgSender FOREIGN KEY (SenderId) REFERENCES Users(Id)
+                          );
+                          PRINT 'Created Messages table';
+                      END
+info: Program[0]
+      Applied Block 7 - Relationship and System Schema Repair.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (74ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Likes') AND name = 'Cid')
+                      BEGIN
+                          ALTER TABLE dbo.Likes ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                          PRINT 'Added Cid and Uri to Likes';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Reposts') AND name = 'Cid')
+                      BEGIN
+                          ALTER TABLE dbo.Reposts ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                          PRINT 'Added Cid and Uri to Reposts';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserFollows') AND name = 'Cid')
+                      BEGIN
+                          ALTER TABLE dbo.UserFollows ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                          PRINT 'Added Cid and Uri to UserFollows';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Bookmarks') AND name = 'Cid')
+                      BEGIN
+                          ALTER TABLE dbo.Bookmarks ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                          PRINT 'Added Cid and Uri to Bookmarks';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Bookmarks') AND name = 'Tid')
+                      BEGIN
+                          ALTER TABLE dbo.Bookmarks ADD Tid NVARCHAR(20) NULL;
+                          PRINT 'Added Tid to Bookmarks';
+                      END
+                      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.PostMedia') AND name = 'Cid')
+                      BEGIN
+                          ALTER TABLE dbo.PostMedia ADD Cid NVARCHAR(100) NULL;
+                          PRINT 'Added Cid to PostMedia';
+                      END
+info: Program[0]
+      Applied Block 8 - AT Protocol Metadata Schema Repair.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (26ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = N'Trending'
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (26ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [i].[Id], [i].[Icon], [i].[IsDeleted], [i].[Name], [i].[Slug]
+      FROM [Interests] AS [i]
+      WHERE [i].[Name] = @__topic_Item1_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__topic_Item1_0='?' (Size = 256)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [f].[Id], [f].[AvatarUrl], [f].[CreatedAt], [f].[CreatorId], [f].[Description], [f].[Handle], [f].[IsDeleted], [f].[IsOfficial], [f].[Name], [f].[SubscribersCount], [f].[Tid]
+      FROM [Feeds] AS [f]
+      WHERE [f].[IsOfficial] = CAST(1 AS bit) AND [f].[Name] = @__topic_Item1_0
+info: BSkyClone.Services.FirehoseService[0]
+      FirehoseService starting...
+info: BSkyClone.Services.FirehoseService[0]
+      Connecting to Relay: wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Projects\BlueSky\backend
+info: BSkyClone.Services.FirehoseService[0]
+      Connected to Firehose.
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifub4hsnuctwkzfk4s5gfzqz2axbfqtkzallrw2owod2bgxfuxnhi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihoc6aerrgqlfuth3ifro3zqok56ztxcmgmaxjjikt3jwu3tz3c3u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihhtrjzazri6ja4vksae75yzax2b6skfrs46gry7t5yekq6mwhtkq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiem2vqi46solh7l6dlidcialv637633gvzcs26nmabfd2anvheoga
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie2dvrgyjzzth2wud2wo22qwfj2kmxkzfuibp72hx5ud5opa2ba4e
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreia2onejy5gdszfplnpscfudvp3ofmsfzp7vunqc4unysopnz3oksm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie3oaxyzy4o43odl5kwno33b6ffkh5rqlccdwstyvd6lzvnv6briy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiam2o4tpuetmhdxpj6ro2bbjkkmjc4kbweccpgrxrg4rfoounslqe
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreib3aaomul57cvq4gdk5a65db5nczdj5gmmyocxodpql5qvuwr27py
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihsrnnmopzjhnacfjutehvvbmtqjcf4uvw64bweg74wts7yu2ovmi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibtip4t6xjdx2d2zfukqi6getfzqxhsmx7y3xtgl4pf52fc7muicq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreig2kahiadlpnvitqptw3fbz3wbdmdtkbcbt6eme4j3gxjhzfcqrsu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie4maaxkujrltjd7d7aoswz3hg75crehpa7nr3hlfdfsbrlnbld6q
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihh63kqbjwgkvv35iwfboenx7jczkgpq5nab5ao5fjn63u6xz2roq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibrlpo3rvyzpzzubkrqvmq2yquhgjaxmadflfmofai45oqce3tuua
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifnlcnpbtbykzjpfr6ewc2reeresun4fz7pedkc4mwnzihl5e54ku
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreid564bn26lnp2o4nqe2adh7ifytxktdscn5guo3l4edkey2q2nyoa
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihg7zvju5xl6ij4obupmxdvopkepw3id6fowax3q37gamjmzrbiqq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicycod4tpzmzsm47n4wmr4nniccidmjsqjeb6p6uhg2cpgfdhan6q
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiggtdptqyxqfzpp5h6jwvbrhurlz3y3r6jkhyv3afqjnj6akr2bru
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiejgeenyyru4ac3ipi2sdytfzyr4adwxelya7trcr6eaestariwjq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidemrcquaxnnszzljzejulbh3klc4kxn3ns4equubfb6vmklfk26a
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreid2eas3cjeyl6uq4bxoy6rk4cexz2xc4vcwtjpmo7xvroblad7asy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreievtyer2sigqdy64evuqniw6bjzq2pdk5v7ovc3y7y4u3apxmijhu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaeu6uf2psevkate3libzuyk52ah5qlskwezgrfof7fglm2ogyoai
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibsymtanuzwawikxpdfa54hm4rd46tzrmys7mvxxmayjkcogcewg4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicazurroduoummpr7uahhni226xez575q45fdwveq542yqtnv43ka
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiekvbljnaxwkagshqggef44uonraev7qvistv7g52eojfwgim5oxm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreid3kueq3pnosnsk6uy5i4ptnmvpp6vqh7ibozrq5y66gvfzzsu7py
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiehfrsy74zlw2f3a54arok74nsscpvlu46t3ng47ggvhqxk6cx6sa
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreig4uvw52bx4pe5pnayqkywc6tvxuubohbrig6jshwezkbudn37lke
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibfad44izstkdv452l3hbj6y2x4bcpqdem2dqddc4l5ex4zivxwxi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicyspaycenyk5zduh7misgs2ytvwv6jqg56x22pdcak4jqchyjowu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiabalkvlebrcvu5wtrkbdidvp6pk4giln4adl3qdscwsm4q6wwzyq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreig6f22ygkkkfdtnhswd2ki2ey2jdz6c6b3s4zn7fkuao2mwrpsbni
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihpjhayy6uwx3wzwsbp46juyabkmmrekghuxxmnfyuomg5jwqnrme
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifme5xibkav7giiwb7v274owe2vmpyic75hlyck2hv4lxsbnbrfze
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreif2j6gymtx7gzon574ga5rlm4rpj7e7l7oepljnqifqx5lu2q7bkq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreictci76hsxkaqbq2bfqwcmp4pnv3i56mu63wsoxlpsbyau6rt3lpi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiargpvn7mj6cspay4mc634grff3w7gpexo47w2qweadckxhv3hbyq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiecqo5aspbqju3bdymu62ol6cpem4pxzkzwpw56gtwpp7rw3zowz4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicvmcnr4xntq3n5hutbamkm3vvhqcoy5sk4arujkdgt5ubjb3mw4u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibrxbtchktqlzkziglktpwayz625wp3ez5xxyynjnplbegc227pcy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigcmuir72rq6cp6aijoqhi3vryuyq5qnvdbcget4ubds2fp5uwjqi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifexjfu2kfcc2p4vyiiyiyjzhjdxqzyez3nrui4l67dwznlwxp644
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreid3k3zw5xca5tcnijxwtjw6i4ta4mzkvwtg2oekjgomwe26a7azvi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreia3ywgdejcumkhthbdj5iyok5q3raxn7twabjwtdi3wzsej3o64yu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihtjvhekh7o3htawijhc6eurli3qxre4c64lgps4w72jfnigdvyga
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibgrc5h6z763sbpj5m3fzd4rp367wqymh45bkjiuakmenojkjgs2q
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicenhg4otcamibz4k2tgzsjbwn5za25fnn6gecszgj35q5s3ztaxi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihkfwge7zs2b5ws4tvvxr2zqilryqxdcfd4yylitiayihtcotccwq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiece6gmjxxs7xoy6qfkbbum4b5dytt6z6txxjcnkyoyz2dccysc6e
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidxhqywyarbqexyel6trla3glhuqzmym3cdvelf44do53mnlyqft4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidhtep3k7nvvc7wtdo23bdr7pfgf7weex23gmnn767e2hulzwm4qu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidkzgrqcjgqisocn2zbnbbxc2z66wtzy7hiybkxuu2seu4jy2sj4m
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieclmtkpgiq2qd73xwd7tojrxyooehgb7lxj545nmib7srsgcv3tm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigzaim77kfitn2qjucs5pxmgvsotrpazectjnjma7vzikcgpt43hi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibt7btplphx4afaimxpkwpfccoxxvt5ajb4upupz6uxbm44sru7xm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihjmony63ecpvkflng73ijdesqeqey4c2wf2lj6yojxpjqpbrzr2e
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibu5vh6bjw4thv25danf2kxij5abb5jv4sid567htg2vpwkofxxna
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreignlomwytzj6qwpkrp3d4oyeolypqybdkfxtfzbrtevm7tnj6iyrm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifl2bzjywl2nv46q7djhpqpnjalwnumpicnn3rs6rrgx5iayamtya
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidcje6fwhatbjw5mcdhbksvaivweeske6edenkohnh6v2t5hhb2um
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidveusm6i4drcm4wysgvg2penj6tiajszys3r2xzjgpkl5fsywupi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifmon4junvg3q5f2ngzjzmqfde4nxbnzixadhxcv2wl3hodj4ahpa
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifkqbr2akswkqupcilk6chr7auegadbr2a2b5jdgwm3iijzpzvywq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreienupeothpufsdxu5d24f3kewei444woqztripruhp2duih5f6vvq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicnh2vaiqcd4xrxt6fw3d66z7quiaxoaq6aa3cp52woa2xw7hftze
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreib3stvmqxkoelyhtbzqjp2ydct5fypqlqx7brej4eg2dyykyfiyym
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicysbl2xgkgq5vfo4omqqdc54erxhiyr6djn42eotkvkuwekdwoqq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigar4ft2st3foc6i2ku7u2rk4nwesyoj6f5cwkou2qx5mhjlykgdu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiftacqg6nimnwsemrfcw4tgk2lutrzqb5ilu52irhgwlzmafmdqdy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibm7g6wtsyq6varpwdcas24rdgx5wlgbyb3ef3nx42pljwrpyyuwi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifg34gorh6n6ok46kr6ddej5dqv2e6uljbqbvpbuaq67vucl2hqlm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihbc6om6byutlwz3rijf5ppbmqfhcvomd4xw2xlv34lucwssth3zi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreignptwwcjghmx7to7wotnpekv5govlmnscdwvlh7v22ak2z5l7am4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidbzj5a3doxgk6aakp4gw7puy2zvk4kafui4prmtshsojpjauix5e
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreig4pl6jhxm6zqjq4vnxc2iqowal2o2gwa36nah2athvbk4aajnfmy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieiljedydiwyqdmoeffjinrdxxchuxfsxmnqddw4pg5lm7ktdy4au
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidcp7sxtb5qys7xtaqmud6invr2bjwaoem7cwdifzbaniyu3iuavm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicia7tcsibllcaskhv6vz4i4iigu4iwrafqzmxvrchc6sxmyskobu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaetlno6bemeoiirduyjejuz7xwlap2sovo757d23kths5or5aspy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreic6lyh4xfti5cykqbw7y2z34irilp6afswms54s7woou2y4ugi6n4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihwnhiodfqcdk7ecd7n53jasa3dipkeptr5uigcx6pid72azgu4n4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreia3topkcumnoo4irs3o6q5xqkgncpvqlseq7cjkfoyivku6px3s5u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihrgofbnwsz6q5qsltkt5pbe55vbk73snauvjbppgzf2bdp5rgoxi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibtu7u7rxs725dfgorq5fgux4zg6xtomkkebqnzocpb7xbkxogcci
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibpsfw22mwxmlsge2deyi6z3ksnvkozgnnq7b2fki6jkzikh7hb74
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreig4fm6naxe6qko3b7bfbuxmje7sxl2jufa6hyr2s5mxwykullpjnq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicllunsqz7annqseznuyui6j4jaorxsfkfyp5flmtsqykek5c67xu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicw6sim5kgfkz7gtwtnn3j366vpmdcixrkrgia4dtld5gwxxm6qzu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiahtvjspnnphq2cfih7qj54vpafskq6epeq37eoc4wwb5cetnlezm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihjr6bss4nkg3kk3nzovd6q5wmhaqs5xra5mob27wgamaj6zdmptm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieyftk7c4ntz2vq6zybncherqwnqwlltzqt6ba33y6syc2jrdaaea
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreih3syzfo6dg7ggz24dtg2friluuyvioneac22ss5nfcu5uh3sxp3q
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreic2z2sl4yquyhjkp47kwbwoqgimncxik2kafj35vj4dm26kyk7twa
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie4xfk5pxpsk62wd474rbqxzge4eyim4zhdp7f36prebkvazowvvm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigkpjrgfpkvmca35ogsksraudgflb4exvwlswprqkjxcmab5m2xbu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieua6fhjr355huwzgqdl3fgdrpzbasenwxez6kqpbjsw3v4cxep2u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieyfrraa5hn56ax4xw3yklgfh2quxbq47qy7p2wirwqlsgrmsteuu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihspoi4wwl3a2wxmrg2qpznkzddep4yxnwi6a7easv3fod6yrevie
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifhjr34gxnhxazhixkgpkemv2ekbniqittuxqtm5a2uubf6syehni
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaw2morp24tez7euscddogpc3mzkcte4afnuunt5bu7vtmcn5ufzq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibd6zodj7ldgp6wx7va5kajmzu25gal6wm2mh63c7iyq6gkzr64ui
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiatukx4oy2yxe2qo5b5urcw7j4bny26bpaeykhiqennufkqf746r4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifltgnbwk462piumlt4mbaceqq4322gbop3yklvfsogmpkoeydbsm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiacdfnleqm6ehsnocuul7ekljgqt6x2aacy5ndc652khwm6ykp23e
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibd4z6ardmn53frdesa27vy2pgzq2enu6rghmzjc5yujyyczctjxq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiddx6r6zkqvzwn4rizh3sy2d6bwuqyx5oboiq36oet24d6jxe44pu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifbgpnuc6nem7yeuq4l6xpxgcyf5axfnu7mqwrbc5qyvo6e76bsfi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibbkfkkibjhsrykokfkglz44oco4y67ijbstukq3xrr6hfbfhvwhm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigyxkvewsttolkglenfqhsphzq6olsfbapa7txe5neeepurzagzmi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiespdh3r7chpe3za62fm6x2irrxll7le7rj6g6pwluh3p6vwsajqq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicgdwwrxsdm2einiqsnre7pd4qgjyjg3evlszcwbf5kvjie7ehcci
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihrb6iflk6kl6gsohmd7wgvq7mwg2jmnw5fpv7w7ahmdmxktup53i
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibl3qejfy6nqvuhyvedlxkj22wa6ab6usyoen7f75ckhkknpnerjm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigdevlsiijc3apmfrkhnxgxmlfrjhews3j7dc2hio7tfyqnr4nuza
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihagmtwzffuylgaw5tkfzxlodgdjuqzr73qmg6bfcxnivko4hxhze
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibcjq4a2r5dyazget5roxzaxwsmuilcfgwhxhy6h26ghw2hmhdwdu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidhaa3fwhis3dejkkvqlcrtupl25e5dkc5pbg2ypcsk7tpwa5ykla
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaqu4osw5hdx7otbmty4zejiwgzwdqclqv5wh65p5zigrp5ta2e2i
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibptpuz2zruwj6udasdqtdk6iilnp7narjwwxk7lyd7ivq5sg5thm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreic4mqdnrsxbhcml4mnzbptz2j5xlu64h5rnzzgr7h7icnfmwdxvgm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiccsnwjd4kuibtjzbhcw4rqkmojbiwju6zxhshphn3adh3oenbejy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiex47ybdbzdw2icotm2elsw7wkckk5767vvisjc76p337cbir7tgu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiegltjuujoot7ppyzxaybeqxhtzsdk3g74urdf3dfjpefshb7u6zi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibqdb2erd3mzmltxlwkddhp53ii7gzfjoliiqulz3o4t7unxewera
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigwgavjofyiuen4d72y43s5zci6xqw5vkct3grmf45ox74kakcs2u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifnjyv7vxurwobkp3c6j32nci7c2zpv2yaqxj6ndpabqgkv2zoblm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreih6t325ob6bntihqet2swk22wxukrptpha4ohv5cwp6wobvconuz4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreia6wusqcn3dujc6aa2sp4qwqerrigt6kzajs2hxj5kvwtvg4iinoi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieqytm5kw6gqt32siqwpermycuycizpr6ffnus626clqmapiouia4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie222yz62vjk4p774zemyrmjdo4qguarkf3dy4dwvuxxgj5q7wxz4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihtctpxnqzwpmzzwmwt6ozpumvwsg4gj5tp7jgkwz4uwqdwfu2m6a
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreia7cx6djrzohf7dmswuhckjtopt7f7cmaexp4grsxve6xw5jchxum
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigqnqp27wo7naveyzvw3o3nbuwpemij4wszmqscq2hzbcr3uttxui
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihfi4enbyaehfs5gu7bjt3ty2ooarup2wr3xhlx5zh7q5kjp4yv24
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiewrwn6ptykmbsel424w5a3jgwhuerdxcu4qh72aoyzk2jwpb35ca
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreid3wcnmpv5a2kfp2ypgqdmt7kt3j5jtfo6wlcoi6yzcc4jodqkqee
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaunz2hwtyxbihx3keqftfdqnih3oasnyde6gmfsodq5e2c7y4ssi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigo25m6zeoedutkdil3ml7lb2gbblldjt5zqeblvvv6apexcil4zu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifnrykkeq2ifnmnccpckwuk5fuzdu4zmgwisdeop4wwaf5bxgbdta
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreid4yt5fwsu6rlzddl5bqdiph7r4agvg53tt5cdoyfrda6kjdzwlzy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibmama3lvifiv3pqeteecceq4dhmzb52n2k2wlsxtbfep7hpdkthq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihqqhfiee6xa6wyr22532upc446vly6pjnflg7dc6upfe6y7u6eiq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaabqbbec6yqx4bfoljryh4cyal4rzecdbidadjxgtj42vfosnko4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihhlccxbozu3hbqt2hkrczxnb5wf4di7sxbrjcigarggfaxxfhxxm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreif2qx3aap36ug2whrtwk4nlq4vcb2zzhmk6ncvmdkr252uuatvw2q
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreietj6mxus7xdwny4hw4njkim5uf4avjtux35ead7s3d7kdts6m4fm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihuki2obtemjbj4g5u57hoxxr42pto6rw34h6qrhakwq2dhdtmbvi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaidt3qxqao6jwnuafs5euzicumo36kpjrjpbrbscooa5dti5x6oe
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieukrtvgcjecakk65hmemqjrahmajyc2pcghdx4hcqrsr44a6qhse
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigmkxw7xhpzqzgmaxj2iitnln5ppnyfghnwi6td5po6vtbkljv7ta
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihvc6gtwihbxhxcyglj4xxgfs2opum7x7oiebxjhued37joobj5pe
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreife4jhf2qn3jzm4n6ltao7wu5k2vtwmxebeycr5ox62xgazlwcxc4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidgjk5ms43nqoznlykgwz2sniuwvithwtlo7ma5scasg34afkv4vi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicahkmgdsax427jpbb7kjv6c5lq5tdiqvlxiaqxi7nisf5tays6jy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreib6jqlpto6gspc4uhj5hwxjde72xgjvpu3locms2tt5wgf6ztruwu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigrekckbhnvsij4kn4rndnvrtrkimjn27hedmphmfl4tvpneoau44
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicbjitdkwn5wptj2ea4nfjkfe6znsuwg3z3tyib7de45rjpeqktva
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifeq65jdyupwoogmxc3iljs7gaanguzdymcl7v3bou2fvzaizy3vy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidyg7tv2p4ydrs64qtilph4sepo3me27jkggrmznmy2ghxmx5bw5u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiehlouco27rgjwvbap2bdtlltnsgwxhqbsekz2fscyjjydjso77my
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiemgg3wsl5nufmwx32zewbmfo2xexdkbwq4aovvxqeji4ortoiaoa
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibxadfune2qccqyudddooaqn3ucfmesrlxzsr75dnwimriodtcnmy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihbrnrjek3yh6mvqylvmz5qb7d6xycgztmvmqpt4saukhxc7e2x24
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicddxveis6nqmrls235uqk7vcx23awztq7dflmratby5crx5h763a
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicf2lgvuolh6cfkhdwquvnzelzkowfhj6rvxn6jbklsl3gzbsrkvq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihy5q65wvyfuuf77dtfek7lboqktrew4rdvtpoxu3pdbwjhtzhmxy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreictm7zonjf5ljbhmxfk4wwhezc5f3ymqtoarcrtvkyokchynr55dm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibadkc5z3zmuz3mlefmeculwyynhtmfrwi7452b5h63j2jws6doga
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiedq4yylxcbqjc65jubtxwmkblfsmqw4tb6hgn2xypafwxmnwzwkq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie5wphib6k62siu3vumyhmzb3s5454phvqhcw7co56dta3amek62m
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifdukxdkuojfxjwytscv5yatwoolapnn2kbffgoaoa6abyik2azcm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreic3sbjxq5ievhyhi5m6g4u37ylapgkkl3fjinzture2urm6gv67nq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreic2sfcswum6ytge4ifvqbg6x3qe2nehdu25g45bb5iadibj4xojxu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreichczmozmyoin3e2ytxc64vlf5cefe6s6umtwdsbwi23ct72uh6ue
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreia3pjnfrvd5oyzeflhrkhef3y64l2v2mqiiah3sjwudyvdadg3uve
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaqwnttucz7jmqfebp7xotsdb5tvqv3otkgg3tpdhen2o43d5aojy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreig56254bym2j7jl5dzpawua5mt54a2p4i523a4rbxlsqnajilhxga
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigqu476huv3u4xrq247zmsuww4ng7h5vx224qgn73wryodwvpl5i4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreib6jfakvpqdyacpicxbnfmdgcqu5tmlg5zz5nng36bh57i7dp623u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiatn7s6jat7xy4mrgr2dkktlqglxluvulsnsamocj34p6qc46zbpu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiepjijzjco3okfomzdxfnryd5nx6bp7znivwtl43oc4ocxew4ipde
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiakjbwirmwricuqodf6kt7y2iburoeiqdje45j7w3hghui4hplwpi
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifynjxljwqevizsrjyc57s3s5nuseeqfi524kuqlpsm7b4dc7r5ge
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihsxlgns7cn5e3ks737rihkjfmka3xzoag7bxcr3tswejociuxana
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaw2shnjhlxdyf4jokj5anxmjlqdum7nuhx4cqjx2x24ham6z6esm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihpruxqult7eklk223avrhwokcylg3xnx4qpqa45l2ggusy6hinke
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreib664sqqpw3rbhwxvosblvqe6wego2swvsptxdscxgslrlko2proe
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifskudm4zmv72qccwmbfbt3onpgk4g735swhccdufbt4tctit764y
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigrnhhkghisj43luqzh3lidh7uiy5efyzhhzjebly6fnqy66zr2xq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiacre56ejud5u5tqgnooewaxya4pklbynxc5yszlwl7wojcpy7hvy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibf47xb2wkmofl53jtfi44kcyuhmnxtrodndv6bjkhczrg6brphvm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifr7ej3waczxoxlxn6s4765hz54lo7uyl3itk7mgwvaeanjslbz3u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieqmk5jxn2ew3cbqvemyinkbwswxjtadhydqya3u3uer2y4jrun6e
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieefxbk3tnqmclr6qj3tkz5p5u45kxi5jjanau2kntmvl7rv5dzke
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifiuzvlfy5gqatalueddhwiw6fyh4obtf3qrhv3himdtcocyhqsb4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibfkidz2szvxnuujutxl34jsp4dawnvkr3bcqonp5t7l7wgqmq3f4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidzbcc5s3sb3jeu55hqre5k33ec5dn4vpuvc3kyd47x3haykqyyyy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaqahd4sgsovxt4xma22xu3blezj3gjvfw6d3u4soirci5xj7ek34
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiatv2ah6zduhrbpt3c7ne3yzgp4hu7oc7leytu6rmytrmnamitzfe
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreibuw5c24xz3mgpmgunkirlybsoecsxlkcvrrdcdenmhnoygn5jkzu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifzwfftqdc33vmq37lteaw5oibtazjcpx5ckndtcnwnkon6uf3dz4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiaqszobopvr5zdnw5bg5dnitok3alruo2ssqkzcopezocez5bjw2u
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreig3oel3ts7vpy277jjp3j4yfjlun73dbvxfzfekxvjyzosxcukgou
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiakwopj27g46fbncqfroeqjzhraq5eo5h3bxr4bx6p2ngq6dbjquq
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiawg4slyf6dkibws6ahjfzloadcoox4b7wq3vvvxzq3nckin6sdau
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifesza2h62y5aw4hunfkzvtradyzp5npcjvmsv44rmbfityosmvpu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiacjhc6lst66kdoahv3hpybeykdtvvazuozlvpfhthl53tlh2besu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigdwqf6dlez7lpm65wuaotvvpqcv5ot4gocbfimjm6gs6dul3ngvm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiggzd5bp5l2tirrkxw45z7x2rhd4smlp5mrwnghlvihmlj5a7gc3a
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidq6mkjtqvlehhly2er6hzftbnw63gwlnd5pre4nnxgckxajmov4e
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihlwxdymhqfjcewkjiytmpf56bcn2pq5a4jzkpgfq67mw3u4i62wm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreih5qkait2izmoehd7x7ywwinkfgrvu7lqm2jynjq5an2mn32mm4ne
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreianj2kngxvj4ap3vj3rspgzecgjlnu7fvldavr75ko6kurkd4zj3q
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie7gnak5q33uxqrncq4oafiuxyeow5pzjm2xhocgann4sh5tybmpm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreia4lacrhylmv6vrxksufa4nxdgwdf6barn757sx3sor3uxtoaz5wm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidodjsnhcacwxpsn3xrqzjidmjftuvpilxbklrik7bnkafcpbogbm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigotk6ms4farxsdie557mzqk55an7544dctihw26ablnjpxt3ckra
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifs5xtzie7ysmzrx7kfl5mgscsoor6zs2dqfv45ovtv5wb5zyetpm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreig5hj7lxd77z4epgaybxwwdwbyl3o3rpoio62zblwohupt3e2cgxe
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie7dh5qpgg2lyfxqq6rnorksreshhtsbpu6xvp6xbbpqlb4ydmw2e
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreie34jocsfdvp2pvn2clcouhgnk5szrof67iom7p2cz3p6kszctm7y
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigygrb4k7eyrrtcymy44hdeefuuckghv4eioifcpmgugw2tqpqdfa
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiess2e2xswl66ad5yzvpf2qyhzkbtd4kxkr2ztdtwbqwnxsmvp3wm
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihej4lmgxbfvg76piy7w2v4zjra32ybvmhraoomkcal66sfm7stga
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreifjbx33ecsj2ccafir5acyhdx2gya2w2pallgp3jcuvtbbfh7nau4
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreieim7vk4wrmptag3jau34jdxxveyetixlalyvtaondcbs4ipifbcu
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreigwevlcjnmzqzxcg7ocshidgfnthzsvdsgx4nverkytq5r7m3aj44
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreid4pcvyfenrm5d3435agjyh2q76e3jqhedhtdfegblewp7kiszeee
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreihzmo6jdcy2pvnxhojoiyjkuzpkhe46rmucxspbepbtnwffoafsse
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreiefax7l54mpyqaivaplahgdswfbdjtvlcrhgrgalmikqvhcb3mvpy
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreidgp5a2g4xkytxfl2au6gcaxky7yw7dgt6dr33tkylnlxodzcohpa
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreicrz7r6sykcyxdrsxhh3zluzjyjzoznusgnawkdedrms6xzo7ytme
+warn: BSkyClone.Services.FirehoseService[0]
+      Firehose: Could not find block data for post CID bafyreibafyreievajyv35dx26v2c5u2vwgmyimttsw63poc2uy5xmilt2vvkmhlsi

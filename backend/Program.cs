@@ -374,16 +374,6 @@ using (var scope = app.Services.CreateScope())
                 BEGIN
                     ALTER TABLE dbo.Posts ADD Cid NVARCHAR(100) NULL;
                     PRINT 'Added Cid to Posts';
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'Uri')
-                BEGIN
-                    ALTER TABLE dbo.Posts ADD Uri NVARCHAR(200) NULL;
-                    PRINT 'Added Uri to Posts';
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'Tid')
-                BEGIN
-                    ALTER TABLE dbo.Posts ADD Tid NVARCHAR(20) NULL;
-                    PRINT 'Added Tid to Posts';
                 END";
             context.Database.ExecuteSqlRaw(sql);
             
@@ -801,6 +791,7 @@ using (var scope = app.Services.CreateScope())
         try
         {
             var sql = @"
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserFollows' AND xtype='U')
                 BEGIN
                     CREATE TABLE UserFollows (
                         FollowerId UNIQUEIDENTIFIER NOT NULL,

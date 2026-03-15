@@ -37,10 +37,13 @@ namespace BSkyClone.Utilities
             multihash[1] = 0x20; // 32 bytes
             Buffer.BlockCopy(hash, 0, multihash, 2, hash.Length);
 
-            // Raw CIDv1 prefix (Version 1, dag-cbor=0x71, identity=0x00?)
-            // For now, we use a simple base32 encoding of the multihash
-            // which is a common representation of CIDv1.
-            return "bafyreib" + EncodeBase32Raw(multihash);
+            // CIDv1 binary prefix for dag-cbor: 0x01 (version), 0x71 (dag-cbor)
+            byte[] cidv1 = new byte[multihash.Length + 2];
+            cidv1[0] = 0x01;
+            cidv1[1] = 0x71;
+            Buffer.BlockCopy(multihash, 0, cidv1, 2, multihash.Length);
+
+            return EncodeCid(cidv1);
         }
 
         private static string EncodeBase32(long val)
@@ -85,18 +88,19 @@ namespace BSkyClone.Utilities
         /// </summary>
         public static byte[] DecodeCid(string cid)
         {
-            if (cid.StartsWith("bafyreib"))
+            if (cid.StartsWith("b"))
             {
-                var raw = cid.Substring(8);
-                return DecodeBase32Raw(raw);
+                var base32 = cid.Substring(1);
+                return DecodeBase32Raw(base32);
             }
-            throw new NotSupportedException("Only simplified CIDv1 (bafyreib) is supported for decoding.");
+            throw new NotSupportedException($"Unsupported CID format: {cid}");
         }
 
-        public static string EncodeCid(byte[] multihash)
+        public static string EncodeCid(byte[] cidBytes)
         {
-            // Reverse of DecodeCid - assumes it's a raw multihash we want to wrap in our simplified CIDv1
-            return "bafyreib" + EncodeBase32Raw(multihash);
+            // Standard CIDv1 in base32 starts with 'b' (multibase prefix)
+            // followed by the base32 encoding of the binary CID (Version, Codec, Multihash)
+            return "b" + EncodeBase32Raw(cidBytes);
         }
 
         private static byte[] DecodeBase32Raw(string input)
