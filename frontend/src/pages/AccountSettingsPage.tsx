@@ -9,6 +9,7 @@ import Button from '../components/common/Button';
 import { updateUserAccount } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import ChangeHandleModal from '../modals/ChangeHandleModal';
+import agent from '../services/atpAgent';
 
 // Functional Modal Components for updating account settings
 const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: string }> = ({ isOpen, onClose, email }) => {
@@ -204,9 +205,39 @@ const EditBirthdateModal: React.FC<{ isOpen: boolean; onClose: () => void; birth
     );
 };
 
-const ExportDataModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+const ExportDataModal: React.FC<{ isOpen: boolean; onClose: () => void; did?: string }> = ({ isOpen, onClose, did }) => {
     const { t } = useTranslation();
+    const [isLoading, setIsLoading] = useState(false);
+
     if (!isOpen) return null;
+
+    const handleDownload = () => {
+        if (!did) return;
+        setIsLoading(true);
+
+        try {
+            const serviceUrl = agent.service.toString().replace(/\/api$/, '');
+            const downloadUrl = `${serviceUrl}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
+            
+            // Use a temporary link to trigger download (cleaner than window.location)
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.setAttribute('download', `${did}.car`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Give browser time to start download
+            setTimeout(() => {
+                setIsLoading(false);
+                onClose();
+            }, 1500);
+        } catch (error) {
+            console.error('Download failed', error);
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white dark:bg-dark-surface rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl p-6">
@@ -221,7 +252,7 @@ const ExportDataModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ i
                     <FiAlertCircle className="text-blue-500 mt-0.5 shrink-0" size={20} />
                     <p className="text-sm text-blue-700 dark:text-blue-300">{t('settings.car_note')}</p>
                 </div>
-                <Button variant="primary" fullWidth size="lg" onClick={onClose}>
+                <Button variant="primary" fullWidth size="lg" onClick={handleDownload} loading={isLoading}>
                     {t('settings.download_car')}
                 </Button>
             </div>
@@ -425,7 +456,7 @@ const AccountSettingsPage: React.FC = () => {
             <ChangePasswordModal isOpen={activeModal === 'password'} onClose={closeModal} />
             <ChangeHandleModal isOpen={activeModal === 'handle'} onClose={closeModal} />
             <EditBirthdateModal isOpen={activeModal === 'birthdate'} onClose={closeModal} birthdate={user?.dateOfBirth} />
-            <ExportDataModal isOpen={activeModal === 'export'} onClose={closeModal} />
+            <ExportDataModal isOpen={activeModal === 'export'} onClose={closeModal} did={user?.did} />
             <DeactivateAccountModal isOpen={activeModal === 'deactivate'} onClose={closeModal} />
             <DeleteAccountModal isOpen={activeModal === 'delete'} onClose={closeModal} username={user?.username || 'user'} />
         </MainLayout>
