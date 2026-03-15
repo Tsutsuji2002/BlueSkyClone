@@ -20,7 +20,7 @@ namespace BSkyClone.Controllers
         }
 
         [HttpGet("com.atproto.sync.getRepo")]
-        public async Task<IActionResult> GetRepo(string did, string? since = null)
+        public async Task<IActionResult> GetRepo([FromQuery] string did, string? since = null)
         {
             try
             {

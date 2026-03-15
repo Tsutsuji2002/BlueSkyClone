@@ -127,18 +127,29 @@ namespace BSkyClone.Services
 
         public async Task<Stream> GetRepoCheckoutStreamAsync(string did)
         {
-            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Did == did);
-            if (user == null) throw new Exception("User not found");
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => 
+                u.Did.ToLower() == did.ToLower() || u.Handle.ToLower() == did.ToLower());
+            
+            if (user == null) 
+            {
+                Console.WriteLine($"[RepoManager] GetRepo: User not found for DID: {did}");
+                throw new Exception("User not found");
+            }
+
+            if (string.IsNullOrEmpty(user.RepoRoot))
+            {
+                Console.WriteLine($"[RepoManager] GetRepo: User {did} has no RepoRoot. Returning empty CAR.");
+            }
 
             var blocks = await _dbContext.RepoBlocks
-                .Where(b => b.Did == did)
+                .Where(b => b.Did == user.Did)
                 .OrderBy(b => b.CreatedAt)
                 .ToListAsync();
 
             var ms = new MemoryStream();
             
-            // Write CAR v1 header with the current repo root
-            await CarUtils.WriteHeaderAsync(ms, user.RepoRoot);
+            // Write CAR v1 header. If root is null, use empty string to avoid crashes.
+            await CarUtils.WriteHeaderAsync(ms, user.RepoRoot ?? "");
 
             foreach (var block in blocks)
             {
