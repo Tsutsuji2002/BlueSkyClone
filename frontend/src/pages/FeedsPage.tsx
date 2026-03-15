@@ -54,6 +54,27 @@ const FeedsPage: React.FC = () => {
         }
     }, [searchQuery, dispatch]);
 
+    // Scroll Persistence Logic
+    useEffect(() => {
+        const scrollKey = `feeds_list_scroll`;
+        
+        // Restoration
+        const savedScroll = sessionStorage.getItem(scrollKey);
+        if (savedScroll && subscribedFeeds.length > 0) {
+            setTimeout(() => {
+                window.scrollTo(0, parseInt(savedScroll, 10));
+            }, 0);
+        }
+
+        // Saving
+        const handleScroll = () => {
+            sessionStorage.setItem(scrollKey, window.scrollY.toString());
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [subscribedFeeds.length, recommendedFeeds.length]);
+
 
 
     const handlePinToggle = async (e: React.MouseEvent, feed: Feed) => {

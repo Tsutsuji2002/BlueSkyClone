@@ -22,7 +22,7 @@ const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const scrollPositions = React.useRef<Record<string, number>>({});
+    const dispatch = useAppDispatch();
     const lastTab = React.useRef<string>('');
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
     const {
@@ -78,24 +78,26 @@ const HomePage: React.FC = () => {
 
     // Handle scroll persistence
     useEffect(() => {
-        const handleTabSwitch = () => {
-            // Save current position of the previous tab
-            if (lastTab.current) {
-                scrollPositions.current[lastTab.current] = window.scrollY;
-            }
+        if (!activeTab) return;
 
-            // Update lastTab to the new activeTab
-            lastTab.current = activeTab;
+        const scrollKey = `home_scroll_${activeTab}`;
 
-            // Restore position of the new tab in next tick (after DOM update)
+        // Restoration - do it in a timeout to ensure DOM is ready
+        const savedScroll = sessionStorage.getItem(scrollKey);
+        if (savedScroll && ((activeTab === 'following' && followingPosts.length > 0) || (activeTab === 'discover' && discoverPosts.length > 0) || (activeTab.startsWith('list:') && activeListFeed.length > 0))) {
             setTimeout(() => {
-                const targetPos = scrollPositions.current[activeTab] || 0;
-                window.scrollTo({ top: targetPos, behavior: 'auto' });
+                window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'auto' });
             }, 0);
+        }
+
+        // Saving
+        const handleScroll = () => {
+            sessionStorage.setItem(scrollKey, window.scrollY.toString());
         };
 
-        handleTabSwitch();
-    }, [activeTab]);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [activeTab, followingPosts.length, discoverPosts.length, activeListFeed.length]);
 
     const handleTabChange = (tabId: string) => {
         dispatch(setActiveTab(tabId));

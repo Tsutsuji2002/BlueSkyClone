@@ -54,6 +54,29 @@ const FeedDetailPage: React.FC = () => {
         }
     };
 
+    // Scroll Persistence Logic
+    useEffect(() => {
+        if (!feedId || isLoading) return;
+
+        const scrollKey = `feed_scroll_${feedId}`;
+        
+        // Restoration
+        const savedScroll = sessionStorage.getItem(scrollKey);
+        if (savedScroll && posts.length > 0) {
+            setTimeout(() => {
+                window.scrollTo(0, parseInt(savedScroll, 10));
+            }, 0);
+        }
+
+        // Saving
+        const handleScroll = () => {
+            sessionStorage.setItem(scrollKey, window.scrollY.toString());
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [feedId, isLoading, posts.length]);
+
     if (!feed && !isLoading) {
         return (
             <MainLayout>
