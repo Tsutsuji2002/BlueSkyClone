@@ -4,8 +4,8 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
-import { toggleLike, repostPost, deletePost, fetchPostById } from '../redux/slices/postsSlice';
-import { openReply, openMobileMenu, openEditPost, openReport } from '../redux/slices/modalsSlice';
+import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark } from '../redux/slices/postsSlice';
+import { openReply, openMobileMenu, openEditPost, openReport, openQuote } from '../redux/slices/modalsSlice';
 import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -229,7 +229,8 @@ const PostDetailPage: React.FC = () => {
     };
 
     const handleBookmark = () => {
-        dispatch(showToast({ message: t('common.bookmarks_not_supported', 'Bookmarks are not supported on AT Protocol yet'), type: 'info' }));
+        if (!post.uri) return;
+        dispatch(toggleBookmark({ uri: post.uri, isBookmarked: !!post.isBookmarked }));
     };
 
     const handleDelete = async () => {
@@ -584,11 +585,29 @@ const PostDetailPage: React.FC = () => {
                             disabled={post.canReply === false}
                             tooltip={post.canReply === false ? t('post.replies_disabled') : undefined}
                         />
-                        <IconButton
-                            icon={<FiRepeat size={22} className={post.isReposted ? 'text-primary-500' : ''} />}
-                            onClick={handleRepost}
-                            disabled={actionLoading[post.uri!]}
-                            variant="default"
+                        <Dropdown
+                            trigger={
+                                <IconButton
+                                    icon={<FiRepeat size={22} className={post.isReposted ? 'text-green-500' : ''} />}
+                                    disabled={actionLoading[post.uri!]}
+                                    variant="default"
+                                />
+                            }
+                            items={[
+                                {
+                                    id: 'repost',
+                                    label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
+                                    icon: <FiRepeat className={post.isReposted ? 'text-green-500' : ''} />,
+                                    onClick: handleRepost
+                                },
+                                {
+                                    id: 'quote',
+                                    label: t('post.quote_post', 'Quote post'),
+                                    icon: <FiType />,
+                                    onClick: () => dispatch(openQuote(post))
+                                }
+                            ]}
+                            align="left"
                         />
                         <IconButton
                             icon={<FiHeart size={22} className={post.isLiked ? 'fill-red-500 text-red-500' : ''} />}
