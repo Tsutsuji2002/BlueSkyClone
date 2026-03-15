@@ -488,28 +488,126 @@ const feedsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            // Synchronize interactions across feedPosts
+            // Synchronize interactions across feedPosts (Optimistic)
             .addMatcher(
-                (action) => action.type.endsWith('/toggleLike/fulfilled') ||
-                    action.type.endsWith('/repostPost/fulfilled'),
+                (action) => action.type.endsWith('/toggleLike/pending') ||
+                    action.type.endsWith('/repostPost/pending') ||
+                    action.type.endsWith('/toggleBookmark/pending'),
                 (state: FeedsState, action: any) => {
-                    const updatedPost = action.payload;
-                    if (!updatedPost || !updatedPost.postId) return;
+                    const { uri } = action.meta.arg;
+                    const type = action.type;
 
                     Object.keys(state.feedPosts).forEach(feedId => {
                         const posts = state.feedPosts[feedId];
-                        const index = posts.findIndex(p => p.id === updatedPost.postId);
-                        if (index !== -1) {
-                            posts[index] = {
-                                ...posts[index],
-                                isLiked: updatedPost.isLiked !== undefined ? updatedPost.isLiked : posts[index].isLiked,
-                                isReposted: updatedPost.isReposted !== undefined ? updatedPost.isReposted : posts[index].isReposted,
-                                isBookmarked: updatedPost.isBookmarked !== undefined ? updatedPost.isBookmarked : posts[index].isBookmarked,
-                                likesCount: updatedPost.likesCount !== undefined ? updatedPost.likesCount : posts[index].likesCount,
-                                repostsCount: updatedPost.repostsCount !== undefined ? updatedPost.repostsCount : posts[index].repostsCount,
-                                bookmarksCount: updatedPost.bookmarksCount !== undefined ? updatedPost.bookmarksCount : posts[index].bookmarksCount,
-                            };
+                        const post = posts.find(p => p.uri === uri || p.id === uri); // Handle both formats
+                        if (post) {
+                            if (type.includes('toggleLike')) {
+                                const wasLiked = post.isLiked;
+                                post.isLiked = !wasLiked;
+                                post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
+                            } else if (type.includes('repostPost')) {
+                                const wasReposted = post.isReposted;
+                                post.isReposted = !wasReposted;
+                                post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
+                            } else if (type.includes('toggleBookmark')) {
+                                const wasBookmarked = post.isBookmarked;
+                                post.isBookmarked = !wasBookmarked;
+                                post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
+                            }
                         }
+                    });
+                }
+            )
+            // Synchronize interactions across feedPosts (Fulfilled/Final)
+            .addMatcher(
+                (action) => action.type.endsWith('/toggleLike/fulfilled') ||
+                    action.type.endsWith('/repostPost/fulfilled') ||
+                    action.type.endsWith('/toggleBookmark/fulfilled'),
+                (state: FeedsState, action: any) => {
+                    const payload = action.payload;
+                    const uri = payload.uri;
+                    if (!uri) return;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        const posts = state.feedPosts[feedId];
+                        const post = posts.find(p => p.uri === uri || p.id === uri);
+                        if (post) {
+                            if (payload.isLiked !== undefined) post.isLiked = payload.isLiked;
+                            if (payload.isReposted !== undefined) post.isReposted = payload.isReposted;
+                            if (payload.isBookmarked !== undefined) post.isBookmarked = payload.isBookmarked;
+                            if (payload.likeUri !== undefined) {
+                                if (!post.viewer) post.viewer = {};
+                                post.viewer.like = payload.likeUri;
+                            }
+                            if (payload.repostUri !== undefined) {
+                                if (!post.viewer) post.viewer = {};
+                                post.viewer.repost = payload.repostUri;
+                            }
+                            post.lastUpdated = new Date().toISOString();
+                        }
+                    });
+                }
+            )
+            // Rollback on Error
+            .addMatcher(
+                (action) => action.type.endsWith('/toggleLike/rejected') ||
+                    action.type.endsWith('/repostPost/rejected') ||
+                    action.type.endsWith('/toggleBookmark/rejected'),
+                (state: FeedsState, action: any) => {
+                    const { uri } = action.meta.arg;
+                    const type = action.type;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        const posts = state.feedPosts[feedId];
+                        const post = posts.find(p => p.uri === uri || p.id === uri);
+                        if (post) {
+                            // Simple toggle back
+                            if (type.includes('toggleLike')) {
+                                const wasLiked = post.isLiked;
+                                post.isLiked = !wasLiked;
+                                post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
+                            } else if (type.includes('repostPost')) {
+                                const wasReposted = post.isReposted;
+                                post.isReposted = !wasReposted;
+                                post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
+                            } else if (type.includes('toggleBookmark')) {
+                                const wasBookmarked = post.isBookmarked;
+                                post.isBookmarked = !wasBookmarked;
+                                post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
+                            }
+                        }
+                    });
+                }
+            )
+            // Synchronize Content Updates
+            .addMatcher(
+                (action) => action.type.endsWith('/updatePost/fulfilled'),
+                (state: FeedsState, action: any) => {
+                    const updatedPost = action.payload;
+                    if (!updatedPost || !updatedPost.id) return;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        const posts = state.feedPosts[feedId];
+                        const index = posts.findIndex(p => p.id === updatedPost.id);
+                        if (index !== -1) {
+                            posts[index] = { ...posts[index], ...updatedPost };
+                        }
+                    });
+                }
+            )
+            // Synchronize Profile Updates
+            .addMatcher(
+                (action) => action.type.endsWith('/updateProfile/fulfilled'),
+                (state: FeedsState, action: any) => {
+                    const updatedUser = action.payload;
+                    if (!updatedUser || !updatedUser.id) return;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        state.feedPosts[feedId].forEach(post => {
+                            if (post.author && post.author.id === updatedUser.id) {
+                                post.author = { ...post.author, ...updatedUser };
+                            }
+                        });
                     });
                 }
             );

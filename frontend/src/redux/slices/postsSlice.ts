@@ -817,6 +817,30 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
+            // Synchronize Profile Updates
+            .addMatcher(
+                (action) => action.type.endsWith('/updateProfile/fulfilled'),
+                (state: PostsState, action: any) => {
+                    const updatedUser = action.payload;
+                    if (!updatedUser || !updatedUser.id) return;
+
+                    const updateAuthorInArray = (arr: Post[]) => {
+                        arr.forEach(post => {
+                            if (post.author && post.author.id === updatedUser.id) {
+                                post.author = { ...post.author, ...updatedUser };
+                            }
+                            if (post.repostedBy && post.repostedBy.id === updatedUser.id) {
+                                post.repostedBy = { ...post.repostedBy, ...updatedUser };
+                            }
+                        });
+                    };
+
+                    updateAuthorInArray(state.posts);
+                    updateAuthorInArray(state.discoverPosts);
+                    updateAuthorInArray(state.trendingPosts);
+                    updateAuthorInArray(state.bookmarkedPosts);
+                }
+            );
     }
 });
 
