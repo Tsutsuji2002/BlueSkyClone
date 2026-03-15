@@ -89,6 +89,7 @@ builder.Services.AddScoped<IPlcService, PlcService>();
 builder.Services.AddScoped<MstService>();
 builder.Services.AddScoped<IDidResolver, DidResolverService>();
 builder.Services.AddScoped<ICryptoService, CryptoService>();
+builder.Services.AddScoped<IXrpcProxyService, XrpcProxyService>();
 
 // Redis Caching
 if (builder.Environment.IsDevelopment())

@@ -11,6 +11,8 @@ public interface IPostService
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
     Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null);
     Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null);
+    Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null);
+    Task FetchRemoteAuthorFeedAsync(string did);
     Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId);
     Task<object> ToggleLikeAsync(Guid userId, Guid postId);
     Task<object> ToggleBookmarkAsync(Guid userId, Guid postId);

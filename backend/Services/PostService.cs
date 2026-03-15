@@ -21,9 +21,10 @@ public class PostService : IPostService
     private readonly ICategorizationService _categorizationService;
     private readonly ISearchService _searchService;
     private readonly IRepoManager _repoManager;
+    private readonly IXrpcProxyService _xrpcProxy;
     private readonly ILogger<PostService> _logger;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, ILogger<PostService> logger)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILogger<PostService> logger)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -34,6 +35,7 @@ public class PostService : IPostService
         _categorizationService = categorizationService;
         _searchService = searchService;
         _repoManager = repoManager;
+        _xrpcProxy = xrpcProxy;
         _logger = logger;
     }
 
@@ -65,13 +67,31 @@ public class PostService : IPostService
                 return await EnrichAndFilterPostsAsync(cached, userId, true);
             }
 
-            var followedUserIds = await _unitOfWork.Follows.Query()
+            var followedUsers = await _unitOfWork.Follows.Query()
                 .Where(f => f.FollowerId == userId)
-                .Select(f => f.FollowingId)
+                .Include(f => f.Following)
+                .Select(f => f.Following)
                 .ToListAsync();
+            
+            var followedUserIds = followedUsers.Select(u => u.Id).ToList();
             
             // Include the user's own posts in the Following feed
             followedUserIds.Add(userId);
+
+            // Background Sync for Remote Users (Federation)
+            _ = Task.Run(async () => {
+                try {
+                    foreach (var u in followedUsers) {
+                        if (!string.IsNullOrEmpty(u.Did) && !u.Handle.EndsWith(".bsky.social")) // Simple check for "remote"
+                        {
+                            await FetchRemoteAuthorFeedAsync(u.Did);
+                        }
+                    }
+                } catch (Exception ex) {
+                    // Log but don't crash the request
+                    Console.WriteLine($"[Timeline Sync] Error: {ex.Message}");
+                }
+            });
 
             var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
             var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
@@ -1553,6 +1573,169 @@ public class PostService : IPostService
 
         _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} for Tid='{Tid}'. Fetching full DTO...", post.Id, tid);
         return await GetPostByIdAsync(post.Id, viewerId);
+    }
+
+    public async Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null)
+    {
+        if (string.IsNullOrEmpty(uri)) return null;
+
+        try
+        {
+            if (!uri.StartsWith("at://")) return null;
+
+            var parts = uri.Substring(5).Split('/');
+            if (parts.Length < 3) return null;
+
+            var didOrHandle = parts[0];
+            var collection = parts[1];
+            var rkey = parts[2];
+
+            // 1. Resolve DID/Handle to check if local
+            var user = await _unitOfWork.Users.Query()
+                .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
+
+            if (user != null)
+            {
+                // Local post
+                return await GetPostByTidAsync(rkey, viewerId);
+            }
+
+            // 2. Remote post - Proxy request
+            // We'll use app.bsky.feed.getPostThread if it's a post
+            if (collection == "app.bsky.feed.post")
+            {
+                var proxyParams = new QueryString($"?uri={Uri.EscapeDataString(uri)}");
+                var response = await _xrpcProxy.ProxyRequestAsync(didOrHandle, "app.bsky.feed.getPostThread", new QueryCollection(new Microsoft.Extensions.Primitives.StringValues()));
+                
+                // For proxying we actually need to pass the real QueryCollection or construct one
+                var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+                {
+                    { "uri", uri },
+                    { "depth", "0" }
+                };
+                var qCollection = new QueryCollection(qDict);
+
+                var proxyResult = await _xrpcProxy.ProxyRequestAsync(didOrHandle, "app.bsky.feed.getPostThread", qCollection);
+                
+                if (proxyResult.Success)
+                {
+                    // In a real AppView, we would parse this into a PostDto
+                    // For now, we'll return a minimal DTO representing the remote content
+                    var threadData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
+                    var postData = threadData.RootElement.GetProperty("thread").GetProperty("post");
+                    
+                    return MapRemotePostToDto(postData);
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resolving AT-URI: {Uri}", uri);
+            return null;
+        }
+    }
+
+    private PostDto MapRemotePostToDto(System.Text.Json.JsonElement postData)
+    {
+        // Minimal mapping for remote posts
+        return new PostDto
+        {
+            Id = Guid.Empty, // Remote posts don't have a local DB Guid
+            Content = postData.GetProperty("record").GetProperty("text").GetString() ?? "",
+            CreatedAt = DateTime.Parse(postData.GetProperty("record").GetProperty("createdAt").GetString() ?? DateTime.UtcNow.ToString()),
+            Author = new AuthorDto
+            {
+                Did = postData.GetProperty("author").GetProperty("did").GetString() ?? "",
+                Handle = postData.GetProperty("author").GetProperty("handle").GetString() ?? "",
+                DisplayName = postData.TryGetProperty("author", out var auth) && auth.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
+                AvatarUrl = postData.TryGetProperty("author", out auth) && auth.TryGetProperty("avatar", out var av) ? av.GetString() : null
+            },
+            Uri = postData.GetProperty("uri").GetString(),
+            Cid = postData.GetProperty("cid").GetString(),
+            LikesCount = postData.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+            RepostsCount = postData.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0,
+            RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0
+        };
+    }
+
+    public async Task FetchRemoteAuthorFeedAsync(string did)
+    {
+        try
+        {
+            _logger.LogInformation("Starting background fetch for remote feed: {Did}", did);
+
+            var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+            {
+                { "actor", did },
+                { "limit", "20" }
+            };
+            var qCollection = new QueryCollection(qDict);
+
+            var proxyResult = await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.feed.getAuthorFeed", qCollection);
+            
+            if (proxyResult.Success)
+            {
+                var feedData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
+                var feedItems = feedData.RootElement.GetProperty("feed");
+
+                var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+                if (author == null)
+                {
+                    // Create stub user for remote author
+                    var actorData = feedItems[0].GetProperty("post").GetProperty("author");
+                    author = new User
+                    {
+                        Id = Guid.NewGuid(),
+                        Did = did,
+                        Handle = actorData.GetProperty("handle").GetString() ?? "",
+                        DisplayName = actorData.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
+                        AvatarUrl = actorData.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+                        IsVerified = true, // Assuming remote is verified if they have a feed
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _unitOfWork.Users.AddAsync(author);
+                    await _unitOfWork.CompleteAsync();
+                }
+
+                foreach (var item in feedItems.EnumerateArray())
+                {
+                    var postData = item.GetProperty("post");
+                    var uri = postData.GetProperty("uri").GetString();
+                    var cid = postData.GetProperty("cid").GetString();
+                    var tid = uri?.Split('/').Last();
+
+                    // Check if we already have it
+                    var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
+                    if (existing == null)
+                    {
+                        var record = postData.GetProperty("record");
+                        var newPost = new Post
+                        {
+                            Id = Guid.NewGuid(),
+                            AuthorId = author.Id,
+                            Content = record.GetProperty("text").GetString(),
+                            CreatedAt = DateTime.Parse(record.GetProperty("createdAt").GetString() ?? DateTime.UtcNow.ToString()),
+                            Uri = uri,
+                            Cid = cid,
+                            Tid = tid ?? GenerateTid(),
+                            LikesCount = postData.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+                            RepostsCount = postData.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0,
+                            RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0,
+                            IsDeleted = false
+                        };
+                        await _unitOfWork.Posts.AddAsync(newPost);
+                    }
+                }
+                await _unitOfWork.CompleteAsync();
+                _logger.LogInformation("Finished background fetch for remote feed: {Did}", did);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching remote author feed for {Did}", did);
+        }
     }
 
 

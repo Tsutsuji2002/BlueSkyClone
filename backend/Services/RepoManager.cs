@@ -167,6 +167,14 @@ namespace BSkyClone.Services
             return user?.RepoCommit;
         }
 
+        public async Task FetchRemoteRepoAsync(string did, string serviceEndpoint)
+        {
+            // Placeholder: In a full implementation, this would call com.atproto.sync.getRepo
+            // and ingest all blocks into our local RepoBlocks table.
+            // For Phase 17, we are using social-level sync (app.bsky.feed.getAuthorFeed) in PostService.
+            await Task.CompletedTask;
+        }
+
 
         public async Task<string> UploadBlobAsync(string did, System.IO.Stream stream, string mimeType)
         {
