@@ -83,6 +83,7 @@ const PostEmbed: React.FC<PostEmbedProps> = ({ postId }) => {
                 {post.content && (
                     <RichText
                         content={post.content}
+                        facets={post.facets}
                         className="text-sm text-gray-800 dark:text-dark-text mb-2 line-clamp-3 whitespace-pre-wrap"
                     />
                 )}

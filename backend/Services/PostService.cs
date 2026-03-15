@@ -792,6 +792,7 @@ public class PostService : IPostService
                     if (facets.Any())
                     {
                         postRecord["facets"] = facets;
+                        post.FacetsJson = System.Text.Json.JsonSerializer.Serialize(facets);
                     }
                 }
 
@@ -2518,6 +2519,9 @@ public class PostService : IPostService
             Id = post.Id,
             Tid = post.Tid,
             Content = post.Content,
+            Facets = string.IsNullOrEmpty(post.FacetsJson) 
+                ? new List<FacetDto>() 
+                : System.Text.Json.JsonSerializer.Deserialize<List<FacetDto>>(post.FacetsJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<FacetDto>(),
             CreatedAt = post.CreatedAt.HasValue ? DateTime.SpecifyKind(post.CreatedAt.Value, DateTimeKind.Utc) : (DateTime?)null,
             Author = post.Author == null ? new AuthorDto { Id = post.AuthorId, Username = "unknown", Handle = "unknown" } : new AuthorDto
             {

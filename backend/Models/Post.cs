@@ -10,6 +10,7 @@ public partial class Post
     public string Tid { get; set; } = null!;
     public string? Cid { get; set; }
     public string? Uri { get; set; }
+    public string? FacetsJson { get; set; }
 
     public Guid AuthorId { get; set; }
 

@@ -2,6 +2,26 @@ using BSkyClone.Models;
 
 namespace BSkyClone.DTOs;
 
+public class FacetDto
+{
+    public FacetIndexDto Index { get; set; } = null!;
+    public List<FacetFeatureDto> Features { get; set; } = new();
+}
+
+public class FacetIndexDto
+{
+    public int ByteStart { get; set; }
+    public int ByteEnd { get; set; }
+}
+
+public class FacetFeatureDto
+{
+    public string Type { get; set; } = null!; // $type
+    public string? Did { get; set; } // for mentions
+    public string? Uri { get; set; } // for links
+    public string? Tag { get; set; } // for tags (optional in some lexicons)
+}
+
 public class PostDto
 {
     public Guid Id { get; set; }
@@ -11,6 +31,7 @@ public class PostDto
     /// <summary>Synthetic CID — the post GUID stringified until real CID generation is added.</summary>
     public string? Cid { get; set; }
     public string? Content { get; set; }
+    public List<FacetDto> Facets { get; set; } = new();
     public DateTime? CreatedAt { get; set; }
     public AuthorDto Author { get; set; } = null!;
     public List<string> ImageUrls { get; set; } = new();

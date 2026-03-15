@@ -68,6 +68,7 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
 
                 <RichText
                     content={post.content}
+                    facets={post.facets}
                     className="text-[14px] text-gray-800 dark:text-dark-text mb-2 leading-snug break-words"
                 />
 

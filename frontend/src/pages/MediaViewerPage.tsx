@@ -288,7 +288,7 @@ const MediaViewerPage: React.FC = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-white dark:bg-dark-bg">
-                    <RichText content={currentPost.content || ''} className="text-[18px] text-gray-900 dark:text-dark-text leading-relaxed whitespace-pre-wrap mb-4" />
+                    <RichText content={currentPost.content || ''} facets={currentPost.facets} className="text-[18px] text-gray-900 dark:text-dark-text leading-relaxed whitespace-pre-wrap mb-4" />
                     <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-4">{formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true, locale: dateLocale })}</p>
 
                     {/* Alt Text for Current Media */}

@@ -477,6 +477,7 @@ const PostDetailPage: React.FC = () => {
                     {/* Content */}
                     <RichText
                         content={post.content}
+                        facets={post.facets}
                         className="text-lg text-gray-900 dark:text-dark-text mb-4 whitespace-pre-wrap"
                     />
 

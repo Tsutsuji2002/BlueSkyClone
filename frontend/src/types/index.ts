@@ -139,11 +139,25 @@ export interface PostMedia {
     type?: string;
 }
 
+export interface Facet {
+    index: {
+        byteStart: number;
+        byteEnd: number;
+    };
+    features: {
+        $type: string;
+        did?: string;
+        uri?: string;
+        tag?: string;
+    }[];
+}
+
 // Post types
 export interface Post {
     id: string;
     author: Partial<User> & { id: string; username: string; handle: string; displayName: string; avatarUrl?: string };
     content: string;
+    facets?: Facet[];
     images?: PostImage[];
     imageUrls?: string[]; // From backend
     media?: PostMedia[]; // From backend
@@ -280,6 +294,7 @@ export interface Message {
     conversationId: string;
     senderId: string;
     content?: string;
+    facets?: Facet[];
     imageUrl?: string;
     createdAt: string;
     isRead: boolean;

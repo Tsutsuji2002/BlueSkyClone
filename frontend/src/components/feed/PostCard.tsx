@@ -378,7 +378,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                         !isExpanded && isLongContent ? "line-clamp-6" : "",
                                         isLongContent ? "mb-1" : "mb-3"
                                     )}>
-                                        <RichText content={post.content} />
+                                        <RichText content={post.content} facets={post.facets} />
                                     </div>
                                     {isLongContent && (
                                         <button

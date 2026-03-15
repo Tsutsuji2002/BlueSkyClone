@@ -498,6 +498,7 @@ const CreatePostModal: React.FC = () => {
                                         </div>
                                         <RichText
                                             content={content}
+                                            facets={isEditing ? postToEdit?.facets : undefined}
                                             className="text-[16px] text-gray-800 dark:text-dark-text leading-normal break-words whitespace-pre-wrap"
                                         />
                                     </div>
