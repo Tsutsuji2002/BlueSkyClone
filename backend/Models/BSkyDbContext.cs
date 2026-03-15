@@ -66,6 +66,8 @@ public partial class BSkyDbContext : DbContext
     public virtual DbSet<SupportRequest> SupportRequests { get; set; }
     public virtual DbSet<PageContent> PageContents { get; set; }
     public virtual DbSet<RepoBlock> RepoBlocks { get; set; }
+    public virtual DbSet<Report> Reports { get; set; }
+    public virtual DbSet<Label> Labels { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -711,6 +713,28 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             
             entity.HasIndex(e => e.Did);
+        });
+
+        modelBuilder.Entity<Report>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.Status).HasDefaultValue("open");
+
+            entity.HasOne(d => d.Reporter).WithMany()
+                .HasForeignKey(d => d.ReporterId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Label>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.Neg).HasDefaultValue(false);
+            
+            entity.HasIndex(e => e.Uri);
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -99,7 +99,9 @@
         "handle_same": "This is already your current handle",
         "username_updated_success": "Handle updated successfully",
         "handle_cannot_be_blank": "Handle cannot be blank",
-        "birthdate_future_error": "Birthday cannot be in the future"
+        "birthdate_future_error": "Birthday cannot be in the future",
+        "muted_success": "User muted successfully",
+        "blocked_success": "User blocked successfully"
     },
     "moderation": {
         "title": "Moderation",
@@ -196,7 +198,20 @@
         "graphic_media_desc": "Graphic media or potentially graphic content.",
         "non_sexual_nudity": "Non-sexual Nudity",
         "non_sexual_nudity_desc": "e.g. artistic nudity.",
-        "advanced": "Advanced"
+        "advanced": "Advanced",
+        "report_title": "Report Content",
+        "report_notice": "Reports help us maintain a safe community. Our moderators will review this content.",
+        "select_reason": "Why are you reporting this?",
+        "reason_spam": "Spam",
+        "reason_violation": "Violation",
+        "reason_misleading": "Misleading",
+        "reason_sexual": "Sexual Content",
+        "reason_rude": "Rude/Harassment",
+        "reason_other": "Other",
+        "additional_details": "Additional details (optional)",
+        "details_placeholder": "Tell us more about the issue...",
+        "submit_report": "Submit Report",
+        "report_success": "Report submitted. Thank you!"
     },
     "privacy": {
         "title": "Privacy and Security",
@@ -656,6 +671,7 @@
         "reply_success": "Reply posted successfully",
         "muted_by_word": "Post hidden by your muted word",
         "show_anyway": "Show anyway",
+        "removed_post_notice": "Post removed",
         "loading": "Loading post...",
         "view_full_post": "View full post",
         "no_replies": "No replies yet",

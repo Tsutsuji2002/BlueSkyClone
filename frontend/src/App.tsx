@@ -12,6 +12,7 @@ import ReplyModal from './modals/ReplyModal';
 import EditProfileModal from './modals/EditProfileModal';
 import ImageViewerModal from './modals/ImageViewerModal';
 import SharePostModal from './modals/SharePostModal';
+import ReportModal from './modals/ReportModal';
 import Toast from './components/common/Toast';
 import ScrollToTop from './components/common/ScrollToTop';
 import GlobalDeleteConfirmModal from './components/common/GlobalDeleteConfirmModal';
@@ -172,6 +173,7 @@ const AppContent: React.FC = () => {
       <EditProfileModal />
       <ImageViewerModal />
       <SharePostModal />
+      <ReportModal />
       <GlobalDeleteConfirmModal />
       <Toast />
     </>

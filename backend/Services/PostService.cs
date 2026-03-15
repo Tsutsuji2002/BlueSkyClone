@@ -24,9 +24,10 @@ public class PostService : IPostService
     private readonly ISearchService _searchService;
     private readonly IRepoManager _repoManager;
     private readonly IXrpcProxyService _xrpcProxy;
+    private readonly ILabelingService _labelingService;
     private readonly ILogger<PostService> _logger;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILogger<PostService> logger)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, ILogger<PostService> logger)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -38,6 +39,7 @@ public class PostService : IPostService
         _searchService = searchService;
         _repoManager = repoManager;
         _xrpcProxy = xrpcProxy;
+        _labelingService = labelingService;
         _logger = logger;
     }
 
@@ -254,21 +256,18 @@ public class PostService : IPostService
 
             var postIds = posts.Select(p => p.Id).ToList();
 
-            var likedPostIds = new List<Guid>();
-            try { likedPostIds = await _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).Select(l => l.PostId).ToListAsync(); } catch { }
+            var usersFollowingViewerIds = new List<Guid>();
+            try { usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync(); } catch { }
 
-            var bookmarkedPostIds = new List<Guid>();
-            try { bookmarkedPostIds = await _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync(); } catch { }
+            // Fetch interaction URIs for viewer context
+            var likedPostUris = new Dictionary<Guid, string>();
+            try { likedPostUris = await _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).ToDictionaryAsync(l => l.PostId, l => l.Uri ?? ""); } catch { }
 
-            var repostedPostIds = new List<Guid>();
-            try { repostedPostIds = await _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).Select(r => r.PostId).ToListAsync(); } catch { }
+            var repostPostUris = new Dictionary<Guid, string>();
+            try { repostPostUris = await _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).ToDictionaryAsync(r => r.PostId, r => r.Uri ?? ""); } catch { }
 
-            var followingIds = new List<Guid>();
-            try 
-            { 
-                var following = await _unitOfWork.Follows.GetFollowingAsync(viewerId);
-                followingIds = following.Select(f => f.FollowingId).ToList();
-            } catch { }
+            var followingUris = new Dictionary<Guid, string>();
+            try { followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? ""); } catch { }
 
             var mutedWords = new List<MutedWord>();
             try { mutedWords = await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync(); } catch { }
@@ -282,8 +281,11 @@ public class PostService : IPostService
             var blockedByUserIds = new List<Guid>();
             try { blockedByUserIds = await _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync(); } catch { }
 
-            var usersFollowingViewerIds = new List<Guid>();
-            try { usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync(); } catch { }
+            var bookmarkedPostIds = new List<Guid>();
+            try { bookmarkedPostIds = await _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync(); } catch { }
+
+            var blockingUris = new Dictionary<Guid, string>();
+            try { blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.Id}"); } catch { }
 
             var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
             var viewerHandle = viewerUser?.Handle?.ToLower();
@@ -345,10 +347,27 @@ public class PostService : IPostService
                     continue;
                 }
 
-                post.IsLiked = likedPostIds.Contains(post.Id);
+                if (post.Author != null)
+                {
+                    post.Author.Viewer = new AuthorViewerDto
+                    {
+                        Muted = mutedUserIds.Contains(post.Author.Id),
+                        BlockedBy = blockedByUserIds.Contains(post.Author.Id),
+                        Blocking = blockingUris.TryGetValue(post.Author.Id, out var bUri) ? bUri : null,
+                        Following = followingUris.TryGetValue(post.Author.Id, out var fUri) ? fUri : null
+                    };
+                    post.Author.IsFollowing = post.Author.Viewer.Following != null;
+                }
+
+                post.Viewer = new PostViewerDto
+                {
+                    Like = likedPostUris.TryGetValue(post.Id, out var lUri) ? lUri : null,
+                    Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : null
+                };
+
+                post.IsLiked = post.Viewer.Like != null;
                 post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
-                post.IsReposted = repostedPostIds.Contains(post.Id);
-                post.Author.IsFollowing = followingIds.Contains(post.Author.Id);
+                post.IsReposted = post.Viewer.Repost != null;
 
                 // Calculate CanReply logic
                 if (post.Author.Id == viewerId)
@@ -923,6 +942,9 @@ public class PostService : IPostService
 
                 Console.WriteLine($"[CreatePostAsync] Repo updated and signed for User {userId}, CID: {cid}");
             }
+
+            // Automated Labeling
+            await _labelingService.RunAutomatedLabelingAsync(post);
         }
         catch (Exception ex)
         {
@@ -1416,6 +1438,9 @@ public class PostService : IPostService
                 // Don't fail the entire request if signing fails, but log it
             }
 
+            // Automated Labeling
+            await _labelingService.RunAutomatedLabelingAsync(post);
+
             // Invalidate caches
             await _cacheService.RemoveAsync($"post:{postId}");
             await _cacheService.RemoveAsync($"user:{userId}:timeline");
@@ -1497,19 +1522,30 @@ public class PostService : IPostService
             var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(postDto.Author.Id, viewerId.Value);
             if (isBlocked) return null;
 
-            // Interactions and counts must be checked live for accuracy in detail view
-            postDto.IsLiked = await _unitOfWork.Likes.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
-            postDto.IsBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
-            postDto.IsReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == viewerId.Value);
-            postDto.Author.IsFollowing = await _unitOfWork.Follows.IsFollowingAsync(viewerId.Value, postDto.Author.Id);
-            if (postDto.Author.IsFollowing)
+            var likeRecord = await _unitOfWork.Likes.Query().FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
+            var repostRecord = await _unitOfWork.Reposts.Query().FirstOrDefaultAsync(r => r.PostId == postId && r.UserId == viewerId.Value);
+            var followRecord = await _unitOfWork.Follows.GetAsync(viewerId.Value, postDto.Author.Id);
+            var blockRecord = await _unitOfWork.Blocks.Query().FirstOrDefaultAsync(b => b.UserId == viewerId.Value && b.BlockedUserId == postDto.Author.Id);
+
+            postDto.Viewer = new PostViewerDto
             {
-                var followRecord = await _unitOfWork.Follows.GetAsync(viewerId.Value, postDto.Author.Id);
-                if (followRecord != null)
-                {
-                    postDto.Author.FollowingReference = $"at://local/app.bsky.graph.follow/{followRecord.Tid}";
-                }
-            }
+                Like = likeRecord?.Uri,
+                Repost = repostRecord?.Uri
+            };
+
+            postDto.IsLiked = postDto.Viewer.Like != null;
+            postDto.IsBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
+            postDto.IsReposted = postDto.Viewer.Repost != null;
+
+            postDto.Author.Viewer = new AuthorViewerDto
+            {
+                Muted = await _unitOfWork.Mutes.Query().AnyAsync(m => m.UserId == viewerId.Value && m.MutedUserId == postDto.Author.Id),
+                BlockedBy = await _unitOfWork.Blocks.Query().AnyAsync(b => b.UserId == postDto.Author.Id && b.BlockedUserId == viewerId.Value),
+                Blocking = blockRecord != null ? $"at://local/app.bsky.graph.block/{blockRecord.Id}" : null,
+                Following = followRecord?.Uri
+            };
+            postDto.Author.IsFollowing = postDto.Author.Viewer.Following != null;
+            postDto.Author.FollowingReference = postDto.Author.Viewer.Following;
 
             // Calculate CanReply
             if (postDto.Author.Id == viewerId.Value)
@@ -1850,6 +1886,19 @@ public class PostService : IPostService
             // 1. Soft delete the post
             post.IsDeleted = true;
             _unitOfWork.Posts.Update(post);
+
+            // 1b. Delete from Repo (Synchronize Federated Content)
+            if (post.Author != null && !string.IsNullOrEmpty(post.Author.Did))
+            {
+                try
+                {
+                    await _repoManager.DeleteRecordAsync(post.Author.Did, "app.bsky.feed.post", post.Tid);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete repo record for post {PostId}", post.Id);
+                }
+            }
 
             // 2. Decrement Author's PostsCount
             if (post.Author != null)
@@ -2524,8 +2573,16 @@ public class PostService : IPostService
             Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
                 ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}"
                 : $"at://local/app.bsky.feed.post/{post.Id}",
-            Cid = post.Cid ?? post.Id.ToString()
+            Cid = post.Cid ?? post.Id.ToString(),
+            Viewer = new PostViewerDto()
         };
+
+        if (post.Author != null)
+        {
+            dto.Author.Viewer = new AuthorViewerDto();
+        }
+
+        return dto;
     }
 
     public string GenerateTid()

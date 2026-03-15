@@ -167,7 +167,7 @@ export const toggleLike = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to toggle like');
             const data = await response.json();
-            return { uri, isLiked: data.isLiked, likeUri: '' };
+            return { uri, isLiked: data.isLiked, likeUri: data.likeUri };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -186,7 +186,7 @@ export const repostPost = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to toggle repost');
             const data = await response.json();
-            return { uri, isReposted: data.isReposted, repostUri: '' };
+            return { uri, isReposted: data.isReposted, repostUri: data.repostUri };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

@@ -5,7 +5,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
 import { toggleLike, repostPost, deletePost, fetchPostById } from '../redux/slices/postsSlice';
-import { openReply, openMobileMenu, openEditPost } from '../redux/slices/modalsSlice';
+import { openReply, openMobileMenu, openEditPost, openReport } from '../redux/slices/modalsSlice';
 import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -337,7 +337,11 @@ const PostDetailPage: React.FC = () => {
                 label: t('post.report_post'),
                 icon: <FiAlertTriangle />,
                 danger: true,
-                onClick: () => { },
+                onClick: () => {
+                    if (post.uri && post.cid) {
+                        dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
+                    }
+                },
             }
         ]),
     ];

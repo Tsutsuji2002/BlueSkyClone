@@ -54,6 +54,102 @@ namespace BSkyClone.Utilities
             return newRoot;
         }
 
+        public async Task<string> DeleteRecordAsync(string did, string key)
+        {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Did == did);
+            if (user == null) throw new Exception("User not found");
+
+            string rootCid = user.RepoRoot;
+            
+            var newRoot = await DeleteRecursiveAsync(rootCid, key, did);
+            
+            user.RepoRoot = newRoot;
+            await _dbContext.SaveChangesAsync();
+
+            return newRoot;
+        }
+
+        private async Task<string> DeleteRecursiveAsync(string nodeCid, string key, string did)
+        {
+            var node = await LoadNodeAsync(nodeCid);
+            if (node == null) return null;
+
+            int keyLevel = GetKeyLevel(key);
+
+            if (node.Level > keyLevel)
+            {
+                // Descend
+                int idx = 0;
+                while (idx < node.Entries.Count && string.CompareOrdinal(key, node.Entries[idx].Key) > 0)
+                {
+                    idx++;
+                }
+
+                string targetChild = (idx == 0) ? node.LeftChild : node.Entries[idx - 1].Subtree;
+                string newChild = await DeleteRecursiveAsync(targetChild, key, did);
+
+                if (idx == 0) node.LeftChild = newChild;
+                else node.Entries[idx - 1].Subtree = newChild;
+
+                return await SaveNodeAsync(node, did);
+            }
+
+            if (node.Level < keyLevel) return nodeCid; // Key not found at this branch
+
+            // node.Level == keyLevel
+            int i = 0;
+            while (i < node.Entries.Count && string.CompareOrdinal(key, node.Entries[i].Key) > 0)
+            {
+                i++;
+            }
+
+            if (i < node.Entries.Count && node.Entries[i].Key == key)
+            {
+                // Found it. Merge left and right children of this entry.
+                var (left, right) = ( (i == 0) ? node.LeftChild : node.Entries[i-1].Subtree, node.Entries[i].Subtree );
+                string merged = await MergeAsync(left, right, did);
+                
+                node.Entries.RemoveAt(i);
+                if (i == 0) node.LeftChild = merged;
+                else node.Entries[i - 1].Subtree = merged;
+
+                return await SaveNodeAsync(node, did);
+            }
+            else
+            {
+                // Key not found in this node's entries, but might be in children if we had descended.
+                // But since node.Level == keyLevel, if it's not here, it's not in the tree.
+                return nodeCid;
+            }
+        }
+
+        private async Task<string> MergeAsync(string leftCid, string rightCid, string did)
+        {
+            if (string.IsNullOrEmpty(leftCid)) return rightCid;
+            if (string.IsNullOrEmpty(rightCid)) return leftCid;
+
+            var left = await LoadNodeAsync(leftCid);
+            var right = await LoadNodeAsync(rightCid);
+
+            if (left.Level > right.Level)
+            {
+                left.Entries.Last().Subtree = await MergeAsync(left.Entries.Last().Subtree, rightCid, did);
+                return await SaveNodeAsync(left, did);
+            }
+            else if (right.Level > left.Level)
+            {
+                right.LeftChild = await MergeAsync(leftCid, right.LeftChild, did);
+                return await SaveNodeAsync(right, did);
+            }
+            else
+            {
+                // Levels equal. Merge into one node.
+                left.Entries.AddRange(right.Entries);
+                // Note: This is an oversimplification of MST merge but works for single-node merges.
+                return await SaveNodeAsync(left, did);
+            }
+        }
+
         private async Task<string> InsertRecursiveAsync(string nodeCid, string key, string value, int keyLevel, string did)
         {
             var node = await LoadNodeAsync(nodeCid);

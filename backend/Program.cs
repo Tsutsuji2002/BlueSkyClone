@@ -90,6 +90,7 @@ builder.Services.AddScoped<MstService>();
 builder.Services.AddScoped<IDidResolver, DidResolverService>();
 builder.Services.AddScoped<ICryptoService, CryptoService>();
 builder.Services.AddScoped<IXrpcProxyService, XrpcProxyService>();
+builder.Services.AddScoped<ILabelingService, LabelingService>();
 builder.Services.AddHostedService<FirehoseService>();
 
 // Redis Caching

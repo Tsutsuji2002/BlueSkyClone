@@ -12,6 +12,8 @@ public class UnitOfWork : IUnitOfWork
     private IFollowRepository? _follows;
     private IUserFeedSubscriptionRepository? _userFeedSubscriptions;
     private IRepository<PostMedium>? _postMedia;
+    private IRepository<Report>? _reports;
+    private IRepository<Label>? _labels;
 
     public UnitOfWork(BSkyDbContext context)
     {
@@ -43,6 +45,8 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<MutedWord> MutedWords => _mutedWords ??= new Repository<MutedWord>(_context);
     public IRepository<UserSetting> UserSettings => _userSettings ??= new Repository<UserSetting>(_context);
     public IRepository<PostMedium> PostMedia => _postMedia ??= new Repository<PostMedium>(_context);
+    public IRepository<Report> Reports => _reports ??= new Repository<Report>(_context);
+    public IRepository<Label> Labels => _labels ??= new Repository<Label>(_context);
 
     private IBlockRepository? _blocks;
     private IMuteRepository? _mutes;

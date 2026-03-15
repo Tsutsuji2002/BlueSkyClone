@@ -34,6 +34,12 @@ export interface User {
     did?: string;
     followingReference?: string; // at-uri of the follow record
     blockingReference?: string;  // at-uri of the block record
+    viewer?: {
+        muted?: boolean;
+        blockedBy?: boolean;
+        blocking?: string; // URI of the block record
+        following?: string; // URI of the follow record
+    };
 }
 
 export interface UserSettings {
@@ -181,6 +187,7 @@ export interface Post {
         repost?: string;
         replyDisabled?: boolean;
         embeddingDisabled?: boolean;
+        threadMuted?: boolean;
     };
 }
 

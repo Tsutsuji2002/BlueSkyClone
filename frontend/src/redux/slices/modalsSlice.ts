@@ -11,6 +11,10 @@ export interface DeleteConfirmState {
 
 interface ExtendedModalsState extends ModalsState {
     deleteConfirm: DeleteConfirmState;
+    report: {
+        isOpen: boolean;
+        subject: { uri?: string, did?: string, cid?: string, type: string } | null;
+    };
 }
 
 const initialState: ExtendedModalsState = {
@@ -48,6 +52,10 @@ const initialState: ExtendedModalsState = {
         isOpen: false,
         postUri: null,
         onConfirm: undefined,
+    },
+    report: {
+        isOpen: false,
+        subject: null,
     },
 };
 
@@ -172,6 +180,18 @@ const modalsSlice = createSlice({
                 onConfirm: undefined,
             };
         },
+        openReport: (state, action: PayloadAction<{ uri?: string, did?: string, cid?: string, type: string }>) => {
+            (state as any).report = {
+                isOpen: true,
+                subject: action.payload,
+            };
+        },
+        closeReport: (state) => {
+            (state as any).report = {
+                isOpen: false,
+                subject: null,
+            };
+        },
         closeAllModals: (state) => {
             state.createPost = false;
             state.editProfile = false;
@@ -203,10 +223,14 @@ const modalsSlice = createSlice({
                 isOpen: false,
                 post: null,
             };
-            (state as any).deleteConfirm = {
+            state.deleteConfirm = {
                 isOpen: false,
                 postUri: null,
                 onConfirm: undefined,
+            };
+            state.report = {
+                isOpen: false,
+                subject: null,
             };
         },
     },
@@ -234,6 +258,8 @@ export const {
     closeQuote,
     openDeleteConfirm,
     closeDeleteConfirm,
+    openReport,
+    closeReport,
     closeAllModals,
 } = modalsSlice.actions;
 

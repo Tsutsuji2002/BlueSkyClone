@@ -4,13 +4,13 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync } from '../redux/slices/userSlice';
-import { openEditProfile, openCreatePost } from '../redux/slices/modalsSlice';
+import { openEditProfile, openCreatePost, openReport } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
-import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss, FiAlertTriangle } from 'react-icons/fi';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import ListAvatar from '../components/common/ListAvatar';
 import { showToast } from '../redux/slices/toastSlice';
@@ -211,6 +211,17 @@ const ProfilePage: React.FC = () => {
                 icon: <FiUserX size={18} />,
                 onClick: handleBlockToggle,
                 danger: !profileUser?.isBlocking
+            },
+            {
+                id: 'report-account',
+                label: t('profile.report_account', 'Report account'),
+                icon: <FiAlertTriangle size={18} />,
+                onClick: () => {
+                    if (profileUser?.id) {
+                        dispatch(openReport({ did: profileUser.id, type: 'account' }));
+                    }
+                },
+                danger: true
             }
         ] : [])
     ];

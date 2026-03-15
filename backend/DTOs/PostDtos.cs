@@ -42,6 +42,16 @@ public class PostDto
     public bool CanReply { get; set; } = true;
     public bool IsDeleted { get; set; }
     public AuthorDto? RepostedBy { get; set; }
+    public PostViewerDto? Viewer { get; set; }
+}
+
+public class PostViewerDto
+{
+    public string? Repost { get; set; } // URI of the repost record
+    public string? Like { get; set; } // URI of the like record
+    public bool ThreadMuted { get; set; }
+    public bool ReplyDisabled { get; set; }
+    public string? EmbeddingDisabled { get; set; }
 }
 
 public class MediaDto
@@ -81,6 +91,15 @@ public class AuthorDto
     public string? Did { get; set; }
     /// <summary>AT-URI of the follow record — needed to unfollow from post context.</summary>
     public string? FollowingReference { get; set; }
+    public AuthorViewerDto? Viewer { get; set; }
+}
+
+public class AuthorViewerDto
+{
+    public bool Muted { get; set; }
+    public bool BlockedBy { get; set; }
+    public string? Blocking { get; set; } // URI of the block record
+    public string? Following { get; set; } // URI of the follow record
 }
 
 public class CreatePostRequest

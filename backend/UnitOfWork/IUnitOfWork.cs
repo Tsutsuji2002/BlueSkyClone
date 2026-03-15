@@ -29,5 +29,7 @@ public interface IUnitOfWork : IDisposable
     IRepository<MutedWord> MutedWords { get; }
     IRepository<UserSetting> UserSettings { get; }
     IRepository<PostMedium> PostMedia { get; }
+    IRepository<Report> Reports { get; }
+    IRepository<Label> Labels { get; }
     Task<int> CompleteAsync();
 }

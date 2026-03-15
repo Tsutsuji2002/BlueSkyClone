@@ -23,6 +23,7 @@ namespace BSkyClone.Controllers
         private readonly IListService _listService;
         private readonly IUserService _userService;
         private readonly IRepoManager _repoManager;
+        private readonly ILabelingService _labelingService;
         private readonly ILogger<XrpcController> _logger;
 
         public XrpcController(
@@ -32,6 +33,7 @@ namespace BSkyClone.Controllers
             IListService listService,
             IUserService userService,
             IRepoManager repoManager,
+            ILabelingService labelingService,
             ILogger<XrpcController> logger)
         {
             _authService = authService;
@@ -40,6 +42,7 @@ namespace BSkyClone.Controllers
             _listService = listService;
             _userService = userService;
             _repoManager = repoManager;
+            _labelingService = labelingService;
             _logger = logger;
         }
 
@@ -492,6 +495,107 @@ namespace BSkyClone.Controllers
             {
                 Count = count
             });
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.moderation.createReport")]
+        public async Task<IActionResult> CreateReport([FromBody] Lexicons.Com.Atproto.Moderation.CreateReportRequest request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null) return Unauthorized();
+
+                var subjectUri = request.Subject.Uri ?? request.Subject.Did ?? "";
+                var subjectType = request.Subject.Type;
+
+                var report = await _labelingService.CreateReportAsync(
+                    userId,
+                    subjectType,
+                    subjectUri,
+                    request.ReasonType,
+                    request.Reason,
+                    request.Subject.Cid
+                );
+
+                return Ok(new Lexicons.Com.Atproto.Moderation.CreateReportResponse
+                {
+                    Id = report.Id.GetHashCode(), // Mocking a long ID for lexicon compliance
+                    ReasonType = report.ReasonType,
+                    Subject = request.Subject,
+                    Reporter = user.Did ?? user.Handle,
+                    CreatedAt = report.CreatedAt.ToString("o")
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in createReport XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("com.atproto.label.queryLabels")]
+        public async Task<IActionResult> QueryLabels([FromQuery] string[] uriPatterns, [FromQuery] string[]? sources = null, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                // AT Protocol queryLabels usually searches by URI patterns
+                // For simplicity, we'll support exact URI matches from uriPatterns
+                var labels = await _labelingService.GetLabelsForSubjectsAsync(uriPatterns);
+                
+                var response = new Lexicons.Com.Atproto.Label.QueryLabelsResponse
+                {
+                    Labels = labels.Select(l => new Lexicons.Com.Atproto.Label.LabelView
+                    {
+                        Src = l.Src,
+                        Uri = l.Uri,
+                        Cid = l.Cid,
+                        Val = l.Val,
+                        Neg = l.Neg,
+                        Cts = l.CreatedAt.ToString("o")
+                    }).ToList(),
+                    Cursor = null
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in queryLabels XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("com.atproto.label.getLabelDefinitions")]
+        public IActionResult GetLabelDefinitions()
+        {
+            var response = new Lexicons.Com.Atproto.Label.GetLabelDefinitionsResponse
+            {
+                Definitions = new List<Lexicons.Com.Atproto.Label.LabelDefinition>
+                {
+                    new() { 
+                        Identifier = "spam", 
+                        Severity = "inform", 
+                        Blurs = "none", 
+                        DefaultSetting = "warn",
+                        Locales = new List<Lexicons.Com.Atproto.Label.LabelLocale> { new() { Name = "Spam", Description = "Unwanted commercial content" } }
+                    },
+                    new() { 
+                        Identifier = "harassment", 
+                        Severity = "alert", 
+                        Blurs = "content", 
+                        DefaultSetting = "hide",
+                        Locales = new List<Lexicons.Com.Atproto.Label.LabelLocale> { new() { Name = "Harassment", Description = "Offensive or insulting behavior" } }
+                    }
+                }
+            };
+            return Ok(response);
         }
 
         [Authorize]

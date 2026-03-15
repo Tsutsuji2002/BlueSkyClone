@@ -114,6 +114,18 @@ namespace BSkyClone.Services
             return sigHex;
         }
 
+        public async Task DeleteRecordAsync(string did, string collection, string rkey)
+        {
+            string mstKey = $"{collection}/{rkey}";
+            var newRoot = await _mst.DeleteRecordAsync(did, mstKey);
+
+            // Sign the repo with the new root
+            if (!string.IsNullOrEmpty(newRoot))
+            {
+                await SignRepoAsync(did, newRoot);
+            }
+        }
+
         public async Task<RepoBlock?> GetBlockAsync(string cid)
         {
             return await _dbContext.RepoBlocks.FindAsync(cid);

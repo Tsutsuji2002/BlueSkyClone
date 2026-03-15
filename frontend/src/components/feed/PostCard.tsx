@@ -4,7 +4,7 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { toggleLike, repostPost, toggleBookmark } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
-import { openReply, openEditPost, openQuote, openDeleteConfirm } from '../../redux/slices/modalsSlice';
+import { openReply, openEditPost, openQuote, openDeleteConfirm, openReport } from '../../redux/slices/modalsSlice';
 import QuotedPost from './QuotedPost';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
@@ -205,7 +205,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                 id: 'report-post',
                 label: t('post.report_post'),
                 icon: <FiAlertTriangle />,
-                onClick: () => { },
+                onClick: () => dispatch(openReport({ 
+                    uri: post.uri, 
+                    cid: post.cid, 
+                    type: isComment ? 'comment' : 'post' 
+                })),
             },
         ] : []),
         ...(onRemoveFromList ? [
