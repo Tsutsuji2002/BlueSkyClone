@@ -48,4 +48,18 @@ public class MessageRepository : Repository<Message>, IMessageRepository
                 && (m.IsRead == false || m.IsRead == null)
                 && (m.IsDeleted == false || m.IsDeleted == null));
     }
+
+    public async Task<Dictionary<Guid, int>> GetUnreadCountsAsync(IEnumerable<Guid> conversationIds, Guid userId)
+    {
+        var counts = await _dbSet
+            .Where(m => conversationIds.Contains(m.ConversationId) 
+                && m.SenderId != userId 
+                && (m.IsRead == false || m.IsRead == null)
+                && (m.IsDeleted == false || m.IsDeleted == null))
+            .GroupBy(m => m.ConversationId)
+            .Select(g => new { ConversationId = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        return counts.ToDictionary(x => x.ConversationId, x => x.Count);
+    }
 }

@@ -34,12 +34,14 @@ public class ChatService : IChatService
         if (cached != null) return cached;
 
         var conversations = await _unitOfWork.Conversations.GetUserConversationsAsync(userId);
-        var dtos = new List<ConversationDto>();
-        foreach (var c in conversations)
+        var conversationIds = conversations.Select(c => c.Id).ToList();
+        var unreadCounts = await _unitOfWork.Messages.GetUnreadCountsAsync(conversationIds, userId);
+
+        var dtos = conversations.Select(c => 
         {
-            var unreadCount = await _unitOfWork.Messages.GetUnreadCountAsync(c.Id, userId);
-            dtos.Add(MapToConversationDto(c, userId, unreadCount));
-        }
+            unreadCounts.TryGetValue(c.Id, out var unreadCount);
+            return MapToConversationDto(c, userId, unreadCount);
+        }).ToList();
 
         await _cacheService.SetAsync(cacheKey, (IEnumerable<ConversationDto>)dtos, TimeSpan.FromMinutes(10));
         return dtos;

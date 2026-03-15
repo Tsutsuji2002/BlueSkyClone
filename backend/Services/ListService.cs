@@ -294,19 +294,38 @@ public class ListService : IListService
             .OrderBy(uls => uls.PinnedOrder)
             .ToListAsync();
 
+        var validLists = pinned.Where(p => p.List != null && p.List.IsDeleted != true).Select(p => p.List!).ToList();
+        if (!validLists.Any()) return new List<ListDto>();
+
+        var listIds = validLists.Select(l => l.Id).ToList();
+
+        // Batch fetch counts to avoid N+1
+        var memberCounts = await _unitOfWork.ListMembers.Query()
+            .Where(lm => listIds.Contains(lm.ListId) && lm.Status == 1)
+            .GroupBy(lm => lm.ListId)
+            .Select(g => new { ListId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ListId, x => x.Count);
+
+        var postCounts = await _unitOfWork.ListPosts.Query()
+            .Where(lp => listIds.Contains(lp.ListId))
+            .Join(_unitOfWork.Posts.Query(), lp => lp.PostId, p => p.Id, (lp, p) => new { lp.ListId, p.IsDeleted })
+            .Where(x => (x.IsDeleted == false || x.IsDeleted == null))
+            .GroupBy(x => x.ListId)
+            .Select(g => new { ListId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ListId, x => x.Count);
+
         var result = new List<ListDto>();
-        foreach (var item in pinned)
+        foreach (var list in validLists)
         {
-            if (item.List != null && item.List.IsDeleted != true)
-            {
-                result.Add(await MapToListDto(item.List, userId, true));
-            }
+            memberCounts.TryGetValue(list.Id, out var mCount);
+            postCounts.TryGetValue(list.Id, out var pCount);
+            result.Add(await MapToListDto(list, userId, true, mCount, pCount));
         }
         return result;
     }
 
     // Helper
-    private async Task<ListDto> MapToListDto(List list, Guid currentUserId, bool? isPinned = null)
+    private async Task<ListDto> MapToListDto(List list, Guid currentUserId, bool? isPinned = null, int? preMembersCount = null, int? prePostsCount = null)
     {
         // Populate owner if missing (e.g. from AddAsync)
         if (list.Owner == null)
@@ -317,10 +336,10 @@ public class ListService : IListService
         bool pinned = isPinned ?? await _unitOfWork.UserListSubscriptions.Query()
             .AnyAsync(uls => uls.UserId == currentUserId && uls.ListId == list.Id);
 
-        int membersCount = await _unitOfWork.ListMembers.Query()
+        int membersCount = preMembersCount ?? await _unitOfWork.ListMembers.Query()
             .CountAsync(lm => lm.ListId == list.Id && lm.Status == 1);
 
-        int postsCount = await _unitOfWork.ListPosts.Query()
+        int postsCount = prePostsCount ?? await _unitOfWork.ListPosts.Query()
             .Where(lp => lp.ListId == list.Id)
             .Join(_unitOfWork.Posts.Query(), lp => lp.PostId, p => p.Id, (lp, p) => p)
             .CountAsync(p => p.IsDeleted == false || p.IsDeleted == null);
