@@ -29,6 +29,10 @@ namespace BSkyClone.Controllers
             }
             catch (Exception ex)
             {
+                if (ex.Message.Contains("User not found"))
+                {
+                    return NotFound(new { error = "RepoNotFound", message = ex.Message });
+                }
                 return BadRequest(new { error = "InvalidRequest", message = ex.Message });
             }
         }

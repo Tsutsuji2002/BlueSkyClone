@@ -128,7 +128,8 @@ namespace BSkyClone.Services
         public async Task<Stream> GetRepoCheckoutStreamAsync(string did)
         {
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => 
-                u.Did.ToLower() == did.ToLower() || u.Handle.ToLower() == did.ToLower());
+                (u.Did != null && u.Did.ToLower() == did.ToLower()) || 
+                (u.Handle != null && u.Handle.ToLower() == did.ToLower()));
             
             if (user == null) 
             {

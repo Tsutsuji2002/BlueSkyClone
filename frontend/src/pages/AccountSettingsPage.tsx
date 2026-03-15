@@ -9,7 +9,7 @@ import Button from '../components/common/Button';
 import { updateUserAccount } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import ChangeHandleModal from '../modals/ChangeHandleModal';
-import agent from '../services/atpAgent';
+import agent, { SERVICE_URL } from '../services/atpAgent';
 
 // Functional Modal Components for updating account settings
 const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: string }> = ({ isOpen, onClose, email }) => {
@@ -216,8 +216,7 @@ const ExportDataModal: React.FC<{ isOpen: boolean; onClose: () => void; did?: st
         setIsLoading(true);
 
         try {
-            const serviceUrl = agent.service.toString().replace(/\/api$/, '');
-            const downloadUrl = `${serviceUrl}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
+            const downloadUrl = `${SERVICE_URL}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
             
             // Use a temporary link to trigger download (cleaner than window.location)
             const link = document.createElement('a');
