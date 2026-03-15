@@ -276,22 +276,55 @@ export const fetchPostsSearch = createAsyncThunk(
 
 export const fetchPostById = createAsyncThunk(
     'posts/fetchPostById',
-    async (uri: string, { rejectWithValue }) => {
+    async (args: string | { uri: string; handle?: string }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const uri = typeof args === 'string' ? args : args.uri;
+            const handle = typeof args === 'object' ? args.handle : undefined;
+            
             // uri may be a full AT URI or just a GUID or a TID
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
             
             // Check if it's a GUID
             const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
-            const endpoint = isGuid ? `${API_BASE_URL}/posts/${postId}` : `${API_BASE_URL}/posts/tid/${postId}`;
+            
+            let endpoint: string;
+            if (isGuid) {
+                endpoint = `${API_BASE_URL}/posts/${postId}`;
+            } else if (handle && handle !== 'local') {
+                // Use Standard AT Protocol XRPC getPostThread
+                const fullUri = uri.startsWith('at://') ? uri : `at://${handle}/app.bsky.feed.post/${uri}`;
+                // Note: API_BASE_URL is usually .../api, so we go up for /xrpc
+                const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+                endpoint = `${baseUrl}/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(fullUri)}`;
+            } else {
+                endpoint = `${API_BASE_URL}/posts/tid/${postId}`;
+            }
             
             const response = await fetch(
                 endpoint,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch post');
-            return await response.json() as Post[];
+            
+            const data = await response.json();
+
+            // Handle XRPC getPostThread response (thread structure)
+            if (data && data.thread) {
+                const posts: Post[] = [];
+                const extractPosts = (node: any) => {
+                    if (!node) return;
+                    if (node.post) posts.push(node.post as Post);
+                    if (node.parent) extractPosts(node.parent);
+                    if (node.replies) {
+                        node.replies.forEach((r: any) => extractPosts(r));
+                    }
+                };
+                extractPosts(data.thread);
+                return posts;
+            }
+
+            return Array.isArray(data) ? data : [data];
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

@@ -6,7 +6,8 @@ namespace BSkyClone.Utilities
 {
     public static class ProtocolUtils
     {
-        private const string Base32Chars = "abcdefghijklmnopqrstuvwxyz234567";
+        private const string CidAlphabet = "abcdefghijklmnopqrstuvwxyz234567";
+        private const string TidAlphabet = "234567abcdefghijklmnopqrstuvwxyz";
 
         /// <summary>
         /// Generates an AT Protocol compatible TID (Transaction ID).
@@ -14,12 +15,16 @@ namespace BSkyClone.Utilities
         /// </summary>
         public static string GenerateTid()
         {
-            // Get microseconds since Unix epoch
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
-            // Add a small counter or random part if needed for high-concurrency, 
-            // but for a simple implementation, microsecond precision is usually enough.
+            // Get microseconds since Unix epoch using Ticks (100-nanosecond intervals)
+            var now = (DateTimeOffset.UtcNow.Ticks - DateTimeOffset.UnixEpoch.Ticks) / 10;
             
-            return EncodeBase32(now);
+            // AT Protocol TID is 64-bit:
+            // - Bit 63: 0
+            // - Bits 62-10: 53-bit timestamp (microseconds)
+            // - Bits 9-0: 10-bit clock ID/random (we'll use 0 for simplicity)
+            long tidInt = now << 10;
+            
+            return EncodeTid(tidInt);
         }
 
         /// <summary>
@@ -46,12 +51,12 @@ namespace BSkyClone.Utilities
             return EncodeCid(cidv1);
         }
 
-        private static string EncodeBase32(long val)
+        private static string EncodeTid(long val)
         {
             char[] result = new char[13];
             for (int i = 12; i >= 0; i--)
             {
-                result[i] = Base32Chars[(int)(val & 0x1F)];
+                result[i] = TidAlphabet[(int)(val & 0x1F)];
                 val >>= 5;
             }
             return new string(result);
@@ -70,14 +75,14 @@ namespace BSkyClone.Utilities
 
                 while (bufferLength >= 5)
                 {
-                    result.Append(Base32Chars[(buffer >> (bufferLength - 5)) & 0x1F]);
+                    result.Append(CidAlphabet[(buffer >> (bufferLength - 5)) & 0x1F]);
                     bufferLength -= 5;
                 }
             }
 
             if (bufferLength > 0)
             {
-                result.Append(Base32Chars[(buffer << (5 - bufferLength)) & 0x1F]);
+                result.Append(CidAlphabet[(buffer << (5 - bufferLength)) & 0x1F]);
             }
 
             return result.ToString();
@@ -111,7 +116,7 @@ namespace BSkyClone.Utilities
 
             foreach (char c in input.ToLowerInvariant())
             {
-                int val = Base32Chars.IndexOf(c);
+                int val = CidAlphabet.IndexOf(c);
                 if (val == -1) continue;
 
                 buffer = (buffer << 5) | val;

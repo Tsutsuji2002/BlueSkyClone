@@ -26,6 +26,7 @@ public interface IPostService
     Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0);
     Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0);
     Task<PostDto?> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request);
+    Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null);
     PostDto MapToDto(Post post);
     Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false);
     Task<string> SaveBlobAsync(Stream stream, string contentType, string folder);

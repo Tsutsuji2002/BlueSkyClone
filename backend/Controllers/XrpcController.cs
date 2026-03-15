@@ -317,6 +317,29 @@ namespace BSkyClone.Controllers
             }
         }
 
+        [AllowAnonymous]
+        [HttpGet("app.bsky.feed.getPostThread")]
+        public async Task<IActionResult> GetPostThread([FromQuery] string uri, [FromQuery] int depth = 6, [FromQuery] int parentHeight = 80)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var vid) ? vid : null;
+
+                _logger.LogInformation("XRPC GetPostThread for {Uri}, depth={Depth}, parentHeight={ParentHeight}", uri, depth, parentHeight);
+
+                var thread = await _postService.GetPostThreadAsync(uri, depth, parentHeight, viewerId);
+                if (thread == null) return NotFound(new { error = "NotFound", message = "Thread not found" });
+
+                return Ok(thread);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in getPostThread XRPC");
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            }
+        }
+
         [Authorize]
         [HttpPost("com.atproto.repo.uploadBlob")]
         [DisableRequestSizeLimit]

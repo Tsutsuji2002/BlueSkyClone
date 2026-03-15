@@ -22,7 +22,7 @@ import { usePostActions } from '../hooks/usePostActions';
  * MediaViewerPage - Standalone immersive page for viewing post media.
  */
 const MediaViewerPage: React.FC = () => {
-    const { postId, index: indexParam } = useParams<{ handle: string, postId: string, index: string }>();
+    const { handle, postId, index: indexParam } = useParams<{ handle: string; postId: string; index: string }>();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t, i18n } = useTranslation();
@@ -62,9 +62,9 @@ const MediaViewerPage: React.FC = () => {
 
     useEffect(() => {
         if (postId && !currentPost) {
-            dispatch(fetchPostById(postId));
+            dispatch(fetchPostById({ uri: postId, handle }));
         }
-    }, [postId, currentPost, dispatch]);
+    }, [postId, currentPost, dispatch, handle]);
 
     const getMediaUrl = useCallback((url: string) => {
         if (!url) return '';

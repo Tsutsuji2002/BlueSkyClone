@@ -82,7 +82,7 @@ const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () =
 );
 
 const PostDetailPage: React.FC = () => {
-    const { postId } = useParams<{ postId: string }>();
+    const { handle, postId } = useParams<{ handle: string; postId: string }>();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t, i18n } = useTranslation();
@@ -143,11 +143,11 @@ const PostDetailPage: React.FC = () => {
     React.useEffect(() => {
         if (postId) {
             if (!post) {
-                dispatch(fetchPostById(postId));
+                dispatch(fetchPostById({ uri: postId, handle }));
             }
             // Replies are now usually included in fetchPostById (getPostThread)
         }
-    }, [dispatch, postId]); // Removed post from dependencies
+    }, [dispatch, postId, handle, post]);
 
     const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
     React.useEffect(() => {

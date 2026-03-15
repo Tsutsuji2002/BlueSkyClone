@@ -473,10 +473,15 @@ public class PostService : IPostService
 
         try
         {
+            var author = await _unitOfWork.Users.GetByIdAsync(userId);
+            var tid = GenerateTid();
+            var uriStr = author != null ? $"at://{author.Did}/app.bsky.feed.post/{tid}" : null;
+
             var post = new Post
             {
                 Id = Guid.NewGuid(),
-                Tid = GenerateTid(),
+                Tid = tid,
+                Uri = uriStr,
                 AuthorId = userId,
                 Content = request.Content,
                 CreatedAt = DateTime.UtcNow,
@@ -660,7 +665,7 @@ public class PostService : IPostService
         await _unitOfWork.Posts.AddAsync(post);
         
         // Update User PostsCount
-        var author = await _unitOfWork.Users.GetByIdAsync(userId);
+        author = await _unitOfWork.Users.GetByIdAsync(userId);
         if (author != null)
         {
             author.PostsCount = (author.PostsCount ?? 0) + 1;
@@ -1601,6 +1606,7 @@ public class PostService : IPostService
     public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null)
     {
         _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid='{Tid}'", tid);
+        
         var post = await _unitOfWork.Posts.Query()
             .FirstOrDefaultAsync(p => p.Tid == tid && (p.IsDeleted == false || p.IsDeleted == null));
 
@@ -1610,7 +1616,7 @@ public class PostService : IPostService
             return null;
         }
 
-        _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} for Tid='{Tid}'. Fetching full DTO...", post.Id, tid);
+        _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} for Tid='{Tid}'.", post.Id, tid);
         return await GetPostByIdAsync(post.Id, viewerId);
     }
 
@@ -1693,6 +1699,96 @@ public class PostService : IPostService
             RepostsCount = postData.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0,
             RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0
         };
+    }
+
+    public async Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null)
+    {
+        if (string.IsNullOrEmpty(uri)) return null;
+
+        try
+        {
+            if (!uri.StartsWith("at://")) return null;
+
+            var parts = uri.Substring(5).Split('/');
+            if (parts.Length < 3) return null;
+
+            var didOrHandle = parts[0];
+            var collection = parts[1];
+            var rkey = parts[2];
+
+            // 1. Resolve DID/Handle to check if local
+            var user = await _unitOfWork.Users.Query()
+                .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
+
+            if (user != null)
+            {
+                // Local post
+                var post = await GetPostByTidAsync(rkey, viewerId);
+                if (post == null) return null;
+
+                // Build local thread structure
+                var thread = new
+                {
+                    thread = new
+                    {
+                        post = new
+                        {
+                            uri = post.Uri,
+                            cid = post.Cid,
+                            author = new
+                            {
+                                did = post.Author?.Did,
+                                handle = post.Author?.Handle,
+                                displayName = post.Author?.DisplayName,
+                                avatar = post.Author?.AvatarUrl,
+                            },
+                            record = new
+                            {
+                                text = post.Content,
+                                createdAt = post.CreatedAt?.ToString("o"),
+                                @type = "app.bsky.feed.post"
+                            },
+                            replyCount = post.RepliesCount,
+                            repostCount = post.RepostsCount,
+                            likeCount = post.LikesCount,
+                            indexedAt = post.CreatedAt?.ToString("o")
+                        },
+                        // In a real implementation, we would recursively fetch ancestors and replies
+                        // For now, we'll keep it simple as the frontend handles thread reconstruction from flat lists often
+                        // or expects a nested structure. Let's provide basic ancestors and replies.
+                        replies = (await GetPostRepliesAsync(post.Id, viewerId)).Select(r => new { post = r, @type = "app.bsky.feed.defs#threadViewPost" }),
+                        // Local parents
+                        parent = post.ReplyToPostId.HasValue ? new { post = await GetPostByIdAsync(post.ReplyToPostId.Value, viewerId), @type = "app.bsky.feed.defs#threadViewPost" } : null
+                    },
+                    @type = "app.bsky.feed.defs#threadViewPost"
+                };
+
+                return thread;
+            }
+
+            // 2. Remote post - Proxy request
+            var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+            {
+                { "uri", uri },
+                { "depth", depth.ToString() },
+                { "parentHeight", parentHeight.ToString() }
+            };
+            var qCollection = new QueryCollection(qDict);
+
+            var proxyResult = await _xrpcProxy.ProxyRequestAsync(didOrHandle, "app.bsky.feed.getPostThread", qCollection);
+            
+            if (proxyResult.Success)
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<object>(proxyResult.Content);
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting post thread: {Uri}", uri);
+            return null;
+        }
     }
 
     public async Task FetchRemoteAuthorFeedAsync(string did)
@@ -2432,9 +2528,9 @@ public class PostService : IPostService
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-                    .AsSplitQuery()
                     .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
-                    .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
+                    .OrderByDescending(p => p.LikesCount)
+                    .ThenByDescending(p => p.RepostsCount)
                     .Take(50)
                     .ToListAsync();
 
