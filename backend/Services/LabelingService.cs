@@ -45,7 +45,7 @@ public class LabelingService : ILabelingService
             CreatedAt = DateTime.UtcNow
         };
 
-        _unitOfWork.Labels.Add(label);
+        await _unitOfWork.Labels.AddAsync(label);
         await _unitOfWork.CompleteAsync();
         return label;
     }
@@ -64,9 +64,14 @@ public class LabelingService : ILabelingService
             Status = "open"
         };
 
-        _unitOfWork.Reports.Add(report);
+        await _unitOfWork.Reports.AddAsync(report);
         await _unitOfWork.CompleteAsync();
         return report;
+    }
+
+    public async Task<IEnumerable<Report>> GetReportsForSubjectAsync(string subjectUri)
+    {
+        return await _unitOfWork.Reports.FindAsync(r => r.SubjectUri == subjectUri);
     }
 
     public async Task RunAutomatedLabelingAsync(Post post)
@@ -95,7 +100,7 @@ public class LabelingService : ILabelingService
                     Val = filter.Value,
                     CreatedAt = DateTime.UtcNow
                 };
-                _unitOfWork.Labels.Add(label);
+                await _unitOfWork.Labels.AddAsync(label);
                 didApply = true;
             }
         }

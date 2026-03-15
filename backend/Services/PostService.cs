@@ -285,7 +285,7 @@ public class PostService : IPostService
             try { bookmarkedPostIds = await _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync(); } catch { }
 
             var blockingUris = new Dictionary<Guid, string>();
-            try { blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.Id}"); } catch { }
+            try { blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}"); } catch { }
 
             var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
             var viewerHandle = viewerUser?.Handle?.ToLower();
@@ -1541,7 +1541,7 @@ public class PostService : IPostService
             {
                 Muted = await _unitOfWork.Mutes.Query().AnyAsync(m => m.UserId == viewerId.Value && m.MutedUserId == postDto.Author.Id),
                 BlockedBy = await _unitOfWork.Blocks.Query().AnyAsync(b => b.UserId == postDto.Author.Id && b.BlockedUserId == viewerId.Value),
-                Blocking = blockRecord != null ? $"at://local/app.bsky.graph.block/{blockRecord.Id}" : null,
+                Blocking = blockRecord != null ? $"at://local/app.bsky.graph.block/{blockRecord.BlockedUserId}" : null,
                 Following = followRecord?.Uri
             };
             postDto.Author.IsFollowing = postDto.Author.Viewer.Following != null;
@@ -2513,7 +2513,7 @@ public class PostService : IPostService
 
     private PostDto MapToDto(Post post, bool includeQuote, bool includeParent)
     {
-        return new PostDto
+        var dto = new PostDto
         {
             Id = post.Id,
             Tid = post.Tid,
