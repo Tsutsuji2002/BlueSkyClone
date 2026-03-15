@@ -55,7 +55,7 @@ export const fetchUserPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const posts: Post[] = await response.json();
-            return { posts, userId, cursor: null };
+            return { posts, userId, cursor: null, type };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -492,13 +492,19 @@ const postsSlice = createSlice({
             })
             .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
+                const { posts, userId, cursor, type } = action.payload;
+
                 if (!action.meta.arg.cursor) {
-                    state.posts = action.payload.posts;
+                    state.posts = posts;
+                    state.lastUserPostsFetch = Date.now();
+                    state.lastUserPostsUserId = userId;
+                    state.lastUserPostsType = type || 'posts';
                 } else {
                     const existingUris = new Set(state.posts.map((p: Post) => p.uri));
-                    const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
+                    const newPosts = posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.posts = [...state.posts, ...newPosts];
                 }
+                state.cursor = cursor;
                 state.hasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchUserPosts.rejected, (state: PostsState, action) => {

@@ -393,6 +393,7 @@ export interface UserState {
     blockedUsers: string[]; // User IDs
     selectedInterests: string[];
     searchResults: User[];
+    activeProfileTab?: string;
     isLoading: boolean;
     searchLoading: boolean;
     interestsLoading: boolean;

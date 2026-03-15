@@ -467,6 +467,9 @@ const userSlice = createSlice({
         clearProfile: (state: UserState) => {
             state.profile = null;
         },
+        setActiveProfileTab: (state, action: PayloadAction<string>) => {
+            state.activeProfileTab = action.payload;
+        },
         updateProfileLocal: (state: UserState, action: PayloadAction<Partial<User>>) => {
             if (state.profile) {
                 state.profile = { ...state.profile, ...action.payload };
@@ -658,5 +661,5 @@ const userSlice = createSlice({
     }
 });
 
-export const { clearProfile, updateProfileLocal } = userSlice.actions;
+export const { clearProfile, updateProfileLocal, setActiveProfileTab } = userSlice.actions;
 export default userSlice.reducer;

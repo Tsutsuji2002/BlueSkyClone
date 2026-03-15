@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync } from '../redux/slices/userSlice';
+import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab } from '../redux/slices/userSlice';
 import { openEditProfile, openCreatePost, openReport } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import MainLayout from '../components/layout/MainLayout';
@@ -41,12 +41,13 @@ const ProfilePage: React.FC = () => {
     const userLists = useAppSelector((state: RootState) => state.lists.userLists);
     const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
     const actionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
+    const activeProfileTab = useAppSelector((state: RootState) => state.user.activeProfileTab);
     const { 
         lastUserPostsFetch, 
         lastUserPostsUserId, 
         lastUserPostsType 
     } = useAppSelector((state: RootState) => state.posts);
-    const [activeTab, setActiveTab] = useState('posts');
+    const activeTab = activeProfileTab || 'posts';
     const observerTarget = React.useRef(null);
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -70,17 +71,21 @@ const ProfilePage: React.FC = () => {
                 const RELOAD_TIMEOUT = 5 * 60 * 1000;
                 const now = Date.now();
                 const isStale = (now - lastUserPostsFetch) > RELOAD_TIMEOUT;
+                
+                // Be very explicit with the comparison
                 const matchesCurrent = 
                     lastUserPostsUserId === profileUser.id && 
                     lastUserPostsType === activeTab;
 
                 if (!matchesCurrent || isStale || reduxPosts.length === 0) {
-                    dispatch(clearPosts());
+                    if (!matchesCurrent) {
+                        dispatch(clearPosts());
+                    }
                     dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20 }));
                 }
             }
         }
-    }, [dispatch, profileUser?.id, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType]);
+    }, [dispatch, profileUser?.id, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType, reduxPosts.length]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -100,7 +105,7 @@ const ProfilePage: React.FC = () => {
     }, [dispatch, profileUser?.id, activeTab, hasMore, isPostsLoading, reduxPosts.length]);
 
     const handleTabChange = (tabId: string) => {
-        setActiveTab(tabId);
+        dispatch(setActiveProfileTab(tabId));
     };
 
 
