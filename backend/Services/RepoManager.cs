@@ -12,10 +12,13 @@ namespace BSkyClone.Services
         private readonly BSkyDbContext _dbContext;
         private readonly ICryptoService _crypto;
 
-        public RepoManager(BSkyDbContext dbContext, ICryptoService crypto)
+        private readonly MstService _mst;
+
+        public RepoManager(BSkyDbContext dbContext, ICryptoService crypto, MstService mst)
         {
             _dbContext = dbContext;
             _crypto = crypto;
+            _mst = mst;
         }
 
         public async Task<string> CreateRecordAsync(string did, string collection, object record)
@@ -42,8 +45,17 @@ namespace BSkyClone.Services
                 await _dbContext.SaveChangesAsync();
             }
 
-            // In a full implementation, we would now update the MST and sign the Repo Commit.
-            // For Phase 3, we've successfully moved to binary CBOR storage.
+            // Update MST
+            // Key is collection/rkey. Since rkey is not passed, we'll try to find it in record or generate a TID
+            string rkey = ProtocolUtils.GenerateTid();
+            if (record is IDictionary<string, object> dict && dict.ContainsKey("$tid")) rkey = dict["$tid"].ToString();
+            
+            string mstKey = $"{collection}/{rkey}";
+            var newRoot = await _mst.UpdateRecordAsync(did, mstKey, cid);
+
+            // Sign the repo with the new root
+            await SignRepoAsync(did, newRoot);
+
             return cid;
         }
 
@@ -72,11 +84,28 @@ namespace BSkyClone.Services
 
             // 3. Serialize and Sign
             var commitBytes = CborUtils.Encode(commitData);
+            var commitCid = ProtocolUtils.GenerateCid(commitBytes);
             var sig = _crypto.Sign(commitBytes, privateKey);
             var sigHex = Convert.ToHexString(sig);
 
-            // 4. Update User state
+            // 4. Store Commit Block
+            var commitBlock = new RepoBlock
+            {
+                Cid = commitCid,
+                Data = commitBytes,
+                Did = user.Did,
+                CreatedAt = DateTime.UtcNow
+            };
+            var existing = await _dbContext.RepoBlocks.FindAsync(commitCid);
+            if (existing == null)
+            {
+                _dbContext.RepoBlocks.Add(commitBlock);
+            }
+
+            // 5. Update User state
             user.RepoRev = rev;
+            user.RepoRoot = dataCid;
+            user.RepoCommit = commitCid;
             user.RepoCommitSignature = sigHex;
             
             _dbContext.Users.Update(user);

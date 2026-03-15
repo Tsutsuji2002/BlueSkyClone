@@ -74,6 +74,88 @@ namespace BSkyClone.Utilities
             }
         }
 
+        public static object Decode(byte[] data)
+        {
+            using var ms = new MemoryStream(data);
+            return DecodeFromStream(ms);
+        }
+
+        private static object DecodeFromStream(Stream stream)
+        {
+            int b = stream.ReadByte();
+            if (b == -1) throw new EndOfStreamException();
+
+            byte major = (byte)(b >> 5);
+            byte info = (byte)(b & 0x1F);
+
+            switch (major)
+            {
+                case 0: return (long)ReadUint(info, stream);
+                case 1: return -1L - (long)ReadUint(info, stream);
+                case 2: return ReadBytes(info, stream);
+                case 3: return Encoding.UTF8.GetString(ReadBytes(info, stream));
+                case 4:
+                    {
+                        var count = (int)ReadUint(info, stream);
+                        var list = new List<object>(count);
+                        for (int i = 0; i < count; i++) list.Add(DecodeFromStream(stream));
+                        return list;
+                    }
+                case 5:
+                    {
+                        var count = (int)ReadUint(info, stream);
+                        var dict = new Dictionary<string, object>(count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            var key = (string)DecodeFromStream(stream);
+                            var val = DecodeFromStream(stream);
+                            dict[key] = val;
+                        }
+                        return dict;
+                    }
+                case 7:
+                    if (info == 20) return false;
+                    if (info == 21) return true;
+                    if (info == 22) return null;
+                    break;
+            }
+
+            throw new NotSupportedException($"Major type {major} is not supported.");
+        }
+
+        private static ulong ReadUint(byte info, Stream stream)
+        {
+            if (info < 24) return info;
+            if (info == 24) return (byte)stream.ReadByte();
+            if (info == 25)
+            {
+                byte[] b = new byte[2];
+                stream.Read(b, 0, 2);
+                return (ulong)(BitConverter.ToUInt16(b.Reverse().ToArray(), 0));
+            }
+            if (info == 26)
+            {
+                byte[] b = new byte[4];
+                stream.Read(b, 0, 4);
+                return (ulong)(BitConverter.ToUInt32(b.Reverse().ToArray(), 0));
+            }
+            if (info == 27)
+            {
+                byte[] b = new byte[8];
+                stream.Read(b, 0, 8);
+                return (ulong)(BitConverter.ToUInt64(b.Reverse().ToArray(), 0));
+            }
+            throw new NotSupportedException($"Info {info} not supported for uint.");
+        }
+
+        private static byte[] ReadBytes(byte info, Stream stream)
+        {
+            var len = (int)ReadUint(info, stream);
+            byte[] bytes = new byte[len];
+            stream.Read(bytes, 0, len);
+            return bytes;
+        }
+
         private static void WriteHeader(byte major, ulong value, Stream stream)
         {
             if (value < 24) stream.WriteByte((byte)((major << 5) | (byte)value));

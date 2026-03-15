@@ -1,0 +1,9 @@
+﻿C:\Projects\BlueSky\backend\Utilities\MstService.cs(232,20): error CS7036: There is no argument given that corresponds to the required parameter 'definiteLength' of 'CborWriter.WriteStartArray(int?)' [C:\Projects\BlueSky\backend\BSkyClone.csproj]
+
+Build FAILED.
+    35 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:05.94
+
+Workload updates are available. Run `dotnet workload list` for more information.

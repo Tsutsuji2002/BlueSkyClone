@@ -471,6 +471,11 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.PostsCount).HasDefaultValue(0);
             entity.Property(e => e.Username).HasMaxLength(256);
 
+            entity.Property(e => e.RepoRev).HasMaxLength(20);
+            entity.Property(e => e.RepoRoot).HasMaxLength(100);
+            entity.Property(e => e.RepoCommit).HasMaxLength(100);
+            entity.Property(e => e.RepoCommitSignature).HasMaxLength(256);
+
             entity.HasMany(d => d.Interests).WithMany(p => p.Users)
                 .UsingEntity<Dictionary<string, object>>(
                     "UserInterest",

@@ -3,6 +3,7 @@ using BSkyClone.Repositories;
 using BSkyClone.Services;
 using BSkyClone.Services.ML;
 using BSkyClone.UnitOfWork;
+using BSkyClone.Utilities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -84,6 +85,7 @@ builder.Services.AddSingleton<IMLModelService, MLModelService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
 builder.Services.AddScoped<IRepoManager, RepoManager>();
+builder.Services.AddScoped<MstService>();
 builder.Services.AddScoped<IDidResolver, DidResolverService>();
 builder.Services.AddScoped<ICryptoService, CryptoService>();
 
@@ -266,6 +268,21 @@ using (var scope = app.Services.CreateScope())
                     ALTER TABLE dbo.Users ADD IsVerified BIT NOT NULL DEFAULT 0;
                     PRINT 'Added IsVerified to Users';
                 END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'RepoRoot')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD RepoRoot NVARCHAR(100) NULL;
+                    PRINT 'Added RepoRoot to Users';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'RepoCommit')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD RepoCommit NVARCHAR(100) NULL;
+                    PRINT 'Added RepoCommit to Users';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'RepoCommitSignature')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD RepoCommitSignature NVARCHAR(256) NULL;
+                    PRINT 'Added RepoCommitSignature to Users';
+                END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Feeds') OR object_id = OBJECT_ID('Feeds')) AND name = 'IsOfficial')
                 BEGIN
                     ALTER TABLE dbo.Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
@@ -281,6 +298,17 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Notifications') OR object_id = OBJECT_ID('Notifications')) AND name = 'Tid')
                 BEGIN
                     ALTER TABLE dbo.Notifications ADD Tid NVARCHAR(20) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='RepoBlocks' AND xtype='U')
+                BEGIN
+                    CREATE TABLE RepoBlocks (
+                        Cid NVARCHAR(100) PRIMARY KEY,
+                        Data VARBINARY(MAX) NOT NULL,
+                        Did NVARCHAR(100) NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+                    );
+                    CREATE INDEX IX_RepoBlocks_Did ON RepoBlocks(Did);
+                    PRINT 'Created RepoBlocks table';
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied/Verified manual schema updates for Notifications and User properties.");
@@ -710,12 +738,60 @@ using (var scope = app.Services.CreateScope())
         }
         catch (Exception ex) { logger.LogError(ex, "Manual update block 6 (Core Entities) failed."); }
 
+        // --- MST BACKFILL ---
+        if (args.Contains("--backfill-mst"))
+        {
+            try
+            {
+                logger.LogInformation("Starting MST Backfill...");
+                var mst = services.GetRequiredService<MstService>();
+                var repo = services.GetRequiredService<IRepoManager>();
+                
+                var users = context.Users.ToList();
+                foreach (var user in users)
+                {
+                    logger.LogInformation($"Backfilling MST for user: {user.Handle} ({user.Did})");
+                    
+                    // Reset root if starting fresh backfill (optional)
+                    // user.RepoRoot = null;
+                    // context.SaveChanges();
+
+                    // Posts
+                    var posts = context.Posts.Where(p => p.AuthorId == user.Id && p.Cid != null && p.Tid != null).ToList();
+                    foreach (var p in posts) await mst.UpdateRecordAsync(user.Did, $"app.bsky.feed.post/{p.Tid}", p.Cid);
+                    
+                    // Likes
+                    var likes = context.Likes.Where(l => l.UserId == user.Id && l.Cid != null && l.Tid != null).ToList();
+                    foreach (var l in likes) await mst.UpdateRecordAsync(user.Did, $"app.bsky.feed.like/{l.Tid}", l.Cid);
+
+                    // Follows
+                    var follows = context.UserFollows.Where(f => f.FollowerId == user.Id && f.Cid != null && f.Tid != null).ToList();
+                    foreach (var f in follows) await mst.UpdateRecordAsync(user.Did, $"app.bsky.graph.follow/{f.Tid}", f.Cid);
+
+                    // Reposts
+                    var reposts = context.Reposts.Where(r => r.UserId == user.Id && r.Cid != null && r.Tid != null).ToList();
+                    foreach (var r in reposts) await mst.UpdateRecordAsync(user.Did, $"app.bsky.feed.repost/{r.Tid}", r.Cid);
+
+                    // Final sign to update RepoCommit
+                    var currentUser = context.Users.First(u => u.Id == user.Id);
+                    if (!string.IsNullOrEmpty(currentUser.RepoRoot)) 
+                    {
+                        await repo.SignRepoAsync(user.Did, currentUser.RepoRoot);
+                        logger.LogInformation($"Signed repo for {user.Handle}. Root: {currentUser.RepoRoot}");
+                    }
+                }
+                logger.LogInformation("MST Backfill completed successfully.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "MST Backfill failed.");
+            }
+        }
+
         // 7. Relationship and System Tables (Follows, Likes, Blocks, Mutes, Conversations)
         try
         {
             var sql = @"
-                -- UserFollows
-                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserFollows' AND xtype='U')
                 BEGIN
                     CREATE TABLE UserFollows (
                         FollowerId UNIQUEIDENTIFIER NOT NULL,
@@ -906,6 +982,11 @@ using (var scope = app.Services.CreateScope())
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "An error occurred while migrating the database.");
+    }
+
+    if (args.Contains("--test-mst"))
+    {
+        await MstTestRunner.RunTests(services);
     }
 }
 
