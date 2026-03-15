@@ -2936,10 +2936,11 @@ public class PostService : IPostService
         }
 
         // 3. Score and rank posts
-        var scoredPosts = new List<(Post Post, float Score)>();
+        // 3. Score and rank posts in parallel
+        var scoredPosts = new System.Collections.Concurrent.ConcurrentBag<(Post Post, float Score)>();
         var random = new Random();
 
-        foreach (var post in postPool)
+        var scoringTasks = postPool.Select(async post =>
         {
             float score = 0;
 
@@ -2963,7 +2964,6 @@ public class PostService : IPostService
             }
 
             // Engagement Score (scaled)
-            // Even if it matches an interest, higher engagement within that interest wins
             score += ((post.LikesCount ?? 0) * 1.0f) + ((post.RepostsCount ?? 0) * 2.0f);
 
             // Recency Score (decay)
@@ -2971,8 +2971,8 @@ public class PostService : IPostService
             var recencyFactor = (float)Math.Exp(-hoursOld / 168.0); // 7 days half-life for Discover
             score *= recencyFactor;
 
-            // Add a small random factor to provide variety (the "variable of trending/new" effect)
-            var varietyBoost = (float)random.NextDouble() * 10.0f; // 0 to 10 points
+            // Add a small random factor to provide variety
+            var varietyBoost = (float)random.NextDouble() * 10.0f; 
             score += varietyBoost;
 
             // Include either interest matches, or highly engaging trending posts, or fresh posts
@@ -2980,7 +2980,9 @@ public class PostService : IPostService
             {
                 scoredPosts.Add((post, score));
             }
-        }
+        });
+
+        await Task.WhenAll(scoringTasks);
 
         // 4. Return top ranked posts
         var result = scoredPosts

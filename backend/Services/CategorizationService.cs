@@ -25,16 +25,29 @@ public class CategorizationService : ICategorizationService
         _cache = cache;
     }
 
+    private async Task<List<Interest>> GetCachedInterestsAsync()
+    {
+        const string cacheKey = "interests_list";
+        if (_cache.TryGetValue(cacheKey, out List<Interest>? interests))
+        {
+            return interests!;
+        }
+
+        interests = await _unitOfWork.Interests.Query()
+            .Where(i => i.IsDeleted == false || i.IsDeleted == null)
+            .ToListAsync();
+
+        _cache.Set(cacheKey, interests, TimeSpan.FromHours(1));
+        return interests;
+    }
+
     public async Task<List<int>> CategorizePostAsync(string content, List<string>? imageUrls = null)
     {
         var matchedInterestIds = new HashSet<int>();
         if (string.IsNullOrWhiteSpace(content) && (imageUrls == null || !imageUrls.Any()))
             return new List<int>();
 
-        var interests = await _unitOfWork.Interests.Query()
-            .Where(i => i.IsDeleted == false || i.IsDeleted == null)
-            .ToListAsync();
-
+        var interests = await GetCachedInterestsAsync();
         var contentLower = content.ToLower();
 
         try
@@ -45,7 +58,7 @@ public class CategorizationService : ICategorizationService
             // High Confidence AI threshold (> 60%)
             if (!string.IsNullOrEmpty(categoryName) && categoryName != "unknown" && probability > 0.6f)
             {
-                var interestId = await GetInterestIdByNameAsync(categoryName);
+                var interestId = interests.FirstOrDefault(i => i.Name == categoryName)?.Id;
                 if (interestId.HasValue) matchedInterestIds.Add(interestId.Value);
             }
 
@@ -55,9 +68,6 @@ public class CategorizationService : ICategorizationService
                 var keywords = GetKeywordsForInterest(interest.Name);
                 var hasKeywordMatch = keywords.Any(k => contentLower.Contains(k));
 
-                // Logic: 
-                // - Either high keyword match count (we currently check for at least 1)
-                // - OR AI was 'somewhat' sure (30%+) and we have at least 1 keyword match
                 if (hasKeywordMatch || (probability > 0.3f && categoryName == interest.Name))
                 {
                     matchedInterestIds.Add(interest.Id);
@@ -80,45 +90,35 @@ public class CategorizationService : ICategorizationService
         // 3. Image Analysis
         if (imageUrls != null && imageUrls.Any())
         {
-            var imageMatchedIds = await AnalyzeImagesAsync(imageUrls);
+            var imageMatchedIds = await AnalyzeImagesAsync(imageUrls, interests);
             foreach (var id in imageMatchedIds) matchedInterestIds.Add(id);
         }
 
         return matchedInterestIds.ToList();
     }
 
-    private async Task<List<int>> AnalyzeImagesAsync(List<string> imageUrls)
+    private async Task<List<int>> AnalyzeImagesAsync(List<string> imageUrls, List<Interest> interests)
     {
         var matchedIds = new HashSet<int>();
         
-        foreach (var url in imageUrls)
+        // Parallelize image analysis as these might involve downloads/ML
+        var tasks = imageUrls.Select(async url => 
         {
             var label = await _mlService.PredictImageLabelAsync(url);
             if (!string.IsNullOrEmpty(label) && label != "neutral" && label != "unknown")
             {
-                var interestId = await GetInterestIdByNameAsync(label);
+                var interestId = interests.FirstOrDefault(i => i.Name == label)?.Id;
                 if (interestId.HasValue)
                 {
-                    matchedIds.Add(interestId.Value);
+                    lock(matchedIds) { matchedIds.Add(interestId.Value); }
                 }
             }
-        }
+        });
 
+        await Task.WhenAll(tasks);
         return matchedIds.ToList();
     }
 
-    private async Task<int?> GetInterestIdByNameAsync(string name)
-    {
-        var interest = await _unitOfWork.Interests.Query()
-            .FirstOrDefaultAsync(i => i.Name == name && (i.IsDeleted == false || i.IsDeleted == null));
-        return interest?.Id;
-    }
-
-    /// <summary>
-    /// Scores a post against all categories using AI + keyword analysis.
-    /// Returns a map of category name → confidence score (0.0 to 1.0).
-    /// Used by the Discover feed ranking algorithm.
-    /// </summary>
     public async Task<Dictionary<string, float>> ScorePostForDiscoverAsync(string content, List<string>? imageUrls = null)
     {
         var contentHash = string.IsNullOrEmpty(content) ? "empty" : content.GetHashCode().ToString();
@@ -133,13 +133,10 @@ public class CategorizationService : ICategorizationService
         if (string.IsNullOrWhiteSpace(content) && (imageUrls == null || !imageUrls.Any()))
             return scores;
 
-        var interests = await _unitOfWork.Interests.Query()
-            .Where(i => i.IsDeleted == false || i.IsDeleted == null)
-            .ToListAsync();
-
+        var interests = await GetCachedInterestsAsync();
         var contentLower = content?.ToLower() ?? "";
 
-        // 1. Text AI multi-label scores (0.0-1.0)
+        // ... existing text AI scoring ...
         try
         {
             if (!string.IsNullOrWhiteSpace(content))
@@ -147,7 +144,7 @@ public class CategorizationService : ICategorizationService
                 var textScores = await _mlService.PredictTextMultiLabelAsync(content);
                 foreach (var (category, confidence) in textScores)
                 {
-                    scores[category] = confidence * 0.6f; // Weight: 60% for text AI
+                    scores[category] = confidence * 0.6f;
                 }
             }
         }
@@ -163,7 +160,7 @@ public class CategorizationService : ICategorizationService
             var matchCount = keywords.Count(k => contentLower.Contains(k));
             if (matchCount > 0)
             {
-                var keywordScore = Math.Min(matchCount * 0.1f, 0.3f); // Max 30% from keywords
+                var keywordScore = Math.Min(matchCount * 0.1f, 0.3f);
                 if (scores.ContainsKey(interest.Name))
                     scores[interest.Name] = Math.Min(1.0f, scores[interest.Name] + keywordScore);
                 else
@@ -176,18 +173,23 @@ public class CategorizationService : ICategorizationService
         {
             try
             {
-                foreach (var url in imageUrls)
+                // Parallelize image scoring
+                var tasks = imageUrls.Select(async url => 
                 {
                     var imageScores = await _mlService.PredictImageMultiLabelAsync(url);
                     foreach (var (category, confidence) in imageScores)
                     {
-                        var imageWeight = confidence * 0.4f; // Weight: 40% for image AI
-                        if (scores.ContainsKey(category))
-                            scores[category] = Math.Min(1.0f, scores[category] + imageWeight);
-                        else
-                            scores[category] = imageWeight;
+                        var imageWeight = confidence * 0.4f;
+                        lock (scores)
+                        {
+                            if (scores.ContainsKey(category))
+                                scores[category] = Math.Min(1.0f, scores[category] + imageWeight);
+                            else
+                                scores[category] = imageWeight;
+                        }
                     }
-                }
+                });
+                await Task.WhenAll(tasks);
             }
             catch (Exception ex)
             {
