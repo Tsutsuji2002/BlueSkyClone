@@ -7,6 +7,8 @@ using BSkyClone.Hubs;
 using System.Text.RegularExpressions;
 using System.Text;
 using BSkyClone.Utilities;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
 
 namespace BSkyClone.Services;
 
@@ -1604,10 +1606,6 @@ public class PostService : IPostService
             // We'll use app.bsky.feed.getPostThread if it's a post
             if (collection == "app.bsky.feed.post")
             {
-                var proxyParams = new QueryString($"?uri={Uri.EscapeDataString(uri)}");
-                var response = await _xrpcProxy.ProxyRequestAsync(didOrHandle, "app.bsky.feed.getPostThread", new QueryCollection(new Microsoft.Extensions.Primitives.StringValues()));
-                
-                // For proxying we actually need to pass the real QueryCollection or construct one
                 var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
                 {
                     { "uri", uri },
