@@ -6,7 +6,6 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab } from '../redux/slices/userSlice';
 import { openEditProfile, openCreatePost, openReport } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
-import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
@@ -23,6 +22,7 @@ import { fetchUserPosts, clearPosts } from '../redux/slices/postsSlice';
 import { fetchUserLists } from '../redux/slices/listsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import { RootState } from '../redux/store';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 import { Post, ListDto } from '../types';
 
@@ -268,30 +268,28 @@ const ProfilePage: React.FC = () => {
         ] : [])
     ];
 
+    useDocumentTitle(profileUser?.displayName || profileUser?.handle || '');
+
     if (isProfileLoading && !profileUser) {
         return (
-            <MainLayout>
-                <div className="flex items-center justify-center min-h-[50vh]">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
-                </div>
-            </MainLayout>
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
+            </div>
         );
     }
 
     if (!profileUser && !isProfileLoading) {
         return (
-            <MainLayout>
-                <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 text-center">
-                    <h2 className="text-2xl font-bold mb-2">{t('profile.user_not_found')}</h2>
-                    <p className="text-gray-500 mb-6">{t('profile.user_not_found_desc')}</p>
-                    <Button onClick={() => navigate('/')}>{t('common.go_home')}</Button>
-                </div>
-            </MainLayout>
+            <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 text-center">
+                <h2 className="text-2xl font-bold mb-2">{t('profile.user_not_found')}</h2>
+                <p className="text-gray-500 mb-6">{t('profile.user_not_found_desc')}</p>
+                <Button onClick={() => navigate('/')}>{t('common.go_home')}</Button>
+            </div>
         );
     }
 
     return (
-        <MainLayout hideTopBar={true} title={profileUser?.displayName || profileUser?.handle}>
+        <>
             <div className="flex flex-col bg-white dark:bg-dark-bg">
                 {/* Header/Cover Section */}
                 <div className="relative w-full">
@@ -639,7 +637,7 @@ const ProfilePage: React.FC = () => {
                 confirmLabel={t(`profile.${confirmModal.type}`)}
                 variant={confirmModal.type === 'block' || confirmModal.type === 'mute' ? 'danger' : 'primary'}
             />
-        </MainLayout>
+        </>
     );
 };
 

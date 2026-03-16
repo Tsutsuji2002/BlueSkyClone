@@ -1,6 +1,4 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { logoutAsync } from '../redux/slices/authSlice';
@@ -15,6 +13,7 @@ import {
     FiHelpCircle, FiInfo, FiChevronRight, FiMenu
 } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -56,9 +55,10 @@ const SettingsPage: React.FC = () => {
         { id: 'about', label: t('settings.about'), icon: <FiInfo size={20} /> },
     ];
 
+    useDocumentTitle(t('settings.title'));
+
     return (
-        <MainLayout hideTopBar={true} title={t('settings.title')}>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
                     <div className="flex items-center gap-4">
@@ -158,8 +158,7 @@ const SettingsPage: React.FC = () => {
                         {t('settings.logout')}
                     </button>
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

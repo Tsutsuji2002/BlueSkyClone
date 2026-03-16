@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +9,7 @@ import { updateUserAccount } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import ChangeHandleModal from '../modals/ChangeHandleModal';
 import agent, { SERVICE_URL } from '../services/atpAgent';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 // Functional Modal Components for updating account settings
 const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: string }> = ({ isOpen, onClose, email }) => {
@@ -327,8 +327,10 @@ const AccountSettingsPage: React.FC = () => {
 
     const closeModal = () => setActiveModal(null);
 
+    useDocumentTitle(t('settings.account'));
+
     return (
-        <MainLayout>
+        <>
             <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 py-3 flex items-center gap-4">
@@ -458,7 +460,7 @@ const AccountSettingsPage: React.FC = () => {
             <ExportDataModal isOpen={activeModal === 'export'} onClose={closeModal} did={user?.did} />
             <DeactivateAccountModal isOpen={activeModal === 'deactivate'} onClose={closeModal} />
             <DeleteAccountModal isOpen={activeModal === 'delete'} onClose={closeModal} username={user?.username || 'user'} />
-        </MainLayout>
+        </>
     );
 };
 

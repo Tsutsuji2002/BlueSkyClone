@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import MainLayout from '../components/layout/MainLayout';
 import {
     FiArrowLeft, FiSettings, FiPlus, FiSearch, FiRss,
     FiChevronRight, FiGrid, FiCheck, FiMenu, FiActivity, FiMapPin
@@ -23,6 +22,7 @@ import {
     unsaveFeed
 } from '../redux/slices/feedsSlice';
 import { RootState } from '../redux/store';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const FeedsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -98,9 +98,10 @@ const FeedsPage: React.FC = () => {
         dispatch(fetchRecommendedFeeds()); // Refresh recommendations after interaction
     };
 
+    useDocumentTitle(t('feeds.title'));
+
     return (
-        <MainLayout hideTopBar={true} title={t('feeds.title')}>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -293,8 +294,7 @@ const FeedsPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

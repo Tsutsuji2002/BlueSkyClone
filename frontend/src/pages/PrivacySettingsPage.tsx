@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiChevronRight, FiShield, FiKey, FiBell, FiEye, FiX } from 'react-icons/fi';
 import Button from '../components/common/Button';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
 import { RootState } from '../redux/store';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const Enable2FAModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     const { t } = useTranslation();
@@ -46,8 +46,10 @@ const PrivacySettingsPage: React.FC = () => {
         dispatch(updateNotificationSettings({ [key]: value }));
     };
 
+    useDocumentTitle(t('privacy.title'));
+
     return (
-        <MainLayout>
+        <>
             <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 py-3 flex items-center gap-4">
@@ -140,7 +142,7 @@ const PrivacySettingsPage: React.FC = () => {
             </div>
 
             <Enable2FAModal isOpen={is2FAModalOpen} onClose={() => setIs2FAModalOpen(false)} />
-        </MainLayout>
+        </>
     );
 };
 

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -14,6 +13,7 @@ import Avatar from '../components/common/Avatar';
 import { CreateListDto } from '../types';
 import ListAvatar from '../components/common/ListAvatar';
 import ConfirmModal from '../components/common/ConfirmModal';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const ListDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -135,22 +135,20 @@ const ListDetailPage: React.FC = () => {
 
     if (isLoading && !activeList) {
         return (
-            <MainLayout>
-                <div className="p-8 text-center text-gray-500">{t('lists.loading')}</div>
-            </MainLayout>
+            <div className="p-8 text-center text-gray-500">{t('lists.loading')}</div>
         );
     }
 
     if (!activeList) {
         return (
-            <MainLayout>
-                <div className="p-8 text-center text-gray-500">{t('lists.list_not_found')}</div>
-            </MainLayout>
+            <div className="p-8 text-center text-gray-500">{t('lists.list_not_found')}</div>
         );
     }
 
+    useDocumentTitle(activeList.name);
+
     return (
-        <MainLayout>
+        <>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
@@ -405,7 +403,7 @@ const ListDetailPage: React.FC = () => {
                 message={confirmModal.message}
                 variant={confirmModal.variant}
             />
-        </MainLayout >
+        </>
     );
 };
 

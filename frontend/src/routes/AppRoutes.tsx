@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { RootState } from '../redux/store';
 import AdminLayout from '../components/layout/AdminLayout';
+import MainLayout from '../components/layout/MainLayout';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import LazyErrorBoundary from '../components/common/LazyErrorBoundary';
 
@@ -82,58 +83,56 @@ const AppRoutes: React.FC = () => {
                 </div>
             }>
                 <Routes>
-                    <Route path="/" element={<HomePage />} />
+                    <Route path="/" element={<MainLayout hideTopBar={true} />}>
+                        <Route index element={<HomePage />} />
+                        <Route path="profile/:handle" element={<ProfilePage />} />
+                        <Route path="profile/:handle/followers" element={<FollowersPage />} />
+                        <Route path="profile/:handle/following" element={<FollowingPage />} />
+                        <Route path="profile/user/:userId" element={<SampleProfilePage />} />
+                        <Route path="profile/user/:userId/followers" element={<FollowersPage />} />
+                        <Route path="profile/user/:userId/following" element={<FollowingPage />} />
+                        <Route path="notifications" element={<NotificationsPage />} />
+                        <Route path="explore" element={<ExplorePage />} />
+                        <Route path="messages" element={<MessagesPage />} />
+                        <Route path="messages/:conversationId" element={<ChatPage />} />
+                        <Route path="feeds" element={<FeedsPage />} />
+                        <Route path="feeds/settings" element={<ManageFeedsPage />} />
+                        <Route path="feeds/:feedId" element={<FeedDetailPage />} />
+                        <Route path="lists" element={<ListsPage />} />
+                        <Route path="lists/:id" element={<ListDetailPage />} />
+                        <Route path="saved" element={<SavedPage />} />
+                        <Route path="search" element={<SearchPage />} />
+                        <Route path="interests" element={<MyInterestsPage />} />
+                        <Route path="tag/:tag" element={<TagPage />} />
+                        <Route path="profile/:handle/post/:postId" element={<PostDetailPage />} />
+                        <Route path="profile/:handle/post/:postId/media/:index" element={<MediaViewerPage />} />
+                        <Route path="settings" element={<SettingsPage />} />
+                        <Route path="settings/account" element={<AccountSettingsPage />} />
+                        <Route path="settings/privacy" element={<PrivacySettingsPage />} />
+                        <Route path="settings/privacy/app-passwords" element={<AppPasswordsPage />} />
+                        <Route path="settings/privacy/post-notifications" element={<PostNotificationSettingsPage />} />
+                        <Route path="settings/moderation" element={<ModerationSettingsPage />} />
+                        <Route path="settings/moderation/interaction" element={<ModerationInteractionPage />} />
+                        <Route path="settings/moderation/muted-words" element={<MutedWordsPage />} />
+                        <Route path="settings/moderation/lists" element={<ModerationListsPage />} />
+                        <Route path="settings/moderation/muted-accounts" element={<MutedAccountsPage />} />
+                        <Route path="settings/moderation/blocked-accounts" element={<BlockedAccountsPage />} />
+                        <Route path="settings/moderation/verification" element={<VerificationSettingsPage />} />
+                        <Route path="settings/notifications" element={<NotificationSettingsPage />} />
+                        <Route path="settings/notifications/:type" element={<NotificationTypeSettingsPage />} />
+                        <Route path="settings/appearance" element={<AppearancePage />} />
+                        <Route path="settings/language" element={<LanguagePage />} />
+                        <Route path="settings/about" element={<AboutPage />} />
+                        <Route path="settings/accessibility" element={<AccessibilityPage />} />
+                        <Route path="settings/content" element={<ContentSettingsPage />} />
+                        <Route path="settings/content/discussion" element={<DiscussionSettingsPage />} />
+                        <Route path="settings/content/following-feed" element={<FollowingFeedSettingsPage />} />
+                        <Route path="settings/content/external-media" element={<ExternalMediaPage />} />
+                    </Route>
+
+                    {/* Non-Layout Pages */}
                     <Route path="/about/privacy-policy" element={<PrivacyPolicyPage />} />
                     <Route path="/profile" element={<Navigate to={`/profile/${currentUser?.handle || 'unknown'}`} replace />} />
-                    <Route path="/profile/:handle" element={<ProfilePage />} />
-                    <Route path="/profile/:handle/followers" element={<FollowersPage />} />
-                    <Route path="/profile/:handle/following" element={<FollowingPage />} />
-                    <Route path="/profile/user/:userId" element={<SampleProfilePage />} />
-                    <Route path="/profile/user/:userId/followers" element={<FollowersPage />} />
-                    <Route path="/profile/user/:userId/following" element={<FollowingPage />} />
-                    <Route path="/notifications" element={<NotificationsPage />} />
-                    <Route path="/explore" element={<ExplorePage />} />
-                    <Route path="/messages" element={<MessagesPage />} />
-                    <Route path="/messages/:conversationId" element={<ChatPage />} />
-                    <Route path="/feeds" element={<FeedsPage />} />
-                    <Route path="/feeds/settings" element={<ManageFeedsPage />} />
-                    <Route path="/feeds/:feedId" element={<FeedDetailPage />} />
-                    <Route path="/lists" element={<ListsPage />} />
-                    <Route path="/lists/:id" element={<ListDetailPage />} />
-                    <Route path="/saved" element={<SavedPage />} />
-                    <Route path="/search" element={<SearchPage />} />
-
-                    {/* Settings Routes */}
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/settings/account" element={<AccountSettingsPage />} />
-                    <Route path="/settings/privacy" element={<PrivacySettingsPage />} />
-                    <Route path="/settings/privacy/app-passwords" element={<AppPasswordsPage />} />
-                    <Route path="/settings/privacy/post-notifications" element={<PostNotificationSettingsPage />} />
-
-                    <Route path="/settings/moderation" element={<ModerationSettingsPage />} />
-                    <Route path="/settings/moderation/interaction" element={<ModerationInteractionPage />} />
-                    <Route path="/settings/moderation/muted-words" element={<MutedWordsPage />} />
-                    <Route path="/settings/moderation/lists" element={<ModerationListsPage />} />
-                    <Route path="/settings/moderation/muted-accounts" element={<MutedAccountsPage />} />
-                    <Route path="/settings/moderation/blocked-accounts" element={<BlockedAccountsPage />} />
-                    <Route path="/settings/moderation/verification" element={<VerificationSettingsPage />} />
-
-                    <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
-                    <Route path="/settings/notifications/:type" element={<NotificationTypeSettingsPage />} />
-                    <Route path="/settings/appearance" element={<AppearancePage />} />
-                    <Route path="/settings/language" element={<LanguagePage />} />
-                    <Route path="/settings/about" element={<AboutPage />} />
-                    <Route path="/settings/accessibility" element={<AccessibilityPage />} />
-
-                    <Route path="/settings/content" element={<ContentSettingsPage />} />
-                    <Route path="/settings/content/discussion" element={<DiscussionSettingsPage />} />
-                    <Route path="/settings/content/following-feed" element={<FollowingFeedSettingsPage />} />
-                    <Route path="/settings/content/external-media" element={<ExternalMediaPage />} />
-
-                    <Route path="/interests" element={<MyInterestsPage />} />
-                    <Route path="/tag/:tag" element={<TagPage />} />
-                    <Route path="/profile/:handle/post/:postId" element={<PostDetailPage />} />
-                    <Route path="/profile/:handle/post/:postId/media/:index" element={<MediaViewerPage />} />
                     <Route path="/support" element={<SubmitRequestPage />} />
 
                     {/* Admin Routes */}

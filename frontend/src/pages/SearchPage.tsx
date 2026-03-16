@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import MainLayout from '../components/layout/MainLayout';
 import Feed from '../components/feed/Feed';
 import { FiArrowLeft, FiSearch, FiX } from 'react-icons/fi';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -12,6 +11,7 @@ import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import Avatar from '../components/common/Avatar';
 import { BsPatchCheckFill } from 'react-icons/bs';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const SearchPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -71,9 +71,10 @@ const SearchPage: React.FC = () => {
         }
     };
 
+    useDocumentTitle(`${query} - ${t('nav.search', { defaultValue: 'Search' })}`);
+
     return (
-        <MainLayout title={`${query} - ${t('nav.search', { defaultValue: 'Search' })}`}>
-            <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
+        <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
                     <div className="flex items-center gap-3 px-3 py-2">
                         <button
@@ -187,8 +188,7 @@ const SearchPage: React.FC = () => {
                         </>
                     )}
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

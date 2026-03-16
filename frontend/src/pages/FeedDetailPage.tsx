@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import MainLayout from '../components/layout/MainLayout';
 import Feed from '../components/feed/Feed';
 import { FiArrowLeft, FiMoreHorizontal, FiHeart, FiMapPin, FiRss } from 'react-icons/fi';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed } from '../redux/slices/feedsSlice';
 import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
@@ -79,27 +79,26 @@ const FeedDetailPage: React.FC = () => {
 
     if (!feed && !isLoading) {
         return (
-            <MainLayout>
-                <div className="flex flex-col items-center justify-center min-h-screen">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
-                        {t('feeds.not_found')}
-                    </h2>
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="text-primary-500 hover:underline"
-                    >
-                        {t('common.go_back')}
-                    </button>
-                </div>
-            </MainLayout>
+            <div className="flex flex-col items-center justify-center min-h-screen">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                    {t('feeds.not_found')}
+                </h2>
+                <button
+                    onClick={() => navigate(-1)}
+                    className="text-primary-500 hover:underline"
+                >
+                    {t('common.go_back')}
+                </button>
+            </div>
         );
     }
 
     if (!feed) return null;
 
+    useDocumentTitle(feed.name);
+
     return (
-        <MainLayout>
-            <div className="min-h-screen bg-white dark:bg-dark-bg">
+        <div className="min-h-screen bg-white dark:bg-dark-bg">
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
                     <div className="flex items-center justify-between px-3 py-2">
                         <div className="flex items-center gap-3 min-w-0">
@@ -250,7 +249,6 @@ const FeedDetailPage: React.FC = () => {
                     )}
                 </div>
             </div>
-        </MainLayout>
     );
 };
 

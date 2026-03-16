@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchConversations } from '../redux/slices/messagesSlice';
@@ -11,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 
 const MessagesPage: React.FC = () => {
@@ -38,9 +38,10 @@ const MessagesPage: React.FC = () => {
         );
     });
 
+    useDocumentTitle(t('messages.title'));
+
     return (
-        <MainLayout hideTopBar={true} title={t('messages.title')}>
-            <div className="min-h-screen flex flex-col border-r border-gray-200 dark:border-dark-border">
+        <div className="min-h-screen flex flex-col border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
                     <div className="p-4 flex items-center justify-between">
@@ -106,8 +107,7 @@ const MessagesPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

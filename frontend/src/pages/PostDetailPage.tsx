@@ -6,7 +6,6 @@ import { RootState } from '../redux/store';
 import { Post, User } from '../types';
 import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark } from '../redux/slices/postsSlice';
 import { openReply, openMobileMenu, openEditPost, openReport, openQuote } from '../redux/slices/modalsSlice';
-import MainLayout from '../components/layout/MainLayout';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
 import PostCard from '../components/feed/PostCard';
@@ -52,6 +51,7 @@ import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import PostInteractionSettingsModal from '../modals/PostInteractionSettingsModal';
 import ConfirmModal from '../components/common/ConfirmModal';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 import {
     FiAnchor,
@@ -194,23 +194,19 @@ const PostDetailPage: React.FC = () => {
     if (!post) {
         if (isLoading) {
             return (
-                <MainLayout>
-                    <LoadingIndicator text={t('post.loading', { defaultValue: 'Loading post...' })} />
-                </MainLayout>
+                <LoadingIndicator text={t('post.loading', { defaultValue: 'Loading post...' })} />
             );
         }
         return (
-            <MainLayout hideTopBar={true}>
-                <div className="p-4 text-center">
-                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('common.post_not_found')}</p>
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="mt-4 text-primary-500 hover:underline"
-                    >
-                        {t('common.go_back')}
-                    </button>
-                </div>
-            </MainLayout>
+            <div className="p-4 text-center">
+                <p className="text-gray-500 dark:text-dark-text-secondary">{t('common.post_not_found')}</p>
+                <button
+                    onClick={() => navigate(-1)}
+                    className="mt-4 text-primary-500 hover:underline"
+                >
+                    {t('common.go_back')}
+                </button>
+            </div>
         );
     }
 
@@ -371,9 +367,10 @@ const PostDetailPage: React.FC = () => {
         ? (post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content)
         : t('post.title');
 
+    useDocumentTitle(pageTitle);
+
     return (
-        <MainLayout hideTopBar={true} title={pageTitle}>
-            <div className="min-h-screen">
+        <div className="min-h-screen">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
                     <div className="flex items-center justify-between px-4 h-[53px]">
@@ -861,8 +858,7 @@ const PostDetailPage: React.FC = () => {
                         postUri={post.uri!}
                     />
                 )}
-            </div>
-        </MainLayout >
+        </div>
     );
 };
 

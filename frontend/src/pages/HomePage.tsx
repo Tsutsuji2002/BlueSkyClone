@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo } from 'react';
-import MainLayout from '../components/layout/MainLayout';
 import InterestsSection from '../components/feed/InterestsSection';
 import Feed from '../components/feed/Feed';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +14,7 @@ import { FiHash, FiMenu, FiSettings } from 'react-icons/fi';
 import { Feed as FeedType, ListDto } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import ButterflyLogo from '../components/common/ButterflyLogo';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const RELOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
@@ -191,9 +191,10 @@ const HomePage: React.FC = () => {
         }
     }, [tabs, activeTab, dispatch]);
 
+    useDocumentTitle(t('nav.home'));
+
     return (
-        <MainLayout hideTopBar={true} title={t('nav.home')}>
-            <div className="min-h-screen">
+        <div className="min-h-screen">
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
                     <div className="flex items-center justify-between px-4 h-12 w-full">
                         <button
@@ -286,8 +287,7 @@ const HomePage: React.FC = () => {
                         />
                     </div>
                 ))}
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -9,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
 import { CreateListDto } from '../types';
 import ListAvatar from '../components/common/ListAvatar';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const ListsPage: React.FC = () => {
     const { t } = useTranslation();
@@ -26,8 +26,10 @@ const ListsPage: React.FC = () => {
         await dispatch(createList(data)).unwrap();
     };
 
+    useDocumentTitle(t('lists.title'));
+
     return (
-        <MainLayout title={t('lists.title')}>
+        <>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
                     <div className="p-4 flex items-center justify-between">
@@ -119,7 +121,7 @@ const ListsPage: React.FC = () => {
                 onClose={() => setIsCreateModalOpen(false)}
                 onSubmit={handleCreateList}
             />
-        </MainLayout >
+        </>
     );
 };
 

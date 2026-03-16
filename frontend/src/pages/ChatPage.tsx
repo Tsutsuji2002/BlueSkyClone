@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiImage, FiX, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +19,7 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -384,8 +384,10 @@ const ChatPage: React.FC = () => {
 
     const otherParticipant = conversation?.participants.find((p: User) => p.id !== currentUser?.id);
 
+    useDocumentTitle(otherParticipant?.displayName || otherParticipant?.handle || '');
+
     return (
-        <MainLayout hideTopBar={true} hideBottomNav={true} title={otherParticipant?.displayName || otherParticipant?.handle}>
+        <>
             <div className="flex flex-col h-screen lg:h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border relative">
                 {/* Connection Status Banner */}
                 {hubStatus !== HubStatus.Connected && (
@@ -903,7 +905,7 @@ const ChatPage: React.FC = () => {
                 message={confirmModal.message}
                 variant={confirmModal.variant}
             />
-        </MainLayout>
+        </>
     );
 };
 

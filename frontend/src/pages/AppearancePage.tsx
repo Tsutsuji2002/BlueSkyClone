@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { setColorMode, setDarkVariant, setFontFamily, setFontSize } from '../redux/slices/themeSlice';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import {
     FiArrowLeft, FiTablet, FiMoon, FiType, FiMaximize2
 } from 'react-icons/fi';
@@ -63,21 +63,22 @@ const AppearancePage: React.FC = () => {
         </div>
     );
 
+    useDocumentTitle(t('settings.appearance'));
+
     return (
-        <MainLayout>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
-                {/* Header */}
-                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
-                    >
-                        <FiArrowLeft size={20} className="dark:text-dark-text" />
-                    </button>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                        {t('appearance.title')}
-                    </h1>
-                </div>
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+            {/* Header */}
+            <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                >
+                    <FiArrowLeft size={20} className="dark:text-dark-text" />
+                </button>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
+                    {t('appearance.title')}
+                </h1>
+            </div>
 
                 <div className="p-4 space-y-8">
                     {/* Chế độ màu */}
@@ -152,7 +153,6 @@ const AppearancePage: React.FC = () => {
                     </section>
                 </div>
             </div>
-        </MainLayout>
     );
 };
 

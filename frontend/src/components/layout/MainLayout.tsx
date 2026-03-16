@@ -1,4 +1,5 @@
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import RightSidebar from './RightSidebar';
 import TopBar from './TopBar';
@@ -9,7 +10,7 @@ import { cn } from '../../utils/classNames';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 interface MainLayoutProps {
-    children: React.ReactNode;
+    children?: React.ReactNode;
     hideTopBar?: boolean;
     hideBottomNav?: boolean;
     title?: string;
@@ -35,7 +36,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                         "w-full max-w-[600px] min-w-0 border-x border-gray-100 dark:border-dark-border lg:pb-0",
                         hideBottomNav ? "pb-0" : "pb-16"
                     )}>
-                        {children}
+                        {children || <Outlet />}
                     </main>
 
                     {/* Right Sidebar - Desktop only */}

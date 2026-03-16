@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
@@ -16,6 +15,7 @@ import { fetchTrending, fetchInterestsList } from '../redux/slices/trendingSlice
 import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds } from '../redux/slices/feedsSlice';
 import api from '../utils/api';
 import InterestsEditor from '../components/feed/InterestsEditor';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const ExplorePage: React.FC = () => {
     const { t } = useTranslation();
@@ -130,9 +130,10 @@ const ExplorePage: React.FC = () => {
         dispatch(fetchSubscribedFeeds());
     };
 
+    useDocumentTitle(t('nav.explore'));
+
     return (
-        <MainLayout hideTopBar={true} title={t('nav.explore')}>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-40 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-4">
                     <button
@@ -374,7 +375,6 @@ const ExplorePage: React.FC = () => {
                                     <p className="text-sm text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed">
                                         {feed.description}
                                     </p>
-
                                     <span className="text-sm text-gray-500 dark:text-dark-text-secondary group-hover:text-gray-600 dark:group-hover:text-dark-text-secondary/80 transition-colors">
                                         {t('feeds.liked_by', { count: feed.followersCount || 0 })}
                                     </span>
@@ -384,7 +384,6 @@ const ExplorePage: React.FC = () => {
                     </section>
                 </div>
             </div>
-        </MainLayout>
     );
 };
 

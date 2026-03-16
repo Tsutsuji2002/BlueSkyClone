@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import MainLayout from '../components/layout/MainLayout';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../redux/slices/notificationsSlice';
@@ -11,6 +10,7 @@ import { cn } from '../utils/classNames';
 import { Notification } from '../types';
 import { RootState } from '../redux/store';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const NotificationsPage: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -39,9 +39,10 @@ const NotificationsPage: React.FC = () => {
         { id: 'mentions', label: t('notifications.tabs.mentions') },
     ];
 
+    useDocumentTitle(t('notifications.title'));
+
     return (
-        <MainLayout hideTopBar={true} title={t('notifications.title')}>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
                     <div className="p-4 flex items-center justify-between">
@@ -120,8 +121,7 @@ const NotificationsPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 
