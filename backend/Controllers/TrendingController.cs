@@ -109,7 +109,7 @@ public class TrendingController : ControllerBase
         try
         {
             // Limit to 300 posts for performance (was 1000)
-            // Use AsNoTracking and select only Content to avoid mapping missing columns like FacetsJson
+            // Fetch recent posts for trending analysis
             var recentPosts = await _context.Posts
                 .AsNoTracking()
                 .Where(p => p.CreatedAt >= since && p.IsDeleted != true && p.Content != null && p.Content.Length > 3)

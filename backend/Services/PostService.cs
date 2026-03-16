@@ -26,8 +26,9 @@ public class PostService : IPostService
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly ILabelingService _labelingService;
     private readonly ILogger<PostService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, ILogger<PostService> logger)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -41,6 +42,7 @@ public class PostService : IPostService
         _xrpcProxy = xrpcProxy;
         _labelingService = labelingService;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)
@@ -85,10 +87,12 @@ public class PostService : IPostService
             // Background Sync for Remote Users (Federation)
             _ = Task.Run(async () => {
                 try {
+                    using var scope = _scopeFactory.CreateScope();
+                    var backgroundPostService = scope.ServiceProvider.GetRequiredService<IPostService>();
                     foreach (var u in followedUsers) {
                         if (!string.IsNullOrEmpty(u.Did) && !u.Handle.EndsWith(".bsky.social")) // Simple check for "remote"
                         {
-                            await FetchRemoteAuthorFeedAsync(u.Did);
+                            await backgroundPostService.FetchRemoteAuthorFeedAsync(u.Did);
                         }
                     }
                 } catch (Exception ex) {

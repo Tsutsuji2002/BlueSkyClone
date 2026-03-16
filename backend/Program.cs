@@ -931,38 +931,50 @@ using (var scope = app.Services.CreateScope())
         // 8. AT Protocol Metadata Columns (Likes, Reposts, Follows, Bookmarks, Media)
         try
         {
-            context.Database.SetCommandTimeout(120);
+            context.Database.SetCommandTimeout(180); // Increased timeout for schema hardening
             var sql = @"
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Likes') AND name = 'Cid')
+                -- Post Metadata: FacetsJson
+                IF COL_LENGTH('dbo.Posts', 'FacetsJson') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD FacetsJson NVARCHAR(MAX) NULL;
+                    PRINT 'Added FacetsJson to Posts';
+                END
+
+                -- Likes Metadata
+                IF COL_LENGTH('dbo.Likes', 'Cid') IS NULL
                 BEGIN
                     ALTER TABLE dbo.Likes ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Reposts') AND name = 'Cid')
+
+                -- Reposts Metadata
+                IF COL_LENGTH('dbo.Reposts', 'Cid') IS NULL
                 BEGIN
                     ALTER TABLE dbo.Reposts ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserFollows') AND name = 'Cid')
+
+                -- UserFollows Metadata
+                IF COL_LENGTH('dbo.UserFollows', 'Cid') IS NULL
                 BEGIN
                     ALTER TABLE dbo.UserFollows ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Bookmarks') AND name = 'Cid')
+
+                -- Bookmarks Metadata
+                IF COL_LENGTH('dbo.Bookmarks', 'Cid') IS NULL
                 BEGIN
                     ALTER TABLE dbo.Bookmarks ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Bookmarks') AND name = 'Tid')
+                IF COL_LENGTH('dbo.Bookmarks', 'Tid') IS NULL
                 BEGIN
                     ALTER TABLE dbo.Bookmarks ADD Tid NVARCHAR(20) NULL;
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.PostMedia') AND name = 'Cid')
+
+                -- PostMedia Metadata
+                IF COL_LENGTH('dbo.PostMedia', 'Cid') IS NULL
                 BEGIN
                     ALTER TABLE dbo.PostMedia ADD Cid NVARCHAR(100) NULL;
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'FacetsJson')
-                BEGIN
-                    ALTER TABLE dbo.Posts ADD FacetsJson NVARCHAR(MAX) NULL;
                 END";
             context.Database.ExecuteSqlRaw(sql);
-            logger.LogInformation("Applied/Harden Block 8 - AT Protocol Metadata Schema Repair.");
+            logger.LogInformation("Applied/Harden Block 8 - AT Protocol Metadata Schema Repair (including FacetsJson).");
         }
         catch (Exception ex) { logger.LogError(ex, "Manual update block 8 (AT Metadata) failed."); }
         finally { context.Database.SetCommandTimeout(30); }

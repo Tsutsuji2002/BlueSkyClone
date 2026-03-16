@@ -15,12 +15,14 @@ public class ListService : IListService
     private readonly IUnitOfWork _unitOfWork;
     private readonly Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> _hubContext;
     private readonly IPostService _postService;
+    private readonly IServiceScopeFactory _scopeFactory; // Added
 
-    public ListService(IUnitOfWork unitOfWork, Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> hubContext, IPostService postService)
+    public ListService(IUnitOfWork unitOfWork, Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> hubContext, IPostService postService, IServiceScopeFactory scopeFactory) // Added scopeFactory
     {
         _unitOfWork = unitOfWork;
         _hubContext = hubContext;
         _postService = postService;
+        _scopeFactory = scopeFactory; // Initialized
     }
 
     public async Task<ListDto> CreateListAsync(Guid userId, CreateListDto dto)
@@ -173,7 +175,9 @@ public class ListService : IListService
             // Real-time SignalR notification
             _ = Task.Run(async () => {
                 try {
-                    var sender = await _unitOfWork.Users.GetByIdAsync(ownerId);
+                    using var scope = _scopeFactory.CreateScope();
+                    var bgUnitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var sender = await bgUnitOfWork.Users.GetByIdAsync(ownerId);
                     if (sender != null) {
                         await _hubContext.Clients.Group($"user-{targetUserId}").SendAsync("ReceiveNotification", new {
                             Id = notification.Id,
