@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useNavigationType } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -29,6 +29,7 @@ import { Post, ListDto } from '../types';
 const ProfilePage: React.FC = () => {
     const { handle } = useParams<{ handle: string }>();
     const navigate = useNavigate();
+    const navType = useNavigationType();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
@@ -108,7 +109,7 @@ const ProfilePage: React.FC = () => {
 
     // Scroll Persistence Logic
     useEffect(() => {
-        if (!profileUser?.id || isPostsLoading) return;
+        if (!profileUser?.id || isPostsLoading || navType !== 'POP') return;
 
         const scrollKey = `profile_scroll_${profileUser.id}_${activeTab}`;
         

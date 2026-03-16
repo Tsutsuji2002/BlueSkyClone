@@ -9,7 +9,7 @@ import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts } from '../redux/sli
 import { fetchTimeline, fetchTrendingPosts, fetchDiscoverPosts } from '../redux/slices/postsSlice';
 import { fetchPinnedLists, fetchListFeed } from '../redux/slices/listsSlice';
 import { RootState } from '../redux/store';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useNavigationType } from 'react-router-dom';
 import { FiHash, FiMenu, FiSettings } from 'react-icons/fi';
 import { Feed as FeedType, ListDto } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
@@ -20,6 +20,7 @@ const RELOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
+    const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const lastTab = React.useRef<string>('');
@@ -76,9 +77,9 @@ const HomePage: React.FC = () => {
         lastTab.current = activeTab;
     }, [dispatch]);
 
-    // Restore scroll position once (only when switching to a tab that already has posts)
+    // Restore scroll position only on back/forward (POP)
     useEffect(() => {
-        if (!activeTab) return;
+        if (!activeTab || navType !== 'POP') return;
         // Already restored scroll for this tab session — don't re-run on load-more
         if (hasRestoredScroll.current[activeTab]) return;
 

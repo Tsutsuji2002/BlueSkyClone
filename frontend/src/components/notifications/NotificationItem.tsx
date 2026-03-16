@@ -8,6 +8,8 @@ import { cn } from '../../utils/classNames';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import listsService from '../../services/listsService';
+import { useAppSelector } from '../../hooks/useAppSelector';
+import { RootState } from '../../redux/store';
 
 interface NotificationItemProps {
     notification: Notification;
@@ -17,6 +19,7 @@ interface NotificationItemProps {
 const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClick }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const [responded, setResponded] = useState<'accepted' | 'rejected' | null>(
         notification.invitationStatus === 1 ? 'accepted' : 
         notification.invitationStatus === 2 ? 'rejected' : null
@@ -42,23 +45,28 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onCli
         }
 
         if (onClick) onClick();
-
-        if (notification.type === 'follow') {
+        
+        const reason = notification.reason;
+        
+        if (reason === 'follow') {
             navigate(`/profile/${notification.sender.handle}`);
-        } else if (notification.type === 'list_invitation' && notification.listId) {
+        } else if (reason === 'list_invitation' && notification.listId) {
             navigate(`/lists/${notification.listId}`);
-        } else if (notification.sender.handle) {
-            // Determine the target handle and post ID/TID
-            const targetHandle = notification.postAuthorHandle || notification.sender.handle;
+        } else if (['like', 'repost', 'reply', 'mention', 'quote'].includes(reason)) {
+            // Priority for handle:
+            // 1. notification.postAuthorHandle (if present, for someone liking YOUR post or someone liking a post you quoted etc)
+            // 2. currentUser.handle (if they are responding to YOU, e.g. like, repost, reply, mention, quote where you are the target)
+            // 3. notification.sender.handle (fallback if we can't determine the target)
+            const targetHandle = notification.postAuthorHandle || currentUser?.handle || notification.sender.handle;
             
-            // For like/repost/quote/mention, we want to go to the subject post (postId is the TID of subject)
-            // For reply, notification.uri is the reply itself, notification.postId is the parent post.
-            // Usually we want to see the reply itself if it's a "someone replied to you" notification.
-            
-            let targetPostId = notification.postId;
-            if (notification.type === 'reply' || notification.type === 'mention' || notification.type === 'quote') {
-                targetPostId = notification.tid || notification.uri.split('/').pop();
-            }
+            // Priority for ID:
+            // 1. tid (The specific post TID)
+            // 2. postId (The extracted GUID/TID)
+            // 3. subjectUri last part (fallback)
+            const targetPostId = notification.tid || 
+                               notification.postId || 
+                               notification.subjectUri?.split('/').pop() || 
+                               notification.uri.split('/').pop();
 
             if (targetPostId) {
                 navigate(`/profile/${targetHandle}/post/${targetPostId}`);

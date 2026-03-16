@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useNavigationType } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Feed from '../components/feed/Feed';
 import { FiArrowLeft, FiMoreHorizontal, FiHeart, FiMapPin, FiRss } from 'react-icons/fi';
@@ -13,8 +13,9 @@ import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
 
 const FeedDetailPage: React.FC = () => {
-    const { feedId } = useParams<{ feedId: string }>();
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const { subscribedFeeds, feedPosts, isLoading, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading } = useAppSelector((state: RootState) => state.feeds);
@@ -22,43 +23,43 @@ const FeedDetailPage: React.FC = () => {
     const [page, setPage] = useState(0);
     const take = 10;
 
-    const feed = subscribedFeeds.find((f: FeedType) => f.id === feedId) ||
-        recommendedFeeds.find((f: FeedType) => f.id === feedId) ||
-        searchResults.find((f: FeedType) => f.id === feedId) ||
-        feeds.find((f: FeedType) => f.id === feedId);
+    const feed = subscribedFeeds.find((f: FeedType) => f.id === id) ||
+        recommendedFeeds.find((f: FeedType) => f.id === id) ||
+        searchResults.find((f: FeedType) => f.id === id) ||
+        feeds.find((f: FeedType) => f.id === id);
 
     const count = feed ? (feed.subscribersCount || feed.followersCount || 0) : 0;
-    const posts = feedId ? feedPosts[feedId] || [] : [];
+    const posts = id ? feedPosts[id] || [] : [];
 
     useEffect(() => {
         if (subscribedFeeds.length === 0) {
             dispatch(fetchSubscribedFeeds());
         }
-        if (feedId && !feed && !isLoading) {
-            dispatch(fetchFeedInfo(feedId));
+        if (id && !feed && !isLoading) {
+            dispatch(fetchFeedInfo(id));
         }
-    }, [dispatch, subscribedFeeds.length, feedId, feed, isLoading]);
+    }, [dispatch, subscribedFeeds.length, id, feed, isLoading]);
 
     useEffect(() => {
-        if (feedId) {
-            dispatch(fetchFeedPosts({ feedId, skip: 0, take }));
+        if (id) {
+            dispatch(fetchFeedPosts({ feedId: id, skip: 0, take }));
             setPage(0);
         }
-    }, [dispatch, feedId]);
+    }, [dispatch, id]);
 
     const handleLoadMore = () => {
-        if (feedId) {
+        if (id) {
             const nextSkip = (page + 1) * take;
-            dispatch(fetchFeedPosts({ feedId, skip: nextSkip, take }));
+            dispatch(fetchFeedPosts({ feedId: id, skip: nextSkip, take }));
             setPage(page + 1);
         }
     };
 
     // Scroll Persistence Logic
     useEffect(() => {
-        if (!feedId || isLoading) return;
+        if (!id || navType !== 'POP') return;
 
-        const scrollKey = `feed_scroll_${feedId}`;
+        const scrollKey = `feed_detail_scroll_${id}`;
         
         // Restoration
         const savedScroll = sessionStorage.getItem(scrollKey);
@@ -75,7 +76,7 @@ const FeedDetailPage: React.FC = () => {
 
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [feedId, isLoading, posts.length]);
+    }, [id, isLoading, posts.length]);
 
     if (!feed && !isLoading) {
         return (
@@ -169,7 +170,7 @@ const FeedDetailPage: React.FC = () => {
                                             await dispatch(saveFeed(feed.id));
                                         }
                                         dispatch(fetchSubscribedFeeds());
-                                        if (feedId) dispatch(fetchFeedInfo(feedId));
+                                        if (id) dispatch(fetchFeedInfo(id));
                                     }}
                                     disabled={feeds_actionLoading[feed.id]}
                                     className={cn(

@@ -5,7 +5,7 @@ import {
 } from 'react-icons/fi';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useNavigationType } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Feed } from '../types';
 import IconButton from '../components/common/IconButton';
@@ -26,6 +26,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const FeedsPage: React.FC = () => {
     const navigate = useNavigate();
+    const navType = useNavigationType();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
@@ -56,6 +57,7 @@ const FeedsPage: React.FC = () => {
 
     // Scroll Persistence Logic
     useEffect(() => {
+        if (navType !== 'POP') return;
         const scrollKey = `feeds_list_scroll`;
         
         // Restoration
