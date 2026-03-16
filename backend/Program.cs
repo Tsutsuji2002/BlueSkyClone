@@ -961,11 +961,31 @@ using (var scope = app.Services.CreateScope())
                 -- Bookmarks Metadata
                 IF COL_LENGTH('dbo.Bookmarks', 'Cid') IS NULL
                 BEGIN
-                    ALTER TABLE dbo.Bookmarks ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL;
+                    ALTER TABLE dbo.Bookmarks ADD Cid NVARCHAR(100) NULL, Uri NVARCHAR(200) NULL, Tid NVARCHAR(20) NULL;
                 END
-                IF COL_LENGTH('dbo.Bookmarks', 'Tid') IS NULL
+
+                -- Performance Indexes
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'IX_Posts_Uri')
                 BEGIN
-                    ALTER TABLE dbo.Bookmarks ADD Tid NVARCHAR(20) NULL;
+                    CREATE INDEX IX_Posts_Uri ON dbo.Posts(Uri) WHERE Uri IS NOT NULL;
+                    PRINT 'Created IX_Posts_Uri';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.Posts') AND name = 'IX_Posts_Cid')
+                BEGIN
+                    CREATE INDEX IX_Posts_Cid ON dbo.Posts(Cid) WHERE Cid IS NOT NULL;
+                    PRINT 'Created IX_Posts_Cid';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.Likes') AND name = 'IX_Likes_Uri')
+                BEGIN
+                    CREATE INDEX IX_Likes_Uri ON dbo.Likes(Uri) WHERE Uri IS NOT NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.Reposts') AND name = 'IX_Reposts_Uri')
+                BEGIN
+                    CREATE INDEX IX_Reposts_Uri ON dbo.Reposts(Uri) WHERE Uri IS NOT NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.UserFollows') AND name = 'IX_UserFollows_Uri')
+                BEGIN
+                    CREATE INDEX IX_UserFollows_Uri ON dbo.UserFollows(Uri) WHERE Uri IS NOT NULL;
                 END
 
                 -- PostMedia Metadata

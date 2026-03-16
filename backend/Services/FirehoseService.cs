@@ -123,6 +123,14 @@ namespace BSkyClone.Services
 
             if (did != null && blocks != null && ops != null)
             {
+                // [RELIABILITY] Probabilistic Filter: Only process 10% of global posts to prevent DB saturation
+                // unless it's an actor we specifically care about (can be expanded later).
+                if (new Random().Next(0, 100) > 10) 
+                {
+                    _logger.LogTrace("Firehose: Probabilistically skipping post from {Did} to save resources.", did);
+                    return;
+                }
+
                 using var scope = _serviceProvider.CreateScope();
                 var postService = scope.ServiceProvider.GetRequiredService<IPostService>();
                 
