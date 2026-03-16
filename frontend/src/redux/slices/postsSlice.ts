@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { PostsState, Post } from '../../types';
 import { API_BASE_URL } from '../../constants';
+import { mapAtProtoPostToPost } from '../../utils/postMapper';
 
 const initialState: PostsState = {
     posts: [],
@@ -314,8 +315,11 @@ export const fetchPostById = createAsyncThunk(
                 const posts: Post[] = [];
                 const extractPosts = (node: any) => {
                     if (!node) return;
-                    if (node.post) posts.push(node.post as Post);
-                    if (node.parent) extractPosts(node.parent);
+                    if (node.post) posts.push(mapAtProtoPostToPost(node.post));
+                    if (node.parent) {
+                        if (node.parent.post) extractPosts(node.parent);
+                        else posts.push(mapAtProtoPostToPost(node.parent));
+                    }
                     if (node.replies) {
                         node.replies.forEach((r: any) => extractPosts(r));
                     }
@@ -324,7 +328,7 @@ export const fetchPostById = createAsyncThunk(
                 return posts;
             }
 
-            return Array.isArray(data) ? data : [data];
+            return Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
