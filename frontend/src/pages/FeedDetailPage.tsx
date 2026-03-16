@@ -31,6 +31,8 @@ const FeedDetailPage: React.FC = () => {
     const count = feed ? (feed.subscribersCount || feed.followersCount || 0) : 0;
     const posts = id ? feedPosts[id] || [] : [];
 
+    useDocumentTitle(feed?.name || t('feeds.title'));
+
     useEffect(() => {
         if (subscribedFeeds.length === 0) {
             dispatch(fetchSubscribedFeeds());
@@ -95,8 +97,6 @@ const FeedDetailPage: React.FC = () => {
     }
 
     if (!feed) return null;
-
-    useDocumentTitle(feed.name);
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">

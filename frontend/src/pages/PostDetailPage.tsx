@@ -98,6 +98,12 @@ const PostDetailPage: React.FC = () => {
     const treeViewEnabled = settings?.treeView || false;
     const post = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId));
 
+    const pageTitle = post?.content
+        ? (post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content)
+        : t('post.title');
+
+    useDocumentTitle(pageTitle);
+
     // Helper to sort a list of posts by current sortOrder
     const sortPosts = React.useCallback((arr: Post[]) => {
         return [...arr].sort((a, b) => {
@@ -363,11 +369,6 @@ const PostDetailPage: React.FC = () => {
         }
     };
 
-    const pageTitle = post.content
-        ? (post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content)
-        : t('post.title');
-
-    useDocumentTitle(pageTitle);
 
     return (
         <div className="min-h-screen">

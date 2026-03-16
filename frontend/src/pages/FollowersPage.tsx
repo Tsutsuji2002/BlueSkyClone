@@ -20,6 +20,8 @@ const FollowersPage: React.FC = () => {
     const { profile, users, isLoading } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
 
+    useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.followers'));
+
     useEffect(() => {
         if (effectiveId) {
             if (effectiveId.includes('.')) {
@@ -81,8 +83,6 @@ const FollowersPage: React.FC = () => {
             console.error('Failed to toggle follow:', error);
         }
     };
-
-    useDocumentTitle(`${profileUser.displayName} (@${profileUser.handle})`);
 
     return (
         <div className="flex flex-col min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">

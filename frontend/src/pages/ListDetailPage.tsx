@@ -22,6 +22,8 @@ const ListDetailPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { activeList, activeListFeed, activeListMembers, listsIAmOn, isLoading } = useAppSelector(state => state.lists);
     const { user: currentUser } = useAppSelector(state => state.auth);
+
+    useDocumentTitle(activeList?.name || t('lists.title'));
     const [activeTab, setActiveTab] = useState<'posts' | 'people'>('posts');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -144,8 +146,6 @@ const ListDetailPage: React.FC = () => {
             <div className="p-8 text-center text-gray-500">{t('lists.list_not_found')}</div>
         );
     }
-
-    useDocumentTitle(activeList.name);
 
     return (
         <>
