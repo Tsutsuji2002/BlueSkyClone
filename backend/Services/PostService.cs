@@ -9,6 +9,8 @@ using System.Text;
 using BSkyClone.Utilities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
+using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace BSkyClone.Services;
 
@@ -28,8 +30,9 @@ public class PostService : IPostService
     private readonly IUserService _userService;
     private readonly ILogger<PostService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly string _localDomain;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -45,6 +48,7 @@ public class PostService : IPostService
         _userService = userService;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _localDomain = configuration["DomainName"] ?? "bskyclone.site";
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)

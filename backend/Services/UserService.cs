@@ -24,6 +24,7 @@ public class UserService : IUserService
     private readonly IFileService _fileService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IDidResolver _didResolver;
+    private readonly IRepoManager _repoManager;
 
     public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager, IHttpClientFactory httpClientFactory, IDidResolver didResolver)
     {
