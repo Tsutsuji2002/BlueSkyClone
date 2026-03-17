@@ -18,10 +18,9 @@ const FeedDetailPage: React.FC = () => {
     const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { subscribedFeeds, feedPosts, isLoading, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading } = useAppSelector((state: RootState) => state.feeds);
+    const { subscribedFeeds, feedPosts, isLoading, feedHasMore, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading } = useAppSelector((state: RootState) => state.feeds);
 
-    const [page, setPage] = useState(0);
-    const take = 10;
+    const take = 20;
 
     const feed = subscribedFeeds.find((f: FeedType) => f.id === id) ||
         recommendedFeeds.find((f: FeedType) => f.id === id) ||
@@ -45,15 +44,12 @@ const FeedDetailPage: React.FC = () => {
     useEffect(() => {
         if (id) {
             dispatch(fetchFeedPosts({ feedId: id, skip: 0, take }));
-            setPage(0);
         }
     }, [dispatch, id]);
 
     const handleLoadMore = () => {
         if (id) {
-            const nextSkip = (page + 1) * take;
-            dispatch(fetchFeedPosts({ feedId: id, skip: nextSkip, take }));
-            setPage(page + 1);
+            dispatch(fetchFeedPosts({ feedId: id, skip: posts.length, take }));
         }
     };
 
@@ -237,15 +233,13 @@ const FeedDetailPage: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <Feed posts={posts} />
-                            {posts.length > 0 && posts.length % take === 0 && (
-                                <button
-                                    onClick={handleLoadMore}
-                                    className="w-full py-4 text-primary-500 font-bold hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
-                                >
-                                    {isLoading ? t('common.loading') : t('common.load_more')}
-                                </button>
-                            )}
+                            <Feed 
+                                posts={posts} 
+                                isLoading={isLoading}
+                                hasMore={feedHasMore[id || ''] !== false}
+                                onLoadMore={handleLoadMore}
+                                emptyMessage={t('feeds.no_posts_desc')}
+                            />
                         </>
                     )}
                 </div>

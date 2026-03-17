@@ -9,8 +9,9 @@ import CreateListModal from '../components/lists/CreateListModal';
 import AddMemberModal from '../components/lists/AddMemberModal';
 import AddPostModal from '../components/lists/AddPostModal';
 import PostCard from '../components/feed/PostCard';
+import Feed from '../components/feed/Feed';
 import Avatar from '../components/common/Avatar';
-import { CreateListDto } from '../types';
+import { CreateListDto, Post } from '../types';
 import ListAvatar from '../components/common/ListAvatar';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -20,7 +21,7 @@ const ListDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { activeList, activeListFeed, activeListMembers, listsIAmOn, isLoading } = useAppSelector(state => state.lists);
+    const { activeList, activeListFeed, activeListMembers, listsIAmOn, isLoading, hasMoreFeed } = useAppSelector(state => state.lists);
     const { user: currentUser } = useAppSelector(state => state.auth);
 
     useDocumentTitle(activeList?.name || t('lists.title'));
@@ -57,12 +58,18 @@ const ListDetailPage: React.FC = () => {
     useEffect(() => {
         if (id) {
             if (activeTab === 'posts') {
-                dispatch(fetchListFeed(id));
+                dispatch(fetchListFeed({ id, skip: 0 }));
             } else if (activeTab === 'people') {
                 dispatch(fetchListMembers(id));
             }
         }
     }, [dispatch, id, activeTab]);
+
+    const handleLoadMore = () => {
+        if (id && activeTab === 'posts') {
+            dispatch(fetchListFeed({ id, skip: activeListFeed.length }));
+        }
+    };
 
     useEffect(() => {
         if (activeList) {
@@ -280,44 +287,13 @@ const ListDetailPage: React.FC = () => {
                 {/* Content */}
                 <div className="min-h-[200px]">
                     {activeTab === 'posts' ? (
-                        activeListFeed && activeListFeed.length > 0 ? (
-                            <div className="divide-y divide-gray-200 dark:divide-dark-border">
-                                {activeListFeed.map(post => {
-                                    const canRemove = activeList.isOwner || (currentUser && post.addedByUserId === currentUser.id);
-                                    return (
-                                        <div key={post.id} className="relative z-10 bg-white dark:bg-dark-bg">
-                                            {post.parentPost && (
-                                                <PostCard
-                                                    post={post.parentPost}
-                                                    hasBottomLine={true}
-                                                    hideBorder={true}
-                                                />
-                                            )}
-                                            <PostCard
-                                                post={post}
-                                                isOwnPost={currentUser?.id === post.author.id}
-                                                isInListContext={true}
-                                                onRemoveFromList={canRemove ? () => handleRemovePost(post.id) : undefined}
-                                                hasTopLine={!!post.parentPost}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="p-12 text-center text-gray-500 flex flex-col items-center">
-                                <span className="text-4xl mb-4 text-gray-300">#</span>
-                                <p className="mb-4">{t('lists.empty_post_tab')}</p>
-                                {canAddPost && (
-                                    <button
-                                        onClick={() => setIsAddPostModalOpen(true)}
-                                        className="bg-primary-500 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-600"
-                                    >
-                                        {t('lists.add_post')}
-                                    </button>
-                                )}
-                            </div>
-                        )
+                        <Feed
+                            posts={activeListFeed}
+                            isLoading={isLoading}
+                            hasMore={hasMoreFeed}
+                            onLoadMore={handleLoadMore}
+                            emptyMessage={t('lists.empty_post_tab')}
+                        />
                     ) : (
                         <div className="divide-y divide-gray-200 dark:divide-dark-border">
                             {activeList.isOwner && (

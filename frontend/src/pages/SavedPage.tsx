@@ -6,16 +6,21 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchBookmarkedPosts } from '../redux/slices/postsSlice';
 import PostCard from '../components/feed/PostCard';
+import Feed from '../components/feed/Feed';
 import { FiBookmark } from 'react-icons/fi';
 
 const SavedPage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { bookmarkedPosts, bookmarkedLoading, error } = useAppSelector((state) => state.posts);
+    const { bookmarkedPosts, bookmarkedLoading, hasMore, error } = useAppSelector((state) => state.posts);
 
     useEffect(() => {
-        dispatch(fetchBookmarkedPosts());
+        dispatch(fetchBookmarkedPosts({ skip: 0 }));
     }, [dispatch]);
+
+    const handleLoadMore = () => {
+        dispatch(fetchBookmarkedPosts({ skip: bookmarkedPosts.length }));
+    };
 
     return (
         <MainLayout title={t('saved.title')}>
@@ -37,7 +42,7 @@ const SavedPage: React.FC = () => {
                             <p className="text-sm opacity-80">{error}</p>
                         </div>
                         <button 
-                            onClick={() => dispatch(fetchBookmarkedPosts())}
+                            onClick={() => dispatch(fetchBookmarkedPosts({ skip: 0 }))}
                             className="text-primary-500 font-bold hover:underline"
                         >
                             {t('common.retry', 'Try again')}
@@ -52,11 +57,13 @@ const SavedPage: React.FC = () => {
                         <p>{t('saved.no_bookmarks_desc', 'Posts you bookmark will appear here.')}</p>
                     </div>
                 ) : (
-                    <div>
-                        {bookmarkedPosts.map((post) => (
-                            <PostCard key={post.uri} post={post} />
-                        ))}
-                    </div>
+                    <Feed 
+                        posts={bookmarkedPosts} 
+                        isLoading={bookmarkedLoading}
+                        hasMore={hasMore}
+                        onLoadMore={handleLoadMore}
+                        emptyMessage={t('saved.no_bookmarks_desc', 'Posts you bookmark will appear here.')}
+                    />
                 )}
             </div>
         </MainLayout>

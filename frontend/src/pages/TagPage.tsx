@@ -17,21 +17,21 @@ const TagPage: React.FC = () => {
     const dispatch = useAppDispatch();
 
     const { posts, isLoading, hasMore } = useAppSelector((state: RootState) => state.posts);
-    const [offset, setOffset] = useState(0);
     const limit = 20;
 
     useEffect(() => {
         if (tag) {
-            dispatch(fetchPostsByTag({ tag, limit, offset: 0 }));
-            setOffset(0);
+            dispatch(fetchPostsByTag({ tag, skip: 0, take: limit }));
         }
     }, [dispatch, tag]);
 
     const handleLoadMore = () => {
         if (tag) {
-            const nextOffset = offset + limit;
-            dispatch(fetchPostsByTag({ tag, limit, offset: nextOffset }));
-            setOffset(nextOffset);
+            dispatch(fetchPostsByTag({ 
+                tag, 
+                skip: posts.length, 
+                take: limit 
+            }));
         }
     };
 
@@ -74,7 +74,7 @@ const TagPage: React.FC = () => {
 
                 {/* Posts Feed */}
                 <div className="pb-20">
-                    {isLoading && offset === 0 ? (
+                    {isLoading && posts.length === 0 ? (
                         <div className="flex justify-center py-20">
                             <LoadingIndicator size="lg" />
                         </div>
@@ -92,16 +92,12 @@ const TagPage: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <Feed posts={posts} />
-                            {hasMore && posts.length >= limit && (
-                                <button
-                                    onClick={handleLoadMore}
-                                    className="w-full py-4 text-primary-500 font-bold hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors disabled:opacity-50"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? t('common.loading') : t('common.load_more')}
-                                </button>
-                            )}
+                            <Feed 
+                                posts={posts} 
+                                isLoading={isLoading}
+                                hasMore={hasMore}
+                                onLoadMore={handleLoadMore}
+                            />
                         </>
                     )}
                 </div>

@@ -45,10 +45,10 @@ export const fetchTimeline = createAsyncThunk(
 
 export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
-    async ({ userId, type, limit = 20, offset = 0 }: { userId: string; type?: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ userId, type, take = 20, skip = 0 }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+            const params = new URLSearchParams({ take: String(take), skip: String(skip) });
             if (type) params.set('type', type);
             const response = await fetch(
                 `${API_BASE_URL}/posts/user/${userId}?${params}`,
@@ -241,11 +241,11 @@ export const updateInteractionSettings = createAsyncThunk(
 
 export const fetchPostsByTag = createAsyncThunk(
     'posts/fetchByTag',
-    async ({ tag, limit = 20, offset = 0 }: { tag: string; limit?: number; offset?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ tag, take = 20, skip = 0 }: { tag: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
-                `${API_BASE_URL}/posts/tag/${encodeURIComponent(tag)}?limit=${limit}&offset=${offset}`,
+                `${API_BASE_URL}/posts/tag/${encodeURIComponent(tag)}?take=${take}&skip=${skip}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch posts by tag');
@@ -376,11 +376,11 @@ export const toggleBookmark = createAsyncThunk(
 
 export const fetchBookmarkedPosts = createAsyncThunk(
     'posts/fetchBookmarks',
-    async (_, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
-                `${API_BASE_URL}/posts/bookmarks`,
+                `${API_BASE_URL}/posts/bookmarks?skip=${skip}&take=${take}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
@@ -519,9 +519,9 @@ const postsSlice = createSlice({
             // Fetch User Posts
             .addCase(fetchUserPosts.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
-                const { cursor, userId } = action.meta.arg;
+                const { skip, userId } = action.meta.arg;
                 // Clear only if it's the first page AND we're switching users or have no posts
-                if (!cursor) {
+                if (skip === 0 || !skip) {
                     const currentAuthorId = state.posts[0]?.author?.id;
                     if (currentAuthorId !== userId) {
                         state.posts = [];
@@ -531,9 +531,9 @@ const postsSlice = createSlice({
             .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 const { posts, userId, cursor, type } = action.payload;
-                const { offset } = action.meta.arg;
+                const { skip } = action.meta.arg;
 
-                if (offset === 0) {
+                if (skip === 0) {
                     state.posts = posts;
                     state.lastUserPostsFetch = Date.now();
                     state.lastUserPostsUserId = userId;
@@ -781,12 +781,24 @@ const postsSlice = createSlice({
                 updateInArray(state.bookmarkedPosts);
             })
             // Fetch Bookmarked Posts
-            .addCase(fetchBookmarkedPosts.pending, (state: PostsState) => {
+            .addCase(fetchBookmarkedPosts.pending, (state: PostsState, action: any) => {
                 state.bookmarkedLoading = true;
+                const { skip } = action.meta.arg || { skip: 0 };
+                if (skip === 0) {
+                    state.bookmarkedPosts = [];
+                }
             })
-            .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
+            .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: any) => {
                 state.bookmarkedLoading = false;
-                state.bookmarkedPosts = action.payload;
+                const { skip } = action.meta.arg || { skip: 0 };
+                if (skip === 0) {
+                    state.bookmarkedPosts = action.payload;
+                } else {
+                    const existingUris = new Set(state.bookmarkedPosts.map((p: Post) => p.uri));
+                    const newPosts = action.payload.filter((p: Post) => !existingUris.has(p.uri));
+                    state.bookmarkedPosts = [...state.bookmarkedPosts, ...newPosts];
+                }
+                state.hasMore = action.payload.length > 0;
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
                 state.bookmarkedLoading = false;
@@ -795,14 +807,15 @@ const postsSlice = createSlice({
             // Fetch Posts By Tag
             .addCase(fetchPostsByTag.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
-                if (!action.meta.arg.cursor) {
+                const { skip } = action.meta.arg;
+                if (skip === 0 || !skip) {
                     state.posts = [];
                 }
             })
             .addCase(fetchPostsByTag.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                const { offset } = action.meta.arg;
-                if (offset === 0) {
+                const { skip } = action.meta.arg;
+                if (skip === 0 || !skip) {
                     state.posts = action.payload.posts;
                 } else {
                     const existingUris = new Set(state.posts.map((p: Post) => p.uri));
@@ -818,7 +831,8 @@ const postsSlice = createSlice({
             // Fetch Posts Search
             .addCase(fetchPostsSearch.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
-                if (!action.meta.arg.cursor) {
+                const { skip } = action.meta.arg;
+                if (skip === 0 || !skip) {
                     state.posts = [];
                 }
             })
@@ -842,7 +856,8 @@ const postsSlice = createSlice({
             .addCase(fetchDiscoverPosts.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
                 state.discoverLoading = true;
-                if (!action.meta.arg?.cursor) {
+                const { skip } = action.meta.arg || { skip: 0 };
+                if (skip === 0) {
                     state.discoverPosts = [];
                 }
             })

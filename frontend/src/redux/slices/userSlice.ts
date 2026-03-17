@@ -479,13 +479,24 @@ const userSlice = createSlice({
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
         builder
             // Search Users
-            .addCase(searchUsers.pending, (state: UserState) => {
+            .addCase(searchUsers.pending, (state: UserState, action: any) => {
                 state.searchLoading = true;
                 state.error = null;
+                const { skip } = action.meta.arg;
+                if (skip === 0) {
+                    state.searchResults = [];
+                }
             })
-            .addCase(searchUsers.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+            .addCase(searchUsers.fulfilled, (state: UserState, action: any) => {
                 state.searchLoading = false;
-                state.searchResults = action.payload;
+                const { skip } = action.meta.arg;
+                if (skip === 0) {
+                    state.searchResults = action.payload;
+                } else {
+                    const existingIds = new Set(state.searchResults.map((u: User) => u.id));
+                    const newUsers = action.payload.filter((u: User) => !existingIds.has(u.id));
+                    state.searchResults = [...state.searchResults, ...newUsers];
+                }
             })
             .addCase(searchUsers.rejected, (state: UserState, action) => {
                 state.searchLoading = false;

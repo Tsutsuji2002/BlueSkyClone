@@ -65,8 +65,7 @@ const HomePage: React.FC = () => {
             }
         } else if (activeTab.startsWith('list:')) {
             const listId = activeTab.replace('list:', '');
-            // Simple approach for lists: just fetch fresh when switching to it for now
-            dispatch(fetchListFeed(listId));
+            dispatch(fetchListFeed({ id: listId, skip: 0 }));
         } else {
             // Check if it's a custom feed
             const lastFetch = feedLastFetch[activeTab] || 0;
@@ -141,7 +140,7 @@ const HomePage: React.FC = () => {
             }
         } else if (tabId.startsWith('list:')) {
             const listId = tabId.replace('list:', '');
-            dispatch(fetchListFeed(listId));
+            dispatch(fetchListFeed({ id: listId, skip: 0 }));
         } else {
             const lastFetch = feedLastFetch[tabId] || 0;
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
@@ -159,8 +158,7 @@ const HomePage: React.FC = () => {
             dispatch(fetchDiscoverPosts({ skip: discoverPosts.length }));
         } else if (activeTab.startsWith('list:')) {
             const listId = activeTab.replace('list:', '');
-            // activeListFeed doesn't properly paginate right now in listsSlice, it just fetches all
-            dispatch(fetchListFeed(listId));
+            dispatch(fetchListFeed({ id: listId, skip: activeListFeed.length }));
         } else {
             const currentFeedPosts = feedPosts[activeTab] || [];
             dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: 20 }));

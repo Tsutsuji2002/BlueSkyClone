@@ -43,7 +43,7 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
                 setHasFetchedCandidate(false);
                 dispatch(clearCandidatePosts());
                 try {
-                    await dispatch(fetchCandidatePosts({ listId, userId: currentUser.id, limit: 10, offset: 0 })).unwrap();
+                    await dispatch(fetchCandidatePosts({ listId, userId: currentUser.id, take: 10, skip: 0 })).unwrap();
                 } finally {
                     setHasFetchedCandidate(true);
                 }
@@ -56,7 +56,7 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
         if (!currentUser) return;
         const newOffset = offset + 10;
         setOffset(newOffset);
-        dispatch(fetchCandidatePosts({ listId, userId: currentUser.id, limit: 10, offset: newOffset }));
+        dispatch(fetchCandidatePosts({ listId, userId: currentUser.id, take: 10, skip: newOffset }));
     };
 
     const handleAddPost = async (post: Post) => {
@@ -67,7 +67,7 @@ const AddPostModal: React.FC<AddPostModalProps> = ({ isOpen, onClose, listId }) 
 
             // Show "Adding..." state in the button but don't close immediately
             // Reload the list feed and WAIT for it to complete
-            await dispatch(fetchListFeed(listId)).unwrap();
+            await dispatch(fetchListFeed({ id: listId, skip: 0 })).unwrap();
 
             // Smaller artificial delay to ensure UI has time to process
             await new Promise(resolve => setTimeout(resolve, 500));

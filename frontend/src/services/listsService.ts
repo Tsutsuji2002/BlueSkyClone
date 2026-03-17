@@ -53,8 +53,8 @@ const listService = {
         await api.post(`/lists/${id}/unpin`);
     },
 
-    getListFeed: async (id: string) => {
-        const response = await api.get<any[]>(`/lists/${id}/feed`); // Use Post[] type if available
+    getListFeed: async (id: string, skip = 0, take = 20) => {
+        const response = await api.get<any[]>(`/lists/${id}/feed?skip=${skip}&take=${take}`); // Use Post[] type if available
         return response.data;
     },
 

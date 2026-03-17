@@ -15,6 +15,7 @@ interface ListsState {
     candidatePosts: Post[]; // For adding posts
     activeListFeed: Post[];
     isLoading: boolean;
+    hasMoreFeed: boolean;
     error: string | null;
 }
 
@@ -29,6 +30,7 @@ const initialState: ListsState = {
     candidatePosts: [],
     activeListFeed: [],
     isLoading: false,
+    hasMoreFeed: true,
     error: null,
 };
 
@@ -210,9 +212,9 @@ export const fetchListMembers = createAsyncThunk(
 
 export const fetchListFeed = createAsyncThunk(
     'lists/fetchListFeed',
-    async (id: string, { rejectWithValue }) => {
+    async ({ id, skip = 0, take = 20 }: { id: string; skip?: number; take?: number }, { rejectWithValue }) => {
         try {
-            return await listService.getListFeed(id);
+            return await listService.getListFeed(id, skip, take);
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Failed to fetch list feed');
         }
@@ -267,10 +269,10 @@ export const removeListMember = createAsyncThunk(
 
 export const fetchCandidatePosts = createAsyncThunk(
     'lists/fetchCandidatePosts',
-    async ({ listId, userId, limit = 10, offset = 0 }: { listId: string; userId: string; limit?: number; offset?: number }, { rejectWithValue }) => {
+    async ({ listId, userId, take = 20, skip = 0 }: { listId: string; userId: string; take?: number; skip?: number }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/lists/${listId}/candidate-posts?userId=${userId}&limit=${limit}&offset=${offset}`, {
+            const response = await fetch(`${API_BASE_URL}/lists/${listId}/candidate-posts?userId=${userId}&take=${take}&skip=${skip}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
@@ -424,8 +426,22 @@ const listsSlice = createSlice({
         });
 
         // Feed
-        builder.addCase(fetchListFeed.fulfilled, (state, action) => {
-            state.activeListFeed = action.payload;
+        builder.addCase(fetchListFeed.pending, (state, action: any) => {
+            const { skip } = action.meta.arg || { skip: 0 };
+            if (skip === 0) {
+                state.activeListFeed = [];
+            }
+        });
+        builder.addCase(fetchListFeed.fulfilled, (state, action: any) => {
+            const { skip } = action.meta.arg || { skip: 0 };
+            if (skip === 0) {
+                state.activeListFeed = action.payload;
+            } else {
+                const existingIds = new Set(state.activeListFeed.map(p => p.id));
+                const newPosts = action.payload.filter((p: Post) => !existingIds.has(p.id));
+                state.activeListFeed = [...state.activeListFeed, ...newPosts];
+            }
+            state.hasMoreFeed = action.payload.length > 0;
         });
 
         // Fetch User Lists
@@ -487,8 +503,9 @@ const listsSlice = createSlice({
         });
 
         // Candidate Posts
-        builder.addCase(fetchCandidatePosts.fulfilled, (state, action) => {
-            if (action.meta.arg.offset && action.meta.arg.offset > 0) {
+        builder.addCase(fetchCandidatePosts.fulfilled, (state, action: any) => {
+            const { skip } = action.meta.arg || { skip: 0 };
+            if (skip && skip > 0) {
                 const newPosts = action.payload.filter((p: Post) => !state.candidatePosts.some(existing => existing.id === p.id));
                 state.candidatePosts = [...state.candidatePosts, ...newPosts];
             } else {

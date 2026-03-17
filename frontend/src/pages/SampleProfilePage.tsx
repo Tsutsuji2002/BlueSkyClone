@@ -21,6 +21,7 @@ import { API_BASE_URL, PROFILE_TABS, COVER_PLACEHOLDER } from '../constants';
 import MediaGrid from '../components/profile/MediaGrid';
 import ListAvatar from '../components/common/ListAvatar';
 import ConfirmModal from '../components/common/ConfirmModal';
+import Feed from '../components/feed/Feed';
 
 const SampleProfilePage: React.FC = () => {
     const { userId } = useParams<{ userId: string }>();
@@ -66,33 +67,11 @@ const SampleProfilePage: React.FC = () => {
                 // Feeds fetching would go here if implemented
             } else {
                 dispatch(clearPosts());
-                dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 3, offset: 0 }));
+                dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, skip: 0, take: 20 }));
             }
         }
     }, [dispatch, profileUser?.id, activeTab]);
 
-    // Infinite Scroll
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            entries => {
-                if (entries[0].isIntersecting && hasMore && !isPostsLoading && profileUser?.id && activeTab !== 'lists' && activeTab !== 'feeds') {
-                    dispatch(fetchUserPosts({
-                        userId: profileUser.id,
-                        type: activeTab,
-                        limit: 3,
-                        offset: reduxPosts.length
-                    }));
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (observerTarget.current) {
-            observer.observe(observerTarget.current);
-        }
-
-        return () => observer.disconnect();
-    }, [dispatch, profileUser?.id, activeTab, hasMore, isPostsLoading, reduxPosts.length]);
 
     const isOwnProfile = currentUser?.id === profileUser?.id;
 
@@ -418,7 +397,6 @@ const SampleProfilePage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Content Section */}
                         <div className="flex-1 bg-white dark:bg-dark-bg">
                             {activeTab === 'feeds' ? (
                                 <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
@@ -514,16 +492,7 @@ const SampleProfilePage: React.FC = () => {
                                         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
                                     </div>
                                 ) : reduxPosts.length > 0 ? (
-                                    <>
-                                        <MediaGrid
-                                            posts={reduxPosts}
-                                        />
-                                        <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
-                                            {isPostsLoading && hasMore && (
-                                                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
-                                            )}
-                                        </div>
-                                    </>
+                                    <MediaGrid posts={reduxPosts} />
                                 ) : (
                                     <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
                                         <FiImage size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
@@ -533,36 +502,22 @@ const SampleProfilePage: React.FC = () => {
                                     </div>
                                 )
                             ) : (
-                                // Posts, Replies, Video, Likes
-                                isPostsLoading && reduxPosts.length === 0 ? (
-                                    <div className="flex items-center justify-center py-20">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col">
-                                        {reduxPosts.length > 0 ? (
-                                            <>
-                                                {reduxPosts.map((post: Post) => (
-                                                    <PostCard key={post.id} post={post} />
-                                                ))}
-                                                <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
-                                                    {isPostsLoading && hasMore && (
-                                                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                                                <div className="mb-4">
-                                                    <FiEdit3 size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                                                </div>
-                                                <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mb-6">
-                                                    {t(`profile.no_${activeTab}`)}
-                                                </h3>
-                                            </div>
-                                        )}
-                                    </div>
-                                )
+                                <Feed
+                                    posts={reduxPosts}
+                                    isLoading={isPostsLoading}
+                                    hasMore={hasMore}
+                                    onLoadMore={() => {
+                                        if (profileUser?.id) {
+                                            dispatch(fetchUserPosts({
+                                                userId: profileUser.id,
+                                                type: activeTab,
+                                                skip: reduxPosts.length,
+                                                take: 20
+                                            }));
+                                        }
+                                    }}
+                                    emptyMessage={t(`profile.no_${activeTab}`)}
+                                />
                             )}
                         </div>
                     </>

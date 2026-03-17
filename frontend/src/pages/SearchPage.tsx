@@ -26,7 +26,6 @@ const SearchPage: React.FC = () => {
     const { searchResults: users, searchLoading: isUsersLoading } = useAppSelector((state: RootState) => state.user);
 
     const [inputValue, setInputValue] = useState(query);
-    const [offset, setOffset] = useState(0);
     const limit = 20;
 
     const isLoading = activeTab === 'people' ? isUsersLoading : isPostsLoading;
@@ -40,7 +39,6 @@ const SearchPage: React.FC = () => {
             } else {
                 dispatch(fetchPostsSearch({ query, skip: 0, take: limit }));
             }
-            setOffset(0);
         }
     }, [dispatch, query, activeTab]);
 
@@ -60,14 +58,13 @@ const SearchPage: React.FC = () => {
 
     const handleLoadMore = () => {
         if (query) {
-            const nextOffset = offset + limit;
+            const currentCount = activeTab === 'people' ? users.length : posts.length;
             if (activeTab === 'people') {
                 const userQuery = query.startsWith('@') ? query.slice(1) : query;
-                dispatch(searchUsers({ query: userQuery, skip: nextOffset, take: limit }));
+                dispatch(searchUsers({ query: userQuery, skip: currentCount, take: limit }));
             } else {
-                dispatch(fetchPostsSearch({ query, skip: nextOffset, take: limit }));
+                dispatch(fetchPostsSearch({ query, skip: currentCount, take: limit }));
             }
-            setOffset(nextOffset);
         }
     };
 
@@ -132,7 +129,7 @@ const SearchPage: React.FC = () => {
 
                 {/* Results Container */}
                 <div className="pb-20">
-                    {isLoading && offset === 0 ? (
+                    {isLoading && (activeTab === 'people' ? users : posts).length === 0 ? (
                         <div className="flex justify-center py-20">
                             <LoadingIndicator size="lg" />
                         </div>
@@ -173,17 +170,13 @@ const SearchPage: React.FC = () => {
                                     ))}
                                 </div>
                             ) : (
-                                <Feed posts={posts} />
-                            )}
-
-                            {hasMore && (activeTab === 'people' ? users : posts).length >= limit && (
-                                <button
-                                    onClick={handleLoadMore}
-                                    className="w-full py-4 text-primary-500 font-bold hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors disabled:opacity-50"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? t('common.loading') : t('common.load_more')}
-                                </button>
+                                <Feed 
+                                    posts={posts} 
+                                    isLoading={isLoading}
+                                    hasMore={hasMore}
+                                    onLoadMore={handleLoadMore}
+                                    emptyMessage={t('search.no_results_title', { defaultValue: 'No results' })}
+                                />
                             )}
                         </>
                     )}

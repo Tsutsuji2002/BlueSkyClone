@@ -22,9 +22,10 @@ import { fetchUserPosts, clearPosts } from '../redux/slices/postsSlice';
 import { fetchUserLists } from '../redux/slices/listsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import ProfileSkeleton from '../components/profile/ProfileSkeleton';
-import { PostFeedSkeleton } from '../components/feed/PostSkeleton';
 import { RootState } from '../redux/store';
+import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import Feed from '../components/feed/Feed';
 
 import { Post, ListDto } from '../types';
 
@@ -86,28 +87,12 @@ const ProfilePage: React.FC = () => {
                     if (!matchesCurrent) {
                         dispatch(clearPosts());
                     }
-                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20 }));
+                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, skip: 0, take: 20 }));
                 }
             }
         }
     }, [dispatch, profileUser?.id, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType, reduxPosts.length]);
 
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            entries => {
-                if (entries[0].isIntersecting && hasMore && !isPostsLoading && profileUser?.id) {
-                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, limit: 20, cursor: cursor || undefined }));
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (observerTarget.current) {
-            observer.observe(observerTarget.current);
-        }
-
-        return () => observer.disconnect();
-    }, [dispatch, profileUser?.id, activeTab, hasMore, isPostsLoading, cursor]);
 
     // Scroll Persistence Logic
     useEffect(() => {
@@ -477,7 +462,6 @@ const ProfilePage: React.FC = () => {
                     {/* Content Section */}
                     <div className="flex-1 bg-white dark:bg-dark-bg">
                         {activeTab === 'feeds' ? (
-                            // Feeds Tab - Blank for now
                             <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
                                 <FiRss size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
                                 <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
@@ -485,7 +469,6 @@ const ProfilePage: React.FC = () => {
                                 </h3>
                             </div>
                         ) : activeTab === 'lists' ? (
-                            // Lists Tab - Show user's lists
                             isListsLoading ? (
                                 <div className="flex items-center justify-center py-20">
                                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
@@ -540,22 +523,12 @@ const ProfilePage: React.FC = () => {
                                 </div>
                             )
                         ) : activeTab === 'media' ? (
-                            // Media Tab - Grid View
                             isPostsLoading && reduxPosts.length === 0 ? (
                                 <div className="flex items-center justify-center py-20">
                                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
                                 </div>
                             ) : reduxPosts.length > 0 ? (
-                                <>
-                                    <MediaGrid
-                                        posts={reduxPosts}
-                                    />
-                                    <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
-                                        {isPostsLoading && hasMore && (
-                                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
-                                        )}
-                                    </div>
-                                </>
+                                <MediaGrid posts={reduxPosts} />
                             ) : (
                                 <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
                                     <FiImage size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
@@ -565,56 +538,22 @@ const ProfilePage: React.FC = () => {
                                 </div>
                             )
                         ) : (
-                            // Posts, Replies, Video, Likes tabs - List View
-                            isPostsLoading && reduxPosts.length === 0 ? (
-                                <div className="flex items-center justify-center py-20">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col">
-                                    {reduxPosts.length > 0 ? (
-                                        <>
-                                            {reduxPosts.map((post: Post) => (
-                                                <div key={post.uri!} className="relative z-10 bg-white dark:bg-dark-bg">
-                                                    {post.parentPost && (
-                                                        <PostCard
-                                                            post={post.parentPost}
-                                                            hasBottomLine={true}
-                                                            hideBorder={true}
-                                                        />
-                                                    )}
-                                                    <PostCard
-                                                        post={post}
-                                                        hasTopLine={!!post.parentPost}
-                                                    />
-                                                </div>
-                                            ))}
-                                            <div ref={observerTarget} className="h-20 flex items-center justify-center pb-10">
-                                                {isPostsLoading && hasMore && (
-                                                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-primary-500"></div>
-                                                )}
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                                            <div className="mb-4">
-                                                <FiEdit3 size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                                            </div>
-                                            <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mb-6">
-                                                {t(`profile.no_${activeTab}`)}
-                                            </h3>
-                                            {isOwnProfile && activeTab === 'posts' && (
-                                                <button
-                                                    className="rounded-full font-bold px-8 py-2.5 bg-primary-500 hover:bg-primary-600 text-white transition-all shadow-sm text-[15px]"
-                                                    onClick={() => dispatch(openCreatePost())}
-                                                >
-                                                    {t('profile.create_post')}
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )
+                            <Feed
+                                posts={reduxPosts}
+                                isLoading={isPostsLoading}
+                                hasMore={hasMore}
+                                onLoadMore={() => {
+                                    if (profileUser?.id) {
+                                        dispatch(fetchUserPosts({
+                                            userId: profileUser.id,
+                                            type: activeTab,
+                                            skip: reduxPosts.length,
+                                            take: 20
+                                        }));
+                                    }
+                                }}
+                                emptyMessage={t(`profile.no_${activeTab}`)}
+                            />
                         )}
                     </div>
                 </>
