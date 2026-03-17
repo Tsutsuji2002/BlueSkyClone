@@ -48,11 +48,11 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                 <div className="flex items-center gap-1.5 mb-1">
                     <Avatar
                         src={post.author.avatarUrl || post.author.avatar}
-                        alt={post.author.displayName}
+                        alt={post.author.displayName || post.author.handle || '?'}
                         size="xs"
                     />
                     <span className="font-bold text-[14px] text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
-                        {post.author.displayName}
+                        {post.author.displayName || post.author.handle || 'Unknown'}
                         {post.author.isVerified && (
                             <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
                         )}

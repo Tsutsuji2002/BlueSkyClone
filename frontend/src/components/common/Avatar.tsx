@@ -60,7 +60,7 @@ const Avatar: React.FC<AvatarProps> = ({
                         className
                     )}
                 >
-                    {alt.charAt(0).toUpperCase()}
+                    {(alt || '?').charAt(0).toUpperCase()}
                 </div>
             )}
             {online && (

@@ -158,10 +158,10 @@ const SearchPage: React.FC = () => {
                                             onClick={() => navigate(`/profile/${user.handle}`)}
                                             className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer transition-colors"
                                         >
-                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="lg" />
+                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName || user.handle || '?'} size="lg" />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-1">
-                                                    <span className="font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName}</span>
+                                                    <span className="font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName || user.handle || 'Unknown'}</span>
                                                     {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
                                                 </div>
                                                 <div className="text-gray-500 dark:text-dark-text-secondary text-[15px] truncate">@{user.handle}</div>

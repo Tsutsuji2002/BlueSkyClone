@@ -306,7 +306,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                     <FiRepeat size={14} className={post.isReposted ? "text-green-500" : "text-gray-500"} />
                     <span>
                         {post.repostedBy && post.repostedBy.id !== currentUser?.id
-                            ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle })
+                            ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle || 'Unknown' })
                             : t('post.reposted_by_you', 'Reposted by you')}
                     </span>
                 </div>
@@ -333,7 +333,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                         <div className="z-10 bg-white dark:bg-dark-bg cursor-pointer rounded-full flex-shrink-0" onClick={handleAvatarClick}>
                             <Avatar
                                 src={post.author.avatarUrl || post.author.avatar}
-                                alt={post.author.displayName}
+                                alt={post.author.displayName || post.author.handle || '?'}
                                 size="md"
                             />
                         </div>
@@ -350,7 +350,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
                                 className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline flex items-center gap-0.5"
                                 onClick={handleAvatarClick}
                             >
-                                {post.author.displayName}
+                                {post.author.displayName || post.author.handle || 'Unknown'}
                                 {post.author.isVerified && (
                                     <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
                                 )}
