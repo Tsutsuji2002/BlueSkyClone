@@ -1673,9 +1673,27 @@ public class PostService : IPostService
         }
 
         // Always fetch live counts for the detail view to ensure 100% accuracy
-        postDto.LikesCount = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == postId);
-        postDto.BookmarksCount = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == postId);
-        postDto.RepostsCount = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == postId);
+        var localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == postId);
+        var localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == postId);
+        var localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == postId);
+
+        bool isRemote = !string.IsNullOrEmpty(postDto.Uri) && !postDto.Uri.Contains(_localDomain) && postDto.Uri.StartsWith("at://");
+        
+        if (isRemote)
+        {
+            // For remote posts, prioritize the remote counts (mapped from the db record)
+            // But if our local DB has higher counts (e.g. recent local likes), take the max.
+            postDto.LikesCount = Math.Max(postDto.LikesCount, localLikes);
+            postDto.BookmarksCount = Math.Max(postDto.BookmarksCount, localBookmarks);
+            postDto.RepostsCount = Math.Max(postDto.RepostsCount, localReposts);
+        }
+        else
+        {
+            // For local posts, local database represents the source of truth
+            postDto.LikesCount = localLikes;
+            postDto.BookmarksCount = localBookmarks;
+            postDto.RepostsCount = localReposts;
+        }
 
         return postDto;
     }
@@ -1754,7 +1772,7 @@ public class PostService : IPostService
             var author = await _userService.ResolveRemoteProfileAsync(didOrHandle);
             if (author == null) return null;
 
-            // 2. Fetch post thread (depth 0) to get record data
+            // 2. Fetch post thread (depth 0) to get record data and GLOBAL counts
             var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
             {
                 { "uri", uri },
@@ -1762,15 +1780,40 @@ public class PostService : IPostService
             };
             var qCollection = new QueryCollection(qDict);
 
-            var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "app.bsky.feed.getPostThread", qCollection);
-            
             JsonElement postData;
             JsonElement record;
             string? cid = null;
+            bool success = false;
+            string contentData = "";
 
-            if (proxyResult.Success)
+            // Try Public AppView first for global stats
+            try
             {
-                var threadData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
+                using var client = new System.Net.Http.HttpClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=0");
+                if (response.IsSuccessStatusCode)
+                {
+                    contentData = await response.Content.ReadAsStringAsync();
+                    success = true;
+                }
+            }
+            catch { }
+
+            // Fallback to proxying PDS
+            if (!success)
+            {
+                var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "app.bsky.feed.getPostThread", qCollection);
+                if (proxyResult.Success)
+                {
+                    contentData = proxyResult.Content;
+                    success = true;
+                }
+            }
+
+            if (success)
+            {
+                var threadData = System.Text.Json.JsonDocument.Parse(contentData);
                 if (threadData.RootElement.TryGetProperty("thread", out var thread) && 
                     thread.TryGetProperty("post", out postData))
                 {
@@ -1973,22 +2016,14 @@ public class PostService : IPostService
                 { "depth", depth.ToString() },
                 { "parentHeight", parentHeight.ToString() }
             };
-            var qCollection = new QueryCollection(qDict);
 
-            var proxyResult = await _xrpcProxy.ProxyRequestAsync(didForProxy, "app.bsky.feed.getPostThread", qCollection);
-            
-            if (proxyResult.Success)
-            {
-                return System.Text.Json.JsonSerializer.Deserialize<object>(proxyResult.Content);
-            }
-
-            // 3. Last Resort: Try Public AppView directly (handles cases where proxying/DID doc is broken)
+            // 3. Try Public AppView directly FIRST (to get global counts instead of PDS local counts)
             try
             {
-                _logger.LogInformation("Proxy failed for {Uri}, trying Public AppView fallback", uri);
+                _logger.LogInformation("Trying Public AppView for GetPostThread: {Uri}", uri);
                 using var client = new System.Net.Http.HttpClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}");
+                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
                 if (response.IsSuccessStatusCode)
                 {
                     return System.Text.Json.JsonSerializer.Deserialize<object>(await response.Content.ReadAsStringAsync());
@@ -1996,7 +2031,16 @@ public class PostService : IPostService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Public AppView fallback failed for {Uri}", uri);
+                _logger.LogWarning(ex, "Public AppView failed for {Uri}, falling back to Proxy", uri);
+            }
+
+            // 4. Fallback to proxying to the PDS if AppView fails or isn't indexing it yet
+            var qCollection = new QueryCollection(qDict);
+            var proxyResult = await _xrpcProxy.ProxyRequestAsync(didForProxy, "app.bsky.feed.getPostThread", qCollection);
+            
+            if (proxyResult.Success)
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<object>(proxyResult.Content);
             }
 
             return null;
