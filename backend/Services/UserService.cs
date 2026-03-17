@@ -921,8 +921,6 @@ public class UserService : IUserService
                 if (root.TryGetProperty("banner", out var bannerProp)) user.CoverImageUrl = bannerProp.GetString();
                 if (root.TryGetProperty("description", out var bioProp)) user.Bio = bioProp.GetString();
 
-                user.UpdatedAt = DateTime.UtcNow;
-
                 _unitOfWork.Users.Update(user);
                 await _unitOfWork.CompleteAsync();
 
