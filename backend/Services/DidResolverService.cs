@@ -58,6 +58,21 @@ namespace BSkyClone.Services
             }
             catch { /* Skip and continue */ }
 
+            // C. Fallback to bsky.social AppView for handle resolution
+            try
+            {
+                var response = await _httpClient.GetAsync($"https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle={handle}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var data = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                    if (data != null && data.TryGetValue("did", out var did))
+                    {
+                        return new User { Did = did.Trim(), Handle = handle };
+                    }
+                }
+            }
+            catch { /* Skip and continue */ }
+
             return null;
         }
 

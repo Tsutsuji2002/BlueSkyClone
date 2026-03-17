@@ -1813,6 +1813,23 @@ public class PostService : IPostService
                 return System.Text.Json.JsonSerializer.Deserialize<object>(proxyResult.Content);
             }
 
+            // 3. Last Resort: Try Public AppView directly (handles cases where proxying/DID doc is broken)
+            try
+            {
+                _logger.LogInformation("Proxy failed for {Uri}, trying Public AppView fallback", uri);
+                using var client = new System.Net.Http.HttpClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}");
+                if (response.IsSuccessStatusCode)
+                {
+                    return System.Text.Json.JsonSerializer.Deserialize<object>(await response.Content.ReadAsStringAsync());
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Public AppView fallback failed for {Uri}", uri);
+            }
+
             return null;
         }
         catch (Exception ex)
