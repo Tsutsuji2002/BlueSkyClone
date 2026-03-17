@@ -70,7 +70,16 @@ const ProfilePage: React.FC = () => {
     }, [dispatch, handle, profileUser?.handle]);
 
     useEffect(() => {
-        if (profileUser?.id) {
+        if (handle && profileUser?.handle && handle !== profileUser.handle) {
+            // If the URL handle is a DID and the profile has a real handle, redirect
+            if (handle.startsWith('did:') && !profileUser.handle.startsWith('did:')) {
+                navigate(`/profile/${profileUser.handle}`, { replace: true });
+            }
+        }
+    }, [handle, profileUser?.handle, navigate]);
+
+    useEffect(() => {
+        if (profileUser?.id && !isPostsLoading) {
             if (activeTab === 'lists') {
                 dispatch(fetchUserLists(profileUser.id));
             } else {
@@ -78,12 +87,12 @@ const ProfilePage: React.FC = () => {
                 const now = Date.now();
                 const isStale = (now - lastUserPostsFetch) > RELOAD_TIMEOUT;
                 
-                // Be very explicit with the comparison
                 const matchesCurrent = 
                     lastUserPostsUserId === profileUser.id && 
                     lastUserPostsType === activeTab;
 
-                if (!matchesCurrent || isStale || reduxPosts.length === 0) {
+                // Only fetch if stale, different user/type, OR completely empty (initial load)
+                if (!matchesCurrent || isStale || (reduxPosts.length === 0 && !lastUserPostsFetch)) {
                     if (!matchesCurrent) {
                         dispatch(clearPosts());
                     }
@@ -91,7 +100,7 @@ const ProfilePage: React.FC = () => {
                 }
             }
         }
-    }, [dispatch, profileUser?.id, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType, reduxPosts.length]);
+    }, [dispatch, profileUser?.id, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType]);
 
 
     // Scroll Persistence Logic

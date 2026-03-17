@@ -41,15 +41,15 @@ public class PostsController : ControllerBase
 
     [HttpGet("trending")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetTrending()
+    public async Task<IActionResult> GetTrending([FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         try
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-            var posts = await _postService.GetTrendingPostsAsync(viewerId);
-            _logger.LogInformation("[PostsController] GetTrending: ViewerId={ViewerId}, Count={Count}", viewerId, posts.Count());
+            var posts = await _postService.GetTrendingPostsAsync(viewerId, skip, take);
+            _logger.LogInformation("[PostsController] GetTrending: ViewerId={ViewerId}, Count={Count}, Skip={Skip}, Take={Take}", viewerId, posts.Count(), skip, take);
             return Ok(posts);
         }
         catch (Exception ex)
@@ -77,15 +77,24 @@ public class PostsController : ControllerBase
         }
     }
 
-    [HttpGet("user/{userId:guid}")]
-    public async Task<IActionResult> GetUserPosts(Guid userId, [FromQuery] string? type = null, [FromQuery] int limit = 3, [FromQuery] int offset = 0)
+    [HttpGet("user/{userId}")]
+    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0)
     {
         try
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-            var posts = await _postService.GetUserPostsAsync(userId, type, viewerId, limit, offset);
+            Guid userGuid;
+            if (!Guid.TryParse(userId, out userGuid))
+            {
+                // Handle DID or handle
+                var user = await _unitOfWork.Users.GetByDidAsync(userId) ?? await _unitOfWork.Users.GetByUsernameAsync(userId);
+                if (user == null) return NotFound("User not found.");
+                userGuid = user.Id;
+            }
+
+            var posts = await _postService.GetUserPostsAsync(userGuid, type, viewerId, take, skip);
             return Ok(posts);
         }
         catch (Exception ex)

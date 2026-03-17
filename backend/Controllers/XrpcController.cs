@@ -646,6 +646,11 @@ namespace BSkyClone.Controllers
                     if (resolved != null) user = resolved;
                 }
 
+                // Calculate counts dynamically for better accuracy, especially for remote/synced profiles
+                var followersCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowingId == user.Id);
+                var followsCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowerId == user.Id);
+                var postsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
+
                 var profile = new Lexicons.App.Bsky.Actor.Defs.ProfileViewDetailed
                 {
                     Did = user.Did ?? "",
@@ -654,9 +659,9 @@ namespace BSkyClone.Controllers
                     Description = user.Bio,
                     Avatar = user.AvatarUrl,
                     Banner = user.CoverImageUrl,
-                    FollowersCount = user.FollowersCount ?? 0,
-                    FollowsCount = user.FollowingCount ?? 0,
-                    PostsCount = user.PostsCount ?? 0,
+                    FollowersCount = followersCount,
+                    FollowsCount = followsCount,
+                    PostsCount = postsCount,
                     IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
                     Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState
                     {

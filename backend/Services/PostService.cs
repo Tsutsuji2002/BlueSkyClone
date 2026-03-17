@@ -1831,7 +1831,7 @@ public class PostService : IPostService
             var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
             {
                 { "actor", did },
-                { "limit", "20" }
+                { "limit", "50" }
             };
             var qCollection = new QueryCollection(qDict);
 
@@ -2652,39 +2652,51 @@ public class PostService : IPostService
         return replyDtos;
     }
 
-    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null)
+    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20)
     {
-        var cacheKey = "posts:trending";
+        // For trending/discover, we'll use a larger pool and then apply pagination
+        // This ensures the scoring is consistent across pages within a short timeframe
+        var cacheKey = $"posts:trending:v2";
         var cached = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
         
         List<PostDto> postDtos;
         if (cached != null)
         {
-            postDtos = cached.ToList();
+            postDtos = cached.Skip(skip).Take(take).ToList();
         }
         else
         {
             try
             {
-                var posts = await _unitOfWork.Posts.Query()
+                // Better Discover Algorithm: 
+                // 1. Likes and Reposts as primary signals
+                // 2. Recent posts (last 3 days) preferred
+                // 3. Diversified by authors (not implemented here but good to consider)
+                var threeDaysAgo = DateTime.UtcNow.AddDays(-3);
+                
+                var topPosts = await _unitOfWork.Posts.Query()
                     .Include(p => p.Author)
                     .Include(p => p.PostMedia)
                     .Include(p => p.LinkPreview)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
-                    .OrderByDescending(p => p.LikesCount)
-                    .ThenByDescending(p => p.RepostsCount)
-                    .Take(50)
+                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null && p.CreatedAt >= threeDaysAgo)
+                    .OrderByDescending(p => p.LikesCount * 2 + p.RepostsCount * 3 + p.RepliesCount) // Basic scoring
+                    .ThenByDescending(p => p.CreatedAt)
+                    .Take(200) // Buffer for pagination
                     .ToListAsync();
 
-                postDtos = posts.Select(MapToDto).ToList();
-                await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)postDtos, TimeSpan.FromMinutes(5));
+                var allPostDtos = topPosts.Select(MapToDto).ToList();
+                
+                // Cache the full pool for 5 minutes
+                await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)allPostDtos, TimeSpan.FromMinutes(5));
+                
+                postDtos = allPostDtos.Skip(skip).Take(take).ToList();
             }
             catch (Exception ex)
             {
-                System.Console.WriteLine($"[PostService] GetTrendingPostsAsync: Error fetching trending posts: {ex.Message}");
+                System.Console.WriteLine($"[PostService] GetTrendingPostsAsync: Error: {ex.Message}");
                 postDtos = new List<PostDto>();
             }
         }
