@@ -2683,6 +2683,8 @@ public class PostService : IPostService
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                     .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null && p.CreatedAt >= threeDaysAgo)
+                    .OrderByDescending(p => (double)(p.LikesCount ?? 0) + (double)(p.RepostsCount ?? 0) + (double)(p.RepliesCount ?? 0))
+                    .Take(1000) // DB-level pruning
                     .ToListAsync();
 
                 // Sort and score in-memory for the decay calculation
