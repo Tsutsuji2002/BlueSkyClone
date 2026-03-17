@@ -1745,7 +1745,9 @@ public class PostService : IPostService
             Cid = postData.GetProperty("cid").GetString(),
             LikesCount = postData.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
             RepostsCount = postData.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0,
-            RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0
+            RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0,
+            IsLiked = postData.TryGetProperty("viewer", out var v) && v.TryGetProperty("like", out var l) ? true : false,
+            IsReposted = postData.TryGetProperty("viewer", out v) && v.TryGetProperty("repost", out var r) ? true : false
         };
     }
 
@@ -1768,16 +1770,20 @@ public class PostService : IPostService
             var user = await _unitOfWork.Users.Query()
                 .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
 
-            if (user != null)
+            // ONLY use local DB if it's a truly local user (no DID from Bluesky yet or explicitly marked local)
+            // If it's a remote user DID, always use proxying to ensure likes/replies sync from Bluesky AppView
+            bool isTrulyLocal = user != null && (string.IsNullOrEmpty(user.Did) || !user.Did.StartsWith("did:"));
+
+            if (isTrulyLocal)
             {
-                // Local post (or ingested remote)
+                // Local post
                 var posts = await _unitOfWork.Posts.Query()
                     .Include(p => p.Author)
                     .Include(p => p.PostMedia)
                     .Include(p => p.LinkPreview)
                     .Include(p => p.Hashtags)
                     .Include(p => p.Interests)
-                    .Where(p => p.AuthorId == user.Id && p.Tid == rkey)
+                    .Where(p => p.AuthorId == user!.Id && p.Tid == rkey)
                     .ToListAsync();
                 
                 var post = posts.FirstOrDefault();

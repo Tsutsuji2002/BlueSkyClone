@@ -428,9 +428,15 @@ const PostDetailPage: React.FC = () => {
                             </h1>
                         </div>
                         <div className="flex items-center gap-2">
-                            <IconButton
-                                icon={<FiSliders size={20} />}
-                                variant="default"
+                            <Dropdown
+                                trigger={
+                                    <IconButton
+                                        icon={<FiSliders size={20} />}
+                                        variant="default"
+                                        onClick={() => {}} // Explicitly interactive
+                                    />
+                                }
+                                items={moreDropdownItems}
                             />
                             <div className="lg:hidden ml-2">
                                 <button
@@ -675,6 +681,7 @@ const PostDetailPage: React.FC = () => {
                                 <IconButton
                                     icon={<FiMoreHorizontal size={22} />}
                                     variant="default"
+                                    onClick={() => {}} // Explicitly interactive
                                 />
                             }
                             items={moreDropdownItems}
