@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr';
-import { updatePostStats, updateUserPostStatus, removePost, receiveNewPost, receiveGlobalPost } from '../redux/slices/postsSlice';
+import { updatePostStats, updateUserPostStatus, removePost, receiveNewPost } from '../redux/slices/postsSlice';
 import { store } from '../redux/store';
 import { API_BASE_URL } from '../constants';
 
@@ -34,9 +34,11 @@ class PostSignalRService {
             store.dispatch(receiveNewPost(post));
         });
 
-        this.connection.on('newGlobalPost', (post: any) => {
-            store.dispatch(receiveGlobalPost(post));
-        });
+        /* 
+37:         this.connection.on('newGlobalPost', (post: any) => {
+38:             store.dispatch(receiveGlobalPost(post));
+39:         });
+40:         */
 
         try {
             await this.connection.start();

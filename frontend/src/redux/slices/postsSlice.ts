@@ -393,7 +393,7 @@ export const fetchBookmarkedPosts = createAsyncThunk(
 
 export const fetchDiscoverPosts = createAsyncThunk(
     'posts/fetchDiscover',
-    async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 15 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
@@ -465,13 +465,15 @@ const postsSlice = createSlice({
                 state.posts = [newPost, ...state.posts];
             }
         },
-        receiveGlobalPost: (state, action: PayloadAction<Post>) => {
-            const newPost = action.payload;
-            // Add to discover/trending if not exists
-            if (!state.discoverPosts.some(p => p.uri === newPost.uri)) {
-                state.discoverPosts = [newPost, ...state.discoverPosts];
-            }
-        }
+        /*
+468:         receiveGlobalPost: (state, action: PayloadAction<Post>) => {
+469:             const newPost = action.payload;
+470:             // Add to discover/trending if not exists
+471:             if (!state.discoverPosts.some(p => p.uri === newPost.uri)) {
+472:                 state.discoverPosts = [newPost, ...state.discoverPosts];
+473:             }
+474:         }
+475:         */
     },
 
     extraReducers: (builder) => {
@@ -874,7 +876,7 @@ const postsSlice = createSlice({
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.discoverPosts = [...state.discoverPosts, ...newPosts];
                 }
-                const { take = 20 } = action.meta.arg || {};
+                const { take = 15 } = action.meta.arg || {};
                 state.discoverHasMore = action.payload.posts.length >= take;
             })
             .addCase(fetchDiscoverPosts.rejected, (state: PostsState, action) => {
@@ -939,7 +941,7 @@ const postsSlice = createSlice({
 });
 
 
-export const { clearPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost, receiveGlobalPost } = postsSlice.actions;
+export const { clearPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost } = postsSlice.actions;
 
 
 export default postsSlice.reducer;

@@ -2656,7 +2656,7 @@ public class PostService : IPostService
     {
         // For trending/discover, we'll use a larger pool and then apply pagination
         // This ensures the scoring is consistent across pages within a short timeframe
-        var cacheKey = $"posts:trending:v2";
+        var cacheKey = $"posts:trending:v3";
         var cached = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
         
         List<PostDto> postDtos;
@@ -2669,10 +2669,11 @@ public class PostService : IPostService
             try
             {
                 // Better Discover Algorithm: 
-                // 1. Likes and Reposts as primary signals
-                // 2. Recent posts (last 3 days) preferred
-                // 3. Diversified by authors (not implemented here but good to consider)
+                // 1. "Hotness" score with time decay
+                // 2. Score = (Likes * 2 + Reposts * 3 + Replies * 1) / (AgeInHours + 2)^1.5
+                // 3. Diversified by a larger sample pool
                 var threeDaysAgo = DateTime.UtcNow.AddDays(-3);
+                var now = DateTime.UtcNow;
                 
                 var topPosts = await _unitOfWork.Posts.Query()
                     .Include(p => p.Author)
@@ -2682,12 +2683,24 @@ public class PostService : IPostService
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                     .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null && p.CreatedAt >= threeDaysAgo)
-                    .OrderByDescending(p => p.LikesCount * 2 + p.RepostsCount * 3 + p.RepliesCount) // Basic scoring
-                    .ThenByDescending(p => p.CreatedAt)
-                    .Take(200) // Buffer for pagination
                     .ToListAsync();
 
-                var allPostDtos = topPosts.Select(MapToDto).ToList();
+                // Sort and score in-memory for the decay calculation
+                var scoredPosts = topPosts
+                    .Select(p => {
+                        var ageInHours = (now - (p.CreatedAt ?? now)).TotalHours;
+                        var rawScore = (double)((p.LikesCount ?? 0) * 2 + (p.RepostsCount ?? 0) * 3 + (p.RepliesCount ?? 0));
+                        var decayScore = rawScore / Math.Pow(ageInHours + 2, 1.5);
+                        // Add a tiny random jitter (0-5% of score) to keep it feeling fresh across cache cycles
+                        var jitter = 1.0 + (new Random().NextDouble() * 0.05);
+                        return new { Post = p, FinalScore = decayScore * jitter };
+                    })
+                    .OrderByDescending(x => x.FinalScore)
+                    .Take(500) // Larger pool for better pagination variety
+                    .Select(x => x.Post)
+                    .ToList();
+
+                var allPostDtos = scoredPosts.Select(MapToDto).ToList();
                 
                 // Cache the full pool for 5 minutes
                 await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)allPostDtos, TimeSpan.FromMinutes(5));
