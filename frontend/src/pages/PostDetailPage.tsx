@@ -269,125 +269,107 @@ const PostDetailPage: React.FC = () => {
         },
     ];
 
+    const settingsDropdownItems: DropdownItem[] = [
+        {
+            id: 'section-view',
+            label: t('post.show_replies_as', 'Show replies as'),
+            onClick: () => { },
+            type: 'default',
+        },
+        {
+            id: 'linear',
+            label: t('post.linear', 'Linear'),
+            onClick: () => dispatch(updateNotificationSettings({ treeView: false })),
+            type: 'radio',
+            selected: !treeViewEnabled,
+        },
+        {
+            id: 'threaded',
+            label: t('post.threaded', 'Threaded'),
+            onClick: () => dispatch(updateNotificationSettings({ treeView: true })),
+            type: 'radio',
+            selected: treeViewEnabled,
+            hasDivider: true,
+        },
+        {
+            id: 'section-sorting',
+            label: t('post.reply_sorting', 'Reply sorting'),
+            onClick: () => { },
+            type: 'default',
+        },
+        {
+            id: 'top',
+            label: t('post.top_replies_first', 'Top replies first'),
+            onClick: () => dispatch(updateNotificationSettings({ sortReplies: 'top' })),
+            type: 'radio',
+            selected: sortOrder === 'top',
+        },
+        {
+            id: 'oldest',
+            label: t('post.oldest_replies_first', 'Oldest replies first'),
+            onClick: () => dispatch(updateNotificationSettings({ sortReplies: 'oldest' })),
+            type: 'radio',
+            selected: sortOrder === 'oldest',
+        },
+        {
+            id: 'newest',
+            label: t('post.newest_replies_first', 'Newest replies first'),
+            onClick: () => dispatch(updateNotificationSettings({ sortReplies: 'newest' })),
+            type: 'radio',
+            selected: sortOrder === 'newest',
+        }
+    ];
+
     const moreDropdownItems: DropdownItem[] = [
-        ...(currentUser?.id === post.author.id ? [
-            {
-                id: 'pin-post',
-                label: t('post.pin_to_profile', 'Pin to your profile'),
-                icon: <FiAnchor />,
-                onClick: () => { },
+        {
+            id: 'translate',
+            label: t('post.translate'),
+            icon: <FiMessageSquare />,
+            onClick: () => handleTranslate(post.content),
+        },
+        {
+            id: 'copy-text',
+            label: t('post.copy_text'),
+            icon: <FiClipboard />,
+            onClick: () => handleCopyText(post.content),
+        },
+        {
+            id: 'toggle-view-shortcut',
+            label: treeViewEnabled ? t('post.view_as_linear', 'Show as List') : t('post.view_as_threaded', 'Show as Tree'),
+            icon: <FiList />,
+            onClick: () => {
+                dispatch(updateNotificationSettings({ treeView: !treeViewEnabled }));
             },
-            {
-                id: 'translate',
-                label: t('post.translate'),
-                icon: <FiMessageSquare />,
-                onClick: () => handleTranslate(post.content),
+        },
+        {
+            id: 'sort-replies-shortcut',
+            label: t('post.sort_replies', 'Sort replies'),
+            icon: <FiChevronDown />,
+            onClick: () => {
+                const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
+                const currentIndex = orders.indexOf(sortOrder as any);
+                const nextIndex = (currentIndex + 1) % orders.length;
+                dispatch(updateNotificationSettings({ sortReplies: orders[nextIndex] }));
+                dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
             },
-            {
-                id: 'copy-text',
-                label: t('post.copy_text'),
-                icon: <FiClipboard />,
-                onClick: () => handleCopyText(post.content),
+        },
+        {
+            id: 'mute-thread',
+            label: t('post.mute_thread'),
+            icon: <FiVolumeX />,
+            onClick: () => { },
+        },
+        {
+            id: 'report-post',
+            label: t('post.report_post'),
+            icon: <FiAlertTriangle />,
+            danger: true,
+            onClick: () => {
+                if (post.uri && post.cid) {
+                    dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
+                }
             },
-            { id: 'divider-mute', label: '', icon: null, onClick: () => { }, hasDivider: true },
-            {
-                id: 'mute-thread',
-                label: t('post.mute_thread'),
-                icon: <FiVolumeX />,
-                onClick: () => { },
-            },
-            {
-                id: 'mute-words',
-                label: t('post.mute_words_tags', 'Mute words & tags'),
-                icon: <FiFilter />,
-                onClick: () => { },
-                hasDivider: true,
-            },
-            {
-                id: 'edit-post',
-                label: t('common.edit_post', 'Edit Post'),
-                icon: <FiEdit />,
-                onClick: () => dispatch(openEditPost(post)),
-            },
-            {
-                id: 'toggle-view',
-                label: treeViewEnabled ? t('post.view_as_linear', 'Show as List') : t('post.view_as_threaded', 'Show as Tree'),
-                icon: treeViewEnabled ? <FiList /> : <FiSliders />,
-                onClick: () => {
-                    dispatch(updateNotificationSettings({ treeView: !treeViewEnabled }));
-                },
-            },
-            {
-                id: 'sort-replies',
-                label: t('post.sort_replies', 'Sort replies'),
-                icon: <FiChevronDown />,
-                onClick: () => {
-                    const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
-                    const currentIndex = orders.indexOf(sortOrder as any);
-                    const nextIndex = (currentIndex + 1) % orders.length;
-                    dispatch(updateNotificationSettings({ sortReplies: orders[nextIndex] }));
-                    dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
-                },
-            },
-            {
-                id: 'delete-post',
-                label: t('common.delete_post'),
-                icon: <FiTrash2 />,
-                danger: true,
-                onClick: () => setShowDeleteConfirm(true),
-            }
-        ] : [
-            {
-                id: 'translate',
-                label: t('post.translate'),
-                icon: <FiMessageSquare />,
-                onClick: () => handleTranslate(post.content),
-            },
-            {
-                id: 'copy-text',
-                label: t('post.copy_text'),
-                icon: <FiClipboard />,
-                hasDivider: true,
-                onClick: () => handleCopyText(post.content),
-            },
-            {
-                id: 'toggle-view',
-                label: treeViewEnabled ? t('post.view_as_linear', 'Show as List') : t('post.view_as_threaded', 'Show as Tree'),
-                icon: treeViewEnabled ? <FiList /> : <FiSliders />,
-                onClick: () => {
-                    dispatch(updateNotificationSettings({ treeView: !treeViewEnabled }));
-                },
-            },
-            {
-                id: 'sort-replies',
-                label: t('post.sort_replies', 'Sort replies'),
-                icon: <FiChevronDown />,
-                onClick: () => {
-                    const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
-                    const currentIndex = orders.indexOf(sortOrder as any);
-                    const nextIndex = (currentIndex + 1) % orders.length;
-                    dispatch(updateNotificationSettings({ sortReplies: orders[nextIndex] }));
-                    dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
-                },
-            },
-            {
-                id: 'mute-thread',
-                label: t('post.mute_thread'),
-                icon: <FiVolumeX />,
-                onClick: () => { },
-            },
-            {
-                id: 'report-post',
-                label: t('post.report_post'),
-                icon: <FiAlertTriangle />,
-                danger: true,
-                onClick: () => {
-                    if (post.uri && post.cid) {
-                        dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
-                    }
-                },
-            }
-        ]),
+        }
     ];
 
     const dateLocale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
@@ -436,7 +418,7 @@ const PostDetailPage: React.FC = () => {
                                         onClick={() => {}} // Explicitly interactive
                                     />
                                 }
-                                items={moreDropdownItems}
+                                items={settingsDropdownItems}
                             />
                             <div className="lg:hidden ml-2">
                                 <button

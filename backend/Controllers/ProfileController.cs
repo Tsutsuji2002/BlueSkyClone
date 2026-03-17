@@ -33,7 +33,16 @@ public class ProfileController : ControllerBase
                    ?? await _userService.GetUserByUsernameAsync(handle);
         }
                    
-        if (user == null) return NotFound();
+        if (user == null) 
+        {
+            // If not found locally, and it looks like a remote handle (contains a dot or starts with did:), try resolving it.
+            if (!string.IsNullOrEmpty(handle) && (handle.Contains(".") || handle.StartsWith("did:")))
+            {
+                 user = await _userService.ResolveRemoteProfileAsync(handle);
+            }
+            
+            if (user == null) return NotFound();
+        }
 
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         bool isFollowing = false;

@@ -9,6 +9,8 @@ export interface DropdownItem {
     onClick: () => void;
     danger?: boolean;
     hasDivider?: boolean;
+    type?: 'default' | 'radio';
+    selected?: boolean;
 }
 
 interface DropdownProps {
@@ -147,7 +149,18 @@ const Dropdown: React.FC<DropdownProps> = ({
                                 )}
                             >
                                 <span>{item.label}</span>
-                                {item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>}
+                                {item.type === 'radio' ? (
+                                    <div className={cn(
+                                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                        item.selected 
+                                            ? "border-primary-500 bg-primary-500" 
+                                            : "border-gray-300 dark:border-dark-border"
+                                    )}>
+                                        {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                    </div>
+                                ) : (
+                                    item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>
+                                )}
                             </button>
                             {item.hasDivider && (
                                 <div className="h-[1px] bg-gray-100 dark:bg-dark-border mx-0" />
