@@ -372,17 +372,42 @@ public class PostService : IPostService
                 };
 
                 // Phase 35: On-demand profile resolution for stub authors
+                // For small batches (typical for single post views or small threads), resolve synchronously
+                // to ensure the user sees full profile data immediately.
+                bool shouldResolveSync = posts.Count <= 10;
+
                 if (post.Author != null && post.Author.Did == post.Author.Handle)
                 {
-                    _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did!); } catch { } });
+                    if (shouldResolveSync)
+                    {
+                        try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did!); } catch { }
+                    }
+                    else
+                    {
+                        _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did!); } catch { } });
+                    }
                 }
                 if (post.QuotePost?.Author != null && post.QuotePost.Author.Did == post.QuotePost.Author.Handle)
                 {
-                    _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.QuotePost.Author.Did!); } catch { } });
+                    if (shouldResolveSync)
+                    {
+                        try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.QuotePost.Author.Did!); } catch { }
+                    }
+                    else
+                    {
+                        _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.QuotePost.Author.Did!); } catch { } });
+                    }
                 }
                 if (post.ParentPost?.Author != null && post.ParentPost.Author.Did == post.ParentPost.Author.Handle)
                 {
-                    _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.ParentPost.Author.Did!); } catch { } });
+                    if (shouldResolveSync)
+                    {
+                        try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.ParentPost.Author.Did!); } catch { }
+                    }
+                    else
+                    {
+                        _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.ParentPost.Author.Did!); } catch { } });
+                    }
                 }
 
                 post.IsLiked = post.Viewer.Like != null;

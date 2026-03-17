@@ -16,6 +16,7 @@ import RichText from '../components/common/RichText';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
 import { showToast } from '../redux/slices/toastSlice';
 import { usePostActions } from '../hooks/usePostActions';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
 import {
     FiArrowLeft,
     FiHeart,
@@ -309,6 +310,26 @@ const PostDetailPage: React.FC = () => {
                 onClick: () => dispatch(openEditPost(post)),
             },
             {
+                id: 'toggle-view',
+                label: treeViewEnabled ? t('post.view_as_linear', 'Show as List') : t('post.view_as_threaded', 'Show as Tree'),
+                icon: treeViewEnabled ? <FiList /> : <FiSliders />,
+                onClick: () => {
+                    dispatch(updateNotificationSettings({ treeView: !treeViewEnabled }));
+                },
+            },
+            {
+                id: 'sort-replies',
+                label: t('post.sort_replies', 'Sort replies'),
+                icon: <FiChevronDown />,
+                onClick: () => {
+                    const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
+                    const currentIndex = orders.indexOf(sortOrder as any);
+                    const nextIndex = (currentIndex + 1) % orders.length;
+                    dispatch(updateNotificationSettings({ sortReplies: orders[nextIndex] }));
+                    dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
+                },
+            },
+            {
                 id: 'delete-post',
                 label: t('common.delete_post'),
                 icon: <FiTrash2 />,
@@ -328,6 +349,26 @@ const PostDetailPage: React.FC = () => {
                 icon: <FiClipboard />,
                 hasDivider: true,
                 onClick: () => handleCopyText(post.content),
+            },
+            {
+                id: 'toggle-view',
+                label: treeViewEnabled ? t('post.view_as_linear', 'Show as List') : t('post.view_as_threaded', 'Show as Tree'),
+                icon: treeViewEnabled ? <FiList /> : <FiSliders />,
+                onClick: () => {
+                    dispatch(updateNotificationSettings({ treeView: !treeViewEnabled }));
+                },
+            },
+            {
+                id: 'sort-replies',
+                label: t('post.sort_replies', 'Sort replies'),
+                icon: <FiChevronDown />,
+                onClick: () => {
+                    const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
+                    const currentIndex = orders.indexOf(sortOrder as any);
+                    const nextIndex = (currentIndex + 1) % orders.length;
+                    dispatch(updateNotificationSettings({ sortReplies: orders[nextIndex] }));
+                    dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
+                },
             },
             {
                 id: 'mute-thread',

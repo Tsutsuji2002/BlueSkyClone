@@ -22,7 +22,7 @@ function normalizeSettings(raw: any): UserSettings {
     return {
         ...raw,
         // Map backend's enableTreeView -> frontend's treeView
-        treeView: raw.treeView ?? raw.enableTreeView ?? false,
+        treeView: raw.treeView ?? raw.enableTreeView ?? raw.EnableTreeView ?? false,
         // Map backend's sortReplies (already camelCase) - keep as is
         sortReplies: raw.sortReplies ?? 'top',
         // Map backend's enableDiscoverVideo -> frontend's enableVideoDiscover
@@ -253,6 +253,7 @@ export const updateNotificationSettings = createAsyncThunk(
             const payload = {
                 ...settings,
                 enableTrending: settings.openTrendingTopics,
+                enableTreeView: settings.treeView,
                 enabledMediaProviders: Array.isArray(settings.enabledMediaProviders)
                     ? JSON.stringify(settings.enabledMediaProviders)
                     : settings.enabledMediaProviders
