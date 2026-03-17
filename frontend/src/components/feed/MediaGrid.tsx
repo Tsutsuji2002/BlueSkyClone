@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import Skeleton from '../common/Skeleton';
 import { PostImage, PostVideo } from '../../types';
 import { useAppSelector } from '../../redux/hooks';
 import { RootState } from '../../redux/store';
@@ -38,6 +39,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const { t } = useTranslation();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [imageError, setImageError] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
@@ -142,11 +144,21 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     alt={item.alt || ''}
                     className={cn(
                         "w-full h-full hover:opacity-90 transition-opacity",
-                        totalCount === 1 ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover"
+                        totalCount === 1 ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover",
+                        isLoading ? "opacity-0" : "opacity-100"
                     )}
                     loading="lazy"
-                    onError={() => setImageError(true)}
+                    onLoad={() => setIsLoading(false)}
+                    onError={() => {
+                        setImageError(true);
+                        setIsLoading(false);
+                    }}
                 />
+            )}
+            {isLoading && (
+                <div className="absolute inset-0">
+                    <Skeleton variant="rectangular" width="100%" height="100%" />
+                </div>
             )}
             {item.alt && (
                 <div className={cn(

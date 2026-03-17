@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
+import LoadingIndicator from '../common/LoadingIndicator';
 import Sidebar from './Sidebar';
 import RightSidebar from './RightSidebar';
 import TopBar from './TopBar';
@@ -36,7 +37,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                         "w-full max-w-[600px] min-w-0 border-x border-gray-100 dark:border-dark-border lg:pb-0",
                         hideBottomNav ? "pb-0" : "pb-16"
                     )}>
-                        {children || <Outlet />}
+                        {children || (
+                            <Suspense fallback={
+                                <div className="flex items-center justify-center py-12">
+                                    <LoadingIndicator size="md" />
+                                </div>
+                            }>
+                                <Outlet />
+                            </Suspense>
+                        )}
                     </main>
 
                     {/* Right Sidebar - Desktop only */}

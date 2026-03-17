@@ -77,12 +77,7 @@ const AppRoutes: React.FC = () => {
 
     return (
         <LazyErrorBoundary>
-            <Suspense fallback={
-                <div className="min-h-screen flex items-center justify-center bg-white dark:bg-dark-bg">
-                    <LoadingIndicator size="lg" />
-                </div>
-            }>
-                <Routes>
+            <Routes>
                     <Route path="/" element={<MainLayout hideTopBar={true} />}>
                         <Route index element={<HomePage />} />
                         <Route path="profile/:handle" element={<ProfilePage />} />
@@ -153,7 +148,6 @@ const AppRoutes: React.FC = () => {
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
-            </Suspense>
         </LazyErrorBoundary>
     );
 };

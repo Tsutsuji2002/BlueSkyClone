@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import PostCard from './PostCard';
 import { Post } from '../../types';
+import { PostFeedSkeleton } from './PostSkeleton';
 import { FiBookmark } from 'react-icons/fi';
 import { detectLanguage } from '../../utils/languageDetector';
 
@@ -103,11 +104,7 @@ const Feed: React.FC<FeedProps> = ({
     }, [onLoadMore, hasMore, isLoading]);
 
     if (isLoading && posts.length === 0) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-            </div>
-        );
+        return <PostFeedSkeleton count={5} />;
     }
 
     if (posts.length === 0) {

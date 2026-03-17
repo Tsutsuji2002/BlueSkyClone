@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import Skeleton from './Skeleton';
 import { LinkPreview } from '../../types';
 import { FiExternalLink, FiLink } from 'react-icons/fi';
 import { cn } from '../../utils/classNames';
@@ -83,6 +84,7 @@ const getEmbedUrl = (url: string, enabledProviders: string[]): string | null => 
 const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = false }) => {
     const { t } = useTranslation();
     const [imageError, setImageError] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(true);
     const [isPlaying, setIsPlaying] = React.useState(false);
     const settings = useAppSelector(state => state.auth.settings);
     const enabledProviders = settings?.enabledMediaProviders || [];
@@ -100,9 +102,21 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                             <img
                                 src={preview.image}
                                 alt={preview.title || t('nav.link_preview')}
-                                className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
-                                onError={() => setImageError(true)}
+                                className={cn(
+                                    "w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500",
+                                    isLoading ? "opacity-0" : "opacity-100"
+                                )}
+                                onLoad={() => setIsLoading(false)}
+                                onError={() => {
+                                    setImageError(true);
+                                    setIsLoading(false);
+                                }}
                             />
+                            {isLoading && (
+                                <div className="absolute inset-0">
+                                    <Skeleton variant="rectangular" width="100%" height="100%" />
+                                </div>
+                            )}
                             <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/20 transition-colors">
                                 <div className="w-16 h-16 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:bg-black/80 transition-colors">
                                     <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
@@ -163,9 +177,21 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                     <img
                         src={preview.image}
                         alt={preview.title || t('nav.link_preview')}
-                        className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
-                        onError={() => setImageError(true)}
+                        className={cn(
+                            "w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500",
+                            isLoading ? "opacity-0" : "opacity-100"
+                        )}
+                        onLoad={() => setIsLoading(false)}
+                        onError={() => {
+                            setImageError(true);
+                            setIsLoading(false);
+                        }}
                     />
+                    {isLoading && (
+                        <div className="absolute inset-0">
+                            <Skeleton variant="rectangular" width="100%" height="100%" />
+                        </div>
+                    )}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
                 </div>
             ) : (

@@ -21,6 +21,8 @@ import MediaGrid from '../components/profile/MediaGrid';
 import { fetchUserPosts, clearPosts } from '../redux/slices/postsSlice';
 import { fetchUserLists } from '../redux/slices/listsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
+import ProfileSkeleton from '../components/profile/ProfileSkeleton';
+import { PostFeedSkeleton } from '../components/feed/PostSkeleton';
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -272,11 +274,7 @@ const ProfilePage: React.FC = () => {
     useDocumentTitle(profileUser?.displayName || profileUser?.handle || '');
 
     if (isProfileLoading && !profileUser) {
-        return (
-            <div className="flex items-center justify-center min-h-[50vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
-            </div>
-        );
+        return <ProfileSkeleton />;
     }
 
     if (!profileUser && !isProfileLoading) {
