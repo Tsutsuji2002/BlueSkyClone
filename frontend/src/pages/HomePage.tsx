@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import InterestsSection from '../components/feed/InterestsSection';
 import Feed from '../components/feed/Feed';
-import PostFeedSkeleton from '../components/feed/PostSkeleton';
+import { PostFeedSkeleton } from '../components/feed/PostSkeleton';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';

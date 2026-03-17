@@ -37,7 +37,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                         "w-full max-w-[600px] min-w-0 border-x border-gray-100 dark:border-dark-border lg:pb-0",
                         hideBottomNav ? "pb-0" : "pb-16"
                     )}>
-                        {children || <Outlet />}
+                        {children || (
+                            <Suspense fallback={null}>
+                                <Outlet />
+                            </Suspense>
+                        )}
                     </main>
 
                     {/* Right Sidebar - Desktop only */}

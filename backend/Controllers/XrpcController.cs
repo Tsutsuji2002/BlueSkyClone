@@ -659,7 +659,7 @@ namespace BSkyClone.Controllers
                     DisplayName = user.DisplayName,
                     Description = user.Bio,
                     Avatar = user.AvatarUrl,
-                    Banner = user.CoverImage,
+                    Banner = user.CoverImageUrl,
                     FollowersCount = user.FollowersCount ?? 0,
                     FollowsCount = user.FollowingCount ?? 0,
                     PostsCount = user.PostsCount ?? 0,

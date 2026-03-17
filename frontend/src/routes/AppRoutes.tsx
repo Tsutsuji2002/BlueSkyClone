@@ -8,7 +8,7 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import LazyErrorBoundary from '../components/common/LazyErrorBoundary';
 
 // Lazy Load Pages
-const HomePage = React.lazy(() => import('../pages/HomePage'));
+import HomePage from '../pages/HomePage';
 const ProfilePage = React.lazy(() => import('../pages/ProfilePage'));
 const SampleProfilePage = React.lazy(() => import('../pages/SampleProfilePage'));
 const FollowersPage = React.lazy(() => import('../pages/FollowersPage'));
@@ -78,11 +78,7 @@ const AppRoutes: React.FC = () => {
     return (
         <LazyErrorBoundary>
             <Routes>
-                    <Route path="/" element={
-                        <Suspense fallback={null}>
-                            <MainLayout hideTopBar={true} />
-                        </Suspense>
-                    }>
+                    <Route path="/" element={<MainLayout hideTopBar={true} />}>
                         <Route index element={<HomePage />} />
                         <Route path="profile/:handle" element={<ProfilePage />} />
                         <Route path="profile/:handle/followers" element={<FollowersPage />} />

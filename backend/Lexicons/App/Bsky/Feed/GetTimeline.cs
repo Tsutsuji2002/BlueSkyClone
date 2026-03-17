@@ -48,23 +48,26 @@ namespace BSkyClone.Lexicons.App.Bsky.Feed
 
         [JsonPropertyName("indexedAt")]
         public string IndexedAt { get; set; } = DateTime.UtcNow.ToString("o");
+
+        [JsonPropertyName("viewer")]
+        public ViewerState? Viewer { get; set; }
     }
-}
 
-namespace BSkyClone.Lexicons.App.Bsky.Actor.Defs
-{
-    public class ProfileViewBasic
+    public class ViewerState
     {
-        [JsonPropertyName("did")]
-        public string Did { get; set; } = string.Empty;
+        [JsonPropertyName("repost")]
+        public string? Repost { get; set; }
 
-        [JsonPropertyName("handle")]
-        public string Handle { get; set; } = string.Empty;
+        [JsonPropertyName("like")]
+        public string? Like { get; set; }
+    }
 
-        [JsonPropertyName("displayName")]
-        public string? DisplayName { get; set; }
+    public class GetAuthorFeedResponse
+    {
+        [JsonPropertyName("feed")]
+        public List<FeedViewPost> Feed { get; set; } = new();
 
-        [JsonPropertyName("avatar")]
-        public string? Avatar { get; set; }
+        [JsonPropertyName("cursor")]
+        public string? Cursor { get; set; }
     }
 }
