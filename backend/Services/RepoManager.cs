@@ -194,8 +194,8 @@ namespace BSkyClone.Services
             await stream.CopyToAsync(ms);
             var data = ms.ToArray();
 
-            // Generate CID for the raw data
-            var cid = ProtocolUtils.GenerateCid(data);
+            // Generate CID for the raw data using 'raw' multicodec
+            var cid = ProtocolUtils.GenerateCid(data, 0x55);
 
             var block = new RepoBlock
             {

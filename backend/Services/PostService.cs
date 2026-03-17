@@ -523,13 +523,14 @@ public class PostService : IPostService
             {
                 var file = request.Images[i];
                 var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
-                var imagePath = await SaveFileAsync(file, "posts");
+                var (imagePath, imageCid) = await SaveFileAsync(file, "posts");
                 post.PostMedia.Add(new PostMedium
                 {
                     Id = Guid.NewGuid(),
                     PostId = post.Id,
                     Type = "image",
                     Url = imagePath,
+                    Cid = imageCid,
                     AltText = altText,
                     Position = i,
                     CreatedAt = DateTime.UtcNow
@@ -556,13 +557,14 @@ public class PostService : IPostService
 
         if (request.Video != null)
         {
-            var videoPath = await SaveFileAsync(request.Video, "posts");
+            var (videoPath, videoCid) = await SaveFileAsync(request.Video, "posts");
             post.PostMedia.Add(new PostMedium
             {
                 Id = Guid.NewGuid(),
                 PostId = post.Id,
                 Type = "video",
                 Url = videoPath,
+                Cid = videoCid,
                 CreatedAt = DateTime.UtcNow
             });
         }
@@ -1147,13 +1149,14 @@ public class PostService : IPostService
 
             if (request.Video != null)
             {
-                var videoPath = await SaveFileAsync(request.Video, "posts");
+                var (videoPath, videoCid) = await SaveFileAsync(request.Video, "posts");
                 var videoMedia = new PostMedium
                 {
                     Id = Guid.NewGuid(),
                     PostId = post.Id,
                     Type = "video",
                     Url = videoPath,
+                    Cid = videoCid,
                     CreatedAt = DateTime.UtcNow
                 };
                 await _unitOfWork.PostMedia.AddAsync(videoMedia);
@@ -1184,13 +1187,14 @@ public class PostService : IPostService
                 {
                     var file = request.Images[i];
                     var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
-                    var imagePath = await SaveFileAsync(file, "posts");
+                    var (imagePath, imageCid) = await SaveFileAsync(file, "posts");
                     var imageMedia = new PostMedium
                     {
                         Id = Guid.NewGuid(),
                         PostId = post.Id,
                         Type = "image",
                         Url = imagePath,
+                        Cid = imageCid,
                         AltText = altText,
                         Position = currentMaxPos + 1 + i,
                         CreatedAt = DateTime.UtcNow
@@ -2745,8 +2749,13 @@ public class PostService : IPostService
         return Task.FromResult(isMentioned);
     }
 
-        public async Task<string> SaveBlobAsync(Stream stream, string contentType, string folder)
+        public async Task<(string path, string cid)> SaveBlobAsync(Stream stream, string contentType, string folder)
         {
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var data = ms.ToArray();
+            var cid = ProtocolUtils.GenerateCid(data, 0x55); // Use 'raw' multicodec for blobs
+
             var extension = contentType switch
             {
                 "image/jpeg" => ".jpg",
@@ -2759,18 +2768,18 @@ public class PostService : IPostService
             var uploadsRoot = Path.Combine(_environment.WebRootPath, "uploads", folder);
             if (!Directory.Exists(uploadsRoot)) Directory.CreateDirectory(uploadsRoot);
 
-            var fileName = $"{Guid.NewGuid()}{extension}";
+            var fileName = $"{cid}{extension}";
             var filePath = Path.Combine(uploadsRoot, fileName);
 
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            if (!File.Exists(filePath))
             {
-                await stream.CopyToAsync(fileStream);
+                await File.WriteAllBytesAsync(filePath, data);
             }
 
-            return $"/uploads/{folder}/{fileName}";
+            return ($"/uploads/{folder}/{fileName}", cid);
         }
 
-        private async Task<string> SaveFileAsync(IFormFile file, string folder)
+        private async Task<(string path, string cid)> SaveFileAsync(IFormFile file, string folder)
         {
             using var stream = file.OpenReadStream();
             return await SaveBlobAsync(stream, file.ContentType, folder);

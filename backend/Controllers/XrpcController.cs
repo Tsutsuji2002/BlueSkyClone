@@ -350,18 +350,15 @@ namespace BSkyClone.Controllers
                 var contentType = Request.ContentType ?? "application/octet-stream";
                 var stream = Request.Body;
 
-                var relativePath = await _postService.SaveBlobAsync(stream, contentType, "blobs");
+                var (relativePath, cid) = await _postService.SaveBlobAsync(stream, contentType, "blobs");
                 
-                // Calculate pseudo-CID (Real PDS would hash the content)
-                var pseudoCid = "bafkrei" + Guid.NewGuid().ToString("n"); 
-
                 var response = new UploadBlobResponse
                 {
                     Blob = new BlobData
                     {
                         MimeType = contentType,
                         Size = Request.ContentLength ?? 0,
-                        Ref = new BlobRef { Link = pseudoCid }
+                        Ref = new BlobRef { Link = cid }
                     }
                 };
 

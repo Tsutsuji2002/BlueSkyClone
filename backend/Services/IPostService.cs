@@ -29,6 +29,6 @@ public interface IPostService
     Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null);
     PostDto MapToDto(Post post);
     Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false);
-    Task<string> SaveBlobAsync(Stream stream, string contentType, string folder);
+    Task<(string path, string cid)> SaveBlobAsync(Stream stream, string contentType, string folder);
     public string GenerateTid();
 }

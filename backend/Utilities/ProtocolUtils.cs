@@ -9,6 +9,8 @@ namespace BSkyClone.Utilities
         private const string CidAlphabet = "abcdefghijklmnopqrstuvwxyz234567";
         private const string TidAlphabet = "234567abcdefghijklmnopqrstuvwxyz";
 
+        private static int _clockId = new Random().Next(0, 1024);
+
         /// <summary>
         /// Generates an AT Protocol compatible TID (Transaction ID).
         /// A TID is a 13-character base32-encoded string representing microseconds since Unix epoch.
@@ -21,17 +23,19 @@ namespace BSkyClone.Utilities
             // AT Protocol TID is 64-bit:
             // - Bit 63: 0
             // - Bits 62-10: 53-bit timestamp (microseconds)
-            // - Bits 9-0: 10-bit clock ID/random (we'll use 0 for simplicity)
-            long tidInt = now << 10;
+            // - Bits 9-0: 10-bit clock ID/random
+            // We increment clockId to help with uniqueness in same-microsecond bursts
+            _clockId = (_clockId + 1) % 1024;
+            long tidInt = (now << 10) | (long)(_clockId & 0x3FF);
             
             return EncodeTid(tidInt);
         }
 
         /// <summary>
         /// Generates a CIDv1 (Content Identifier) for the given data.
-        /// Simplified implementation for local compatibility.
+        /// Standard implementation: version 1, codec (dag-cbor=0x71, raw=0x55), sha2-256 (0x12)
         /// </summary>
-        public static string GenerateCid(byte[] data)
+        public static string GenerateCid(byte[] data, byte codec = 0x71)
         {
             using var sha256 = SHA256.Create();
             var hash = sha256.ComputeHash(data);
@@ -42,10 +46,10 @@ namespace BSkyClone.Utilities
             multihash[1] = 0x20; // 32 bytes
             Buffer.BlockCopy(hash, 0, multihash, 2, hash.Length);
 
-            // CIDv1 binary prefix for dag-cbor: 0x01 (version), 0x71 (dag-cbor)
+            // CIDv1 binary prefix: 0x01 (version), codec (0x71 for dag-cbor, 0x55 for raw)
             byte[] cidv1 = new byte[multihash.Length + 2];
             cidv1[0] = 0x01;
-            cidv1[1] = 0x71;
+            cidv1[1] = codec;
             Buffer.BlockCopy(multihash, 0, cidv1, 2, multihash.Length);
 
             return EncodeCid(cidv1);
