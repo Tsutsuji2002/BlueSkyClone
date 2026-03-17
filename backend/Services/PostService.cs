@@ -25,10 +25,11 @@ public class PostService : IPostService
     private readonly IRepoManager _repoManager;
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly ILabelingService _labelingService;
+    private readonly IUserService _userService;
     private readonly ILogger<PostService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -41,6 +42,7 @@ public class PostService : IPostService
         _repoManager = repoManager;
         _xrpcProxy = xrpcProxy;
         _labelingService = labelingService;
+        _userService = userService;
         _logger = logger;
         _scopeFactory = scopeFactory;
     }
@@ -368,6 +370,20 @@ public class PostService : IPostService
                     Like = likedPostUris.TryGetValue(post.Id, out var lUri) ? lUri : null,
                     Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : null
                 };
+
+                // Phase 35: On-demand profile resolution for stub authors
+                if (post.Author != null && post.Author.Did == post.Author.Handle)
+                {
+                    _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did!); } catch { } });
+                }
+                if (post.QuotePost?.Author != null && post.QuotePost.Author.Did == post.QuotePost.Author.Handle)
+                {
+                    _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.QuotePost.Author.Did!); } catch { } });
+                }
+                if (post.ParentPost?.Author != null && post.ParentPost.Author.Did == post.ParentPost.Author.Handle)
+                {
+                    _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.ParentPost.Author.Did!); } catch { } });
+                }
 
                 post.IsLiked = post.Viewer.Like != null;
                 post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
@@ -1729,45 +1745,39 @@ public class PostService : IPostService
 
             if (user != null)
             {
-                // Local post
-                var post = await GetPostByTidAsync(rkey, viewerId);
+                // Local post (or ingested remote)
+                var posts = await _unitOfWork.Posts.Query()
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .Include(p => p.Hashtags)
+                    .Include(p => p.Interests)
+                    .Where(p => p.AuthorId == user.Id && p.Tid == rkey)
+                    .ToListAsync();
+                
+                var post = posts.FirstOrDefault();
                 if (post == null) return null;
 
-                // Build local thread structure
+                // Sync resolution for single-thread view to avoid DID display
+                if (post.Author != null && post.Author.Did == post.Author.Handle)
+                {
+                    await _userService.ResolveRemoteProfileAsync(post.Author.Did!);
+                }
+
+                var postDto = MapToDto(post);
+                var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty);
+                postDto = enriched.First();
+
+                // Build thread structure
                 var thread = new
                 {
                     thread = new
                     {
-                        post = new
-                        {
-                            uri = post.Uri,
-                            cid = post.Cid,
-                            author = new
-                            {
-                                did = post.Author?.Did,
-                                handle = post.Author?.Handle,
-                                displayName = post.Author?.DisplayName,
-                                avatar = post.Author?.AvatarUrl,
-                            },
-                            record = new
-                            {
-                                text = post.Content,
-                                createdAt = post.CreatedAt?.ToString("o"),
-                                @type = "app.bsky.feed.post"
-                            },
-                            replyCount = post.RepliesCount,
-                            repostCount = post.RepostsCount,
-                            likeCount = post.LikesCount,
-                            indexedAt = post.CreatedAt?.ToString("o")
-                        },
-                        // In a real implementation, we would recursively fetch ancestors and replies
-                        // For now, we'll keep it simple as the frontend handles thread reconstruction from flat lists often
-                        // or expects a nested structure. Let's provide basic ancestors and replies.
+                        @type = "app.bsky.feed.defs#threadViewPost",
+                        post = postDto,
                         replies = (await GetPostRepliesAsync(post.Id, viewerId)).Select(r => new { post = r, @type = "app.bsky.feed.defs#threadViewPost" }),
-                        // Local parents
                         parent = post.ReplyToPostId.HasValue ? new { post = await GetPostByIdAsync(post.ReplyToPostId.Value, viewerId), @type = "app.bsky.feed.defs#threadViewPost" } : null
-                    },
-                    @type = "app.bsky.feed.defs#threadViewPost"
+                    }
                 };
 
                 return thread;
@@ -1928,6 +1938,28 @@ public class PostService : IPostService
                 await _unitOfWork.Users.AddAsync(author);
                 await _unitOfWork.CompleteAsync();
                 _logger.LogInformation("Firehose: Created stub user for remote DID {Did}", did);
+
+                // Phase 35: Proactively resolve profile
+                _ = Task.Run(async () => {
+                    try {
+                        using var scope = _scopeFactory.CreateScope();
+                        var backgroundUserService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        await backgroundUserService.ResolveRemoteProfileAsync(did);
+                    } catch (Exception ex) {
+                        _logger.LogWarning(ex, "Firehose: Failed to proactively resolve profile for {Did}", did);
+                    }
+                });
+            }
+            else if (author.Handle == author.Did) // Still a stub
+            {
+                // Periodically retry resolution or trigger if accessed
+                _ = Task.Run(async () => {
+                    try {
+                        using var scope = _scopeFactory.CreateScope();
+                        var backgroundUserService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        await backgroundUserService.ResolveRemoteProfileAsync(did);
+                    } catch { }
+                });
             }
 
             string? facetsJson = null;
@@ -1969,15 +2001,12 @@ public class PostService : IPostService
                         if (imgObj is Dictionary<string, object> img)
                         {
                             var alt = img.ContainsKey("alt") ? img["alt"].ToString() : "";
-                            // AT Protocol blobs in CBOR are complex, but for remote posts we care about the CID if we want to fetch them via proxy
-                            // For now, we'll store a mock URL that our proxy/UI can use to fetch the blob from a public PDS
                             if (img.TryGetValue("image", out var blobObj) && blobObj is Dictionary<string, object> blob)
                             {
-                                // blob["ref"] is usually a CID object or byte array depending on decoder
-                                // Our CborUtils.Decode might return a CID or a string
                                 string blobCid = "";
                                 if (blob.TryGetValue("ref", out var refObj)) {
-                                    if (refObj is byte[] bytes) blobCid = ProtocolUtils.Base32Encode(bytes); // Fallback for raw bytes
+                                    if (refObj is string s) blobCid = s;
+                                    else if (refObj is byte[] bytes) blobCid = ProtocolUtils.Base32Encode(bytes);
                                     else if (refObj is Dictionary<string, object> refDict && refDict.TryGetValue("$link", out var link)) blobCid = link.ToString() ?? "";
                                     else blobCid = refObj.ToString() ?? "";
                                 }
@@ -1989,7 +2018,8 @@ public class PostService : IPostService
                                         Id = Guid.NewGuid(),
                                         PostId = newPost.Id,
                                         Type = "image",
-                                        Url = $"https://cdn.bsky.app/img/feed_fullsize/plain/{did}/{blobCid}@jpeg", // Direct link to Bluesky CDN
+                                        Url = $"https://cdn.bsky.app/img/feed_fullsize/plain/{did}/{blobCid}@jpeg",
+                                        AltText = alt,
                                         Position = pos++,
                                         CreatedAt = DateTime.UtcNow
                                     });
@@ -2002,7 +2032,8 @@ public class PostService : IPostService
                 {
                     string videoCid = "";
                     if (videoBlob.TryGetValue("ref", out var refObj)) {
-                         if (refObj is Dictionary<string, object> refDict && refDict.TryGetValue("$link", out var link)) videoCid = link.ToString() ?? "";
+                         if (refObj is string s) videoCid = s;
+                         else if (refObj is Dictionary<string, object> refDict && refDict.TryGetValue("$link", out var link)) videoCid = link.ToString() ?? "";
                          else videoCid = refObj.ToString() ?? "";
                     }
 
@@ -2013,7 +2044,7 @@ public class PostService : IPostService
                             Id = Guid.NewGuid(),
                             PostId = newPost.Id,
                             Type = "video",
-                            Url = $"https://video.bsky.app/watch/{did}/{videoCid}/playlist.m3u8", // Approximation
+                            Url = $"https://video.bsky.app/watch/{did}/{videoCid}/playlist.m3u8",
                             CreatedAt = DateTime.UtcNow
                         });
                     }
@@ -2032,9 +2063,16 @@ public class PostService : IPostService
 
                     if (external.TryGetValue("thumb", out var thumbObj) && thumbObj is Dictionary<string, object> thumb)
                     {
-                        if (thumb.TryGetValue("ref", out var refObj) && refObj is Dictionary<string, object> refDict && refDict.TryGetValue("$link", out var link))
+                        string thumbCid = "";
+                        if (thumb.TryGetValue("ref", out var refObj)) {
+                            if (refObj is string s) thumbCid = s;
+                            else if (refObj is Dictionary<string, object> refDict && refDict.TryGetValue("$link", out var link)) thumbCid = link.ToString() ?? "";
+                            else thumbCid = refObj.ToString() ?? "";
+                        }
+
+                        if (!string.IsNullOrEmpty(thumbCid))
                         {
-                            lp.Image = $"https://cdn.bsky.app/img/feed_fullsize/plain/{did}/{link}@jpeg";
+                             lp.Image = $"https://cdn.bsky.app/img/feed_fullsize/plain/{did}/{thumbCid}@jpeg";
                         }
                     }
 
