@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, Component, ReactNode, ErrorInfo } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import PostCard from './PostCard';
@@ -6,19 +6,7 @@ import { Post } from '../../types';
 import { PostFeedSkeleton } from './PostSkeleton';
 import { FiBookmark } from 'react-icons/fi';
 import { detectLanguage } from '../../utils/languageDetector';
-
-// Per-post error boundary: catches crashes in a single PostCard without killing the whole feed
-class PostErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-    state = { failed: false };
-    static getDerivedStateFromError() { return { failed: true }; }
-    componentDidCatch(error: Error, info: ErrorInfo) {
-        console.error('[PostCard] render error (hidden from user):', error, info);
-    }
-    render() {
-        if (this.state.failed) return null; // silently hide the broken post
-        return this.props.children;
-    }
-}
+import { Virtuoso } from 'react-virtuoso';
 
 interface FeedProps {
     posts?: Post[]; // Optional prop to override Redux posts
@@ -41,7 +29,6 @@ const Feed: React.FC<FeedProps> = ({
     const reduxPosts = useAppSelector((state) => state.posts.posts);
     const reduxLoading = useAppSelector((state) => state.posts.isLoading);
     const contentLanguages = useAppSelector((state) => state.language.contentLanguages);
-    const observerTarget = useRef<HTMLDivElement>(null);
 
     const isLoading = propLoading !== undefined ? propLoading : reduxLoading;
 
@@ -70,38 +57,12 @@ const Feed: React.FC<FeedProps> = ({
             }
         });
 
-        // "also extra if no post of selected language are able in that feed, show all as normal."
         if (matchingPosts.length === 0) {
             return otherPosts;
         }
 
-        // "If too littie post of selected languages is available, show as much as able, 
-        // then show the rest as normal after them."
-        // Concatenating them ensures selected languages are at the top.
         return [...matchingPosts, ...otherPosts];
     }, [allPosts, contentLanguages]);
-
-    useEffect(() => {
-        if (!onLoadMore || !hasMore || isLoading) return;
-
-        let requested = false;
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (!requested && entries[0].isIntersecting) {
-                    requested = true;
-                    onLoadMore();
-                }
-            },
-            // Trigger earlier and more reliably than "100% visible"
-            { threshold: 0, rootMargin: '400px 0px' }
-        );
-
-        if (observerTarget.current) {
-            observer.observe(observerTarget.current);
-        }
-
-        return () => observer.disconnect();
-    }, [onLoadMore, hasMore, isLoading]);
 
     if (isLoading && posts.length === 0) {
         return <PostFeedSkeleton count={5} />;
@@ -124,41 +85,49 @@ const Feed: React.FC<FeedProps> = ({
     }
 
     return (
-        <div className="divide-y-0">
-            {posts.map((post) => (
-                <PostErrorBoundary key={post.uri || post.id}>
-                    <div className="relative z-10 bg-white dark:bg-dark-bg">
-                        {post.parentPost && (
-                            <PostCard
-                                post={post.parentPost}
-                                hasBottomLine={true}
-                                hideBorder={true}
-                            />
-                        )}
+        <Virtuoso
+            useWindowScroll
+            data={posts}
+            endReached={() => {
+                if (onLoadMore && hasMore && !isLoading) {
+                    onLoadMore();
+                }
+            }}
+            increaseViewportBy={400}
+            itemContent={(_index, post) => (
+                <div className="relative z-10 bg-white dark:bg-dark-bg">
+                    {post.parentPost && (
                         <PostCard
-                            post={post}
-                            hasTopLine={!!post.parentPost}
+                            post={post.parentPost}
+                            hasBottomLine={true}
+                            hideBorder={true}
                         />
+                    )}
+                    <PostCard
+                        post={post}
+                        hasTopLine={!!post.parentPost}
+                    />
+                </div>
+            )}
+            components={{
+                Footer: () => (
+                    <div className="h-20 flex items-center justify-center border-t border-gray-100 dark:border-dark-border/30">
+                        {isLoading && posts.length > 0 && (
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+                        )}
+                        {!isLoading && !hasMore && posts.length > 0 && (
+                            <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-dark-text-secondary select-none px-6 text-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
+                                    <span className="text-sm font-medium">{endMessage || t('feeds.end', 'End of feed')}</span>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                </PostErrorBoundary>
-            ))}
-
-            {/* Infinite Scroll Trigger */}
-            <div ref={observerTarget} className="h-20 flex items-center justify-center">
-                {isLoading && posts.length > 0 && (
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
-                )}
-                {!isLoading && !hasMore && posts.length > 0 && (
-                    <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-dark-text-secondary select-none px-6 text-center">
-                        <div className="flex items-center gap-3">
-                            <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
-                            <span className="text-sm font-medium">{endMessage || t('feeds.end', 'End of feed')}</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
+                )
+            }}
+        />
     );
 };
 

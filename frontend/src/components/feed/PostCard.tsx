@@ -57,7 +57,7 @@ interface PostCardProps {
     indentFactor?: number;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList, hasTopLine, hasBottomLine, hideBorder, indentFactor }) => {
+const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList, hasTopLine, hasBottomLine, hideBorder, indentFactor }) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
@@ -533,6 +533,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, isOwnPost: isOwnPostProp, isC
             </div >
         </div >
     );
-};
+});
 
 export default PostCard;

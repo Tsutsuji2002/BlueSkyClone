@@ -488,7 +488,8 @@ const postsSlice = createSlice({
             .addCase(fetchTimeline.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 state.timelineLoading = false;
-                if (!action.meta.arg.cursor) {
+                const { skip } = action.meta.arg;
+                if (skip === 0) {
                     state.posts = action.payload.posts;
                     state.lastTimelineFetch = Date.now();
                 } else {
@@ -530,8 +531,9 @@ const postsSlice = createSlice({
             .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 const { posts, userId, cursor, type } = action.payload;
+                const { offset } = action.meta.arg;
 
-                if (!action.meta.arg.cursor) {
+                if (offset === 0) {
                     state.posts = posts;
                     state.lastUserPostsFetch = Date.now();
                     state.lastUserPostsUserId = userId;
@@ -799,7 +801,8 @@ const postsSlice = createSlice({
             })
             .addCase(fetchPostsByTag.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                if (!action.meta.arg.cursor) {
+                const { offset } = action.meta.arg;
+                if (offset === 0) {
                     state.posts = action.payload.posts;
                 } else {
                     const existingUris = new Set(state.posts.map((p: Post) => p.uri));
@@ -821,7 +824,8 @@ const postsSlice = createSlice({
             })
             .addCase(fetchPostsSearch.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                if (!action.meta.arg.cursor) {
+                const { skip } = action.meta.arg;
+                if (skip === 0) {
                     state.posts = action.payload.posts;
                 } else {
                     const existingUris = new Set(state.posts.map((p: Post) => p.uri));
@@ -845,7 +849,8 @@ const postsSlice = createSlice({
             .addCase(fetchDiscoverPosts.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 state.discoverLoading = false;
-                if (!action.meta.arg?.cursor) {
+                const { skip } = action.meta.arg || { skip: 0 };
+                if (skip === 0) {
                     state.discoverPosts = action.payload.posts;
                     state.lastDiscoverFetch = Date.now();
                 } else {
