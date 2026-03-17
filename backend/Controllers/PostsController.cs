@@ -1,5 +1,6 @@
 using BSkyClone.DTOs;
 using BSkyClone.Services;
+using BSkyClone.UnitOfWork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,11 +13,13 @@ namespace BSkyClone.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly IPostService _postService;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<PostsController> _logger;
 
-    public PostsController(IPostService postService, ILogger<PostsController> logger)
+    public PostsController(IPostService postService, IUnitOfWork unitOfWork, ILogger<PostsController> logger)
     {
         _postService = postService;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 

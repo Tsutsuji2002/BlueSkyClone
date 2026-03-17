@@ -6,8 +6,10 @@ using BSkyClone.Lexicons.Com.Atproto.Server;
 using BSkyClone.Lexicons.Com.Atproto.Repo;
 using BSkyClone.Models;
 using BSkyClone.Services;
+using BSkyClone.UnitOfWork;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Security.Claims;
 
@@ -24,6 +26,7 @@ namespace BSkyClone.Controllers
         private readonly IUserService _userService;
         private readonly IRepoManager _repoManager;
         private readonly ILabelingService _labelingService;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<XrpcController> _logger;
 
         public XrpcController(
@@ -34,6 +37,7 @@ namespace BSkyClone.Controllers
             IUserService userService,
             IRepoManager repoManager,
             ILabelingService labelingService,
+            IUnitOfWork unitOfWork,
             ILogger<XrpcController> logger)
         {
             _authService = authService;
@@ -43,6 +47,7 @@ namespace BSkyClone.Controllers
             _userService = userService;
             _repoManager = repoManager;
             _labelingService = labelingService;
+            _unitOfWork = unitOfWork;
             _logger = logger;
         }
 
