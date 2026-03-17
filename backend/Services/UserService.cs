@@ -920,6 +920,10 @@ public class UserService : IUserService
                 if (root.TryGetProperty("avatar", out var avatarProp)) user.AvatarUrl = avatarProp.GetString();
                 if (root.TryGetProperty("banner", out var bannerProp)) user.CoverImageUrl = bannerProp.GetString();
                 if (root.TryGetProperty("description", out var bioProp)) user.Bio = bioProp.GetString();
+                // Persist remote counts — local DB won't have follow records for remote users
+                if (root.TryGetProperty("followersCount", out var followersProp)) user.FollowersCount = followersProp.GetInt32();
+                if (root.TryGetProperty("followsCount", out var followsProp)) user.FollowingCount = followsProp.GetInt32();
+                if (root.TryGetProperty("postsCount", out var postsProp)) user.PostsCount = postsProp.GetInt32();
 
                 _unitOfWork.Users.Update(user);
                 await _unitOfWork.CompleteAsync();

@@ -874,7 +874,8 @@ const postsSlice = createSlice({
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.discoverPosts = [...state.discoverPosts, ...newPosts];
                 }
-                state.discoverHasMore = action.payload.posts.length > 0;
+                const { take = 20 } = action.meta.arg || {};
+                state.discoverHasMore = action.payload.posts.length >= take;
             })
             .addCase(fetchDiscoverPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;

@@ -651,10 +651,27 @@ namespace BSkyClone.Controllers
                     if (resolved != null) user = resolved;
                 }
 
-                // Calculate counts dynamically for better accuracy, especially for remote/synced profiles
-                var followersCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowingId == user.Id);
-                var followsCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowerId == user.Id);
-                var postsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
+                // For remote users, local DB has no follow records, so use cached values from profile sync.
+                // For local users, use live DB aggregate counts for accuracy.
+                bool isRemoteUser = !string.IsNullOrEmpty(user.Did) && user.Did.StartsWith("did:");
+                int followersCount, followsCount, postsCount;
+                if (isRemoteUser)
+                {
+                    // Use cached counts from ResolveRemoteProfileAsync (sourced from bsky.app)
+                    // Fall back to DB count which may be partial if the user also has local follows
+                    var dbFollowersCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowingId == user.Id);
+                    var dbFollowsCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowerId == user.Id);
+                    var dbPostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
+                    followersCount = Math.Max(dbFollowersCount, user.FollowersCount ?? 0);
+                    followsCount = Math.Max(dbFollowsCount, user.FollowingCount ?? 0);
+                    postsCount = Math.Max(dbPostsCount, user.PostsCount ?? 0);
+                }
+                else
+                {
+                    followersCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowingId == user.Id);
+                    followsCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowerId == user.Id);
+                    postsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
+                }
 
                 var profile = new Lexicons.App.Bsky.Actor.Defs.ProfileViewDetailed
                 {

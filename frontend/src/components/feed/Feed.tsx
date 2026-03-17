@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import PostCard from './PostCard';
@@ -29,8 +29,17 @@ const Feed: React.FC<FeedProps> = ({
     const reduxPosts = useAppSelector((state) => state.posts.posts);
     const reduxLoading = useAppSelector((state) => state.posts.isLoading);
     const contentLanguages = useAppSelector((state) => state.language.contentLanguages);
+    // Guard to prevent multiple concurrent load-more calls before Redux state updates
+    const loadingMoreRef = useRef(false);
 
     const isLoading = propLoading !== undefined ? propLoading : reduxLoading;
+
+    // Reset guard when loading state changes back to false
+    useEffect(() => {
+        if (!isLoading) {
+            loadingMoreRef.current = false;
+        }
+    }, [isLoading]);
 
     // Use provided posts or fall back to Redux posts, and filter out soft-deleted posts
     const allPosts = propPosts !== undefined ? propPosts : reduxPosts;
@@ -89,11 +98,13 @@ const Feed: React.FC<FeedProps> = ({
             useWindowScroll
             data={posts}
             endReached={() => {
-                if (onLoadMore && hasMore && !isLoading) {
+                // Guard: don't trigger if already loading or a load-more is in flight
+                if (onLoadMore && hasMore && !isLoading && !loadingMoreRef.current) {
+                    loadingMoreRef.current = true;
                     onLoadMore();
                 }
             }}
-            increaseViewportBy={400}
+            increaseViewportBy={200}
             itemContent={(_index, post) => (
                 <div className="relative z-10 bg-white dark:bg-dark-bg">
                     {post.parentPost && (
