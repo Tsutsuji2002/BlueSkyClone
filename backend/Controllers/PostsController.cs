@@ -280,7 +280,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost("{id}/like")]
-    public async Task<IActionResult> LikePost(string id)
+    public async Task<IActionResult> LikePost(string id, [FromQuery] string? uri = null)
     {
         try
         {
@@ -288,9 +288,15 @@ public class PostsController : ControllerBase
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
             Guid postId;
-            if (!Guid.TryParse(id, out postId))
+            if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByTidAsync(id);
+                var post = await _postService.GetPostByUriAsync(uri ?? id, userId);
+                if (post == null) return NotFound("Remote post could not be resolved or ingested.");
+                postId = post.Id;
+            }
+            else if (!Guid.TryParse(id, out postId))
+            {
+                var post = await _postService.GetPostByTidAsync(id, userId);
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
@@ -305,7 +311,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost("{id}/bookmark")]
-    public async Task<IActionResult> BookmarkPost(string id)
+    public async Task<IActionResult> BookmarkPost(string id, [FromQuery] string? uri = null)
     {
         try
         {
@@ -313,9 +319,15 @@ public class PostsController : ControllerBase
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
             Guid postId;
-            if (!Guid.TryParse(id, out postId))
+            if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByTidAsync(id);
+                var post = await _postService.GetPostByUriAsync(uri ?? id, userId);
+                if (post == null) return NotFound("Remote post could not be resolved or ingested.");
+                postId = post.Id;
+            }
+            else if (!Guid.TryParse(id, out postId))
+            {
+                var post = await _postService.GetPostByTidAsync(id, userId);
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
@@ -330,7 +342,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost("{id}/repost")]
-    public async Task<IActionResult> RepostPost(string id)
+    public async Task<IActionResult> RepostPost(string id, [FromQuery] string? uri = null)
     {
         try
         {
@@ -338,9 +350,15 @@ public class PostsController : ControllerBase
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
             Guid postId;
-            if (!Guid.TryParse(id, out postId))
+            if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByTidAsync(id);
+                var post = await _postService.GetPostByUriAsync(uri ?? id, userId);
+                if (post == null) return NotFound("Remote post could not be resolved or ingested.");
+                postId = post.Id;
+            }
+            else if (!Guid.TryParse(id, out postId))
+            {
+                var post = await _postService.GetPostByTidAsync(id, userId);
                 if (post == null) return NotFound();
                 postId = post.Id;
             }

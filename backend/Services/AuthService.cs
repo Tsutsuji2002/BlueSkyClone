@@ -138,9 +138,6 @@ public class AuthService : IAuthService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
-        // Invalidate old refresh token (optional but recommended for security)
-        await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
-
         // Persist rememberMe status if it was encoded in the value
         bool rememberMe = userIdString.Contains("|") && bool.Parse(userIdString.Split('|')[1]);
 

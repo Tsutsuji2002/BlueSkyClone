@@ -163,9 +163,9 @@ export const toggleLike = createAsyncThunk(
     async ({ uri, cid, isLiked }: { uri: string; cid: string; isLiked: boolean }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            // Extract post ID from URI (at://did/app.bsky.feed.post/<id> or just a guid)
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/like`, {
+            const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/like${queryParam}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -184,7 +184,8 @@ export const repostPost = createAsyncThunk(
         try {
             const token = localStorage.getItem('token');
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost`, {
+            const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost${queryParam}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -361,7 +362,8 @@ export const toggleBookmark = createAsyncThunk(
         try {
             const token = localStorage.getItem('token');
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/bookmark`, {
+            const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/bookmark${queryParam}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

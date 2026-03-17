@@ -353,6 +353,35 @@ public class PostService : IPostService
                     continue;
                 }
 
+                // Phase 35: On-demand profile resolution for stub authors
+                // For small batches (typical for single post views or small threads), resolve synchronously
+                // to ensure the user sees full profile data immediately and has a valid local GUID for interactions.
+                bool shouldResolveSync = posts.Count <= 15;
+
+                if (post.Author != null && (post.Author.Did == post.Author.Handle || post.Author.Id == Guid.Empty))
+                {
+                    if (shouldResolveSync && !string.IsNullOrEmpty(post.Author.Did))
+                    {
+                        try 
+                        { 
+                            using var scope = _scopeFactory.CreateScope(); 
+                            var resolvedUser = await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did); 
+                            if (resolvedUser != null)
+                            {
+                                post.Author.Id = resolvedUser.Id;
+                                post.Author.Handle = resolvedUser.Handle;
+                                post.Author.DisplayName = resolvedUser.DisplayName;
+                                post.Author.AvatarUrl = resolvedUser.AvatarUrl;
+                            }
+                        } 
+                        catch { }
+                    }
+                    else if (!string.IsNullOrEmpty(post.Author.Did))
+                    {
+                        _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did!); } catch { } });
+                    }
+                }
+
                 if (post.Author != null)
                 {
                     post.Author.Viewer = new AuthorViewerDto
@@ -367,51 +396,35 @@ public class PostService : IPostService
 
                 post.Viewer = new PostViewerDto
                 {
-                    Like = likedPostUris.TryGetValue(post.Id, out var lUri) ? lUri : null,
-                    Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : null
+                    Like = likedPostUris.TryGetValue(post.Id, out var lUri) ? lUri : post.Viewer?.Like,
+                    Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : post.Viewer?.Repost
                 };
 
-                // Phase 35: On-demand profile resolution for stub authors
-                // For small batches (typical for single post views or small threads), resolve synchronously
-                // to ensure the user sees full profile data immediately.
-                bool shouldResolveSync = posts.Count <= 10;
-
-                if (post.Author != null && post.Author.Did == post.Author.Handle)
+                if (post.QuotePost?.Author != null && (post.QuotePost.Author.Did == post.QuotePost.Author.Handle || post.QuotePost.Author.Id == Guid.Empty))
                 {
-                    if (shouldResolveSync)
-                    {
-                        try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did!); } catch { }
-                    }
-                    else
-                    {
-                        _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did!); } catch { } });
-                    }
-                }
-                if (post.QuotePost?.Author != null && post.QuotePost.Author.Did == post.QuotePost.Author.Handle)
-                {
-                    if (shouldResolveSync)
+                    if (shouldResolveSync && !string.IsNullOrEmpty(post.QuotePost.Author.Did))
                     {
                         try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.QuotePost.Author.Did!); } catch { }
                     }
-                    else
+                    else if (!string.IsNullOrEmpty(post.QuotePost.Author.Did))
                     {
                         _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.QuotePost.Author.Did!); } catch { } });
                     }
                 }
-                if (post.ParentPost?.Author != null && post.ParentPost.Author.Did == post.ParentPost.Author.Handle)
+                if (post.ParentPost?.Author != null && (post.ParentPost.Author.Did == post.ParentPost.Author.Handle || post.ParentPost.Author.Id == Guid.Empty))
                 {
-                    if (shouldResolveSync)
+                    if (shouldResolveSync && !string.IsNullOrEmpty(post.ParentPost.Author.Did))
                     {
                         try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.ParentPost.Author.Did!); } catch { }
                     }
-                    else
+                    else if (!string.IsNullOrEmpty(post.ParentPost.Author.Did))
                     {
                         _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.ParentPost.Author.Did!); } catch { } });
                     }
                 }
 
                 post.IsLiked = post.Viewer.Like != null;
-                post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
+                post.IsBookmarked = post.Id != Guid.Empty && bookmarkedPostIds.Contains(post.Id);
                 post.IsReposted = post.Viewer.Repost != null;
 
                 // Calculate CanReply logic
@@ -1683,37 +1696,20 @@ public class PostService : IPostService
             var collection = parts[1];
             var rkey = parts[2];
 
-            // 1. Resolve DID/Handle to check if local
-            var user = await _unitOfWork.Users.Query()
-                .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
-
-            if (user != null)
+            // 1. Check local DB first
+            var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || (p.Tid == rkey && p.Author.Did == didOrHandle));
+            if (existing != null)
             {
-                // Local post
-                return await GetPostByTidAsync(rkey, viewerId);
+                return await GetPostByIdAsync(existing.Id, viewerId);
             }
 
-            // 2. Remote post - Proxy request
-            // We'll use app.bsky.feed.getPostThread if it's a post
+            // 2. Remote post - Ingest on-demand
             if (collection == "app.bsky.feed.post")
             {
-                var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+                var ingested = await IngestRemotePostAsync(uri);
+                if (ingested != null)
                 {
-                    { "uri", uri },
-                    { "depth", "0" }
-                };
-                var qCollection = new QueryCollection(qDict);
-
-                var proxyResult = await _xrpcProxy.ProxyRequestAsync(didOrHandle, "app.bsky.feed.getPostThread", qCollection);
-                
-                if (proxyResult.Success)
-                {
-                    // In a real AppView, we would parse this into a PostDto
-                    // For now, we'll return a minimal DTO representing the remote content
-                    var threadData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
-                    var postData = threadData.RootElement.GetProperty("thread").GetProperty("post");
-                    
-                    return MapRemotePostToDto(postData);
+                    return await GetPostByIdAsync(ingested.Id, viewerId);
                 }
             }
 
@@ -1722,6 +1718,71 @@ public class PostService : IPostService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error resolving AT-URI: {Uri}", uri);
+            return null;
+        }
+    }
+
+    private async Task<Post?> IngestRemotePostAsync(string uri)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(uri) || !uri.StartsWith("at://")) return null;
+
+            var parts = uri.Substring(5).Split('/');
+            if (parts.Length < 3) return null;
+
+            var didOrHandle = parts[0];
+            var rkey = parts[2];
+
+            // 1. Resolve author
+            var author = await _userService.ResolveRemoteProfileAsync(didOrHandle);
+            if (author == null) return null;
+
+            // 2. Fetch post thread (depth 0) to get record data
+            var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+            {
+                { "uri", uri },
+                { "depth", "0" }
+            };
+            var qCollection = new QueryCollection(qDict);
+
+            var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "app.bsky.feed.getPostThread", qCollection);
+            if (!proxyResult.Success) return null;
+
+            var threadData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
+            if (!threadData.RootElement.TryGetProperty("thread", out var thread) || 
+                !thread.TryGetProperty("post", out var postData)) return null;
+            
+            var cid = postData.GetProperty("cid").GetString();
+            var record = postData.GetProperty("record");
+
+            // Check if already exists (race condition)
+            var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
+            if (existing != null) return existing;
+
+            var newPost = new Post
+            {
+                Id = Guid.NewGuid(),
+                AuthorId = author.Id,
+                Content = record.GetProperty("text").GetString(),
+                CreatedAt = DateTime.Parse(record.GetProperty("createdAt").GetString() ?? DateTime.UtcNow.ToString()),
+                Uri = uri,
+                Cid = cid,
+                Tid = rkey,
+                LikesCount = postData.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+                RepostsCount = postData.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0,
+                RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0,
+                IsDeleted = false
+            };
+
+            await _unitOfWork.Posts.AddAsync(newPost);
+            await _unitOfWork.CompleteAsync();
+
+            return newPost;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error ingesting remote post: {Uri}", uri);
             return null;
         }
     }

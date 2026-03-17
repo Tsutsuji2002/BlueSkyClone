@@ -901,7 +901,20 @@ public class UserService : IUserService
     public async Task<User?> ResolveRemoteProfileAsync(string did)
     {
         var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
-        if (user == null) return null;
+        bool isNew = false;
+        
+        if (user == null)
+        {
+            user = new User
+            {
+                Id = Guid.NewGuid(),
+                Did = did,
+                CreatedAt = DateTime.UtcNow,
+                IsVerified = true,
+                Username = did.Length > 20 ? did.Substring(0, 20) : did // Fallback username
+            };
+            isNew = true;
+        }
 
         try
         {
@@ -925,22 +938,32 @@ public class UserService : IUserService
                 if (root.TryGetProperty("followsCount", out var followsProp)) user.FollowingCount = followsProp.GetInt32();
                 if (root.TryGetProperty("postsCount", out var postsProp)) user.PostsCount = postsProp.GetInt32();
 
-                _unitOfWork.Users.Update(user);
+                if (isNew)
+                {
+                    await _unitOfWork.Users.AddAsync(user);
+                }
+                else
+                {
+                    _unitOfWork.Users.Update(user);
+                }
+                
                 await _unitOfWork.CompleteAsync();
 
                 // Re-index in search
                 await _searchService.IndexUserAsync(user);
                 
-                Console.WriteLine($"[ResolveRemoteProfileAsync] Resolved DID {did} to handle {user.Handle}");
+                Console.WriteLine($"[ResolveRemoteProfileAsync] Resolved {(isNew ? "NEW " : "")}DID {did} to handle {user.Handle}");
             }
             else
             {
                 Console.WriteLine($"[ResolveRemoteProfileAsync] Failed to resolve DID {did}: {response.StatusCode}");
+                if (isNew) return null;
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[ResolveRemoteProfileAsync] Error resolving {did}: {ex.Message}");
+            if (isNew) return null;
         }
 
         return user;
