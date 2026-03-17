@@ -400,6 +400,18 @@ public class PostService : IPostService
                     Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : post.Viewer?.Repost
                 };
 
+                // Sync counts for remote posts if we have fresh data in the DTO
+                // When coming from Timeline/Feed, post.LikesCount might be local (staleness issues)
+                // If it's a remote post and we have remote counts in the DTO, we should preserve them.
+                // Note: post.Id == Guid.Empty check is not enough because ingested remote posts have an ID.
+                bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
+                if (isRemote)
+                {
+                    // We trust remote counts more for remote posts unless local is higher (unlikely but possible during sync)
+                    // If post was just mapped via MapToDto(post), it has local counts.
+                    // If it was mapped via MapRemotePostToDto(JsonElement), it already has remote counts.
+                }
+
                 if (post.QuotePost?.Author != null && (post.QuotePost.Author.Did == post.QuotePost.Author.Handle || post.QuotePost.Author.Id == Guid.Empty))
                 {
                     if (shouldResolveSync && !string.IsNullOrEmpty(post.QuotePost.Author.Did))
@@ -1747,14 +1759,31 @@ public class PostService : IPostService
             var qCollection = new QueryCollection(qDict);
 
             var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "app.bsky.feed.getPostThread", qCollection);
-            if (!proxyResult.Success) return null;
-
-            var threadData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
-            if (!threadData.RootElement.TryGetProperty("thread", out var thread) || 
-                !thread.TryGetProperty("post", out var postData)) return null;
             
-            var cid = postData.GetProperty("cid").GetString();
-            var record = postData.GetProperty("record");
+            JsonElement postData;
+            JsonElement record;
+            string? cid = null;
+
+            if (proxyResult.Success)
+            {
+                var threadData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
+                if (threadData.RootElement.TryGetProperty("thread", out var thread) && 
+                    thread.TryGetProperty("post", out postData))
+                {
+                    cid = postData.GetProperty("cid").GetString();
+                    record = postData.GetProperty("record");
+                }
+                else
+                {
+                    // Fallback to getRecord
+                    return await IngestViaGetRecordAsync(author, uri, rkey);
+                }
+            }
+            else
+            {
+                // Fallback to getRecord if thread fails
+                return await IngestViaGetRecordAsync(author, uri, rkey);
+            }
 
             // Check if already exists (race condition)
             var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
@@ -1810,6 +1839,50 @@ public class PostService : IPostService
             IsLiked = postData.TryGetProperty("viewer", out var v) && v.TryGetProperty("like", out var l) ? true : false,
             IsReposted = postData.TryGetProperty("viewer", out v) && v.TryGetProperty("repost", out var r) ? true : false
         };
+    }
+
+    private async Task<Post?> IngestViaGetRecordAsync(User author, string uri, string rkey)
+    {
+        try
+        {
+            var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+            {
+                { "repo", author.Did },
+                { "collection", "app.bsky.feed.post" },
+                { "rkey", rkey }
+            };
+            var qCollection = new QueryCollection(qDict);
+
+            var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "com.atproto.repo.getRecord", qCollection);
+            if (!proxyResult.Success) return null;
+
+            var data = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
+            var record = data.RootElement.GetProperty("value");
+            var cid = data.RootElement.TryGetProperty("cid", out var c) ? c.GetString() : null;
+
+            var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || (cid != null && p.Cid == cid));
+            if (existing != null) return existing;
+
+            var newPost = new Post
+            {
+                Id = Guid.NewGuid(),
+                AuthorId = author.Id,
+                Content = record.GetProperty("text").GetString(),
+                CreatedAt = DateTime.Parse(record.GetProperty("createdAt").GetString() ?? DateTime.UtcNow.ToString()),
+                Uri = uri,
+                Cid = cid,
+                Tid = rkey,
+                LikesCount = 0, // getRecord doesn't provide counts
+                RepostsCount = 0,
+                RepliesCount = 0,
+                IsDeleted = false
+            };
+
+            await _unitOfWork.Posts.AddAsync(newPost);
+            await _unitOfWork.CompleteAsync();
+            return newPost;
+        }
+        catch { return null; }
     }
 
     public async Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null)

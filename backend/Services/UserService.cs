@@ -22,10 +22,10 @@ public class UserService : IUserService
     private readonly ICacheService _cacheService;
     private readonly ISearchService _searchService;
     private readonly IFileService _fileService;
-    private readonly IRepoManager _repoManager;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDidResolver _didResolver;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager, IHttpClientFactory httpClientFactory)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager, IHttpClientFactory httpClientFactory, IDidResolver didResolver)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -35,6 +35,7 @@ public class UserService : IUserService
         _fileService = fileService;
         _repoManager = repoManager;
         _httpClientFactory = httpClientFactory;
+        _didResolver = didResolver;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
@@ -898,8 +899,19 @@ public class UserService : IUserService
         return success;
     }
 
-    public async Task<User?> ResolveRemoteProfileAsync(string did)
+    public async Task<User?> ResolveRemoteProfileAsync(string identifier)
     {
+        if (string.IsNullOrEmpty(identifier)) return null;
+
+        string did = identifier;
+        if (!identifier.StartsWith("did:"))
+        {
+            // Resolve handle to DID
+            var resolved = await _didResolver.ResolveHandleAsync(identifier);
+            if (resolved == null || string.IsNullOrEmpty(resolved.Did)) return null;
+            did = resolved.Did;
+        }
+
         var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
         bool isNew = false;
         

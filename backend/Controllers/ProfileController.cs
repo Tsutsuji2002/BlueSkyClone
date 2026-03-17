@@ -144,83 +144,113 @@ public class ProfileController : ControllerBase
         });
     }
 
-    [HttpPost("follow/{userId}")]
-    public async Task<IActionResult> Follow(Guid userId)
+    [HttpPost("follow/{userIdOrDid}")]
+    public async Task<IActionResult> Follow(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        var result = await _userService.FollowUserAsync(currentUserId, userId);
+        var targetUser = await ResolveUserAsync(userIdOrDid);
+        if (targetUser == null) return NotFound("User not found or could not be resolved");
+
+        var result = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
         if (!result) return BadRequest("Could not follow user");
 
-        var targetUser = await _userService.GetUserByIdAsync(userId);
+        // Re-fetch to get updated counters
+        targetUser = await _userService.GetUserByIdAsync(targetUser.Id);
         return Ok(new { 
             isFollowing = true, 
             followersCount = targetUser?.FollowersCount ?? 0 
         });
     }
 
-    [HttpPost("unfollow/{userId}")]
-    public async Task<IActionResult> Unfollow(Guid userId)
+    private async Task<User?> ResolveUserAsync(string identifier)
+    {
+        if (Guid.TryParse(identifier, out var guid))
+        {
+            return await _userService.GetUserByIdAsync(guid);
+        }
+        
+        // Try remote resolution or handle lookup
+        return await _userService.ResolveRemoteProfileAsync(identifier);
+    }
+
+    [HttpPost("unfollow/{userIdOrDid}")]
+    public async Task<IActionResult> Unfollow(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        await _userService.UnfollowUserAsync(currentUserId, userId);
+        var targetUser = await ResolveUserAsync(userIdOrDid);
+        if (targetUser == null) return NotFound("User not found");
 
-        var targetUser = await _userService.GetUserByIdAsync(userId);
+        await _userService.UnfollowUserAsync(currentUserId, targetUser.Id);
+
+        targetUser = await _userService.GetUserByIdAsync(targetUser.Id);
         return Ok(new { 
             isFollowing = false, 
             followersCount = targetUser?.FollowersCount ?? 0 
         });
     }
 
-    [HttpPost("block/{userId}")]
-    public async Task<IActionResult> Block(Guid userId)
+    [HttpPost("block/{userIdOrDid}")]
+    public async Task<IActionResult> Block(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        var result = await _userService.BlockUserAsync(currentUserId, userId);
+        var targetUser = await ResolveUserAsync(userIdOrDid);
+        if (targetUser == null) return NotFound("User not found");
+
+        var result = await _userService.BlockUserAsync(currentUserId, targetUser.Id);
         if (!result) return BadRequest("Could not block user");
 
         return Ok(new { isBlocking = true, isFollowing = false });
     }
 
-    [HttpPost("unblock/{userId}")]
-    public async Task<IActionResult> Unblock(Guid userId)
+    [HttpPost("unblock/{userIdOrDid}")]
+    public async Task<IActionResult> Unblock(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        await _userService.UnblockUserAsync(currentUserId, userId);
+        var targetUser = await ResolveUserAsync(userIdOrDid);
+        if (targetUser == null) return NotFound("User not found");
+
+        await _userService.UnblockUserAsync(currentUserId, targetUser.Id);
         return Ok(new { isBlocking = false });
     }
 
-    [HttpPost("mute/{userId}")]
-    public async Task<IActionResult> Mute(Guid userId)
+    [HttpPost("mute/{userIdOrDid}")]
+    public async Task<IActionResult> Mute(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        var result = await _userService.MuteUserAsync(currentUserId, userId);
+        var targetUser = await ResolveUserAsync(userIdOrDid);
+        if (targetUser == null) return NotFound("User not found");
+
+        var result = await _userService.MuteUserAsync(currentUserId, targetUser.Id);
         if (!result) return BadRequest("Could not mute user");
         return Ok(new { isMuted = true });
     }
 
-    [HttpPost("unmute/{userId}")]
-    public async Task<IActionResult> Unmute(Guid userId)
+    [HttpPost("unmute/{userIdOrDid}")]
+    public async Task<IActionResult> Unmute(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        await _userService.UnmuteUserAsync(currentUserId, userId);
+        var targetUser = await ResolveUserAsync(userIdOrDid);
+        if (targetUser == null) return NotFound("User not found");
+
+        await _userService.UnmuteUserAsync(currentUserId, targetUser.Id);
         return Ok(new { isMuted = false });
     }
 

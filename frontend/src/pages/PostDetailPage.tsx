@@ -44,7 +44,8 @@ import {
     FiTrash2,
     FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiShield,
     FiX, FiMessageSquare,
-    FiChevronDown
+    FiChevronDown,
+    FiFlag
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
@@ -323,13 +324,13 @@ const PostDetailPage: React.FC = () => {
     const moreDropdownItems: DropdownItem[] = [
         {
             id: 'translate',
-            label: t('post.translate'),
-            icon: <FiMessageSquare />,
+            label: t('post.translate', 'Translate'),
+            icon: <FiType />,
             onClick: () => handleTranslate(post.content),
         },
         {
             id: 'copy-text',
-            label: t('post.copy_text'),
+            label: t('post.copy_text', 'Copy post text'),
             icon: <FiClipboard />,
             onClick: () => handleCopyText(post.content),
         },
@@ -344,7 +345,7 @@ const PostDetailPage: React.FC = () => {
         {
             id: 'sort-replies-shortcut',
             label: t('post.sort_replies', 'Sort replies'),
-            icon: <FiChevronDown />,
+            icon: <FiSliders />,
             onClick: () => {
                 const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
                 const currentIndex = orders.indexOf(sortOrder as any);
@@ -355,14 +356,14 @@ const PostDetailPage: React.FC = () => {
         },
         {
             id: 'mute-thread',
-            label: t('post.mute_thread'),
+            label: t('post.mute_thread', 'Mute thread'),
             icon: <FiVolumeX />,
             onClick: () => { },
         },
         {
             id: 'report-post',
-            label: t('post.report_post'),
-            icon: <FiAlertTriangle />,
+            label: t('post.report_post', 'Report post'),
+            icon: <FiFlag />,
             danger: true,
             onClick: () => {
                 if (post.uri && post.cid) {
