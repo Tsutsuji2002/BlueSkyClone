@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import InterestsSection from '../components/feed/InterestsSection';
 import Feed from '../components/feed/Feed';
+import PostFeedSkeleton from '../components/feed/PostSkeleton';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -41,6 +42,8 @@ const HomePage: React.FC = () => {
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
     
     const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
+
+    const isInitialLoading = feedsLoading && subscribedFeeds.length === 0 && pinnedLists.length === 0;
 
     useEffect(() => {
         // Fetch feeds first
@@ -193,6 +196,28 @@ const HomePage: React.FC = () => {
     }, [tabs, activeTab, dispatch]);
 
     useDocumentTitle(t('nav.home'));
+
+    if (isInitialLoading) {
+        return (
+            <div className="min-h-screen">
+                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
+                    <div className="flex items-center justify-between px-4 h-12 w-full">
+                        <div className="w-10" />
+                        <div className="w-7 h-7 bg-gray-200 dark:bg-dark-surface rounded-full animate-pulse" />
+                        <div className="w-10" />
+                    </div>
+                    <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
+                        <div className="flex w-full gap-4 px-2 py-3">
+                            <div className="w-20 h-5 bg-gray-200 dark:bg-dark-surface rounded animate-pulse" />
+                            <div className="w-20 h-5 bg-gray-200 dark:bg-dark-surface rounded animate-pulse" />
+                            <div className="w-20 h-5 bg-gray-200 dark:bg-dark-surface rounded animate-pulse" />
+                        </div>
+                    </div>
+                </div>
+                <PostFeedSkeleton count={5} />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen">

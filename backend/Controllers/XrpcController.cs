@@ -633,6 +633,127 @@ namespace BSkyClone.Controllers
             return Ok();
         }
 
+        [AllowAnonymous]
+        [HttpGet("app.bsky.actor.getProfile")]
+        public async Task<IActionResult> GetProfile([FromQuery] string actor)
+        {
+            try
+            {
+                var viewerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(viewerIdStr, out var vid) ? vid : null;
+
+                User? user = null;
+                if (Guid.TryParse(actor, out var id))
+                    user = await _userService.GetUserByIdAsync(id);
+                else if (actor.StartsWith("did:"))
+                    user = await _userService.GetUserByDidAsync(actor);
+                else
+                    user = await _userService.GetUserByHandleAsync(actor);
+
+                if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
+
+                var profile = new Lexicons.App.Bsky.Actor.Defs.ProfileViewDetailed
+                {
+                    Did = user.Did ?? "",
+                    Handle = user.Handle,
+                    DisplayName = user.DisplayName,
+                    Description = user.Bio,
+                    Avatar = user.AvatarUrl,
+                    Banner = user.CoverImage,
+                    FollowersCount = user.FollowersCount ?? 0,
+                    FollowsCount = user.FollowingCount ?? 0,
+                    PostsCount = user.PostsCount ?? 0,
+                    IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
+                    Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState
+                    {
+                        Muted = viewerId.HasValue && await _userService.IsMutedAsync(viewerId.Value, user.Id),
+                        BlockedBy = viewerId.HasValue && await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
+                        Blocking = viewerId.HasValue ? (await _userService.IsBlockedAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.block/self" : null) : null,
+                        Following = viewerId.HasValue ? (await _userService.IsFollowingAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.follow/self" : null) : null
+                    }
+                };
+
+                return Ok(profile);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in getProfile XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("app.bsky.feed.getAuthorFeed")]
+        public async Task<IActionResult> GetAuthorFeed(
+            [FromQuery] string actor,
+            [FromQuery] int limit = 50,
+            [FromQuery] string? cursor = null,
+            [FromQuery] string? filter = null)
+        {
+            try
+            {
+                var viewerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(viewerIdStr, out var vid) ? vid : null;
+
+                User? user = null;
+                if (Guid.TryParse(actor, out var id))
+                    user = await _userService.GetUserByIdAsync(id);
+                else if (actor.StartsWith("did:"))
+                    user = await _userService.GetUserByDidAsync(actor);
+                else
+                    user = await _userService.GetUserByHandleAsync(actor);
+
+                if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
+
+                int skip = 0;
+                if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var skipVal)) skip = skipVal;
+
+                var posts = await _postService.GetUserPostsAsync(user.Id, filter, viewerId, limit, skip);
+                
+                var feed = posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
+                {
+                    Post = new Lexicons.App.Bsky.Feed.PostView
+                    {
+                        Uri = $"at://{p.Author?.Did ?? "unknown"}/app.bsky.feed.post/{p.Tid}",
+                        Cid = p.Cid ?? p.Id.ToString(),
+                        Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
+                        {
+                            Did = p.Author?.Did ?? "",
+                            Handle = p.Author?.Handle ?? "unknown",
+                            DisplayName = p.Author?.DisplayName,
+                            Avatar = p.Author?.AvatarUrl,
+                        },
+                        Record = new Dictionary<string, object>
+                        {
+                            { "text", p.Content ?? "" },
+                            { "createdAt", p.CreatedAt?.ToString("o") ?? "" },
+                            { "$type", "app.bsky.feed.post" }
+                        },
+                        ReplyCount = p.RepliesCount,
+                        RepostCount = p.RepostsCount,
+                        LikeCount = p.LikesCount,
+                        IndexedAt = p.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
+                        Viewer = new Lexicons.App.Bsky.Feed.ViewerState
+                        {
+                            Like = p.Viewer?.Like,
+                            Repost = p.Viewer?.Repost
+                        }
+                    }
+                }).ToList();
+
+                return Ok(new Lexicons.App.Bsky.Feed.GetAuthorFeedResponse
+                {
+                    Feed = feed,
+                    Cursor = (skip + limit).ToString()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in getAuthorFeed XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
         [HttpGet("{*lexicon}")]
         public IActionResult HandleLexiconGet(string lexicon)
         {

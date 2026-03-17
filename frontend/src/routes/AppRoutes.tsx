@@ -78,7 +78,11 @@ const AppRoutes: React.FC = () => {
     return (
         <LazyErrorBoundary>
             <Routes>
-                    <Route path="/" element={<MainLayout hideTopBar={true} />}>
+                    <Route path="/" element={
+                        <Suspense fallback={null}>
+                            <MainLayout hideTopBar={true} />
+                        </Suspense>
+                    }>
                         <Route index element={<HomePage />} />
                         <Route path="profile/:handle" element={<ProfilePage />} />
                         <Route path="profile/:handle/followers" element={<FollowersPage />} />
