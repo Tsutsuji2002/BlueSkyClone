@@ -21,7 +21,7 @@ namespace BSkyClone.Services
             _mst = mst;
         }
 
-        public async Task<string> CreateRecordAsync(string did, string collection, object record)
+        public async Task<string> CreateRecordAsync(string did, string collection, object record, string? rkey = null)
         {
             // Use deterministic DAG-CBOR for the record
             var data = CborUtils.Encode(record);
@@ -46,9 +46,12 @@ namespace BSkyClone.Services
             }
 
             // Update MST
-            // Key is collection/rkey. Since rkey is not passed, we'll try to find it in record or generate a TID
-            string rkey = ProtocolUtils.GenerateTid();
-            if (record is IDictionary<string, object> dict && dict.ContainsKey("$tid")) rkey = dict["$tid"].ToString();
+            // Key is collection/rkey.
+            if (string.IsNullOrEmpty(rkey))
+            {
+                rkey = ProtocolUtils.GenerateTid();
+                if (record is IDictionary<string, object> dict && dict.ContainsKey("$tid")) rkey = dict["$tid"].ToString() ?? rkey;
+            }
             
             string mstKey = $"{collection}/{rkey}";
             var newRoot = await _mst.UpdateRecordAsync(did, mstKey, cid);

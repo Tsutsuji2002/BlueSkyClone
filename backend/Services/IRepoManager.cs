@@ -5,7 +5,7 @@ namespace BSkyClone.Services
 {
     public interface IRepoManager
     {
-        Task<string> CreateRecordAsync(string did, string collection, object record);
+        Task<string> CreateRecordAsync(string did, string collection, object record, string? rkey = null);
         Task DeleteRecordAsync(string did, string collection, string rkey);
         Task<RepoBlock?> GetBlockAsync(string cid);
         Task<byte[]> GetRepoCheckoutAsync(string did);

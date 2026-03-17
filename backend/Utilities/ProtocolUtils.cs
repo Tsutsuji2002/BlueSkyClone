@@ -55,6 +55,8 @@ namespace BSkyClone.Utilities
             return EncodeCid(cidv1);
         }
 
+        public static string Base32Encode(byte[] data) => EncodeBase32Raw(data);
+
         private static string EncodeTid(long val)
         {
             char[] result = new char[13];

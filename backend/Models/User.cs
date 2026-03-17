@@ -48,6 +48,7 @@ public partial class User
     public int? PostsCount { get; set; }
 
     public DateTime? CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
     public DateTime? LastLoginAt { get; set; }
 

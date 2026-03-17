@@ -101,16 +101,6 @@ namespace BSkyClone.Controllers
                 // 1. Store in Repo Storage (Source of Truth)
                 var cid = await _repoManager.CreateRecordAsync(userDid ?? userHandle ?? userIdStr!, request.Collection, request.Record);
 
-                // 2. Sign the repository commitment (Phase 3)
-                try
-                {
-                    await _repoManager.SignRepoAsync(userDid ?? userHandle ?? userIdStr!, cid);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to sign repo commitment for {Repo}", request.Repo);
-                }
-
                 // 3. Indexing Layer (SQL)
                 if (request.Collection == "app.bsky.feed.post")
                 {
@@ -649,6 +639,13 @@ namespace BSkyClone.Controllers
 
                 if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
 
+                // Phase 35: Resolve remote stub users
+                if (!string.IsNullOrEmpty(user.Did) && user.Handle == user.Did)
+                {
+                    var resolved = await _userService.ResolveRemoteProfileAsync(user.Did);
+                    if (resolved != null) user = resolved;
+                }
+
                 var profile = new Lexicons.App.Bsky.Actor.Defs.ProfileViewDetailed
                 {
                     Did = user.Did ?? "",
@@ -748,6 +745,98 @@ namespace BSkyClone.Controllers
             {
                 _logger.LogError(ex, "Error in getAuthorFeed XRPC");
                 return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.repo.deleteRecord")]
+        public async Task<IActionResult> DeleteRecord([FromBody] DeleteRecordRequest request)
+        {
+            try
+            {
+                var userDid = User.FindFirst("did")?.Value;
+                var userHandle = User.FindFirst("handle")?.Value;
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+
+                bool isAuthorizedRepo = (!string.IsNullOrEmpty(userDid) && request.Repo == userDid) || 
+                                        (!string.IsNullOrEmpty(userHandle) && request.Repo == userHandle) || 
+                                        (!string.IsNullOrEmpty(userIdStr) && request.Repo == userIdStr);
+
+                if (string.IsNullOrEmpty(userIdStr) || !isAuthorizedRepo)
+                {
+                    return Unauthorized(new { error = "InvalidRepo", message = "You can only delete records in your own repo" });
+                }
+
+                if (!Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized(new { error = "AuthFailed" });
+
+                // Synchronize with SQL Application Layer
+                if (request.Collection == "app.bsky.feed.post")
+                {
+                    var post = await _postService.GetPostByTidAsync(request.Rkey);
+                    if (post != null)
+                    {
+                        // DeletePostAsync handles both SQL and Repo deletion
+                        await _postService.DeletePostAsync(userId, post.Id);
+                    }
+                    else
+                    {
+                        // If not in SQL, ensure it's removed from Repo at least
+                        await _repoManager.DeleteRecordAsync(userDid ?? userHandle ?? userIdStr!, request.Collection, request.Rkey);
+                    }
+                }
+                else
+                {
+                    // Generic repo deletion
+                    await _repoManager.DeleteRecordAsync(userDid ?? userHandle ?? userIdStr!, request.Collection, request.Rkey);
+                    
+                    // TODO: Handle specialized SQL deletion for Likes, Follows if needed
+                }
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in deleteRecord XRPC");
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.repo.putRecord")]
+        public async Task<IActionResult> PutRecord([FromBody] PutRecordRequest request)
+        {
+            try
+            {
+                var userDid = User.FindFirst("did")?.Value;
+                var userHandle = User.FindFirst("handle")?.Value;
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+
+                bool isAuthorizedRepo = (!string.IsNullOrEmpty(userDid) && request.Repo == userDid) || 
+                                        (!string.IsNullOrEmpty(userHandle) && request.Repo == userHandle) || 
+                                        (!string.IsNullOrEmpty(userIdStr) && request.Repo == userIdStr);
+
+                if (string.IsNullOrEmpty(userIdStr) || !isAuthorizedRepo)
+                {
+                    return Unauthorized(new { error = "InvalidRepo", message = "You can only put records in your own repo" });
+                }
+
+                // putRecord is "Update or Create". RepoManager.CreateRecordAsync with rkey handles this in the MST.
+                var cid = await _repoManager.CreateRecordAsync(userDid ?? userHandle ?? userIdStr!, request.Collection, request.Record, request.Rkey);
+
+                // TODO: For app.bsky.feed.post, synchronize with SQL (Update existing or Create new)
+                // For now, we support CreateRecord as the primary way of posting.
+
+                return Ok(new PutRecordResponse
+                {
+                    Uri = $"at://{userDid ?? userIdStr!}/{request.Collection}/{request.Rkey}",
+                    Cid = cid
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in putRecord XRPC");
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
             }
         }
 

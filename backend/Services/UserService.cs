@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 using DnsClient;
 using System.Net.Http;
+using System.Text.Json;
 
 namespace BSkyClone.Services;
 
@@ -22,8 +23,9 @@ public class UserService : IUserService
     private readonly ISearchService _searchService;
     private readonly IFileService _fileService;
     private readonly IRepoManager _repoManager;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager, IHttpClientFactory httpClientFactory)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -32,6 +34,7 @@ public class UserService : IUserService
         _searchService = searchService;
         _fileService = fileService;
         _repoManager = repoManager;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
@@ -445,7 +448,6 @@ public class UserService : IUserService
                 };
                 
                 var cid = await _repoManager.CreateRecordAsync(follower.Did, "app.bsky.graph.follow", followRecord);
-                await _repoManager.SignRepoAsync(follower.Did, cid);
 
                 follow.Cid = cid;
                 follow.Uri = $"at://{follower.Did}/app.bsky.graph.follow/{follow.Tid}";
@@ -894,5 +896,51 @@ public class UserService : IUserService
         }
 
         return success;
+    }
+
+    public async Task<User?> ResolveRemoteProfileAsync(string did)
+    {
+        var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+        if (user == null) return null;
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+            var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={did}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("handle", out var handleProp)) user.Handle = handleProp.GetString() ?? user.Handle;
+                if (root.TryGetProperty("displayName", out var nameProp)) user.DisplayName = nameProp.GetString();
+                if (root.TryGetProperty("avatar", out var avatarProp)) user.AvatarUrl = avatarProp.GetString();
+                if (root.TryGetProperty("banner", out var bannerProp)) user.CoverImageUrl = bannerProp.GetString();
+                if (root.TryGetProperty("description", out var bioProp)) user.Bio = bioProp.GetString();
+
+                user.UpdatedAt = DateTime.UtcNow;
+
+                _unitOfWork.Users.Update(user);
+                await _unitOfWork.CompleteAsync();
+
+                // Re-index in search
+                await _searchService.IndexUserAsync(user);
+                
+                Console.WriteLine($"[ResolveRemoteProfileAsync] Resolved DID {did} to handle {user.Handle}");
+            }
+            else
+            {
+                Console.WriteLine($"[ResolveRemoteProfileAsync] Failed to resolve DID {did}: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ResolveRemoteProfileAsync] Error resolving {did}: {ex.Message}");
+        }
+
+        return user;
     }
 }

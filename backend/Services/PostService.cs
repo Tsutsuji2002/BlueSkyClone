@@ -946,7 +946,6 @@ public class PostService : IPostService
                     postRecord["embed"] = embedRecord;
                 }
                 var cid = await _repoManager.CreateRecordAsync(authorUser.Did, "app.bsky.feed.post", postRecord);
-                await _repoManager.SignRepoAsync(authorUser.Did, cid);
                 
                 post.Cid = cid;
                 _unitOfWork.Posts.Update(post);
@@ -1957,6 +1956,94 @@ public class PostService : IPostService
             await _unitOfWork.Posts.AddAsync(newPost);
             await _unitOfWork.CompleteAsync();
 
+            // Phase 35: Parse Embeds (Media/Links)
+            if (record.TryGetValue("embed", out var embedObj) && embedObj is Dictionary<string, object> embed)
+            {
+                var type = embed.ContainsKey("$type") ? embed["$type"].ToString() : null;
+
+                if (type == "app.bsky.embed.images" && embed.TryGetValue("images", out var imagesList) && imagesList is List<object> images)
+                {
+                    int pos = 0;
+                    foreach (var imgObj in images)
+                    {
+                        if (imgObj is Dictionary<string, object> img)
+                        {
+                            var alt = img.ContainsKey("alt") ? img["alt"].ToString() : "";
+                            // AT Protocol blobs in CBOR are complex, but for remote posts we care about the CID if we want to fetch them via proxy
+                            // For now, we'll store a mock URL that our proxy/UI can use to fetch the blob from a public PDS
+                            if (img.TryGetValue("image", out var blobObj) && blobObj is Dictionary<string, object> blob)
+                            {
+                                // blob["ref"] is usually a CID object or byte array depending on decoder
+                                // Our CborUtils.Decode might return a CID or a string
+                                string blobCid = "";
+                                if (blob.TryGetValue("ref", out var refObj)) {
+                                    if (refObj is byte[] bytes) blobCid = ProtocolUtils.Base32Encode(bytes); // Fallback for raw bytes
+                                    else if (refObj is Dictionary<string, object> refDict && refDict.TryGetValue("$link", out var link)) blobCid = link.ToString() ?? "";
+                                    else blobCid = refObj.ToString() ?? "";
+                                }
+
+                                if (!string.IsNullOrEmpty(blobCid))
+                                {
+                                    await _unitOfWork.PostMedia.AddAsync(new PostMedium
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        PostId = newPost.Id,
+                                        Type = "image",
+                                        Url = $"https://cdn.bsky.app/img/feed_fullsize/plain/{did}/{blobCid}@jpeg", // Direct link to Bluesky CDN
+                                        Position = pos++,
+                                        CreatedAt = DateTime.UtcNow
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (type == "app.bsky.embed.video" && embed.TryGetValue("video", out var videoBlobObj) && videoBlobObj is Dictionary<string, object> videoBlob)
+                {
+                    string videoCid = "";
+                    if (videoBlob.TryGetValue("ref", out var refObj)) {
+                         if (refObj is Dictionary<string, object> refDict && refDict.TryGetValue("$link", out var link)) videoCid = link.ToString() ?? "";
+                         else videoCid = refObj.ToString() ?? "";
+                    }
+
+                    if (!string.IsNullOrEmpty(videoCid))
+                    {
+                        await _unitOfWork.PostMedia.AddAsync(new PostMedium
+                        {
+                            Id = Guid.NewGuid(),
+                            PostId = newPost.Id,
+                            Type = "video",
+                            Url = $"https://video.bsky.app/watch/{did}/{videoCid}/playlist.m3u8", // Approximation
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+                else if (type == "app.bsky.embed.external" && embed.TryGetValue("external", out var externalObj) && externalObj is Dictionary<string, object> external)
+                {
+                    var lp = new LinkPreview
+                    {
+                        Id = Guid.NewGuid(),
+                        PostId = newPost.Id,
+                        Url = external.ContainsKey("uri") ? external["uri"].ToString() ?? "" : "",
+                        Title = external.ContainsKey("title") ? external["title"].ToString() : null,
+                        Description = external.ContainsKey("description") ? external["description"].ToString() : null,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    if (external.TryGetValue("thumb", out var thumbObj) && thumbObj is Dictionary<string, object> thumb)
+                    {
+                        if (thumb.TryGetValue("ref", out var refObj) && refObj is Dictionary<string, object> refDict && refDict.TryGetValue("$link", out var link))
+                        {
+                            lp.Image = $"https://cdn.bsky.app/img/feed_fullsize/plain/{did}/{link}@jpeg";
+                        }
+                    }
+
+                    await _unitOfWork.LinkPreviews.AddAsync(lp);
+                }
+
+                await _unitOfWork.CompleteAsync();
+            }
+
             _logger.LogInformation("Firehose: Ingested remote post {Uri}", uri);
 
             // Real-time notification via SignalR
@@ -2152,7 +2239,6 @@ public class PostService : IPostService
                     };
                     
                     var cid = await _repoManager.CreateRecordAsync(liker.Did, "app.bsky.feed.like", likeRecord);
-                    await _repoManager.SignRepoAsync(liker.Did, cid);
                     
                     newLike.Cid = cid;
                     newLike.Uri = likeRecord["subject"] is Dictionary<string, object> subj && subj.TryGetValue("uri", out var u) ? u.ToString() : $"at://{liker.Did}/app.bsky.feed.like/{newLike.Tid}";
@@ -2400,7 +2486,6 @@ public class PostService : IPostService
                     };
                     
                     var cid = await _repoManager.CreateRecordAsync(reposter.Did, "app.bsky.feed.repost", repostRecord);
-                    await _repoManager.SignRepoAsync(reposter.Did, cid);
 
                     newRepost.Cid = cid;
                     newRepost.Uri = repostRecord["subject"] is Dictionary<string, object> subj && subj.TryGetValue("uri", out var u) ? u.ToString() : $"at://{reposter.Did}/app.bsky.feed.repost/{newRepost.Tid}";
