@@ -77,6 +77,24 @@ export const fetchMessages = createAsyncThunk(
     }
 );
 
+export const fetchChatLog = createAsyncThunk(
+    'messages/fetchChatLog',
+    async ({ conversationId, cursor }: { conversationId: string; cursor: string }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const url = `${API_URL}/chat/conversations/${conversationId}/log?cursor=${cursor}`;
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch chat log');
+            return data; // { cursor, logs: Message[] }
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
 export const startConversation = createAsyncThunk(
     'messages/startConversation',
     async (participantIds: string[], { rejectWithValue }) => {
@@ -243,6 +261,14 @@ const messagesSlice = createSlice({
                 const conv = state.conversations.find(c => c.id === action.payload);
                 if (conv) {
                     conv.unreadCount = 0;
+                }
+            })
+            .addCase(fetchChatLog.fulfilled, (state, action) => {
+                const { logs } = action.payload;
+                if (logs && logs.length > 0) {
+                    const existingIds = new Set(state.activeConversationMessages.map(m => m.id));
+                    const newMessages = logs.filter((m: Message) => !existingIds.has(m.id));
+                    state.activeConversationMessages = [...state.activeConversationMessages, ...newMessages];
                 }
             });
     }

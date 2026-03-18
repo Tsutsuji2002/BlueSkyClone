@@ -11,7 +11,7 @@ import { API_BASE_URL } from '../../constants';
 interface MediaGridProps {
     images?: PostImage[];
     imageUrls?: string[]; // From backend
-    media?: { url: string; altText?: string; type?: string }[]; // New backend media
+    media?: { url: string; altText?: string; type?: string; thumbnailUrl?: string }[]; // New backend media
     video?: PostVideo | null;
     videoUrl?: string; // From backend
     onImageClick?: (index: number) => void;
@@ -207,9 +207,14 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         return `${base}${path}`;
     };
 
-    // Route images through resize endpoint for feed views (smaller/faster)
-    const getOptimizedUrl = (originalRelativePath: string, resolvedUrl: string, isVideo: boolean) => {
-        if (isDetailView || isVideo) return resolvedUrl;
+    // Route images/videos through resize or use pre-generated thumbnails
+    const getOptimizedUrl = (originalRelativePath: string, resolvedUrl: string, isVideo: boolean, thumbnailUrl?: string) => {
+        if (isDetailView) return resolvedUrl;
+        
+        // If we have a pre-generated thumbnail from the backend, use it!
+        if (thumbnailUrl) return resolveUrl(thumbnailUrl);
+
+        if (isVideo) return resolvedUrl;
         // Only optimize local uploads
         if (!originalRelativePath.includes('/uploads/')) return resolvedUrl;
         const base = API_BASE_URL.replace(/\/$/, '');
@@ -235,8 +240,8 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                 const url = resolveUrl(m.url);
                 if (!addedUrls.has(url)) {
                     const isVideo = m.type === 'video' || isVideoUrl(url);
-                    const optimized = getOptimizedUrl(m.url, url, isVideo);
-                    list.push({ url: optimized, alt: m.altText, isVideo });
+                    const optimized = getOptimizedUrl(m.url, url, isVideo, m.thumbnailUrl);
+                    list.push({ url: optimized, alt: m.altText, isVideo, thumbnail: m.thumbnailUrl ? resolveUrl(m.thumbnailUrl) : undefined });
                     addedUrls.add(url);
                 }
             });

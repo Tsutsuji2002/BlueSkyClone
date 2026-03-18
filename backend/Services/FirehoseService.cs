@@ -167,6 +167,44 @@ namespace BSkyClone.Services
                             _logger.LogWarning("Firehose: Could not find block data for post CID {Cid}", cid);
                         }
                     }
+                    // Handle remote Like records targeting local posts
+                    else if (action == "create" && path != null && path.StartsWith("app.bsky.feed.like/") && cid != null)
+                    {
+                        var block = extractedBlocks.Find(b => b.Cid == cid);
+                        if (block.Data != null)
+                        {
+                            var record = CborUtils.Decode(block.Data) as Dictionary<string, object>;
+                            if (record != null && record.TryGetValue("subject", out var subjectObj) 
+                                && subjectObj is Dictionary<string, object> subject
+                                && subject.TryGetValue("uri", out var subjectUri))
+                            {
+                                await postService.IncrementRemoteInteractionAsync(subjectUri?.ToString(), "like", +1);
+                            }
+                        }
+                    }
+                    // Handle remote Repost records targeting local posts
+                    else if (action == "create" && path != null && path.StartsWith("app.bsky.graph.repost/") && cid != null)
+                    {
+                        var block = extractedBlocks.Find(b => b.Cid == cid);
+                        if (block.Data != null)
+                        {
+                            var record = CborUtils.Decode(block.Data) as Dictionary<string, object>;
+                            if (record != null && record.TryGetValue("subject", out var subjectObj) 
+                                && subjectObj is Dictionary<string, object> subject
+                                && subject.TryGetValue("uri", out var subjectUri))
+                            {
+                                await postService.IncrementRemoteInteractionAsync(subjectUri?.ToString(), "repost", +1);
+                            }
+                        }
+                    }
+                    // Handle deletions
+                    else if (action == "delete" && path != null)
+                    {
+                        if (path.StartsWith("app.bsky.feed.like/"))
+                            await postService.IncrementRemoteInteractionAsync(null, "like", -1, did, path);
+                        else if (path.StartsWith("app.bsky.graph.repost/"))
+                            await postService.IncrementRemoteInteractionAsync(null, "repost", -1, did, path);
+                    }
                 }
             }
         }

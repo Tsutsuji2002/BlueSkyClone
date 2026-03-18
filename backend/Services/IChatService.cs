@@ -18,4 +18,8 @@ public interface IChatService
     Task<IEnumerable<MessageDto>> ForwardMessageAsync(Guid userId, Guid messageId, List<Guid> targetConversationIds);
     Task MarkAsReadAsync(Guid userId, Guid conversationId);
     Task<List<Guid>> GetParticipantIdsAsync(Guid conversationId);
+    Task<ChatLogResult> GetLogAsync(Guid userId, Guid conversationId, string? cursor);
 }
+
+public record ChatLogResult(IEnumerable<MessageDto> Messages, string? Cursor);
+

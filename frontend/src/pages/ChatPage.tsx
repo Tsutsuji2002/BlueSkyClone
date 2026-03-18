@@ -5,7 +5,7 @@ import Avatar from '../components/common/Avatar';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { setActiveConversation, fetchMessages, fetchConversationById, markAsRead } from '../redux/slices/messagesSlice';
+import { setActiveConversation, fetchMessages, fetchConversationById, markAsRead, fetchChatLog } from '../redux/slices/messagesSlice';
 import { openImageViewer } from '../redux/slices/modalsSlice';
 import signalrService, { HubStatus } from '../services/signalrService';
 import EmojiPicker, { Theme as EmojiTheme, EmojiClickData } from 'emoji-picker-react';
@@ -209,6 +209,26 @@ const ChatPage: React.FC = () => {
             messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
         }
     }, [activeConversationMessages, conversationId]);
+
+    // Incremental Sync Polling - Mirroring BlueSky getLog (Feature 2)
+    // This acts as a reliable fallback for SignalR and ensures no messages are missed.
+    useEffect(() => {
+        if (!conversationId || !activeConversationMessages.length) return;
+
+        // Poll every 10 seconds if connected, or 5 seconds if disconnected
+        const intervalTime = hubStatus === HubStatus.Connected ? 10000 : 5000;
+        
+        const pollInterval = setInterval(() => {
+            const lastMessage = activeConversationMessages[activeConversationMessages.length - 1];
+            if (lastMessage) {
+                // Use Tid as cursor (primary) or Id as fallback
+                const cursor = lastMessage.tid || lastMessage.id;
+                dispatch(fetchChatLog({ conversationId, cursor }));
+            }
+        }, intervalTime);
+
+        return () => clearInterval(pollInterval);
+    }, [conversationId, activeConversationMessages, hubStatus, dispatch]);
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

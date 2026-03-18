@@ -29,6 +29,11 @@ public interface IPostService
     Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null);
     PostDto MapToDto(Post post);
     Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false);
-    Task<(string path, string cid)> SaveBlobAsync(Stream stream, string contentType, string folder);
+    Task<(string path, string cid, string? thumbnail)> SaveBlobAsync(Stream stream, string contentType, string folder);
     public string GenerateTid();
+    /// <summary>
+    /// Called by FirehoseService when a remote Like/Repost targeting a local post is detected.
+    /// Increments (or decrements) the appropriate count directly on the local post row.
+    /// </summary>
+    Task IncrementRemoteInteractionAsync(string? subjectUri, string type, int delta, string? actorDid = null, string? recordPath = null);
 }

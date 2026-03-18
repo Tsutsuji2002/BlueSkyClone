@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 
 namespace BSkyClone.Services;
 
@@ -663,7 +665,7 @@ public class PostService : IPostService
             {
                 var file = request.Images[i];
                 var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
-                var (imagePath, imageCid) = await SaveFileAsync(file, "posts");
+                var (imagePath, imageCid, thumbPath) = await SaveFileAsync(file, "posts");
                 post.PostMedia.Add(new PostMedium
                 {
                     Id = Guid.NewGuid(),
@@ -672,6 +674,7 @@ public class PostService : IPostService
                     Url = imagePath,
                     Cid = imageCid,
                     AltText = altText,
+                    ThumbnailUrl = thumbPath,
                     Position = i,
                     CreatedAt = DateTime.UtcNow
                 });
@@ -697,7 +700,7 @@ public class PostService : IPostService
 
         if (request.Video != null)
         {
-            var (videoPath, videoCid) = await SaveFileAsync(request.Video, "posts");
+            var (videoPath, videoCid, _) = await SaveFileAsync(request.Video, "posts");
             post.PostMedia.Add(new PostMedium
             {
                 Id = Guid.NewGuid(),
@@ -3381,7 +3384,7 @@ public class PostService : IPostService
         return Task.FromResult(isMentioned);
     }
 
-        public async Task<(string path, string cid)> SaveBlobAsync(Stream stream, string contentType, string folder)
+        public async Task<(string path, string cid, string? thumbnail)> SaveBlobAsync(Stream stream, string contentType, string folder)
         {
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
@@ -3408,10 +3411,16 @@ public class PostService : IPostService
                 await File.WriteAllBytesAsync(filePath, data);
             }
 
-            return ($"/uploads/{folder}/{fileName}", cid);
+            string? thumbnailPath = null;
+            if (contentType.StartsWith("image/"))
+            {
+                thumbnailPath = await GenerateThumbnailAsync(filePath);
+            }
+
+            return ($"/uploads/{folder}/{fileName}", cid, thumbnailPath);
         }
 
-        private async Task<(string path, string cid)> SaveFileAsync(IFormFile file, string folder)
+        private async Task<(string path, string cid, string? thumbnail)> SaveFileAsync(IFormFile file, string folder)
         {
             using var stream = file.OpenReadStream();
             return await SaveBlobAsync(stream, file.ContentType, folder);
@@ -3715,5 +3724,96 @@ public class PostService : IPostService
         }
 
         return facets.OrderBy(f => ((Dictionary<string, object>)f["index"])["byteStart"]).ToList();
+    }
+
+    /// <summary>
+    /// Called by FirehoseService when a remote Like/Repost of a local post is detected.
+    /// Only updates the count if the subject AT URI belongs to a local post (i.e., the post is in our DB).
+    /// Fire-and-forget safe: all exceptions are swallowed.
+    /// </summary>
+    public async Task IncrementRemoteInteractionAsync(string? subjectUri, string type, int delta,
+        string? actorDid = null, string? recordPath = null)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(subjectUri)) return;
+
+            // Only process URIs that reference local posts.
+            // Local posts have URIs like: at://<localDid>/app.bsky.feed.post/<tid>
+            var post = await _unitOfWork.Posts.Query()
+                .FirstOrDefaultAsync(p => p.Uri == subjectUri || 
+                                          (p.Tid != null && subjectUri.EndsWith("/" + p.Tid)));
+
+            if (post == null)
+            {
+                _logger.LogTrace("[Firehose] IncrementRemoteInteraction: No local post for URI {Uri}", subjectUri);
+                return;
+            }
+
+            if (type == "like")
+            {
+                post.LikesCount = Math.Max(0, (post.LikesCount ?? 0) + delta);
+            }
+            else if (type == "repost")
+            {
+                post.RepostsCount = Math.Max(0, (post.RepostsCount ?? 0) + delta);
+            }
+
+            _unitOfWork.Posts.Update(post);
+            await _unitOfWork.CompleteAsync();
+
+            _logger.LogInformation("[Firehose] Incremented {Type} by {Delta} for local post {PostId}", type, delta, post.Id);
+
+            // Broadcast the updated counts via SignalR for real-time UI sync
+            await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new
+            {
+                postId = post.Id,
+                uri = post.Uri,
+                likesCount = post.LikesCount,
+                repostsCount = post.RepostsCount,
+                bookmarksCount = post.BookmarksCount,
+                repliesCount = post.RepliesCount,
+                quotesCount = post.QuotesCount,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Firehose] IncrementRemoteInteractionAsync failed for URI {Uri}", subjectUri);
+        }
+    }
+
+    private async Task<string?> GenerateThumbnailAsync(string fullPath)
+    {
+        try
+        {
+            var fileName = Path.GetFileName(fullPath);
+            var folder = Path.GetFileName(Path.GetDirectoryName(fullPath));
+            
+            var thumbDirectory = Path.Combine(_environment.WebRootPath, "uploads", "thumbnails", folder);
+            if (!Directory.Exists(thumbDirectory)) Directory.CreateDirectory(thumbDirectory);
+
+            var thumbPath = Path.Combine(thumbDirectory, fileName);
+
+            if (!File.Exists(thumbPath))
+            {
+                using (var image = await Image.LoadAsync(fullPath))
+                {
+                    image.Mutate(x => x.Resize(new ResizeOptions
+                    {
+                        Size = new Size(400, 400),
+                        Mode = ResizeMode.Max
+                    }));
+                    await image.SaveAsync(thumbPath);
+                }
+            }
+
+            return $"/uploads/thumbnails/{folder}/{fileName}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating thumbnail for {FullPath}", fullPath);
+            return null;
+        }
     }
 }

@@ -80,7 +80,30 @@ public class ChatController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Incremental sync — mimics chat.bsky.convo.getLog.
+    /// Returns only messages after `cursor` (Tid of last known message).
+    /// </summary>
+    [HttpGet("conversations/{id}/log")]
+    public async Task<IActionResult> GetLog(string id, [FromQuery] string? cursor = null)
+    {
+        var userId = GetUserId();
+        if (!Guid.TryParse(id, out var convId))
+            return BadRequest(new { message = "Invalid conversation ID format." });
+
+        try
+        {
+            var result = await _chatService.GetLogAsync(userId, convId, cursor);
+            return Ok(new { cursor = result.Cursor, logs = result.Messages });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("conversations")]
+
     public async Task<IActionResult> GetOrCreateConversation([FromBody] CreateConversationRequest request)
     {
         var userId = GetUserId();

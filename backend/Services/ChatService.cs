@@ -433,6 +433,50 @@ public class ChatService : IChatService
         return conversation?.ConversationParticipants.Select(p => p.UserId).ToList() ?? new List<Guid>();
     }
 
+    public async Task<ChatLogResult> GetLogAsync(Guid userId, Guid conversationId, string? cursor)
+    {
+        // Validate access
+        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
+        if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
+        {
+            return new ChatLogResult(Enumerable.Empty<MessageDto>(), cursor);
+        }
+
+        var query = _unitOfWork.Messages.Query()
+            .Include(m => m.Sender)
+            .Include(m => m.LinkPreview)
+            .Include(m => m.Reactions).ThenInclude(r => r.User)
+            .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
+            .Where(m => m.ConversationId == conversationId && (m.IsDeleted == false || m.IsDeleted == null));
+
+        // If a cursor is provided, only fetch messages AFTER that cursor (the Tid of the last known message)
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            var cursorMsg = await _unitOfWork.Messages.Query()
+                .FirstOrDefaultAsync(m => m.Tid == cursor && m.ConversationId == conversationId);
+            if (cursorMsg?.CreatedAt != null)
+            {
+                var cursorTime = cursorMsg.CreatedAt.Value;
+                query = query.Where(m => m.CreatedAt > cursorTime);
+            }
+        }
+
+        var newMessages = await query
+            .OrderBy(m => m.CreatedAt)
+            .Take(50)
+            .ToListAsync();
+
+        if (!newMessages.Any())
+        {
+            return new ChatLogResult(Enumerable.Empty<MessageDto>(), cursor);
+        }
+
+        var dtos = newMessages.Select(MapToMessageDto).ToList();
+        // New cursor is the Tid of the last message returned
+        var newCursor = newMessages.Last().Tid ?? newMessages.Last().Id.ToString();
+        return new ChatLogResult(dtos, newCursor);
+    }
+
     private ConversationDto MapToConversationDto(Conversation c, Guid userId, int unreadCount)
     {
         var participants = c.ConversationParticipants.Select(p => MapToUserDto(p.User)).ToList();

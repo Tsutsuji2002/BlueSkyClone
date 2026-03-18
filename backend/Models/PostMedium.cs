@@ -16,6 +16,9 @@ public partial class PostMedium
 
     public string? AltText { get; set; }
 
+    /// <summary>Feed-quality thumbnail (max 400×400). Generated on upload.</summary>
+    public string? ThumbnailUrl { get; set; }
+
     public int? Position { get; set; }
 
     public bool? IsDeleted { get; set; }
