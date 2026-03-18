@@ -496,7 +496,6 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                     )}
                                 >
                                     <FiBookmark size={18} className={post.isBookmarked ? "fill-current" : ""} />
-                                    <span className="text-[13px]">{post.bookmarksCount}</span>
                                 </button>
 
                                 <div onClick={(e) => e.stopPropagation()}>

@@ -266,6 +266,53 @@ public class PostService : IPostService
 
             var postIds = posts.Select(p => p.Id).ToList();
 
+            // Batch fetch remote interactions from AppView
+            var remoteUris = posts.Where(p => !string.IsNullOrEmpty(p.Uri) && !p.Uri.Contains(_localDomain)).Select(p => p.Uri!).Distinct().ToList();
+            var remoteInteractionCache = new Dictionary<string, (int likes, int reposts, int replies, int quotes)>();
+            
+            if (remoteUris.Any())
+            {
+                try
+                {
+                    using var client = new HttpClient();
+                    // Split into chunks if there are too many (limit is 25)
+                    foreach (var chunk in remoteUris.Chunk(25))
+                    {
+                        var query = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+                        var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{query}");
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var json = await response.Content.ReadAsStringAsync();
+                            using var doc = JsonDocument.Parse(json);
+                            if (doc.RootElement.TryGetProperty("posts", out var remotePostsList))
+                            {
+                                foreach (var rp in remotePostsList.EnumerateArray())
+                                {
+                                    if (rp.TryGetProperty("uri", out var uriProp))
+                                    {
+                                        var uri = uriProp.GetString();
+                                        int likes = 0, reposts = 0, replies = 0, quotes = 0;
+                                        if (rp.TryGetProperty("likeCount", out var likeCount)) likes = likeCount.GetInt32();
+                                        if (rp.TryGetProperty("repostCount", out var repostCount)) reposts = repostCount.GetInt32();
+                                        if (rp.TryGetProperty("replyCount", out var replyCount)) replies = replyCount.GetInt32();
+                                        if (rp.TryGetProperty("quoteCount", out var quoteCount)) quotes = quoteCount.GetInt32();
+                                        
+                                        if (uri != null)
+                                        {
+                                            remoteInteractionCache[uri] = (likes, reposts, replies, quotes);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch remote counts for timeline posts");
+                }
+            }
+
             var usersFollowingViewerIds = new List<Guid>();
             try { usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync(); } catch { }
 
@@ -413,12 +460,20 @@ public class PostService : IPostService
                     var localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == post.Id);
                     var localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == post.Id);
 
-                    // We trust remote counts more for remote posts unless local is higher (unlikely but possible during sync)
-                    // If post was just mapped via MapToDto(post), it has local counts.
-                    // If it was mapped via MapRemotePostToDto(JsonElement), it already has remote counts.
-                    post.LikesCount = Math.Max(post.LikesCount, localLikes);
-                    post.RepostsCount = Math.Max(post.RepostsCount, localReposts);
-                    post.BookmarksCount = Math.Max(post.BookmarksCount, localBookmarks);
+                    if (post.Uri != null && remoteInteractionCache.TryGetValue(post.Uri, out var remoteCounts))
+                    {
+                        post.LikesCount = Math.Max(remoteCounts.likes, localLikes);
+                        post.RepostsCount = Math.Max(remoteCounts.reposts, localReposts);
+                        post.RepliesCount = remoteCounts.replies;
+                        post.QuotesCount = remoteCounts.quotes;
+                        post.BookmarksCount = localBookmarks;
+                    }
+                    else
+                    {
+                        post.LikesCount = Math.Max(post.LikesCount, localLikes);
+                        post.RepostsCount = Math.Max(post.RepostsCount, localReposts);
+                        post.BookmarksCount = Math.Max(post.BookmarksCount, localBookmarks);
+                    }
                 }
                 else 
                 {
