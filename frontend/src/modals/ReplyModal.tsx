@@ -232,7 +232,7 @@ const ReplyModal: React.FC = () => {
             const mediaFiles = imageFiles.length > 0 ? imageFiles : undefined;
             const videoFile = video?.file;
             const gifUrl = selectedGifUrl || undefined;
-            const replyToPostId = post.id;
+            const replyToPostId = post.uri || post.tid || post.id;
 
             await dispatch(createPost({
                 content,

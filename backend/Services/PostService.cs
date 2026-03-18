@@ -639,24 +639,42 @@ public class PostService : IPostService
             var uriStr = author != null ? $"at://{author.Did}/app.bsky.feed.post/{tid}" : null;
 
             Guid? replyToPostId = Guid.TryParse(request.ReplyToPostId, out var rpid) ? rpid : null;
+            if (replyToPostId == Guid.Empty) replyToPostId = null;
             if (replyToPostId == null && !string.IsNullOrEmpty(request.ReplyToPostId))
             {
                  var rp = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Tid == request.ReplyToPostId || p.Uri == request.ReplyToPostId);
                  if (rp != null) replyToPostId = rp.Id;
+                 else if (request.ReplyToPostId.StartsWith("at://"))
+                 {
+                     var ingested = await IngestRemotePostAsync(request.ReplyToPostId);
+                     if (ingested != null) replyToPostId = ingested.Id;
+                 }
             }
 
             Guid? rootPostId = Guid.TryParse(request.RootPostId, out var rootid) ? rootid : null;
+            if (rootPostId == Guid.Empty) rootPostId = null;
             if (rootPostId == null && !string.IsNullOrEmpty(request.RootPostId))
             {
                  var rp = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Tid == request.RootPostId || p.Uri == request.RootPostId);
                  if (rp != null) rootPostId = rp.Id;
+                 else if (request.RootPostId.StartsWith("at://"))
+                 {
+                     var ingested = await IngestRemotePostAsync(request.RootPostId);
+                     if (ingested != null) rootPostId = ingested.Id;
+                 }
             }
 
             Guid? quotePostId = Guid.TryParse(request.QuotePostId, out var qid) ? qid : null;
+            if (quotePostId == Guid.Empty) quotePostId = null;
             if (quotePostId == null && !string.IsNullOrEmpty(request.QuotePostId))
             {
                  var qp = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Tid == request.QuotePostId || p.Uri == request.QuotePostId);
                  if (qp != null) quotePostId = qp.Id;
+                 else if (request.QuotePostId.StartsWith("at://"))
+                 {
+                     var ingested = await IngestRemotePostAsync(request.QuotePostId);
+                     if (ingested != null) quotePostId = ingested.Id;
+                 }
             }
 
             var post = new Post
@@ -1181,8 +1199,16 @@ public class PostService : IPostService
             await SendNotificationAsync(quoteNotification.Id);
         }
 
-        // Invalidate timeline cache for the author
+        // Invalidate ALL user post-type caches so replies/posts/media tabs refresh
         await _cacheService.RemoveAsync($"user:{userId}:timeline");
+        await _cacheService.RemoveAsync($"user:{userId}:posts:posts:0:20:v2");
+        await _cacheService.RemoveAsync($"user:{userId}:posts:posts:0:30:v2");
+        await _cacheService.RemoveAsync($"user:{userId}:posts:replies:0:20:v2");
+        await _cacheService.RemoveAsync($"user:{userId}:posts:replies:0:30:v2");
+        await _cacheService.RemoveAsync($"user:{userId}:posts:media:0:20:v2");
+        await _cacheService.RemoveAsync($"user:{userId}:posts:media:0:30:v2");
+        await _cacheService.RemoveAsync($"user:{userId}:posts:likes:0:20:v2");
+        await _cacheService.RemoveAsync($"user:{userId}:posts:likes:0:30:v2");
 
         // Refresh to get Author and Media, and Reply info for the DTO
         var savedPost = await _unitOfWork.Posts.Query()
