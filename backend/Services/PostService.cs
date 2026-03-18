@@ -3221,7 +3221,23 @@ public class PostService : IPostService
         return postDtos;
     }
 
-    public PostDto MapToDto(Post post) => MapToDto(post, true, true);
+    public PostDto MapToDto(Post post)
+    {
+        try
+        {
+            if (post == null)
+            {
+                File.AppendAllText("C:\\tmp\\post_service_debug.log", "[MapToDto] ERROR: Post object is null!\n");
+                return new PostDto();
+            }
+            return MapToDto(post, true, true);
+        }
+        catch (Exception ex)
+        {
+            File.AppendAllText("C:\\tmp\\post_service_debug.log", $"[MapToDto] ERROR mapping Post {post?.Id}: {ex.Message}\n{ex.StackTrace}\n");
+            throw; // Re-throw so the caller catches and logs it as well
+        }
+    }
 
     private PostDto MapToDto(Post post, bool includeQuote, bool includeParent)
     {
@@ -3252,6 +3268,7 @@ public class PostService : IPostService
                 Url = m.Url,
                 AltText = m.AltText,
                 Type = m.Type,
+                ThumbnailUrl = m.ThumbnailUrl,
                 Cid = m.Cid
             }).ToList(),
             VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,

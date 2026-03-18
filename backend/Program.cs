@@ -689,6 +689,12 @@ using (var scope = app.Services.CreateScope())
                     PRINT 'Created PostMedia table';
                 END
 
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.PostMedia') OR object_id = OBJECT_ID('PostMedia')) AND name = 'ThumbnailUrl')
+                BEGIN
+                    ALTER TABLE dbo.PostMedia ADD ThumbnailUrl NVARCHAR(MAX) NULL;
+                    PRINT 'Added ThumbnailUrl to PostMedia';
+                END
+
                 -- LinkPreviews Table
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='LinkPreviews' AND xtype='U')
                 BEGIN
