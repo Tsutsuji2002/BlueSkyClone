@@ -206,10 +206,10 @@ public class PostService : IPostService
             var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}:v2";
             var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
             
-            if (cached != null && cached.Count > 0)
+            if (cached != null)
             {
                 // Enrich with viewer-specific interactions (not cached)
-                if (viewerId.HasValue)
+                if (viewerId.HasValue && cached.Count > 0)
                 {
                     cached = await EnrichAndFilterPostsAsync(cached, viewerId.Value);
                 }
@@ -245,10 +245,13 @@ public class PostService : IPostService
                 return dto;
             }).ToList();
             
-            // Cache for 1 minute
-            await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(1));
+            // Only cache when there are results - don't cache empty arrays so new posts appear promptly
+            if (postDtos.Count > 0)
+            {
+                await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(1));
+            }
             
-            if (viewerId.HasValue)
+            if (viewerId.HasValue && postDtos.Count > 0)
             {
                 postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
             }

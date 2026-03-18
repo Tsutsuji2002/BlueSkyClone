@@ -91,8 +91,8 @@ const ProfilePage: React.FC = () => {
                     lastUserPostsUserId === profileUser.id && 
                     lastUserPostsType === activeTab;
 
-                // Only fetch if stale, different user/type, OR completely empty (initial load)
-                if (!matchesCurrent || isStale || (reduxPosts.length === 0 && !lastUserPostsFetch)) {
+                // Always fetch if: different user/tab, stale, or no posts currently shown
+                if (!matchesCurrent || isStale || reduxPosts.length === 0) {
                     if (!matchesCurrent) {
                         dispatch(clearPosts());
                     }
