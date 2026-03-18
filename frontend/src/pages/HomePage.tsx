@@ -58,48 +58,51 @@ const HomePage: React.FC = () => {
         lastTab.current = activeTab;
     }, [dispatch]);
 
-    // Restore scroll position only on back/forward (POP)
+    // Unified Scroll Preservation Logic
     useEffect(() => {
-        if (!activeTab || navType !== 'POP') return;
-        // Already restored scroll for this tab session — don't re-run on load-more
-        if (hasRestoredScroll.current[activeTab]) return;
+        if (!activeTab) return;
 
         const hasPosts = (
             (activeTab.startsWith('list:') && activeListFeed.length > 0) ||
             (!activeTab.startsWith('list:') && feedPosts[activeTab]?.length > 0)
         );
-        if (!hasPosts) return;
 
-        const scrollKey = `home_scroll_${activeTab}`;
-        const savedScroll = sessionStorage.getItem(scrollKey);
-        if (savedScroll) {
-            hasRestoredScroll.current[activeTab] = true;
-            setTimeout(() => {
-                window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'auto' });
-            }, 50);
-        } else {
-            hasRestoredScroll.current[activeTab] = true;
+        // When switching tabs or when posts initially load for the current tab
+        if (lastTab.current !== activeTab || (hasPosts && !hasRestoredScroll.current[activeTab])) {
+            const isTabSwitch = lastTab.current !== activeTab;
+            
+            if (isTabSwitch) {
+                const oldTab = lastTab.current;
+                if (oldTab) {
+                    sessionStorage.setItem(`home_scroll_${oldTab}`, window.scrollY.toString());
+                }
+                lastTab.current = activeTab;
+            }
+
+            if (hasPosts) {
+                const scrollKey = `home_scroll_${activeTab}`;
+                const savedScroll = sessionStorage.getItem(scrollKey);
+                if (savedScroll) {
+                    hasRestoredScroll.current[activeTab] = true;
+                    // Small timeout to ensure DOM has updated visibility
+                    setTimeout(() => {
+                        window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'auto' });
+                    }, 50);
+                } else if (isTabSwitch) {
+                    hasRestoredScroll.current[activeTab] = true;
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                }
+            }
         }
-    }, [activeTab, feedPosts, activeListFeed.length]);
 
-    // Reset restore flag when user switches tabs, and save scroll position
-    useEffect(() => {
-        if (!activeTab) return;
-        // When switching to a new tab, allow scroll restoration for that tab
-        if (lastTab.current !== activeTab) {
-            // Don't reset hasRestored — we handle this by tab key in the ref object above
-            lastTab.current = activeTab;
-            // Reset scroll for the new tab so restoration runs again
-            hasRestoredScroll.current[activeTab] = false;
-        }
-
-        const scrollKey = `home_scroll_${activeTab}`;
         const handleScroll = () => {
-            sessionStorage.setItem(scrollKey, window.scrollY.toString());
+            if (activeTab === lastTab.current) {
+                sessionStorage.setItem(`home_scroll_${activeTab}`, window.scrollY.toString());
+            }
         };
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [activeTab]);
+    }, [activeTab, feedPosts, activeListFeed.length]);
 
     const handleTabChange = (tabId: string) => {
         dispatch(setActiveTab(tabId));
