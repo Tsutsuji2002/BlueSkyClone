@@ -1291,7 +1291,7 @@ public class PostService : IPostService
 
             if (request.Video != null)
             {
-                var (videoPath, videoCid) = await SaveFileAsync(request.Video, "posts");
+                var (videoPath, videoCid, _) = await SaveFileAsync(request.Video, "posts");
                 var videoMedia = new PostMedium
                 {
                     Id = Guid.NewGuid(),
@@ -1329,7 +1329,7 @@ public class PostService : IPostService
                 {
                     var file = request.Images[i];
                     var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
-                    var (imagePath, imageCid) = await SaveFileAsync(file, "posts");
+                    var (imagePath, imageCid, thumbPath) = await SaveFileAsync(file, "posts");
                     var imageMedia = new PostMedium
                     {
                         Id = Guid.NewGuid(),
@@ -1338,6 +1338,7 @@ public class PostService : IPostService
                         Url = imagePath,
                         Cid = imageCid,
                         AltText = altText,
+                        ThumbnailUrl = thumbPath,
                         Position = currentMaxPos + 1 + i,
                         CreatedAt = DateTime.UtcNow
                     };

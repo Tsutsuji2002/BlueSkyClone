@@ -345,7 +345,7 @@ namespace BSkyClone.Controllers
                 var contentType = Request.ContentType ?? "application/octet-stream";
                 var stream = Request.Body;
 
-                var (relativePath, cid) = await _postService.SaveBlobAsync(stream, contentType, "blobs");
+                var (relativePath, cid, _) = await _postService.SaveBlobAsync(stream, contentType, "blobs");
                 
                 var response = new UploadBlobResponse
                 {
