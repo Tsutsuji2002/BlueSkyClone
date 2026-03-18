@@ -147,6 +147,9 @@ public class PostService : IPostService
                 .Take(take)
                 .ToListAsync();
             
+            var logPath = "C:\\tmp\\post_service_debug.log";
+            File.AppendAllText(logPath, $"[GetTimelineAsync] User={userId}, Query returned {posts.Count} posts.\n");
+            
             System.Console.WriteLine($"[PostService] GetTimelineAsync: Fetched {posts.Count} posts for User {userId}. CacheKey: {cacheKey}");
             System.Console.WriteLine($"[PostService] GetTimelineAsync: followedUserIds Count: {followedUserIds.Count}, mutedUserIds Count: {mutedUserIds.Count}, blockedUserIds Count: {blockedUserIds.Count}, blockedByUserIds Count: {blockedByUserIds.Count}");
             
@@ -262,9 +265,17 @@ public class PostService : IPostService
 
     public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
     {
+        var logPath = "C:\\tmp\\post_service_debug.log";
         try
         {
-            if (!posts.Any()) return posts;
+            if (!Directory.Exists("C:\\tmp")) Directory.CreateDirectory("C:\\tmp");
+            File.AppendAllText(logPath, $"[EnrichAndFilterPostsAsync] Start: Count={posts.Count}, Viewer={viewerId}, IsTimeline={isTimeline}, Time={DateTime.Now}\n");
+            
+            if (!posts.Any()) 
+            {
+                File.AppendAllText(logPath, "[EnrichAndFilterPostsAsync] No posts provided. Returning.\n");
+                return posts;
+            }
 
             var postIds = posts.Select(p => p.Id).ToList();
 
@@ -393,6 +404,7 @@ public class PostService : IPostService
                     blockedUserIds.Contains(post.Author.Id) || 
                     blockedByUserIds.Contains(post.Author.Id))
                 {
+                    File.AppendAllText(logPath, $"[EnrichAndFilterPostsAsync] Filtered out Post {post.Id}. Deleted: {post.IsDeleted}, AuthorNull: {post.Author == null}, Muted/Blocked: true\n");
                     _logger.LogWarning("[PostService] EnrichAndFilterPostsAsync: Filtering out Post {PostId} - Deleted: {IsDeleted}, AuthorNull: {AuthorNull}, Muted: {Muted}, Blocked: {Blocked}", 
                         post.Id, post.IsDeleted, post.Author == null, 
                         post.Author != null && mutedUserIds.Contains(post.Author.Id), 
@@ -584,11 +596,13 @@ public class PostService : IPostService
                 filteredPosts.Add(post);
             }
 
+            File.AppendAllText(logPath, $"[EnrichAndFilterPostsAsync] End: Filtered Count={filteredPosts.Count}\n");
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Output Count={OutputCount}", filteredPosts.Count);
             return filteredPosts;
         }
         catch (Exception ex)
         {
+            File.AppendAllText(logPath, $"[EnrichAndFilterPostsAsync] ERROR: {ex.Message}\n{ex.StackTrace}\n");
             System.Console.WriteLine($"[PostService] EnrichAndFilterPostsAsync Error: {ex.Message}");
             return posts; // Return unenriched posts as fallback to prevent 500
         }
