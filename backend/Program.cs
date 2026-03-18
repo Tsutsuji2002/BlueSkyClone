@@ -998,6 +998,12 @@ using (var scope = app.Services.CreateScope())
                 IF COL_LENGTH('dbo.PostMedia', 'Cid') IS NULL
                 BEGIN
                     ALTER TABLE dbo.PostMedia ADD Cid NVARCHAR(100) NULL;
+                END
+
+                -- BlockedAccounts Metadata
+                IF COL_LENGTH('dbo.BlockedAccounts', 'Uri') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.BlockedAccounts ADD Uri NVARCHAR(200) NULL;
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied/Harden Block 8 - AT Protocol Metadata Schema Repair (including FacetsJson).");

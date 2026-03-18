@@ -52,17 +52,16 @@ public class ProfileController : ControllerBase
 
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
-            // Check if viewer is blocked by the user
             isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
-            if (isBlockedBy)
-            {
-                // If blocked, user essentially behaves as if not found or restricted
-            }
-
             isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
             isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
             isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
         }
+
+        var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 
+            ? await _userService.GetFollowAsync(cid1, user.Id) : null;
+        var block = (Guid.TryParse(currentUserIdString, out var cid2) && isBlocking)
+            ? await _userService.GetBlockAsync(cid2, user.Id) : null;
 
         var userDto = new UserDto(
             user.Id,
@@ -82,8 +81,16 @@ public class ProfileController : ControllerBase
             user.Role,
             null,
             user.IsVerified,
-            user.Did
-        );
+            user.Did,
+            follow?.Uri
+        )
+        {
+            IsFollowing = isFollowing,
+            IsBlocking = isBlocking,
+            IsBlockedBy = isBlockedBy,
+            IsMuted = isMuted,
+            BlockingReference = block?.Uri
+        };
 
         return Ok(new { 
             user = userDto,
@@ -102,10 +109,6 @@ public class ProfileController : ControllerBase
 
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         bool isFollowing = false;
-        bool isBlockedBy = false;
-        bool isBlocking = false;
-        bool isMuted = false;
-
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
             isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
@@ -113,6 +116,11 @@ public class ProfileController : ControllerBase
             isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
             isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
         }
+
+        var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 
+            ? await _userService.GetFollowAsync(cid1, user.Id) : null;
+        var block = (Guid.TryParse(currentUserIdString, out var cid2) && isBlocking)
+            ? await _userService.GetBlockAsync(cid2, user.Id) : null;
 
         var userDto = new UserDto(
             user.Id,
@@ -132,8 +140,16 @@ public class ProfileController : ControllerBase
             user.Role,
             null,
             user.IsVerified,
-            user.Did
-        );
+            user.Did,
+            follow?.Uri
+        )
+        {
+            IsFollowing = isFollowing,
+            IsBlocking = isBlocking,
+            IsBlockedBy = isBlockedBy,
+            IsMuted = isMuted,
+            BlockingReference = block?.Uri
+        };
 
         return Ok(new { 
             user = userDto,
@@ -356,12 +372,20 @@ public class ProfileController : ControllerBase
 
         if (viewerId.HasValue && viewerId != user.Id)
         {
+            var isFollowing = await _userService.IsFollowingAsync(viewerId.Value, user.Id);
+            var isBlocking = await _userService.IsBlockedAsync(viewerId.Value, user.Id);
+            
+            var follow = isFollowing ? await _userService.GetFollowAsync(viewerId.Value, user.Id) : null;
+            var block = isBlocking ? await _userService.GetBlockAsync(viewerId.Value, user.Id) : null;
+
             return dto with
             {
-                IsFollowing = await _userService.IsFollowingAsync(viewerId.Value, user.Id),
-                IsBlocking = await _userService.IsBlockedAsync(viewerId.Value, user.Id),
+                IsFollowing = isFollowing,
+                IsBlocking = isBlocking,
                 IsBlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
-                IsMuted = await _userService.IsMutedAsync(viewerId.Value, user.Id)
+                IsMuted = await _userService.IsMutedAsync(viewerId.Value, user.Id),
+                FollowingReference = follow?.Uri,
+                BlockingReference = block?.Uri
             };
         }
         

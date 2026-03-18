@@ -565,6 +565,11 @@ public class UserService : IUserService
         return await _unitOfWork.Follows.IsFollowingAsync(followerId, followingId);
     }
 
+    public async Task<UserFollow?> GetFollowAsync(Guid followerId, Guid followingId)
+    {
+        return await _unitOfWork.Follows.GetAsync(followerId, followingId);
+    }
+
     public async Task<List<User>> GetFollowersAsync(Guid userId)
     {
         var follows = await _unitOfWork.Follows.GetFollowersAsync(userId);
@@ -600,25 +605,58 @@ public class UserService : IUserService
     public async Task<bool> BlockUserAsync(Guid userId, Guid blockedUserId)
     {
         if (userId == blockedUserId) return false;
+        
+        var existing = await _unitOfWork.Blocks.GetAsync(userId, blockedUserId);
+        
+        if (existing != null) return true;
 
-        // Check if already blocked
-        if (await _unitOfWork.Blocks.IsBlockedAsync(userId, blockedUserId)) return true;
+        var blocker = await _unitOfWork.Users.GetByIdAsync(userId);
+        var blocked = await _unitOfWork.Users.GetByIdAsync(blockedUserId);
 
-        // Create Block
+        if (blocker == null || blocked == null) return false;
+
         var block = new BlockedAccount
         {
             UserId = userId,
             BlockedUserId = blockedUserId,
             CreatedAt = DateTime.UtcNow
         };
-        await _unitOfWork.Blocks.AddAsync(block);
 
-        // Remove mutual follows
+        // --- Phase 4: Repo Signing for Blocks ---
+        try
+        {
+            if (!string.IsNullOrEmpty(blocker.Did) && !string.IsNullOrEmpty(blocked.Did))
+            {
+                var tid = ProtocolUtils.GenerateTid();
+                var blockRecord = new Dictionary<string, object>
+                {
+                    { "$type", "app.bsky.graph.block" },
+                    { "subject", blocked.Did },
+                    { "createdAt", block.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                };
+
+                var cid = await _repoManager.CreateRecordAsync(blocker.Did, "app.bsky.graph.block", blockRecord);
+                block.Uri = $"at://{blocker.Did}/app.bsky.graph.block/{tid}";
+            }
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"[BlockUserAsync] Repo Signing Error: {ex.Message}");
+        }
+
+        await _unitOfWork.Blocks.AddAsync(block);
+        
+        // Also unfollow if following
         await UnfollowUserAsync(userId, blockedUserId);
         await UnfollowUserAsync(blockedUserId, userId);
 
         await _unitOfWork.CompleteAsync();
         return true;
+    }
+
+    public async Task<BlockedAccount?> GetBlockAsync(Guid userId, Guid blockedUserId)
+    {
+        return await _unitOfWork.Blocks.GetAsync(userId, blockedUserId);
     }
 
 

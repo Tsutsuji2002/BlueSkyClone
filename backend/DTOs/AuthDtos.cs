@@ -36,7 +36,8 @@ public record UserDto(
     string Role = "user",
     int? ListMembershipStatus = null,
     bool IsVerified = false,
-    string? Did = null
+    string? Did = null,
+    string? FollowingReference = null
 )
 {
     [JsonPropertyName("isFollowing")]
@@ -47,6 +48,9 @@ public record UserDto(
     
     [JsonPropertyName("isBlocking")]
     public bool? IsBlocking { get; init; }
+    
+    [JsonPropertyName("blockingReference")]
+    public string? BlockingReference { get; init; }
     
     [JsonPropertyName("isMuted")]
     public bool? IsMuted { get; init; }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -10,6 +10,7 @@ public partial class BlockedAccount
     public Guid BlockedUserId { get; set; }
 
     public DateTime? CreatedAt { get; set; }
+    public string? Uri { get; set; }
 
     public virtual User BlockedUser { get; set; } = null!;
 

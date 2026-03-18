@@ -15,6 +15,7 @@ public interface IUserService
     Task<bool> FollowUserAsync(Guid followerId, Guid followingId);
     Task<bool> UnfollowUserAsync(Guid followerId, Guid followingId);
     Task<bool> IsFollowingAsync(Guid followerId, Guid followingId);
+    Task<UserFollow?> GetFollowAsync(Guid followerId, Guid followingId);
     Task<List<User>> GetFollowersAsync(Guid userId);
     Task<List<User>> GetFollowingAsync(Guid userId);
 
@@ -22,6 +23,7 @@ public interface IUserService
     Task<bool> UnblockUserAsync(Guid userId, Guid blockedUserId);
     Task<bool> IsBlockedAsync(Guid userId, Guid potentialBlockedUserId); // Did userId block potential?
     Task<bool> IsBlockedByAsync(Guid userId, Guid potentialBlockerId); // Did potential block userId?
+    Task<BlockedAccount?> GetBlockAsync(Guid userId, Guid blockedUserId);
 
     Task<bool> MuteUserAsync(Guid userId, Guid mutedUserId);
     Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId);

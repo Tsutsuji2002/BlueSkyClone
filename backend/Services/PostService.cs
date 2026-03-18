@@ -451,6 +451,7 @@ public class PostService : IPostService
                         Following = followingUris.TryGetValue(post.Author.Id, out var fUri) ? fUri : null
                     };
                     post.Author.IsFollowing = post.Author.Viewer.Following != null;
+                    post.Author.FollowingReference = post.Author.Viewer.Following;
                 }
 
                 post.Viewer = new PostViewerDto
@@ -637,6 +638,10 @@ public class PostService : IPostService
             var tid = GenerateTid();
             var uriStr = author != null ? $"at://{author.Did}/app.bsky.feed.post/{tid}" : null;
 
+            Guid? replyToPostId = Guid.TryParse(request.ReplyToPostId, out var rpid) ? rpid : null;
+            Guid? rootPostId = Guid.TryParse(request.RootPostId, out var rootid) ? rootid : null;
+            Guid? quotePostId = Guid.TryParse(request.QuotePostId, out var qid) ? qid : null;
+
             var post = new Post
             {
                 Id = Guid.NewGuid(),
@@ -645,9 +650,9 @@ public class PostService : IPostService
                 AuthorId = userId,
                 Content = request.Content,
                 CreatedAt = DateTime.UtcNow,
-                ReplyToPostId = request.ReplyToPostId,
-                RootPostId = request.RootPostId,
-                QuotePostId = request.QuotePostId,
+                ReplyToPostId = replyToPostId,
+                RootPostId = rootPostId,
+                QuotePostId = quotePostId,
                 LikesCount = 0,
                 RepostsCount = 0,
                 RepliesCount = 0,

@@ -130,9 +130,9 @@ public class CreatePostRequest
     public List<IFormFile>? Images { get; set; }
     public List<string>? AltTexts { get; set; }
     public IFormFile? Video { get; set; }
-    public Guid? ReplyToPostId { get; set; }
-    public Guid? RootPostId { get; set; }
-    public Guid? QuotePostId { get; set; }
+    public string? ReplyToPostId { get; set; }
+    public string? RootPostId { get; set; }
+    public string? QuotePostId { get; set; }
     public List<Guid>? ExistingMediaIdsToKeep { get; set; }
 
     // Direct URLs for XRPC/AT Protocol compatibility where media is already uploaded as blobs
