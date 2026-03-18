@@ -276,12 +276,12 @@ export const fetchFeedPosts = createAsyncThunk<
     async ({ feedId, skip, take }: { feedId: string; skip: number; take: number }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/feeds/${feedId}/posts?skip=${skip}&take=${take}`, {
+            const response = await fetch(`${API_BASE_URL}/unified-feed?feedId=${feedId}&skip=${skip}&take=${take}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
-            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch feed posts');
-            return { feedId, posts: data, isMore: data.length === take };
+            if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
+            return { feedId: data.feedId, posts: data.posts, isMore: data.hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

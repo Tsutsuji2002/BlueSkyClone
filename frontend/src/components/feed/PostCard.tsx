@@ -444,9 +444,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                     <Dropdown
                                         trigger={
                                             <button
-                                                disabled={!!actionLoading[post.uri!]}
                                                 className={cn(
-                                                    "flex items-center gap-2 group transition-colors disabled:opacity-50",
+                                                    "flex items-center gap-2 group transition-colors",
                                                     post.isReposted ? "text-green-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-green-500"
                                                 )}
                                             >
@@ -477,9 +476,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                         e.stopPropagation();
                                         dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked }));
                                     }}
-                                    disabled={!!actionLoading[post.uri!]}
                                     className={cn(
-                                        "flex items-center gap-2 group transition-colors disabled:opacity-50",
+                                        "flex items-center gap-2 group transition-colors",
                                         post.isLiked ? "text-red-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-red-500"
                                     )}
                                 >
@@ -492,9 +490,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                         e.stopPropagation();
                                         dispatch(toggleBookmark({ uri: post.uri!, isBookmarked: !!post.isBookmarked }));
                                     }}
-                                    disabled={!!actionLoading[post.uri!]}
                                     className={cn(
-                                        "flex items-center gap-2 group transition-colors disabled:opacity-50",
+                                        "flex items-center gap-2 group transition-colors",
                                         post.isBookmarked ? "text-yellow-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-yellow-500"
                                     )}
                                 >

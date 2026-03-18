@@ -7,7 +7,7 @@ import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts } from '../redux/slices/feedsSlice';
-import { fetchTimeline, fetchTrendingPosts, fetchDiscoverPosts } from '../redux/slices/postsSlice';
+
 import { fetchPinnedLists, fetchListFeed } from '../redux/slices/listsSlice';
 import { RootState } from '../redux/store';
 import { useNavigate, useNavigationType } from 'react-router-dom';
@@ -27,21 +27,10 @@ const HomePage: React.FC = () => {
     const lastTab = React.useRef<string>('');
     const hasRestoredScroll = React.useRef<Record<string, boolean>>({});
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
-    const {
-        posts: followingPosts,
-        discoverPosts,
-        timelineLoading,
-        discoverLoading,
-        hasMore: timelineHasMore,
-        discoverHasMore,
-        lastTimelineFetch,
-        lastDiscoverFetch
-    } = useAppSelector((state: RootState) => state.posts);
+
     
     // Lists state
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
-    
-    const trendingPosts = useAppSelector((state: RootState) => state.posts.trendingPosts);
 
     const isInitialLoading = feedsLoading && subscribedFeeds.length === 0 && pinnedLists.length === 0;
 
@@ -53,21 +42,11 @@ const HomePage: React.FC = () => {
         const now = Date.now();
 
         // Initial fetch based on persisted activeTab - ONLY if empty or stale
-        if (activeTab === 'following') {
-            const isStale = (now - lastTimelineFetch) > RELOAD_TIMEOUT;
-            if (followingPosts.length === 0 || isStale) {
-                dispatch(fetchTimeline({ skip: 0 }));
-            }
-        } else if (activeTab === 'discover') {
-            const isStale = (now - lastDiscoverFetch) > RELOAD_TIMEOUT;
-            if (discoverPosts.length === 0 || isStale) {
-                dispatch(fetchDiscoverPosts({ skip: 0 }));
-            }
-        } else if (activeTab.startsWith('list:')) {
+        if (activeTab.startsWith('list:')) {
             const listId = activeTab.replace('list:', '');
             dispatch(fetchListFeed({ id: listId, skip: 0 }));
         } else {
-            // Check if it's a custom feed
+            // Check if it's a custom feed, home, or discover
             const lastFetch = feedLastFetch[activeTab] || 0;
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             const currentFeedPosts = feedPosts[activeTab] || [];
@@ -86,10 +65,8 @@ const HomePage: React.FC = () => {
         if (hasRestoredScroll.current[activeTab]) return;
 
         const hasPosts = (
-            (activeTab === 'following' && followingPosts.length > 0) ||
-            (activeTab === 'discover' && discoverPosts.length > 0) ||
             (activeTab.startsWith('list:') && activeListFeed.length > 0) ||
-            (!['following', 'discover'].includes(activeTab) && !activeTab.startsWith('list:'))
+            (!activeTab.startsWith('list:') && feedPosts[activeTab]?.length > 0)
         );
         if (!hasPosts) return;
 
@@ -103,7 +80,7 @@ const HomePage: React.FC = () => {
         } else {
             hasRestoredScroll.current[activeTab] = true;
         }
-    }, [activeTab, followingPosts.length, discoverPosts.length, activeListFeed.length]);
+    }, [activeTab, feedPosts, activeListFeed.length]);
 
     // Reset restore flag when user switches tabs, and save scroll position
     useEffect(() => {
@@ -128,17 +105,7 @@ const HomePage: React.FC = () => {
         dispatch(setActiveTab(tabId));
         const now = Date.now();
 
-        if (tabId === 'following') {
-            const isStale = (now - lastTimelineFetch) > RELOAD_TIMEOUT;
-            if (followingPosts.length === 0 || isStale) {
-                dispatch(fetchTimeline({ skip: 0 }));
-            }
-        } else if (tabId === 'discover') {
-            const isStale = (now - lastDiscoverFetch) > RELOAD_TIMEOUT;
-            if (discoverPosts.length === 0 || isStale) {
-                dispatch(fetchDiscoverPosts({ skip: 0 }));
-            }
-        } else if (tabId.startsWith('list:')) {
+        if (tabId.startsWith('list:')) {
             const listId = tabId.replace('list:', '');
             dispatch(fetchListFeed({ id: listId, skip: 0 }));
         } else {
@@ -152,11 +119,7 @@ const HomePage: React.FC = () => {
     };
 
     const handleLoadMore = () => {
-        if (activeTab === 'following') {
-            dispatch(fetchTimeline({ skip: followingPosts.length }));
-        } else if (activeTab === 'discover') {
-            dispatch(fetchDiscoverPosts({ skip: discoverPosts.length }));
-        } else if (activeTab.startsWith('list:')) {
+        if (activeTab.startsWith('list:')) {
             const listId = activeTab.replace('list:', '');
             dispatch(fetchListFeed({ id: listId, skip: activeListFeed.length }));
         } else {
@@ -269,14 +232,14 @@ const HomePage: React.FC = () => {
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
                 <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>
                     <InterestsSection />
-                    <Feed posts={discoverPosts} isLoading={discoverLoading} hasMore={discoverHasMore} onLoadMore={handleLoadMore} />
+                    <Feed posts={feedPosts['discover'] || []} isLoading={feedsLoading && activeTab === 'discover'} hasMore={feedHasMore['discover'] !== false} onLoadMore={handleLoadMore} />
                 </div>
 
                 <div style={{ display: activeTab === 'following' ? 'block' : 'none' }}>
                     <Feed
-                        posts={followingPosts}
-                        isLoading={timelineLoading}
-                        hasMore={timelineHasMore}
+                        posts={feedPosts['following'] || []}
+                        isLoading={feedsLoading && activeTab === 'following'}
+                        hasMore={feedHasMore['following'] !== false}
                         onLoadMore={handleLoadMore}
                         endMessage={t('feeds.following_end', 'Follow more people to get more content...')}
                         emptyMessage={t('feeds.follow_more_cta', 'Follow more accounts to see more content.')}
