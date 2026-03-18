@@ -8,7 +8,7 @@ namespace BSkyClone.Controllers;
 
 [Authorize]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/unified-feed")]
 public class UnifiedFeedController : ControllerBase
 {
     private readonly IPostService _postService;
