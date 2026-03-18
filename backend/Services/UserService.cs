@@ -404,25 +404,25 @@ public class UserService : IUserService
     }
 
 
-    public async Task<bool> FollowUserAsync(Guid followerId, Guid followingId)
+    public async Task<string?> FollowUserAsync(Guid followerId, Guid followingId)
     {
-        if (followerId == followingId) return false;
+        if (followerId == followingId) return null;
 
         var lockKey = $"lock:follow:{followerId}:{followingId}";
         if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
         {
-            return false;
+            return null;
         }
 
         try
         {
             var existing = await _unitOfWork.Follows.GetAsync(followerId, followingId);
-        if (existing != null) return true;
+        if (existing != null) return existing.Uri;
 
         var follower = await _unitOfWork.Users.GetByIdAsync(followerId);
         var following = await _unitOfWork.Users.GetByIdAsync(followingId);
 
-        if (follower == null || following == null) return false;
+        if (follower == null || following == null) return null;
 
         var follow = new UserFollow
         {
@@ -535,7 +535,7 @@ public class UserService : IUserService
             }
         }
 
-        return true;
+        return follow?.Uri;
     }
     finally
     {

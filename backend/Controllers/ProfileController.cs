@@ -174,14 +174,15 @@ public class ProfileController : ControllerBase
         var targetUser = await ResolveUserAsync(userIdOrDid);
         if (targetUser == null) return NotFound("User not found or could not be resolved");
 
-        var result = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
-        if (!result) return BadRequest("Could not follow user");
+        var followUri = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
+        if (followUri == null) return BadRequest("Could not follow user");
 
         // Re-fetch to get updated counters
         targetUser = await _userService.GetUserByIdAsync(targetUser.Id);
         return Ok(new { 
             isFollowing = true, 
-            followersCount = targetUser?.FollowersCount ?? 0 
+            followersCount = targetUser?.FollowersCount ?? 0,
+            uri = followUri
         });
     }
 

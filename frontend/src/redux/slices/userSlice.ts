@@ -84,6 +84,7 @@ export const fetchUserProfile = createAsyncThunk<
                 followingCount: u.followingCount || 0,
                 postsCount: u.postsCount || 0,
                 isFollowing: data.isFollowing,
+                followingReference: u.followingReference,
                 isBlocking: data.isBlocking,
                 isBlockedBy: data.isBlockedBy,
                 isMuted: data.isMuted,
@@ -183,7 +184,7 @@ export const followUserAsync = createAsyncThunk<
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to follow');
-            return { isFollowing: true, followersCount: data.followersCount || 0, uri: '' };
+            return { isFollowing: true, followersCount: data.followersCount || 0, uri: data.uri || '' };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
