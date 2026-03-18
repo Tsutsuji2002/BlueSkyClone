@@ -49,7 +49,13 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
             description: atPost.embed.external.description,
             url: atPost.embed.external.uri,
             image: atPost.embed.external.thumb,
-            domain: new URL(atPost.embed.external.uri).hostname
+            domain: (() => {
+                try {
+                    return new URL(atPost.embed.external.uri).hostname;
+                } catch {
+                    return '';
+                }
+            })()
         } : undefined,
         viewer: atPost.viewer,
         tid: atPost.uri?.split('/').pop(),

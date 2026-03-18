@@ -599,19 +599,30 @@ const feedsSlice = createSlice({
             .addMatcher(
                 (action) => action.type === 'posts/updatePostStats',
                 (state: FeedsState, action: any) => {
-                    const { uri, likesCount, repostsCount, bookmarksCount, repliesCount, quotesCount } = action.payload;
+                    const { uri, likesCount, repostsCount, bookmarksCount, repliesCount, quotesCount, timestamp } = action.payload;
                     if (!uri) return;
 
                     Object.keys(state.feedPosts).forEach(feedId => {
                         const posts = state.feedPosts[feedId];
                         const post = posts.find(p => p.uri === uri || p.id === uri);
                         if (post) {
-                            if (likesCount !== undefined) post.likesCount = likesCount;
-                            if (repostsCount !== undefined) post.repostsCount = repostsCount;
-                            if (bookmarksCount !== undefined) post.bookmarksCount = bookmarksCount;
-                            if (repliesCount !== undefined) post.repliesCount = repliesCount;
-                            if (quotesCount !== undefined) post.quotesCount = quotesCount;
-                            post.lastUpdated = new Date().toISOString();
+                            const isRemote = post.uri && !post.uri.includes('localhost') && !post.uri.includes('staging') && post.uri.includes('at://');
+                            if (likesCount !== undefined) {
+                                post.likesCount = isRemote ? Math.max(post.likesCount, likesCount) : likesCount;
+                            }
+                            if (repostsCount !== undefined) {
+                                post.repostsCount = isRemote ? Math.max(post.repostsCount, repostsCount) : repostsCount;
+                            }
+                            if (bookmarksCount !== undefined) {
+                                post.bookmarksCount = isRemote ? Math.max(post.bookmarksCount, bookmarksCount) : bookmarksCount;
+                            }
+                            if (repliesCount !== undefined) {
+                                post.repliesCount = isRemote ? Math.max(post.repliesCount, repliesCount) : repliesCount;
+                            }
+                            if (quotesCount !== undefined) {
+                                post.quotesCount = isRemote ? Math.max(post.quotesCount, quotesCount) : quotesCount;
+                            }
+                            post.lastUpdated = timestamp || new Date().toISOString();
                         }
                     });
                 }

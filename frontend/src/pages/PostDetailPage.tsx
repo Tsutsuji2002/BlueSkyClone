@@ -128,11 +128,18 @@ const PostDetailPage: React.FC = () => {
         const list: Post[] = [];
         if (!post) return list;
         let current: Post | undefined = post;
+        const seen = new Set<string>();
+        if (post.id) seen.add(post.id);
+        if (post.uri) seen.add(post.uri);
+        
         while (current?.replyToPostId) {
             const replyToId: string = current.replyToPostId!;
             const found: Post | undefined = posts.find((p: Post) => p.id === replyToId || p.tid === replyToId || p.uri?.endsWith('/' + replyToId));
-            if (found) {
+            
+            if (found && !seen.has(found.id) && (found.uri ? !seen.has(found.uri) : true)) {
                 list.unshift(found);
+                if (found.id) seen.add(found.id);
+                if (found.uri) seen.add(found.uri);
                 current = found;
             } else {
                 break;
