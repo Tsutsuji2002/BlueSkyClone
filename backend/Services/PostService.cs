@@ -639,8 +639,25 @@ public class PostService : IPostService
             var uriStr = author != null ? $"at://{author.Did}/app.bsky.feed.post/{tid}" : null;
 
             Guid? replyToPostId = Guid.TryParse(request.ReplyToPostId, out var rpid) ? rpid : null;
+            if (replyToPostId == null && !string.IsNullOrEmpty(request.ReplyToPostId))
+            {
+                 var rp = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Tid == request.ReplyToPostId || p.Uri == request.ReplyToPostId);
+                 if (rp != null) replyToPostId = rp.Id;
+            }
+
             Guid? rootPostId = Guid.TryParse(request.RootPostId, out var rootid) ? rootid : null;
+            if (rootPostId == null && !string.IsNullOrEmpty(request.RootPostId))
+            {
+                 var rp = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Tid == request.RootPostId || p.Uri == request.RootPostId);
+                 if (rp != null) rootPostId = rp.Id;
+            }
+
             Guid? quotePostId = Guid.TryParse(request.QuotePostId, out var qid) ? qid : null;
+            if (quotePostId == null && !string.IsNullOrEmpty(request.QuotePostId))
+            {
+                 var qp = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Tid == request.QuotePostId || p.Uri == request.QuotePostId);
+                 if (qp != null) quotePostId = qp.Id;
+            }
 
             var post = new Post
             {
@@ -841,11 +858,11 @@ public class PostService : IPostService
         }
         
         Notification? replyNotification = null;
-        if (!string.IsNullOrEmpty(request.ReplyToPostId))
+        if (replyToPostId.HasValue)
         {
             var parentPost = await _unitOfWork.Posts.Query()
                 .Include(p => p.Author)
-                .FirstOrDefaultAsync(p => p.Id == Guid.Parse(request.ReplyToPostId));
+                .FirstOrDefaultAsync(p => p.Id == replyToPostId.Value);
 
             if (parentPost != null)
             {
@@ -916,9 +933,9 @@ public class PostService : IPostService
             }
         }
 
-        if (!string.IsNullOrEmpty(request.QuotePostId))
+        if (quotePostId.HasValue)
         {
-            var quotedPost = await _unitOfWork.Posts.GetByIdAsync(Guid.Parse(request.QuotePostId));
+            var quotedPost = await _unitOfWork.Posts.GetByIdAsync(quotePostId.Value);
             if (quotedPost != null)
             {
                 quotedPost.QuotesCount = (quotedPost.QuotesCount ?? 0) + 1;
