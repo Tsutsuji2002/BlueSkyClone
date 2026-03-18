@@ -91,6 +91,18 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
         );
     }
 
+    if (!item.url) {
+        return (
+            <div
+                className={cn('flex items-center justify-center bg-gray-100 dark:bg-dark-hover aspect-square', className)}
+            >
+                <div className="text-gray-400 text-[10px] text-center p-2 uppercase">
+                    {t('common.media_missing', 'Media missing')}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div
             className={cn(
@@ -279,7 +291,10 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
     const firstMediaIsVideo = firstMedia?.isVideo;
 
     useEffect(() => {
-        if (!firstMediaUrl) return;
+        if (!firstMediaUrl) {
+            setOrientation('landscape'); // Default
+            return;
+        }
 
         if (firstMediaIsVideo) {
             const vid = document.createElement('video');
@@ -288,14 +303,12 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                 setOrientation(vid.videoWidth >= vid.videoHeight ? 'landscape' : 'portrait');
             };
             vid.onerror = () => {
-                console.error('Video load error:', firstMediaUrl);
+                setOrientation('landscape');
             };
-            // Cleanup just in case
             return () => {
                 vid.onloadedmetadata = null;
                 vid.onerror = null;
                 vid.src = '';
-                vid.load();
             };
         } else {
             const img = new Image();
@@ -304,9 +317,8 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                 setOrientation(img.width >= img.height ? 'landscape' : 'portrait');
             };
             img.onerror = () => {
-                // If can't load, default to landscape
+                setOrientation('landscape');
             };
-            // Cleanup
             return () => {
                 img.onload = null;
                 img.onerror = null;

@@ -1,4 +1,4 @@
-import { Post, User } from '../types';
+import { Post, User, PostImage, PostVideo, LinkPreview } from '../types';
 
 /**
  * Maps a standard AT Protocol postView object (from getPostThread or similar)
@@ -24,6 +24,59 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         avatar: atPost.author?.avatar,
     };
 
+    const embed = atPost.embed || {};
+    let images: PostImage[] = [];
+    let imageUrls: string[] = [];
+    let videoUrl: string | undefined = undefined;
+    let video: PostVideo | undefined = undefined;
+    let linkPreview: LinkPreview | undefined = undefined;
+
+    // Helper to extract media from an embed object
+    const extractMedia = (e: any) => {
+        if (!e) return;
+        const type = e.$type;
+
+        if (type === 'app.bsky.embed.images#view' || e.images) {
+            const imgs = e.images || [];
+            imgs.forEach((img: any) => {
+                const url = img.thumb || img.fullsize || '';
+                images.push({
+                    url,
+                    alt: img.alt
+                });
+                imageUrls.push(img.fullsize || img.thumb || '');
+            });
+        } else if (type === 'app.bsky.embed.video#view' || e.playlist) {
+            videoUrl = e.playlist || e.thumbnail;
+            video = {
+                url: e.playlist || '',
+                thumbnail: e.thumbnail,
+                alt: e.alt
+            };
+        } else if (type === 'app.bsky.embed.external#view' || e.external) {
+            const ext = e.external;
+            if (ext) {
+                linkPreview = {
+                    title: ext.title,
+                    description: ext.description,
+                    url: ext.uri,
+                    image: ext.thumb,
+                    domain: (() => {
+                        try {
+                            return new URL(ext.uri).hostname;
+                        } catch {
+                            return '';
+                        }
+                    })()
+                };
+            }
+        } else if (type === 'app.bsky.embed.recordWithMedia#view' || e.media) {
+            extractMedia(e.media);
+        }
+    };
+
+    extractMedia(embed);
+
     // Map the post
     const post: Post = {
         id: atPost.cid || atPost.uri?.split('/').pop() || '',
@@ -41,22 +94,11 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         isReposted: !!atPost.viewer?.repost,
         isBookmarked: atPost.isBookmarked ?? false,
         facets: record.facets,
-        images: atPost.embed?.images || [],
-        imageUrls: atPost.embed?.images?.map((img: any) => img.fullsize) || [],
-        // Handle external or other embeds if needed
-        linkPreview: atPost.embed?.external ? {
-            title: atPost.embed.external.title,
-            description: atPost.embed.external.description,
-            url: atPost.embed.external.uri,
-            image: atPost.embed.external.thumb,
-            domain: (() => {
-                try {
-                    return new URL(atPost.embed.external.uri).hostname;
-                } catch {
-                    return '';
-                }
-            })()
-        } : undefined,
+        images,
+        imageUrls,
+        videoUrl,
+        video,
+        linkPreview,
         viewer: atPost.viewer,
         tid: atPost.uri?.split('/').pop(),
         replyToPostId: record.reply?.parent?.uri?.split('/').pop(),

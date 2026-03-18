@@ -268,7 +268,7 @@ public class PostService : IPostService
 
             // Batch fetch remote interactions from AppView
             var remoteUris = posts.Where(p => !string.IsNullOrEmpty(p.Uri) && !p.Uri.Contains(_localDomain)).Select(p => p.Uri!).Distinct().ToList();
-            var remoteInteractionCache = new Dictionary<string, (int likes, int reposts, int replies, int quotes)>();
+            var remoteInteractionCache = new Dictionary<string, JsonElement>();
             
             if (remoteUris.Any())
             {
@@ -291,15 +291,9 @@ public class PostService : IPostService
                                     if (rp.TryGetProperty("uri", out var uriProp))
                                     {
                                         var uri = uriProp.GetString();
-                                        int likes = 0, reposts = 0, replies = 0, quotes = 0;
-                                        if (rp.TryGetProperty("likeCount", out var likeCount)) likes = likeCount.GetInt32();
-                                        if (rp.TryGetProperty("repostCount", out var repostCount)) reposts = repostCount.GetInt32();
-                                        if (rp.TryGetProperty("replyCount", out var replyCount)) replies = replyCount.GetInt32();
-                                        if (rp.TryGetProperty("quoteCount", out var quoteCount)) quotes = quoteCount.GetInt32();
-                                        
                                         if (uri != null)
                                         {
-                                            remoteInteractionCache[uri] = (likes, reposts, replies, quotes);
+                                            remoteInteractionCache[uri] = rp.Clone(); // Clone to preserve it outside the JsonDocument scope
                                         }
                                     }
                                 }
@@ -460,13 +454,19 @@ public class PostService : IPostService
                     var localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == post.Id);
                     var localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == post.Id);
 
-                    if (post.Uri != null && remoteInteractionCache.TryGetValue(post.Uri, out var remoteCounts))
+                    if (post.Uri != null && remoteInteractionCache.TryGetValue(post.Uri, out var remotePost))
                     {
-                        post.LikesCount = Math.Max(remoteCounts.likes, localLikes);
-                        post.RepostsCount = Math.Max(remoteCounts.reposts, localReposts);
-                        post.RepliesCount = remoteCounts.replies;
-                        post.QuotesCount = remoteCounts.quotes;
+                        if (remotePost.TryGetProperty("likeCount", out var lc)) post.LikesCount = Math.Max(lc.GetInt32(), localLikes);
+                        if (remotePost.TryGetProperty("repostCount", out var rc)) post.RepostsCount = Math.Max(rc.GetInt32(), localReposts);
+                        if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = rpc.GetInt32();
+                        if (remotePost.TryGetProperty("quoteCount", out var qc)) post.QuotesCount = qc.GetInt32();
                         post.BookmarksCount = localBookmarks;
+
+                        // Map Media
+                        if (remotePost.TryGetProperty("embed", out var embed))
+                        {
+                            MapEmbedToDto(post, embed);
+                        }
                     }
                     else
                     {
@@ -3280,6 +3280,78 @@ public class PostService : IPostService
         }
 
         return dto;
+    }
+
+    private void MapEmbedToDto(PostDto dto, JsonElement embed)
+    {
+        if (embed.ValueKind == JsonValueKind.Null) return;
+
+        string? type = embed.TryGetProperty("$type", out var t) ? t.GetString() : null;
+
+        if (type == "app.bsky.embed.images#view" || embed.TryGetProperty("images", out _))
+        {
+            var images = new List<string>();
+            var media = new List<MediaDto>();
+            if (embed.TryGetProperty("images", out var imgs))
+            {
+                foreach (var img in imgs.EnumerateArray())
+                {
+                    string thumb = img.TryGetProperty("thumb", out var th) ? th.GetString() ?? "" : "";
+                    string full = img.TryGetProperty("fullsize", out var f) ? f.GetString() ?? "" : "";
+                    string alt = img.TryGetProperty("alt", out var a) ? a.GetString() ?? "" : "";
+                    
+                    images.Add(full);
+                    media.Add(new MediaDto
+                    {
+                        Url = thumb,
+                        AltText = alt,
+                        Type = "image",
+                        Cid = img.TryGetProperty("cid", out var c) ? c.GetString() : null
+                    });
+                }
+            }
+            dto.ImageUrls = images;
+            dto.Media = media;
+        }
+        else if (type == "app.bsky.embed.video#view" || embed.TryGetProperty("playlist", out _))
+        {
+            dto.VideoUrl = embed.TryGetProperty("playlist", out var p) ? p.GetString() : null;
+            if (embed.TryGetProperty("thumbnail", out var th))
+            {
+                dto.Media = new List<MediaDto> { 
+                    new MediaDto { 
+                        Url = th.GetString() ?? "", 
+                        Type = "video",
+                        AltText = embed.TryGetProperty("alt", out var a) ? a.GetString() : null
+                    } 
+                };
+            }
+        }
+        else if (type == "app.bsky.embed.external#view" || embed.TryGetProperty("external", out _))
+        {
+            if (embed.TryGetProperty("external", out var ext))
+            {
+                dto.LinkPreview = new LinkPreviewDto
+                {
+                    Url = ext.TryGetProperty("uri", out var u) ? u.GetString() ?? "" : "",
+                    Title = ext.TryGetProperty("title", out var ti) ? ti.GetString() ?? "" : "",
+                    Description = ext.TryGetProperty("description", out var ds) ? ds.GetString() ?? "" : "",
+                    Image = ext.TryGetProperty("thumb", out var th) ? th.GetString() : null,
+                    Domain = "" // Calculated on frontend or here
+                };
+                if (!string.IsNullOrEmpty(dto.LinkPreview.Url))
+                {
+                    try { dto.LinkPreview.Domain = new Uri(dto.LinkPreview.Url).Host; } catch { }
+                }
+            }
+        }
+        else if (type == "app.bsky.embed.recordWithMedia#view" || embed.TryGetProperty("media", out _))
+        {
+            if (embed.TryGetProperty("media", out var media))
+            {
+                MapEmbedToDto(dto, media);
+            }
+        }
     }
 
     public string GenerateTid()
