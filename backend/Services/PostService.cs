@@ -1184,50 +1184,50 @@ public class PostService : IPostService
         // Index in Elasticsearch
         await _searchService.IndexPostAsync(savedPost!);
 
-        // Broadcast Real-time Updates for parents
-        var timestamp = DateTime.UtcNow;
-        if (!string.IsNullOrEmpty(request.ReplyToPostId))
-        {
-            var parent = await _unitOfWork.Posts.GetByIdAsync(Guid.Parse(request.ReplyToPostId));
-            if (parent != null)
+            // Broadcast Real-time Updates for parents
+            var timestamp = DateTime.UtcNow;
+            if (replyToPostId.HasValue)
             {
-                await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
-                { 
-                    postId = parent.Id, 
-                    likesCount = parent.LikesCount,
-                    repostsCount = parent.RepostsCount,
-                    bookmarksCount = parent.BookmarksCount,
-                    repliesCount = parent.RepliesCount,
-                    quotesCount = parent.QuotesCount,
-                    timestamp
-                });
+                var parent = await _unitOfWork.Posts.GetByIdAsync(replyToPostId.Value);
+                if (parent != null)
+                {
+                    await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+                    { 
+                        postId = parent.Id, 
+                        likesCount = parent.LikesCount,
+                        repostsCount = parent.RepostsCount,
+                        bookmarksCount = parent.BookmarksCount,
+                        repliesCount = parent.RepliesCount,
+                        quotesCount = parent.QuotesCount,
+                        timestamp
+                    });
+                }
             }
-        }
-        if (!string.IsNullOrEmpty(request.QuotePostId))
-        {
-            var quoted = await _unitOfWork.Posts.GetByIdAsync(Guid.Parse(request.QuotePostId));
-            if (quoted != null)
+            if (quotePostId.HasValue)
             {
-                await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
-                { 
-                    postId = quoted.Id, 
-                    likesCount = quoted.LikesCount,
-                    repostsCount = quoted.RepostsCount,
-                    bookmarksCount = quoted.BookmarksCount,
-                    repliesCount = quoted.RepliesCount,
-                    quotesCount = quoted.QuotesCount,
-                    timestamp
-                });
+                var quoted = await _unitOfWork.Posts.GetByIdAsync(quotePostId.Value);
+                if (quoted != null)
+                {
+                    await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+                    { 
+                        postId = quoted.Id, 
+                        likesCount = quoted.LikesCount,
+                        repostsCount = quoted.RepostsCount,
+                        bookmarksCount = quoted.BookmarksCount,
+                        repliesCount = quoted.RepliesCount,
+                        quotesCount = quoted.QuotesCount,
+                        timestamp
+                    });
+                }
             }
-        }
 
-        return MapToDto(savedPost!);
+            return MapToDto(savedPost!);
+        }
+        finally
+        {
+            await _cacheService.ReleaseLockAsync(lockKey);
+        }
     }
-    finally
-    {
-        await _cacheService.ReleaseLockAsync(lockKey);
-    }
-}
 
     public async Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request)
     {
