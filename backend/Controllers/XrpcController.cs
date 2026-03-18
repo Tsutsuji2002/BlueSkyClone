@@ -130,7 +130,7 @@ namespace BSkyClone.Controllers
                                 if (!string.IsNullOrEmpty(parentTid))
                                 {
                                     var parentPost = await _postService.GetPostByTidAsync(parentTid);
-                                    if (parentPost != null) internalRequest.ReplyToPostId = parentPost.Id;
+                                    if (parentPost != null) internalRequest.ReplyToPostId = parentPost.Id.ToString();
                                 }
                             }
 
@@ -141,7 +141,7 @@ namespace BSkyClone.Controllers
                                 if (!string.IsNullOrEmpty(rootTid))
                                 {
                                     var rootPost = await _postService.GetPostByTidAsync(rootTid);
-                                    if (rootPost != null) internalRequest.RootPostId = rootPost.Id;
+                                    if (rootPost != null) internalRequest.RootPostId = rootPost.Id.ToString();
                                 }
                             }
                         }

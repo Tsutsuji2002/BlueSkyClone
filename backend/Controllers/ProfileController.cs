@@ -109,6 +109,10 @@ public class ProfileController : ControllerBase
 
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         bool isFollowing = false;
+        bool isBlockedBy = false;
+        bool isBlocking = false;
+        bool isMuted = false;
+
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
             isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);

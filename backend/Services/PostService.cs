@@ -841,11 +841,11 @@ public class PostService : IPostService
         }
         
         Notification? replyNotification = null;
-        if (request.ReplyToPostId.HasValue)
+        if (!string.IsNullOrEmpty(request.ReplyToPostId))
         {
             var parentPost = await _unitOfWork.Posts.Query()
                 .Include(p => p.Author)
-                .FirstOrDefaultAsync(p => p.Id == request.ReplyToPostId.Value);
+                .FirstOrDefaultAsync(p => p.Id == Guid.Parse(request.ReplyToPostId));
 
             if (parentPost != null)
             {
@@ -916,9 +916,9 @@ public class PostService : IPostService
             }
         }
 
-        if (request.QuotePostId.HasValue)
+        if (!string.IsNullOrEmpty(request.QuotePostId))
         {
-            var quotedPost = await _unitOfWork.Posts.GetByIdAsync(request.QuotePostId.Value);
+            var quotedPost = await _unitOfWork.Posts.GetByIdAsync(Guid.Parse(request.QuotePostId));
             if (quotedPost != null)
             {
                 quotedPost.QuotesCount = (quotedPost.QuotesCount ?? 0) + 1;
@@ -970,7 +970,7 @@ public class PostService : IPostService
                 }
 
                 // 1. Reply Lexicon
-                if (post.ReplyToPostId.HasValue && post.RootPostId.HasValue)
+                if (post.ReplyToPostId != null && post.RootPostId != null)
                 {
                     var parentPost = await _unitOfWork.Posts.Query()
                         .Include(p => p.Author)
@@ -1001,7 +1001,7 @@ public class PostService : IPostService
                 Dictionary<string, object>? embedRecord = null;
                 
                 // Embed: Quote
-                if (post.QuotePostId.HasValue)
+                if (post.QuotePostId != null)
                 {
                     var quotePost = await _unitOfWork.Posts.Query()
                         .Include(p => p.Author)
@@ -1186,9 +1186,9 @@ public class PostService : IPostService
 
         // Broadcast Real-time Updates for parents
         var timestamp = DateTime.UtcNow;
-        if (request.ReplyToPostId.HasValue)
+        if (!string.IsNullOrEmpty(request.ReplyToPostId))
         {
-            var parent = await _unitOfWork.Posts.GetByIdAsync(request.ReplyToPostId.Value);
+            var parent = await _unitOfWork.Posts.GetByIdAsync(Guid.Parse(request.ReplyToPostId));
             if (parent != null)
             {
                 await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
@@ -1203,9 +1203,9 @@ public class PostService : IPostService
                 });
             }
         }
-        if (request.QuotePostId.HasValue)
+        if (!string.IsNullOrEmpty(request.QuotePostId))
         {
-            var quoted = await _unitOfWork.Posts.GetByIdAsync(request.QuotePostId.Value);
+            var quoted = await _unitOfWork.Posts.GetByIdAsync(Guid.Parse(request.QuotePostId));
             if (quoted != null)
             {
                 await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
@@ -1507,7 +1507,7 @@ public class PostService : IPostService
                     }
 
                     // 1. Reply Lexicon
-                    if (post.ReplyToPostId.HasValue && post.RootPostId.HasValue)
+                    if (post.ReplyToPostId != null && post.RootPostId != null)
                     {
                         var parentPost = await _unitOfWork.Posts.Query()
                             .Include(p => p.Author)
@@ -1533,7 +1533,7 @@ public class PostService : IPostService
                     // 2. Embed Lexicon
                     Dictionary<string, object>? embedRecord = null;
                     
-                    if (post.QuotePostId.HasValue)
+                    if (post.QuotePostId != null)
                     {
                         var quotePost = await _unitOfWork.Posts.Query()
                             .Include(p => p.Author)
