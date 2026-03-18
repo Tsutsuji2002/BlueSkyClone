@@ -405,15 +405,30 @@ public class PostService : IPostService
                 };
 
                 // Sync counts for remote posts if we have fresh data in the DTO
-                // When coming from Timeline/Feed, post.LikesCount might be local (staleness issues)
-                // If it's a remote post and we have remote counts in the DTO, we should preserve them.
-                // Note: post.Id == Guid.Empty check is not enough because ingested remote posts have an ID.
                 bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
                 if (isRemote)
                 {
+                    // Fetch local database actuals directly to ensure they aren't masked
+                    var localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == post.Id);
+                    var localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == post.Id);
+                    var localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == post.Id);
+
                     // We trust remote counts more for remote posts unless local is higher (unlikely but possible during sync)
                     // If post was just mapped via MapToDto(post), it has local counts.
                     // If it was mapped via MapRemotePostToDto(JsonElement), it already has remote counts.
+                    post.LikesCount = Math.Max(post.LikesCount, localLikes);
+                    post.RepostsCount = Math.Max(post.RepostsCount, localReposts);
+                    post.BookmarksCount = Math.Max(post.BookmarksCount, localBookmarks);
+                }
+                else 
+                {
+                    var localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == post.Id);
+                    var localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == post.Id);
+                    var localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == post.Id);
+
+                    post.LikesCount = localLikes;
+                    post.RepostsCount = localReposts;
+                    post.BookmarksCount = localBookmarks;
                 }
 
                 if (post.QuotePost?.Author != null && (post.QuotePost.Author.Did == post.QuotePost.Author.Handle || post.QuotePost.Author.Id == Guid.Empty))
@@ -2018,6 +2033,7 @@ public class PostService : IPostService
             };
 
             // 3. Try Public AppView directly FIRST (to get global counts instead of PDS local counts)
+            string rawJson = null;
             try
             {
                 _logger.LogInformation("Trying Public AppView for GetPostThread: {Uri}", uri);
@@ -2026,7 +2042,7 @@ public class PostService : IPostService
                 var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
                 if (response.IsSuccessStatusCode)
                 {
-                    return System.Text.Json.JsonSerializer.Deserialize<object>(await response.Content.ReadAsStringAsync());
+                    rawJson = await response.Content.ReadAsStringAsync();
                 }
             }
             catch (Exception ex)
@@ -2034,13 +2050,122 @@ public class PostService : IPostService
                 _logger.LogWarning(ex, "Public AppView failed for {Uri}, falling back to Proxy", uri);
             }
 
-            // 4. Fallback to proxying to the PDS if AppView fails or isn't indexing it yet
-            var qCollection = new QueryCollection(qDict);
-            var proxyResult = await _xrpcProxy.ProxyRequestAsync(didForProxy, "app.bsky.feed.getPostThread", qCollection);
-            
-            if (proxyResult.Success)
+            // 4. Fallback to proxying to the PDS if AppView fails
+            if (rawJson == null)
             {
-                return System.Text.Json.JsonSerializer.Deserialize<object>(proxyResult.Content);
+                var qCollection = new QueryCollection(qDict);
+                var proxyResult = await _xrpcProxy.ProxyRequestAsync(didForProxy, "app.bsky.feed.getPostThread", qCollection);
+                if (proxyResult.Success)
+                {
+                    rawJson = proxyResult.Content;
+                }
+            }
+
+            if (rawJson != null)
+            {
+                // Inject local interactions into the remote JSON to ensure UI consistency
+                try
+                {
+                    var jObject = Newtonsoft.Json.Linq.JObject.Parse(rawJson);
+                    var allCids = new List<string>();
+                    var postNodes = new List<Newtonsoft.Json.Linq.JToken>();
+
+                    // Helper to recursively find all 'post' nodes in the thread
+                    Action<Newtonsoft.Json.Linq.JToken> extractPosts = null;
+                    extractPosts = (node) =>
+                    {
+                        if (node == null) return;
+                        if (node["post"] != null)
+                        {
+                            postNodes.Add(node["post"]);
+                            if (node["post"]["cid"] != null) allCids.Add(node["post"]["cid"].ToString());
+                        }
+                        if (node["parent"] != null) extractPosts(node["parent"]);
+                        if (node["replies"] != null)
+                        {
+                            foreach (var reply in node["replies"]) extractPosts(reply);
+                        }
+                    };
+
+                    extractPosts(jObject["thread"]);
+
+                    if (allCids.Any())
+                    {
+                        // Optimization: Fetch local posts matching these CIDs
+                        var localPosts = await _unitOfWork.Posts.Query()
+                            .Where(p => allCids.Contains(p.Cid) || allCids.Contains(p.Tid))
+                            .ToDictionaryAsync(p => p.Cid ?? p.Tid, p => p.Id);
+
+                        if (localPosts.Any())
+                        {
+                            var postIds = localPosts.Values.ToList();
+                            
+                            // Get local interactions
+                            var localLikes = await _unitOfWork.Likes.Query()
+                                .Where(l => postIds.Contains(l.PostId))
+                                .GroupBy(l => l.PostId)
+                                .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                            var localReposts = await _unitOfWork.Reposts.Query()
+                                .Where(r => postIds.Contains(r.PostId))
+                                .GroupBy(r => r.PostId)
+                                .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                            Dictionary<Guid, string> userLikes = new();
+                            Dictionary<Guid, string> userReposts = new();
+
+                            if (viewerId.HasValue)
+                            {
+                                userLikes = await _unitOfWork.Likes.Query()
+                                    .Where(l => l.UserId == viewerId.Value && postIds.Contains(l.PostId))
+                                    .ToDictionaryAsync(l => l.PostId, l => l.Uri ?? "local");
+                                
+                                userReposts = await _unitOfWork.Reposts.Query()
+                                    .Where(r => r.UserId == viewerId.Value && postIds.Contains(r.PostId))
+                                    .ToDictionaryAsync(r => r.PostId, r => r.Uri ?? "local");
+                            }
+
+                            // Mutate JTokens
+                            foreach (var postNode in postNodes)
+                            {
+                                var cid = postNode["cid"]?.ToString();
+                                if (cid != null && localPosts.TryGetValue(cid, out var pid))
+                                {
+                                    if (localLikes.TryGetValue(pid, out var llCount))
+                                    {
+                                        var remoteLC = parseInt(postNode["likeCount"]);
+                                        postNode["likeCount"] = Math.Max(llCount, remoteLC);
+                                    }
+                                    if (localReposts.TryGetValue(pid, out var lrCount))
+                                    {
+                                        var remoteRC = parseInt(postNode["repostCount"]);
+                                        postNode["repostCount"] = Math.Max(lrCount, remoteRC);
+                                    }
+
+                                    if (viewerId.HasValue)
+                                    {
+                                        if (postNode["viewer"] == null) postNode["viewer"] = new Newtonsoft.Json.Linq.JObject();
+                                        
+                                        if (userLikes.TryGetValue(pid, out var lUri))
+                                            postNode["viewer"]["like"] = lUri;
+                                        
+                                        if (userReposts.TryGetValue(pid, out var rUri))
+                                            postNode["viewer"]["repost"] = rUri;
+                                    }
+                                }
+                            }
+
+                            int parseInt(Newtonsoft.Json.Linq.JToken t) => t != null && int.TryParse(t.ToString(), out int v) ? v : 0;
+                        }
+                    }
+
+                    return System.Text.Json.JsonSerializer.Deserialize<object>(jObject.ToString());
+                }
+                catch (Exception jsonEx)
+                {
+                    _logger.LogError(jsonEx, "Failed to inject local counts into JSON, returning raw proxy.");
+                    return System.Text.Json.JsonSerializer.Deserialize<object>(rawJson);
+                }
             }
 
             return null;
