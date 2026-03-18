@@ -227,11 +227,9 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
     // Memoize mediaList to prevent recreation on every render
     const mediaList: MediaItem[] = React.useMemo(() => {
         const list: MediaItem[] = [];
-
-        // Use a set to track added URLs to avoid duplicates
         const addedUrls = new Set<string>();
 
-        // 1. Handle new media prop (highest priority, has alt text from DB)
+        // Priority 1: Media array (richest source, includes alt text and potentially video)
         if (media && media.length > 0) {
             media.forEach(m => {
                 const url = resolveUrl(m.url);
@@ -242,9 +240,11 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                     addedUrls.add(url);
                 }
             });
-        }
+            // If we have media, we usually don't want to mix it with fallbacks to avoid duplication
+            return list;
+        } 
 
-        // 2. Handle primary video (prefers video object with thumbnail)
+        // Priority 2: Video object (specific video embed)
         if (video) {
             const url = resolveUrl(video.url);
             const thumbUrl = video.thumbnail ? resolveUrl(video.thumbnail) : undefined;
@@ -260,26 +260,30 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
             }
         }
 
-        // 3. Add images (fallback)
-        images.forEach(img => {
-            const resolved = resolveUrl(img.url);
-            if (!addedUrls.has(resolved)) {
-                const isActuallyVideo = isVideoUrl(resolved);
-                const optimized = getOptimizedUrl(img.url, resolved, isActuallyVideo);
-                list.push({ url: optimized, alt: img.alt, isVideo: isActuallyVideo });
-                addedUrls.add(resolved);
-            }
-        });
-
-        imageUrls.forEach(rawUrl => {
-            const resolved = resolveUrl(rawUrl);
-            if (!addedUrls.has(resolved)) {
-                const isActuallyVideo = isVideoUrl(resolved);
-                const optimized = getOptimizedUrl(rawUrl, resolved, isActuallyVideo);
-                list.push({ url: optimized, isVideo: isActuallyVideo });
-                addedUrls.add(resolved);
-            }
-        });
+        // Priority 3: Images array (mapped from AT Protocol embed)
+        if (images && images.length > 0) {
+            images.forEach(img => {
+                const resolved = resolveUrl(img.url);
+                if (!addedUrls.has(resolved)) {
+                    const isActuallyVideo = isVideoUrl(resolved);
+                    const optimized = getOptimizedUrl(img.url, resolved, isActuallyVideo);
+                    list.push({ url: optimized, alt: img.alt, isVideo: isActuallyVideo });
+                    addedUrls.add(resolved);
+                }
+            });
+        }
+        // Priority 4: imageUrls (oldest backend format)
+        else if (imageUrls && imageUrls.length > 0) {
+            imageUrls.forEach(rawUrl => {
+                const resolved = resolveUrl(rawUrl);
+                if (!addedUrls.has(resolved)) {
+                    const isActuallyVideo = isVideoUrl(resolved);
+                    const optimized = getOptimizedUrl(rawUrl, resolved, isActuallyVideo);
+                    list.push({ url: optimized, isVideo: isActuallyVideo });
+                    addedUrls.add(resolved);
+                }
+            });
+        }
 
         return list;
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,39 +394,24 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         );
     }
 
-    if (count === 4) {
+    // 4 or more
+    if (count >= 4) {
         return (
             <div className="grid grid-cols-2 gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-square">
                 {mediaList.slice(0, 4).map((item, i) => (
-                    <GridItem key={i} item={item} index={i} className="h-full" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
+                    <GridItem 
+                        key={i} 
+                        item={item} 
+                        index={i} 
+                        className="h-full" 
+                        totalCount={count} 
+                        showOverlay={i === 3} // Only 4th item shows +X
+                        onImageClick={onImageClick} 
+                        isDetailView={isDetailView} 
+                    />
                 ))}
             </div>
         );
-    }
-
-    // 5 or more
-    if (count >= 5) {
-        if (orientation === 'landscape') {
-            return (
-                <div className="grid grid-cols-6 grid-rows-2 gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-square">
-                    <GridItem item={mediaList[0]} index={0} className="col-span-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                    <GridItem item={mediaList[1]} index={1} className="col-span-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                    <GridItem item={mediaList[2]} index={2} className="col-span-2" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                    <GridItem item={mediaList[3]} index={3} className="col-span-2" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                    <GridItem item={mediaList[4]} index={4} className="col-span-2" showOverlay={true} totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                </div>
-            );
-        } else {
-            return (
-                <div className="grid grid-rows-6 grid-cols-2 gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-[4/5]">
-                    <GridItem item={mediaList[0]} index={0} className="row-span-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                    <GridItem item={mediaList[1]} index={1} className="row-span-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                    <GridItem item={mediaList[2]} index={2} className="row-span-2 col-start-2 row-start-1" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                    <GridItem item={mediaList[3]} index={3} className="row-span-2 col-start-2 row-start-3" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                    <GridItem item={mediaList[4]} index={4} className="row-span-2 col-start-2 row-start-5" showOverlay={true} totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
-                </div>
-            );
-        }
     }
 
     return null;
