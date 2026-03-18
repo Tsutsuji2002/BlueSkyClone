@@ -304,6 +304,7 @@ export interface Message {
     linkPreview?: LinkPreview;
     replyTo?: Message;
     reactions?: MessageReaction[];
+    tid?: string;
 }
 
 export interface Conversation {
