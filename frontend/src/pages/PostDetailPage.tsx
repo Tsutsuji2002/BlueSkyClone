@@ -121,24 +121,40 @@ const PostDetailPage: React.FC = () => {
     }, [sortOrder]);
 
     const replies = React.useMemo(() => {
-        const filtered = posts.filter((p: Post) => p.replyToPostId === post?.id || (p.replyToPostId && post?.id && p.replyToPostId === post.id));
+        if (!post) return [];
+        const filtered = posts.filter((p: Post) => {
+            // Check for match against any of the parent's identifiers
+            const parentId = p.replyToPostId;
+            if (!parentId) return false;
+
+            return parentId === post.id || 
+                   parentId === post.tid || 
+                   (post.uri && (parentId === post.uri || post.uri.endsWith('/' + parentId)));
+        });
         return sortPosts(filtered);
-    }, [posts, post?.id, sortPosts]);
+    }, [posts, post, sortPosts]);
     const ancestors = React.useMemo(() => {
         const list: Post[] = [];
         if (!post) return list;
         let current: Post | undefined = post;
         const seen = new Set<string>();
         if (post.id) seen.add(post.id);
+        if (post.tid) seen.add(post.tid);
         if (post.uri) seen.add(post.uri);
         
         while (current?.replyToPostId) {
             const replyToId: string = current.replyToPostId!;
-            const found: Post | undefined = posts.find((p: Post) => p.id === replyToId || p.tid === replyToId || p.uri?.endsWith('/' + replyToId));
+            // Find parent using any of its identifiers
+            const found: Post | undefined = posts.find((p: Post) => 
+                p.id === replyToId || 
+                p.tid === replyToId || 
+                (p.uri && (p.uri === replyToId || p.uri.endsWith('/' + replyToId)))
+            );
             
-            if (found && !seen.has(found.id) && (found.uri ? !seen.has(found.uri) : true)) {
+            if (found && !seen.has(found.id) && (found.tid ? !seen.has(found.tid) : true) && (found.uri ? !seen.has(found.uri) : true)) {
                 list.unshift(found);
                 if (found.id) seen.add(found.id);
+                if (found.tid) seen.add(found.tid);
                 if (found.uri) seen.add(found.uri);
                 current = found;
             } else {
@@ -709,7 +725,13 @@ const PostDetailPage: React.FC = () => {
 
                                 const renderTree = (replyList: Post[], depth: number = 0, activeLines: boolean[] = []): React.ReactNode => {
                                     return replyList.map((reply, idx) => {
-                                        const subReplies = sortPosts(posts.filter(p => p.replyToPostId === reply.id));
+                                        const subReplies = sortPosts(posts.filter((p: Post) => {
+                                            const pid = p.replyToPostId;
+                                            if (!pid) return false;
+                                            return pid === reply.id || 
+                                                   pid === reply.tid || 
+                                                   (reply.uri && (pid === reply.uri || reply.uri.endsWith('/' + pid)));
+                                        }));
                                         const hasSubReplies = subReplies.length > 0;
                                         const isLast = idx === replyList.length - 1;
 
@@ -826,7 +848,14 @@ const PostDetailPage: React.FC = () => {
                                 const chain: Post[] = [reply];
                                 let currentId = reply.id;
                                 for (let depth = 0; depth < 5; depth++) {
-                                    const subReplies = sortPosts(posts.filter(p => p.replyToPostId === currentId));
+                                    const cidForClosure = currentId; // Create stable reference for filter
+                                    const subReplies = sortPosts(posts.filter((p: Post) => {
+                                        const pid = p.replyToPostId;
+                                        if (!pid) return false;
+                                        // currentId might be a CID, TID, or URI
+                                        return pid === cidForClosure || 
+                                               (reply.uri && reply.uri.endsWith('/' + pid));
+                                    }));
                                     if (subReplies.length === 0) break;
                                     chain.push(subReplies[0]);
                                     currentId = subReplies[0].id;
