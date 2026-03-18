@@ -48,6 +48,8 @@ namespace BSkyClone.Services
             }
         }
 
+        private readonly SemaphoreSlim _throttler = new SemaphoreSlim(5, 5); // Max 5 concurrent DB operations for firehose
+
         private async Task ReceiveLoop(ClientWebSocket webSocket, CancellationToken stoppingToken)
         {
             var buffer = new byte[1024 * 1024]; // 1MB buffer
@@ -68,12 +70,15 @@ namespace BSkyClone.Services
                     _logger.LogDebug("Received full firehose message, size: {Size}", messageData.Length);
 
                     _ = Task.Run(async () => {
+                        await _throttler.WaitAsync(stoppingToken); // Limit concurrency to prevent SQL pool exhaustion
                         try {
                             await ProcessMessageAsync(messageData);
                         } catch (Exception ex) {
                             _logger.LogError(ex, "Error processing firehose message");
+                        } finally {
+                            _throttler.Release();
                         }
-                    });
+                    }, stoppingToken);
                 }
             }
         }
