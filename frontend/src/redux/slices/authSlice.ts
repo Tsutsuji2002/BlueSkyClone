@@ -436,6 +436,12 @@ const authSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Update Settings
+            .addCase(updateNotificationSettings.pending, (state, action) => {
+                const settings = action.meta.arg;
+                if (state.settings) {
+                    state.settings = normalizeSettings({ ...state.settings, ...settings });
+                }
+            })
             .addCase(updateNotificationSettings.fulfilled, (state, action: PayloadAction<UserSettings>) => {
                 state.settings = normalizeSettings({ ...state.settings, ...action.payload });
             })

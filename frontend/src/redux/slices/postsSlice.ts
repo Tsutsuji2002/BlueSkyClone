@@ -313,20 +313,43 @@ export const fetchPostById = createAsyncThunk(
 
             // Handle XRPC getPostThread response (thread structure)
             if (data && data.thread) {
-                const posts: Post[] = [];
+                const postsMap = new Map<string, Post>();
+                
                 const extractPosts = (node: any) => {
                     if (!node) return;
-                    if (node.post) posts.push(mapAtProtoPostToPost(node.post));
-                    if (node.parent) {
-                        if (node.parent.post) extractPosts(node.parent);
-                        else posts.push(mapAtProtoPostToPost(node.parent));
+                    
+                    if (node.post) {
+                        const mapped = mapAtProtoPostToPost(node.post);
+                        if (mapped.uri) {
+                            // If we already have this post, merge fields if necessary, otherwise set it
+                            if (postsMap.has(mapped.uri)) {
+                                postsMap.set(mapped.uri, { ...postsMap.get(mapped.uri)!, ...mapped });
+                            } else {
+                                postsMap.set(mapped.uri, mapped);
+                            }
+                        }
                     }
-                    if (node.replies) {
+
+                    if (node.parent) {
+                        // parent can be a threadViewPost, notFoundPost, or blockedPost
+                        if (node.parent.post) {
+                            extractPosts(node.parent);
+                        } else if (node.parent.uri) {
+                            // Handle cases where parent is not found/blocked but has a URI
+                            const mapped = mapAtProtoPostToPost(node.parent);
+                            if (mapped.uri && !postsMap.has(mapped.uri)) {
+                                postsMap.set(mapped.uri, mapped);
+                            }
+                        }
+                    }
+
+                    if (node.replies && Array.isArray(node.replies)) {
                         node.replies.forEach((r: any) => extractPosts(r));
                     }
                 };
+                
                 extractPosts(data.thread);
-                return posts;
+                return Array.from(postsMap.values());
             }
 
             return Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];

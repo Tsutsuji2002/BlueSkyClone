@@ -131,7 +131,16 @@ const PostDetailPage: React.FC = () => {
                    parentId === post.tid || 
                    (post.uri && (parentId === post.uri || post.uri.endsWith('/' + parentId)));
         });
-        return sortPosts(filtered);
+        
+        // Safety deduplication by URI
+        const seen = new Set<string>();
+        const unique = filtered.filter(p => {
+            if (!p.uri || seen.has(p.uri)) return false;
+            seen.add(p.uri);
+            return true;
+        });
+        
+        return sortPosts(unique);
     }, [posts, post, sortPosts]);
     const ancestors = React.useMemo(() => {
         const list: Post[] = [];
@@ -188,17 +197,7 @@ const PostDetailPage: React.FC = () => {
         }
     }, [dispatch, oldestKnown?.id, oldestKnown?.replyToPostId, posts]);
 
-    // Fetch sub-replies removed as they are part of the thread view
-    React.useEffect(() => {
-    }, [dispatch, replies]);
-
-    // Build chain depth removed as they are part of the thread view
-    React.useEffect(() => {
-    }, [dispatch, replies, posts, treeViewEnabled, sortPosts]);
-
-    // For tree view: fetch sub-replies removed
-    React.useEffect(() => {
-    }, [dispatch, posts, postId, treeViewEnabled]);
+    // Tracking the current thread state
 
     const mainPostRef = React.useRef<HTMLDivElement>(null);
     const hasScrolledRef = React.useRef(false);
