@@ -4,7 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
-import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark } from '../redux/slices/postsSlice';
+import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings } from '../redux/slices/postsSlice';
 import { openReply, openMobileMenu, openEditPost, openReport, openQuote } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -917,9 +917,21 @@ const PostDetailPage: React.FC = () => {
                         isOpen={isInteractionModalOpen}
                         onClose={() => setIsInteractionModalOpen(false)}
                         replyRestriction={post.replyRestriction || 'anyone'}
-                        setReplyRestriction={(val) => { }}
+                        setReplyRestriction={(val) => {
+                            dispatch(updateInteractionSettings({
+                                postUri: post.uri!,
+                                replyRestriction: val,
+                                allowQuotes: post.allowQuotes !== false
+                            }));
+                        }}
                         allowQuotes={post.allowQuotes !== false}
-                        setAllowQuotes={(val) => { }}
+                        setAllowQuotes={(val) => {
+                            dispatch(updateInteractionSettings({
+                                postUri: post.uri!,
+                                replyRestriction: post.replyRestriction || 'anyone',
+                                allowQuotes: val
+                            }));
+                        }}
                         postUri={post.uri!}
                     />
                 )}

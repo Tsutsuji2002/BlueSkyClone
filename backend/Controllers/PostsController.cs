@@ -165,6 +165,13 @@ public class PostsController : ControllerBase
             var post = await _postService.GetPostByIdAsync(id, viewerId);
             if (post == null) return NotFound();
 
+            // If it's a remote post (stub), trigger a thread fetch to populate replies locally
+            if (!string.IsNullOrEmpty(post.Uri) && post.Uri.StartsWith("at://"))
+            {
+                await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId);
+                // Refresh the post object if needed, but here we just want to ensure stubs are filled
+            }
+
             var thread = new List<PostDto> { post };
 
             // Fetch Ancestors
@@ -216,6 +223,12 @@ public class PostsController : ControllerBase
             {
                 _logger.LogWarning("[PostsController] GetPostByTid: Post NOT FOUND for Tid={Tid}", tid);
                 return NotFound();
+            }
+
+            // If it's a remote post (stub), trigger a thread fetch to populate replies locally
+            if (!string.IsNullOrEmpty(post.Uri) && post.Uri.StartsWith("at://"))
+            {
+                await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId);
             }
 
             var thread = new List<PostDto> { post };

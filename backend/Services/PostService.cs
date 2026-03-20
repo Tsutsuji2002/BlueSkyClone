@@ -1,4 +1,4 @@
-using BSkyClone.DTOs;
+﻿using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -2220,7 +2220,22 @@ public class PostService : IPostService
                         }
                     };
 
-                    extractPosts(jObject["thread"]);
+                    var threadNode = jObject["thread"];
+                    if (threadNode != null)
+                    {
+                        // Background ingestion to populate local DB with remote replies
+                        _ = Task.Run(async () => {
+                            try {
+                                using var scope = _scopeFactory.CreateScope();
+                                var backgroundPostService = scope.ServiceProvider.GetRequiredService<IPostService>();
+                                await backgroundPostService.IngestThreadRecursiveAsync(threadNode);
+                            } catch (Exception ex) {
+                                _logger.LogWarning(ex, "Background thread ingestion failed for {Uri}", uri);
+                            }
+                        });
+                    }
+
+                    extractPosts(threadNode);
 
                     if (allCids.Any())
                     {
@@ -4096,5 +4111,120 @@ public class PostService : IPostService
         await _unitOfWork.Posts.AddAsync(stubPost);
         await _unitOfWork.CompleteAsync();
         return stubPost;
+    }
+
+    public async Task IngestThreadRecursiveAsync(Newtonsoft.Json.Linq.JToken? node)
+    {
+        if (node == null) return;
+
+        // 1. Ingest the current post
+        var postNode = node["post"];
+        if (postNode != null)
+        {
+            await IngestPostNodeAsync(postNode);
+        }
+
+        // 2. Recursively ingest parent
+        var parentNode = node["parent"];
+        if (parentNode != null && parentNode["post"] != null)
+        {
+            await IngestThreadRecursiveAsync(parentNode);
+        }
+
+        // 3. Recursively ingest replies
+        var replies = node["replies"];
+        if (replies != null && replies.Type == Newtonsoft.Json.Linq.JTokenType.Array)
+        {
+            foreach (var reply in replies)
+            {
+                await IngestThreadRecursiveAsync(reply);
+            }
+        }
+    }
+
+    private async Task<Guid?> IngestPostNodeAsync(Newtonsoft.Json.Linq.JToken? postNode)
+    {
+        if (postNode == null) return null;
+
+        var uri = postNode["uri"]?.ToString();
+        var cid = postNode["cid"]?.ToString();
+        if (string.IsNullOrEmpty(uri)) return null;
+
+        var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
+        if (existing != null && !string.IsNullOrEmpty(existing.Content)) 
+            return existing.Id;
+
+        var authorNode = postNode["author"];
+        if (authorNode == null) return null;
+
+        var did = authorNode["did"]?.ToString();
+        if (string.IsNullOrEmpty(did)) return null;
+
+        var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+        if (author == null)
+        {
+            author = new User
+            {
+                Id = Guid.NewGuid(),
+                Did = did,
+                Handle = authorNode["handle"]?.ToString() ?? did,
+                DisplayName = authorNode["displayName"]?.ToString(),
+                AvatarUrl = authorNode["avatar"]?.ToString(),
+                IsVerified = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.Users.AddAsync(author);
+            await _unitOfWork.CompleteAsync();
+        }
+
+        var recordNode = postNode["record"];
+        if (recordNode == null) return null;
+
+        Guid? replyToPostId = null;
+        Guid? rootPostId = null;
+
+        // Extract reply info from record if available
+        if (recordNode["reply"] != null)
+        {
+            var parentUri = recordNode["reply"]["parent"]?["uri"]?.ToString();
+            var rootUri = recordNode["reply"]["root"]?["uri"]?.ToString();
+
+            if (!string.IsNullOrEmpty(parentUri))
+            {
+                var parentPost = await FindOrCreateRemotePostStubAsync(parentUri);
+                replyToPostId = parentPost?.Id;
+            }
+
+            if (!string.IsNullOrEmpty(rootUri))
+            {
+                var rootPost = await FindOrCreateRemotePostStubAsync(rootUri);
+                rootPostId = rootPost?.Id;
+            }
+        }
+
+        var post = existing ?? new Post { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
+        post.AuthorId = author.Id;
+        post.Uri = uri;
+        post.Cid = cid;
+        post.Tid = uri.Split('/').Last();
+        post.Content = recordNode["text"]?.ToString() ?? "";
+        post.ReplyToPostId = replyToPostId;
+        post.RootPostId = rootPostId;
+        post.LikesCount = postNode["likeCount"]?.ToObject<int>() ?? 0;
+        post.RepostsCount = postNode["repostCount"]?.ToObject<int>() ?? 0;
+        post.RepliesCount = postNode["replyCount"]?.ToObject<int>() ?? 0;
+        post.IsDeleted = false;
+
+        if (existing == null)
+        {
+            await _unitOfWork.Posts.AddAsync(post);
+        }
+        else
+        {
+            _unitOfWork.Posts.Update(post);
+        }
+
+        await _unitOfWork.CompleteAsync();
+        return post.Id;
     }
 }

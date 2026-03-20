@@ -36,4 +36,5 @@ public interface IPostService
     /// Increments (or decrements) the appropriate count directly on the local post row.
     /// </summary>
     Task IncrementRemoteInteractionAsync(string? subjectUri, string type, int delta, string? actorDid = null, string? recordPath = null);
+    Task IngestThreadRecursiveAsync(Newtonsoft.Json.Linq.JToken? node);
 }
