@@ -173,12 +173,10 @@ const PostDetailPage: React.FC = () => {
 
     React.useEffect(() => {
         if (postId) {
-            if (!post) {
-                dispatch(fetchPostById({ uri: postId, handle }));
-            }
+            dispatch(fetchPostById({ uri: postId, handle }));
             // Replies are now usually included in fetchPostById (getPostThread)
         }
-    }, [dispatch, postId, handle, post]);
+    }, [dispatch, postId, handle]);
 
     const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
     React.useEffect(() => {

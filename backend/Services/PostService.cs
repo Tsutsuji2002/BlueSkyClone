@@ -233,7 +233,7 @@ public class PostService : IPostService
                 }
             }
 
-            // Redis caching for quick re-access (1 minute TTL)
+            // Redis caching for quick re-access (30 second TTL)
             var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}:v2";
             var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
             
@@ -278,7 +278,7 @@ public class PostService : IPostService
             // Only cache when there are results - don't cache empty arrays so new posts appear promptly
             if (postDtos.Count > 0)
             {
-                await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(1));
+                await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromSeconds(30));
             }
             
             if (viewerId.HasValue && postDtos.Count > 0)
@@ -294,7 +294,6 @@ public class PostService : IPostService
             return new List<PostDto>();
         }
     }
-
 
     public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
     {
@@ -2169,7 +2168,7 @@ public class PostService : IPostService
 
             if (!didOrHandle.StartsWith("did:"))
             {
-                // It's a handle — resolve to DID via .well-known
+                // It's a handle â€” resolve to DID via .well-known
                 try
                 {
                     var response = await new System.Net.Http.HttpClient().GetAsync($"https://{didOrHandle}/.well-known/atproto-did");
@@ -2457,8 +2456,15 @@ public class PostService : IPostService
                             LikesCount = postData.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
                             RepostsCount = postData.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0,
                             RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0,
-                            IsDeleted = false
+                            IsDeleted = false,
+                            FacetsJson = record.TryGetProperty("facets", out var f) ? f.ToString() : null
                         };
+                        
+                        if (postData.TryGetProperty("embed", out var e))
+                        {
+                            await IngestEmbedsAsync(newPost, e);
+                        }
+                        
                         await _unitOfWork.Posts.AddAsync(newPost);
                     }
                     else
@@ -2500,6 +2506,137 @@ public class PostService : IPostService
             "posts" => "posts_no_replies",
             _ => null
         };
+    }
+
+    private async Task IngestEmbedsAsync(Post post, System.Text.Json.JsonElement embed)
+    {
+        try
+        {
+            if (!embed.TryGetProperty("$type", out var typeProp)) return;
+            var type = typeProp.GetString();
+            
+            if (type == "app.bsky.embed.images#view")
+            {
+                if (embed.TryGetProperty("images", out var images))
+                {
+                    int pos = 0;
+                    foreach (var img in images.EnumerateArray())
+                    {
+                        var thumb = img.GetProperty("thumb").GetString();
+                        var full = img.GetProperty("fullsize").GetString();
+                        var alt = img.TryGetProperty("alt", out var a) ? a.GetString() : null;
+
+                        if (!string.IsNullOrEmpty(thumb) || !string.IsNullOrEmpty(full))
+                        {
+                            var medium = new PostMedium
+                            {
+                                Id = Guid.NewGuid(),
+                                PostId = post.Id,
+                                Type = "image",
+                                Url = full ?? thumb!,
+                                ThumbnailUrl = thumb,
+                                AltText = alt,
+                                Position = pos++,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            await _unitOfWork.PostMedia.AddAsync(medium);
+                        }
+                    }
+                }
+            }
+            else if (type == "app.bsky.embed.external#view")
+            {
+                if (embed.TryGetProperty("external", out var ext))
+                {
+                    var uri = ext.GetProperty("uri").GetString();
+                    if (!string.IsNullOrEmpty(uri))
+                    {
+                        var preview = new LinkPreview
+                        {
+                            Id = Guid.NewGuid(),
+                            PostId = post.Id,
+                            Url = uri,
+                            Title = ext.TryGetProperty("title", out var t) ? t.GetString() : null,
+                            Description = ext.TryGetProperty("description", out var d) ? d.GetString() : null,
+                            Image = ext.TryGetProperty("thumb", out var i) ? i.GetString() : null,
+                            Domain = new Uri(uri).Host.Replace("www.", ""),
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _unitOfWork.LinkPreviews.AddAsync(preview);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to ingest System.Text.Json embeds for post {Uri}", post.Uri);
+        }
+    }
+
+    private async Task IngestEmbedsAsync(Post post, Newtonsoft.Json.Linq.JToken? embed)
+    {
+        if (embed == null) return;
+        try
+        {
+            var type = embed["$type"]?.ToString();
+            if (type == "app.bsky.embed.images#view")
+            {
+                var images = embed["images"] as Newtonsoft.Json.Linq.JArray;
+                if (images != null)
+                {
+                    int pos = 0;
+                    foreach (var img in images)
+                    {
+                        var thumb = img["thumb"]?.ToString();
+                        var full = img["fullsize"]?.ToString();
+                        var alt = img["alt"]?.ToString();
+
+                        if (!string.IsNullOrEmpty(thumb) || !string.IsNullOrEmpty(full))
+                        {
+                            var medium = new PostMedium
+                            {
+                                Id = Guid.NewGuid(),
+                                PostId = post.Id,
+                                Type = "image",
+                                Url = full ?? thumb!,
+                                ThumbnailUrl = thumb,
+                                AltText = alt,
+                                Position = pos++,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            await _unitOfWork.PostMedia.AddAsync(medium);
+                        }
+                    }
+                }
+            }
+            else if (type == "app.bsky.embed.external#view")
+            {
+                var ext = embed["external"];
+                if (ext != null)
+                {
+                    var uri = ext["uri"]?.ToString();
+                    if (!string.IsNullOrEmpty(uri))
+                    {
+                        var preview = new LinkPreview
+                        {
+                            Id = Guid.NewGuid(),
+                            PostId = post.Id,
+                            Url = uri,
+                            Title = ext["title"]?.ToString(),
+                            Description = ext["description"]?.ToString(),
+                            Image = ext["thumb"]?.ToString(),
+                            Domain = new Uri(uri).Host.Replace("www.", ""),
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _unitOfWork.LinkPreviews.AddAsync(preview);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to ingest Newtonsoft embeds for post {Uri}", post.Uri);
+        }
     }
 
 
