@@ -202,6 +202,16 @@ public class PostService : IPostService
                 if (isBlocked) return new List<PostDto>();
             }
 
+            var profileUser = await _unitOfWork.Users.GetByIdAsync(userId);
+            var isRemoteUser = !string.IsNullOrWhiteSpace(profileUser?.Did) && profileUser.Did.StartsWith("did:");
+
+            // Remote profiles are synced lazily. Refresh before loading so replies/media tabs
+            // have the reply/root metadata and media extracted from the remote author feed.
+            if (isRemoteUser && !string.IsNullOrWhiteSpace(profileUser?.Did))
+            {
+                await FetchRemoteAuthorFeedAsync(profileUser.Did, type);
+            }
+
             // Redis caching for quick re-access (1 minute TTL)
             var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}:v2";
             var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
@@ -218,7 +228,6 @@ public class PostService : IPostService
 
             var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type, limit, offset);
             
-            var profileUser = await _unitOfWork.Users.GetByIdAsync(userId);
             var profileUserDto = profileUser == null ? null : new AuthorDto
             {
                 Id = profileUser.Id,
@@ -2301,7 +2310,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task FetchRemoteAuthorFeedAsync(string did)
+    public async Task FetchRemoteAuthorFeedAsync(string did, string? type = null)
     {
         try
         {
@@ -2312,6 +2321,11 @@ public class PostService : IPostService
                 { "actor", did },
                 { "limit", "50" }
             };
+            var remoteFilter = MapRemoteAuthorFeedFilter(type);
+            if (!string.IsNullOrWhiteSpace(remoteFilter))
+            {
+                qDict["filter"] = remoteFilter;
+            }
             var qCollection = new QueryCollection(qDict);
 
             var proxyResult = await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.feed.getAuthorFeed", qCollection);
@@ -2320,6 +2334,18 @@ public class PostService : IPostService
             {
                 var feedData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
                 var feedItems = feedData.RootElement.GetProperty("feed");
+
+                if (feedItems.ValueKind != JsonValueKind.Array || feedItems.GetArrayLength() == 0)
+                {
+                    _logger.LogInformation(
+                        "Remote author feed returned no items for {Did} with type {Type} and filter {Filter}",
+                        did,
+                        type ?? "posts",
+                        remoteFilter ?? "<default>");
+
+                    await _userService.ResolveRemoteProfileAsync(did);
+                    return;
+                }
 
                 var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
                 if (author == null)
@@ -2346,12 +2372,23 @@ public class PostService : IPostService
                     var uri = postData.GetProperty("uri").GetString();
                     var cid = postData.GetProperty("cid").GetString();
                     var tid = uri?.Split('/').Last();
+                    var record = postData.GetProperty("record");
+
+                    Guid? replyToPostId = null;
+                    Guid? rootPostId = null;
+                    if (TryExtractReplyUris(record, out var parentUri, out var rootUri))
+                    {
+                        var parentPost = await FindOrCreateRemotePostStubAsync(parentUri);
+                        replyToPostId = parentPost?.Id;
+
+                        var rootPost = await FindOrCreateRemotePostStubAsync(rootUri ?? parentUri);
+                        rootPostId = rootPost?.Id;
+                    }
 
                     // Check if we already have it
                     var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
                     if (existing == null)
                     {
-                        var record = postData.GetProperty("record");
                         var newPost = new Post
                         {
                             Id = Guid.NewGuid(),
@@ -2361,12 +2398,32 @@ public class PostService : IPostService
                             Uri = uri,
                             Cid = cid,
                             Tid = tid ?? GenerateTid(),
+                            ReplyToPostId = replyToPostId,
+                            RootPostId = rootPostId,
                             LikesCount = postData.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
                             RepostsCount = postData.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0,
                             RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0,
                             IsDeleted = false
                         };
                         await _unitOfWork.Posts.AddAsync(newPost);
+                    }
+                    else
+                    {
+                        var shouldUpdate = false;
+                        if (existing.ReplyToPostId != replyToPostId)
+                        {
+                            existing.ReplyToPostId = replyToPostId;
+                            shouldUpdate = true;
+                        }
+                        if (existing.RootPostId != rootPostId)
+                        {
+                            existing.RootPostId = rootPostId;
+                            shouldUpdate = true;
+                        }
+                        if (shouldUpdate)
+                        {
+                            _unitOfWork.Posts.Update(existing);
+                        }
                     }
                 }
                 await _unitOfWork.CompleteAsync();
@@ -2377,6 +2434,18 @@ public class PostService : IPostService
         {
             _logger.LogError(ex, "Error fetching remote author feed for {Did}", did);
         }
+    }
+
+    private static string? MapRemoteAuthorFeedFilter(string? type)
+    {
+        return type switch
+        {
+            "replies" => "posts_with_replies",
+            "media" => "posts_with_media",
+            "video" => "posts_with_media",
+            "posts" => "posts_no_replies",
+            _ => null
+        };
     }
 
 
@@ -2451,6 +2520,17 @@ public class PostService : IPostService
                 }
             }
 
+            Guid? replyToPostId = null;
+            Guid? rootPostId = null;
+            if (TryExtractReplyUris(record, out var parentUri, out var rootUri))
+            {
+                var parentPost = await FindOrCreateRemotePostStubAsync(parentUri);
+                replyToPostId = parentPost?.Id;
+
+                var rootPost = await FindOrCreateRemotePostStubAsync(rootUri ?? parentUri);
+                rootPostId = rootPost?.Id;
+            }
+
             var newPost = new Post
             {
                 Id = Guid.NewGuid(),
@@ -2460,6 +2540,8 @@ public class PostService : IPostService
                 Uri = uri,
                 Cid = cid,
                 Tid = tid,
+                ReplyToPostId = replyToPostId,
+                RootPostId = rootPostId,
                 FacetsJson = facetsJson,
                 IsDeleted = false
             };
@@ -3898,5 +3980,121 @@ public class PostService : IPostService
             _logger.LogError(ex, "Error generating thumbnail for {FullPath}", fullPath);
             return null;
         }
+    }
+
+    private bool TryExtractReplyUris(JsonElement record, out string? parentUri, out string? rootUri)
+    {
+        parentUri = null;
+        rootUri = null;
+
+        if (!record.TryGetProperty("reply", out var replyElement))
+        {
+            return false;
+        }
+
+        if (replyElement.TryGetProperty("parent", out var parentElement) &&
+            parentElement.TryGetProperty("uri", out var parentUriElement))
+        {
+            parentUri = parentUriElement.GetString();
+        }
+
+        if (replyElement.TryGetProperty("root", out var rootElement) &&
+            rootElement.TryGetProperty("uri", out var rootUriElement))
+        {
+            rootUri = rootUriElement.GetString();
+        }
+
+        return !string.IsNullOrWhiteSpace(parentUri);
+    }
+
+    private bool TryExtractReplyUris(Dictionary<string, object> record, out string? parentUri, out string? rootUri)
+    {
+        parentUri = null;
+        rootUri = null;
+
+        if (!record.TryGetValue("reply", out var replyObj) || replyObj is not Dictionary<string, object> replyDict)
+        {
+            return false;
+        }
+
+        if (replyDict.TryGetValue("parent", out var parentObj) && parentObj is Dictionary<string, object> parentDict)
+        {
+            parentUri = TryGetUriValue(parentDict);
+        }
+
+        if (replyDict.TryGetValue("root", out var rootObj) && rootObj is Dictionary<string, object> rootDict)
+        {
+            rootUri = TryGetUriValue(rootDict);
+        }
+
+        return !string.IsNullOrWhiteSpace(parentUri);
+    }
+
+    private static string? TryGetUriValue(Dictionary<string, object> node)
+    {
+        if (node.TryGetValue("uri", out var uriValue))
+        {
+            return uriValue?.ToString();
+        }
+
+        return null;
+    }
+
+    private async Task<Post?> FindOrCreateRemotePostStubAsync(string? atUri)
+    {
+        if (string.IsNullOrWhiteSpace(atUri))
+        {
+            return null;
+        }
+
+        var existingPost = await _unitOfWork.Posts.Query()
+            .FirstOrDefaultAsync(p => p.Uri == atUri);
+        if (existingPost != null)
+        {
+            return existingPost;
+        }
+
+        var segments = atUri.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length < 4)
+        {
+            return null;
+        }
+
+        var did = segments[1];
+        var tid = segments[^1];
+
+        var author = await _unitOfWork.Users.Query()
+            .FirstOrDefaultAsync(u => u.Did == did);
+        if (author == null)
+        {
+            author = new User
+            {
+                Id = Guid.NewGuid(),
+                Did = did,
+                Handle = did,
+                Username = did.Length > 20 ? did.Substring(0, 20) : did,
+                Email = $"{did}@placeholder.com",
+                PasswordHash = "remote",
+                Salt = "remote",
+                IsVerified = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.Users.AddAsync(author);
+        }
+
+        var stubPost = new Post
+        {
+            Id = Guid.NewGuid(),
+            AuthorId = author.Id,
+            Tid = tid,
+            Uri = atUri,
+            Content = string.Empty,
+            CreatedAt = DateTime.UtcNow,
+            IsDeleted = false
+        };
+
+        await _unitOfWork.Posts.AddAsync(stubPost);
+        await _unitOfWork.CompleteAsync();
+        return stubPost;
     }
 }
