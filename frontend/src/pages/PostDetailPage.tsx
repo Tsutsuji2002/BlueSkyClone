@@ -846,13 +846,14 @@ const PostDetailPage: React.FC = () => {
                                 let currentId = reply.id;
                                 for (let depth = 0; depth < 5; depth++) {
                                     const cidForClosure = currentId; // Create stable reference for filter
+                                    const lastItem = chain[chain.length - 1];
                                     const subReplies = sortPosts(posts.filter((p: Post) => {
                                         const pid = p.replyToPostId;
-                                        if (!pid || p.id === chainItem.id || p.uri === chainItem.uri) return false;
+                                        if (!pid || p.id === lastItem.id || p.uri === lastItem.uri) return false;
                                         // Check against any identifier of the CURRENT chain item
-                                        return pid === chainItem.id || 
-                                               pid === chainItem.tid ||
-                                               (chainItem.uri && (pid === chainItem.uri || chainItem.uri.endsWith('/' + pid)));
+                                        return pid === lastItem.id || 
+                                               pid === lastItem.tid ||
+                                               (lastItem.uri && (pid === lastItem.uri || lastItem.uri.endsWith('/' + pid)));
                                     }));
                                     if (subReplies.length === 0) break;
                                     chain.push(subReplies[0]);
