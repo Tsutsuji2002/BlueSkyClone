@@ -1,4 +1,4 @@
-﻿using BSkyClone.DTOs;
+using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -209,7 +209,28 @@ public class PostService : IPostService
             // have the reply/root metadata and media extracted from the remote author feed.
             if (isRemoteUser && !string.IsNullOrWhiteSpace(profileUser?.Did))
             {
-                await FetchRemoteAuthorFeedAsync(profileUser.Did, type);
+                var filterKey = type ?? "posts";
+                var cursorCacheKey = $"remote_feed_cursor:{profileUser.Did}:{filterKey}";
+
+                // Check how many we have locally
+                var localCount = await _unitOfWork.Posts.Query()
+                    .CountAsync(p => p.AuthorId == userId && (type == "replies" ? p.ReplyToPostId != null : p.ReplyToPostId == null));
+
+                if (offset == 0 || localCount < offset + limit)
+                {
+                    var cursor = offset > 0 ? await _cacheService.GetAsync<string>(cursorCacheKey) : null;
+                    await FetchRemoteAuthorFeedAsync(profileUser.Did, type, cursor);
+                    
+                    // If it's a first-time load (offset 0), fetch another page to "claw" more data
+                    if (offset == 0)
+                    {
+                        var nextCursor = await _cacheService.GetAsync<string>(cursorCacheKey);
+                        if (!string.IsNullOrEmpty(nextCursor) && nextCursor != cursor)
+                        {
+                            await FetchRemoteAuthorFeedAsync(profileUser.Did, type, nextCursor);
+                        }
+                    }
+                }
             }
 
             // Redis caching for quick re-access (1 minute TTL)
@@ -2325,17 +2346,24 @@ public class PostService : IPostService
         }
     }
 
-    public async Task FetchRemoteAuthorFeedAsync(string did, string? type = null)
+    public async Task FetchRemoteAuthorFeedAsync(string did, string? type = null, string? cursor = null)
     {
         try
         {
-            _logger.LogInformation("Starting background fetch for remote feed: {Did}", did);
+            var filter = type ?? "posts";
+            _logger.LogInformation("Starting fetch for remote feed: {Did}, Type: {Type}, Cursor: {Cursor}", did, filter, cursor);
 
             var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
             {
                 { "actor", did },
                 { "limit", "50" }
             };
+            
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                qDict["cursor"] = cursor;
+            }
+
             var remoteFilter = MapRemoteAuthorFeedFilter(type);
             if (!string.IsNullOrWhiteSpace(remoteFilter))
             {
@@ -2349,6 +2377,17 @@ public class PostService : IPostService
             {
                 var feedData = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
                 var feedItems = feedData.RootElement.GetProperty("feed");
+
+                // Save cursor for pagination
+                if (feedData.RootElement.TryGetProperty("cursor", out var cProp))
+                {
+                    var nextCursor = cProp.GetString();
+                    if (!string.IsNullOrEmpty(nextCursor))
+                    {
+                        var cursorCacheKey = $"remote_feed_cursor:{did}:{filter}";
+                        await _cacheService.SetAsync(cursorCacheKey, nextCursor, TimeSpan.FromHours(1));
+                    }
+                }
 
                 if (feedItems.ValueKind != JsonValueKind.Array || feedItems.GetArrayLength() == 0)
                 {
