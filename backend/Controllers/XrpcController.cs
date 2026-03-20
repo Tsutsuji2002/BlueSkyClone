@@ -1,4 +1,4 @@
-using BSkyClone.Lexicons.App.Bsky.Graph;
+﻿using BSkyClone.Lexicons.App.Bsky.Graph;
 using BSkyClone.Lexicons.App.Bsky.Notification;
 using BSkyClone.Lexicons.App.Bsky.Actor.Defs;
 using BSkyClone.Lexicons.App.Bsky.Feed;
@@ -642,6 +642,12 @@ namespace BSkyClone.Controllers
                 else
                     user = await _userService.GetUserByHandleAsync(actor);
 
+                if (user == null && !string.IsNullOrEmpty(actor))
+                {
+                    // Try to resolve remote profile if not found locally
+                    user = await _userService.ResolveRemoteProfileAsync(actor);
+                }
+
                 if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
 
                 // Phase 35: Resolve remote stub users
@@ -723,6 +729,12 @@ namespace BSkyClone.Controllers
                     user = await _userService.GetUserByDidAsync(actor);
                 else
                     user = await _userService.GetUserByHandleAsync(actor);
+
+                if (user == null && !string.IsNullOrEmpty(actor))
+                {
+                    // Try to resolve remote profile if not found locally
+                    user = await _userService.ResolveRemoteProfileAsync(actor);
+                }
 
                 if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
 
