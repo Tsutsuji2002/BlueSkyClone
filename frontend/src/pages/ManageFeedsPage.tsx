@@ -15,6 +15,7 @@ import {
     fetchSubscribedFeeds,
     reorderFeeds,
 } from '../redux/slices/feedsSlice';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const ManageFeedsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -85,9 +86,10 @@ const ManageFeedsPage: React.FC = () => {
         }
     };
 
+    useDocumentTitle(t('feeds.title'));
+
     return (
-        <MainLayout>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
                     <div className="flex items-center gap-6">
@@ -230,8 +232,7 @@ const ManageFeedsPage: React.FC = () => {
                         </p>
                     </div>
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

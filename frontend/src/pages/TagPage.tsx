@@ -9,6 +9,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { fetchPostsByTag } from '../redux/slices/postsSlice';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const TagPage: React.FC = () => {
     const { tag } = useParams<{ tag: string }>();
@@ -35,9 +36,10 @@ const TagPage: React.FC = () => {
         }
     };
 
+    useDocumentTitle(tag ? `#${tag}` : t('explore.trending_posts'));
+
     return (
-        <MainLayout>
-            <div className="min-h-screen bg-white dark:bg-dark-bg">
+        <div className="min-h-screen bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
                     <div className="flex items-center gap-3 px-3 py-2">
@@ -101,8 +103,7 @@ const TagPage: React.FC = () => {
                         </>
                     )}
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

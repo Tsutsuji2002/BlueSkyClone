@@ -7,6 +7,7 @@ import { cn } from '../utils/classNames';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
 import { RootState } from '../redux/store';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const AccessibilityPage: React.FC = () => {
     const navigate = useNavigate();
@@ -47,9 +48,10 @@ const AccessibilityPage: React.FC = () => {
         </div>
     );
 
+    useDocumentTitle(t('accessibility.title'));
+
     return (
-        <MainLayout>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
                     <button
@@ -92,7 +94,6 @@ const AccessibilityPage: React.FC = () => {
                     </section>
                 </div>
             </div>
-        </MainLayout>
     );
 };
 

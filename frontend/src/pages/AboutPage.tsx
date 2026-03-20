@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiBook, FiGlobe, FiSliders, FiTool, FiChevronRight } from 'react-icons/fi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const AboutPage: React.FC = () => {
     const navigate = useNavigate();
@@ -18,9 +19,10 @@ const AboutPage: React.FC = () => {
         { id: 'system_log', label: t('about.system_log'), icon: <FiSliders size={20} />, link: '#' },
     ];
 
+    useDocumentTitle(t('about.title'));
+
     return (
-        <MainLayout>
-            <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
+        <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 py-3 flex items-center gap-4">
                     <button
@@ -75,7 +77,6 @@ const AboutPage: React.FC = () => {
 
                 </div>
             </div>
-        </MainLayout>
     );
 };
 

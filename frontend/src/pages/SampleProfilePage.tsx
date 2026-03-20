@@ -22,6 +22,7 @@ import MediaGrid from '../components/profile/MediaGrid';
 import ListAvatar from '../components/common/ListAvatar';
 import ConfirmModal from '../components/common/ConfirmModal';
 import Feed from '../components/feed/Feed';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const SampleProfilePage: React.FC = () => {
     const { userId } = useParams<{ userId: string }>();
@@ -226,8 +227,10 @@ const SampleProfilePage: React.FC = () => {
         );
     }
 
+    useDocumentTitle(profileUser?.displayName || profileUser?.handle || t('nav.profile'));
+
     return (
-        <MainLayout hideTopBar={true}>
+        <>
             <div className="flex flex-col bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border min-h-screen">
                 {/* Header/Cover Section */}
                 <div className="relative w-full">
@@ -540,7 +543,7 @@ const SampleProfilePage: React.FC = () => {
                 confirmLabel={t(`profile.${confirmModal.type}`)}
                 variant={confirmModal.type === 'block' || confirmModal.type === 'mute' ? 'danger' : 'primary'}
             />
-        </MainLayout>
+        </>
     );
 };
 

@@ -4,6 +4,7 @@ import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiPlus, FiTrash2, FiCopy, FiX, FiInfo, FiChevronRight } from 'react-icons/fi';
 import Button from '../components/common/Button';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const AppPasswordResultModal: React.FC<{ isOpen: boolean; onClose: () => void; password: string; name: string }> = ({ isOpen, onClose, password, name }) => {
     const { t } = useTranslation();
@@ -110,8 +111,10 @@ const AppPasswordsPage: React.FC = () => {
         setPasswords(prev => [{ id: Date.now().toString(), name: name, created: new Date().toLocaleString() }, ...prev]);
     };
 
+    useDocumentTitle(t('privacy.app_passwords'));
+
     return (
-        <MainLayout>
+        <>
             <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 py-3 flex items-center gap-4">
@@ -167,7 +170,7 @@ const AppPasswordsPage: React.FC = () => {
                 password="ttid-i5sa-xhy4-si6f"
                 name={newPasswordName}
             />
-        </MainLayout>
+        </>
     );
 };
 

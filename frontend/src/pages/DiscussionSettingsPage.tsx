@@ -7,6 +7,7 @@ import { cn } from '../utils/classNames';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { updateNotificationSettings, updateSettings } from '../redux/slices/authSlice';
 import { RootState } from '../redux/store';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const DiscussionSettingsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -52,9 +53,10 @@ const DiscussionSettingsPage: React.FC = () => {
         </button>
     );
 
+    useDocumentTitle(t('content.discussion_settings'));
+
     return (
-        <MainLayout>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
                     <button
@@ -135,7 +137,6 @@ const DiscussionSettingsPage: React.FC = () => {
                     </section>
                 </div>
             </div>
-        </MainLayout>
     );
 };
 

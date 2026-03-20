@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiInfo, FiGlobe, FiUsers, FiAtSign, FiXCircle, FiCheck, FiChevronDown, FiRepeat, FiUserCheck } from 'react-icons/fi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -102,9 +103,10 @@ const ModerationInteractionPage: React.FC = () => {
     const isCustomSelected = (key: string) => localReply === 'custom' && localCustomRestrictions.includes(key);
     const isListSelected = (id: string) => localReply === 'custom' && selectedLists.includes(id);
 
+    useDocumentTitle(t('moderation.interaction_settings'));
+
     return (
-        <MainLayout hideTopBar title={t('moderation.interaction_title')}>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
                     <button
@@ -252,9 +254,9 @@ const ModerationInteractionPage: React.FC = () => {
                                         )}
                                     </div>
                                 )}
-                            </div>
                         </div>
                     </div>
+                </div>
 
                     {/* Allow Quotes Section */}
                     <div className="space-y-4">
@@ -304,7 +306,6 @@ const ModerationInteractionPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </MainLayout>
     );
 };
 

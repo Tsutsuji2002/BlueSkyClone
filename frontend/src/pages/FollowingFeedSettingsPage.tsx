@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiInfo, FiMessageSquare, FiRepeat, FiMessageCircle, FiActivity } from 'react-icons/fi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { cn } from '../utils/classNames';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -60,9 +61,10 @@ const FollowingFeedSettingsPage: React.FC = () => {
         </div>
     );
 
+    useDocumentTitle(t('content.following_feed_settings'));
+
     return (
-        <MainLayout>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
                     <button
@@ -134,7 +136,6 @@ const FollowingFeedSettingsPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </MainLayout>
     );
 };
 

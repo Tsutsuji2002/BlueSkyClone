@@ -4,14 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { FiArrowLeft } from 'react-icons/fi';
 import MainLayout from '../components/layout/MainLayout';
 import InterestsEditor from '../components/feed/InterestsEditor';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const InterestsPage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
 
+    useDocumentTitle(t('content.my_interests'));
+
     return (
-        <MainLayout>
-            <div className="bg-white dark:bg-dark-bg min-h-screen">
+        <div className="bg-white dark:bg-dark-bg min-h-screen">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 py-3 flex items-center gap-4">
                     <button
@@ -33,8 +35,7 @@ const InterestsPage: React.FC = () => {
 
                     <InterestsEditor variant="full" />
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

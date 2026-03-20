@@ -17,6 +17,7 @@ import {
 import { cn } from '../utils/classNames';
 import { APP_LANGUAGES, ALL_LANGUAGES, LanguageMetadata } from '../constants/languages';
 import LanguageSelectionModal from '../components/modals/LanguageSelectionModal';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const LanguagePage: React.FC = () => {
     const navigate = useNavigate();
@@ -44,8 +45,10 @@ const LanguagePage: React.FC = () => {
     const getCurrentAppLang = () => APP_LANGUAGES.find(l => l.code === appLanguage) || APP_LANGUAGES[0];
     const getCurrentPrimaryLang = () => ALL_LANGUAGES.find(l => l.code === primaryLanguage) || { code: 'vi', nativeName: 'Tiếng Việt', englishName: 'Vietnamese' };
 
+    useDocumentTitle(t('language.title'));
+
     return (
-        <MainLayout>
+        <>
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
@@ -206,17 +209,17 @@ const LanguagePage: React.FC = () => {
                             </button>
                         </div>
                     </section>
-                </div>
             </div>
+        </div>
 
-            {isContentModalOpen && (
+        {isContentModalOpen && (
                 <LanguageSelectionModal
                     onClose={() => setIsContentModalOpen(false)}
                     selectedCodes={contentLanguages}
                     onToggle={(code) => dispatch(toggleContentLanguage(code))}
                 />
             )}
-        </MainLayout>
+        </>
     );
 };
 

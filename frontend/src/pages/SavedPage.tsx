@@ -8,6 +8,7 @@ import { fetchBookmarkedPosts } from '../redux/slices/postsSlice';
 import PostCard from '../components/feed/PostCard';
 import Feed from '../components/feed/Feed';
 import { FiBookmark } from 'react-icons/fi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const SavedPage: React.FC = () => {
     const { t } = useTranslation();
@@ -22,8 +23,10 @@ const SavedPage: React.FC = () => {
         dispatch(fetchBookmarkedPosts({ skip: bookmarkedPosts.length }));
     };
 
+    useDocumentTitle(t('saved.title'));
+
     return (
-        <MainLayout title={t('saved.title')}>
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
                     <div className="p-4">
@@ -66,7 +69,7 @@ const SavedPage: React.FC = () => {
                     />
                 )}
             </div>
-        </MainLayout>
+        </div>
     );
 };
 
