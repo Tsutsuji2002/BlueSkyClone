@@ -3404,29 +3404,19 @@ public class PostService : IPostService
         return replyDtos;
     }
 
-    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20)
+        public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null)
     {
-        // For trending/discover, we'll use a larger pool and then apply pagination
-        // This ensures the scoring is consistent across pages within a short timeframe
         var cacheKey = $"posts:trending:v3";
-        var cached = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
-        
-        List<PostDto> postDtos;
-        if (cached != null)
-        {
-            postDtos = cached.Skip(skip).Take(take).ToList();
-        }
-        else
+        var now = DateTime.UtcNow;
+
+        // 1. Get the "Global Trending Pool" (1000 posts)
+        var globalPool = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
+
+        if (globalPool == null)
         {
             try
             {
-                // Better Discover Algorithm: 
-                // 1. "Hotness" score with time decay
-                // 2. Score = (Likes * 2 + Reposts * 3 + Replies * 1) / (AgeInHours + 2)^1.5
-                // 3. Diversified by a larger sample pool
-                var threeDaysAgo = DateTime.UtcNow.AddDays(-3);
-                var now = DateTime.UtcNow;
-                
+                var threeDaysAgo = now.AddDays(-3);
                 var topPosts = await _unitOfWork.Posts.Query()
                     .Include(p => p.Author)
                     .Include(p => p.PostMedia)
@@ -3434,48 +3424,71 @@ public class PostService : IPostService
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                    .Include(p => p.Interests)
+                    .Include(p => p.Hashtags)
                     .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null && p.CreatedAt >= threeDaysAgo)
                     .OrderByDescending(p => (double)(p.LikesCount ?? 0) + (double)(p.RepostsCount ?? 0) + (double)(p.RepliesCount ?? 0))
-                    .Take(1000) // DB-level pruning
+                    .Take(1000)
                     .ToListAsync();
 
-                // Sort and score in-memory for the decay calculation
-                var scoredPosts = topPosts
+                // Initial Global Scoring (Sorts by hotness once)
+                var scoredGlobal = topPosts
                     .Select(p => {
                         var ageInHours = (now - (p.CreatedAt ?? now)).TotalHours;
                         var rawScore = (double)((p.LikesCount ?? 0) * 2 + (p.RepostsCount ?? 0) * 3 + (p.RepliesCount ?? 0));
                         var decayScore = rawScore / Math.Pow(ageInHours + 2, 1.5);
-                        // Add a tiny random jitter (0-5% of score) to keep it feeling fresh across cache cycles
-                        var jitter = 1.0 + (new Random().NextDouble() * 0.05);
-                        return new { Post = p, FinalScore = decayScore * jitter };
+                        return new { Post = p, BaseScore = decayScore };
                     })
-                    .OrderByDescending(x => x.FinalScore)
-                    .Take(500) // Larger pool for better pagination variety
-                    .Select(x => x.Post)
+                    .OrderByDescending(x => x.BaseScore)
+                    .Take(500) // Keep top 500 in global pool
+                    .Select(x => MapToDto(x.Post))
                     .ToList();
 
-                var allPostDtos = scoredPosts.Select(MapToDto).ToList();
-                
-                // Cache the full pool for 5 minutes
-                await _cacheService.SetAsync(cacheKey, (IEnumerable<PostDto>)allPostDtos, TimeSpan.FromMinutes(5));
-                
-                postDtos = allPostDtos.Skip(skip).Take(take).ToList();
+                globalPool = scoredGlobal;
+                await _cacheService.SetAsync(cacheKey, globalPool, TimeSpan.FromMinutes(5));
             }
             catch (Exception ex)
             {
-                System.Console.WriteLine($"[PostService] GetTrendingPostsAsync: Error: {ex.Message}");
-                postDtos = new List<PostDto>();
+                System.Console.WriteLine($"[PostService] GetTrendingPostsAsync Error: {ex.Message}");
+                return new List<PostDto>();
             }
         }
 
-        if (viewerId.HasValue && postDtos.Any())
+        // 2. Apply Personalization if Interests are provided
+        IEnumerable<PostDto> resultPool = globalPool;
+        if (userInterests != null && userInterests.Any())
         {
-            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
+            var normalizedInterests = userInterests.Select(i => i.ToLower()).ToList();
+            resultPool = globalPool
+                .Select((p, index) => {
+                    double boost = 1.0;
+                    var tags = p.Tags.Select(t => t.ToLower()).ToList();
+                    var interests = p.Interests.Select(i => i.ToLower()).ToList();
+                    
+                    foreach (var ui in normalizedInterests)
+                    {
+                        if (tags.Contains(ui) || interests.Contains(ui)) boost += 0.5;
+                        else if (p.Content != null && p.Content.ToLower().Contains(ui)) boost += 0.2;
+                    }
+
+                    // Score = Inverse original rank * boost
+                    // This way a moderately trending post that matches interests can jump to the top
+                    double personalizedScore = (500 - index) * boost;
+                    return new { Post = p, Score = personalizedScore };
+                })
+                .OrderByDescending(x => x.Score)
+                .Select(x => x.Post);
         }
 
-        return postDtos;
-    }
+        var resultDtos = resultPool.Skip(skip).Take(take).ToList();
 
+        if (viewerId.HasValue && resultDtos.Any())
+        {
+            resultDtos = await EnrichAndFilterPostsAsync(resultDtos, viewerId.Value);
+        }
+
+        return resultDtos;
+    }
     public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0)
     {
         try

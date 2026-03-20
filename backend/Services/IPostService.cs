@@ -19,7 +19,7 @@ public interface IPostService
     Task<object> ToggleBookmarkAsync(Guid userId, Guid postId);
     Task<object> ToggleRepostAsync(Guid userId, Guid postId);
     Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null);
-    Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20);
+    Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null);
     Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0);
     Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId);
     Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0);

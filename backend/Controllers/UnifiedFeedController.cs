@@ -12,11 +12,13 @@ namespace BSkyClone.Controllers;
 public class UnifiedFeedController : ControllerBase
 {
     private readonly IPostService _postService;
+    private readonly IUserService _userService;
     private readonly ILogger<UnifiedFeedController> _logger;
 
-    public UnifiedFeedController(IPostService postService, ILogger<UnifiedFeedController> logger)
+    public UnifiedFeedController(IPostService postService, IUserService userService, ILogger<UnifiedFeedController> logger)
     {
         _postService = postService;
+        _userService = userService;
         _logger = logger;
     }
 
@@ -39,7 +41,8 @@ public class UnifiedFeedController : ControllerBase
                     posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take);
                     break;
                 case "discover":
-                    posts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take);
+                    var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
+                    posts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests);
                     break;
                 case "internal-music":
                     posts = await _postService.GetPostsByTagAsync("music", viewerId.Value, take, skip);
