@@ -131,12 +131,12 @@ const PostDetailPage: React.FC = () => {
                    parentId === post.tid || 
                    (post.uri && (parentId === post.uri || post.uri.endsWith('/' + parentId)));
         });
-        
-        // Safety deduplication by URI
+        // Safety deduplication by URI or ID
         const seen = new Set<string>();
         const unique = filtered.filter(p => {
-            if (!p.uri || seen.has(p.uri)) return false;
-            seen.add(p.uri);
+            const uid = p.uri || p.id;
+            if (!uid || seen.has(uid)) return false;
+            seen.add(uid);
             return true;
         });
         
@@ -724,7 +724,7 @@ const PostDetailPage: React.FC = () => {
                                     return replyList.map((reply, idx) => {
                                         const subReplies = sortPosts(posts.filter((p: Post) => {
                                             const pid = p.replyToPostId;
-                                            if (!pid) return false;
+                                            if (!pid || p.id === reply.id || p.uri === reply.uri) return false;
                                             return pid === reply.id || 
                                                    pid === reply.tid || 
                                                    (reply.uri && (pid === reply.uri || reply.uri.endsWith('/' + pid)));
@@ -848,10 +848,11 @@ const PostDetailPage: React.FC = () => {
                                     const cidForClosure = currentId; // Create stable reference for filter
                                     const subReplies = sortPosts(posts.filter((p: Post) => {
                                         const pid = p.replyToPostId;
-                                        if (!pid) return false;
-                                        // currentId might be a CID, TID, or URI
-                                        return pid === cidForClosure || 
-                                               (reply.uri && reply.uri.endsWith('/' + pid));
+                                        if (!pid || p.id === chainItem.id || p.uri === chainItem.uri) return false;
+                                        // Check against any identifier of the CURRENT chain item
+                                        return pid === chainItem.id || 
+                                               pid === chainItem.tid ||
+                                               (chainItem.uri && (pid === chainItem.uri || chainItem.uri.endsWith('/' + pid)));
                                     }));
                                     if (subReplies.length === 0) break;
                                     chain.push(subReplies[0]);

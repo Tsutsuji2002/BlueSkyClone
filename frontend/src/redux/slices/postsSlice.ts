@@ -754,7 +754,12 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 const fetchedPosts: Post[] = Array.isArray(action.payload) ? action.payload : [action.payload];
                 fetchedPosts.forEach(fetchedPost => {
-                    const index = state.posts.findIndex(p => p.uri === fetchedPost.uri);
+                    // Deduplicate by URI or ID (if ID is not empty)
+                    const index = state.posts.findIndex(p => 
+                        (fetchedPost.uri && p.uri === fetchedPost.uri) || 
+                        (fetchedPost.id && p.id === fetchedPost.id && fetchedPost.id !== '')
+                    );
+                    
                     if (index !== -1) {
                         state.posts[index] = { ...state.posts[index], ...fetchedPost };
                     } else {
