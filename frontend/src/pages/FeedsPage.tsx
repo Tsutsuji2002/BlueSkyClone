@@ -143,7 +143,10 @@ const FeedsPage: React.FC = () => {
                             {subscribedFeeds.slice(0, showMorePinned ? undefined : 5).map((feed: Feed) => (
                                 <div
                                     key={feed.id}
-                                    onClick={() => navigate(`/feeds/${feed.id}`)}
+                                    onClick={() => {
+                                        console.log('FeedsPage: Navigating to feed:', feed.id, feed.name);
+                                        navigate(`/feeds/${feed.id}`);
+                                    }}
                                     className="flex items-center justify-between p-3 hover:bg-white dark:hover:bg-dark-surface rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
                                 >
                                     <div className="flex items-center gap-3 overflow-hidden">
@@ -215,7 +218,10 @@ const FeedsPage: React.FC = () => {
                             {searchResults.map((feed: Feed) => (
                                 <div
                                     key={feed.id}
-                                    onClick={() => navigate(`/feeds/${feed.id}`)}
+                                    onClick={() => {
+                                        console.log('FeedsPage (Search): Navigating to feed:', feed.id, feed.name);
+                                        navigate(`/feeds/${feed.id}`);
+                                    }}
                                     className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
                                 >
                                     <div className="flex items-start justify-between gap-3 mb-2">
@@ -245,7 +251,10 @@ const FeedsPage: React.FC = () => {
                             {recommendedFeeds.map((feed: Feed) => (
                                 <div
                                     key={feed.id}
-                                    onClick={() => navigate(`/feeds/${feed.id}`)}
+                                    onClick={() => {
+                                        console.log('FeedsPage (Recommended): Navigating to feed:', feed.id, feed.name);
+                                        navigate(`/feeds/${feed.id}`);
+                                    }}
                                     className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
                                 >
                                     <div className="flex items-start justify-between gap-3 mb-2">

@@ -37,9 +37,12 @@ const FeedDetailPage: React.FC = () => {
             dispatch(fetchSubscribedFeeds());
         }
         if (id && !feed && !isLoading) {
+            console.log('FeedDetailPage: Fetching info for missing feed ID:', id);
             dispatch(fetchFeedInfo(id));
         }
     }, [dispatch, subscribedFeeds.length, id, feed, isLoading]);
+
+    console.log('FeedDetailPage: Current State', { id, feed, isLoading, error: feeds_actionLoading[id || ''] });
 
     useEffect(() => {
         if (id) {

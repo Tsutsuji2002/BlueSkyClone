@@ -51,6 +51,7 @@ public class FeedsController : ControllerBase
                 return Unauthorized();
 
             var feeds = await _feedService.GetTrendingFeedsAsync(userId);
+            _logger.LogInformation("[FeedsController] GetTrending returned {Count} feeds. First Feed ID: {FirstId}", feeds.Count(), feeds.FirstOrDefault()?.Id);
             return Ok(feeds);
         }
         catch (Exception ex)
@@ -145,6 +146,7 @@ public class FeedsController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
+            _logger.LogInformation("[FeedsController] GetFeedById requested for ID: {Id}, Original string in path: {PathId}", id, Request.Path.Value?.Split('/').Last());
             var feed = await _feedService.GetFeedByIdAsync(id, userId);
             if (feed == null) return NotFound();
             return Ok(feed);

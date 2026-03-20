@@ -49,6 +49,8 @@ const SampleProfilePage: React.FC = () => {
         type: 'mute' | 'unmute' | 'block' | 'unblock' | null;
     }>({ isOpen: false, type: null });
 
+    useDocumentTitle(profileUser?.displayName || profileUser?.handle || t('nav.profile'));
+
     // Fetch Profile
     useEffect(() => {
         if (userId) {
@@ -226,8 +228,6 @@ const SampleProfilePage: React.FC = () => {
             </MainLayout>
         );
     }
-
-    useDocumentTitle(profileUser?.displayName || profileUser?.handle || t('nav.profile'));
 
     return (
         <>

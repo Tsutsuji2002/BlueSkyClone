@@ -53,6 +53,7 @@ export const fetchTrendingFeeds = createAsyncThunk<
                 }
             });
             const data = await response.json();
+            console.log('feedsSlice: fetchTrendingFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch trending feeds');
             return data;
         } catch (error: any) {
@@ -76,6 +77,7 @@ export const fetchRecommendedFeeds = createAsyncThunk<
                 }
             });
             const data = await response.json();
+            console.log('feedsSlice: fetchRecommendedFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch recommended feeds');
             return data;
         } catch (error: any) {
@@ -99,6 +101,7 @@ export const fetchSubscribedFeeds = createAsyncThunk<
                 }
             });
             const data = await response.json();
+            console.log('feedsSlice: fetchSubscribedFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch subscribed feeds');
             return data;
         } catch (error: any) {
@@ -238,6 +241,7 @@ export const fetchFeedInfo = createAsyncThunk<
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
+            console.log('feedsSlice: fetchFeedInfo returned for ID', feedId, ':', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch feed info');
             return data;
         } catch (error: any) {

@@ -98,6 +98,7 @@ const ExplorePage: React.FC = () => {
 
     const handleResultClick = (result: any) => {
         if (result._type === 'feed') {
+            console.log('ExplorePage (Search Result): Navigating to feed:', result.id, result.name);
             navigate(`/feeds/${result.id}`);
         } else {
             navigate(`/profile/${result.handle}`);
@@ -263,9 +264,13 @@ const ExplorePage: React.FC = () => {
                     <section className="flex flex-col">
                         <div className="flex items-center justify-between px-2 mb-2">
                             <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text mt-2">{t('nav.trending')}</h2>
-                            {feeds.find(f => f.name === 'Trending') && (
+                             {feeds.find(f => f.name === 'Trending') && (
                                 <button
-                                    onClick={() => navigate(`/feeds/${feeds.find(f => f.name === 'Trending')?.id}`)}
+                                    onClick={() => {
+                                        const trendingFeed = feeds.find(f => f.name === 'Trending');
+                                        console.log('ExplorePage (Trending Link): Navigating to feed:', trendingFeed?.id, trendingFeed?.name);
+                                        navigate(`/feeds/${trendingFeed?.id}`);
+                                    }}
                                     className="text-primary-500 hover:underline text-sm font-bold mt-2"
                                 >
                                     {t('common.show_more')}
@@ -327,10 +332,13 @@ const ExplorePage: React.FC = () => {
                         </div>
 
                         <div className="flex flex-col gap-4">
-                            {feeds.map((feed: Feed) => (
+                             {feeds.map((feed: Feed) => (
                                 <div
                                     key={feed.id}
-                                    onClick={() => navigate(`/feeds/${feed.id}`)}
+                                    onClick={() => {
+                                        console.log('ExplorePage (Discover): Navigating to feed:', feed.id, feed.name);
+                                        navigate(`/feeds/${feed.id}`);
+                                    }}
                                     className="flex flex-col gap-3 p-4 rounded-2xl border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-all cursor-pointer shadow-sm group"
                                 >
                                     <div className="flex items-start justify-between gap-3">

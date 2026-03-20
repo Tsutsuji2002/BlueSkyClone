@@ -21,6 +21,7 @@ public class FeedService : IFeedService
     {
         await PreSeedFeedsAsync();
         var feeds = await _unitOfWork.Feeds.GetTrendingFeedsAsync();
+        System.Console.WriteLine($"[FeedService] GetTrendingFeedsAsync: DB returned {feeds.Count()} feeds. First ID: {feeds.FirstOrDefault()?.Id}");
         
         var userSubscribedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
             .Where(s => s.UserId == userId)
