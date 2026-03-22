@@ -125,10 +125,13 @@ const PostDetailPage: React.FC = () => {
         const filtered = posts.filter((p: Post) => {
             // Check for match against any of the parent's identifiers
             const parentId = p.replyToPostId;
-            if (!parentId) return false;
+            const parentUri = p.parentPost?.uri;
+            
+            if (!parentId && !parentUri) return false;
 
             return parentId === post.id || 
                    parentId === post.tid || 
+                   (parentUri && parentUri === post.uri) ||
                    (post.uri && (parentId === post.uri || post.uri.endsWith('/' + parentId)));
         });
         // Safety deduplication by URI or ID
@@ -157,6 +160,7 @@ const PostDetailPage: React.FC = () => {
             const found: Post | undefined = posts.find((p: Post) => 
                 p.id === replyToId || 
                 p.tid === replyToId || 
+                (current?.parentPost && current.parentPost.uri === p.uri) || // Added condition for remote posts
                 (p.uri && (p.uri === replyToId || p.uri.endsWith('/' + replyToId)))
             );
             

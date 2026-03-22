@@ -312,16 +312,27 @@ public class PostService : IPostService
             var postIds = posts.Select(p => p.Id).ToList();
 
             // Batch fetch remote interactions from AppView
-            var remoteUris = posts.Where(p => !string.IsNullOrEmpty(p.Uri) && !p.Uri.Contains(_localDomain)).Select(p => p.Uri!).Distinct().ToList();
+            var remoteUris = new HashSet<string>();
+            foreach (var p in posts)
+            {
+                if (!string.IsNullOrEmpty(p.Uri) && !p.Uri.Contains(_localDomain))
+                    remoteUris.Add(p.Uri);
+                if (p.ParentPost != null && !string.IsNullOrEmpty(p.ParentPost.Uri) && !p.ParentPost.Uri.Contains(_localDomain))
+                    remoteUris.Add(p.ParentPost.Uri);
+                if (p.QuotePost != null && !string.IsNullOrEmpty(p.QuotePost.Uri) && !p.QuotePost.Uri.Contains(_localDomain))
+                    remoteUris.Add(p.QuotePost.Uri);
+            }
+            var remoteUrisList = remoteUris.ToList();
+
             var remoteInteractionCache = new Dictionary<string, JsonElement>();
             
-            if (remoteUris.Any())
+            if (remoteUrisList.Any())
             {
                 try
                 {
                     using var client = new HttpClient();
                     // Split into chunks if there are too many (limit is 25)
-                    foreach (var chunk in remoteUris.Chunk(25))
+                    foreach (var chunk in remoteUrisList.Chunk(25))
                     {
                         var query = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
                         var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{query}");
@@ -571,6 +582,71 @@ public class PostService : IPostService
                     post.RepliesCount = localReplies;
                     post.QuotesCount = localQuotes;
                     post.BookmarksCount = localBookmarks;
+                }
+
+                if (post.ParentPost != null)
+                {
+                    bool isRemoteParent = !string.IsNullOrEmpty(post.ParentPost.Uri) && !post.ParentPost.Uri.Contains(_localDomain);
+                    if (isRemoteParent && remoteInteractionCache.TryGetValue(post.ParentPost.Uri, out var remoteParent))
+                    {
+                        if (remoteParent.TryGetProperty("likeCount", out var lc)) post.ParentPost.LikesCount = lc.GetInt32();
+                        if (remoteParent.TryGetProperty("repostCount", out var rc)) post.ParentPost.RepostsCount = rc.GetInt32();
+                        if (remoteParent.TryGetProperty("replyCount", out var rpc)) post.ParentPost.RepliesCount = rpc.GetInt32();
+                        if (remoteParent.TryGetProperty("quoteCount", out var qc)) post.ParentPost.QuotesCount = qc.GetInt32();
+                        
+                        if (remoteParent.TryGetProperty("record", out var rec))
+                        {
+                            if (rec.TryGetProperty("text", out var txt)) post.ParentPost.Content = txt.GetString();
+                            if (rec.TryGetProperty("createdAt", out var cat)) 
+                            { 
+                                if (DateTime.TryParse(cat.GetString(), out var dt)) post.ParentPost.CreatedAt = dt; 
+                            }
+                        }
+
+                        if (remoteParent.TryGetProperty("embed", out var embed)) MapEmbedToDto(post.ParentPost, embed);
+
+                        // Also hydrate parent's author if missing metadata can be inferred (rudimentary fallback if ResolveRemoteProfile isn't fast enough)
+                        if (remoteParent.TryGetProperty("author", out var remAuth) && post.ParentPost.Author != null)
+                        {
+                            if (remAuth.TryGetProperty("displayName", out var dn)) post.ParentPost.Author.DisplayName = dn.GetString();
+                            if (remAuth.TryGetProperty("avatar", out var av)) post.ParentPost.Author.AvatarUrl = av.GetString();
+                            if (remAuth.TryGetProperty("handle", out var hndl)) 
+                            {
+                                post.ParentPost.Author.Handle = hndl.GetString();
+                                post.ReplyToHandle = post.ParentPost.Author.Handle; // Sync to child
+                            }
+                        }
+                    }
+                }
+
+                if (post.QuotePost != null)
+                {
+                    bool isRemoteQuote = !string.IsNullOrEmpty(post.QuotePost.Uri) && !post.QuotePost.Uri.Contains(_localDomain);
+                    if (isRemoteQuote && remoteInteractionCache.TryGetValue(post.QuotePost.Uri, out var remoteQuote))
+                    {
+                        if (remoteQuote.TryGetProperty("likeCount", out var lc)) post.QuotePost.LikesCount = lc.GetInt32();
+                        if (remoteQuote.TryGetProperty("repostCount", out var rc)) post.QuotePost.RepostsCount = rc.GetInt32();
+                        if (remoteQuote.TryGetProperty("replyCount", out var rpc)) post.QuotePost.RepliesCount = rpc.GetInt32();
+                        if (remoteQuote.TryGetProperty("quoteCount", out var qc)) post.QuotePost.QuotesCount = qc.GetInt32();
+                        
+                        if (remoteQuote.TryGetProperty("record", out var rec))
+                        {
+                            if (rec.TryGetProperty("text", out var txt)) post.QuotePost.Content = txt.GetString();
+                            if (rec.TryGetProperty("createdAt", out var cat)) 
+                            { 
+                                if (DateTime.TryParse(cat.GetString(), out var dt)) post.QuotePost.CreatedAt = dt; 
+                            }
+                        }
+
+                        if (remoteQuote.TryGetProperty("embed", out var embed)) MapEmbedToDto(post.QuotePost, embed);
+
+                        if (remoteQuote.TryGetProperty("author", out var remAuth) && post.QuotePost.Author != null)
+                        {
+                            if (remAuth.TryGetProperty("displayName", out var dn)) post.QuotePost.Author.DisplayName = dn.GetString();
+                            if (remAuth.TryGetProperty("avatar", out var av)) post.QuotePost.Author.AvatarUrl = av.GetString();
+                            if (remAuth.TryGetProperty("handle", out var hndl)) post.QuotePost.Author.Handle = hndl.GetString();
+                        }
+                    }
                 }
 
                 if (post.QuotePost?.Author != null && (post.QuotePost.Author.Did == post.QuotePost.Author.Handle || post.QuotePost.Author.Id == Guid.Empty))
@@ -2370,9 +2446,16 @@ public class PostService : IPostService
                                                     var lrDto = MapToDto(lr);
                                                     var lrEnriched = (await EnrichAndFilterPostsAsync(new List<PostDto> { lrDto }, viewerId ?? Guid.Empty)).First();
                                                     
+                                                    var lrJson = Newtonsoft.Json.Linq.JObject.FromObject(lrEnriched);
+                                                    var parentUriForLr = postNodeForThisThread?["uri"]?.ToString();
+                                                    if (!string.IsNullOrEmpty(parentUriForLr))
+                                                    {
+                                                        lrJson["replyToPostId"] = parentUriForLr;
+                                                    }
+
                                                     var newNode = new Newtonsoft.Json.Linq.JObject
                                                     {
-                                                        ["post"] = Newtonsoft.Json.Linq.JObject.FromObject(lrEnriched),
+                                                        ["post"] = lrJson,
                                                         ["@type"] = "app.bsky.feed.defs#threadViewPost"
                                                     };
                                                     ((Newtonsoft.Json.Linq.JArray)threadWrapperNode["replies"]).Add(newNode);

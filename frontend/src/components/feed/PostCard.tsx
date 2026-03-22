@@ -364,7 +364,21 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                             </span>
                         </div>
 
-
+                        {post.replyToHandle && !hasTopLine && (
+                            <div className="flex items-center gap-1 mb-1.5 text-gray-500 dark:text-dark-text-secondary select-none">
+                                <FiMessageCircle size={14} className="flex-shrink-0 opacity-70" />
+                                <span className="text-[14px]">{t('post.reply_to', 'Reply to')}</span>
+                                <span 
+                                    className="text-primary-500 text-[14px] font-medium hover:underline cursor-pointer" 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/profile/${post.replyToHandle}`);
+                                    }}
+                                >
+                                    @{post.replyToHandle}
+                                </span>
+                            </div>
+                        )}
 
                         {/* Curated List Caption - Removed to avoid duplication as requested */}
 
