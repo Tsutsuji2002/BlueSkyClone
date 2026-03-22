@@ -598,10 +598,58 @@ const postsSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(createPost.fulfilled, (state: PostsState, action: PayloadAction<Post>) => {
+            .addCase(createPost.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                state.posts.unshift(action.payload);
-                // Optimistic replies/quotes count updates would need parent post URI
+                const newPost = action.payload;
+                
+                // Override parent IDs with the URIs passed to the thunk
+                // This is critical because the backend returns local GUIDs, 
+                // but remote posts in our UI are identified by their AT URIs/TIDs.
+                if (action.meta.arg.replyToPostId) {
+                    newPost.replyToPostId = action.meta.arg.replyToPostId;
+                }
+                if (action.meta.arg.quotePostId) {
+                    newPost.quotePostId = action.meta.arg.quotePostId;
+                }
+
+                // Prepend the new post to the store (avoids duplicate)
+                if (!state.posts.some(p => p.uri === newPost.uri)) {
+                    state.posts.unshift(newPost);
+                }
+                
+                // Optimistically update the parent post's repliesCount
+                if (newPost.replyToPostId) {
+                    const updateInArray = (arr: Post[]) => {
+                        const parent = arr.find(p =>
+                            p.id === newPost.replyToPostId ||
+                            p.tid === newPost.replyToPostId ||
+                            (p.uri && (p.uri === newPost.replyToPostId || p.uri.endsWith('/' + newPost.replyToPostId)))
+                        );
+                        if (parent) {
+                            parent.repliesCount = (parent.repliesCount || 0) + 1;
+                        }
+                    };
+                    updateInArray(state.posts);
+                    updateInArray(state.discoverPosts);
+                    updateInArray(state.trendingPosts);
+                }
+                
+                // Optimistically update parent's quotesCount if this is a quote
+                if (newPost.quotePostId) {
+                    const updateInArray = (arr: Post[]) => {
+                        const quoted = arr.find(p =>
+                            p.id === newPost.quotePostId ||
+                            p.tid === newPost.quotePostId ||
+                            (p.uri && (p.uri === newPost.quotePostId || p.uri.endsWith('/' + newPost.quotePostId)))
+                        );
+                        if (quoted) {
+                            quoted.quotesCount = (quoted.quotesCount || 0) + 1;
+                        }
+                    };
+                    updateInArray(state.posts);
+                    updateInArray(state.discoverPosts);
+                    updateInArray(state.trendingPosts);
+                }
             })
             .addCase(createPost.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -631,8 +679,10 @@ const postsSlice = createSlice({
                     const post = arr.find(p => p.uri === action.payload.uri);
                     if (post) {
                         post.isLiked = action.payload.isLiked;
-                        // Keep optimistic count, do not overwrite with backend local count
-                        // We store the like record URI in the viewer object to allow deletion later
+                        // Sync authoritative count from backend
+                        if (action.payload.likesCount !== undefined) {
+                            post.likesCount = Math.max(post.likesCount, action.payload.likesCount);
+                        }
                         if (!post.viewer) post.viewer = {};
                         post.viewer.like = action.payload.likeUri;
                         post.lastUpdated = new Date().toISOString();
@@ -686,7 +736,10 @@ const postsSlice = createSlice({
                     const post = arr.find(p => p.uri === action.payload.uri);
                     if (post) {
                         post.isReposted = action.payload.isReposted;
-                        // Keep optimistic count, do not overwrite with backend local count
+                        // Sync authoritative count from backend
+                        if (action.payload.repostsCount !== undefined) {
+                            post.repostsCount = Math.max(post.repostsCount, action.payload.repostsCount);
+                        }
                         if (!post.viewer) post.viewer = {};
                         post.viewer.repost = action.payload.repostUri;
                         post.lastUpdated = new Date().toISOString();
