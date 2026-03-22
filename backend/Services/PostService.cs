@@ -2989,6 +2989,21 @@ public class PostService : IPostService
             isLiked = false;
             post.LikesCount = Math.Max(0, (post.LikesCount ?? 0) - 1);
 
+            // --- AT Protocol: Delete like record on un-like ---
+            try
+            {
+                var liker = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (liker != null && !string.IsNullOrEmpty(liker.Did) && !string.IsNullOrEmpty(existingLike.Tid))
+                {
+                    await _repoManager.DeleteRecordAsync(liker.Did, "app.bsky.feed.like", existingLike.Tid);
+                    _logger.LogInformation("[ToggleLikeAsync] Deleted like record {Tid} for user {UserId}", existingLike.Tid, userId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[ToggleLikeAsync] Failed to delete AT like record for user {UserId}", userId);
+            }
+
             // Remove corresponding notification
             var notification = await _unitOfWork.Notifications.Query()
                 .FirstOrDefaultAsync(n => n.Type == "like" && n.SenderId == userId && n.PostId == postId);
@@ -3235,6 +3250,21 @@ public class PostService : IPostService
             _unitOfWork.Reposts.Remove(existingRepost);
             isReposted = false;
             post.RepostsCount = Math.Max(0, (post.RepostsCount ?? 0) - 1);
+
+            // --- AT Protocol: Delete repost record on un-repost ---
+            try
+            {
+                var reposter = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (reposter != null && !string.IsNullOrEmpty(reposter.Did) && !string.IsNullOrEmpty(existingRepost.Tid))
+                {
+                    await _repoManager.DeleteRecordAsync(reposter.Did, "app.bsky.feed.repost", existingRepost.Tid);
+                    _logger.LogInformation("[ToggleRepostAsync] Deleted repost record {Tid} for user {UserId}", existingRepost.Tid, userId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[ToggleRepostAsync] Failed to delete AT repost record for user {UserId}", userId);
+            }
 
             // Remove corresponding notification
             var notification = await _unitOfWork.Notifications.Query()

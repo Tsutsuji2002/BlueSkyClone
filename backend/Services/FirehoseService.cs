@@ -4,7 +4,9 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using BSkyClone.Models;
 using BSkyClone.Utilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -128,11 +130,21 @@ namespace BSkyClone.Services
 
             if (did != null && blocks != null && ops != null)
             {
-                // [RELIABILITY] Probabilistic Filter: Only process 30% of global posts to prevent DB saturation
-                // unless it's an actor we specifically care about (can be expanded later).
-                if (new Random().Next(0, 100) > 30) 
+                // [RELIABILITY] DID-Aware Filter:
+                // Always process events from locally registered users.
+                // Apply 30% sampling ONLY for unknown remote DIDs to prevent DB saturation.
+                bool isLocalUser = false;
+                try
                 {
-                    _logger.LogTrace("Firehose: Probabilistically skipping post from {Did} to save resources.", did);
+                    using var checkScope = _serviceProvider.CreateScope();
+                    var db = checkScope.ServiceProvider.GetRequiredService<BSkyDbContext>();
+                    isLocalUser = await db.Users.AnyAsync(u => u.Did == did);
+                }
+                catch { /* Non-critical: fall through to sampling */ }
+
+                if (!isLocalUser && new Random().Next(0, 100) > 30)
+                {
+                    _logger.LogTrace("Firehose: Probabilistically skipping post from unknown remote {Did}.", did);
                     return;
                 }
 

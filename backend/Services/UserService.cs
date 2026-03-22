@@ -557,6 +557,21 @@ public class UserService : IUserService
         if (following != null) following.FollowersCount--;
 
         await _unitOfWork.CompleteAsync();
+
+        // --- AT Protocol: Delete follow record on unfollow ---
+        try
+        {
+            if (follower != null && !string.IsNullOrEmpty(follower.Did) && !string.IsNullOrEmpty(existing.Tid))
+            {
+                await _repoManager.DeleteRecordAsync(follower.Did, "app.bsky.graph.follow", existing.Tid);
+                Console.WriteLine($"[UnfollowUserAsync] Deleted follow record {existing.Tid} for user {followerId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UnfollowUserAsync] Failed to delete AT follow record: {ex.Message}");
+        }
+
         return true;
     }
 
