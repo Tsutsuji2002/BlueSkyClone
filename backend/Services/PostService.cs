@@ -2999,7 +2999,7 @@ public class PostService : IPostService
                     var cid = await _repoManager.CreateRecordAsync(liker.Did, "app.bsky.feed.like", likeRecord);
                     
                     newLike.Cid = cid;
-                    newLike.Uri = likeRecord["subject"] is Dictionary<string, object> subj && subj.TryGetValue("uri", out var u) ? u.ToString() : $"at://{liker.Did}/app.bsky.feed.like/{newLike.Tid}";
+                    newLike.Uri = $"at://{liker.Did}/app.bsky.feed.like/{newLike.Tid}";
                     _unitOfWork.Likes.Update(newLike);
 
                     Console.WriteLine($"[ToggleLikeAsync] Repo updated and signed for User {userId}");
