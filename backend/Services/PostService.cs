@@ -1743,13 +1743,9 @@ public class PostService : IPostService
         var cacheKey = $"post:{postId}";
         var cachedPost = await _cacheService.GetAsync<PostDto>(cacheKey);
 
-        PostDto? postDto = null;
+        PostDto? postDto = cachedPost;
 
-        if (cachedPost != null)
-        {
-            postDto = cachedPost;
-        }
-        else
+        if (postDto == null)
         {
             var post = await _unitOfWork.Posts.Query()
                 .Include(p => p.Author)
@@ -1770,102 +1766,59 @@ public class PostService : IPostService
 
         if (viewerId.HasValue)
         {
-            var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(postDto.Author.Id, viewerId.Value);
-            if (isBlocked) return null;
-
-            var likeRecord = await _unitOfWork.Likes.Query().FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
-            var repostRecord = await _unitOfWork.Reposts.Query().FirstOrDefaultAsync(r => r.PostId == postId && r.UserId == viewerId.Value);
-            var followRecord = await _unitOfWork.Follows.GetAsync(viewerId.Value, postDto.Author.Id);
-            var blockRecord = await _unitOfWork.Blocks.Query().FirstOrDefaultAsync(b => b.UserId == viewerId.Value && b.BlockedUserId == postDto.Author.Id);
-
-            postDto.Viewer = new PostViewerDto
-            {
-                Like = likeRecord?.Uri,
-                Repost = repostRecord?.Uri
-            };
-
-            postDto.IsLiked = postDto.Viewer.Like != null;
-            postDto.IsBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(l => l.PostId == postId && l.UserId == viewerId.Value);
-            postDto.IsReposted = postDto.Viewer.Repost != null;
-
-            postDto.Author.Viewer = new AuthorViewerDto
-            {
-                Muted = await _unitOfWork.Mutes.Query().AnyAsync(m => m.UserId == viewerId.Value && m.MutedUserId == postDto.Author.Id),
-                BlockedBy = await _unitOfWork.Blocks.Query().AnyAsync(b => b.UserId == postDto.Author.Id && b.BlockedUserId == viewerId.Value),
-                Blocking = blockRecord != null ? $"at://local/app.bsky.graph.block/{blockRecord.BlockedUserId}" : null,
-                Following = followRecord?.Uri
-            };
-            postDto.Author.IsFollowing = postDto.Author.Viewer.Following != null;
-            postDto.Author.FollowingReference = postDto.Author.Viewer.Following;
-
-            // Calculate CanReply
-            if (postDto.Author.Id == viewerId.Value)
-            {
-                postDto.CanReply = true;
-            }
-            else
-            {
-                var restriction = postDto.ReplyRestriction?.ToLower()?.Trim() ?? "anyone";
-                if (restriction == "anyone")
-                {
-                    postDto.CanReply = true;
-                }
-                else if (restriction == "none" || restriction == "no_one")
-                {
-                    postDto.CanReply = false;
-                }
-                else if (restriction == "followed")
-                {
-                    // Author follows viewer OR viewer is mentioned
-                    var authorFollowsViewer = await _unitOfWork.Follows.IsFollowingAsync(postDto.Author.Id, viewerId.Value);
-                    if (authorFollowsViewer)
-                    {
-                        postDto.CanReply = true;
-                    }
-                    else
-                    {
-                        var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId.Value);
-                        postDto.CanReply = await IsUserMentionedAsync(postDto.Content, viewerUser?.Handle);
-                    }
-                }
-                else if (restriction == "mentioned")
-                {
-                    var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId.Value);
-                    postDto.CanReply = await IsUserMentionedAsync(postDto.Content, viewerUser?.Handle);
-                }
-                else
-                {
-                    postDto.CanReply = false;
-                }
-            }
-        }
-
-        // Always fetch live counts for the detail view to ensure 100% accuracy
-        var localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == postId);
-        var localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == postId);
-        var localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == postId);
-
-        bool isRemote = !string.IsNullOrEmpty(postDto.Uri) && !postDto.Uri.Contains(_localDomain) && postDto.Uri.StartsWith("at://");
-        
-        if (isRemote)
-        {
-            // For remote posts, prioritize the remote counts (mapped from the db record)
-            // But if our local DB has higher counts (e.g. recent local likes), take the max.
-            postDto.LikesCount = Math.Max(postDto.LikesCount, localLikes);
-            postDto.BookmarksCount = Math.Max(postDto.BookmarksCount, localBookmarks);
-            postDto.RepostsCount = Math.Max(postDto.RepostsCount, localReposts);
-        }
-        else
-        {
-            // For local posts, local database represents the source of truth
-            postDto.LikesCount = localLikes;
-            postDto.BookmarksCount = localBookmarks;
-            postDto.RepostsCount = localReposts;
+            var results = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId.Value);
+            return results.FirstOrDefault();
         }
 
         return postDto;
     }
 
+    public async Task<IEnumerable<PostDto>> GetPostsByIdsAsync(IEnumerable<Guid> postIds, Guid? viewerId = null)
+    {
+        var ids = postIds.Distinct().ToList();
+        if (!ids.Any()) return new List<PostDto>();
+
+        var resultsMap = new Dictionary<Guid, PostDto>();
+        var missingIds = new List<Guid>();
+
+        foreach (var id in ids)
+        {
+            var cached = await _cacheService.GetAsync<PostDto>($"post:{id}");
+            if (cached != null) resultsMap[id] = cached;
+            else missingIds.Add(id);
+        }
+
+        if (missingIds.Any())
+        {
+            var dbPosts = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                .AsSplitQuery()
+                .Where(p => missingIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null))
+                .ToListAsync();
+
+            foreach (var post in dbPosts)
+            {
+                var dto = MapToDto(post);
+                resultsMap[post.Id] = dto;
+                await _cacheService.SetAsync($"post:{post.Id}", dto, TimeSpan.FromMinutes(30));
+            }
+        }
+
+        var resultsList = ids.Where(id => resultsMap.ContainsKey(id)).Select(id => resultsMap[id]).ToList();
+
+        if (viewerId.HasValue && resultsList.Any())
+        {
+            return await EnrichAndFilterPostsAsync(resultsList, viewerId.Value);
+        }
+
+        return resultsList;
+    }
     public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null)
     {
         _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid='{Tid}'", tid);
@@ -3568,10 +3521,12 @@ public class PostService : IPostService
     {
         var lowerQuery = query.ToLower();
         var posts = await _unitOfWork.Posts.Query()
+            .AsNoTracking()
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
             .Include(p => p.LinkPreview)
             .Include(p => p.Hashtags)
+            .AsSplitQuery()
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
                         (p.Content != null && p.Content.ToLower().Contains(lowerQuery) || 
                          p.Hashtags.Any(h => h.Name != null && h.Name.ToLower().Contains(lowerQuery))))

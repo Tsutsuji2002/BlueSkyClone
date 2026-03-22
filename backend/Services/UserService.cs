@@ -49,6 +49,17 @@ public class UserService : IUserService
         return user;
     }
 
+    public async Task<IEnumerable<User>> GetUsersByIdsAsync(IEnumerable<Guid> userIds)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (!ids.Any()) return new List<User>();
+
+        return await _unitOfWork.Users.Query()
+            .AsNoTracking()
+            .Where(u => ids.Contains(u.Id))
+            .ToListAsync();
+    }
+
     public async Task<User?> GetUserByHandleAsync(string handle)
     {
         var user = await _unitOfWork.Users.GetByHandleAsync(handle);
@@ -747,6 +758,7 @@ public class UserService : IUserService
         query = query.ToLower().Trim();
         // Search by handle or username or display name
         return await _unitOfWork.Users.Query()
+            .AsNoTracking()
             .Where(u => u.Handle.ToLower().Contains(query) || 
                         u.Username.ToLower().Contains(query) || 
                         (u.DisplayName != null && u.DisplayName.ToLower().Contains(query)))

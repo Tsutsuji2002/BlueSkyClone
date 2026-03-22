@@ -10,6 +10,7 @@ public interface IPostService
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
     Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null);
+    Task<IEnumerable<PostDto>> GetPostsByIdsAsync(IEnumerable<Guid> postIds, Guid? viewerId = null);
     Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null);
     Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null);
     Task FetchRemoteAuthorFeedAsync(string did, string? type = null, string? cursor = null);

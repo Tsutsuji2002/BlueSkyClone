@@ -6,6 +6,7 @@ namespace BSkyClone.Services;
 public interface IUserService
 {
     Task<User?> GetUserByIdAsync(Guid id);
+    Task<IEnumerable<User>> GetUsersByIdsAsync(IEnumerable<Guid> userIds);
     Task<User?> GetUserByHandleAsync(string handle);
     Task<User?> GetUserByUsernameAsync(string username);
     Task<User?> GetUserByDidAsync(string did);

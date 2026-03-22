@@ -37,17 +37,8 @@ public class SearchController : ControllerBase
             return Ok(dbPosts);
         }
 
-        // Hydrate posts from DB/Service to return full DTOs
-        var posts = new List<object>();
-        foreach (var id in postIds)
-        {
-            var post = await _postService.GetPostByIdAsync(id, currentUserId);
-            if (post != null)
-            {
-                posts.Add(post);
-            }
-        }
-
+        // Hydrate posts from DB/Service to return full DTOs in batch
+        var posts = await _postService.GetPostsByIdsAsync(postIds, currentUserId);
         return Ok(posts);
     }
 
@@ -76,29 +67,20 @@ public class SearchController : ControllerBase
             }));
         }
 
-        // Hydrate users from DB/Service
-        var users = new List<object>();
+        // Hydrate users from DB/Service in batch
+        var users = await _userService.GetUsersByIdsAsync(userIds);
         
-        foreach (var id in userIds)
+        return Ok(users.Select(user => new 
         {
-            var user = await _userService.GetUserByIdAsync(id);
-            if (user != null)
-            {
-                users.Add(new 
-                {
-                   user.Id,
-                   user.Handle,
-                   user.Username,
-                   user.DisplayName,
-                   user.AvatarUrl,
-                   user.Bio,
-                   user.FollowersCount,
-                   user.FollowingCount,
-                   user.PostsCount
-                });
-            }
-        }
-
-        return Ok(users);
+            user.Id,
+            user.Handle,
+            user.Username,
+            user.DisplayName,
+            user.AvatarUrl,
+            user.Bio,
+            user.FollowersCount,
+            user.FollowingCount,
+            user.PostsCount
+        }));
     }
 }
