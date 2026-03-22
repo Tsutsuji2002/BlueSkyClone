@@ -6,7 +6,6 @@ using System.Security.Claims;
 
 namespace BSkyClone.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class FeedsController : ControllerBase
@@ -22,6 +21,7 @@ public class FeedsController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize]
     [HttpGet("recommended")]
     public async Task<IActionResult> GetRecommended()
     {
@@ -41,6 +41,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpGet("trending")]
     public async Task<IActionResult> GetTrending()
     {
@@ -61,6 +62,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("trending-posts")]
     public async Task<IActionResult> GetTrendingPosts([FromServices] IPostService postService, [FromQuery] int limit = 50, [FromQuery] int skip = 0)
     {
@@ -80,6 +82,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("discover")]
     public async Task<IActionResult> GetDiscoverPosts([FromServices] IPostService postService, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
@@ -104,6 +107,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpGet("subscribed")]
     public async Task<IActionResult> GetSubscribed()
     {
@@ -122,6 +126,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("{tid}")]
     public async Task<IActionResult> GetFeed(string tid)
     {
@@ -138,13 +143,14 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("info/{id}")]
     public async Task<IActionResult> GetFeedById(Guid id)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+            Guid userId = Guid.TryParse(userIdStr, out var cid) ? cid : Guid.Empty;
 
             _logger.LogInformation("[FeedsController] GetFeedById requested for ID: {Id}, Original string in path: {PathId}", id, Request.Path.Value?.Split('/').Last());
             var feed = await _feedService.GetFeedByIdAsync(id, userId);
@@ -158,6 +164,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpPost("save/{feedId}")]
     public async Task<IActionResult> SaveFeed(Guid feedId)
     {
@@ -176,6 +183,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpDelete("unsave/{feedId}")]
     public async Task<IActionResult> UnsaveFeed(Guid feedId)
     {
@@ -194,6 +202,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpPost("pin/{feedId}")]
     public async Task<IActionResult> PinFeed(Guid feedId)
     {
@@ -212,6 +221,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpDelete("unpin/{feedId}")]
     public async Task<IActionResult> UnpinFeed(Guid feedId)
     {
@@ -230,6 +240,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpPost("reorder")]
     public async Task<IActionResult> ReorderFeeds([FromBody] List<Guid> feedIds)
     {
@@ -248,6 +259,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpGet("search")]
     public async Task<IActionResult> SearchFeeds([FromQuery] string query, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
@@ -266,6 +278,7 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("{feedId}/posts")]
     public async Task<IActionResult> GetFeedPosts(Guid feedId, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {

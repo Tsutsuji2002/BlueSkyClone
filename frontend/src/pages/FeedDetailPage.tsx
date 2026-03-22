@@ -18,7 +18,7 @@ const FeedDetailPage: React.FC = () => {
     const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { subscribedFeeds, feedPosts, isLoading, feedHasMore, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading } = useAppSelector((state: RootState) => state.feeds);
+    const { subscribedFeeds, feedPosts, isLoading, feedHasMore, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading, infoLoading, infoError } = useAppSelector((state: RootState) => state.feeds);
 
     const take = 20;
 
@@ -36,13 +36,13 @@ const FeedDetailPage: React.FC = () => {
         if (subscribedFeeds.length === 0) {
             dispatch(fetchSubscribedFeeds());
         }
-        if (id && !feed && !isLoading) {
+        if (id && !feed && !infoLoading[id]) {
             console.log('FeedDetailPage: Fetching info for missing feed ID:', id);
             dispatch(fetchFeedInfo(id));
         }
-    }, [dispatch, subscribedFeeds.length, id, feed, isLoading]);
+    }, [dispatch, subscribedFeeds.length, id, feed, infoLoading]);
 
-    console.log('FeedDetailPage: Current State', { id, feed, isLoading, error: feeds_actionLoading[id || ''] });
+    console.log('FeedDetailPage: Current State', { id, feed, isLoading, infoLoading: id ? infoLoading[id] : false, error: id ? infoError[id] : null });
 
     useEffect(() => {
         if (id) {
@@ -79,12 +79,13 @@ const FeedDetailPage: React.FC = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [id, isLoading, posts.length]);
 
-    if (!feed && !isLoading) {
+    if (!feed && id && infoLoading[id] === false && infoError[id]) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
                     {t('feeds.not_found')}
                 </h2>
+                <p className="text-sm text-gray-500 mb-4">{infoError[id]}</p>
                 <button
                     onClick={() => navigate(-1)}
                     className="text-primary-500 hover:underline"
@@ -95,7 +96,13 @@ const FeedDetailPage: React.FC = () => {
         );
     }
 
-    if (!feed) return null;
+    if (!feed) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-white dark:bg-dark-bg">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">

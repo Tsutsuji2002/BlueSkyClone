@@ -18,6 +18,8 @@ interface FeedsState {
     actionLoading: Record<string, boolean>;
     feedHasMore: Record<string, boolean>;
     feedLastFetch: Record<string, number>;
+    infoLoading: Record<string, boolean>;
+    infoError: Record<string, string | null>;
 }
 
 const initialState: FeedsState = {
@@ -36,6 +38,8 @@ const initialState: FeedsState = {
     actionLoading: {},
     feedHasMore: {},
     feedLastFetch: {},
+    infoLoading: {},
+    infoError: {},
 };
 
 export const fetchTrendingFeeds = createAsyncThunk<
@@ -336,11 +340,12 @@ const feedsSlice = createSlice({
                 state.subscribedFeeds = action.payload;
                 state.pinnedFeedIds = action.payload.filter((f: Feed) => f.isPinned).map((f: Feed) => f.id);
             })
-            .addCase(fetchFeedInfo.pending, (state: FeedsState) => {
-                state.isLoading = true;
+            .addCase(fetchFeedInfo.pending, (state: FeedsState, action) => {
+                state.infoLoading[action.meta.arg] = true;
+                state.infoError[action.meta.arg] = null;
             })
             .addCase(fetchFeedInfo.fulfilled, (state: FeedsState, action: PayloadAction<Feed>) => {
-                state.isLoading = false;
+                state.infoLoading[action.payload.id] = false;
                 // Add to searchResults or another cache if not already present
                 if (!state.subscribedFeeds.find(f => f.id === action.payload.id)) {
                     // We don't want to duplicate, just make it available for Detail page
@@ -354,8 +359,8 @@ const feedsSlice = createSlice({
                 }
             })
             .addCase(fetchFeedInfo.rejected, (state: FeedsState, action: any) => {
-                state.isLoading = false;
-                state.error = action.payload;
+                state.infoLoading[action.meta.arg] = false;
+                state.infoError[action.meta.arg] = action.payload;
             })
             .addCase(searchFeeds.pending, (state: FeedsState) => {
                 state.searchLoading = true;

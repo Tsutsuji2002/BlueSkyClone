@@ -6,7 +6,6 @@ using System.Security.Claims;
 
 namespace BSkyClone.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/unified-feed")]
 public class UnifiedFeedController : ControllerBase
@@ -22,6 +21,7 @@ public class UnifiedFeedController : ControllerBase
         _logger = logger;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 20, [FromQuery] int skip = 0)
     {
@@ -30,36 +30,53 @@ public class UnifiedFeedController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
-            if (viewerId == null) return Unauthorized();
-
-            IEnumerable<PostDto> posts = new List<PostDto>();
-
             switch (feedId.ToLower())
             {
                 case "home":
                 case "following":
-                    posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take);
-                    break;
-                case "discover":
-                    var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
-                    posts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests);
-                    break;
-                case "internal-music":
-                    posts = await _postService.GetPostsByTagAsync("music", viewerId.Value, take, skip);
-                    break;
-                default:
-                    if (Guid.TryParse(feedId, out var fGuid))
+                    if (viewerId == null)
                     {
-                        posts = await feedService.GetFeedPostsAsync(fGuid, viewerId.Value, skip, take);
-                    }
-                    else if (feedId.StartsWith("tag-"))
-                    {
-                        var tag = feedId.Substring(4);
-                        posts = await _postService.GetPostsByTagAsync(tag, viewerId.Value, take, skip);
+                        posts = await _postService.GetTrendingPosts24hAsync(null, take, skip);
                     }
                     else
                     {
                         posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take);
+                    }
+                    break;
+                case "discover":
+                    if (viewerId == null)
+                    {
+                        posts = await _postService.GetTrendingPosts24hAsync(null, take, skip);
+                    }
+                    else
+                    {
+                        var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
+                        posts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests);
+                    }
+                    break;
+                case "internal-music":
+                    posts = await _postService.GetPostsByTagAsync("music", viewerId, take, skip);
+                    break;
+                default:
+                    if (Guid.TryParse(feedId, out var fGuid))
+                    {
+                        posts = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take);
+                    }
+                    else if (feedId.StartsWith("tag-"))
+                    {
+                        var tag = feedId.Substring(4);
+                        posts = await _postService.GetPostsByTagAsync(tag, viewerId, take, skip);
+                    }
+                    else
+                    {
+                        if (viewerId == null)
+                        {
+                            posts = await _postService.GetTrendingPosts24hAsync(null, take, skip);
+                        }
+                        else
+                        {
+                            posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take);
+                        }
                     }
                     break;
             }
