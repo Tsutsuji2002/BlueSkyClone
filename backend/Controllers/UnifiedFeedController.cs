@@ -23,7 +23,7 @@ public class UnifiedFeedController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetFeed([FromQuery] string feedId = "home", [FromQuery] int take = 20, [FromQuery] int skip = 0)
+    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 20, [FromQuery] int skip = 0)
     {
         try
         {
@@ -48,15 +48,17 @@ public class UnifiedFeedController : ControllerBase
                     posts = await _postService.GetPostsByTagAsync("music", viewerId.Value, take, skip);
                     break;
                 default:
-                    // If it matches a tag format like tag-art
-                    if (feedId.StartsWith("tag-"))
+                    if (Guid.TryParse(feedId, out var fGuid))
+                    {
+                        posts = await feedService.GetFeedPostsAsync(fGuid, viewerId.Value, skip, take);
+                    }
+                    else if (feedId.StartsWith("tag-"))
                     {
                         var tag = feedId.Substring(4);
                         posts = await _postService.GetPostsByTagAsync(tag, viewerId.Value, take, skip);
                     }
                     else
                     {
-                        // Fallback to following
                         posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take);
                     }
                     break;

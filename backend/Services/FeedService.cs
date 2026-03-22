@@ -285,6 +285,7 @@ public class FeedService : IFeedService
 
     public async Task<FeedDto?> GetFeedByIdAsync(Guid feedId, Guid userId)
     {
+        await PreSeedFeedsAsync();
         var feed = await _unitOfWork.Feeds.Query()
             .Include(f => f.Creator)
             .FirstOrDefaultAsync(f => f.Id == feedId && (f.IsDeleted == false || f.IsDeleted == null));
@@ -307,6 +308,7 @@ public class FeedService : IFeedService
     {
         try
         {
+            await PreSeedFeedsAsync();
             var feed = await _unitOfWork.Feeds.GetByIdAsync(feedId);
             if (feed == null) return new List<PostDto>();
 
