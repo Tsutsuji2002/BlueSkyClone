@@ -345,7 +345,7 @@ const feedsSlice = createSlice({
                 state.infoError[action.meta.arg] = null;
             })
             .addCase(fetchFeedInfo.fulfilled, (state: FeedsState, action: PayloadAction<Feed>) => {
-                state.infoLoading[action.payload.id] = false;
+                state.infoLoading[action.meta.arg] = false;
                 // Add to searchResults or another cache if not already present
                 if (!state.subscribedFeeds.find(f => f.id === action.payload.id)) {
                     // We don't want to duplicate, just make it available for Detail page

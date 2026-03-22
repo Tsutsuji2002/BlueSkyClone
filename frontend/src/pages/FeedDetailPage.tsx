@@ -22,10 +22,10 @@ const FeedDetailPage: React.FC = () => {
 
     const take = 20;
 
-    const feed = subscribedFeeds.find((f: FeedType) => f.id === id) ||
-        recommendedFeeds.find((f: FeedType) => f.id === id) ||
-        searchResults.find((f: FeedType) => f.id === id) ||
-        feeds.find((f: FeedType) => f.id === id);
+    const feed = subscribedFeeds.find((f: FeedType) => f.id?.toLowerCase() === id?.toLowerCase()) ||
+        recommendedFeeds.find((f: FeedType) => f.id?.toLowerCase() === id?.toLowerCase()) ||
+        searchResults.find((f: FeedType) => f.id?.toLowerCase() === id?.toLowerCase()) ||
+        feeds.find((f: FeedType) => f.id?.toLowerCase() === id?.toLowerCase());
 
     const count = feed ? (feed.subscribersCount || feed.followersCount || 0) : 0;
     const posts = id ? feedPosts[id] || [] : [];
@@ -36,13 +36,21 @@ const FeedDetailPage: React.FC = () => {
         if (subscribedFeeds.length === 0) {
             dispatch(fetchSubscribedFeeds());
         }
-        if (id && !feed && !infoLoading[id]) {
-            console.log('FeedDetailPage: Fetching info for missing feed ID:', id);
-            dispatch(fetchFeedInfo(id));
+        
+        const feedId = id?.toLowerCase();
+        if (feedId && !feed && infoLoading[feedId] === undefined) {
+            console.log('FeedDetailPage: Fetching info for missing feed:', feedId);
+            dispatch(fetchFeedInfo(feedId));
         }
     }, [dispatch, subscribedFeeds.length, id, feed, infoLoading]);
 
-    console.log('FeedDetailPage: Current State', { id, feed, isLoading, infoLoading: id ? infoLoading[id] : false, error: id ? infoError[id] : null });
+    console.log('FeedDetailPage: Current State', { 
+        id, 
+        feedName: feed?.name,
+        isFound: !!feed,
+        isLoading: id ? infoLoading[id.toLowerCase()] : false, 
+        error: id ? infoError[id.toLowerCase()] : null 
+    });
 
     useEffect(() => {
         if (id) {
@@ -79,13 +87,14 @@ const FeedDetailPage: React.FC = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [id, isLoading, posts.length]);
 
-    if (!feed && id && infoLoading[id] === false && infoError[id]) {
+    const currentId = id?.toLowerCase();
+    if (!feed && currentId && infoLoading[currentId] === false && infoError[currentId]) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
                     {t('feeds.not_found')}
                 </h2>
-                <p className="text-sm text-gray-500 mb-4">{infoError[id]}</p>
+                <p className="text-sm text-gray-500 mb-4">{infoError[currentId]}</p>
                 <button
                     onClick={() => navigate(-1)}
                     className="text-primary-500 hover:underline"
@@ -98,8 +107,16 @@ const FeedDetailPage: React.FC = () => {
 
     if (!feed) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-white dark:bg-dark-bg">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
+            <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-dark-bg p-6 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500 mb-4"></div>
+                <p className="text-gray-500 text-sm">Loading feed information...</p>
+                {/* Fallback link if loading takes too long */}
+                <button 
+                   onClick={() => id && dispatch(fetchFeedInfo(id))}
+                   className="mt-4 text-xs text-primary-500 opacity-50 hover:opacity-100"
+                >
+                    Retry loading
+                </button>
             </div>
         );
     }
