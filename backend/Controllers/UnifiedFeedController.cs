@@ -92,7 +92,7 @@ public class UnifiedFeedController : ControllerBase
                 feedId = feedId,
                 posts = posts,
                 skip = skip,
-                hasMore = posts.Count() >= take
+                hasMore = (posts?.Count() ?? 0) >= take
             });
         }
         catch (Exception ex)

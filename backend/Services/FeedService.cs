@@ -10,6 +10,7 @@ public class FeedService : IFeedService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPostService _postService;
+    private readonly ILogger<FeedService> _logger;
 
     private static readonly Dictionary<string, Guid> OfficialFeedIds = new()
     {
@@ -34,10 +35,11 @@ public class FeedService : IFeedService
         { "Health", new Guid("3609d0f4-d4d1-4e10-ad08-e95120969ae3") }
     };
 
-    public FeedService(IUnitOfWork unitOfWork, IPostService postService)
+    public FeedService(IUnitOfWork unitOfWork, IPostService postService, ILogger<FeedService> logger)
     {
         _unitOfWork = unitOfWork;
         _postService = postService;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid userId)
