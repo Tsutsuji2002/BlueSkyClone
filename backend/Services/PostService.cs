@@ -147,9 +147,6 @@ public class PostService : IPostService
                 .Take(take)
                 .ToListAsync();
             
-            var logPath = "C:\\tmp\\post_service_debug.log";
-            File.AppendAllText(logPath, $"[GetTimelineAsync] User={userId}, Query returned {posts.Count} posts.\n");
-            
             System.Console.WriteLine($"[PostService] GetTimelineAsync: Fetched {posts.Count} posts for User {userId}. CacheKey: {cacheKey}");
             System.Console.WriteLine($"[PostService] GetTimelineAsync: followedUserIds Count: {followedUserIds.Count}, mutedUserIds Count: {mutedUserIds.Count}, blockedUserIds Count: {blockedUserIds.Count}, blockedByUserIds Count: {blockedByUserIds.Count}");
             
@@ -297,15 +294,10 @@ public class PostService : IPostService
 
     public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
     {
-        var logPath = "C:\\tmp\\post_service_debug.log";
         try
         {
-            if (!Directory.Exists("C:\\tmp")) Directory.CreateDirectory("C:\\tmp");
-            File.AppendAllText(logPath, $"[EnrichAndFilterPostsAsync] Start: Count={posts.Count}, Viewer={viewerId}, IsTimeline={isTimeline}, Time={DateTime.Now}\n");
-            
             if (!posts.Any()) 
             {
-                File.AppendAllText(logPath, "[EnrichAndFilterPostsAsync] No posts provided. Returning.\n");
                 return posts;
             }
 
@@ -478,7 +470,6 @@ public class PostService : IPostService
                     blockedUserIds.Contains(post.Author.Id) || 
                     blockedByUserIds.Contains(post.Author.Id))
                 {
-                    File.AppendAllText(logPath, $"[EnrichAndFilterPostsAsync] Filtered out Post {post.Id}. Deleted: {post.IsDeleted}, AuthorNull: {post.Author == null}, Muted/Blocked: true\n");
                     _logger.LogWarning("[PostService] EnrichAndFilterPostsAsync: Filtering out Post {PostId} - Deleted: {IsDeleted}, AuthorNull: {AuthorNull}, Muted: {Muted}, Blocked: {Blocked}", 
                         post.Id, post.IsDeleted, post.Author == null, 
                         post.Author != null && mutedUserIds.Contains(post.Author.Id), 
@@ -745,14 +736,12 @@ public class PostService : IPostService
                 filteredPosts.Add(post);
             }
 
-            File.AppendAllText(logPath, $"[EnrichAndFilterPostsAsync] End: Filtered Count={filteredPosts.Count}\n");
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Output Count={OutputCount}", filteredPosts.Count);
             return filteredPosts;
         }
         catch (Exception ex)
         {
-            File.AppendAllText(logPath, $"[EnrichAndFilterPostsAsync] ERROR: {ex.Message}\n{ex.StackTrace}\n");
-            System.Console.WriteLine($"[PostService] EnrichAndFilterPostsAsync Error: {ex.Message}");
+            _logger.LogError(ex, "[PostService] EnrichAndFilterPostsAsync Error: {Message}", ex.Message);
             return posts; // Return unenriched posts as fallback to prevent 500
         }
     }
@@ -2174,7 +2163,7 @@ public class PostService : IPostService
         catch { return null; }
     }
 
-    public async Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null)
+    public async Task<object> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null)
     {
         if (string.IsNullOrEmpty(uri)) return null;
 
@@ -2335,7 +2324,7 @@ public class PostService : IPostService
 
                     if (allCids.Any())
                     {
-                        // Optimization: Fetch local posts matching these CIDs
+                        // Optimization: Fetch local posts matching these Cids
                         var localPosts = await _unitOfWork.Posts.Query()
                             .Where(p => allCids.Contains(p.Cid) || allCids.Contains(p.Tid))
                             .ToDictionaryAsync(p => p.Cid ?? p.Tid, p => p.Id);
@@ -2873,7 +2862,7 @@ public class PostService : IPostService
             {
                 Id = Guid.NewGuid(),
                 AuthorId = author.Id,
-                Content = record.ContainsKey("text") ? record["text"].ToString() : "",
+                Content = record.ContainsKey("text") ? record["text"].ToString() : "" ,
                 CreatedAt = record.ContainsKey("createdAt") ? DateTime.Parse(record["createdAt"].ToString() ?? DateTime.UtcNow.ToString()) : DateTime.UtcNow,
                 Uri = uri,
                 Cid = cid,
@@ -3743,15 +3732,15 @@ public class PostService : IPostService
         {
             if (post == null)
             {
-                File.AppendAllText("C:\\tmp\\post_service_debug.log", "[MapToDto] ERROR: Post object is null!\n");
+                _logger.LogWarning("[MapToDto] Post object is null!");
                 return new PostDto();
             }
             return MapToDto(post, true, true);
         }
         catch (Exception ex)
         {
-            File.AppendAllText("C:\\tmp\\post_service_debug.log", $"[MapToDto] ERROR mapping Post {post?.Id}: {ex.Message}\n{ex.StackTrace}\n");
-            throw; // Re-throw so the caller catches and logs it as well
+            _logger.LogError(ex, "[MapToDto] Error mapping Post {PostId}: {Message}", post?.Id, ex.Message);
+            return new PostDto { Id = post?.Id ?? Guid.Empty, Content = post?.Content ?? "" };
         }
     }
 
