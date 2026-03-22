@@ -3,6 +3,8 @@ using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
 using BSkyClone.Constants;
 using Microsoft.EntityFrameworkCore;
+using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace BSkyClone.Services;
 
@@ -11,6 +13,8 @@ public class FeedService : IFeedService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPostService _postService;
     private readonly ILogger<FeedService> _logger;
+    private static bool _isSeeded = false;
+    private static readonly SemaphoreSlim _seedSemaphore = new(1, 1);
 
     private static readonly Dictionary<string, Guid> OfficialFeedIds = new()
     {
@@ -412,7 +416,23 @@ public class FeedService : IFeedService
 
     public async Task PreSeedFeedsAsync()
     {
-        await EnsureOfficialFeedsSeededAsync();
+        if (_isSeeded) return;
+
+        await _seedSemaphore.WaitAsync();
+        try 
+        {
+            if (_isSeeded) return;
+            await EnsureOfficialFeedsSeededAsync();
+            _isSeeded = true;
+        } 
+        catch (Exception ex) 
+        {
+            _logger.LogError(ex, "Error during PreSeedFeedsAsync");
+        } 
+        finally 
+        {
+            _seedSemaphore.Release();
+        }
     }
 }
 
