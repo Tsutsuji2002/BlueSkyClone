@@ -30,6 +30,8 @@ public class UnifiedFeedController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
+            IEnumerable<PostDto> posts = new List<PostDto>();
+
             switch (feedId.ToLower())
             {
                 case "home":
