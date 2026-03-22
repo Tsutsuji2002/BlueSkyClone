@@ -386,6 +386,37 @@ public class PostService : IPostService
             var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
             var viewerHandle = viewerUser?.Handle?.ToLower();
 
+            // Batch fetch local interaction counts to avoid N+1 queries later in the loop
+            var localLikesCounts = await _unitOfWork.Likes.Query()
+                .Where(l => postIds.Contains(l.PostId))
+                .GroupBy(l => l.PostId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+            var localRepostsCounts = await _unitOfWork.Reposts.Query()
+                .Where(r => postIds.Contains(r.PostId))
+                .GroupBy(r => r.PostId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+            var localBookmarksCounts = await _unitOfWork.Bookmarks.Query()
+                .Where(b => postIds.Contains(b.PostId))
+                .GroupBy(b => b.PostId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+            var localRepliesCounts = await _unitOfWork.Posts.Query()
+                .Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value))
+                .GroupBy(p => p.ReplyToPostId)
+                .Select(g => new { Id = g.Key!.Value, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Id, x => x.Count);
+
+            var localQuotesCounts = await _unitOfWork.Posts.Query()
+                .Where(p => p.QuotePostId != null && postIds.Contains(p.QuotePostId.Value))
+                .GroupBy(p => p.QuotePostId)
+                .Select(g => new { Id = g.Key!.Value, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Id, x => x.Count);
+
             // Fetch user settings for timeline filtering
             UserSetting? userSettings = null;
             if (isTimeline)
@@ -492,21 +523,30 @@ public class PostService : IPostService
                     Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : post.Viewer?.Repost
                 };
 
-                // Sync counts for remote posts if we have fresh data in the DTO
+                // Unified Count Merging: Ensure local actuals take precedence or augment remote data
+                localLikesCounts.TryGetValue(post.Id, out var localLikes);
+                localRepostsCounts.TryGetValue(post.Id, out var localReposts);
+                localBookmarksCounts.TryGetValue(post.Id, out var localBookmarks);
+                localRepliesCounts.TryGetValue(post.Id, out var localReplies);
+                localQuotesCounts.TryGetValue(post.Id, out var localQuotes);
+
                 bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
                 if (isRemote)
                 {
-                    // Fetch local database actuals directly to ensure they aren't masked
-                    var localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == post.Id);
-                    var localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == post.Id);
-                    var localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == post.Id);
-
                     if (post.Uri != null && remoteInteractionCache.TryGetValue(post.Uri, out var remotePost))
                     {
                         if (remotePost.TryGetProperty("likeCount", out var lc)) post.LikesCount = Math.Max(lc.GetInt32(), localLikes);
+                        else post.LikesCount = Math.Max(post.LikesCount, localLikes);
+
                         if (remotePost.TryGetProperty("repostCount", out var rc)) post.RepostsCount = Math.Max(rc.GetInt32(), localReposts);
-                        if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = rpc.GetInt32();
-                        if (remotePost.TryGetProperty("quoteCount", out var qc)) post.QuotesCount = qc.GetInt32();
+                        else post.RepostsCount = Math.Max(post.RepostsCount, localReposts);
+
+                        if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = Math.Max(rpc.GetInt32(), localReplies);
+                        else post.RepliesCount = Math.Max(post.RepliesCount, localReplies);
+
+                        if (remotePost.TryGetProperty("quoteCount", out var qc)) post.QuotesCount = Math.Max(qc.GetInt32(), localQuotes);
+                        else post.QuotesCount = Math.Max(post.QuotesCount, localQuotes);
+
                         post.BookmarksCount = localBookmarks;
 
                         // Map Media
@@ -519,17 +559,17 @@ public class PostService : IPostService
                     {
                         post.LikesCount = Math.Max(post.LikesCount, localLikes);
                         post.RepostsCount = Math.Max(post.RepostsCount, localReposts);
+                        post.RepliesCount = Math.Max(post.RepliesCount, localReplies);
+                        post.QuotesCount = Math.Max(post.QuotesCount, localQuotes);
                         post.BookmarksCount = Math.Max(post.BookmarksCount, localBookmarks);
                     }
                 }
                 else 
                 {
-                    var localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == post.Id);
-                    var localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == post.Id);
-                    var localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == post.Id);
-
                     post.LikesCount = localLikes;
                     post.RepostsCount = localReposts;
+                    post.RepliesCount = localReplies;
+                    post.QuotesCount = localQuotes;
                     post.BookmarksCount = localBookmarks;
                 }
 
@@ -2226,16 +2266,30 @@ public class PostService : IPostService
                         {
                             var postIds = localPosts.Values.ToList();
                             
-                            // Get local interactions
-                            var localLikes = await _unitOfWork.Likes.Query()
-                                .Where(l => postIds.Contains(l.PostId))
-                                .GroupBy(l => l.PostId)
-                                .ToDictionaryAsync(g => g.Key, g => g.Count());
+                             // Get local interactions for ALL posts in the thread
+                             var localLikes = await _unitOfWork.Likes.Query()
+                                 .Where(l => postIds.Contains(l.PostId))
+                                 .GroupBy(l => l.PostId)
+                                 .ToDictionaryAsync(g => g.Key, g => g.Count());
+ 
+                             var localReposts = await _unitOfWork.Reposts.Query()
+                                 .Where(r => postIds.Contains(r.PostId))
+                                 .GroupBy(r => r.PostId)
+                                 .ToDictionaryAsync(g => g.Key, g => g.Count());
 
-                            var localReposts = await _unitOfWork.Reposts.Query()
-                                .Where(r => postIds.Contains(r.PostId))
-                                .GroupBy(r => r.PostId)
-                                .ToDictionaryAsync(g => g.Key, g => g.Count());
+                            var localReplies = await _unitOfWork.Posts.Query()
+                                .Include(p => p.Author)
+                                .Include(p => p.PostMedia)
+                                .Include(p => p.LinkPreview)
+                                .Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value))
+                                .ToListAsync();
+
+                            var localRepliesCounts = localReplies.GroupBy(p => p.ReplyToPostId!.Value).ToDictionary(g => g.Key, g => g.Count());
+
+                            var localQuotesCounts = await _unitOfWork.Posts.Query()
+                                .Where(p => p.QuotePostId != null && postIds.Contains(p.QuotePostId.Value))
+                                .GroupBy(p => p.QuotePostId)
+                                .ToDictionaryAsync(g => g.Key!.Value, g => g.Count());
 
                             Dictionary<Guid, string> userLikes = new();
                             Dictionary<Guid, string> userReposts = new();
@@ -2267,6 +2321,16 @@ public class PostService : IPostService
                                         var remoteRC = parseInt(postNode["repostCount"]);
                                         postNode["repostCount"] = Math.Max(lrCount, remoteRC);
                                     }
+                                    if (localRepliesCounts.TryGetValue(pid, out var lrplCount))
+                                    {
+                                        var remoteRPC = parseInt(postNode["replyCount"]);
+                                        postNode["replyCount"] = Math.Max(lrplCount, remoteRPC);
+                                    }
+                                    if (localQuotesCounts.TryGetValue(pid, out var lqCount))
+                                    {
+                                        var remoteQC = parseInt(postNode["quoteCount"]);
+                                        postNode["quoteCount"] = Math.Max(lqCount, remoteQC);
+                                    }
 
                                     if (viewerId.HasValue)
                                     {
@@ -2281,14 +2345,7 @@ public class PostService : IPostService
                                 }
                             }
 
-                            // 5. Inject Local Replies that might not be on the remote server yet
-                            var localReplies = await _unitOfWork.Posts.Query()
-                                .Include(p => p.Author)
-                                .Include(p => p.PostMedia)
-                                .Include(p => p.LinkPreview)
-                                .Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value))
-                                .ToListAsync();
-
+                            // 5. Inject Local Replies that might not be on the remote server yet (already fetched above)
                             if (localReplies.Any())
                             {
                                 foreach (var postNode in postNodes)
