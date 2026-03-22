@@ -2220,6 +2220,7 @@ public class PostService : IPostService
                     var jObject = Newtonsoft.Json.Linq.JObject.Parse(rawJson);
                     var allCids = new List<string>();
                     var postNodes = new List<Newtonsoft.Json.Linq.JToken>();
+                    var threadNodes = new List<Newtonsoft.Json.Linq.JToken>();
 
                     // Helper to recursively find all 'post' nodes in the thread
                     Action<Newtonsoft.Json.Linq.JToken> extractPosts = null;
@@ -2228,6 +2229,7 @@ public class PostService : IPostService
                         if (node == null) return;
                         if (node["post"] != null)
                         {
+                            threadNodes.Add(node);
                             postNodes.Add(node["post"]);
                             if (node["post"]["cid"] != null) allCids.Add(node["post"]["cid"].ToString());
                         }
@@ -2348,16 +2350,18 @@ public class PostService : IPostService
                             // 5. Inject Local Replies that might not be on the remote server yet (already fetched above)
                             if (localReplies.Any())
                             {
-                                foreach (var postNode in postNodes)
+                                foreach (var threadWrapperNode in threadNodes)
                                 {
-                                    var cid = postNode["cid"]?.ToString();
+                                    var postNodeForThisThread = threadWrapperNode["post"];
+                                    var cid = postNodeForThisThread?["cid"]?.ToString();
+                                    
                                     if (cid != null && localPosts.TryGetValue(cid, out var pid))
                                     {
                                         var repliesToThis = localReplies.Where(r => r.ReplyToPostId == pid).ToList();
                                         if (repliesToThis.Any())
                                         {
-                                            if (postNode["replies"] == null) postNode["replies"] = new Newtonsoft.Json.Linq.JArray();
-                                            var existingReplyUris = postNode["replies"].Select(r => r["post"]?["uri"]?.ToString()).Where(u => u != null).ToHashSet();
+                                            if (threadWrapperNode["replies"] == null) threadWrapperNode["replies"] = new Newtonsoft.Json.Linq.JArray();
+                                            var existingReplyUris = threadWrapperNode["replies"].Select(r => r["post"]?["uri"]?.ToString()).Where(u => u != null).ToHashSet();
 
                                             foreach (var lr in repliesToThis)
                                             {
@@ -2371,7 +2375,7 @@ public class PostService : IPostService
                                                         ["post"] = Newtonsoft.Json.Linq.JObject.FromObject(lrEnriched),
                                                         ["@type"] = "app.bsky.feed.defs#threadViewPost"
                                                     };
-                                                    ((Newtonsoft.Json.Linq.JArray)postNode["replies"]).Add(newNode);
+                                                    ((Newtonsoft.Json.Linq.JArray)threadWrapperNode["replies"]).Add(newNode);
                                                 }
                                             }
                                         }
