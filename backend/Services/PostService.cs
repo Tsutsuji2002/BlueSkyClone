@@ -1241,6 +1241,11 @@ public class PostService : IPostService
         await _cacheService.RemoveAsync($"user:{userId}:posts:media:0:30:v2");
         await _cacheService.RemoveAsync($"user:{userId}:posts:likes:0:20:v2");
         await _cacheService.RemoveAsync($"user:{userId}:posts:likes:0:30:v2");
+        
+        // Invalidate parent/root/quote post caches to update counts (RepliesCount, QuotesCount)
+        if (replyToPostId.HasValue) await _cacheService.RemoveAsync($"post:{replyToPostId.Value}");
+        if (rootPostId.HasValue) await _cacheService.RemoveAsync($"post:{rootPostId.Value}");
+        if (quotePostId.HasValue) await _cacheService.RemoveAsync($"post:{quotePostId.Value}");
 
         // Refresh to get Author and Media, and Reply info for the DTO
         var savedPost = await _unitOfWork.Posts.Query()
@@ -2272,6 +2277,47 @@ public class PostService : IPostService
                                         
                                         if (userReposts.TryGetValue(pid, out var rUri))
                                             postNode["viewer"]["repost"] = rUri;
+                                    }
+                                }
+                            }
+
+                            // 5. Inject Local Replies that might not be on the remote server yet
+                            var localReplies = await _unitOfWork.Posts.Query()
+                                .Include(p => p.Author)
+                                .Include(p => p.PostMedia)
+                                .Include(p => p.LinkPreview)
+                                .Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value))
+                                .ToListAsync();
+
+                            if (localReplies.Any())
+                            {
+                                foreach (var postNode in postNodes)
+                                {
+                                    var cid = postNode["cid"]?.ToString();
+                                    if (cid != null && localPosts.TryGetValue(cid, out var pid))
+                                    {
+                                        var repliesToThis = localReplies.Where(r => r.ReplyToPostId == pid).ToList();
+                                        if (repliesToThis.Any())
+                                        {
+                                            if (postNode["replies"] == null) postNode["replies"] = new Newtonsoft.Json.Linq.JArray();
+                                            var existingReplyUris = postNode["replies"].Select(r => r["post"]?["uri"]?.ToString()).Where(u => u != null).ToHashSet();
+
+                                            foreach (var lr in repliesToThis)
+                                            {
+                                                if (!existingReplyUris.Contains(lr.Uri))
+                                                {
+                                                    var lrDto = MapToDto(lr);
+                                                    var lrEnriched = (await EnrichAndFilterPostsAsync(new List<PostDto> { lrDto }, viewerId ?? Guid.Empty)).First();
+                                                    
+                                                    var newNode = new Newtonsoft.Json.Linq.JObject
+                                                    {
+                                                        ["post"] = Newtonsoft.Json.Linq.JObject.FromObject(lrEnriched),
+                                                        ["@type"] = "app.bsky.feed.defs#threadViewPost"
+                                                    };
+                                                    ((Newtonsoft.Json.Linq.JArray)postNode["replies"]).Add(newNode);
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
