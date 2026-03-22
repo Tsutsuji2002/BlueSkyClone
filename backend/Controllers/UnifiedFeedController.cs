@@ -30,6 +30,8 @@ public class UnifiedFeedController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
+            _logger.LogInformation("[UnifiedFeed] Request for FeedId: {FeedId}, ViewerId: {ViewerId}", feedId, viewerId);
+
             IEnumerable<PostDto> posts = new List<PostDto>();
 
             switch (feedId.ToLower())
@@ -60,9 +62,11 @@ public class UnifiedFeedController : ControllerBase
                     posts = await _postService.GetPostsByTagAsync("music", viewerId, take, skip);
                     break;
                 default:
+                    _logger.LogInformation("[UnifiedFeed] Default case for FeedId: {FeedId}", feedId);
                     if (Guid.TryParse(feedId, out var fGuid))
                     {
                         posts = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take);
+                        _logger.LogInformation("[UnifiedFeed] Custom GUID feed returned {Count} posts", posts?.Count() ?? 0);
                     }
                     else if (feedId.StartsWith("tag-"))
                     {

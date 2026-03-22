@@ -159,8 +159,10 @@ public class FeedService : IFeedService
                 };
                 await _unitOfWork.Feeds.AddAsync(newFeed);
                 await _unitOfWork.CompleteAsync();
+                _logger.LogInformation("[FeedService] Seeded/Verified feed: {Name} ({Id})", topic.Name, targetId);
             }
         }
+        _logger.LogInformation("[FeedService] Official feeds seeding completed.");
     }
 
     public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId)
@@ -173,6 +175,7 @@ public class FeedService : IFeedService
             .ThenBy(s => s.PinnedOrder)
             .ToListAsync();
 
+        _logger.LogInformation("[FeedService] GetUserFeedsAsync for User {UserId}: Found {Count} subscriptions.", userId, subscriptions.Count);
         return subscriptions.Select(s => MapToDto(s.Feed, s.IsPinned ?? false, s.PinnedOrder ?? 0));
     }
 
@@ -331,7 +334,11 @@ public class FeedService : IFeedService
             .Include(f => f.Creator)
             .FirstOrDefaultAsync(f => f.Id == feedId && (f.IsDeleted == false || f.IsDeleted == null));
 
-        if (feed == null) return null;
+        if (feed == null) 
+        {
+            _logger.LogWarning("[FeedService] GetFeedByIdAsync: Feed {Id} NOT FOUND in database after seeding.", feedId);
+            return null;
+        }
 
         var subscription = await _unitOfWork.UserFeedSubscriptions.Query()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FeedId == feedId);
@@ -376,6 +383,7 @@ public class FeedService : IFeedService
                     .Take(take)
                     .ToListAsync();
 
+                _logger.LogInformation("[FeedService] Query for feed '{Name}' returned {Count} posts via Interests.", feed.Name, posts.Count);
                 postDtos = posts.Select(p => _postService.MapToDto(p)).ToList();
             }
             catch (Exception ex)

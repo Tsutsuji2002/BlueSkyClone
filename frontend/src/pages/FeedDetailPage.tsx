@@ -33,13 +33,21 @@ const FeedDetailPage: React.FC = () => {
     useDocumentTitle(feed?.name || t('feeds.title'));
 
     useEffect(() => {
+        const feedId = id?.toLowerCase();
+        console.log('FeedDetailPage: useEffect [id, feed, infoLoading]', { 
+            id: feedId, 
+            hasFeed: !!feed, 
+            loadingStatus: feedId ? infoLoading[feedId] : 'no-id',
+            subscribedLen: subscribedFeeds.length 
+        });
+
         if (subscribedFeeds.length === 0) {
+            console.log('FeedDetailPage: Dispatching fetchSubscribedFeeds');
             dispatch(fetchSubscribedFeeds());
         }
         
-        const feedId = id?.toLowerCase();
         if (feedId && !feed && infoLoading[feedId] === undefined) {
-            console.log('FeedDetailPage: Fetching info for missing feed:', feedId);
+            console.log('FeedDetailPage: Dispatching fetchFeedInfo for:', feedId);
             dispatch(fetchFeedInfo(feedId));
         }
     }, [dispatch, subscribedFeeds.length, id, feed, infoLoading]);
