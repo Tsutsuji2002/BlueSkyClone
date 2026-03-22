@@ -344,7 +344,7 @@ const feedsSlice = createSlice({
                 state.infoLoading[action.meta.arg] = true;
                 state.infoError[action.meta.arg] = null;
             })
-            .addCase(fetchFeedInfo.fulfilled, (state: FeedsState, action: PayloadAction<Feed>) => {
+            .addCase(fetchFeedInfo.fulfilled, (state: FeedsState, action: any) => {
                 state.infoLoading[action.meta.arg] = false;
                 // Add to searchResults or another cache if not already present
                 if (!state.subscribedFeeds.find(f => f.id === action.payload.id)) {
