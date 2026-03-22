@@ -2446,7 +2446,11 @@ public class PostService : IPostService
                                                     var lrDto = MapToDto(lr);
                                                     var lrEnriched = (await EnrichAndFilterPostsAsync(new List<PostDto> { lrDto }, viewerId ?? Guid.Empty)).First();
                                                     
-                                                    var lrJson = Newtonsoft.Json.Linq.JObject.FromObject(lrEnriched);
+                                                    var serializerSettings = new Newtonsoft.Json.JsonSerializerSettings 
+                                                    { 
+                                                        ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver() 
+                                                    };
+                                                    var lrJson = Newtonsoft.Json.Linq.JObject.FromObject(lrEnriched, Newtonsoft.Json.JsonSerializer.Create(serializerSettings));
                                                     var parentUriForLr = postNodeForThisThread?["uri"]?.ToString();
                                                     if (!string.IsNullOrEmpty(parentUriForLr))
                                                     {
