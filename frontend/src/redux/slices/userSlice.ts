@@ -16,6 +16,8 @@ const initialState: UserState = {
     interestsLoading: false,
     error: null,
     actionLoading: {},
+    cursor: null,
+    hasMore: true,
 };
 
 export const searchUsers = createAsyncThunk<
@@ -104,24 +106,27 @@ export const fetchUserProfile = createAsyncThunk<
 );
 
 export const fetchUserProfileById = fetchUserProfile;
-
 export const fetchFollowers = createAsyncThunk<
-    User[],
-    string,
+    { users: User[], cursor: string | null },
+    { actor: string, cursor?: string, limit?: number },
     { rejectValue: string }
 >(
     'user/fetchFollowers',
-    async (actor: string, { rejectWithValue }) => {
+    async ({ actor, cursor, limit = 20 }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const params = new URLSearchParams({ limit: String(limit) });
+            if (cursor) params.append('cursor', cursor);
+            
             const response = await fetch(
-                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/followers`,
+                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/followers?${params.toString()}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch followers');
+            
             const followersArray = Array.isArray(data) ? data : (data.followers || []);
-            return followersArray.map((u: any) => ({
+            const users = followersArray.map((u: any) => ({
                 id: u.id,
                 did: u.did,
                 handle: u.handle,
@@ -132,6 +137,8 @@ export const fetchFollowers = createAsyncThunk<
                 isFollowing: u.isFollowing,
                 followingReference: u.followingReference,
             } as User));
+
+            return { users, cursor: data.cursor || null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -139,22 +146,26 @@ export const fetchFollowers = createAsyncThunk<
 );
 
 export const fetchFollowing = createAsyncThunk<
-    User[],
-    string,
+    { users: User[], cursor: string | null },
+    { actor: string, cursor?: string, limit?: number },
     { rejectValue: string }
 >(
     'user/fetchFollowing',
-    async (actor: string, { rejectWithValue }) => {
+    async ({ actor, cursor, limit = 20 }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const params = new URLSearchParams({ limit: String(limit) });
+            if (cursor) params.append('cursor', cursor);
+
             const response = await fetch(
-                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/following`,
+                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/following?${params.toString()}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch following');
+            
             const followingArray = Array.isArray(data) ? data : (data.following || []);
-            return followingArray.map((u: any) => ({
+            const users = followingArray.map((u: any) => ({
                 id: u.id,
                 did: u.did,
                 handle: u.handle,
@@ -165,6 +176,8 @@ export const fetchFollowing = createAsyncThunk<
                 isFollowing: u.isFollowing,
                 followingReference: u.followingReference,
             } as User));
+
+            return { users, cursor: data.cursor || null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -630,26 +643,50 @@ const userSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Fetch Followers
-            .addCase(fetchFollowers.pending, (state: UserState) => {
+            .addCase(fetchFollowers.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
+                if (!action.meta.arg.cursor) {
+                    state.users = [];
+                }
             })
-            .addCase(fetchFollowers.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+            .addCase(fetchFollowers.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
-                state.users = action.payload;
+                const { users, cursor } = action.payload;
+                if (!action.meta.arg.cursor) {
+                    state.users = users;
+                } else {
+                    const existingIds = new Set(state.users.map(u => u.id));
+                    const newUsers = users.filter(u => !existingIds.has(u.id));
+                    state.users = [...state.users, ...newUsers];
+                }
+                state.cursor = cursor;
+                state.hasMore = users.length > 0 && !!cursor;
             })
             .addCase(fetchFollowers.rejected, (state: UserState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
             // Fetch Following
-            .addCase(fetchFollowing.pending, (state: UserState) => {
+            .addCase(fetchFollowing.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
+                if (!action.meta.arg.cursor) {
+                    state.users = [];
+                }
             })
-            .addCase(fetchFollowing.fulfilled, (state: UserState, action: PayloadAction<User[]>) => {
+            .addCase(fetchFollowing.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
-                state.users = action.payload;
+                const { users, cursor } = action.payload;
+                if (!action.meta.arg.cursor) {
+                    state.users = users;
+                } else {
+                    const existingIds = new Set(state.users.map(u => u.id));
+                    const newUsers = users.filter(u => !existingIds.has(u.id));
+                    state.users = [...state.users, ...newUsers];
+                }
+                state.cursor = cursor;
+                state.hasMore = users.length > 0 && !!cursor;
             })
             .addCase(fetchFollowing.rejected, (state: UserState, action) => {
                 state.isLoading = false;

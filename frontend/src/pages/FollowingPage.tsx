@@ -18,8 +18,9 @@ const FollowingPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { profile, users, isLoading } = useAppSelector((state: RootState) => state.user);
+    const { profile, users, isLoading, cursor, hasMore } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const observerTarget = React.useRef<HTMLDivElement>(null);
 
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.following'));
 
@@ -30,16 +31,36 @@ const FollowingPage: React.FC = () => {
                 dispatch(fetchUserProfile(effectiveId));
             } else {
                 dispatch(fetchUserProfileById(effectiveId));
-                dispatch(fetchFollowing(effectiveId));
+                dispatch(fetchFollowing({ actor: effectiveId }));
             }
         }
     }, [dispatch, effectiveId]);
 
     useEffect(() => {
         if (profile?.id && effectiveId?.includes('.')) {
-            dispatch(fetchFollowing(profile.id));
+            dispatch(fetchFollowing({ actor: profile.id }));
         }
     }, [dispatch, profile?.id, effectiveId]);
+
+    // Infinite Scroll Observer
+    useEffect(() => {
+        if (!hasMore || isLoading || !profile?.id) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    dispatch(fetchFollowing({ actor: profile.id, cursor: cursor || undefined }));
+                }
+            },
+            { threshold: 1.0 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [dispatch, hasMore, isLoading, profile?.id, cursor]);
 
     const profileUser = profile;
     const following = users;
@@ -111,63 +132,69 @@ const FollowingPage: React.FC = () => {
 
                 {/* Following List */}
                 <div className="flex-1">
-                    {isLoading && following.length === 0 ? (
-                        <UserSkeleton count={6} />
-                    ) : following.length > 0 ? (
-                        following.map((user: User) => (
-                            <div
-                                key={user.id}
-                                className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
-                            >
-                                <div className="flex items-start gap-3">
-                                    <button onClick={() => navigate(`/profile/user/${user.id}`)}>
-                                        <Avatar
-                                            src={user.avatarUrl || user.avatar}
-                                            alt={user.displayName}
-                                            size="md"
-                                        />
-                                    </button>
-                                    <div className="flex-1 min-w-0">
-                                        <button
-                                            onClick={() => navigate(`/profile/user/${user.id}`)}
-                                            className="block text-left"
-                                        >
-                                            <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">
-                                                {user.displayName}
-                                            </h3>
-                                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                                {user.handle}
-                                            </p>
+                    {following.length > 0 ? (
+                        <>
+                            {following.map((user: User) => (
+                                <div
+                                    key={user.id}
+                                    className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <button onClick={() => navigate(`/profile/user/${user.id}`)}>
+                                            <Avatar
+                                                src={user.avatarUrl || user.avatar}
+                                                alt={user.displayName}
+                                                size="md"
+                                            />
                                         </button>
-                                        {user.bio && (
-                                            <p className="mt-1 text-sm text-gray-700 dark:text-dark-text line-clamp-2">
-                                                {user.bio}
-                                            </p>
+                                        <div className="flex-1 min-w-0">
+                                            <button
+                                                onClick={() => navigate(`/profile/user/${user.id}`)}
+                                                className="block text-left"
+                                            >
+                                                <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">
+                                                    {user.displayName}
+                                                </h3>
+                                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
+                                                    {user.handle}
+                                                </p>
+                                            </button>
+                                            {user.bio && (
+                                                <p className="mt-1 text-sm text-gray-700 dark:text-dark-text line-clamp-2">
+                                                    {user.bio}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {currentUser?.id !== user.id && (
+                                            <Button
+                                                variant={user.isFollowing ? 'secondary' : 'primary'}
+                                                size="sm"
+                                                className="rounded-full font-bold px-4 shrink-0"
+                                                onClick={() => handleFollowToggle(user)}
+                                            >
+                                                {user.isFollowing ? (
+                                                    <>
+                                                        <FiCheck size={16} />
+                                                        {t('profile.following_btn')}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <FiPlus size={16} />
+                                                        {t('profile.follow')}
+                                                    </>
+                                                )}
+                                            </Button>
                                         )}
                                     </div>
-                                    {currentUser?.id !== user.id && (
-                                        <Button
-                                            variant={user.isFollowing ? 'secondary' : 'primary'}
-                                            size="sm"
-                                            className="rounded-full font-bold px-4 shrink-0"
-                                            onClick={() => handleFollowToggle(user)}
-                                        >
-                                            {user.isFollowing ? (
-                                                <>
-                                                    <FiCheck size={16} />
-                                                    {t('profile.following_btn')}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <FiPlus size={16} />
-                                                    {t('profile.follow')}
-                                                </>
-                                            )}
-                                        </Button>
-                                    )}
                                 </div>
+                            ))}
+                            {/* Infinite Scroll Trigger */}
+                            <div ref={observerTarget} className="h-20 flex items-center justify-center">
+                                {isLoading && <UserSkeleton count={2} />}
                             </div>
-                        ))
+                        </>
+                    ) : isLoading ? (
+                        <UserSkeleton count={6} />
                     ) : (
                         <div className="py-20 text-center">
                             <p className="text-gray-500 dark:text-dark-text-secondary text-sm">

@@ -4,7 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
-import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings } from '../redux/slices/postsSlice';
+import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings, fetchPostReplies } from '../redux/slices/postsSlice';
 import { openReply, openMobileMenu, openEditPost, openReport, openQuote } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -180,6 +180,44 @@ const PostDetailPage: React.FC = () => {
 
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
     const [isInteractionModalOpen, setIsInteractionModalOpen] = React.useState(false);
+    const observerTarget = React.useRef<HTMLDivElement>(null);
+    const REPLIES_PER_PAGE = 20;
+
+    const hasMoreReplies = React.useMemo(() => {
+        if (!post) return false;
+        // Calculate top-level replies count to see if we reached the end
+        const topLevelReplies = posts.filter(p => 
+            p.replyToPostId === post.id || 
+            p.replyToPostId === post.tid ||
+            (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)))
+        ).length;
+        return topLevelReplies < post.repliesCount;
+    }, [post, posts]);
+
+    // Infinite Scroll Observer for Replies
+    React.useEffect(() => {
+        if (!hasMoreReplies || isLoading || !post?.id) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    const currentTopLevelCount = posts.filter(p => 
+                        p.replyToPostId === post.id || 
+                        p.replyToPostId === post.tid ||
+                        (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)))
+                    ).length;
+                    dispatch(fetchPostReplies({ postId: post.id, skip: currentTopLevelCount, take: REPLIES_PER_PAGE }));
+                }
+            },
+            { threshold: 0.5 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [dispatch, hasMoreReplies, isLoading, post?.id, posts, post?.uri, post?.tid]);
 
     // Track which post IDs we've already fetched replies for to avoid re-fetching
     const fetchedRepliesRef = React.useRef<Set<string>>(new Set());
@@ -901,6 +939,14 @@ const PostDetailPage: React.FC = () => {
                                     </div>
                                 );
                             })}
+                        </div>
+                    )}
+                    {/* Infinite Scroll Trigger for Replies */}
+                    {hasMoreReplies && (
+                        <div ref={observerTarget} className="h-20 flex items-center justify-center border-t border-gray-100 dark:border-dark-border">
+                            {isLoading && (
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+                            )}
                         </div>
                     )}
                 </div>

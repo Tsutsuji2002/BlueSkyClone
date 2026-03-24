@@ -3582,7 +3582,7 @@ public class PostService : IPostService
     }
 }
 
-    public async Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null)
+    public async Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null, int skip = 0, int take = 20)
     {
         var replies = await _unitOfWork.Posts.Query()
             .Include(p => p.Author)
@@ -3594,6 +3594,8 @@ public class PostService : IPostService
             .AsSplitQuery()
             .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
             .OrderBy(p => p.CreatedAt)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync();
 
         var replyDtos = replies.Select(MapToDto).ToList();

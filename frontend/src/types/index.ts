@@ -415,6 +415,8 @@ export interface UserState {
     interestsLoading: boolean;
     error: string | null;
     actionLoading: Record<string, boolean>;
+    cursor: string | null;
+    hasMore: boolean;
 }
 
 export interface NotificationsState {

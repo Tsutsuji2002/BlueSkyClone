@@ -359,8 +359,23 @@ export const fetchPostById = createAsyncThunk(
     }
 );
 
-
-// fetchPostReplies removed as replies are included in getPostThread
+export const fetchPostReplies = createAsyncThunk(
+    'posts/fetchReplies',
+    async ({ postId, skip = 0, take = 20 }: { postId: string; skip?: number; take?: number }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/posts/${postId}/replies?skip=${skip}&take=${take}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!response.ok) return rejectWithValue('Failed to fetch replies');
+            const posts: Post[] = await response.json();
+            return { posts, postId, skip };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
 
 export const fetchTrendingPosts = createAsyncThunk(
     'posts/fetchTrending',

@@ -394,7 +394,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("{id}/replies")]
-    public async Task<IActionResult> GetPostReplies(string id)
+    public async Task<IActionResult> GetPostReplies(string id, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         try
         {
@@ -409,7 +409,7 @@ public class PostsController : ControllerBase
                 postId = post.Id;
             }
 
-            var replies = await _postService.GetPostRepliesAsync(postId, viewerId);
+            var replies = await _postService.GetPostRepliesAsync(postId, viewerId, skip, take);
             return Ok(replies);
         }
         catch (Exception ex)
