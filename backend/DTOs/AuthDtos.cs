@@ -55,6 +55,15 @@ public record UserDto(
     [JsonPropertyName("isMuted")]
     public bool? IsMuted { get; init; }
 }
+ 
+public record UserRelationshipStatusDto(
+    bool IsFollowing,
+    bool IsBlocking,
+    bool IsBlockedBy,
+    bool IsMuted,
+    string? FollowingReference = null,
+    string? BlockingReference = null
+);
 
 public record UserSettingDto(
     string? AdultContentFilter,

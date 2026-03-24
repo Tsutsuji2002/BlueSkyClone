@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiCheck, FiPlus } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
+import UserSkeleton from '../components/common/UserSkeleton';
 import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -55,8 +56,11 @@ const FollowersPage: React.FC = () => {
 
     if (isLoading && !profileUser) {
         return (
-            <div className="flex items-center justify-center min-h-[50vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+            <div className="flex flex-col min-h-screen">
+                <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border px-4 py-3 h-[73px]">
+                   {/* Ghost Header */}
+                </div>
+                <UserSkeleton count={8} />
             </div>
         );
     }
@@ -108,7 +112,9 @@ const FollowersPage: React.FC = () => {
 
                 {/* Followers List */}
                 <div className="flex-1">
-                    {followers.length > 0 ? (
+                    {isLoading && followers.length === 0 ? (
+                        <UserSkeleton count={6} />
+                    ) : followers.length > 0 ? (
                         followers.map((follower: User) => (
                             <div
                                 key={follower.id}

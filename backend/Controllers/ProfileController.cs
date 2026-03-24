@@ -279,16 +279,20 @@ public class ProfileController : ControllerBase
     [HttpGet("{userId}/followers")]
     public async Task<IActionResult> GetFollowers(string userId, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
     {
-        Console.WriteLine($"[ProfileController.GetFollowers] userId={userId}, limit={limit}, cursor={cursor}");
         var (users, nextCursor) = await _userService.GetFollowersAsync(userId, limit, cursor);
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        var interactionStatuses = currentUserId.HasValue 
+            ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id))
+            : new Dictionary<Guid, UserRelationshipStatusDto>();
 
         var dtos = new List<UserDto>();
         foreach (var user in users)
         {
             if (user == null) continue;
-            dtos.Add(await MapUserToDtoWithStatus(user, currentUserId));
+            interactionStatuses.TryGetValue(user.Id, out var status);
+            dtos.Add(MapUserToDtoWithPreFetchedStatus(user, currentUserId, status));
         }
         return Ok(new { followers = dtos, cursor = nextCursor });
     }
@@ -301,11 +305,16 @@ public class ProfileController : ControllerBase
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
+        var interactionStatuses = currentUserId.HasValue 
+            ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id))
+            : new Dictionary<Guid, UserRelationshipStatusDto>();
+
         var dtos = new List<UserDto>();
         foreach (var user in users)
         {
             if (user == null) continue;
-            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            interactionStatuses.TryGetValue(user.Id, out var status);
+            var dto = MapUserToDtoWithPreFetchedStatus(user, currentUserId, status);
             // If viewing own following, they are all followed by definition
             if (userId == currentUserIdString && currentUserId.HasValue)
             {
@@ -329,7 +338,7 @@ public class ProfileController : ControllerBase
         foreach (var user in users)
         {
             if (user == null) continue;
-            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            var dto = MapUserToDtoWithPreFetchedStatus(user, currentUserId, null);
             dto = dto with { IsMuted = true };
             dtos.Add(dto);
         }
@@ -349,14 +358,14 @@ public class ProfileController : ControllerBase
         foreach (var user in users)
         {
             if (user == null) continue;
-            var dto = await MapUserToDtoWithStatus(user, currentUserId);
+            var dto = MapUserToDtoWithPreFetchedStatus(user, currentUserId, null);
             dto = dto with { IsBlocking = true };
             dtos.Add(dto);
         }
         return Ok(dtos);
     }
 
-    private async Task<UserDto> MapUserToDtoWithStatus(User user, Guid? viewerId)
+    private UserDto MapUserToDtoWithPreFetchedStatus(User user, Guid? viewerId, UserRelationshipStatusDto? status)
     {
         var dto = new UserDto(
             user.Id,
@@ -379,22 +388,16 @@ public class ProfileController : ControllerBase
             user.Did
         );
 
-        if (viewerId.HasValue && viewerId != user.Id)
+        if (status != null && viewerId.HasValue && viewerId != user.Id)
         {
-            var isFollowing = await _userService.IsFollowingAsync(viewerId.Value, user.Id);
-            var isBlocking = await _userService.IsBlockedAsync(viewerId.Value, user.Id);
-            
-            var follow = isFollowing ? await _userService.GetFollowAsync(viewerId.Value, user.Id) : null;
-            var block = isBlocking ? await _userService.GetBlockAsync(viewerId.Value, user.Id) : null;
-
             return dto with
             {
-                IsFollowing = isFollowing,
-                IsBlocking = isBlocking,
-                IsBlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
-                IsMuted = await _userService.IsMutedAsync(viewerId.Value, user.Id),
-                FollowingReference = follow?.Uri,
-                BlockingReference = block?.Uri
+                IsFollowing = status.IsFollowing,
+                IsBlocking = status.IsBlocking,
+                IsBlockedBy = status.IsBlockedBy,
+                IsMuted = status.IsMuted,
+                FollowingReference = status.FollowingReference,
+                BlockingReference = status.BlockingReference
             };
         }
         

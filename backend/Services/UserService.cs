@@ -602,6 +602,53 @@ public class UserService : IUserService
         return await _unitOfWork.Follows.GetAsync(followerId, followingId);
     }
 
+    public async Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds)
+    {
+        var targetIdList = targetIds.Distinct().ToList();
+        if (!targetIdList.Any()) return new Dictionary<Guid, UserRelationshipStatusDto>();
+
+        // 1. Fetch Follows (viewer follows target)
+        var follows = await _unitOfWork.Follows.Query()
+            .Where(f => f.FollowerId == viewerId && targetIdList.Contains(f.FollowingId))
+            .ToListAsync();
+
+        var followsMap = follows.ToDictionary(f => f.FollowingId);
+
+        // 2. Fetch Blocks (viewer blocks target)
+        var blocking = await _unitOfWork.Blocks.Query()
+            .Where(b => b.UserId == viewerId && targetIdList.Contains(b.BlockedUserId))
+            .ToListAsync();
+            
+        var blockingMap = blocking.ToDictionary(b => b.BlockedUserId);
+
+        // 3. Fetch BlockedBy (target blocks viewer)
+        var blockedBy = await _unitOfWork.Blocks.Query()
+            .Where(b => b.BlockedUserId == viewerId && targetIdList.Contains(b.UserId))
+            .Select(b => b.UserId)
+            .ToListAsync();
+
+        // 4. Fetch Mutes (viewer mutes target)
+        var mutes = await _unitOfWork.Mutes.Query()
+            .Where(m => m.UserId == viewerId && targetIdList.Contains(m.MutedUserId))
+            .Select(m => m.MutedUserId)
+            .ToListAsync();
+
+        var result = new Dictionary<Guid, UserRelationshipStatusDto>();
+        foreach (var id in targetIdList)
+        {
+            result[id] = new UserRelationshipStatusDto(
+                IsFollowing: followsMap.ContainsKey(id),
+                IsBlocking: blockingMap.ContainsKey(id),
+                IsBlockedBy: blockedBy.Contains(id),
+                IsMuted: mutes.Contains(id),
+                FollowingReference: followsMap.TryGetValue(id, out var f) ? f.Uri : null,
+                BlockingReference: blockingMap.TryGetValue(id, out var b) ? b.Uri : null
+            );
+        }
+
+        return result;
+    }
+
     public async Task<(List<User> Users, string? Cursor)> GetFollowersAsync(string actor, int limit = 50, string? cursor = null)
     {
         User? user = null;
