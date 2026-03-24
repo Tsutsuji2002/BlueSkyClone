@@ -987,6 +987,7 @@ public class UserService : IUserService
             {
                 Id = Guid.NewGuid(),
                 Did = did,
+                Handle = did,
                 CreatedAt = DateTime.UtcNow,
                 IsVerified = true,
                 Username = did.Length > 20 ? did.Substring(0, 20) : did // Fallback username

@@ -124,6 +124,12 @@ public class PostService : IPostService
                 .Include(p => p.LinkPreview)
                 .Include(p => p.Hashtags)
                 .Include(p => p.Reposts).ThenInclude(r => r.User)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
+                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
                 .Where(p =>
                     followedUserIds.Contains(p.AuthorId) &&
                     (p.IsDeleted == false || p.IsDeleted == null) &&
@@ -2541,11 +2547,13 @@ public class PostService : IPostService
                 {
                     // Create stub user for remote author
                     var actorData = feedItems[0].GetProperty("post").GetProperty("author");
+                    var stubHandle = actorData.GetProperty("handle").GetString() ?? did;
                     author = new User
                     {
                         Id = Guid.NewGuid(),
                         Did = did,
-                        Handle = actorData.GetProperty("handle").GetString() ?? "",
+                        Handle = stubHandle,
+                        Username = stubHandle.Contains('.') ? stubHandle.Split('.').First() : (stubHandle.Length > 20 ? stubHandle.Substring(0, 20) : stubHandle),
                         DisplayName = actorData.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
                         AvatarUrl = actorData.TryGetProperty("avatar", out var av) ? av.GetString() : null,
                         IsVerified = true, // Assuming remote is verified if they have a feed
@@ -4520,11 +4528,13 @@ public class PostService : IPostService
         var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
         if (author == null)
         {
+            var stubHandle = authorNode["handle"]?.ToString() ?? did;
             author = new User
             {
                 Id = Guid.NewGuid(),
                 Did = did,
-                Handle = authorNode["handle"]?.ToString() ?? did,
+                Handle = stubHandle,
+                Username = stubHandle.Contains('.') ? stubHandle.Split('.').First() : (stubHandle.Length > 20 ? stubHandle.Substring(0, 20) : stubHandle),
                 DisplayName = authorNode["displayName"]?.ToString(),
                 AvatarUrl = authorNode["avatar"]?.ToString(),
                 IsVerified = true,

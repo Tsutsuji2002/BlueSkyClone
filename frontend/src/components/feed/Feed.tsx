@@ -97,6 +97,7 @@ const Feed: React.FC<FeedProps> = ({
         <Virtuoso
             useWindowScroll
             data={posts}
+            computeItemKey={(_index, post) => post.uri || post.id || _index.toString()}
             endReached={() => {
                 // Guard: don't trigger if already loading or a load-more is in flight
                 if (onLoadMore && hasMore && !isLoading && !loadingMoreRef.current) {
