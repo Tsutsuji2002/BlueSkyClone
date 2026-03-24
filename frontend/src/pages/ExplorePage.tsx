@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
-import { FiSearch, FiX, FiPlus, FiGrid, FiMenu, FiCheck } from 'react-icons/fi';
+import { FiSearch, FiX, FiPlus, FiGrid, FiMenu, FiCheck, FiRefreshCw } from 'react-icons/fi';
+
 import { useTranslation } from 'react-i18next';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { cn } from '../utils/classNames';
@@ -13,6 +14,9 @@ import Avatar from '../components/common/Avatar';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { fetchTrending, fetchInterestsList } from '../redux/slices/trendingSlice';
 import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds } from '../redux/slices/feedsSlice';
+import { fetchDiscoverPosts } from '../redux/slices/postsSlice';
+import PostCard from '../components/feed/PostCard';
+import PostSkeleton from '../components/feed/PostSkeleton';
 import api from '../utils/api';
 import InterestsEditor from '../components/feed/InterestsEditor';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -23,18 +27,46 @@ const ExplorePage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { accounts, interests } = useAppSelector((state: RootState) => state.trending);
     const { feeds } = useAppSelector((state: RootState) => state.feeds);
+    const { discoverPosts, discoverHasMore, discoverLoading } = useAppSelector((state: RootState) => state.posts);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
+    const observerTarget = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         dispatch(fetchTrending());
         dispatch(fetchInterestsList());
         dispatch(fetchTrendingFeeds());
         dispatch(fetchSubscribedFeeds());
+        dispatch(fetchDiscoverPosts({ skip: 0 }));
     }, [dispatch]);
+
+    // Infinite Scroll Observer for Discover Posts
+    useEffect(() => {
+        if (!discoverHasMore || discoverLoading) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    dispatch(fetchDiscoverPosts({ skip: discoverPosts.length }));
+                }
+            },
+            { threshold: 1.0 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [dispatch, discoverHasMore, discoverLoading, discoverPosts.length]);
+
+    const handleRefreshPosts = () => {
+        dispatch(fetchDiscoverPosts({ skip: 0 }));
+    };
+
 
     const handleSearch = useCallback(async (query: string) => {
         if (!query.trim()) {
@@ -390,8 +422,49 @@ const ExplorePage: React.FC = () => {
                             ))}
                         </div>
                     </section>
+
+                    {/* Discover Posts Section */}
+                    <section className="flex flex-col mt-4">
+                        <div className="flex items-center justify-between px-2 mb-4">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text">{t('explore.discover_posts', { defaultValue: 'Discover Posts' })}</h2>
+                            <button
+                                onClick={handleRefreshPosts}
+                                disabled={discoverLoading}
+                                className="p-2 text-gray-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors disabled:opacity-50"
+                                title={t('common.refresh', { defaultValue: 'Refresh' })}
+                            >
+                                <FiRefreshCw size={18} className={discoverLoading ? 'animate-spin' : ''} />
+                            </button>
+                        </div>
+                        
+                        <div className="flex flex-col border-t border-gray-100 dark:border-dark-border">
+                            {discoverPosts.map((post) => (
+                                <div key={post.uri} className="border-b border-gray-100 dark:border-dark-border last:border-0">
+                                    <PostCard post={post} />
+                                </div>
+                            ))}
+                            
+                            {discoverLoading && (
+                                <div className="py-4">
+                                    <PostSkeleton />
+                                    <PostSkeleton />
+                                </div>
+                            )}
+                            
+                            {discoverHasMore && !discoverLoading && (
+                                <div ref={observerTarget} className="h-10" />
+                            )}
+                            
+                            {!discoverHasMore && discoverPosts.length > 0 && (
+                                <div className="py-8 text-center text-gray-500 dark:text-dark-text-secondary text-sm font-medium">
+                                    {t('explore.no_more_posts', { defaultValue: 'No more posts to discover right now.' })}
+                                </div>
+                            )}
+                        </div>
+                    </section>
                 </div>
             </div>
+
     );
 };
 

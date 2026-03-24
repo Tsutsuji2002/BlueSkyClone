@@ -433,16 +433,19 @@ export const fetchBookmarkedPosts = createAsyncThunk(
 
 export const fetchDiscoverPosts = createAsyncThunk(
     'posts/fetchDiscover',
-    async ({ skip = 0, take = 15 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
-                `${API_BASE_URL}/posts/trending?skip=${skip}&take=${take}`,
+                `${API_BASE_URL}/posts/discover?skip=${skip}&take=${take}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
-            const posts: Post[] = await response.json();
-            return { posts, skip, cursor: null };
+            const data = await response.json();
+            // Support both { posts, hasMore } shape and plain Post[] for backward compat
+            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
+            return { posts, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -989,8 +992,7 @@ const postsSlice = createSlice({
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.discoverPosts = [...state.discoverPosts, ...newPosts];
                 }
-                const { take = 15 } = action.meta.arg || {};
-                state.discoverHasMore = action.payload.posts.length >= take;
+                state.discoverHasMore = action.payload.hasMore;
             })
             .addCase(fetchDiscoverPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;

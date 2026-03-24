@@ -1,8 +1,10 @@
 using BSkyClone.DTOs;
 using BSkyClone.Services;
 using BSkyClone.UnitOfWork;
+using BSkyClone.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace BSkyClone.Controllers;
@@ -15,12 +17,14 @@ public class PostsController : ControllerBase
     private readonly IPostService _postService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<PostsController> _logger;
+    private readonly BSkyDbContext _context;
 
-    public PostsController(IPostService postService, IUnitOfWork unitOfWork, ILogger<PostsController> logger)
+    public PostsController(IPostService postService, IUnitOfWork unitOfWork, ILogger<PostsController> logger, BSkyDbContext context)
     {
         _postService = postService;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _context = context;
     }
 
     [HttpGet("timeline")]
@@ -59,6 +63,45 @@ public class PostsController : ControllerBase
         {
             Console.WriteLine($"[PostsController] GetTrending error: {ex.Message}");
             return Ok(new List<PostDto>());
+        }
+    }
+
+    [HttpGet("discover")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetDiscover([FromQuery] int skip = 0, [FromQuery] int take = 20)
+    {
+        try
+        {
+            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+            // Fast, lightweight query — just the interest names
+            List<string>? userInterests = null;
+            if (viewerId.HasValue)
+            {
+                userInterests = await _context.Users
+                    .AsNoTracking()
+                    .Where(u => u.Id == viewerId.Value)
+                    .SelectMany(u => u.Interests)
+                    .Select(i => i.Name)
+                    .ToListAsync();
+            }
+
+            var posts = await _postService.GetTrendingPostsAsync(
+                viewerId, skip, take,
+                userInterests != null && userInterests.Count > 0 ? userInterests : null
+            );
+
+            return Ok(new
+            {
+                posts,
+                hasMore = posts.Count() >= take
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PostsController] GetDiscover error: {ex.Message}");
+            return Ok(new { posts = new List<PostDto>(), hasMore = false });
         }
     }
 
