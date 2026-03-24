@@ -654,6 +654,8 @@ public class UserService : IUserService
         User? user = null;
         if (Guid.TryParse(actor, out var userId))
             user = await GetUserByIdAsync(userId);
+        else if (actor.StartsWith("did:"))
+            user = await GetUserByDidAsync(actor);
         else
             user = await GetUserByHandleAsync(actor);
 
@@ -666,20 +668,33 @@ public class UserService : IUserService
         var localDomain = _configuration["DomainName"] ?? "bskyclone.site";
         bool isRemote = !string.IsNullOrEmpty(user.Did) && (user.Did.StartsWith("did:") && !user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase));
         
-        if (isRemote)
-        {
-            _logger.LogInformation("[GetFollowersAsync] Triggering remote fetch for {Actor}", actor);
-            return await GetRemoteFollowersAsync(user.Did, limit, cursor);
-        }
-
         // Local followers
         int skip = 0;
         if (int.TryParse(cursor, out var skipVal)) skip = skipVal;
         
         var follows = await _unitOfWork.Follows.GetFollowersAsync(user.Id, skip, limit);
         var users = follows.Select(f => f.Follower).ToList();
-        var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
         
+        if (isRemote)
+        {
+            _logger.LogInformation("[GetFollowersAsync] Triggering remote fetch for {Actor} to merge with local", actor);
+            var (remoteUsers, nextRemoteCursor) = await GetRemoteFollowersAsync(user.Did, limit, cursor);
+            
+            // Merge remote into local, avoiding duplicates
+            var existingDids = users.Select(u => u.Did).ToHashSet();
+            foreach (var ru in remoteUsers)
+            {
+                if (!string.IsNullOrEmpty(ru.Did) && !existingDids.Contains(ru.Did))
+                {
+                    users.Add(ru);
+                    existingDids.Add(ru.Did);
+                }
+            }
+            
+            return (users, nextRemoteCursor);
+        }
+
+        var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
         return (users, nextCursor);
     }
 
@@ -702,20 +717,33 @@ public class UserService : IUserService
         var localDomain = _configuration["DomainName"] ?? "bskyclone.site";
         bool isRemote = !string.IsNullOrEmpty(user.Did) && (user.Did.StartsWith("did:") && !user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase));
         
-        if (isRemote)
-        {
-            _logger.LogInformation("[GetFollowingAsync] Triggering remote fetch for {Actor}", actor);
-            return await GetRemoteFollowingAsync(user.Did, limit, cursor);
-        }
-
         // Local following
         int skip = 0;
         if (int.TryParse(cursor, out var skipVal)) skip = skipVal;
         
         var follows = await _unitOfWork.Follows.GetFollowingAsync(user.Id, skip, limit);
         var users = follows.Select(f => f.Following).ToList();
-        var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
         
+        if (isRemote)
+        {
+            _logger.LogInformation("[GetFollowingAsync] Triggering remote fetch for {Actor} to merge with local", actor);
+            var (remoteUsers, nextRemoteCursor) = await GetRemoteFollowingAsync(user.Did, limit, cursor);
+            
+            // Merge remote into local, avoiding duplicates
+            var existingDids = users.Select(u => u.Did).ToHashSet();
+            foreach (var ru in remoteUsers)
+            {
+                if (!string.IsNullOrEmpty(ru.Did) && !existingDids.Contains(ru.Did))
+                {
+                    users.Add(ru);
+                    existingDids.Add(ru.Did);
+                }
+            }
+            
+            return (users, nextRemoteCursor);
+        }
+
+        var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
         return (users, nextCursor);
     }
 
