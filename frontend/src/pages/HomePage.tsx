@@ -26,7 +26,7 @@ const HomePage: React.FC = () => {
     const dispatch = useAppDispatch();
     const lastTab = React.useRef<string>('');
     const hasRestoredScroll = React.useRef<Record<string, boolean>>({});
-    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
+    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
 
     
     // Lists state
@@ -235,13 +235,13 @@ const HomePage: React.FC = () => {
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
                 <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>
                     <InterestsSection />
-                    <Feed posts={feedPosts['discover'] || []} isLoading={feedsLoading && activeTab === 'discover'} hasMore={feedHasMore['discover'] !== false} onLoadMore={handleLoadMore} />
+                    <Feed posts={feedPosts['discover'] || []} isLoading={!!(feedLoading['discover'] ?? (feedsLoading && activeTab === 'discover'))} hasMore={feedHasMore['discover'] !== false} onLoadMore={handleLoadMore} />
                 </div>
 
                 <div style={{ display: activeTab === 'following' ? 'block' : 'none' }}>
                     <Feed
                         posts={feedPosts['following'] || []}
-                        isLoading={feedsLoading && activeTab === 'following'}
+                        isLoading={!!(feedLoading['following'] ?? (feedsLoading && activeTab === 'following'))}
                         hasMore={feedHasMore['following'] !== false}
                         onLoadMore={handleLoadMore}
                         endMessage={t('feeds.following_end', 'Follow more people to get more content...')}
@@ -271,7 +271,7 @@ const HomePage: React.FC = () => {
                     <div key={feed.id} style={{ display: activeTab === feed.id ? 'block' : 'none' }}>
                         <Feed
                             posts={feedPosts[feed.id] || []}
-                            isLoading={feedsLoading && activeTab === feed.id}
+                            isLoading={!!(feedLoading[feed.id] ?? (feedsLoading && activeTab === feed.id))}
                             hasMore={feedHasMore[feed.id] !== false}
                             onLoadMore={handleLoadMore}
                         />

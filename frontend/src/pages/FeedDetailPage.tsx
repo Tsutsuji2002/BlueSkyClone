@@ -18,7 +18,7 @@ const FeedDetailPage: React.FC = () => {
     const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { subscribedFeeds, feedPosts, isLoading, feedHasMore, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading, infoLoading, infoError } = useAppSelector((state: RootState) => state.feeds);
+    const { subscribedFeeds, feedPosts, isLoading, feedLoading, feedHasMore, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading, infoLoading, infoError } = useAppSelector((state: RootState) => state.feeds);
 
     const take = 20;
 
@@ -29,6 +29,8 @@ const FeedDetailPage: React.FC = () => {
 
     const count = feed ? (feed.subscribersCount || feed.followersCount || 0) : 0;
     const posts = id ? feedPosts[id] || [] : [];
+    // Use per-feed loading for pagination (avoids re-mounting the Virtuoso list)
+    const isFeedLoading = id ? (feedLoading[id] ?? isLoading) : isLoading;
 
     useDocumentTitle(feed?.name || t('feeds.title'));
 
@@ -270,7 +272,7 @@ const FeedDetailPage: React.FC = () => {
                         <>
                             <Feed 
                                 posts={posts} 
-                                isLoading={isLoading}
+                                isLoading={isFeedLoading}
                                 hasMore={feedHasMore[id || ''] !== false}
                                 onLoadMore={handleLoadMore}
                                 emptyMessage={t('feeds.no_posts_desc')}

@@ -12,6 +12,7 @@ interface FeedsState {
     feedPosts: Record<string, Post[]>;
     recommendedFeeds: Feed[];
     isLoading: boolean;
+    feedLoading: Record<string, boolean>; // per-feed loading flag for pagination
     searchLoading: boolean;
     error: string | null;
     hasMoreSearch: boolean;
@@ -32,6 +33,7 @@ const initialState: FeedsState = {
     feedPosts: {},
     recommendedFeeds: [],
     isLoading: false,
+    feedLoading: {},
     searchLoading: false,
     error: null,
     hasMoreSearch: true,
@@ -477,14 +479,19 @@ const feedsSlice = createSlice({
                 state.actionLoading[action.meta.arg] = false;
             })
             .addCase(fetchFeedPosts.pending, (state: FeedsState, action) => {
-                state.isLoading = true;
-                if (action.meta.arg.skip === 0) {
-                    state.feedPosts[action.meta.arg.feedId] = [];
+                const { feedId, skip } = action.meta.arg;
+                if (skip === 0) {
+                    // Initial load: clear posts and show full skeleton
+                    state.feedPosts[feedId] = [];
+                    state.isLoading = true;
                 }
+                // Always mark per-feed as loading (for pagination spinner in footer)
+                state.feedLoading[feedId] = true;
             })
             .addCase(fetchFeedPosts.fulfilled, (state: FeedsState, action: any) => {
-                state.isLoading = false;
                 const { feedId, posts, isMore } = action.payload;
+                state.isLoading = false;
+                state.feedLoading[feedId] = false;
                 if (!state.feedPosts[feedId] || action.meta.arg.skip === 0) {
                     state.feedPosts[feedId] = posts;
                     state.feedLastFetch[feedId] = Date.now();
@@ -494,7 +501,9 @@ const feedsSlice = createSlice({
                 state.feedHasMore[feedId] = isMore !== undefined ? isMore : posts.length > 0;
             })
             .addCase(fetchFeedPosts.rejected, (state: FeedsState, action: any) => {
+                const feedId = action.meta.arg.feedId;
                 state.isLoading = false;
+                state.feedLoading[feedId] = false;
                 state.error = action.payload as string;
             })
             // Synchronize interactions across feedPosts (Optimistic)
