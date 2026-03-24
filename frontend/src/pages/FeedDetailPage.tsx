@@ -13,7 +13,7 @@ import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
 
 const FeedDetailPage: React.FC = () => {
-    const { id } = useParams<{ id: string }>();
+    const { feedId: id } = useParams<{ feedId: string }>();
     const navigate = useNavigate();
     const navType = useNavigationType();
     const { t } = useTranslation();
