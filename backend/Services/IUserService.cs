@@ -41,4 +41,5 @@ public interface IUserService
     Task<bool> UpdateHandleAsync(Guid userId, string newHandle);
     Task<User?> ResolveRemoteProfileAsync(string identifier);
     Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds);
+    Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true);
 }

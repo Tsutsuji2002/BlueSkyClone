@@ -2571,6 +2571,24 @@ public class PostService : IPostService
                     var tid = uri?.Split('/').Last();
                     var record = postData.GetProperty("record");
 
+                    var postAuthorData = postData.GetProperty("author");
+                    var postAuthorDid = postAuthorData.GetProperty("did").GetString();
+                    
+                    // Handle Reposts
+                    bool isRepost = item.TryGetProperty("reason", out var reason) && 
+                                   reason.TryGetProperty("$type", out var typeProp) && 
+                                   typeProp.GetString() == "app.bsky.feed.defs#skeletonReasonRepost";
+
+                    User? realAuthor = author;
+                    if (isRepost || postAuthorDid != did)
+                    {
+                        // This post belongs to someone else (or was reposted)
+                        // Ingest the real author first
+                        realAuthor = await _userService.ResolveStubRemoteProfileAsync(postAuthorData, new Dictionary<string, User>());
+                    }
+
+                    if (realAuthor == null) continue;
+
                     Guid? replyToPostId = null;
                     Guid? rootPostId = null;
                     if (TryExtractReplyUris(record, out var parentUri, out var rootUri))
@@ -2582,14 +2600,14 @@ public class PostService : IPostService
                         rootPostId = rootPost?.Id;
                     }
 
-                    // Check if we already have it
+                    // Check if we already have the post
                     var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
                     if (existing == null)
                     {
-                        var newPost = new Post
+                        existing = new Post
                         {
                             Id = Guid.NewGuid(),
-                            AuthorId = author.Id,
+                            AuthorId = realAuthor.Id,
                             Content = record.GetProperty("text").GetString(),
                             CreatedAt = DateTime.Parse(record.GetProperty("createdAt").GetString() ?? DateTime.UtcNow.ToString()),
                             Uri = uri,
@@ -2606,27 +2624,37 @@ public class PostService : IPostService
                         
                         if (postData.TryGetProperty("embed", out var e))
                         {
-                            await IngestEmbedsAsync(newPost, e);
+                            await IngestEmbedsAsync(existing, e);
                         }
                         
-                        await _unitOfWork.Posts.AddAsync(newPost);
+                        await _unitOfWork.Posts.AddAsync(existing);
                     }
                     else
                     {
-                        var shouldUpdate = false;
-                        if (existing.ReplyToPostId != replyToPostId)
+                        // Update existing post attribution if it was wrong (e.g. previously ingested as a post instead of repost)
+                        if (existing.AuthorId != realAuthor.Id)
                         {
-                            existing.ReplyToPostId = replyToPostId;
-                            shouldUpdate = true;
-                        }
-                        if (existing.RootPostId != rootPostId)
-                        {
-                            existing.RootPostId = rootPostId;
-                            shouldUpdate = true;
-                        }
-                        if (shouldUpdate)
-                        {
+                            existing.AuthorId = realAuthor.Id;
                             _unitOfWork.Posts.Update(existing);
+                        }
+                    }
+
+                    // If it's a repost, create/update the Repost record for the 'author' (the one whose feed we are fetching)
+                    if (isRepost)
+                    {
+                        var existingRepost = await _unitOfWork.Reposts.Query()
+                            .FirstOrDefaultAsync(r => r.UserId == author.Id && r.PostId == existing.Id);
+                        
+                        if (existingRepost == null)
+                        {
+                            var repost = new Repost
+                            {
+                                UserId = author.Id,
+                                PostId = existing.Id,
+                                CreatedAt = DateTime.UtcNow,
+                                Uri = item.GetProperty("reason").TryGetProperty("indexedAt", out var idx) ? $"at://{author.Did}/app.bsky.feed.repost/{tid}_repost" : null
+                            };
+                            await _unitOfWork.Reposts.AddAsync(repost);
                         }
                     }
                 }

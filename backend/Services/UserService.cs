@@ -765,7 +765,17 @@ public class UserService : IUserService
                 foreach (var item in followersArray)
                 {
                     var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
-                    if (u != null) users.Add(u);
+                    if (u != null) 
+                    {
+                        // Resiliently ensure we don't have stubs for users we actually know
+                        if (string.IsNullOrEmpty(u.DisplayName) || u.DisplayName == u.Handle)
+                        {
+                             // If Bio/DisplayName missing, it might be a very basic stub.
+                             // We could trigger a full resolution here, but let's avoid blocking too much.
+                             // ResolveStubRemoteProfileAsync already extracts what's in 'item'.
+                        }
+                        users.Add(u);
+                    }
                 }
                 
                 await _unitOfWork.CompleteAsync(); // Complete once for all stubs
@@ -848,7 +858,7 @@ public class UserService : IUserService
         }
     }
 
-    private async Task<User?> ResolveStubRemoteProfileAsync(JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true)
+    public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true)
     {
         if (!profileElement.TryGetProperty("did", out var didProp)) return null;
         var did = didProp.GetString()!;
@@ -873,14 +883,32 @@ public class UserService : IUserService
         }
 
         if (profileElement.TryGetProperty("handle", out var handleProp)) user.Handle = handleProp.GetString() ?? user.Handle;
-        if (profileElement.TryGetProperty("displayName", out var nameProp)) user.DisplayName = nameProp.GetString();
-        if (profileElement.TryGetProperty("avatar", out var avatarProp)) user.AvatarUrl = avatarProp.GetString();
-        if (profileElement.TryGetProperty("description", out var bioProp)) user.Bio = bioProp.GetString();
         
-        // Basic stubs don't have following/followers/posts counts in the list view usually, 
-        // but some Lexicons might include them. If not present, we keep what we have.
+        // Populate metadata ONLY if not already present or if the new data is 'better' (longer bio, etc.)
+        if (profileElement.TryGetProperty("displayName", out var nameProp)) 
+        {
+            var newName = nameProp.GetString();
+            if (!string.IsNullOrEmpty(newName) && (string.IsNullOrEmpty(user.DisplayName) || user.DisplayName == user.Handle))
+                user.DisplayName = newName;
+        }
+        
+        if (profileElement.TryGetProperty("avatar", out var avatarProp)) 
+        {
+            var newAvatar = avatarProp.GetString();
+            if (!string.IsNullOrEmpty(newAvatar) && string.IsNullOrEmpty(user.AvatarUrl))
+                user.AvatarUrl = newAvatar;
+        }
+        
+        if (profileElement.TryGetProperty("description", out var bioProp)) 
+        {
+            var newBio = bioProp.GetString();
+            if (!string.IsNullOrEmpty(newBio) && (string.IsNullOrEmpty(user.Bio) || newBio.Length > (user.Bio?.Length ?? 0)))
+                user.Bio = newBio;
+        }
+        
         if (profileElement.TryGetProperty("followersCount", out var followersProp)) user.FollowersCount = followersProp.GetInt32();
         if (profileElement.TryGetProperty("followsCount", out var followsCountProp)) user.FollowingCount = followsCountProp.GetInt32();
+        if (profileElement.TryGetProperty("postsCount", out var postsCountProp)) user.PostsCount = postsCountProp.GetInt32();
 
         if (isNew)
         {

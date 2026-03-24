@@ -305,9 +305,11 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                 >
                     <FiRepeat size={14} className={post.isReposted ? "text-green-500" : "text-gray-500"} />
                     <span>
-                        {post.repostedBy && post.repostedBy.id !== currentUser?.id
-                            ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle || 'Unknown' })
-                            : t('post.reposted_by_you', 'Reposted by you')}
+                        {post.repostedBy 
+                            ? (post.repostedBy.id !== currentUser?.id 
+                                ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle || 'Unknown' })
+                                : t('post.reposted_by_you', 'Reposted by you'))
+                            : (post.isReposted ? t('post.reposted_by_you', 'Reposted by you') : t('post.reposted', 'Reposted'))}
                     </span>
                 </div>
             )}
