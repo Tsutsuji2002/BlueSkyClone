@@ -275,10 +275,12 @@ public class ProfileController : ControllerBase
         return Ok(new { isMuted = false });
     }
 
+    [AllowAnonymous]
     [HttpGet("{userId}/followers")]
-    public async Task<IActionResult> GetFollowers(Guid userId)
+    public async Task<IActionResult> GetFollowers(string userId, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
     {
-        var users = await _userService.GetFollowersAsync(userId);
+        Console.WriteLine($"[ProfileController.GetFollowers] userId={userId}, limit={limit}, cursor={cursor}");
+        var (users, nextCursor) = await _userService.GetFollowersAsync(userId, limit, cursor);
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
@@ -288,13 +290,14 @@ public class ProfileController : ControllerBase
             if (user == null) continue;
             dtos.Add(await MapUserToDtoWithStatus(user, currentUserId));
         }
-        return Ok(dtos);
+        return Ok(new { followers = dtos, cursor = nextCursor });
     }
 
+    [AllowAnonymous]
     [HttpGet("{userId}/following")]
-    public async Task<IActionResult> GetFollowing(Guid userId)
+    public async Task<IActionResult> GetFollowing(string userId, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
     {
-        var users = await _userService.GetFollowingAsync(userId);
+        var (users, nextCursor) = await _userService.GetFollowingAsync(userId, limit, cursor);
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
@@ -303,13 +306,14 @@ public class ProfileController : ControllerBase
         {
             if (user == null) continue;
             var dto = await MapUserToDtoWithStatus(user, currentUserId);
-            if (userId == currentUserId && currentUserId.HasValue)
+            // If viewing own following, they are all followed by definition
+            if (userId == currentUserIdString && currentUserId.HasValue)
             {
                 dto = dto with { IsFollowing = true };
             }
             dtos.Add(dto);
         }
-        return Ok(dtos);
+        return Ok(new { following = dtos, cursor = nextCursor });
     }
 
     [HttpGet("muted")]

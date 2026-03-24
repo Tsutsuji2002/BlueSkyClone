@@ -20,11 +20,20 @@ namespace BSkyClone.Lexicons.App.Bsky.Actor.Defs
         public ViewerState? Viewer { get; set; }
     }
 
-    public class ProfileViewDetailed : ProfileViewBasic
+    public class ProfileView : ProfileViewBasic
     {
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 
+        [JsonPropertyName("indexedAt")]
+        public string? IndexedAt { get; set; }
+
+        [JsonPropertyName("labels")]
+        public List<object>? Labels { get; set; } // Simplified labels
+    }
+
+    public class ProfileViewDetailed : ProfileView
+    {
         [JsonPropertyName("banner")]
         public string? Banner { get; set; }
 

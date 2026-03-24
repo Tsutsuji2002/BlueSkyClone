@@ -15,19 +15,25 @@ public class FollowRepository : Repository<UserFollow>, IFollowRepository
             .FirstOrDefaultAsync(f => f.FollowerId == followerId && f.FollowingId == followingId);
     }
 
-    public async Task<List<UserFollow>> GetFollowersAsync(Guid userId)
+    public async Task<List<UserFollow>> GetFollowersAsync(Guid userId, int skip = 0, int take = 50)
     {
         return await _dbSet
             .Include(f => f.Follower)
             .Where(f => f.FollowingId == userId)
+            .OrderByDescending(f => f.CreatedAt)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync();
     }
 
-    public async Task<List<UserFollow>> GetFollowingAsync(Guid userId)
+    public async Task<List<UserFollow>> GetFollowingAsync(Guid userId, int skip = 0, int take = 50)
     {
         return await _dbSet
             .Include(f => f.Following)
             .Where(f => f.FollowerId == userId)
+            .OrderByDescending(f => f.CreatedAt)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync();
     }
 

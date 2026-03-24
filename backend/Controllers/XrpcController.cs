@@ -1,4 +1,4 @@
-﻿using BSkyClone.Lexicons.App.Bsky.Graph;
+using BSkyClone.Lexicons.App.Bsky.Graph;
 using BSkyClone.Lexicons.App.Bsky.Notification;
 using BSkyClone.Lexicons.App.Bsky.Actor.Defs;
 using BSkyClone.Lexicons.App.Bsky.Feed;
@@ -877,6 +877,104 @@ namespace BSkyClone.Controllers
                 _logger.LogError(ex, "Error in putRecord XRPC");
                 return StatusCode(500, new { error = "InternalError", message = ex.Message });
             }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("app.bsky.graph.getFollowers")]
+        public async Task<IActionResult> GetFollowersXRPC([FromQuery] string actor, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                var (users, nextCursor) = await _userService.GetFollowersAsync(actor, limit, cursor);
+                
+                // Fetch the subject profile
+                User? subjectUser = null;
+                if (Guid.TryParse(actor, out var id)) subjectUser = await _userService.GetUserByIdAsync(id);
+                else if (actor.StartsWith("did:")) subjectUser = await _userService.GetUserByDidAsync(actor);
+                else subjectUser = await _userService.GetUserByHandleAsync(actor);
+
+                if (subjectUser == null) subjectUser = await _userService.ResolveRemoteProfileAsync(actor);
+                if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
+                
+                var response = new GetFollowersResponse
+                {
+                    Subject = MapUserToProfileViewDetailed(subjectUser),
+                    Followers = users.Select(u => MapUserToProfileView(u)).ToList(),
+                    Cursor = nextCursor
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetFollowers error");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("app.bsky.graph.getFollows")]
+        public async Task<IActionResult> GetFollowsXRPC([FromQuery] string actor, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                var (users, nextCursor) = await _userService.GetFollowingAsync(actor, limit, cursor);
+                
+                // Fetch the subject profile
+                User? subjectUser = null;
+                if (Guid.TryParse(actor, out var id)) subjectUser = await _userService.GetUserByIdAsync(id);
+                else if (actor.StartsWith("did:")) subjectUser = await _userService.GetUserByDidAsync(actor);
+                else subjectUser = await _userService.GetUserByHandleAsync(actor);
+
+                if (subjectUser == null) subjectUser = await _userService.ResolveRemoteProfileAsync(actor);
+                if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
+
+                var response = new GetFollowsResponse
+                {
+                    Subject = MapUserToProfileViewDetailed(subjectUser),
+                    Follows = users.Select(u => MapUserToProfileView(u)).ToList(),
+                    Cursor = nextCursor
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetFollows error");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        private ProfileViewDetailed MapUserToProfileViewDetailed(User user)
+        {
+            return new ProfileViewDetailed
+            {
+                Did = user.Did ?? "",
+                Handle = user.Handle ?? user.Did ?? "unknown",
+                DisplayName = user.DisplayName,
+                Description = user.Bio,
+                Avatar = user.AvatarUrl,
+                Banner = user.CoverImageUrl,
+                FollowersCount = user.FollowersCount ?? 0,
+                FollowsCount = user.FollowingCount ?? 0,
+                PostsCount = user.PostsCount ?? 0,
+                IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
+                Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
+            };
+        }
+
+        private ProfileView MapUserToProfileView(User user)
+        {
+            return new ProfileView
+            {
+                Did = user.Did ?? "",
+                Handle = user.Handle ?? user.Did ?? "unknown",
+                DisplayName = user.DisplayName,
+                Description = user.Bio,
+                Avatar = user.AvatarUrl,
+                IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
+                Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
+            };
         }
 
         [HttpGet("{*lexicon}")]

@@ -120,7 +120,8 @@ export const fetchFollowers = createAsyncThunk<
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch followers');
-            return data.map((u: any) => ({
+            const followersArray = Array.isArray(data) ? data : (data.followers || []);
+            return followersArray.map((u: any) => ({
                 id: u.id,
                 did: u.did,
                 handle: u.handle,
@@ -152,7 +153,8 @@ export const fetchFollowing = createAsyncThunk<
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch following');
-            return data.map((u: any) => ({
+            const followingArray = Array.isArray(data) ? data : (data.following || []);
+            return followingArray.map((u: any) => ({
                 id: u.id,
                 did: u.did,
                 handle: u.handle,
