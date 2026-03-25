@@ -15,12 +15,14 @@ namespace BSkyClone.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<ChatProxyService> _logger;
+        private readonly ILinkService _linkService;
         private const string ChatEndpoint = "https://api.bsky.chat/xrpc";
 
-        public ChatProxyService(HttpClient httpClient, ILogger<ChatProxyService> logger)
+        public ChatProxyService(HttpClient httpClient, ILogger<ChatProxyService> logger, ILinkService linkService)
         {
             _httpClient = httpClient;
             _logger = logger;
+            _linkService = linkService;
         }
 
         public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(string token, int limit = 50, string? cursor = null)
@@ -34,7 +36,20 @@ namespace BSkyClone.Services
             var json = await response.Content.ReadAsStringAsync();
             var data = JsonSerializer.Deserialize<BlueskyConvoListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            return data?.Convos.Select(MapToConversationDto) ?? Enumerable.Empty<ConversationDto>();
+            return data?.Convos?.Select(MapToConversationDto) ?? Enumerable.Empty<ConversationDto>();
+        }
+
+        private async Task<HttpResponseMessage> CallAsync(string token, string url, string method = "GET", object? body = null)
+        {
+            var request = new HttpRequestMessage(new HttpMethod(method), url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            if (body != null)
+            {
+                request.Content = new StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json");
+            }
+
+            return await _httpClient.SendAsync(request);
         }
 
         public async Task<ConversationDto?> GetConversationAsync(string token, string conversationId)
@@ -61,7 +76,14 @@ namespace BSkyClone.Services
             var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             // Order by CreatedAt to ensure chronological order (oldest first)
-            return data?.Messages.Select(m => MapToMessageDto(m, conversationId)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
+            var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
+            
+            var enriched = new List<MessageDto>();
+            foreach (var m in messages)
+            {
+                enriched.Add(await EnrichMessageAsync(m));
+            }
+            return enriched;
         }
 
         public async Task<IEnumerable<MessageDto>> GetLogAsync(string token, string? cursor)
@@ -73,7 +95,6 @@ namespace BSkyClone.Services
             if (!response.IsSuccessStatusCode) return Enumerable.Empty<MessageDto>();
 
             var json = await response.Content.ReadAsStringAsync();
-            // Bluesky getLog returns a list of events. We want to extract created messages.
             var data = JsonSerializer.Deserialize<BlueskyLogResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             if (data?.Logs == null) return Enumerable.Empty<MessageDto>();
@@ -83,11 +104,38 @@ namespace BSkyClone.Services
             {
                 if (log.Type == "chat.bsky.convo.defs#logCreateMessage" && log.Message != null)
                 {
-                    messages.Add(MapToMessageDto(log.Message, log.ConvoId ?? ""));
+                    messages.Add(await EnrichMessageAsync(MapToMessageDto(log.Message, log.ConvoId ?? "")));
                 }
             }
 
             return messages.OrderBy(m => m.CreatedAt);
+        }
+
+        private async Task<MessageDto> EnrichMessageAsync(MessageDto dto)
+        {
+            if (string.IsNullOrEmpty(dto.Content) || dto.LinkPreview != null) return dto;
+
+            try 
+            {
+                var preview = await _linkService.GetLinkPreviewAsync(dto.Content);
+                if (preview != null)
+                {
+                    dto.LinkPreview = new LinkPreviewDto
+                    {
+                        Url = preview.Url,
+                        Title = preview.Title,
+                        Description = preview.Description,
+                        Image = preview.Image,
+                        Domain = preview.Domain
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to enrich message with link preview");
+            }
+
+            return dto;
         }
 
         public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content)
@@ -127,19 +175,6 @@ namespace BSkyClone.Services
             return MapToConversationDto(data!.Convo);
         }
 
-        private async Task<HttpResponseMessage> CallAsync(string token, string url, string method = "GET", object? body = null)
-        {
-            var request = new HttpRequestMessage(new HttpMethod(method), url);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            
-            if (body != null)
-            {
-                var json = JsonSerializer.Serialize(body);
-                request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-            }
-
-            return await _httpClient.SendAsync(request);
-        }
 
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {

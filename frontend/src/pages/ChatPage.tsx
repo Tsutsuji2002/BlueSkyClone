@@ -352,7 +352,8 @@ const ChatPage: React.FC = () => {
 
     const handleViewProfile = () => {
         if (otherParticipant) {
-            navigate(`/profile/user/${otherParticipant.id}`);
+            const profileId = otherParticipant.handle || otherParticipant.did || otherParticipant.id;
+            navigate(`/profile/${profileId}`);
         }
         setShowOptionsMenu(false);
     };
@@ -537,8 +538,8 @@ const ChatPage: React.FC = () => {
                                 return (
                                     <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative`}>
                                         <div className={`max-w-[85%] sm:max-w-[70%] overflow-hidden relative ${isMe
-                                            ? 'bg-primary-500 text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
-                                            : 'bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none'
+                                            ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
+                                            : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
                                             }`}>
 
                                             {/* Reply Context */}
@@ -610,54 +611,52 @@ const ChatPage: React.FC = () => {
                                                 <span className="text-[10px] font-bold text-primary-500 uppercase tracking-tighter">
                                                     {t('messages.read')}
                                                 </span>
-                                            )}
-
-                                            {/* Action Menu Toggle */}
-                                            {!msg.isRecalled && (
-                                                <div className="relative group/menu">
-                                                    <button
-                                                        onClick={() => setSelectedReactionMessageId(selectedReactionMessageId === msg.id ? null : msg.id)}
-                                                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text opacity-0 group-hover/msg:opacity-100 transition-opacity"
-                                                    >
-                                                        <FiMoreHorizontal size={14} />
-                                                    </button>
-
-                                                    {selectedReactionMessageId === msg.id && (
-                                                        <div
-                                                            ref={messageMenuRef}
-                                                            className={`absolute bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-20 min-w-[150px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
+                                            )}                                            {/* Floating Reaction Bar (Bluesky style - visible on hover) */}
+                                            <div className={`absolute -top-10 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/msg:opacity-100 transition-all duration-200 z-10 pointer-events-none group-hover/msg:pointer-events-auto`}>
+                                                <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-dark-border rounded-full shadow-lg scale-90 origin-bottom">
+                                                    {['👍', '😆', '❤️', '👀', '😢'].map(emoji => (
+                                                        <button
+                                                            key={emoji}
+                                                            onClick={() => handleAddReaction(msg.id, emoji)}
+                                                            className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-dark-bg rounded-full transition-colors text-lg"
+                                                            title={emoji}
                                                         >
-                                                            <div className="p-2 flex gap-1 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-bg/20">
-                                                                {['❤️', '😆', '😲', '😢', '😡', '👍'].map(emoji => (
-                                                                    <button
-                                                                        key={emoji}
-                                                                        onClick={() => handleAddReaction(msg.id, emoji)}
-                                                                        className="p-1.5 hover:bg-white dark:hover:bg-dark-surface rounded-lg transition-all transform hover:scale-125 text-lg"
-                                                                    >
-                                                                        {emoji}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                            <div className="py-1">
-                                                                <button onClick={() => handleReply(msg)} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-2 text-gray-700 dark:text-dark-text">
-                                                                    <FiCornerUpLeft size={14} /> {t('messages.reply')}
+                                                            {emoji}
+                                                        </button>
+                                                    ))}
+                                                    <button
+                                                        onClick={() => setSelectedReactionMessageId(msg.id)}
+                                                        className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-dark-bg rounded-full transition-colors"
+                                                    >
+                                                        <FiMoreHorizontal size={14} className="text-gray-500" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Full Action Menu (on click) */}
+                                            {selectedReactionMessageId === msg.id && (
+                                                <div
+                                                    ref={messageMenuRef}
+                                                    className={`absolute top-full mt-2 ${isMe ? 'right-0' : 'left-0'} bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-20 min-w-[170px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
+                                                >
+                                                    <div className="py-1">
+                                                        <button onClick={() => { handleReply(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
+                                                            <FiCornerUpLeft size={16} /> {t('messages.reply')}
+                                                        </button>
+                                                        {isMe && !msg.isRecalled && (
+                                                            <>
+                                                                <button onClick={() => { handleEdit(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
+                                                                    <FiEdit3 size={16} /> {t('messages.edit')}
                                                                 </button>
-                                                                {isMe && (
-                                                                    <>
-                                                                        <button onClick={() => handleEdit(msg)} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-2 text-gray-700 dark:text-dark-text">
-                                                                            <FiEdit3 size={14} /> {t('messages.edit')}
-                                                                        </button>
-                                                                        <button onClick={() => handleRecall(msg.id)} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-2 text-red-500">
-                                                                            <FiTrash2 size={14} /> {t('messages.recall')}
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                                <button onClick={() => handleForward(msg)} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-2 text-gray-700 dark:text-dark-text">
-                                                                    <FiShare2 size={14} /> {t('messages.forward')}
+                                                                <button onClick={() => { handleRecall(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-red-500">
+                                                                    <FiTrash2 size={16} /> {t('messages.recall')}
                                                                 </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                            </>
+                                                        )}
+                                                        <button onClick={() => { handleForward(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
+                                                            <FiShare2 size={16} /> {t('messages.forward')}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
