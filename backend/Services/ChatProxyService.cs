@@ -120,14 +120,14 @@ namespace BSkyClone.Services
                 var preview = await _linkService.GetLinkPreviewAsync(dto.Content);
                 if (preview != null)
                 {
-                    dto.LinkPreview = new LinkPreviewDto
+                    dto = dto with { LinkPreview = new LinkPreviewDto
                     {
                         Url = preview.Url,
                         Title = preview.Title,
                         Description = preview.Description,
                         Image = preview.Image,
                         Domain = preview.Domain
-                    };
+                    }};
                 }
             }
             catch (Exception ex)
