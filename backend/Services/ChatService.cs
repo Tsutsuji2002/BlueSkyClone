@@ -37,8 +37,16 @@ public class ChatService : IChatService
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (!string.IsNullOrEmpty(token))
         {
-            var proxyConvos = await _chatProxy.GetConversationsAsync(token);
-            if (proxyConvos.Any()) return proxyConvos;
+            try 
+            {
+                var proxyConvos = await _chatProxy.GetConversationsAsync(token);
+                if (proxyConvos.Any()) return proxyConvos;
+            }
+            catch (Exception ex)
+            {
+                // Log and continue to local fallback
+                System.Diagnostics.Debug.WriteLine($"Chat proxy fetch failed: {ex.Message}");
+            }
         }
 
         var cacheKey = $"user:{userId}:conversations";

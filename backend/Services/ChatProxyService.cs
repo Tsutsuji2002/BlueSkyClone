@@ -120,7 +120,7 @@ namespace BSkyClone.Services
                 convo.Members.Select(m => new UserDto(Guid.Empty, m.Handle, m.Handle, string.Empty, m.DisplayName, m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did)).ToList(),
                 convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id) : null,
                 convo.UnreadCount,
-                DateTimeOffset.Parse(convo.Rev)
+                convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow
             );
         }
 

@@ -25,8 +25,15 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetConversations()
     {
         var userId = GetUserId();
-        var conversations = await _chatService.GetConversationsAsync(userId);
-        return Ok(conversations);
+        try 
+        {
+            var conversations = await _chatService.GetConversationsAsync(userId);
+            return Ok(conversations);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error retrieving conversations", details = ex.Message });
+        }
     }
 
     [HttpGet("conversations/{id}")]
