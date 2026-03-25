@@ -1160,11 +1160,25 @@ public class PostService : IPostService
 
                         if (parentPost != null && rootPost != null)
                         {
-                            postRecord["reply"] = new Dictionary<string, object>
+                            var rootUri = rootPost.Uri ?? $"at://{rootPost.Author.Did}/app.bsky.feed.post/{rootPost.Tid}";
+                            var parentUri = parentPost.Uri ?? $"at://{parentPost.Author.Did}/app.bsky.feed.post/{parentPost.Tid}";
+                            
+                            // CRITICAL: CID must be a valid multihash, never a Tid
+                            var rootCid = rootPost.Cid;
+                            var parentCid = parentPost.Cid;
+
+                            if (!string.IsNullOrEmpty(rootCid) && !string.IsNullOrEmpty(parentCid))
                             {
-                                { "root", new Dictionary<string, object> { { "uri", rootPost.Uri ?? $"at://{rootPost.Author.Did}/app.bsky.feed.post/{rootPost.Tid}" }, { "cid", rootPost.Cid ?? rootPost.Tid } } },
-                                { "parent", new Dictionary<string, object> { { "uri", parentPost.Uri ?? $"at://{parentPost.Author.Did}/app.bsky.feed.post/{parentPost.Tid}" }, { "cid", parentPost.Cid ?? parentPost.Tid } } }
-                            };
+                                postRecord["reply"] = new Dictionary<string, object>
+                                {
+                                    { "root", new Dictionary<string, object> { { "uri", rootUri }, { "cid", rootCid } } },
+                                    { "parent", new Dictionary<string, object> { { "uri", parentUri }, { "cid", parentCid } } }
+                                };
+                            }
+                            else
+                            {
+                                _logger.LogWarning("[CreatePostAsync] Reply metadata missing CIDs for local parents. RootCid={RootCid}, ParentCid={ParentCid}. Federation may be degraded.", rootCid, parentCid);
+                            }
                         }
                     }
 
@@ -1215,7 +1229,42 @@ public class PostService : IPostService
 
                     if (post.LinkPreview != null && embedRecord == null)
                     {
-                        embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.external" }, { "external", new Dictionary<string, object> { { "uri", post.LinkPreview.Url }, { "title", post.LinkPreview.Title ?? "" }, { "description", post.LinkPreview.Description ?? "" } } } };
+                        var externalData = new Dictionary<string, object> 
+                        { 
+                            { "uri", post.LinkPreview.Url }, 
+                            { "title", post.LinkPreview.Title ?? "" }, 
+                            { "description", post.LinkPreview.Description ?? "" } 
+                        };
+
+                        // PROXIED THUMBNAIL: If we have a preview image, upload it to Bluesky
+                        if (!string.IsNullOrEmpty(post.LinkPreview.Image))
+                        {
+                            try
+                            {
+                                using var httpClient = new HttpClient();
+                                var imageBytes = await httpClient.GetByteArrayAsync(post.LinkPreview.Image);
+                                using var stream = new MemoryStream(imageBytes);
+                                string mimeType = "image/jpeg"; // Default
+                                if (post.LinkPreview.Image.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) mimeType = "image/png";
+
+                                var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
+                                if (!string.IsNullOrEmpty(blobCid))
+                                {
+                                    externalData["thumb"] = new Dictionary<string, object> {
+                                        { "$type", "blob" },
+                                        { "ref", new Dictionary<string, object> { { "$link", blobCid } } },
+                                        { "mimeType", mimeType },
+                                        { "size", imageBytes.Length }
+                                    };
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning("[CreatePostAsync] Failed to proxy link preview thumbnail: {Err}", ex.Message);
+                            }
+                        }
+
+                        embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.external" }, { "external", externalData } };
                     }
 
                     if (embedRecord != null) postRecord["embed"] = embedRecord;
@@ -1233,12 +1282,18 @@ public class PostService : IPostService
                         post.Uri = json.RootElement.GetProperty("uri").GetString();
                         post.Cid = json.RootElement.GetProperty("cid").GetString();
                         post.Tid = post.Uri?.Split('/').Last() ?? post.Tid;
+                        
+                        // PERSISTENCE FIX: Save the official Bluesky Uri and Cid to the local database
+                        _unitOfWork.Posts.Update(post);
+                        await _unitOfWork.CompleteAsync();
+
                         Console.WriteLine($"[CreatePostAsync] Proxied post to Bluesky, URI: {post.Uri}");
                     }
                     else
                     {
                         var error = await bskyResponse.Content.ReadAsStringAsync();
                         Console.WriteLine($"[CreatePostAsync] Bluesky Post Failed: {bskyResponse.StatusCode} - {error}");
+                        _logger.LogWarning("[CreatePostAsync] Bluesky Post Failed for user {UserId}. Status: {Status}, Error: {Error}", userId, bskyResponse.StatusCode, error);
                     }
                 }
             }
