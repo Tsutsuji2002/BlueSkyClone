@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using BSkyClone.Utilities;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace BSkyClone.Services;
 
@@ -120,7 +121,7 @@ public class ChatService : IChatService
             .Include(m => m.LinkPreview)
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
-            .Where(m => m.ConversationId == conversationId && (m.IsDeleted == false || m.IsDeleted == null));
+            .Where(m => m.ConversationId == convId && (m.IsDeleted == false || m.IsDeleted == null));
 
         if (before.HasValue)
         {
@@ -143,20 +144,42 @@ public class ChatService : IChatService
         return dtos;
     }
 
-    public async Task<ConversationDto> GetOrCreateConversationAsync(Guid userId, List<Guid> participantIds)
+    public async Task<ConversationDto> GetOrCreateConversationAsync(Guid userId, List<string> participantIds)
     {
-        if (!participantIds.Contains(userId))
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token))
         {
-            participantIds.Add(userId);
+            // For proxy, we need the participant IDs to be DIDs or handles
+            // Assume the frontend sends DIDs/handles for remote users
+            try 
+            {
+                return await _chatProxy.GetOrCreateConversationAsync(token, participantIds);
+            }
+            catch (Exception ex)
+            {
+                // Fallback to local or log error
+                System.Diagnostics.Debug.WriteLine($"Proxy GetOrCreateConversation failed: {ex.Message}");
+            }
+        }
+
+        var ids = new List<Guid>();
+        foreach (var id in participantIds)
+        {
+            if (Guid.TryParse(id, out var g)) ids.Add(g);
+        }
+
+        if (!ids.Contains(userId))
+        {
+            ids.Add(userId);
         }
 
         var existingConversations = await _unitOfWork.Conversations.Query()
             .Include(c => c.ConversationParticipants)
-            .Where(c => c.ConversationParticipants.Count == participantIds.Count)
+            .Where(c => c.ConversationParticipants.Count == ids.Count)
             .ToListAsync();
 
         var existing = existingConversations.FirstOrDefault(c => 
-            c.ConversationParticipants.All(p => participantIds.Contains(p.UserId)));
+            c.ConversationParticipants.All(p => ids.Contains(p.UserId)));
 
         if (existing != null)
         {
@@ -172,7 +195,7 @@ public class ChatService : IChatService
             IsDeleted = false
         };
 
-        foreach (var pId in participantIds)
+        foreach (var pId in ids)
         {
             newConversation.ConversationParticipants.Add(new ConversationParticipant
             {
@@ -209,11 +232,11 @@ public class ChatService : IChatService
         {
             Id = Guid.NewGuid(),
             Tid = GenerateTid(),
-            ConversationId = conversationId,
+            ConversationId = convId,
             SenderId = userId,
             Content = content,
             ImageUrl = imageUrl,
-            ReplyToId = replyToId,
+            ReplyToId = Guid.TryParse(replyToId, out var rId) ? rId : null,
             CreatedAt = DateTime.UtcNow,
             IsRead = false,
             IsDeleted = false,
@@ -375,8 +398,6 @@ public class ChatService : IChatService
         var existingReaction = await _unitOfWork.MessageReactions.Query()
             .FirstOrDefaultAsync(r => r.MessageId == msgId && r.UserId == userId);
 
-        Guid conversationId = Guid.Empty;
-
         if (existingReaction != null)
         {
             if (existingReaction.Emoji == emoji)
@@ -394,17 +415,16 @@ public class ChatService : IChatService
         else
         {
             // Verify message exists before adding
-            var message = await _unitOfWork.Messages.Query().FirstOrDefaultAsync(m => m.Id == messageId && !m.IsRecalled);
+            var message = await _unitOfWork.Messages.Query().FirstOrDefaultAsync(m => m.Id == msgId && !m.IsRecalled);
             if (message == null)
             {
                 throw new Exception("Message not found or has been recalled");
             }
-            conversationId = message.ConversationId;
 
             var reaction = new MessageReaction
             {
                 Id = Guid.NewGuid(),
-                MessageId = messageId,
+                MessageId = msgId,
                 UserId = userId,
                 Emoji = emoji,
                 CreatedAt = DateTime.UtcNow
@@ -420,7 +440,7 @@ public class ChatService : IChatService
             .Include(m => m.LinkPreview)
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
-            .FirstOrDefaultAsync(m => m.Id == messageId);
+            .FirstOrDefaultAsync(m => m.Id == msgId);
 
         if (updatedMessage == null) throw new Exception("Message disappeared after update");
 

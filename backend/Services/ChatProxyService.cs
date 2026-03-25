@@ -116,28 +116,52 @@ namespace BSkyClone.Services
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {
             return new ConversationDto(
-                Guid.TryParse(convo.Id, out var id) ? id : Guid.Empty, // This is a problem, Bluesky IDs are strings
-                convo.Members.Select(m => new UserDto(Guid.Empty, m.Handle, m.Handle, null, m.DisplayName, m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did)).ToList(),
+                convo.Id,
+                convo.Members.Select(m => new UserDto(Guid.Empty, m.Handle, m.Handle, string.Empty, m.DisplayName, m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did)).ToList(),
                 convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id) : null,
                 convo.UnreadCount,
                 DateTimeOffset.Parse(convo.Rev)
-            ) { ExternalId = convo.Id }; // We need to add ExternalId to DTO or handle string IDs
+            );
         }
 
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId)
         {
             return new MessageDto(
-                Guid.Empty, // Bluesky IDs are strings
-                Guid.Empty,
-                Guid.Empty,
+                msg.Id,
+                convoId,
+                msg.Sender.Did,
                 msg.Text,
                 null,
                 DateTimeOffset.Parse(msg.SentAt),
                 false,
                 false,
                 false,
-                null
-            ) { ExternalId = msg.Id };
+                MapToUserDto(msg.Sender)
+            );
+        }
+
+        private UserDto MapToUserDto(BlueskyMember m)
+        {
+            return new UserDto(
+                Guid.Empty,
+                m.Handle,
+                m.Handle,
+                null,
+                m.DisplayName,
+                m.Avatar,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                0,
+                0,
+                "user",
+                null,
+                false,
+                m.Did
+            );
         }
 
         // Inner classes for Bluesky API responses
