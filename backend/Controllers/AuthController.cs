@@ -37,12 +37,20 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
-        var result = await _authService.RegisterAsync(request);
-        if (result == null)
+        try
         {
-            return BadRequest(new { message = "User with this email or handle already exists." });
+            var result = await _authService.RegisterAsync(request);
+            if (result == null)
+            {
+                return BadRequest(new { message = "User with this email or handle already exists." });
+            }
+            return Ok(result);
         }
-        return Ok(result);
+        catch (Exception ex)
+        {
+            // Return 400 so the frontend can display the specific Bluesky error message
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("login")]

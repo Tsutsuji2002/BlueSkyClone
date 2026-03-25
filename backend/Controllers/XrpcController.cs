@@ -51,6 +51,12 @@ namespace BSkyClone.Controllers
             _logger = logger;
         }
 
+        [HttpPost("com.atproto.server.deleteSession")]
+        public IActionResult DeleteSession()
+        {
+            return Ok();
+        }
+
         [HttpPost("com.atproto.server.createSession")]
         public async Task<IActionResult> CreateSession([FromBody] CreateSessionRequest request)
         {
