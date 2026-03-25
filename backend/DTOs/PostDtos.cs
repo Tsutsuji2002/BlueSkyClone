@@ -64,6 +64,7 @@ public class PostDto
     public bool IsDeleted { get; set; }
     public AuthorDto? RepostedBy { get; set; }
     public PostViewerDto? Viewer { get; set; }
+    public bool IsLinkPreviewPending { get; set; }
 }
 
 public class PostViewerDto

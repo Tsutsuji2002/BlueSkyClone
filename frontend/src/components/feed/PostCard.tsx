@@ -355,13 +355,13 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                 className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline flex items-center gap-0.5"
                                 onClick={handleAvatarClick}
                             >
-                                {post.author.displayName || post.author.handle || 'Unknown'}
+                                {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
                                 {post.author.isVerified && (
                                     <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
                                 )}
                             </span>
                             <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary truncate">
-                                @{post.author.handle}
+                                {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
                             </span>
                             <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary">·</span>
                             <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary whitespace-nowrap">
@@ -411,7 +411,18 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                             );
                         })()}
 
-                        {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
+                        {(() => {
+                            const hasLinkPreview = post.linkPreview || post.isLinkPreviewPending;
+                            if (hasLinkPreview) {
+                                return (
+                                    <LinkPreviewCard 
+                                        preview={post.linkPreview} 
+                                        isLoading={post.isLinkPreviewPending} 
+                                    />
+                                );
+                            }
+                            return null;
+                        })()}
 
                         {post.quotePost && (
                             <div onClick={(e) => e.stopPropagation()}>

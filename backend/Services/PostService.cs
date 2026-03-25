@@ -645,17 +645,11 @@ public class PostService : IPostService
                 {
                     if (post.Uri != null && remoteInteractionCache.TryGetValue(post.Uri, out var remotePost))
                     {
-                        if (remotePost.TryGetProperty("likeCount", out var lc)) post.LikesCount = Math.Max(lc.GetInt32(), localLikes);
-                        else post.LikesCount = Math.Max(post.LikesCount, localLikes);
-
-                        if (remotePost.TryGetProperty("repostCount", out var rc)) post.RepostsCount = Math.Max(rc.GetInt32(), localReposts);
-                        else post.RepostsCount = Math.Max(post.RepostsCount, localReposts);
-
-                        if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = Math.Max(rpc.GetInt32(), localReplies);
-                        else post.RepliesCount = Math.Max(post.RepliesCount, localReplies);
-
-                        if (remotePost.TryGetProperty("quoteCount", out var qc)) post.QuotesCount = Math.Max(qc.GetInt32(), localQuotes);
-                        else post.QuotesCount = Math.Max(post.QuotesCount, localQuotes);
+                        // THIN-CLIENT: Strictly prioritize AppView counts for remote posts
+                        if (remotePost.TryGetProperty("likeCount", out var lc)) post.LikesCount = lc.GetInt32();
+                        if (remotePost.TryGetProperty("repostCount", out var rc)) post.RepostsCount = rc.GetInt32();
+                        if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = rpc.GetInt32();
+                        if (remotePost.TryGetProperty("quoteCount", out var qc)) post.QuotesCount = qc.GetInt32();
 
                         post.BookmarksCount = localBookmarks;
 
@@ -667,15 +661,17 @@ public class PostService : IPostService
                     }
                     else
                     {
-                        post.LikesCount = Math.Max(post.LikesCount, localLikes);
-                        post.RepostsCount = Math.Max(post.RepostsCount, localReposts);
-                        post.RepliesCount = Math.Max(post.RepliesCount, localReplies);
-                        post.QuotesCount = Math.Max(post.QuotesCount, localQuotes);
-                        post.BookmarksCount = Math.Max(post.BookmarksCount, localBookmarks);
+                        // Fallback if AppView proxy failed for this specific URI
+                        post.LikesCount = post.LikesCount ?? 0;
+                        post.RepostsCount = post.RepostsCount ?? 0;
+                        post.RepliesCount = post.RepliesCount ?? 0;
+                        post.QuotesCount = post.QuotesCount ?? 0;
+                        post.BookmarksCount = localBookmarks;
                     }
                 }
                 else 
                 {
+                    // For purely local (un-federated) posts, use local counts
                     post.LikesCount = localLikes;
                     post.RepostsCount = localReposts;
                     post.RepliesCount = localReplies;
@@ -1268,11 +1264,30 @@ public class PostService : IPostService
                             var rootUri = rootPost.Uri ?? $"at://{rootPost.Author.Did}/app.bsky.feed.post/{rootPost.Tid}";
                             var parentUri = parentPost.Uri ?? $"at://{parentPost.Author.Did}/app.bsky.feed.post/{parentPost.Tid}";
                             
-                            // CRITICAL: CID must be a valid multihash, never a Tid
+                            // CRITICAL: CID must be a valid multihash, never a Tid or GUID string
                             var rootCid = rootPost.Cid;
                             var parentCid = parentPost.Cid;
 
-                            if (!string.IsNullOrEmpty(rootCid) && !string.IsNullOrEmpty(parentCid))
+                            // Resolve CIDs from Bluesky if missing or invalid (local Guid strings)
+                            if (string.IsNullOrEmpty(rootCid) || !rootCid.StartsWith("bafy"))
+                            {
+                                try {
+                                    var resolved = await GetPostByUriAsync(rootUri);
+                                    if (resolved != null && !string.IsNullOrEmpty(resolved.Cid) && resolved.Cid.StartsWith("bafy"))
+                                        rootCid = resolved.Cid;
+                                } catch { }
+                            }
+                            
+                            if (string.IsNullOrEmpty(parentCid) || !parentCid.StartsWith("bafy"))
+                            {
+                                try {
+                                    var resolved = await GetPostByUriAsync(parentUri);
+                                    if (resolved != null && !string.IsNullOrEmpty(resolved.Cid) && resolved.Cid.StartsWith("bafy"))
+                                        parentCid = resolved.Cid;
+                                } catch { }
+                            }
+
+                            if (!string.IsNullOrEmpty(rootCid) && rootCid.StartsWith("bafy") && !string.IsNullOrEmpty(parentCid) && parentCid.StartsWith("bafy"))
                             {
                                 postRecord["reply"] = new Dictionary<string, object>
                                 {
@@ -1282,7 +1297,7 @@ public class PostService : IPostService
                             }
                             else
                             {
-                                _logger.LogWarning("[CreatePostAsync] Reply metadata missing CIDs for local parents. RootCid={RootCid}, ParentCid={ParentCid}. Federation may be degraded.", rootCid, parentCid);
+                                _logger.LogWarning("[CreatePostAsync] Reply metadata missing or invalid CIDs for federation. RootCid={RootCid}, ParentCid={ParentCid}.", rootCid, parentCid);
                             }
                         }
                     }
@@ -1294,11 +1309,26 @@ public class PostService : IPostService
                         var quotePost = await _unitOfWork.Posts.Query().Include(p => p.Author).FirstOrDefaultAsync(p => p.Id == post.QuotePostId.Value);
                         if (quotePost != null)
                         {
-                            embedRecord = new Dictionary<string, object>
+                            var quoteUri = quotePost.Uri ?? $"at://{quotePost.Author.Did}/app.bsky.feed.post/{quotePost.Tid}";
+                            var quoteCid = quotePost.Cid;
+                            
+                            if (string.IsNullOrEmpty(quoteCid) || !quoteCid.StartsWith("bafy"))
                             {
-                                { "$type", "app.bsky.embed.record" },
-                                { "record", new Dictionary<string, object> { { "uri", quotePost.Uri ?? $"at://{quotePost.Author.Did}/app.bsky.feed.post/{quotePost.Tid}" }, { "cid", quotePost.Cid ?? quotePost.Tid } } }
-                            };
+                                try {
+                                    var resolved = await GetPostByUriAsync(quoteUri);
+                                    if (resolved != null && !string.IsNullOrEmpty(resolved.Cid) && resolved.Cid.StartsWith("bafy"))
+                                        quoteCid = resolved.Cid;
+                                } catch { }
+                            }
+
+                            if (!string.IsNullOrEmpty(quoteCid) && quoteCid.StartsWith("bafy"))
+                            {
+                                embedRecord = new Dictionary<string, object>
+                                {
+                                    { "$type", "app.bsky.embed.record" },
+                                    { "record", new Dictionary<string, object> { { "uri", quoteUri }, { "cid", quoteCid } } }
+                                };
+                            }
                         }
                     }
 
@@ -3993,6 +4023,10 @@ public class PostService : IPostService
             Cid = post.Cid ?? post.Id.ToString(),
             Viewer = new PostViewerDto()
         };
+
+        dto.IsLinkPreviewPending = dto.LinkPreview == null && 
+                                  dto.Facets != null && 
+                                  dto.Facets.Any(f => f.Features != null && f.Features.Any(feat => feat.Type == "app.bsky.richtext.facet#link"));
 
         if (post.Author != null)
         {

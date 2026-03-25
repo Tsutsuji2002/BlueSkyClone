@@ -203,6 +203,7 @@ export interface Post {
         embeddingDisabled?: boolean;
         threadMuted?: boolean;
     };
+    isLinkPreviewPending?: boolean;
 }
 
 // Comment/Reply types

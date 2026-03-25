@@ -544,10 +544,10 @@ const PostDetailPage: React.FC = () => {
                             </div>
                             <div className="flex flex-col">
                                 <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
-                                    {post.author.displayName}
+                                    {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
                                 </span>
-                                <span className="text-gray-500 dark:text-dark-text-secondary hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
-                                    @{post.author.handle}
+                                <span className="text-gray-500 dark:text-dark-text-secondary">
+                                    {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
                                 </span>
                             </div>
                         </div>
@@ -601,7 +601,12 @@ const PostDetailPage: React.FC = () => {
                     </div>
 
                     {/* Link Preview */}
-                    {post.linkPreview && <LinkPreviewCard preview={post.linkPreview} />}
+                    {(post.linkPreview || post.isLinkPreviewPending) && (
+                        <LinkPreviewCard 
+                            preview={post.linkPreview} 
+                            isLoading={post.isLinkPreviewPending} 
+                        />
+                    )}
 
                     {/* Quoted Post */}
                     {post.quotePost && (

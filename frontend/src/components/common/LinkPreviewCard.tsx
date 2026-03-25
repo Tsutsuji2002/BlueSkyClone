@@ -7,11 +7,13 @@ import { cn } from '../../utils/classNames';
 import { useAppSelector } from '../../hooks/useAppSelector';
 
 interface LinkPreviewCardProps {
-    preview: LinkPreview;
+    preview?: LinkPreview;
     isSmall?: boolean;
+    isLoading?: boolean;
 }
 
 const getYouTubeVideoId = (url: string): string | null => {
+    if (!url) return null;
     const patterns = [
         /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
         /youtube\.com\/shorts\/([^&\n?#]+)/
@@ -24,6 +26,7 @@ const getYouTubeVideoId = (url: string): string | null => {
 };
 
 const getEmbedUrl = (url: string, enabledProviders: string[]): string | null => {
+    if (!url) return null;
     try {
         const u = new URL(url);
         const host = u.hostname.replace('www.', '');
@@ -81,15 +84,33 @@ const getEmbedUrl = (url: string, enabledProviders: string[]): string | null => 
     return null;
 };
 
-const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = false }) => {
+const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = false, isLoading: isPending = false }) => {
     const { t } = useTranslation();
     const [imageError, setImageError] = React.useState(false);
-    const [isLoading, setIsLoading] = React.useState(true);
+    const [isImageLoading, setIsImageLoading] = React.useState(true);
     const [isPlaying, setIsPlaying] = React.useState(false);
     const settings = useAppSelector(state => state.auth.settings);
     const enabledProviders = settings?.enabledMediaProviders || [];
 
-    const embedUrl = getEmbedUrl(preview.url, enabledProviders);
+    const embedUrl = preview ? getEmbedUrl(preview.url, enabledProviders) : null;
+
+    if (isPending || !preview) {
+        return (
+            <div className={cn(
+                "block border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden bg-white dark:bg-dark-bg mt-3 w-full",
+                isSmall && "mt-1"
+            )}>
+                <div className={cn("w-full bg-gray-100 dark:bg-dark-surface relative", isSmall ? "aspect-[3/1]" : "aspect-[1.91/1]")}>
+                    <Skeleton variant="rectangular" width="100%" height="100%" />
+                </div>
+                <div className={isSmall ? "p-2" : "p-3"}>
+                    <Skeleton variant="text" width="40%" height={12} className="mb-2" />
+                    <Skeleton variant="text" width="90%" height={16} className="mb-1" />
+                    {!isSmall && <Skeleton variant="text" width="70%" height={14} />}
+                </div>
+            </div>
+        );
+    }
 
     if (embedUrl) {
         if (!isPlaying) {
@@ -104,15 +125,15 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                                 alt={preview.title || t('nav.link_preview')}
                                 className={cn(
                                     "w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500",
-                                    isLoading ? "opacity-0" : "opacity-100"
+                                    isImageLoading ? "opacity-0" : "opacity-100"
                                 )}
-                                onLoad={() => setIsLoading(false)}
+                                onLoad={() => setIsImageLoading(false)}
                                 onError={() => {
                                     setImageError(true);
-                                    setIsLoading(false);
+                                    setIsImageLoading(false);
                                 }}
                             />
-                            {isLoading && (
+                            {isImageLoading && (
                                 <div className="absolute inset-0">
                                     <Skeleton variant="rectangular" width="100%" height="100%" />
                                 </div>
@@ -176,7 +197,7 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                     isSmall ? "aspect-[3/1]" : "aspect-[1.91/1]"
                 )}>
                     {/* Skeleton always present underneath until image is loaded */}
-                    <div className={cn("absolute inset-0 transition-opacity duration-300", isLoading ? "opacity-100" : "opacity-0")}>
+                    <div className={cn("absolute inset-0 transition-opacity duration-300", isImageLoading ? "opacity-100" : "opacity-0")}>
                         <Skeleton variant="rectangular" width="100%" height="100%" />
                     </div>
                     <img
@@ -184,12 +205,12 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                         alt={preview.title || t('nav.link_preview')}
                         className={cn(
                             "absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-all duration-500",
-                            isLoading ? "opacity-0" : "opacity-100"
+                            isImageLoading ? "opacity-0" : "opacity-100"
                         )}
-                        onLoad={() => setIsLoading(false)}
+                        onLoad={() => setIsImageLoading(false)}
                         onError={() => {
                             setImageError(true);
-                            setIsLoading(false);
+                            setIsImageLoading(false);
                         }}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />

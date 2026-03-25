@@ -372,13 +372,13 @@ const ProfilePage: React.FC = () => {
                     {/* Identity Section */}
                     <div className="mt-6 lg:mt-10 mb-1">
                         <h1 className="text-[28px] lg:text-[32px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight flex items-center gap-1.5">
-                            {profileUser?.displayName || profileUser?.handle}
+                            {profileUser?.displayName || (profileUser?.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : profileUser?.handle) || 'Unknown'}
                             {profileUser?.isVerified && (
                                 <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={24} />
                             )}
                         </h1>
                         <p className="text-[17px] text-gray-500 dark:text-dark-text-secondary">
-                            @{profileUser?.handle}
+                            {profileUser?.handle?.startsWith('did:') ? '' : `@${profileUser?.handle}`}
                         </p>
                     </div>
 
