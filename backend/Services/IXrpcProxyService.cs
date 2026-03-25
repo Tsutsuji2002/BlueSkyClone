@@ -11,8 +11,11 @@ namespace BSkyClone.Services
         /// <param name="did">The DID of the user/repo on the remote PDS.</param>
         /// <param name="nsid">The XRPC method name (e.g., app.bsky.actor.getProfile).</param>
         /// <param name="queryParams">Query parameters for the request.</param>
+        /// <param name="token">Optional Bearer token for authentication.</param>
+        /// <param name="method">HTTP method (GET or POST).</param>
+        /// <param name="body">Optional JSON body for POST requests.</param>
         /// <returns>The response content as a string or byte array.</returns>
-        Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, IQueryCollection queryParams);
+        Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null);
     }
 
     public class ProxyResponse

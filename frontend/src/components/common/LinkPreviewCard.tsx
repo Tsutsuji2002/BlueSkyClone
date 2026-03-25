@@ -169,16 +169,21 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                 isSmall ? "mt-1" : "mt-3"
             )}
         >
+            {/* Image area: always reserve space (aspect-ratio box) when image is provided */}
             {preview.image && !imageError ? (
                 <div className={cn(
                     "w-full overflow-hidden bg-gray-100 dark:bg-dark-surface relative border-b border-gray-100 dark:border-dark-border",
                     isSmall ? "aspect-[3/1]" : "aspect-[1.91/1]"
                 )}>
+                    {/* Skeleton always present underneath until image is loaded */}
+                    <div className={cn("absolute inset-0 transition-opacity duration-300", isLoading ? "opacity-100" : "opacity-0")}>
+                        <Skeleton variant="rectangular" width="100%" height="100%" />
+                    </div>
                     <img
                         src={preview.image}
                         alt={preview.title || t('nav.link_preview')}
                         className={cn(
-                            "w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500",
+                            "absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-all duration-500",
                             isLoading ? "opacity-0" : "opacity-100"
                         )}
                         onLoad={() => setIsLoading(false)}
@@ -187,11 +192,6 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                             setIsLoading(false);
                         }}
                     />
-                    {isLoading && (
-                        <div className="absolute inset-0">
-                            <Skeleton variant="rectangular" width="100%" height="100%" />
-                        </div>
-                    )}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
                 </div>
             ) : (

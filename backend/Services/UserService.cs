@@ -1424,4 +1424,54 @@ public class UserService : IUserService
 
         return user;
     }
+
+    public async Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            
+            var url = $"https://api.bsky.app/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(query)}&limit={take}";
+            // Note: skip/cursor pagination could be added here if needed
+
+            var response = await client.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return new List<User>();
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(content);
+            var root = doc.RootElement;
+
+            var users = new List<User>();
+            if (root.TryGetProperty("actors", out var actorsProp))
+            {
+                var actorsArray = actorsProp.EnumerateArray().ToList();
+                var dids = actorsArray
+                    .Select(a => a.TryGetProperty("did", out var d) ? d.GetString() : null)
+                    .Where(d => d != null)
+                    .Cast<string>()
+                    .Distinct()
+                    .ToList();
+
+                var existingUsers = await _unitOfWork.Users.Query()
+                    .Where(u => dids.Contains(u.Did))
+                    .ToDictionaryAsync(u => u.Did);
+
+                foreach (var item in actorsArray)
+                {
+                    var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
+                    if (u != null) users.Add(u);
+                }
+                
+                await _unitOfWork.CompleteAsync();
+            }
+
+            return users;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SearchActorsRemoteAsync] Error searching for {Query}", query);
+            return new List<User>();
+        }
+    }
 }

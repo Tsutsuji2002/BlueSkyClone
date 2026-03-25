@@ -234,9 +234,16 @@ const ReplyModal: React.FC = () => {
             const gifUrl = selectedGifUrl || undefined;
             const replyToPostId = post.uri || post.tid || post.id;
 
+            // rootPostId: If the post we're replying to is itself a reply, we traverse to find the root.
+            // The root is the top-level post in the thread.
+            const rootPostId = post.rootPostId || post.replyToPostId
+                ? (post.rootPostId || replyToPostId) // if it has a rootPostId, use it; otherwise, the direct parent IS the root
+                : replyToPostId; // if this post has no parent, it IS the root
+
             await dispatch(createPost({
                 content,
                 replyToPostId,
+                rootPostId: replyToPostId === rootPostId ? undefined : rootPostId,
                 mediaFiles,
                 videoFile,
                 gifUrl,

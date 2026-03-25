@@ -1,6 +1,8 @@
 using BSkyClone.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Security.Claims;
 
 namespace BSkyClone.Controllers;
 
@@ -12,12 +14,14 @@ public class SearchController : ControllerBase
     private readonly ISearchService _searchService;
     private readonly IUserService _userService;
     private readonly IPostService _postService;
+    private readonly IDistributedCache _cache;
 
-    public SearchController(ISearchService searchService, IUserService userService, IPostService postService)
+    public SearchController(ISearchService searchService, IUserService userService, IPostService postService, IDistributedCache cache)
     {
         _searchService = searchService;
         _userService = userService;
         _postService = postService;
+        _cache = cache;
     }
 
     [HttpGet("posts")]
@@ -25,20 +29,32 @@ public class SearchController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
 
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        Guid? currentUserId = userId != null ? Guid.Parse(userId) : null;
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
+        // 1. Check for Bluesky token
+        var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(bskyToken))
+        {
+            var remotePosts = await _postService.SearchPostsRemoteAsync(q, bskyToken, skip, take);
+            if (remotePosts.Any())
+            {
+                return Ok(remotePosts);
+            }
+        }
+
+        // 2. Local ElasticSearch
         var postIds = (await _searchService.SearchPostsAsync(q, skip, take)).ToList();
         
-        // Fallback to DB search if no results from ElasticSearch
+        // 3. Fallback to DB search
         if (postIds.Count == 0)
         {
-            var dbPosts = await _postService.SearchPostsDBAsync(q, currentUserId, take, skip);
+            var dbPosts = await _postService.SearchPostsDBAsync(q, userId, take, skip);
             return Ok(dbPosts);
         }
 
-        // Hydrate posts from DB/Service to return full DTOs in batch
-        var posts = await _postService.GetPostsByIdsAsync(postIds, currentUserId);
+        // Hydrate posts from DB
+        var posts = await _postService.GetPostsByIdsAsync(postIds, userId);
         return Ok(posts);
     }
 
@@ -47,9 +63,36 @@ public class SearchController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
 
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+        // 1. Check for Bluesky token
+        var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(bskyToken))
+        {
+            var remoteUsers = await _userService.SearchActorsRemoteAsync(q, bskyToken, skip, take);
+            if (remoteUsers.Any())
+            {
+                return Ok(remoteUsers.Select(user => new
+                {
+                    user.Id,
+                    user.Handle,
+                    user.Username,
+                    user.DisplayName,
+                    user.AvatarUrl,
+                    user.Bio,
+                    user.FollowersCount,
+                    user.FollowingCount,
+                    user.PostsCount,
+                    user.Did
+                }));
+            }
+        }
+
+        // 2. Local ElasticSearch
         var userIds = (await _searchService.SearchUsersAsync(q, skip, take)).ToList();
 
-        // Fallback to DB search if no results from ElasticSearch
+        // 3. Fallback to DB search
         if (userIds.Count == 0)
         {
             var dbUsers = await _userService.SearchUsersAsync(q, take);
@@ -63,11 +106,12 @@ public class SearchController : ControllerBase
                 user.Bio,
                 user.FollowersCount,
                 user.FollowingCount,
-                user.PostsCount
+                user.PostsCount,
+                user.Did
             }));
         }
 
-        // Hydrate users from DB/Service in batch
+        // Hydrate users from DB
         var users = await _userService.GetUsersByIdsAsync(userIds);
         
         return Ok(users.Select(user => new 
@@ -80,7 +124,8 @@ public class SearchController : ControllerBase
             user.Bio,
             user.FollowersCount,
             user.FollowingCount,
-            user.PostsCount
+            user.PostsCount,
+            user.Did
         }));
     }
 }

@@ -114,7 +114,7 @@ export const updatePost = createAsyncThunk(
 
 export const createPost = createAsyncThunk(
     'posts/createPost',
-    async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; replyToPostId?: string }, { rejectWithValue, getState }) => {
+    async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; replyToPostId?: string; rootPostId?: string }, { rejectWithValue, getState }) => {
         try {
             const state = getState() as any;
             const user = state.auth.user;
@@ -123,6 +123,7 @@ export const createPost = createAsyncThunk(
             const formData = new FormData();
             formData.append('Content', postData.content);
             if (postData.replyToPostId) formData.append('ReplyToPostId', postData.replyToPostId);
+            if (postData.rootPostId) formData.append('RootPostId', postData.rootPostId);
             if (postData.mediaFiles) {
                 postData.mediaFiles.forEach(f => formData.append('Images', f));
             }

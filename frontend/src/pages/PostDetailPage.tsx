@@ -4,7 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
-import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings, fetchPostReplies } from '../redux/slices/postsSlice';
+import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings, fetchPostReplies, createPost } from '../redux/slices/postsSlice';
 import { openReply, openMobileMenu, openEditPost, openReport, openQuote } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
@@ -228,6 +228,19 @@ const PostDetailPage: React.FC = () => {
             // Replies are now usually included in fetchPostById (getPostThread)
         }
     }, [dispatch, postId, handle]);
+
+    // Re-fetch the thread immediately after the user posts a reply, so the new reply is visible
+    const lastPostsLength = React.useRef(0);
+    const replyCount = useAppSelector((state: RootState) => state.posts.posts.filter(
+        (p: Post) => p.replyToPostId === post?.id || p.replyToPostId === post?.tid || p.replyToPostId === post?.uri
+    ).length);
+    React.useEffect(() => {
+        if (replyCount > lastPostsLength.current && post?.uri) {
+            // A new local reply was added — refresh the post thread from server
+            dispatch(fetchPostById({ uri: post.uri }));
+        }
+        lastPostsLength.current = replyCount;
+    }, [replyCount, post?.uri, dispatch]);
 
     const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
     React.useEffect(() => {

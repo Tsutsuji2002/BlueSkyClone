@@ -22,7 +22,7 @@ namespace BSkyClone.Services
             _logger = logger;
         }
 
-        public async Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, IQueryCollection queryParams)
+        public async Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null)
         {
             try
             {
@@ -46,16 +46,30 @@ namespace BSkyClone.Services
                 var baseUrl = service.ServiceEndpoint.TrimEnd('/');
                 var url = $"{baseUrl}/xrpc/{nsid}";
 
-                if (queryParams.Any())
+                if (queryParams != null && queryParams.Any())
                 {
                     var queryString = string.Join("&", queryParams.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value.ToString())}"));
                     url += $"?{queryString}";
                 }
 
-                _logger.LogInformation($"Proxying request to: {url}");
+                _logger.LogInformation($"Proxying {method} request to: {url}");
 
-                // 3. Forward the request
-                var response = await _httpClient.GetAsync(url);
+                // 3. Prepare the request
+                var request = new HttpRequestMessage(new HttpMethod(method), url);
+                
+                if (!string.IsNullOrEmpty(token))
+                {
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+
+                if (method.Equals("POST", StringComparison.OrdinalIgnoreCase) && body != null)
+                {
+                    var json = System.Text.Json.JsonSerializer.Serialize(body);
+                    request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                }
+
+                // 4. Forward the request
+                var response = await _httpClient.SendAsync(request);
                 var content = await response.Content.ReadAsStringAsync();
 
                 return new ProxyResponse
@@ -68,7 +82,7 @@ namespace BSkyClone.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error proxying XRPC request {nsid} for {did}");
+                _logger.LogError(ex, $"Error proxying {method} XRPC request {nsid} for {did}");
                 return new ProxyResponse { Success = false, StatusCode = 500, Content = ex.Message };
             }
         }

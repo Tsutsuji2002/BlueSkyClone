@@ -170,7 +170,7 @@ public class PostService : IPostService
         }
     }
 
-    private List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray)
+    public List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray)
     {
         var mappedPosts = new List<PostDto>();
         foreach (var item in feedArray.EnumerateArray())
@@ -228,7 +228,7 @@ public class PostService : IPostService
         return mappedPosts;
     }
 
-    private PostDto? MapBlueskyPost(System.Text.Json.JsonElement postObj)
+    public PostDto? MapBlueskyPost(System.Text.Json.JsonElement postObj)
     {
         try
         {
@@ -299,8 +299,50 @@ public class PostService : IPostService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning("Failed to map Bluesky post: {Err}", ex.Message);
+            _logger.LogWarning("Failed to map post object: {Err}", ex.Message);
             return null;
+        }
+    }
+
+    public async Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string token, int skip = 0, int take = 20)
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            
+            var url = $"https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(query)}&limit={take}";
+            if (skip > 0)
+            {
+                // Note: bsky search typically uses 'cursor' for pagination, but some endpoints support offset.
+                // For now, let's keep it simple.
+            }
+
+            var response = await httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("[SearchPostsRemoteAsync] fetch failed: {StatusCode}", response.StatusCode);
+                return new List<PostDto>();
+            }
+
+            var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
+            if (responseBody.TryGetProperty("posts", out var postsArray))
+            {
+                var mappedPosts = new List<PostDto>();
+                foreach (var postObj in postsArray.EnumerateArray())
+                {
+                    var dto = MapBlueskyPost(postObj);
+                    if (dto != null) mappedPosts.Add(dto);
+                }
+                return mappedPosts;
+            }
+
+            return new List<PostDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SearchPostsRemoteAsync] Error searching for {Query}", query);
+            return new List<PostDto>();
         }
     }
 
