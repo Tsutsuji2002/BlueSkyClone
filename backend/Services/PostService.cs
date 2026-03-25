@@ -2151,31 +2151,19 @@ public class PostService : IPostService
             var collection = parts[1];
             var rkey = parts[2];
 
-            // 1. Resolve DID/Handle to check if local
-            var user = await _unitOfWork.Users.Query()
-                .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
+            // 1. Try to find the post locally FIRST (for instant visibility of new posts and replies)
+            var post = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Include(p => p.Hashtags)
+                .Include(p => p.Interests)
+                .FirstOrDefaultAsync(p => p.Uri == uri || (p.Tid == rkey && (p.Author.Did == didOrHandle || p.Author.Handle == didOrHandle)));
 
-            // ONLY use local DB if it's a truly local user (no DID from Bluesky yet or explicitly marked local)
-            // If it's a remote user DID, always use proxying to ensure likes/replies sync from Bluesky AppView
-            bool isTrulyLocal = user != null && (string.IsNullOrEmpty(user.Did) || !user.Did.StartsWith("did:"));
-
-            if (isTrulyLocal)
+            if (post != null)
             {
-                // Local post
-                var posts = await _unitOfWork.Posts.Query()
-                    .Include(p => p.Author)
-                    .Include(p => p.PostMedia)
-                    .Include(p => p.LinkPreview)
-                    .Include(p => p.Hashtags)
-                    .Include(p => p.Interests)
-                    .Where(p => p.AuthorId == user!.Id && p.Tid == rkey)
-                    .ToListAsync();
-                
-                var post = posts.FirstOrDefault();
-                if (post == null) return null;
-
-                // Sync resolution for single-thread view to avoid DID display
-                if (post.Author != null && post.Author.Did == post.Author.Handle)
+                // Sync resolution for single-thread view to avoid raw handle/DID display if not yet resolved
+                if (post.Author != null && post.Author.Did == post.Author.Handle && !string.IsNullOrEmpty(post.Author.Did))
                 {
                     await _userService.ResolveRemoteProfileAsync(post.Author.Did!);
                 }
@@ -2184,8 +2172,8 @@ public class PostService : IPostService
                 var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty);
                 postDto = enriched.First();
 
-                // Build thread structure
-                var thread = new
+                // Build thread structure from local data
+                return new
                 {
                     thread = new
                     {
@@ -2195,8 +2183,6 @@ public class PostService : IPostService
                         parent = post.ReplyToPostId.HasValue ? new { post = await GetPostByIdAsync(post.ReplyToPostId.Value, viewerId), @type = "app.bsky.feed.defs#threadViewPost" } : null
                     }
                 };
-
-                return thread;
             }
 
             // 2. Remote post - resolve handle to DID if needed, then proxy
