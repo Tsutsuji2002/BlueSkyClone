@@ -400,8 +400,40 @@ public class ChatService : IChatService
         return MapToMessageDto(message);
     }
 
-    public async Task<MessageDto> AddOrUpdateReactionAsync(Guid userId, string messageId, string emoji)
+    public async Task<MessageDto> AddOrUpdateReactionAsync(Guid userId, string conversationId, string messageId, string emoji)
     {
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        
+        if (!string.IsNullOrEmpty(token) && !IsGuid(messageId))
+        {
+            // For proxy messages, we use the proxy service
+            var messages = await _chatProxy.GetMessagesAsync(token, conversationId, 100);
+            var message = messages.FirstOrDefault(m => m.Id == messageId);
+            
+            if (message != null)
+            {
+                var userReaction = message.Reactions?.FirstOrDefault(r => r.UserId == userId.ToString() && r.Emoji == emoji);
+                bool success;
+                
+                if (userReaction != null)
+                {
+                    success = await _chatProxy.RemoveReactionAsync(token, conversationId, messageId, emoji);
+                }
+                else
+                {
+                    success = await _chatProxy.AddReactionAsync(token, conversationId, messageId, emoji);
+                }
+                
+                if (success)
+                {
+                    // Fetch updated message to return
+                    var updatedMessages = await _chatProxy.GetMessagesAsync(token, conversationId, 100);
+                    var updated = updatedMessages.FirstOrDefault(m => m.Id == messageId);
+                    if (updated != null) return updated;
+                }
+            }
+        }
+
         var msgId = Guid.TryParse(messageId, out var g) ? g : Guid.Empty;
         var existingReaction = await _unitOfWork.MessageReactions.Query()
             .FirstOrDefaultAsync(r => r.MessageId == msgId && r.UserId == userId);

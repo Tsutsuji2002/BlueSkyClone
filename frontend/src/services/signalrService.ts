@@ -145,10 +145,10 @@ class SignalRService {
         }
     }
 
-    public async addReaction(messageId: string, emoji: string) {
+    public async addReaction(conversationId: string, messageId: string, emoji: string) {
         if (this.connection?.state === signalR.HubConnectionState.Connected) {
             try {
-                await this.connection.invoke('AddReaction', messageId, emoji);
+                await this.connection.invoke('AddReaction', conversationId, messageId, emoji);
             } catch (err) {
                 console.error('Failed to add reaction:', err);
                 throw err;

@@ -175,6 +175,24 @@ namespace BSkyClone.Services
             return MapToConversationDto(data!.Convo);
         }
 
+        public async Task<bool> AddReactionAsync(string token, string conversationId, string messageId, string emoji)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.addReaction";
+            var body = new { convoId = conversationId, messageId = messageId, value = emoji };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> RemoveReactionAsync(string token, string conversationId, string messageId, string emoji)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.removeReaction";
+            var body = new { convoId = conversationId, messageId = messageId, value = emoji };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            return response.IsSuccessStatusCode;
+        }
+
 
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {
@@ -199,7 +217,10 @@ namespace BSkyClone.Services
                 false,
                 false,
                 false,
-                MapToUserDto(msg.Sender)
+                MapToUserDto(msg.Sender),
+                null, // LinkPreview handled by EnrichMessageAsync
+                null, // ReplyTo
+                msg.Reactions?.SelectMany(r => r.Dids.Select(did => new MessageReactionDto(did, r.Emoji, null))).ToList()
             );
         }
 
@@ -253,6 +274,15 @@ namespace BSkyClone.Services
             public string Text { get; set; } = string.Empty;
             public string SentAt { get; set; } = string.Empty;
             public BlueskyMember Sender { get; set; } = new();
+            public List<BlueskyReactionSet>? Reactions { get; set; }
+        }
+
+        private class BlueskyReactionSet
+        {
+            [JsonPropertyName("$type")]
+            public string? Type { get; set; }
+            public string Emoji { get; set; } = string.Empty;
+            public List<string> Dids { get; set; } = new();
         }
 
         private class BlueskyLogResponse

@@ -87,14 +87,14 @@ public class ChatHub : Hub
         catch (Exception ex) { throw new HubException(ex.Message); }
     }
 
-    public async Task AddReaction(string messageId, string emoji)
+    public async Task AddReaction(string conversationId, string messageId, string emoji)
     {
         var userId = GetUserIdFromContext();
         if (userId == Guid.Empty) throw new HubException("Unauthorized");
 
         try
         {
-            var messageDto = await _chatService.AddOrUpdateReactionAsync(userId, messageId, emoji);
+            var messageDto = await _chatService.AddOrUpdateReactionAsync(userId, conversationId, messageId, emoji);
             var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
             
             foreach (var pId in participantIds)

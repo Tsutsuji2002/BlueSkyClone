@@ -336,9 +336,10 @@ const ChatPage: React.FC = () => {
     };
 
     const handleAddReaction = async (msgId: string, emoji: string) => {
+        if (!conversationId) return;
         try {
             console.log(`Adding reaction: ${emoji} to message: ${msgId}`);
-            await signalrService.addReaction(msgId, emoji);
+            await signalrService.addReaction(conversationId, msgId, emoji);
             setSelectedReactionMessageId(null);
         } catch (err) {
             console.error('Failed to add reaction:', err);
@@ -603,6 +604,28 @@ const ChatPage: React.FC = () => {
                                                 </>
                                             )}
                                         </div>
+
+                                        {/* Reactions Display (Corner badges) */}
+                                        {msg.reactions && msg.reactions.length > 0 && (
+                                            <div className={`flex flex-wrap gap-1 mt-[-10px] z-10 ${isMe ? 'justify-end mr-2' : 'justify-start ml-2'}`}>
+                                                {Object.entries(msg.reactions.reduce((acc, r) => {
+                                                    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                                    return acc;
+                                                }, {} as Record<string, number>)).map(([emoji, count]) => (
+                                                    <button
+                                                        key={emoji}
+                                                        onClick={() => handleAddReaction(msg.id, emoji)}
+                                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition-all border shadow-sm backdrop-blur-sm ${msg.reactions?.some(r => (r.userId === currentUser?.id || r.userId === currentUser?.did) && r.emoji === emoji)
+                                                            ? 'bg-primary-50/90 dark:bg-primary-500/20 border-primary-200 dark:border-primary-500/30 text-primary-600 dark:text-primary-400'
+                                                            : 'bg-white/90 dark:bg-dark-surface/90 border-gray-100 dark:border-dark-border text-gray-500 hover:border-gray-300 dark:hover:border-dark-text-secondary'
+                                                            }`}
+                                                    >
+                                                        <span>{emoji}</span>
+                                                        {count > 1 && <span className="font-bold">{count}</span>}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                         <div className={`flex items-center gap-2 mt-1 px-1`}>
                                             <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary">
                                                 {formatChatMessageDate(msg.createdAt, i18n.language)}
@@ -611,24 +634,25 @@ const ChatPage: React.FC = () => {
                                                 <span className="text-[10px] font-bold text-primary-500 uppercase tracking-tighter">
                                                     {t('messages.read')}
                                                 </span>
-                                            )}                                            {/* Floating Reaction Bar (Bluesky style - visible on hover) */}
-                                            <div className={`absolute -top-10 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/msg:opacity-100 transition-all duration-200 z-10 pointer-events-none group-hover/msg:pointer-events-auto`}>
-                                                <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-dark-border rounded-full shadow-lg scale-90 origin-bottom">
-                                                    {['👍', '😆', '❤️', '👀', '😢'].map(emoji => (
+                                            )}                                            {/* Quick Reaction Bar (Bluesky style - visible on hover) */}
+                                            <div className={`absolute -top-11 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/msg:opacity-100 transition-all duration-300 z-20 pointer-events-none group-hover/msg:pointer-events-auto transform translate-y-2 group-hover/msg:translate-y-0`}>
+                                                <div className="flex items-center gap-0.5 p-1 bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
+                                                    {['👍', '❤️', '😆', '😮', '😢', '🔥'].map(emoji => (
                                                         <button
                                                             key={emoji}
                                                             onClick={() => handleAddReaction(msg.id, emoji)}
-                                                            className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-dark-bg rounded-full transition-colors text-lg"
+                                                            className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-xl active:scale-95"
                                                             title={emoji}
                                                         >
                                                             {emoji}
                                                         </button>
                                                     ))}
+                                                    <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-1" />
                                                     <button
                                                         onClick={() => setSelectedReactionMessageId(msg.id)}
-                                                        className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-dark-bg rounded-full transition-colors"
+                                                        className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
                                                     >
-                                                        <FiMoreHorizontal size={14} className="text-gray-500" />
+                                                        <FiMoreHorizontal size={18} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -661,27 +685,6 @@ const ChatPage: React.FC = () => {
                                             )}
                                         </div>
 
-                                        {/* Reactions Display */}
-                                        {msg.reactions && msg.reactions.length > 0 && (
-                                            <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                {Object.entries(msg.reactions.reduce((acc, r) => {
-                                                    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                                                    return acc;
-                                                }, {} as Record<string, number>)).map(([emoji, count]) => (
-                                                    <button
-                                                        key={emoji}
-                                                        onClick={() => handleAddReaction(msg.id, emoji)}
-                                                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all border ${msg.reactions?.some(r => r.userId === currentUser?.id && r.emoji === emoji)
-                                                            ? 'bg-primary-50 dark:bg-primary-500/20 border-primary-200 dark:border-primary-500/30 text-primary-600'
-                                                            : 'bg-white dark:bg-dark-surface border-gray-100 dark:border-dark-border text-gray-500'
-                                                            }`}
-                                                    >
-                                                        <span>{emoji}</span>
-                                                        {count > 1 && <span className="font-bold">{count}</span>}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
                                     </div>
                                 );
                             })}
