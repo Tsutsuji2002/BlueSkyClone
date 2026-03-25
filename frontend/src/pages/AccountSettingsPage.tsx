@@ -361,7 +361,7 @@ const AccountSettingsPage: React.FC = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <FiCheck className="text-blue-500" />
+                                {user?.isVerified && <FiCheck className="text-blue-500" />}
                             </div>
                         </button>
 

@@ -18,17 +18,28 @@ public class ChatService : IChatService
     private readonly ILinkService _linkService;
     private readonly ICacheService _cacheService;
     private readonly IHubContext<ChatHub> _hubContext;
+    private readonly IChatProxyService _chatProxy;
+    private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
 
-    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext)
+    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext, IChatProxyService chatProxy, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache)
     {
         _unitOfWork = unitOfWork;
         _linkService = linkService;
         _cacheService = cacheService;
         _hubContext = hubContext;
+        _chatProxy = chatProxy;
+        _distributedCache = distributedCache;
     }
 
     public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId)
     {
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token))
+        {
+            var proxyConvos = await _chatProxy.GetConversationsAsync(token);
+            if (proxyConvos.Any()) return proxyConvos;
+        }
+
         var cacheKey = $"user:{userId}:conversations";
         var cached = await _cacheService.GetAsync<IEnumerable<ConversationDto>>(cacheKey);
         if (cached != null) return cached;
@@ -47,29 +58,41 @@ public class ChatService : IChatService
         return dtos;
     }
 
-    public async Task<ConversationDto?> GetConversationAsync(Guid userId, Guid conversationId)
+    public async Task<ConversationDto?> GetConversationAsync(Guid userId, string conversationId)
     {
-        // For single conversation, we can check if it's in the user's conversation list cache
-        // but for now, we'll just implement a simple cache for the specific conversation
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        {
+            return await _chatProxy.GetConversationAsync(token, conversationId);
+        }
+
+        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
         var cacheKey = $"user:{userId}:conv:{conversationId}";
         var cached = await _cacheService.GetAsync<ConversationDto>(cacheKey);
         if (cached != null) return cached;
 
-        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
+        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(convId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
         {
             return null;
         }
 
-        var unreadCount = await _unitOfWork.Messages.GetUnreadCountAsync(conversationId, userId);
+        var unreadCount = await _unitOfWork.Messages.GetUnreadCountAsync(convId, userId);
         var dto = MapToConversationDto(conversation, userId, unreadCount);
         
         await _cacheService.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(10));
         return dto;
     }
 
-    public async Task<IEnumerable<MessageDto>> GetConversationMessagesAsync(Guid userId, Guid conversationId, int limit = 50, DateTimeOffset? before = null)
+    public async Task<IEnumerable<MessageDto>> GetConversationMessagesAsync(Guid userId, string conversationId, int limit = 50, DateTimeOffset? before = null)
     {
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        {
+            return await _chatProxy.GetMessagesAsync(token, conversationId, limit, before?.ToString("O"));
+        }
+
+        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
         // Don't cache when fetching historical messages (before is set) for simplicity
         if (!before.HasValue && limit == 50)
         {
@@ -83,7 +106,7 @@ public class ChatService : IChatService
             }
         }
 
-        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
+        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(convId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
         {
             throw new Exception("Conversation not found or access denied");
@@ -167,9 +190,16 @@ public class ChatService : IChatService
         return MapToConversationDto(created!, userId, 0);
     }
 
-    public async Task<MessageDto> SendMessageAsync(Guid userId, Guid conversationId, string? content, string? imageUrl = null, Guid? replyToId = null, LinkPreviewDto? linkPreviewDto = null)
+    public async Task<MessageDto> SendMessageAsync(Guid userId, string conversationId, string? content, string? imageUrl = null, string? replyToId = null, LinkPreviewDto? linkPreviewDto = null)
     {
-        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        {
+            return await _chatProxy.SendMessageAsync(token, conversationId, content ?? "");
+        }
+
+        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
+        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(convId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
         {
             throw new Exception("Conversation not found or access denied");
@@ -267,14 +297,15 @@ public class ChatService : IChatService
         return MapToMessageDto(savedMessage!);
     }
 
-    public async Task<MessageDto> EditMessageAsync(Guid userId, Guid messageId, string newContent)
+    public async Task<MessageDto> EditMessageAsync(Guid userId, string messageId, string newContent)
     {
+        var msgId = Guid.TryParse(messageId, out var g) ? g : Guid.Empty;
         var message = await _unitOfWork.Messages.Query()
             .Include(m => m.Sender)
             .Include(m => m.LinkPreview)
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
-            .FirstOrDefaultAsync(m => m.Id == messageId);
+            .FirstOrDefaultAsync(m => m.Id == msgId);
 
         if (message == null || message.SenderId != userId || message.IsRecalled)
         {
@@ -306,14 +337,15 @@ public class ChatService : IChatService
         return MapToMessageDto(message);
     }
 
-    public async Task<MessageDto> RecallMessageAsync(Guid userId, Guid messageId)
+    public async Task<MessageDto> RecallMessageAsync(Guid userId, string messageId)
     {
+        var msgId = Guid.TryParse(messageId, out var g) ? g : Guid.Empty;
         var message = await _unitOfWork.Messages.Query()
             .Include(m => m.Sender)
             .Include(m => m.LinkPreview)
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
-            .FirstOrDefaultAsync(m => m.Id == messageId);
+            .FirstOrDefaultAsync(m => m.Id == msgId);
 
         if (message == null || message.SenderId != userId)
         {
@@ -337,10 +369,11 @@ public class ChatService : IChatService
         return MapToMessageDto(message);
     }
 
-    public async Task<MessageDto> AddOrUpdateReactionAsync(Guid userId, Guid messageId, string emoji)
+    public async Task<MessageDto> AddOrUpdateReactionAsync(Guid userId, string messageId, string emoji)
     {
+        var msgId = Guid.TryParse(messageId, out var g) ? g : Guid.Empty;
         var existingReaction = await _unitOfWork.MessageReactions.Query()
-            .FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserId == userId);
+            .FirstOrDefaultAsync(r => r.MessageId == msgId && r.UserId == userId);
 
         Guid conversationId = Guid.Empty;
 
@@ -397,10 +430,11 @@ public class ChatService : IChatService
         return MapToMessageDto(updatedMessage);
     }
 
-    public async Task<IEnumerable<MessageDto>> ForwardMessageAsync(Guid userId, Guid messageId, List<Guid> targetConversationIds)
+    public async Task<IEnumerable<MessageDto>> ForwardMessageAsync(Guid userId, string messageId, List<string> targetConversationIds)
     {
+        var msgId = Guid.TryParse(messageId, out var g) ? g : Guid.Empty;
         var originalMessage = await _unitOfWork.Messages.Query()
-            .FirstOrDefaultAsync(m => m.Id == messageId);
+            .FirstOrDefaultAsync(m => m.Id == msgId);
 
         if (originalMessage == null || originalMessage.IsRecalled)
         {
@@ -417,9 +451,17 @@ public class ChatService : IChatService
         return forwardedMessages;
     }
 
-    public async Task MarkAsReadAsync(Guid userId, Guid conversationId)
+    public async Task MarkAsReadAsync(Guid userId, string conversationId)
     {
-        await _unitOfWork.Messages.MarkAsReadAsync(conversationId, userId);
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        {
+            await _chatProxy.UpdateReadAsync(token, conversationId);
+            return;
+        }
+
+        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
+        await _unitOfWork.Messages.MarkAsReadAsync(convId, userId);
         await _unitOfWork.CompleteAsync();
         
         // Invalidate conversation-related caches specifically for the user
@@ -427,16 +469,26 @@ public class ChatService : IChatService
         await _cacheService.RemoveAsync($"user:{userId}:conv:{conversationId}");
     }
 
-    public async Task<List<Guid>> GetParticipantIdsAsync(Guid conversationId)
+    public async Task<List<Guid>> GetParticipantIdsAsync(string conversationId)
     {
-        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
+        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
+        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(convId);
         return conversation?.ConversationParticipants.Select(p => p.UserId).ToList() ?? new List<Guid>();
     }
 
-    public async Task<ChatLogResult> GetLogAsync(Guid userId, Guid conversationId, string? cursor)
+    public async Task<ChatLogResult> GetLogAsync(Guid userId, string conversationId, string? cursor)
     {
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        {
+             var messages = await _chatProxy.GetMessagesAsync(token, conversationId, 50, cursor);
+             var nextCursor = messages.LastOrDefault()?.Id; // Simplified cursor logic for proxy
+             return new ChatLogResult(messages, nextCursor);
+        }
+
+        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
         // Validate access
-        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(conversationId);
+        var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(convId);
         if (conversation == null || !conversation.ConversationParticipants.Any(p => p.UserId == userId))
         {
             return new ChatLogResult(Enumerable.Empty<MessageDto>(), cursor);
@@ -447,13 +499,13 @@ public class ChatService : IChatService
             .Include(m => m.LinkPreview)
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Include(m => m.ReplyTo).ThenInclude(rm => rm!.Sender)
-            .Where(m => m.ConversationId == conversationId && (m.IsDeleted == false || m.IsDeleted == null));
+            .Where(m => m.ConversationId == convId && (m.IsDeleted == false || m.IsDeleted == null));
 
         // If a cursor is provided, only fetch messages AFTER that cursor (the Tid of the last known message)
         if (!string.IsNullOrEmpty(cursor))
         {
             var cursorMsg = await _unitOfWork.Messages.Query()
-                .FirstOrDefaultAsync(m => m.Tid == cursor && m.ConversationId == conversationId);
+                .FirstOrDefaultAsync(m => m.Tid == cursor && m.ConversationId == convId);
             if (cursorMsg?.CreatedAt != null)
             {
                 var cursorTime = cursorMsg.CreatedAt.Value;
@@ -483,7 +535,7 @@ public class ChatService : IChatService
         var lastMessage = c.Messages.OrderByDescending(m => m.CreatedAt).FirstOrDefault();
         
         return new ConversationDto(
-            c.Id,
+            c.Id.ToString(),
             participants,
             lastMessage != null ? MapToMessageDto(lastMessage) : null,
             unreadCount,
@@ -491,12 +543,14 @@ public class ChatService : IChatService
         );
     }
 
+    private bool IsGuid(string value) => Guid.TryParse(value, out _);
+
     private MessageDto MapToMessageDto(Message m)
     {
         return new MessageDto(
-            m.Id,
-            m.ConversationId,
-            m.SenderId,
+            m.Id.ToString(),
+            m.ConversationId.ToString(),
+            m.SenderId.ToString(),
             m.Content,
             m.ImageUrl,
             m.CreatedAt.HasValue ? DateTime.SpecifyKind(m.CreatedAt.Value, DateTimeKind.Utc) : DateTimeOffset.UtcNow,
@@ -513,16 +567,16 @@ public class ChatService : IChatService
                 Domain = m.LinkPreview.Domain
             },
             m.ReplyTo != null ? MapToMessageDtoSimple(m.ReplyTo) : null,
-            m.Reactions?.Select(r => new MessageReactionDto(r.UserId, r.Emoji, r.User?.DisplayName)).ToList()
+            m.Reactions?.Select(r => new MessageReactionDto(r.UserId.ToString(), r.Emoji, r.User?.DisplayName)).ToList()
         );
     }
 
     private MessageDto MapToMessageDtoSimple(Message m)
     {
         return new MessageDto(
-            m.Id,
-            m.ConversationId,
-            m.SenderId,
+            m.Id.ToString(),
+            m.ConversationId.ToString(),
+            m.SenderId.ToString(),
             m.Content,
             m.ImageUrl,
             m.CreatedAt.HasValue ? DateTime.SpecifyKind(m.CreatedAt.Value, DateTimeKind.Utc) : DateTimeOffset.UtcNow,

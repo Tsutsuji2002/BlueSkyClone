@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace BSkyClone.DTOs;
 
 public record ConversationDto(
-    Guid Id,
+    string Id,
     List<UserDto> Participants,
     MessageDto? LastMessage,
     int UnreadCount,
@@ -12,15 +12,15 @@ public record ConversationDto(
 );
 
 public record MessageReactionDto(
-    Guid UserId,
+    string UserId,
     string Emoji,
     string? DisplayName = null
 );
 
 public record MessageDto(
-    Guid Id,
-    Guid ConversationId,
-    Guid SenderId,
+    string Id,
+    string ConversationId,
+    string SenderId,
     string? Content,
     string? ImageUrl,
     DateTimeOffset CreatedAt,

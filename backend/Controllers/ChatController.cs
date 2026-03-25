@@ -33,12 +33,7 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetConversation(string id)
     {
         var userId = GetUserId();
-        if (!Guid.TryParse(id, out var conversationId))
-        {
-            return BadRequest(new { message = "Invalid conversation ID format." });
-        }
-
-        var conversation = await _chatService.GetConversationAsync(userId, conversationId);
+        var conversation = await _chatService.GetConversationAsync(userId, id);
         if (conversation == null)
         {
             return NotFound(new { message = "Conversation not found or access denied." });
@@ -51,12 +46,7 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> MarkAsRead(string id)
     {
         var userId = GetUserId();
-        if (!Guid.TryParse(id, out var conversationId))
-        {
-            return BadRequest(new { message = "Invalid conversation ID format." });
-        }
-
-        await _chatService.MarkAsReadAsync(userId, conversationId);
+        await _chatService.MarkAsReadAsync(userId, id);
         return Ok();
     }
 
@@ -64,14 +54,9 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetMessages(string id, [FromQuery] int limit = 50, [FromQuery] DateTimeOffset? before = null)
     {
         var userId = GetUserId();
-        if (!Guid.TryParse(id, out var convId))
-        {
-            return BadRequest(new { message = "Invalid conversation ID format." });
-        }
-
         try
         {
-            var messages = await _chatService.GetConversationMessagesAsync(userId, convId, limit, before);
+            var messages = await _chatService.GetConversationMessagesAsync(userId, id, limit, before);
             return Ok(messages);
         }
         catch (Exception ex)
@@ -88,12 +73,9 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetLog(string id, [FromQuery] string? cursor = null)
     {
         var userId = GetUserId();
-        if (!Guid.TryParse(id, out var convId))
-            return BadRequest(new { message = "Invalid conversation ID format." });
-
         try
         {
-            var result = await _chatService.GetLogAsync(userId, convId, cursor);
+            var result = await _chatService.GetLogAsync(userId, id, cursor);
             return Ok(new { cursor = result.Cursor, logs = result.Messages });
         }
         catch (Exception ex)
@@ -103,27 +85,12 @@ public class ChatController : ControllerBase
     }
 
     [HttpPost("conversations")]
-
     public async Task<IActionResult> GetOrCreateConversation([FromBody] CreateConversationRequest request)
     {
         var userId = GetUserId();
-        var participantGuids = new List<Guid>();
-
-        foreach (var id in request.ParticipantIds)
-        {
-            if (Guid.TryParse(id, out var guid))
-            {
-                participantGuids.Add(guid);
-            }
-            else
-            {
-                return BadRequest(new { message = $"Invalid participant ID format: {id}" });
-            }
-        }
-
         try
         {
-            var conversation = await _chatService.GetOrCreateConversationAsync(userId, participantGuids);
+            var conversation = await _chatService.GetOrCreateConversationAsync(userId, request.ParticipantIds);
             return Ok(conversation);
         }
         catch (Exception ex)
@@ -136,14 +103,9 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> ForwardMessage(string messageId, [FromBody] ForwardMessageRequest request)
     {
         var userId = GetUserId();
-        if (!Guid.TryParse(messageId, out var msgId))
-        {
-            return BadRequest(new { message = "Invalid message ID format." });
-        }
-
         try
         {
-            var messages = await _chatService.ForwardMessageAsync(userId, msgId, request.TargetConversationIds);
+            var messages = await _chatService.ForwardMessageAsync(userId, messageId, request.TargetConversationIds.Select(id => id.ToString()).ToList());
             return Ok(messages);
         }
         catch (Exception ex)

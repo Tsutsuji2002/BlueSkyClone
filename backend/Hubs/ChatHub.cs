@@ -33,18 +33,14 @@ public class ChatHub : Hub
         var userId = GetUserIdFromContext();
         if (userId == Guid.Empty) throw new HubException("Unauthorized");
 
-        if (!Guid.TryParse(conversationId, out var convId))
-            throw new HubException("Invalid conversation ID format.");
-
-        Guid? rId = null;
-        if (!string.IsNullOrEmpty(replyToId) && Guid.TryParse(replyToId, out var parsedReplyId))
-            rId = parsedReplyId;
-
         try
         {
-            var messageDto = await _chatService.SendMessageAsync(userId, convId, content, imageUrl, rId, linkPreview);
-            var participantIds = await _chatService.GetParticipantIdsAsync(convId);
+            var messageDto = await _chatService.SendMessageAsync(userId, conversationId, content, imageUrl, replyToId, linkPreview);
+            // Broadcast to the conversation group
+            await Clients.Group(conversationId).SendAsync("ReceiveMessage", messageDto);
             
+            // Still broadcast to participants' personal groups if they are local
+            var participantIds = await _chatService.GetParticipantIdsAsync(conversationId);
             foreach (var pId in participantIds)
             {
                 await Clients.Group($"user-{pId}").SendAsync("ReceiveMessage", messageDto);
@@ -58,18 +54,16 @@ public class ChatHub : Hub
         var userId = GetUserIdFromContext();
         if (userId == Guid.Empty) throw new HubException("Unauthorized");
 
-        if (!Guid.TryParse(messageId, out var msgId))
-            throw new HubException("Invalid message ID format.");
-
         try
         {
-            var messageDto = await _chatService.EditMessageAsync(userId, msgId, newContent);
+            var messageDto = await _chatService.EditMessageAsync(userId, messageId, newContent);
             var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
             
             foreach (var pId in participantIds)
             {
                 await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
             }
+            await Clients.Group(messageDto.ConversationId).SendAsync("UpdateMessage", messageDto);
         }
         catch (Exception ex) { throw new HubException(ex.Message); }
     }
@@ -79,18 +73,16 @@ public class ChatHub : Hub
         var userId = GetUserIdFromContext();
         if (userId == Guid.Empty) throw new HubException("Unauthorized");
 
-        if (!Guid.TryParse(messageId, out var msgId))
-            throw new HubException("Invalid message ID format.");
-
         try
         {
-            var messageDto = await _chatService.RecallMessageAsync(userId, msgId);
+            var messageDto = await _chatService.RecallMessageAsync(userId, messageId);
             var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
             
             foreach (var pId in participantIds)
             {
                 await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
             }
+            await Clients.Group(messageDto.ConversationId).SendAsync("UpdateMessage", messageDto);
         }
         catch (Exception ex) { throw new HubException(ex.Message); }
     }
@@ -100,18 +92,16 @@ public class ChatHub : Hub
         var userId = GetUserIdFromContext();
         if (userId == Guid.Empty) throw new HubException("Unauthorized");
 
-        if (!Guid.TryParse(messageId, out var msgId))
-            throw new HubException("Invalid message ID format.");
-
         try
         {
-            var messageDto = await _chatService.AddOrUpdateReactionAsync(userId, msgId, emoji);
+            var messageDto = await _chatService.AddOrUpdateReactionAsync(userId, messageId, emoji);
             var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
             
             foreach (var pId in participantIds)
             {
                 await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
             }
+            await Clients.Group(messageDto.ConversationId).SendAsync("UpdateMessage", messageDto);
         }
         catch (Exception ex) { throw new HubException(ex.Message); }
     }

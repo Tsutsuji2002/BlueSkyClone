@@ -65,6 +65,7 @@ const MessagesPage: React.FC = () => {
                                 icon={<FiMail size={20} />}
                                 variant="primary"
                                 tooltip={t('messages.new_message')}
+                                onClick={() => navigate('/search?tab=users')}
                             />
                         </div>
                     </div>
