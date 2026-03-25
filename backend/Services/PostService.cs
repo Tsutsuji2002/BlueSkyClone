@@ -152,6 +152,12 @@ public class PostService : IPostService
                     mappedPosts = MapBlueskyFeed(feedArray);
                 }
 
+                // FILTER: If "replies" tab is requested, only show posts that are actually replies
+                if (type == "replies")
+                {
+                    mappedPosts = mappedPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
+                }
+
                 await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(mappedPosts), new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
             }
 
@@ -173,60 +179,34 @@ public class PostService : IPostService
             {
                 if (!item.TryGetProperty("post", out var postObj)) continue;
                 
-                var authorObj = postObj.GetProperty("author");
-                var recordObj = postObj.GetProperty("record");
+                var postDto = MapBlueskyPost(postObj);
+                if (postDto == null) continue;
 
-                var authorDto = new AuthorDto
+                // Map Reply context
+                if (item.TryGetProperty("reply", out var replyObj) && replyObj.ValueKind != JsonValueKind.Null)
                 {
-                    Id = Guid.NewGuid(), // Fake ID for UI
-                    Did = authorObj.GetProperty("did").GetString(),
-                    Handle = authorObj.GetProperty("handle").GetString()!,
-                    DisplayName = authorObj.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
-                    AvatarUrl = authorObj.TryGetProperty("avatar", out var av) ? av.GetString() : null,
-                    IsVerified = false
-                };
-
-                var likeCount = postObj.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0;
-                var repostCount = postObj.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0;
-                var replyCount = postObj.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0;
-                
-                var isLiked = false;
-                var isReposted = false;
-                if (postObj.TryGetProperty("viewer", out var viewer))
-                {
-                    if (viewer.TryGetProperty("like", out var vl)) isLiked = vl.ValueKind != System.Text.Json.JsonValueKind.Null;
-                    if (viewer.TryGetProperty("repost", out var vr)) isReposted = vr.ValueKind != System.Text.Json.JsonValueKind.Null;
-                }
-
-                var text = recordObj.TryGetProperty("text", out var t) ? t.GetString() : "";
-                var createdAtStr = recordObj.TryGetProperty("createdAt", out var ca) ? ca.GetString() : null;
-                DateTime.TryParse(createdAtStr, out var createdAt);
-
-                var imageUrls = new List<string>();
-                if (postObj.TryGetProperty("embed", out var postEmbed))
-                {
-                    if (postEmbed.TryGetProperty("images", out var pImages))
+                    if (replyObj.TryGetProperty("parent", out var parentObj) && parentObj.ValueKind != JsonValueKind.Null)
                     {
-                        foreach(var pImg in pImages.EnumerateArray())
+                        postDto.ParentPost = MapBlueskyPost(parentObj);
+                        if (postDto.ParentPost?.Author?.Handle != null)
                         {
-                            if (pImg.TryGetProperty("fullsize", out var fz) && fz.ValueKind != System.Text.Json.JsonValueKind.Null)
-                                imageUrls.Add(fz.GetString()!);
+                            postDto.ReplyToHandle = postDto.ParentPost.Author.Handle;
                         }
+                    }
+                    if (replyObj.TryGetProperty("root", out var rootObj) && rootObj.ValueKind != JsonValueKind.Null)
+                    {
+                        // We could map root too, but Parent is enough for the "reply card" line connecting them
                     }
                 }
 
-                var uri = postObj.GetProperty("uri").GetString();
-                var cid = postObj.GetProperty("cid").GetString();
-                var tid = uri?.Split('/').Last() ?? Guid.NewGuid().ToString();
-
-                AuthorDto? repostedBy = null;
+                // Map Repost reason
                 if (item.TryGetProperty("reason", out var reasonObj) && reasonObj.ValueKind != System.Text.Json.JsonValueKind.Null)
                 {
                     if (reasonObj.TryGetProperty("$type", out var typeOut) && typeOut.GetString() == "app.bsky.feed.defs#reasonRepost")
                     {
                          if (reasonObj.TryGetProperty("by", out var byObj))
                          {
-                             repostedBy = new AuthorDto
+                             postDto.RepostedBy = new AuthorDto
                              {
                                  Id = Guid.NewGuid(),
                                  Did = byObj.GetProperty("did").GetString(),
@@ -238,23 +218,6 @@ public class PostService : IPostService
                     }
                 }
 
-                var postDto = new PostDto
-                {
-                    Id = Guid.NewGuid(), // Fake ID
-                    Tid = tid,
-                    Uri = uri,
-                    Cid = cid,
-                    Content = text,
-                    CreatedAt = createdAt,
-                    Author = authorDto,
-                    LikesCount = likeCount,
-                    RepostsCount = repostCount,
-                    RepliesCount = replyCount,
-                    IsLiked = isLiked,
-                    IsReposted = isReposted,
-                    ImageUrls = imageUrls,
-                    RepostedBy = repostedBy
-                };
                 mappedPosts.Add(postDto);
             }
             catch (Exception ex)
@@ -263,6 +226,82 @@ public class PostService : IPostService
             }
         }
         return mappedPosts;
+    }
+
+    private PostDto? MapBlueskyPost(System.Text.Json.JsonElement postObj)
+    {
+        try
+        {
+            var authorObj = postObj.GetProperty("author");
+            var recordObj = postObj.GetProperty("record");
+
+            var authorDto = new AuthorDto
+            {
+                Id = Guid.NewGuid(),
+                Did = authorObj.GetProperty("did").GetString(),
+                Handle = authorObj.GetProperty("handle").GetString()!,
+                DisplayName = authorObj.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
+                AvatarUrl = authorObj.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+                IsVerified = authorObj.TryGetProperty("viewer", out var aview) && aview.TryGetProperty("following", out var _), // Simple heuristic
+            };
+
+            var likeCount = postObj.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0;
+            var repostCount = postObj.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0;
+            var replyCount = postObj.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0;
+            var quoteCount = postObj.TryGetProperty("quoteCount", out var qc) ? qc.GetInt32() : 0;
+
+            var isLiked = false;
+            var isReposted = false;
+            if (postObj.TryGetProperty("viewer", out var viewer))
+            {
+                if (viewer.TryGetProperty("like", out var vl)) isLiked = vl.ValueKind != System.Text.Json.JsonValueKind.Null;
+                if (viewer.TryGetProperty("repost", out var vr)) isReposted = vr.ValueKind != System.Text.Json.JsonValueKind.Null;
+            }
+
+            var text = recordObj.TryGetProperty("text", out var t) ? t.GetString() : "";
+            var createdAtStr = recordObj.TryGetProperty("createdAt", out var ca) ? ca.GetString() : null;
+            DateTime.TryParse(createdAtStr, out var createdAt);
+
+            var imageUrls = new List<string>();
+            if (postObj.TryGetProperty("embed", out var postEmbed))
+            {
+                if (postEmbed.TryGetProperty("images", out var pImages))
+                {
+                    foreach (var pImg in pImages.EnumerateArray())
+                    {
+                        if (pImg.TryGetProperty("fullsize", out var fz) && fz.ValueKind != System.Text.Json.JsonValueKind.Null)
+                            imageUrls.Add(fz.GetString()!);
+                    }
+                }
+            }
+
+            var uri = postObj.GetProperty("uri").GetString();
+            var cid = postObj.GetProperty("cid").GetString();
+            var tid = uri?.Split('/').Last() ?? Guid.NewGuid().ToString();
+
+            return new PostDto
+            {
+                Id = Guid.NewGuid(),
+                Tid = tid,
+                Uri = uri,
+                Cid = cid,
+                Content = text,
+                CreatedAt = createdAt,
+                Author = authorDto,
+                LikesCount = likeCount,
+                RepostsCount = repostCount,
+                RepliesCount = replyCount,
+                QuotesCount = quoteCount,
+                IsLiked = isLiked,
+                IsReposted = isReposted,
+                ImageUrls = imageUrls
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Failed to map Bluesky post: {Err}", ex.Message);
+            return null;
+        }
     }
 
     public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
@@ -1090,183 +1129,124 @@ public class PostService : IPostService
 
         await _unitOfWork.CompleteAsync();
 
-        // --- Phase 3: Repo Signing ---
+        // --- Phase 3: AT Protocol Proxy (Fereration) ---
         try
         {
             var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
             if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
             {
-                var postRecord = new Dictionary<string, object>
+                var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                if (!string.IsNullOrEmpty(token))
                 {
-                    { "$type", "app.bsky.feed.post" },
-                    { "text", post.Content ?? "" },
-                    { "createdAt", post.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
-                };
-
-                // 0. Facets (Mentions/Links)
-                if (!string.IsNullOrEmpty(post.Content))
-                {
-                    var facets = await GetFacetsAsync(post.Content);
-                    if (facets.Any())
+                    var postRecord = new Dictionary<string, object>
                     {
-                        postRecord["facets"] = facets;
-                        post.FacetsJson = System.Text.Json.JsonSerializer.Serialize(facets);
+                        { "$type", "app.bsky.feed.post" },
+                        { "text", post.Content ?? "" },
+                        { "createdAt", post.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                    };
+
+                    // 0. Facets (Mentions/Links)
+                    if (!string.IsNullOrEmpty(post.Content))
+                    {
+                        var facets = await GetFacetsAsync(post.Content);
+                        if (facets.Any()) postRecord["facets"] = facets;
                     }
-                }
 
-                // 1. Reply Lexicon
-                if (post.ReplyToPostId != null && post.RootPostId != null)
-                {
-                    var parentPost = await _unitOfWork.Posts.Query()
-                        .Include(p => p.Author)
-                        .FirstOrDefaultAsync(p => p.Id == post.ReplyToPostId.Value);
-
-                    var rootPost = await _unitOfWork.Posts.Query()
-                        .Include(p => p.Author)
-                        .FirstOrDefaultAsync(p => p.Id == post.RootPostId.Value);
-
-                    if (parentPost != null && rootPost != null)
+                    // 1. Reply Lexicon
+                    if (post.ReplyToPostId != null && post.RootPostId != null)
                     {
-                        var parentUri = $"at://{parentPost.Author.Did}/app.bsky.feed.post/{parentPost.Tid}";
-                        var rootUri = $"at://{rootPost.Author.Did}/app.bsky.feed.post/{rootPost.Tid}";
+                        var parentPost = await _unitOfWork.Posts.Query().Include(p => p.Author).FirstOrDefaultAsync(p => p.Id == post.ReplyToPostId.Value);
+                        var rootPost = await _unitOfWork.Posts.Query().Include(p => p.Author).FirstOrDefaultAsync(p => p.Id == post.RootPostId.Value);
 
-                        // Use actual CID if available, fallback to Tid
-                        var parentCid = parentPost.Cid ?? parentPost.Tid;
-                        var rootCid = rootPost.Cid ?? rootPost.Tid;
-
-                        postRecord["reply"] = new Dictionary<string, object>
+                        if (parentPost != null && rootPost != null)
                         {
-                            { "root", new Dictionary<string, object> { { "uri", rootUri }, { "cid", rootCid } } },
-                            { "parent", new Dictionary<string, object> { { "uri", parentUri }, { "cid", parentCid } } }
-                        };
+                            postRecord["reply"] = new Dictionary<string, object>
+                            {
+                                { "root", new Dictionary<string, object> { { "uri", rootPost.Uri ?? $"at://{rootPost.Author.Did}/app.bsky.feed.post/{rootPost.Tid}" }, { "cid", rootPost.Cid ?? rootPost.Tid } } },
+                                { "parent", new Dictionary<string, object> { { "uri", parentPost.Uri ?? $"at://{parentPost.Author.Did}/app.bsky.feed.post/{parentPost.Tid}" }, { "cid", parentPost.Cid ?? parentPost.Tid } } }
+                            };
+                        }
                     }
-                }
 
-                // 2. Embed Lexicon (Media & Quotes & Links)
-                Dictionary<string, object>? embedRecord = null;
-                
-                // Embed: Quote
-                if (post.QuotePostId != null)
-                {
-                    var quotePost = await _unitOfWork.Posts.Query()
-                        .Include(p => p.Author)
-                        .FirstOrDefaultAsync(p => p.Id == post.QuotePostId.Value);
-                        
-                    if (quotePost != null)
+                    // 2. Embed Lexicon (Media & Quotes & Links)
+                    Dictionary<string, object>? embedRecord = null;
+                    if (post.QuotePostId != null)
                     {
-                        var quoteUri = $"at://{quotePost.Author.Did}/app.bsky.feed.post/{quotePost.Tid}";
-                        var quoteCid = quotePost.Cid ?? quotePost.Tid;
-
-                        embedRecord = new Dictionary<string, object>
+                        var quotePost = await _unitOfWork.Posts.Query().Include(p => p.Author).FirstOrDefaultAsync(p => p.Id == post.QuotePostId.Value);
+                        if (quotePost != null)
                         {
-                            { "$type", "app.bsky.embed.record" },
-                            { "record", new Dictionary<string, object> { { "uri", quoteUri }, { "cid", quoteCid } } }
-                        };
+                            embedRecord = new Dictionary<string, object>
+                            {
+                                { "$type", "app.bsky.embed.record" },
+                                { "record", new Dictionary<string, object> { { "uri", quotePost.Uri ?? $"at://{quotePost.Author.Did}/app.bsky.feed.post/{quotePost.Tid}" }, { "cid", quotePost.Cid ?? quotePost.Tid } } }
+                            };
+                        }
                     }
-                }
-                
-                // Embed: Images (Content-Addressed Blobs)
-                if (post.PostMedia.Any(m => m.Type == "image"))
-                {
-                    var images = new List<Dictionary<string, object>>();
-                    foreach (var img in post.PostMedia.Where(m => m.Type == "image" && !string.IsNullOrEmpty(m.Url)))
+
+                    if (post.PostMedia.Any(m => m.Type == "image"))
                     {
-                        try
+                        var images = new List<Dictionary<string, object>>();
+                        foreach (var img in post.PostMedia.Where(m => m.Type == "image" && !string.IsNullOrEmpty(m.Url)))
                         {
-                            // 1. Upload the media file as an AT Protocol Blob
                             string fullPath = Path.Combine(_environment.WebRootPath, img.Url.TrimStart('/'));
                             if (File.Exists(fullPath))
                             {
                                 using var stream = File.OpenRead(fullPath);
-                                // Determine MimeType (naive check)
-                                string mimeType = "image/jpeg";
-                                if (img.Url.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) mimeType = "image/png";
-                                if (img.Url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)) mimeType = "image/gif";
-                                if (img.Url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)) mimeType = "image/webp";
-
+                                string mimeType = img.Url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? "image/png" : 
+                                                 (img.Url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ? "image/gif" : "image/jpeg");
+                                
                                 var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
-                                img.Cid = blobCid; // Store for SQL
+                                img.Cid = blobCid;
 
-                                images.Add(new Dictionary<string, object>
-                                {
+                                images.Add(new Dictionary<string, object> {
                                     { "alt", img.AltText ?? "" },
-                                    { "image", new Dictionary<string, object> 
-                                        { 
-                                            { "$type", "blob" }, 
-                                            { "ref", new Dictionary<string, object> { { "$link", blobCid } } },
-                                            { "mimeType", mimeType },
-                                            { "size", (int)new FileInfo(fullPath).Length }
-                                        } 
-                                    }
+                                    { "image", new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", blobCid } } }, { "mimeType", mimeType }, { "size", (int)new FileInfo(fullPath).Length } } }
                                 });
                             }
                         }
-                        catch (Exception ex)
+                        if (images.Any())
                         {
-                            Console.WriteLine($"[CreatePostAsync] Blob Upload Error for {img.Url}: {ex.Message}");
+                            var imageEmbed = new Dictionary<string, object> { { "$type", "app.bsky.embed.images" }, { "images", images } };
+                            if (embedRecord != null && embedRecord["$type"].ToString() == "app.bsky.embed.record")
+                                embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.recordWithMedia" }, { "record", embedRecord }, { "media", imageEmbed } };
+                            else embedRecord = imageEmbed;
                         }
                     }
-                    
-                    if (images.Any())
+
+                    if (post.LinkPreview != null && embedRecord == null)
                     {
-                        var imageEmbed = new Dictionary<string, object>
-                        {
-                            { "$type", "app.bsky.embed.images" },
-                            { "images", images }
-                        };
-                        
-                        // If there was already a quote embed, AT Protocol uses 'app.bsky.embed.recordWithMedia'
-                        if (embedRecord != null && embedRecord["$type"].ToString() == "app.bsky.embed.record")
-                        {
-                             embedRecord = new Dictionary<string, object>
-                             {
-                                 { "$type", "app.bsky.embed.recordWithMedia" },
-                                 { "record", embedRecord },
-                                 { "media", imageEmbed }
-                             };
-                        }
-                        else
-                        {
-                            embedRecord = imageEmbed;
-                        }
+                        embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.external" }, { "external", new Dictionary<string, object> { { "uri", post.LinkPreview.Url }, { "title", post.LinkPreview.Title ?? "" }, { "description", post.LinkPreview.Description ?? "" } } } };
+                    }
+
+                    if (embedRecord != null) postRecord["embed"] = embedRecord;
+
+                    // 3. Create Record on Bluesky PDS
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    var bskyResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord", 
+                        new StringContent(JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.post", record = postRecord }), Encoding.UTF8, "application/json"));
+
+                    if (bskyResponse.IsSuccessStatusCode)
+                    {
+                        var responseBody = await bskyResponse.Content.ReadAsStringAsync();
+                        var json = JsonDocument.Parse(responseBody);
+                        post.Uri = json.RootElement.GetProperty("uri").GetString();
+                        post.Cid = json.RootElement.GetProperty("cid").GetString();
+                        post.Tid = post.Uri?.Split('/').Last() ?? post.Tid;
+                        Console.WriteLine($"[CreatePostAsync] Proxied post to Bluesky, URI: {post.Uri}");
+                    }
+                    else
+                    {
+                        var error = await bskyResponse.Content.ReadAsStringAsync();
+                        Console.WriteLine($"[CreatePostAsync] Bluesky Post Failed: {bskyResponse.StatusCode} - {error}");
                     }
                 }
-                
-                // Embed: External Link
-                if (post.LinkPreview != null && embedRecord == null) // Skipping recordWithMedia for links for simplicity here
-                {
-                    embedRecord = new Dictionary<string, object>
-                    {
-                        { "$type", "app.bsky.embed.external" },
-                        { "external", new Dictionary<string, object>
-                            {
-                                { "uri", post.LinkPreview.Url },
-                                { "title", post.LinkPreview.Title ?? "" },
-                                { "description", post.LinkPreview.Description ?? "" }
-                            }
-                        }
-                    };
-                }
-
-                if (embedRecord != null)
-                {
-                    postRecord["embed"] = embedRecord;
-                }
-                var cid = await _repoManager.CreateRecordAsync(authorUser.Did, "app.bsky.feed.post", postRecord);
-                
-                post.Cid = cid;
-                _unitOfWork.Posts.Update(post);
-                await _unitOfWork.CompleteAsync();
-
-                Console.WriteLine($"[CreatePostAsync] Repo updated and signed for User {userId}, CID: {cid}");
             }
-
-            // Automated Labeling
             await _labelingService.RunAutomatedLabelingAsync(post);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CreatePostAsync] Phase 3 Error: {ex.Message}");
+            Console.WriteLine($"[CreatePostAsync] AT Proxy Error: {ex.Message}");
         }
 
         // Detect Mentions

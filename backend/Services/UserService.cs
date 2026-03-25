@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using DnsClient;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 
@@ -214,9 +215,25 @@ public class UserService : IUserService
                     catch (Exception ex) { Console.WriteLine($"[UpdateProfileAsync] Banner Blob error: {ex.Message}"); }
                 }
 
-                var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.actor.profile", profileRecord);
-                await _repoManager.SignRepoAsync(user.Did, cid);
-                Console.WriteLine($"[UpdateProfileAsync] Profile Repo updated and signed for User {userId}");
+                // 3. Create Record on Bluesky PDS
+                var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    var bskyResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord", 
+                        new StringContent(JsonSerializer.Serialize(new { repo = user.Did, collection = "app.bsky.actor.profile", record = profileRecord }), Encoding.UTF8, "application/json"));
+
+                    if (bskyResponse.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine($"[UpdateProfileAsync] Proxied profile update to Bluesky for User {userId}");
+                    }
+                    else
+                    {
+                        var error = await bskyResponse.Content.ReadAsStringAsync();
+                        Console.WriteLine($"[UpdateProfileAsync] Bluesky Profile Update Failed: {bskyResponse.StatusCode} - {error}");
+                    }
+                }
             }
         }
         catch (Exception ex)
@@ -466,13 +483,32 @@ public class UserService : IUserService
                     { "createdAt", follow.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
                 };
                 
-                var cid = await _repoManager.CreateRecordAsync(follower.Did, "app.bsky.graph.follow", followRecord);
+                // 1. Proxy to Bluesky PDS
+                var token = await _cacheService.GetAsync<string>($"BlueskyToken_{followerId}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    var bskyResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord", 
+                        new StringContent(JsonSerializer.Serialize(new { repo = follower.Did, collection = "app.bsky.graph.follow", record = followRecord }), Encoding.UTF8, "application/json"));
 
-                follow.Cid = cid;
-                follow.Uri = $"at://{follower.Did}/app.bsky.graph.follow/{follow.Tid}";
-                _unitOfWork.Follows.Update(follow);
-
-                Console.WriteLine($"[FollowUserAsync] Repo updated and signed for User {followerId}");
+                    if (bskyResponse.IsSuccessStatusCode)
+                    {
+                        var responseBody = await bskyResponse.Content.ReadAsStringAsync();
+                        var json = JsonDocument.Parse(responseBody);
+                        follow.Uri = json.RootElement.GetProperty("uri").GetString();
+                        follow.Cid = json.RootElement.GetProperty("cid").GetString();
+                        follow.Tid = follow.Uri?.Split('/').Last() ?? follow.Tid;
+                        
+                        _unitOfWork.Follows.Update(follow);
+                        Console.WriteLine($"[FollowUserAsync] Proxied follow to Bluesky for User {followerId}");
+                    }
+                    else
+                    {
+                        var error = await bskyResponse.Content.ReadAsStringAsync();
+                        Console.WriteLine($"[FollowUserAsync] Bluesky Follow Failed: {bskyResponse.StatusCode} - {error}");
+                    }
+                }
             }
         }
         catch (Exception ex)
@@ -580,8 +616,24 @@ public class UserService : IUserService
         {
             if (follower != null && !string.IsNullOrEmpty(follower.Did) && !string.IsNullOrEmpty(existing.Tid))
             {
-                await _repoManager.DeleteRecordAsync(follower.Did, "app.bsky.graph.follow", existing.Tid);
-                Console.WriteLine($"[UnfollowUserAsync] Deleted follow record {existing.Tid} for user {followerId}");
+                var token = await _cacheService.GetAsync<string>($"BlueskyToken_{followerId}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    var bskyResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord", 
+                        new StringContent(JsonSerializer.Serialize(new { repo = follower.Did, collection = "app.bsky.graph.follow", rkey = existing.Tid }), Encoding.UTF8, "application/json"));
+
+                    if (bskyResponse.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine($"[UnfollowUserAsync] Proxied unfollow to Bluesky for User {followerId}");
+                    }
+                    else
+                    {
+                        var error = await bskyResponse.Content.ReadAsStringAsync();
+                        Console.WriteLine($"[UnfollowUserAsync] Bluesky Unfollow Failed: {bskyResponse.StatusCode} - {error}");
+                    }
+                }
             }
         }
         catch (Exception ex)

@@ -4,6 +4,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using BSkyClone.Utilities;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Net.Http;
+using System.Net.Http.Headers;
 
 namespace BSkyClone.Services
 {
@@ -11,14 +14,15 @@ namespace BSkyClone.Services
     {
         private readonly BSkyDbContext _dbContext;
         private readonly ICryptoService _crypto;
-
         private readonly MstService _mst;
+        private readonly IDistributedCache _cache;
 
-        public RepoManager(BSkyDbContext dbContext, ICryptoService crypto, MstService mst)
+        public RepoManager(BSkyDbContext dbContext, ICryptoService crypto, MstService mst, IDistributedCache cache)
         {
             _dbContext = dbContext;
             _crypto = crypto;
             _mst = mst;
+            _cache = cache;
         }
 
         public async Task<string> CreateRecordAsync(string did, string collection, object record, string? rkey = null)
@@ -193,30 +197,70 @@ namespace BSkyClone.Services
 
         public async Task<string> UploadBlobAsync(string did, System.IO.Stream stream, string mimeType)
         {
+            // 1. Try to proxy to official PDS if user is logged in
+            try
+            {
+                var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Did == did);
+                if (user != null)
+                {
+                    var token = await _cache.GetStringAsync($"BlueskyToken_{user.Id}");
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        using var client = new HttpClient();
+                        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                        
+                        var content = new StreamContent(stream);
+                        content.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
+                        
+                        var response = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.uploadBlob", content);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var responseBody = await response.Content.ReadAsStringAsync();
+                            var json = JsonDocument.Parse(responseBody);
+                            var cid = json.RootElement.GetProperty("blob").GetProperty("ref").GetProperty("$link").GetString();
+                            
+                            if (!string.IsNullOrEmpty(cid))
+                            {
+                                Console.WriteLine($"[RepoManager] Proxied blob upload to Bluesky, CID: {cid}");
+                                return cid;
+                            }
+                        }
+                        else
+                        {
+                            var error = await response.Content.ReadAsStringAsync();
+                            Console.WriteLine($"[RepoManager] Bluesky Blob Upload Failed: {response.StatusCode} - {error}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RepoManager] Error proxying blob upload: {ex.Message}");
+            }
+
+            // Fallback: Local CID generation (won't federate correctly for remote users)
+            stream.Position = 0;
             using var ms = new System.IO.MemoryStream();
             await stream.CopyToAsync(ms);
             var data = ms.ToArray();
 
-            // Generate CID for the raw data using 'raw' multicodec
-            var cid = ProtocolUtils.GenerateCid(data, 0x55);
-
+            var localCid = ProtocolUtils.GenerateCid(data, 0x55);
             var block = new RepoBlock
             {
-                Cid = cid,
+                Cid = localCid,
                 Data = data,
                 Did = did,
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Check if block already exists
-            var existing = await _dbContext.RepoBlocks.FindAsync(cid);
+            var existing = await _dbContext.RepoBlocks.FindAsync(localCid);
             if (existing == null)
             {
                 _dbContext.RepoBlocks.Add(block);
                 await _dbContext.SaveChangesAsync();
             }
 
-            return cid;
+            return localCid;
         }
     }
 }
