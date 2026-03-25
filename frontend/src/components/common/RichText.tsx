@@ -13,7 +13,7 @@ const RichText: React.FC<RichTextProps> = ({ content, facets, className }) => {
 
     if (!facets || facets.length === 0) {
         // Fallback to simple regex if no facets provided (e.g. legacy posts)
-        const parts = content.split(/(@[a-zA-Z0-9.-]+)|(https?:\/\/[^\s]+)|(#\w+)/g).filter(Boolean);
+        const parts = content.split(/(@[a-zA-Z0-9.-]+)|(https?:\/\/[^\s]+|www\.[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}[^\s]*)|(#\w+)/g).filter(Boolean);
         return (
             <p className={className}>
                 {parts.map((part, index) => {
@@ -31,9 +31,10 @@ const RichText: React.FC<RichTextProps> = ({ content, facets, className }) => {
                                 {part}
                             </Link>
                         );
-                    } else if (part.startsWith('http')) {
+                    } else if (part.startsWith('http') || part.startsWith('www.')) {
+                        const href = part.startsWith('http') ? part : `https://${part}`;
                         return (
-                            <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline" onClick={(e) => e.stopPropagation()}>
+                            <a key={index} href={href} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline" onClick={(e) => e.stopPropagation()}>
                                 {part.length > 40 ? part.substring(0, 37) + '...' : part}
                             </a>
                         );

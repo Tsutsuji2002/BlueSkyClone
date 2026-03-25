@@ -16,6 +16,7 @@ namespace BSkyClone.Services
         /// <param name="body">Optional JSON body for POST requests.</param>
         /// <returns>The response content as a string or byte array.</returns>
         Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null);
+        Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, Dictionary<string, string?> queryParams, string? token = null, string method = "GET", object? body = null);
     }
 
     public class ProxyResponse

@@ -86,5 +86,11 @@ namespace BSkyClone.Services
                 return new ProxyResponse { Success = false, StatusCode = 500, Content = ex.Message };
             }
         }
+
+        public async Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, Dictionary<string, string?> queryParams, string? token = null, string method = "GET", object? body = null)
+        {
+            var collection = new QueryCollection(queryParams.ToDictionary(p => p.Key, p => new Microsoft.Extensions.Primitives.StringValues(p.Value)));
+            return await ProxyRequestAsync(did, nsid, collection, token, method, body);
+        }
     }
 }

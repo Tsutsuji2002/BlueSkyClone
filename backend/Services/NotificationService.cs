@@ -114,7 +114,7 @@ public class NotificationService : INotificationService
             {
                 try
                 {
-                    var response = await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.getUnreadCount", null, token);
+                    var response = await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.getUnreadCount", new Dictionary<string, string?>(), token);
                     if (response.Success)
                     {
                         var unreadResponse = JsonSerializer.Deserialize<GetUnreadCountResponse>(response.Content);
@@ -157,7 +157,7 @@ public class NotificationService : INotificationService
                 try
                 {
                     var body = new UpdateSeenRequest { SeenAt = DateTime.UtcNow.ToString("O") };
-                    await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.updateSeen", null, token, "POST", body);
+                    await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.updateSeen", new Dictionary<string, string?>(), token, "POST", body);
                 }
                 catch (Exception ex)
                 {

@@ -195,7 +195,12 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
                 </div>
             ) : (
-                <div className={cn("w-full bg-primary-500/10", isSmall ? "h-0.5" : "h-1")} />
+                <div className={cn(
+                    "w-full bg-gray-50 dark:bg-dark-surface/30 flex items-center justify-center border-b border-gray-100 dark:border-dark-border",
+                    isSmall ? "h-12" : "h-24"
+                )}>
+                    <FiLink className="text-gray-300 dark:text-dark-border" size={isSmall ? 20 : 32} />
+                </div>
             )}
             <div className={isSmall ? "p-2" : "p-3"}>
                 <div className="flex items-center gap-1 mb-0.5">

@@ -240,7 +240,7 @@ public class PostService : IPostService
                 Id = Guid.NewGuid(),
                 Did = authorObj.GetProperty("did").GetString(),
                 Handle = authorObj.GetProperty("handle").GetString()!,
-                DisplayName = authorObj.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
+                DisplayName = authorObj.TryGetProperty("displayName", out var dn) ? dn.GetString() : (authorObj.GetProperty("handle").GetString()!),
                 AvatarUrl = authorObj.TryGetProperty("avatar", out var av) ? av.GetString() : null,
                 IsVerified = authorObj.TryGetProperty("viewer", out var aview) && aview.TryGetProperty("following", out var _), // Simple heuristic
             };
@@ -263,15 +263,67 @@ public class PostService : IPostService
             DateTime.TryParse(createdAtStr, out var createdAt);
 
             var imageUrls = new List<string>();
+            LinkPreviewDto? linkPreview = null;
             if (postObj.TryGetProperty("embed", out var postEmbed))
             {
-                if (postEmbed.TryGetProperty("images", out var pImages))
+                var embedType = postEmbed.TryGetProperty("$type", out var et) ? et.GetString() : "";
+
+                if (embedType == "app.bsky.embed.images#view" || postEmbed.TryGetProperty("images", out var _))
                 {
-                    foreach (var pImg in pImages.EnumerateArray())
+                    if (postEmbed.TryGetProperty("images", out var pImages))
                     {
-                        if (pImg.TryGetProperty("fullsize", out var fz) && fz.ValueKind != System.Text.Json.JsonValueKind.Null)
-                            imageUrls.Add(fz.GetString()!);
+                        foreach (var pImg in pImages.EnumerateArray())
+                        {
+                            if (pImg.TryGetProperty("fullsize", out var fz) && fz.ValueKind != System.Text.Json.JsonValueKind.Null)
+                                imageUrls.Add(fz.GetString()!);
+                        }
                     }
+                }
+                
+                if (embedType == "app.bsky.embed.external#view" || postEmbed.TryGetProperty("external", out var _))
+                {
+                    if (postEmbed.TryGetProperty("external", out var pExternal))
+                    {
+                        linkPreview = new LinkPreviewDto
+                        {
+                            Url = pExternal.GetProperty("uri").GetString()!,
+                            Title = pExternal.TryGetProperty("title", out var title) ? title.GetString() : null,
+                            Description = pExternal.TryGetProperty("description", out var desc) ? desc.GetString() : null,
+                            Image = pExternal.TryGetProperty("thumb", out var thumb) ? thumb.GetString() : null,
+                            Domain = new Uri(pExternal.GetProperty("uri").GetString()!).Host.Replace("www.", "")
+                        };
+                    }
+                }
+            }
+
+            var facets = new List<FacetDto>();
+            if (recordObj.TryGetProperty("facets", out var facetsProp))
+            {
+                foreach (var facet in facetsProp.EnumerateArray())
+                {
+                    var fDto = new FacetDto
+                    {
+                        Index = new FacetIndexDto
+                        {
+                            ByteStart = facet.GetProperty("index").GetProperty("byteStart").GetInt32(),
+                            ByteEnd = facet.GetProperty("index").GetProperty("byteEnd").GetInt32()
+                        }
+                    };
+
+                    if (facet.TryGetProperty("features", out var features))
+                    {
+                        foreach (var feature in features.EnumerateArray())
+                        {
+                            fDto.Features.Add(new FacetFeatureDto
+                            {
+                                Type = feature.GetProperty("$type").GetString()!,
+                                Did = feature.TryGetProperty("did", out var did) ? did.GetString() : null,
+                                Uri = feature.TryGetProperty("uri", out var furi) ? furi.GetString() : null,
+                                Tag = feature.TryGetProperty("tag", out var ftag) ? ftag.GetString() : null
+                            });
+                        }
+                    }
+                    facets.Add(fDto);
                 }
             }
 
@@ -286,6 +338,7 @@ public class PostService : IPostService
                 Uri = uri,
                 Cid = cid,
                 Content = text,
+                Facets = facets,
                 CreatedAt = createdAt,
                 Author = authorDto,
                 LikesCount = likeCount,
@@ -294,7 +347,8 @@ public class PostService : IPostService
                 QuotesCount = quoteCount,
                 IsLiked = isLiked,
                 IsReposted = isReposted,
-                ImageUrls = imageUrls
+                ImageUrls = imageUrls,
+                LinkPreview = linkPreview
             };
         }
         catch (Exception ex)

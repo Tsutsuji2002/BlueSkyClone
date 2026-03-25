@@ -9,6 +9,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace BSkyClone.Services;
@@ -29,13 +30,15 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
     private readonly IDistributedCache _cache;
     private readonly ICryptoService _crypto;
+    private readonly IXrpcProxyService _xrpcProxy;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto, IXrpcProxyService xrpcProxy)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _cache = cache;
         _crypto = crypto;
+        _xrpcProxy = xrpcProxy;
     }
 
     public async Task RequestPhoneVerificationAsync(string phone)
@@ -178,6 +181,27 @@ public class AuthService : IAuthService
             _unitOfWork.Users.Update(user);
         }
 
+        // Sync Profile Metadata (DisplayName, Avatar)
+        try
+        {
+            var profileResponse = await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getProfile", new Dictionary<string, string?> { { "actor", did } }, accessJwt);
+            if (profileResponse.Success)
+            {
+                var profileJson = profileResponse.Content;
+                using var profileDoc = JsonDocument.Parse(profileJson);
+                var profileRoot = profileDoc.RootElement;
+
+                if (profileRoot.TryGetProperty("displayName", out var dn)) user.DisplayName = dn.GetString();
+                if (profileRoot.TryGetProperty("avatar", out var av)) user.AvatarUrl = av.GetString();
+                if (profileRoot.TryGetProperty("description", out var bio)) user.Bio = bio.GetString();
+                if (profileRoot.TryGetProperty("banner", out var banner)) user.CoverImageUrl = banner.GetString();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[AuthService] Failed to sync profile metadata during login: {ex.Message}");
+        }
+
         await _unitOfWork.CompleteAsync();
 
         var token = GenerateJwtToken(user, request.RememberMe);
@@ -229,6 +253,32 @@ public class AuthService : IAuthService
         if (user.IsBanned)
         {
             throw new UnauthorizedAccessException("Your account has been banned.");
+        }
+
+        // Auto-sync DisplayName/Avatar if missing and it's a proxy account
+        if (string.IsNullOrEmpty(user.DisplayName) || string.IsNullOrEmpty(user.AvatarUrl))
+        {
+            try
+            {
+                var token = await _cache.GetStringAsync($"BlueskyToken_{user.Id}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    var profileResponse = await _xrpcProxy.ProxyRequestAsync(user.Did!, "app.bsky.actor.getProfile", new Dictionary<string, string?> { { "actor", user.Did } }, token);
+                    if (profileResponse.Success)
+                    {
+                        var profileJson = profileResponse.Content;
+                        using var profileDoc = JsonDocument.Parse(profileJson);
+                        var profileRoot = profileDoc.RootElement;
+
+                        if (profileRoot.TryGetProperty("displayName", out var dn)) user.DisplayName = dn.GetString();
+                        if (profileRoot.TryGetProperty("avatar", out var av)) user.AvatarUrl = av.GetString();
+                        
+                        _unitOfWork.Users.Update(user);
+                        await _unitOfWork.CompleteAsync();
+                    }
+                }
+            }
+            catch { /* Best effort */ }
         }
 
         return MapToAuthResponse(user, "", ""); // No new tokens needed for a profile sync
