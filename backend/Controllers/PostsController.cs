@@ -131,16 +131,15 @@ public class PostsController : ControllerBase
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-            Guid userGuid;
-            if (!Guid.TryParse(userId, out userGuid))
+            // Resolve a handle or DID to use with the proxy
+            string handleOrDid = userId;
+            if (Guid.TryParse(userId, out var userGuid))
             {
-                // Handle DID or handle
-                var user = await _unitOfWork.Users.GetByDidAsync(userId) ?? await _unitOfWork.Users.GetByUsernameAsync(userId);
-                if (user == null) return NotFound("User not found.");
-                userGuid = user.Id;
+                var user = await _unitOfWork.Users.GetByIdAsync(userGuid);
+                handleOrDid = user?.Did ?? user?.Handle ?? userId;
             }
 
-            var posts = await _postService.GetUserPostsAsync(userGuid, type, viewerId, take, skip);
+            var posts = await _postService.GetUserPostsAsync(handleOrDid, viewerId, skip, take, type);
             return Ok(posts);
         }
         catch (Exception ex)

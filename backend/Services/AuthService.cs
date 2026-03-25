@@ -49,17 +49,27 @@ public class AuthService : IAuthService
 
         var handle = $"{username}.{request.HostingProvider.ToLower()}";
 
-        if (await _unitOfWork.Users.GetByEmailAsync(request.Email) != null ||
-            await _unitOfWork.Users.GetByHandleAsync(handle) != null)
+        // Proxy to Bluesky createAccount
+        using var httpClient = new HttpClient();
+        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
+            handle = handle,
+            email = request.Email,
+            password = request.Password
+        }), Encoding.UTF8, "application/json");
+
+        var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.createAccount", content);
+        if (!response.IsSuccessStatusCode)
         {
-            return null;
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Bluesky Registration Failed: {errorBody}");
         }
 
-        var salt = BCrypt.Net.BCrypt.GenerateSalt();
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, salt);
+        var bskySession = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
+        
+        string did = bskySession.GetProperty("did").GetString()!;
+        string accessJwt = bskySession.GetProperty("accessJwt").GetString()!;
 
         var userId = Guid.NewGuid();
-        var keys = _crypto.GenerateSecp256k1Keypair();
         var user = new User
         {
             Id = userId,
@@ -67,16 +77,12 @@ public class AuthService : IAuthService
             Username = username,
             Handle = handle,
             DisplayName = request.DisplayName ?? username,
-            PasswordHash = passwordHash,
-            Salt = salt,
-            DateOfBirth = request.DateOfBirth,
-            Did = $"did:plc:{Guid.NewGuid():n}",
+            Did = did,
             CreatedAt = DateTime.UtcNow,
             FollowersCount = 0,
             FollowingCount = 0,
             PostsCount = 0,
-            SigningPublicKey = keys.publicKey,
-            EncryptedSigningPrivateKey = _crypto.EncryptPrivateKey(keys.privateKey)
+            PasswordHash = "PROXY_ACCOUNT" // No local password
         };
 
         user.UserSetting = new UserSetting
@@ -88,43 +94,71 @@ public class AuthService : IAuthService
         };
 
         await _unitOfWork.Users.AddAsync(user);
-        
         await _unitOfWork.CompleteAsync();
         
         var token = GenerateJwtToken(user);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id);
+
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
 
         return MapToAuthResponse(user, token, refreshToken);
     }
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
-        var user = await _unitOfWork.Users.GetByEmailAsync(request.Identifier) 
-                   ?? await _unitOfWork.Users.GetByHandleAsync(request.Identifier);
+        // Proxy to Bluesky createSession
+        using var httpClient = new HttpClient();
+        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
+            identifier = request.Identifier,
+            password = request.Password
+        }), Encoding.UTF8, "application/json");
 
-        if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.createSession", content);
+        if (!response.IsSuccessStatusCode)
         {
-            return null;
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw new UnauthorizedAccessException($"Bluesky Login Failed: {errorBody}");
         }
 
-        // Banned user logic: Prevent login
-        if (user.IsBanned)
+        var bskySession = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
+        
+        string did = bskySession.GetProperty("did").GetString()!;
+        string handle = bskySession.GetProperty("handle").GetString()!;
+        string email = bskySession.TryGetProperty("email", out var emailProp) ? emailProp.GetString()! : $"{handle}@bluesky.local";
+        string accessJwt = bskySession.GetProperty("accessJwt").GetString()!;
+
+        var user = await _unitOfWork.Users.GetByDidAsync(did) ?? await _unitOfWork.Users.GetByHandleAsync(handle);
+        
+        if (user == null)
         {
-            throw new UnauthorizedAccessException("Your account has been banned.");
+            user = new User
+            {
+                Id = Guid.NewGuid(),
+                Did = did,
+                Handle = handle,
+                Email = email,
+                Username = handle.Contains(".") ? handle.Split('.')[0] : handle,
+                DisplayName = handle,
+                CreatedAt = DateTime.UtcNow,
+                IsBanned = false,
+                PasswordHash = "PROXY_ACCOUNT"
+            };
+            user.UserSetting = new UserSetting { UserId = user.Id, AppLanguage = "en", ThemeMode = "system" };
+            await _unitOfWork.Users.AddAsync(user);
         }
+        else
+        {
+            if (user.IsBanned) throw new UnauthorizedAccessException("Your account has been banned locally.");
+            user.Handle = handle;
+            _unitOfWork.Users.Update(user);
+        }
+
+        await _unitOfWork.CompleteAsync();
 
         var token = GenerateJwtToken(user, request.RememberMe);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id, request.RememberMe);
 
-        // Auto-generate key for existing users if missing
-        if (string.IsNullOrEmpty(user.SigningPublicKey))
-        {
-            var keys = _crypto.GenerateSecp256k1Keypair();
-            user.SigningPublicKey = keys.publicKey;
-            user.EncryptedSigningPrivateKey = _crypto.EncryptPrivateKey(keys.privateKey);
-            _unitOfWork.Users.Update(user);
-            await _unitOfWork.CompleteAsync();
-        }
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
 
         return MapToAuthResponse(user, token, refreshToken);
     }

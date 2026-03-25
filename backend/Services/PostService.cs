@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Distributed;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
@@ -33,8 +34,9 @@ public class PostService : IPostService
     private readonly ILogger<PostService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly string _localDomain;
+    private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -51,251 +53,216 @@ public class PostService : IPostService
         _logger = logger;
         _scopeFactory = scopeFactory;
         _localDomain = configuration["DomainName"] ?? "bskyclone.site";
+        _distributedCache = distributedCache;
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)
     {
         try
         {
-            // Timeline filtering is viewer-specific (settings, mutes/blocks). Apply the major filters
-            // at the query level so pagination doesn't "run out" early due to post-fetch filtering.
-            UserSetting? userSettings = null;
-            try
+            var cacheKey = $"BlueskyTimeline_{userId}";
+            var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
+            List<PostDto>? mappedPosts = null;
+
+            if (!string.IsNullOrEmpty(cachedJson))
             {
-                userSettings = await _unitOfWork.UserSettings.Query()
-                    .FirstOrDefaultAsync(s => s.UserId == userId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching UserSettings for {UserId}", userId);
+                try { mappedPosts = System.Text.Json.JsonSerializer.Deserialize<List<PostDto>>(cachedJson); } catch { }
             }
 
-            var showReplies = userSettings?.ShowReplies ?? true;
-            var showQuotePosts = userSettings?.ShowQuotePosts ?? true;
-            var showReposts = userSettings?.ShowReposts ?? true;
-
-            var cacheKey = $"user:{userId}:timeline:{skip}:{take}:sr{showReplies}:sq{showQuotePosts}:sp{showReposts}:v2";
-            var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
-            if (cached != null)
+            if (mappedPosts == null)
             {
-                return await EnrichAndFilterPostsAsync(cached, userId, true);
-            }
-
-            var followedUsers = await _unitOfWork.Follows.Query()
-                .Where(f => f.FollowerId == userId)
-                .Include(f => f.Following)
-                .Select(f => f.Following)
-                .ToListAsync();
-            
-            var followedUserIds = followedUsers.Select(u => u.Id).ToList();
-            
-            // Include the user's own posts in the Following feed
-            followedUserIds.Add(userId);
-
-            // Background Sync for Remote Users (Federation)
-            _ = Task.Run(async () => {
-                try {
-                    using var scope = _scopeFactory.CreateScope();
-                    var backgroundPostService = scope.ServiceProvider.GetRequiredService<IPostService>();
-                    foreach (var u in followedUsers) {
-                        if (!string.IsNullOrEmpty(u.Did) && !u.Handle.EndsWith(".bsky.social")) // Simple check for "remote"
-                        {
-                            await backgroundPostService.FetchRemoteAuthorFeedAsync(u.Did);
-                        }
-                    }
-                } catch (Exception ex) {
-                    // Log but don't crash the request
-                    Console.WriteLine($"[Timeline Sync] Error: {ex.Message}");
-                }
-            });
-
-            var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
-            var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
-
-            var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(userId);
-            var blockedByUserIds = await _unitOfWork.Blocks.Query()
-                .Where(b => b.BlockedUserId == userId)
-                .Select(b => b.UserId)
-                .ToListAsync();
-
-            var postsQuery = _unitOfWork.Posts.Query()
-                .Include(p => p.Author)
-                .Include(p => p.PostMedia)
-                .Include(p => p.LinkPreview)
-                .Include(p => p.Hashtags)
-                .Include(p => p.Reposts).ThenInclude(r => r.User)
-                .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
-                .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
-                .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
-                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.PostMedia)
-                .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.LinkPreview)
-                .Where(p =>
-                    followedUserIds.Contains(p.AuthorId) &&
-                    (p.IsDeleted == false || p.IsDeleted == null) &&
-                    !mutedUserIds.Contains(p.AuthorId) &&
-                    !blockedUserIds.Contains(p.AuthorId) &&
-                    !blockedByUserIds.Contains(p.AuthorId));
-
-            if (showReplies == false)
-            {
-                postsQuery = postsQuery.Where(p => p.ReplyToPostId == null);
-            }
-
-            if (showQuotePosts == false)
-            {
-                postsQuery = postsQuery.Where(p => p.QuotePostId == null);
-            }
-
-            var posts = await postsQuery
-                .OrderByDescending(p => p.CreatedAt)
-                .Skip(skip)
-                .Take(take)
-                .ToListAsync();
-            
-            System.Console.WriteLine($"[PostService] GetTimelineAsync: Fetched {posts.Count} posts for User {userId}. CacheKey: {cacheKey}");
-            System.Console.WriteLine($"[PostService] GetTimelineAsync: followedUserIds Count: {followedUserIds.Count}, mutedUserIds Count: {mutedUserIds.Count}, blockedUserIds Count: {blockedUserIds.Count}, blockedByUserIds Count: {blockedByUserIds.Count}");
-            
-            var postDtos = new List<PostDto>();
-            foreach (var post in posts)
-            {
-                var dto = MapToDto(post);
-                
-                // Repost banner logic
-                var reposter = post.Reposts?.FirstOrDefault(r => followedUserIds.Contains(r.UserId) && (post.Author == null || r.UserId != post.Author.Id));
-                if (reposter == null)
+                var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                if (string.IsNullOrEmpty(token))
                 {
-                    reposter = post.Reposts?.FirstOrDefault(r => r.UserId == userId);
+                    _logger.LogWarning("[GetTimelineAsync] No proxy token for user {UserId}.", userId);
+                    return new List<PostDto>();
                 }
 
-                if (reposter != null && reposter.User != null)
+                using var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var response = await httpClient.GetAsync("https://bsky.social/xrpc/app.bsky.feed.getTimeline?limit=100");
+                if (!response.IsSuccessStatusCode)
                 {
-                    dto.RepostedBy = new AuthorDto 
-                    {
-                        Id = reposter.User.Id,
-                        Username = reposter.User.Username,
-                        Handle = reposter.User.Handle,
-                        DisplayName = reposter.User.DisplayName,
-                        AvatarUrl = reposter.User.AvatarUrl,
-                        IsVerified = reposter.User.IsVerified,
-                        Did = reposter.User.Did
-                    };
+                    _logger.LogError("[GetTimelineAsync] Bluesky proxy failed: {Res}", await response.Content.ReadAsStringAsync());
+                    return new List<PostDto>();
                 }
-                postDtos.Add(dto);
+
+                var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(
+                    await response.Content.ReadAsStreamAsync());
+
+                mappedPosts = new List<PostDto>();
+                if (responseBody.TryGetProperty("feed", out var feedArray))
+                    mappedPosts = MapBlueskyFeed(feedArray);
+
+                await _distributedCache.SetStringAsync(cacheKey,
+                    System.Text.Json.JsonSerializer.Serialize(mappedPosts),
+                    new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
+                    { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
             }
 
-            await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(2));
-            return await EnrichAndFilterPostsAsync(postDtos, userId, true);
+            return mappedPosts.Skip(skip).Take(take);
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"[PostService] GetTimelineAsync: Critical Error: {ex.Message}");
+            _logger.LogError(ex, "[GetTimelineAsync] Critical Error for user {UserId}", userId);
             return new List<PostDto>();
         }
     }
 
-
-    public async Task<IEnumerable<PostDto>> GetUserPostsAsync(Guid userId, string? type = null, Guid? viewerId = null, int limit = 30, int offset = 0)
+    public async Task<IEnumerable<PostDto>> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null)
     {
         try
         {
-            if (viewerId.HasValue)
+            var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}";
+            var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
+            List<PostDto>? mappedPosts = null;
+
+            if (!string.IsNullOrEmpty(cachedJson))
             {
-                var isBlocked = await _unitOfWork.Blocks.IsBlockedAsync(userId, viewerId.Value);
-                if (isBlocked) return new List<PostDto>();
+                try { mappedPosts = System.Text.Json.JsonSerializer.Deserialize<List<PostDto>>(cachedJson); } catch {}
             }
 
-            var profileUser = await _unitOfWork.Users.GetByIdAsync(userId);
-            var isRemoteUser = !string.IsNullOrWhiteSpace(profileUser?.Did) && profileUser.Did.StartsWith("did:");
-
-            // Remote profiles are synced lazily. Refresh before loading so replies/media tabs
-            // have the reply/root metadata and media extracted from the remote author feed.
-            if (isRemoteUser && !string.IsNullOrWhiteSpace(profileUser?.Did))
+            if (mappedPosts == null)
             {
-                var filterKey = type ?? "posts";
-                var cursorCacheKey = $"remote_feed_cursor:{profileUser.Did}:{filterKey}";
-
-                // Check how many we have locally
-                var localCount = await _unitOfWork.Posts.Query()
-                    .CountAsync(p => p.AuthorId == userId && (type == "replies" ? p.ReplyToPostId != null : p.ReplyToPostId == null));
-
-                if (offset == 0 || localCount < offset + limit)
-                {
-                    var cursor = offset > 0 ? await _cacheService.GetAsync<string>(cursorCacheKey) : null;
-                    await FetchRemoteAuthorFeedAsync(profileUser.Did, type, cursor);
-                    
-                    // If it's a first-time load (offset 0), fetch another page to "claw" more data
-                    if (offset == 0)
-                    {
-                        var nextCursor = await _cacheService.GetAsync<string>(cursorCacheKey);
-                        if (!string.IsNullOrEmpty(nextCursor) && nextCursor != cursor)
-                        {
-                            await FetchRemoteAuthorFeedAsync(profileUser.Did, type, nextCursor);
-                        }
-                    }
-                }
-            }
-
-            // Redis caching for quick re-access (30 second TTL)
-            var cacheKey = $"user:{userId}:posts:{type ?? "posts"}:{offset}:{limit}:v2";
-            var cached = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
-            
-            if (cached != null)
-            {
-                // Enrich with viewer-specific interactions (not cached)
-                if (viewerId.HasValue && cached.Count > 0)
-                {
-                    cached = await EnrichAndFilterPostsAsync(cached, viewerId.Value);
-                }
-                return cached;
-            }
-
-            var posts = await _unitOfWork.Posts.GetUserPostsAsync(userId, type, limit, offset);
-            
-            var profileUserDto = profileUser == null ? null : new AuthorDto
-            {
-                Id = profileUser.Id,
-                Username = profileUser.Username,
-                Handle = profileUser.Handle,
-                DisplayName = profileUser.DisplayName,
-                AvatarUrl = profileUser.AvatarUrl,
-                IsVerified = profileUser.IsVerified,
-                Did = profileUser.Did
-            };
-
-            var postDtos = posts.Select(p => {
-                var dto = MapToDto(p);
+                using var httpClient = new HttpClient();
                 
-                bool isRepost = (p.AuthorId != userId) || (p.Reposts?.Any(r => r.UserId == userId) ?? false);
-
-                if (isRepost && profileUserDto != null && (type == null || type == "posts"))
+                // If we have a viewer, try to attach their token for personalized views (e.g. following state)
+                if (viewerId.HasValue)
                 {
-                    if (p.AuthorId != userId)
-                    {
-                        dto.RepostedBy = profileUserDto;
-                    }
+                    var token = await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}");
+                    if (!string.IsNullOrEmpty(token))
+                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                 }
-                return dto;
-            }).ToList();
-            
-            // Only cache when there are results - don't cache empty arrays so new posts appear promptly
-            if (postDtos.Count > 0)
-            {
-                await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromSeconds(30));
-            }
-            
-            if (viewerId.HasValue && postDtos.Count > 0)
-            {
-                postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
+                
+                var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : "posts_no_replies";
+                var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit=100&filter={filter}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("[GetUserPostsAsync] fetch failed: {Res}", await response.Content.ReadAsStringAsync());
+                    return new List<PostDto>();
+                }
+
+                var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
+                mappedPosts = new List<PostDto>();
+
+                if (responseBody.TryGetProperty("feed", out var feedArray))
+                {
+                    mappedPosts = MapBlueskyFeed(feedArray);
+                }
+
+                await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(mappedPosts), new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
             }
 
-            return postDtos;
+            return mappedPosts.Skip(skip).Take(take);
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"[PostService] GetUserPostsAsync: Error for userId={userId}, type={type}: {ex.Message}");
+            _logger.LogError(ex, "[GetUserPostsAsync] Error proxying author feed for {Handle}", handleOrDid);
             return new List<PostDto>();
         }
+    }
+
+    private List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray)
+    {
+        var mappedPosts = new List<PostDto>();
+        foreach (var item in feedArray.EnumerateArray())
+        {
+            try
+            {
+                if (!item.TryGetProperty("post", out var postObj)) continue;
+                
+                var authorObj = postObj.GetProperty("author");
+                var recordObj = postObj.GetProperty("record");
+
+                var authorDto = new AuthorDto
+                {
+                    Id = Guid.NewGuid(), // Fake ID for UI
+                    Did = authorObj.GetProperty("did").GetString(),
+                    Handle = authorObj.GetProperty("handle").GetString()!,
+                    DisplayName = authorObj.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
+                    AvatarUrl = authorObj.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+                    IsVerified = false
+                };
+
+                var likeCount = postObj.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0;
+                var repostCount = postObj.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0;
+                var replyCount = postObj.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0;
+                
+                var isLiked = false;
+                var isReposted = false;
+                if (postObj.TryGetProperty("viewer", out var viewer))
+                {
+                    if (viewer.TryGetProperty("like", out var vl)) isLiked = vl.ValueKind != System.Text.Json.JsonValueKind.Null;
+                    if (viewer.TryGetProperty("repost", out var vr)) isReposted = vr.ValueKind != System.Text.Json.JsonValueKind.Null;
+                }
+
+                var text = recordObj.TryGetProperty("text", out var t) ? t.GetString() : "";
+                var createdAtStr = recordObj.TryGetProperty("createdAt", out var ca) ? ca.GetString() : null;
+                DateTime.TryParse(createdAtStr, out var createdAt);
+
+                var imageUrls = new List<string>();
+                if (postObj.TryGetProperty("embed", out var postEmbed))
+                {
+                    if (postEmbed.TryGetProperty("images", out var pImages))
+                    {
+                        foreach(var pImg in pImages.EnumerateArray())
+                        {
+                            if (pImg.TryGetProperty("fullsize", out var fz) && fz.ValueKind != System.Text.Json.JsonValueKind.Null)
+                                imageUrls.Add(fz.GetString()!);
+                        }
+                    }
+                }
+
+                var uri = postObj.GetProperty("uri").GetString();
+                var cid = postObj.GetProperty("cid").GetString();
+                var tid = uri?.Split('/').Last() ?? Guid.NewGuid().ToString();
+
+                AuthorDto? repostedBy = null;
+                if (item.TryGetProperty("reason", out var reasonObj) && reasonObj.ValueKind != System.Text.Json.JsonValueKind.Null)
+                {
+                    if (reasonObj.TryGetProperty("$type", out var typeOut) && typeOut.GetString() == "app.bsky.feed.defs#reasonRepost")
+                    {
+                         if (reasonObj.TryGetProperty("by", out var byObj))
+                         {
+                             repostedBy = new AuthorDto
+                             {
+                                 Id = Guid.NewGuid(),
+                                 Did = byObj.GetProperty("did").GetString(),
+                                 Handle = byObj.GetProperty("handle").GetString()!,
+                                 DisplayName = byObj.TryGetProperty("displayName", out var rdn) ? rdn.GetString() : null,
+                                 AvatarUrl = byObj.TryGetProperty("avatar", out var rav) ? rav.GetString() : null
+                             };
+                         }
+                    }
+                }
+
+                var postDto = new PostDto
+                {
+                    Id = Guid.NewGuid(), // Fake ID
+                    Tid = tid,
+                    Uri = uri,
+                    Cid = cid,
+                    Content = text,
+                    CreatedAt = createdAt,
+                    Author = authorDto,
+                    LikesCount = likeCount,
+                    RepostsCount = repostCount,
+                    RepliesCount = replyCount,
+                    IsLiked = isLiked,
+                    IsReposted = isReposted,
+                    ImageUrls = imageUrls,
+                    RepostedBy = repostedBy
+                };
+                mappedPosts.Add(postDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to map post item: {Err}", ex.Message);
+            }
+        }
+        return mappedPosts;
     }
 
     public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
@@ -3167,13 +3134,26 @@ public class PostService : IPostService
                 var liker = await _unitOfWork.Users.GetByIdAsync(userId);
                 if (liker != null && !string.IsNullOrEmpty(liker.Did) && !string.IsNullOrEmpty(existingLike.Tid))
                 {
-                    await _repoManager.DeleteRecordAsync(liker.Did, "app.bsky.feed.like", existingLike.Tid);
-                    _logger.LogInformation("[ToggleLikeAsync] Deleted like record {Tid} for user {UserId}", existingLike.Tid, userId);
+                    var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
+                            repo = liker.Did,
+                            collection = "app.bsky.feed.like",
+                            rkey = existingLike.Tid
+                        }), System.Text.Encoding.UTF8, "application/json");
+
+                        using var httpClient = new HttpClient();
+                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord", content);
+                        
+                        _logger.LogInformation("[ToggleLikeAsync] Proxied delete like record {Tid} for user {UserId}", existingLike.Tid, userId);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[ToggleLikeAsync] Failed to delete AT like record for user {UserId}", userId);
+                _logger.LogWarning(ex, "[ToggleLikeAsync] Failed to proxy delete AT like record for user {UserId}", userId);
             }
 
             // Remove corresponding notification
@@ -3197,36 +3177,52 @@ public class PostService : IPostService
             isLiked = true;
             post.LikesCount = (post.LikesCount ?? 0) + 1;
 
-            // --- Phase 4: Repo Signing for Likes ---
+            // --- AT Protocol Proxy: Repo Signing for Likes ---
             try
             {
                 var liker = await _unitOfWork.Users.GetByIdAsync(userId);
                 if (liker != null && !string.IsNullOrEmpty(liker.Did))
                 {
-                    var likeRecord = new Dictionary<string, object>
+                    var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                    if (!string.IsNullOrEmpty(token))
                     {
-                        { "$type", "app.bsky.feed.like" },
-                        { "subject", new Dictionary<string, object> 
-                            { 
-                                { "uri", $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}" }, 
-                                { "cid", post.Cid ?? post.Tid } 
-                            } 
-                        },
-                        { "createdAt", newLike.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
-                    };
-                    
-                    var cid = await _repoManager.CreateRecordAsync(liker.Did, "app.bsky.feed.like", likeRecord);
-                    
-                    newLike.Cid = cid;
-                    newLike.Uri = $"at://{liker.Did}/app.bsky.feed.like/{newLike.Tid}";
-                    _unitOfWork.Likes.Update(newLike);
+                        var likeRecord = new Dictionary<string, object>
+                        {
+                            { "$type", "app.bsky.feed.like" },
+                            { "subject", new Dictionary<string, object> 
+                                { 
+                                    { "uri", $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}" }, 
+                                    { "cid", post.Cid ?? post.Tid } 
+                                } 
+                            },
+                            { "createdAt", newLike.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                        };
 
-                    Console.WriteLine($"[ToggleLikeAsync] Repo updated and signed for User {userId}");
+                        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
+                            repo = liker.Did,
+                            collection = "app.bsky.feed.like",
+                            record = likeRecord
+                        }), System.Text.Encoding.UTF8, "application/json");
+
+                        using var httpClient = new HttpClient();
+                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        var bskyResponse = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord", content);
+
+                        if (bskyResponse.IsSuccessStatusCode)
+                        {
+                            var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await bskyResponse.Content.ReadAsStreamAsync());
+                            newLike.Uri = responseBody.GetProperty("uri").GetString();
+                            newLike.Cid = responseBody.GetProperty("cid").GetString();
+                            newLike.Tid = newLike.Uri?.Split('/').Last() ?? newLike.Tid;
+                            _unitOfWork.Likes.Update(newLike);
+                            Console.WriteLine($"[ToggleLikeAsync] Proxied like to Bluesky for User {userId}");
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
-                 Console.WriteLine($"[ToggleLikeAsync] Repo Signing Error: {ex.Message}");
+                 Console.WriteLine($"[ToggleLikeAsync] Bluesky Proxy Error: {ex.Message}");
             }
 
             // Create notification for post author (only if liker is not the author)
@@ -3423,19 +3419,32 @@ public class PostService : IPostService
             isReposted = false;
             post.RepostsCount = Math.Max(0, (post.RepostsCount ?? 0) - 1);
 
-            // --- AT Protocol: Delete repost record on un-repost ---
+            // --- AT Protocol Proxy: Delete repost record on un-repost ---
             try
             {
                 var reposter = await _unitOfWork.Users.GetByIdAsync(userId);
                 if (reposter != null && !string.IsNullOrEmpty(reposter.Did) && !string.IsNullOrEmpty(existingRepost.Tid))
                 {
-                    await _repoManager.DeleteRecordAsync(reposter.Did, "app.bsky.feed.repost", existingRepost.Tid);
-                    _logger.LogInformation("[ToggleRepostAsync] Deleted repost record {Tid} for user {UserId}", existingRepost.Tid, userId);
+                    var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
+                            repo = reposter.Did,
+                            collection = "app.bsky.feed.repost",
+                            rkey = existingRepost.Tid
+                        }), System.Text.Encoding.UTF8, "application/json");
+
+                        using var httpClient = new HttpClient();
+                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord", content);
+                        
+                        _logger.LogInformation("[ToggleRepostAsync] Proxied delete repost record {Tid} for user {UserId}", existingRepost.Tid, userId);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[ToggleRepostAsync] Failed to delete AT repost record for user {UserId}", userId);
+                _logger.LogWarning(ex, "[ToggleRepostAsync] Failed to proxy delete AT repost record for user {UserId}", userId);
             }
 
             // Remove corresponding notification
@@ -3459,36 +3468,52 @@ public class PostService : IPostService
             isReposted = true;
             post.RepostsCount = (post.RepostsCount ?? 0) + 1;
 
-            // --- Phase 4: Repo Signing for Reposts ---
+            // --- AT Protocol Proxy: Repo Signing for Reposts ---
             try
             {
                 var reposter = await _unitOfWork.Users.GetByIdAsync(userId);
                 if (reposter != null && !string.IsNullOrEmpty(reposter.Did))
                 {
-                    var repostRecord = new Dictionary<string, object>
+                    var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                    if (!string.IsNullOrEmpty(token))
                     {
-                        { "$type", "app.bsky.feed.repost" },
-                        { "subject", new Dictionary<string, object> 
-                            { 
-                                { "uri", $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}" }, 
-                                { "cid", post.Cid ?? post.Tid } 
-                            } 
-                        },
-                        { "createdAt", newRepost.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
-                    };
-                    
-                    var cid = await _repoManager.CreateRecordAsync(reposter.Did, "app.bsky.feed.repost", repostRecord);
+                        var repostRecord = new Dictionary<string, object>
+                        {
+                            { "$type", "app.bsky.feed.repost" },
+                            { "subject", new Dictionary<string, object> 
+                                { 
+                                    { "uri", $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}" }, 
+                                    { "cid", post.Cid ?? post.Tid } 
+                                } 
+                            },
+                            { "createdAt", newRepost.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+                        };
 
-                    newRepost.Cid = cid;
-                    newRepost.Uri = repostRecord["subject"] is Dictionary<string, object> subj && subj.TryGetValue("uri", out var u) ? u.ToString() : $"at://{reposter.Did}/app.bsky.feed.repost/{newRepost.Tid}";
-                    _unitOfWork.Reposts.Update(newRepost);
+                        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
+                            repo = reposter.Did,
+                            collection = "app.bsky.feed.repost",
+                            record = repostRecord
+                        }), System.Text.Encoding.UTF8, "application/json");
 
-                    Console.WriteLine($"[ToggleRepostAsync] Repo updated and signed for User {userId}");
+                        using var httpClient = new HttpClient();
+                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        var bskyResponse = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord", content);
+
+                        if (bskyResponse.IsSuccessStatusCode)
+                        {
+                            var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await bskyResponse.Content.ReadAsStreamAsync());
+                            newRepost.Uri = responseBody.GetProperty("uri").GetString();
+                            newRepost.Cid = responseBody.GetProperty("cid").GetString();
+                            newRepost.Tid = newRepost.Uri?.Split('/').Last() ?? newRepost.Tid;
+                            _unitOfWork.Reposts.Update(newRepost);
+                            Console.WriteLine($"[ToggleRepostAsync] Proxied repost to Bluesky for User {userId}");
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
-                 Console.WriteLine($"[ToggleRepostAsync] Repo Signing Error: {ex.Message}");
+                 Console.WriteLine($"[ToggleRepostAsync] Bluesky Proxy Error: {ex.Message}");
             }
 
             // Create notification for post author (only if reposter is not the author)

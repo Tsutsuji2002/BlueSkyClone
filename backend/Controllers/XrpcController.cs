@@ -741,7 +741,7 @@ namespace BSkyClone.Controllers
                 int skip = 0;
                 if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var skipVal)) skip = skipVal;
 
-                var posts = await _postService.GetUserPostsAsync(user.Id, filter, viewerId, limit, skip);
+                var posts = await _postService.GetUserPostsAsync(actor ?? user.Did ?? user.Handle, viewerId, skip, limit, filter);
                 
                 var feed = posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
                 {
