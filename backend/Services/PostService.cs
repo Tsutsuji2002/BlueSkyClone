@@ -3214,7 +3214,6 @@ public class PostService : IPostService
                             newLike.Uri = responseBody.GetProperty("uri").GetString();
                             newLike.Cid = responseBody.GetProperty("cid").GetString();
                             newLike.Tid = newLike.Uri?.Split('/').Last() ?? newLike.Tid;
-                            _unitOfWork.Likes.Update(newLike);
                             Console.WriteLine($"[ToggleLikeAsync] Proxied like to Bluesky for User {userId}");
                         }
                     }
@@ -3242,7 +3241,6 @@ public class PostService : IPostService
                 };
 
                 await _unitOfWork.Notifications.AddAsync(notification);
-                await _unitOfWork.CompleteAsync();
                 await SendNotificationAsync(notification.Id);
             }
 
@@ -3269,13 +3267,11 @@ public class PostService : IPostService
                         IsDeleted = false
                     };
                     await _unitOfWork.Notifications.AddAsync(notification);
-                    await _unitOfWork.CompleteAsync();
                     await SendNotificationAsync(notification.Id);
                 }
             }
         }
 
-        _unitOfWork.Posts.Update(post);
         await _unitOfWork.CompleteAsync();
 
         // Invalidate post cache
@@ -3353,7 +3349,6 @@ public class PostService : IPostService
             post.BookmarksCount = (post.BookmarksCount ?? 0) + 1;
         }
 
-        _unitOfWork.Posts.Update(post);
         await _unitOfWork.CompleteAsync();
 
         // Invalidate post cache
@@ -3505,7 +3500,6 @@ public class PostService : IPostService
                             newRepost.Uri = responseBody.GetProperty("uri").GetString();
                             newRepost.Cid = responseBody.GetProperty("cid").GetString();
                             newRepost.Tid = newRepost.Uri?.Split('/').Last() ?? newRepost.Tid;
-                            _unitOfWork.Reposts.Update(newRepost);
                             Console.WriteLine($"[ToggleRepostAsync] Proxied repost to Bluesky for User {userId}");
                         }
                     }
@@ -3533,7 +3527,6 @@ public class PostService : IPostService
                 };
 
                 await _unitOfWork.Notifications.AddAsync(notification);
-                await _unitOfWork.CompleteAsync();
                 await SendNotificationAsync(notification.Id);
             }
 
@@ -3560,13 +3553,11 @@ public class PostService : IPostService
                         IsDeleted = false
                     };
                     await _unitOfWork.Notifications.AddAsync(notification);
-                    await _unitOfWork.CompleteAsync();
                     await SendNotificationAsync(notification.Id);
                 }
             }
         }
 
-        _unitOfWork.Posts.Update(post);
         await _unitOfWork.CompleteAsync();
 
         // Invalidate caches
