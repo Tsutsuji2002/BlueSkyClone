@@ -909,6 +909,12 @@ public class PostService : IPostService
                  }
             }
 
+            // FALLBACK: If this is a direct reply to a root, use replyToPostId as rootPostId
+            if (rootPostId == null && replyToPostId != null)
+            {
+                rootPostId = replyToPostId;
+            }
+
             Guid? quotePostId = Guid.TryParse(request.QuotePostId, out var qid) ? qid : null;
             if (quotePostId == Guid.Empty) quotePostId = null;
             if (quotePostId == null && !string.IsNullOrEmpty(request.QuotePostId))
@@ -1249,10 +1255,13 @@ public class PostService : IPostService
                     }
 
                     // 1. Reply Lexicon
-                    if (post.ReplyToPostId != null && post.RootPostId != null)
+                    if (post.ReplyToPostId != null)
                     {
                         var parentPost = await _unitOfWork.Posts.Query().Include(p => p.Author).FirstOrDefaultAsync(p => p.Id == post.ReplyToPostId.Value);
-                        var rootPost = await _unitOfWork.Posts.Query().Include(p => p.Author).FirstOrDefaultAsync(p => p.Id == post.RootPostId.Value);
+                        
+                        // Root fallback for federation
+                        var effectiveRootId = post.RootPostId ?? post.ReplyToPostId;
+                        var rootPost = await _unitOfWork.Posts.Query().Include(p => p.Author).FirstOrDefaultAsync(p => p.Id == effectiveRootId.Value);
 
                         if (parentPost != null && rootPost != null)
                         {

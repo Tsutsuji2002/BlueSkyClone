@@ -63,7 +63,10 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
     const { t, i18n } = useTranslation();
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
-    const isOwnPost = isOwnPostProp ?? (currentUser?.id === post.author.id);
+    const isOwnPost = isOwnPostProp ?? (
+        currentUser?.id === post.author.id || 
+        (currentUser?.did && post.author.did && currentUser.did === post.author.did)
+    );
     const [isUnmuted, setIsUnmuted] = React.useState(false);
     const [isExpanded, setIsExpanded] = React.useState(false);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);

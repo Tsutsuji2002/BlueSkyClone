@@ -243,7 +243,7 @@ const ReplyModal: React.FC = () => {
             await dispatch(createPost({
                 content,
                 replyToPostId,
-                rootPostId: replyToPostId === rootPostId ? undefined : rootPostId,
+                rootPostId,
                 mediaFiles,
                 videoFile,
                 gifUrl,

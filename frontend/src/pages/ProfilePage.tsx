@@ -130,7 +130,9 @@ const ProfilePage: React.FC = () => {
 
 
 
-    const isOwnProfile = currentUser?.did === profileUser?.did;
+    const isOwnProfile = (currentUser?.did && profileUser?.did) 
+        ? currentUser.did === profileUser.did 
+        : (currentUser?.id === profileUser?.id);
 
     // Use profileUser's cover image or placeholder
     const coverImage = profileUser?.coverImage || COVER_PLACEHOLDER;

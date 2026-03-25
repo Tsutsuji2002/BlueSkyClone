@@ -551,7 +551,7 @@ const PostDetailPage: React.FC = () => {
                                 </span>
                             </div>
                         </div>
-                        {currentUser?.id !== post.author.id && (
+                        {currentUser?.id !== post.author.id && currentUser?.did !== post.author.did && (
                             <button
                                 onClick={handleFollowToggle}
                                 disabled={userActionLoading[post.author.id]}
@@ -621,10 +621,10 @@ const PostDetailPage: React.FC = () => {
                         <div
                             className={cn(
                                 "flex items-center gap-1 cursor-default",
-                                currentUser?.id === post.author.id && "text-[#0085FF] cursor-pointer hover:underline"
+                                (currentUser?.id === post.author.id || (currentUser?.did && post.author.did && currentUser.did === post.author.did)) && "text-[#0085FF] cursor-pointer hover:underline"
                             )}
                             onClick={() => {
-                                if (currentUser?.id === post.author.id) {
+                                if (currentUser?.id === post.author.id || (currentUser?.did && post.author.did && currentUser.did === post.author.did)) {
                                     setIsInteractionModalOpen(true);
                                 }
                             }}

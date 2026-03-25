@@ -166,7 +166,7 @@ const FollowersPage: React.FC = () => {
                                                 </p>
                                             )}
                                         </div>
-                                        {currentUser?.id !== follower.id && (
+                                        {currentUser?.id !== follower.id && currentUser?.did !== follower.did && (
                                             <Button
                                                 variant={follower.isFollowing ? 'secondary' : 'primary'}
                                                 size="sm"
