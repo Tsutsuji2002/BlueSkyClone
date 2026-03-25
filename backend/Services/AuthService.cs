@@ -15,6 +15,7 @@ namespace BSkyClone.Services;
 
 public interface IAuthService
 {
+    Task RequestPhoneVerificationAsync(string phone);
     Task<AuthResponse?> RegisterAsync(RegisterRequest request);
     Task<AuthResponse?> LoginAsync(LoginRequest request);
     Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
@@ -37,6 +38,21 @@ public class AuthService : IAuthService
         _crypto = crypto;
     }
 
+    public async Task RequestPhoneVerificationAsync(string phone)
+    {
+        using var httpClient = new HttpClient();
+        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
+            phoneNumber = phone
+        }), Encoding.UTF8, "application/json");
+
+        var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.requestPhoneVerification", content);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to request SMS Verification: {errorBody}");
+        }
+    }
+
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
         var username = request.Username.ToLower();
@@ -51,11 +67,20 @@ public class AuthService : IAuthService
 
         // Proxy to Bluesky createAccount
         using var httpClient = new HttpClient();
-        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
-            handle = handle,
-            email = request.Email,
-            password = request.Password
-        }), Encoding.UTF8, "application/json");
+        var payload = new Dictionary<string, object>
+        {
+            { "handle", handle },
+            { "email", request.Email },
+            { "password", request.Password }
+        };
+
+        if (!string.IsNullOrEmpty(request.VerificationPhone))
+            payload["verificationPhone"] = request.VerificationPhone;
+        
+        if (!string.IsNullOrEmpty(request.VerificationCode))
+            payload["verificationCode"] = request.VerificationCode;
+
+        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
         var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.createAccount", content);
         if (!response.IsSuccessStatusCode)

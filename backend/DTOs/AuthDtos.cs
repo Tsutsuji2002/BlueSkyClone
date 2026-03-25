@@ -9,7 +9,13 @@ public record RegisterRequest(
     string Username,
     DateTime DateOfBirth,
     string? DisplayName,
-    string HostingProvider = "bsky.social"
+    string HostingProvider = "bsky.social",
+    string? VerificationPhone = null,
+    string? VerificationCode = null
+);
+
+public record PhoneVerificationRequest(
+    string PhoneNumber
 );
 
 public record LoginRequest(

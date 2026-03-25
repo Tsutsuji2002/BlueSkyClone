@@ -53,6 +53,20 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("request-phone-verification")]
+    public async Task<IActionResult> RequestPhoneVerification([FromBody] PhoneVerificationRequest request)
+    {
+        try
+        {
+            await _authService.RequestPhoneVerificationAsync(request.PhoneNumber);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {

@@ -114,6 +114,26 @@ export const login = createAsyncThunk(
     }
 );
 
+export const requestPhoneVerification = createAsyncThunk(
+    'auth/requestPhoneVerification',
+    async (phoneNumber: string, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/auth/request-phone-verification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phoneNumber }),
+            });
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                return rejectWithValue(data?.message || 'Failed to request SMS code');
+            }
+            return true;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
 export const signUp = createAsyncThunk(
     'auth/signUp',
     async (userData: SignUpFormData, { rejectWithValue }) => {

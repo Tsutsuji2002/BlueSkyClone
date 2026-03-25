@@ -512,9 +512,11 @@ export interface AvatarProps {
 export interface SignUpFormData {
     email: string;
     password: string;
-    dateOfBirth: string;
-    username: string;
+    dateOfBirth: string; // ISO date string
+    username: string; // Handle
     hostingProvider: string;
+    verificationPhone?: string;
+    verificationCode?: string;
 }
 
 export interface LoginFormData {

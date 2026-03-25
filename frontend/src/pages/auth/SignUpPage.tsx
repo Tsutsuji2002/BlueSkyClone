@@ -7,7 +7,9 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation, Trans } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
-import { signUp, clearError } from '../../redux/slices/authSlice';
+import { useTranslation, Trans } from 'react-i18next';
+import { setAppLanguage } from '../../redux/slices/languageSlice';
+import { signUp, requestPhoneVerification, clearError } from '../../redux/slices/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { cn } from '../../utils/classNames';
 
@@ -30,11 +32,27 @@ const SignUpPage: React.FC = () => {
         dateOfBirth: '',
         username: '',
         hostingProvider: 'bsky.social',
+        verificationPhone: '',
+        verificationCode: '',
     });
 
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     const handleNext = async () => {
+        // Step 1: Request Phone Verification
+        if (step === 1) {
+            if (!formData.verificationPhone) {
+                setFormErrors({ phone: t('auth.signup.phone_required', 'Phone number is required for verification') });
+                return;
+            }
+            const resultAction = await dispatch(requestPhoneVerification(formData.verificationPhone));
+            if (requestPhoneVerification.fulfilled.match(resultAction)) {
+                setFormErrors({});
+                setStep(step + 1);
+            }
+            return;
+        }
+
         // Validate step 2: birthday must not be in the future
         if (step === 2 && formData.dateOfBirth) {
             const todayDate = new Date();
@@ -45,11 +63,15 @@ const SignUpPage: React.FC = () => {
             }
         }
 
-        if (step < 3) {
+        if (step < 4) {
             setFormErrors({});
             setStep(step + 1);
         } else {
-            // Validate step 3: username must not be blank and follow rules
+            // Validate step 4: SMS Code and Username
+            if (!formData.verificationCode?.trim()) {
+                setFormErrors({ code: t('auth.signup.code_required', 'SMS Verification code is required') });
+                return;
+            }
             if (!formData.username.trim()) {
                 setFormErrors({ username: t('settings.handle_cannot_be_blank', 'Handle cannot be blank') });
                 return;
@@ -109,7 +131,7 @@ const SignUpPage: React.FC = () => {
                             {t('auth.signup.step', { step })}
                         </p>
                         <div className="flex gap-2">
-                            {[1, 2, 3].map((s) => (
+                            {[1, 2, 3, 4].map((s) => (
                                 <div
                                     key={s}
                                     className={`h-1 flex-1 rounded-full ${s <= step ? 'bg-primary-500' : 'bg-gray-200 dark:bg-dark-border'
@@ -176,6 +198,29 @@ const SignUpPage: React.FC = () => {
                                             </svg>
                                         }
                                     />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
+                                        {t('auth.signup.phone_label', 'Mobile Phone (+1234567890)')}
+                                    </label>
+                                    <Input
+                                        type="tel"
+                                        placeholder={t('auth.signup.phone_placeholder', '+1234567890')}
+                                        value={formData.verificationPhone || ''}
+                                        error={formErrors.phone}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, verificationPhone: e.target.value });
+                                            if (error) dispatch(clearError());
+                                            setFormErrors({});
+                                        }}
+                                        icon={
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                            </svg>
+                                        }
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">Bluesky requires SMS verification to prevent bots.</p>
                                 </div>
                             </div>
                         </div>
@@ -270,10 +315,49 @@ const SignUpPage: React.FC = () => {
                                         {t('auth.signup.username_preview')} <span className="font-semibold">{formData.username || t('auth.signup.username_placeholder_default')}.{formData.hostingProvider}</span>
                                     </p>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 4: SMS Verification Code */}
+                    {step === 4 && (
+                        <div>
+                            <h2 className="text-3xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                                {t('auth.signup.verification_title', 'Verify your phone')}
+                            </h2>
+                            <p className="text-gray-600 dark:text-dark-text-secondary mb-8">
+                                {t('auth.signup.verification_desc', 'Enter the 6-digit code we sent to')} <span className="font-semibold">{formData.verificationPhone}</span>
+                            </p>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
+                                        {t('auth.signup.code_label', 'Verification Code')}
+                                    </label>
+                                    <Input
+                                        type="text"
+                                        placeholder="123456"
+                                        value={formData.verificationCode || ''}
+                                        error={formErrors.code}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, verificationCode: e.target.value });
+                                            if (error) dispatch(clearError());
+                                            setFormErrors({});
+                                        }}
+                                        className="text-center tracking-widest text-2xl font-mono"
+                                        maxLength={6}
+                                    />
+                                </div>
 
                                 <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                    {t('auth.signup.having_trouble')}{' '}
-                                    <button type="button" className="text-primary-500 hover:underline">{t('auth.signup.contact_support')}</button>
+                                    {t('auth.signup.didnt_receive_code', "Didn't receive a code?")}{' '}
+                                    <button 
+                                        type="button" 
+                                        className="text-primary-500 hover:underline"
+                                        onClick={() => dispatch(requestPhoneVerification(formData.verificationPhone || ''))}
+                                    >
+                                        {t('auth.signup.resend_code', 'Resend Code')}
+                                    </button>
                                 </p>
                             </div>
                         </div>
@@ -297,7 +381,7 @@ const SignUpPage: React.FC = () => {
                             loading={isLoading}
                             disabled={isLoading}
                         >
-                            {step === 3 ? t('auth.signup.done') : t('auth.signup.next')}
+                            {step === 4 ? t('auth.signup.done') : t('auth.signup.next')}
                         </Button>
                     </div>
 
