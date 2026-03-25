@@ -661,11 +661,8 @@ public class PostService : IPostService
                     }
                     else
                     {
-                        // Fallback if AppView proxy failed for this specific URI
-                        post.LikesCount = post.LikesCount ?? 0;
-                        post.RepostsCount = post.RepostsCount ?? 0;
-                        post.RepliesCount = post.RepliesCount ?? 0;
-                        post.QuotesCount = post.QuotesCount ?? 0;
+                        // Fallback if AppView proxy failed for this specific URI: 
+                        // Keep values already mapped from local DB in MapToDto
                         post.BookmarksCount = localBookmarks;
                     }
                 }
