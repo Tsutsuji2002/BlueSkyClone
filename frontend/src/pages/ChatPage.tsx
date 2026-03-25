@@ -402,7 +402,9 @@ const ChatPage: React.FC = () => {
         setShowOptionsMenu(false);
     };
 
-    const otherParticipant = conversation?.participants.find((p: User) => p.id !== currentUser?.id);
+    const otherParticipant = conversation?.participants.find((p: User) => 
+        (p.did && currentUser?.did) ? p.did !== currentUser.did : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
+    );
 
     useDocumentTitle(otherParticipant?.displayName || otherParticipant?.handle || '');
 
@@ -528,7 +530,9 @@ const ChatPage: React.FC = () => {
                             )}
                             <div className="flex-grow min-h-0"></div>
                             {activeConversationMessages.map((msg: Message) => {
-                                const isMe = msg.senderId === currentUser?.id;
+                                const isMe = (msg.sender?.did && currentUser?.did) 
+                                    ? msg.sender.did === currentUser.did 
+                                    : (msg.senderId === currentUser?.id || (msg.sender?.handle && currentUser?.handle && msg.sender.handle === currentUser.handle));
 
                                 return (
                                     <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative`}>

@@ -59,7 +59,34 @@ namespace BSkyClone.Services
             var json = await response.Content.ReadAsStringAsync();
             var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            return data?.Messages.Select(m => MapToMessageDto(m, conversationId)) ?? Enumerable.Empty<MessageDto>();
+            // Order by CreatedAt to ensure chronological order (oldest first)
+            return data?.Messages.Select(m => MapToMessageDto(m, conversationId)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
+        }
+
+        public async Task<IEnumerable<MessageDto>> GetLogAsync(string token, string? cursor)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.getLog";
+            if (!string.IsNullOrEmpty(cursor)) url += $"?cursor={cursor}";
+
+            var response = await CallAsync(token, url);
+            if (!response.IsSuccessStatusCode) return Enumerable.Empty<MessageDto>();
+
+            var json = await response.Content.ReadAsStringAsync();
+            // Bluesky getLog returns a list of events. We want to extract created messages.
+            var data = JsonSerializer.Deserialize<BlueskyLogResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
+            if (data?.Logs == null) return Enumerable.Empty<MessageDto>();
+
+            var messages = new List<MessageDto>();
+            foreach (var log in data.Logs)
+            {
+                if (log.Type == "chat.bsky.convo.defs#logCreateMessage" && log.Message != null)
+                {
+                    messages.Add(MapToMessageDto(log.Message, log.ConvoId ?? ""));
+                }
+            }
+
+            return messages.OrderBy(m => m.CreatedAt);
         }
 
         public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content)
@@ -190,6 +217,21 @@ namespace BSkyClone.Services
             public string Text { get; set; } = string.Empty;
             public string SentAt { get; set; } = string.Empty;
             public BlueskyMember Sender { get; set; } = new();
+        }
+
+        private class BlueskyLogResponse
+        {
+            public List<BlueskyLogEntry> Logs { get; set; } = new();
+            public string? Cursor { get; set; }
+        }
+
+        private class BlueskyLogEntry
+        {
+            [JsonPropertyName("$type")]
+            public string Type { get; set; } = string.Empty;
+            public string? ConvoId { get; set; }
+            public BlueskyMessage? Message { get; set; }
+            public string? Rev { get; set; }
         }
     }
 }
