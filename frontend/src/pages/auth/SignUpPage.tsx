@@ -7,8 +7,6 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation, Trans } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
-import { useTranslation, Trans } from 'react-i18next';
-import { setAppLanguage } from '../../redux/slices/languageSlice';
 import { signUp, requestPhoneVerification, clearError } from '../../redux/slices/authSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { cn } from '../../utils/classNames';
@@ -345,7 +343,6 @@ const SignUpPage: React.FC = () => {
                                             setFormErrors({});
                                         }}
                                         className="text-center tracking-widest text-2xl font-mono"
-                                        maxLength={6}
                                     />
                                 </div>
 
