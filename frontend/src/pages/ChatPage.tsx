@@ -697,41 +697,21 @@ const ChatPage: React.FC = () => {
                                                     className={`absolute top-full mt-2 ${isMe ? 'right-0' : 'left-0'} bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-20 min-w-[170px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
                                                 >
                                                     <div className="py-1">
-                                                        <button onClick={() => { handleReply(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
-                                                            <FiCornerUpLeft size={16} /> {t('messages.reply')}
+                                                        <button onClick={() => { handleTranslate(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.translate')}</span>
+                                                            <FiGlobe size={18} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
                                                         </button>
                                                         
-                                                        {msg.content && (
-                                                            <>
-                                                                <button onClick={() => { handleTranslate(msg.content!); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
-                                                                    <FiGlobe size={16} /> {t('messages.translate')}
-                                                                </button>
-                                                                <button onClick={() => { handleCopyText(msg.content!); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
-                                                                    <FiCopy size={16} /> {t('messages.copy_text')}
-                                                                </button>
-                                                            </>
-                                                        )}
-
-                                                        {isMe && !msg.isRecalled && (
-                                                            <button onClick={() => { handleEdit(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
-                                                                <FiEdit3 size={16} /> {t('messages.edit')}
-                                                            </button>
-                                                        )}
-
-                                                        <button onClick={() => { handleForward(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
-                                                            <FiShare2 size={16} /> {t('messages.forward')}
+                                                        <button onClick={() => { handleCopyText(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.copy_text')}</span>
+                                                            <FiCopy size={18} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
                                                         </button>
 
-                                                        <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1" />
+                                                        <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1 mx-1 opacity-50" />
                                                         
-                                                        {isMe && !msg.isRecalled && (
-                                                            <button onClick={() => { handleRecall(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-red-500">
-                                                                <FiTrash2 size={16} /> {t('messages.recall')}
-                                                            </button>
-                                                        )}
-
-                                                        <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-red-500">
-                                                            <FiTrash size={16} /> {t('messages.delete_for_me')}
+                                                        <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.delete_for_me')}</span>
+                                                            <FiTrash size={18} className="text-gray-400 group-hover/item:text-red-500 transition-colors" />
                                                         </button>
                                                     </div>
                                                 </div>

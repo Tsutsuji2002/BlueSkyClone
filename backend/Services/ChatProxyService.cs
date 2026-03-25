@@ -286,7 +286,10 @@ namespace BSkyClone.Services
 
         private class BlueskyReactionSet
         {
+            [JsonPropertyName("emoji")]
             public string Emoji { get; set; } = string.Empty;
+            
+            [JsonPropertyName("dids")]
             public List<string> Dids { get; set; } = new();
         }
 
