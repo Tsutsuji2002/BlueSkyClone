@@ -207,6 +207,11 @@ namespace BSkyClone.Services
 
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId)
         {
+            if (msg.Reactions?.Count > 0)
+            {
+                _logger.LogInformation("Mapping message {Id} with {Count} reactions", msg.Id, msg.Reactions.Count);
+            }
+
             return new MessageDto(
                 msg.Id,
                 convoId,
@@ -274,13 +279,13 @@ namespace BSkyClone.Services
             public string Text { get; set; } = string.Empty;
             public string SentAt { get; set; } = string.Empty;
             public BlueskyMember Sender { get; set; } = new();
+            
+            [JsonPropertyName("reactions")]
             public List<BlueskyReactionSet>? Reactions { get; set; }
         }
 
         private class BlueskyReactionSet
         {
-            [JsonPropertyName("$type")]
-            public string? Type { get; set; }
             public string Emoji { get; set; } = string.Empty;
             public List<string> Dids { get; set; } = new();
         }

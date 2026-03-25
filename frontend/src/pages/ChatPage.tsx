@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiImage, FiX, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiImage, FiX, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { setActiveConversation, fetchMessages, fetchConversationById, markAsRead, fetchChatLog } from '../redux/slices/messagesSlice';
+import { setActiveConversation, fetchMessages, fetchConversationById, markAsRead, fetchChatLog, removeMessageFromStore } from '../redux/slices/messagesSlice';
 import { openImageViewer } from '../redux/slices/modalsSlice';
 import signalrService, { HubStatus } from '../services/signalrService';
 import EmojiPicker, { Theme as EmojiTheme, EmojiClickData } from 'emoji-picker-react';
 import { uploadImage } from '../services/mediaService';
-import { RootState } from '../redux/store';
+import { RootState, store } from '../redux/store';
 import { Message, Conversation, User } from '../types';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
 import PostEmbed from '../components/messages/PostEmbed';
@@ -351,6 +351,37 @@ const ChatPage: React.FC = () => {
         setForwardingMessage(msg);
     };
 
+    const handleTranslate = (text: string) => {
+        const lang = i18n.language || 'en';
+        const url = `https://translate.google.com/?sl=auto&tl=${lang}&text=${encodeURIComponent(text)}&op=translate`;
+        window.open(url, '_blank');
+    };
+
+    const handleCopyText = (text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            // @ts-ignore
+            store.dispatch({
+                type: 'toast/showToast',
+                payload: { message: t('messages.copied_to_clipboard'), type: 'success' }
+            });
+        });
+    };
+
+    const handleDeleteForMe = async (msgId: string) => {
+        // For now, we'll just recall it locally if it's ours, or hide it.
+        // Bluesky chat doesn't strictly have a "delete for me" XRPC that is different from "deleteMessage"
+        // which is essentially a recall.
+        // Actually, we'll just use handleRecall for now or alert not implemented.
+        if (window.confirm(t('messages.confirm_delete_for_me'))) {
+            try {
+                // Remove from local Redux store to reflect "Delete for me"
+                store.dispatch(removeMessageFromStore(msgId));
+            } catch (err) {
+                console.error('Failed to delete for me:', err);
+            }
+        }
+    };
+
     const handleViewProfile = () => {
         if (otherParticipant) {
             const profileId = otherParticipant.handle || otherParticipant.did || otherParticipant.id;
@@ -605,10 +636,33 @@ const ChatPage: React.FC = () => {
                                             )}
                                         </div>
 
+                                        {/* Quick Reaction Bar (Bluesky style - visible on hover) */}
+                                        <div className={`absolute -top-11 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/msg:opacity-100 transition-all duration-300 z-20 pointer-events-none group-hover/msg:pointer-events-auto transform translate-y-2 group-hover/msg:translate-y-0`}>
+                                            <div className="flex items-center gap-0.5 p-1 bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
+                                                {['👍', '❤️', '😆', '😮', '😢', '🔥'].map(emoji => (
+                                                    <button
+                                                        key={emoji}
+                                                        onClick={() => handleAddReaction(msg.id, emoji)}
+                                                        className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-xl active:scale-95"
+                                                        title={emoji}
+                                                    >
+                                                        {emoji}
+                                                    </button>
+                                                ))}
+                                                <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-1" />
+                                                <button
+                                                    onClick={() => setSelectedReactionMessageId(msg.id)}
+                                                    className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
+                                                >
+                                                    <FiMoreHorizontal size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         {/* Reactions Display (Corner badges) */}
-                                        {msg.reactions && msg.reactions.length > 0 && (
+                                        {(msg.reactions || []).length > 0 && (
                                             <div className={`flex flex-wrap gap-1 mt-[-10px] z-10 ${isMe ? 'justify-end mr-2' : 'justify-start ml-2'}`}>
-                                                {Object.entries(msg.reactions.reduce((acc, r) => {
+                                                {Object.entries((msg.reactions || []).reduce((acc, r) => {
                                                     acc[r.emoji] = (acc[r.emoji] || 0) + 1;
                                                     return acc;
                                                 }, {} as Record<string, number>)).map(([emoji, count]) => (
@@ -634,28 +688,7 @@ const ChatPage: React.FC = () => {
                                                 <span className="text-[10px] font-bold text-primary-500 uppercase tracking-tighter">
                                                     {t('messages.read')}
                                                 </span>
-                                            )}                                            {/* Quick Reaction Bar (Bluesky style - visible on hover) */}
-                                            <div className={`absolute -top-11 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/msg:opacity-100 transition-all duration-300 z-20 pointer-events-none group-hover/msg:pointer-events-auto transform translate-y-2 group-hover/msg:translate-y-0`}>
-                                                <div className="flex items-center gap-0.5 p-1 bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
-                                                    {['👍', '❤️', '😆', '😮', '😢', '🔥'].map(emoji => (
-                                                        <button
-                                                            key={emoji}
-                                                            onClick={() => handleAddReaction(msg.id, emoji)}
-                                                            className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-xl active:scale-95"
-                                                            title={emoji}
-                                                        >
-                                                            {emoji}
-                                                        </button>
-                                                    ))}
-                                                    <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-1" />
-                                                    <button
-                                                        onClick={() => setSelectedReactionMessageId(msg.id)}
-                                                        className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
-                                                    >
-                                                        <FiMoreHorizontal size={18} />
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            )}
 
                                             {/* Full Action Menu (on click) */}
                                             {selectedReactionMessageId === msg.id && (
@@ -667,18 +700,38 @@ const ChatPage: React.FC = () => {
                                                         <button onClick={() => { handleReply(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
                                                             <FiCornerUpLeft size={16} /> {t('messages.reply')}
                                                         </button>
-                                                        {isMe && !msg.isRecalled && (
+                                                        
+                                                        {msg.content && (
                                                             <>
-                                                                <button onClick={() => { handleEdit(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
-                                                                    <FiEdit3 size={16} /> {t('messages.edit')}
+                                                                <button onClick={() => { handleTranslate(msg.content!); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
+                                                                    <FiGlobe size={16} /> {t('messages.translate')}
                                                                 </button>
-                                                                <button onClick={() => { handleRecall(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-red-500">
-                                                                    <FiTrash2 size={16} /> {t('messages.recall')}
+                                                                <button onClick={() => { handleCopyText(msg.content!); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
+                                                                    <FiCopy size={16} /> {t('messages.copy_text')}
                                                                 </button>
                                                             </>
                                                         )}
+
+                                                        {isMe && !msg.isRecalled && (
+                                                            <button onClick={() => { handleEdit(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
+                                                                <FiEdit3 size={16} /> {t('messages.edit')}
+                                                            </button>
+                                                        )}
+
                                                         <button onClick={() => { handleForward(msg); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-gray-700 dark:text-dark-text">
                                                             <FiShare2 size={16} /> {t('messages.forward')}
+                                                        </button>
+
+                                                        <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1" />
+                                                        
+                                                        {isMe && !msg.isRecalled && (
+                                                            <button onClick={() => { handleRecall(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-red-500">
+                                                                <FiTrash2 size={16} /> {t('messages.recall')}
+                                                            </button>
+                                                        )}
+
+                                                        <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center gap-3 text-red-500">
+                                                            <FiTrash size={16} /> {t('messages.delete_for_me')}
                                                         </button>
                                                     </div>
                                                 </div>

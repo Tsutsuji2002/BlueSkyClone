@@ -199,6 +199,17 @@ const messagesSlice = createSlice({
                 conv.lastMessage = updatedMessage;
             }
         },
+        removeMessageFromStore: (state, action: PayloadAction<string>) => {
+            const messageId = action.payload;
+            state.activeConversationMessages = state.activeConversationMessages.filter(m => m.id !== messageId);
+            
+            // Also update in conversations list if it was a lastMessage
+            state.conversations.forEach(conv => {
+                if (conv.lastMessage?.id === messageId) {
+                    conv.lastMessage = null; // Or potentially fetch previous message (complex, so null for now)
+                }
+            });
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -274,5 +285,5 @@ const messagesSlice = createSlice({
     }
 });
 
-export const { setActiveConversation, addMessage, updateMessageInStore } = messagesSlice.actions;
+export const { setActiveConversation, addMessage, updateMessageInStore, removeMessageFromStore } = messagesSlice.actions;
 export default messagesSlice.reducer;
