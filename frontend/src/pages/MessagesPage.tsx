@@ -30,7 +30,9 @@ const MessagesPage: React.FC = () => {
     };
 
     const filteredConversations = conversations.filter(c => {
-        const otherParticipants = c.participants.filter(p => p.id !== currentUser?.id);
+        const otherParticipants = c.participants.filter(p => 
+            (p.did && currentUser?.did) ? p.did !== currentUser.did : p.id !== currentUser?.id
+        );
         const otherParticipant = otherParticipants[0] || c.participants[0];
         return (
             otherParticipant.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||

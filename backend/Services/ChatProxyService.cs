@@ -117,7 +117,7 @@ namespace BSkyClone.Services
         {
             return new ConversationDto(
                 convo.Id,
-                convo.Members.Select(m => new UserDto(Guid.Empty, m.Handle, m.Handle, string.Empty, m.DisplayName, m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did)).ToList(),
+                convo.Members.Select(m => new UserDto(Guid.Empty, m.Handle, m.Handle, string.Empty, string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName, m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did)).ToList(),
                 convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id) : null,
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow
@@ -147,7 +147,7 @@ namespace BSkyClone.Services
                 m.Handle,
                 m.Handle,
                 null,
-                m.DisplayName,
+                string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName,
                 m.Avatar,
                 null,
                 null,

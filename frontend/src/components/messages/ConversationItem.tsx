@@ -24,7 +24,9 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
     const { user: currentUser } = useAppSelector((state) => state.auth);
 
     // Filter out the current user to find the other participant(s)
-    const otherParticipants = conversation.participants.filter(p => p.id !== currentUser?.id);
+    const otherParticipants = conversation.participants.filter(p => 
+        (p.did && currentUser?.did) ? p.did !== currentUser.did : p.id !== currentUser?.id
+    );
     const otherParticipant = otherParticipants[0] || conversation.participants[0];
 
     const handleProfileClick = (e: React.MouseEvent) => {
