@@ -581,10 +581,6 @@ const ChatPage: React.FC = () => {
                                               (senderId && myId && String(senderId) === String(myId)) ||
                                               (senderHandle && myHandle && String(senderHandle).toLowerCase() === String(myHandle).toLowerCase());
                                  
-                                 // Debug reactions visibility
-                                 if (msg.reactions?.length > 0) {
-                                     // console.log(`Message ${msg.id} has ${msg.reactions.length} reactions`);
-                                 }
 
                                 return (
                                     <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative mb-2`}>
