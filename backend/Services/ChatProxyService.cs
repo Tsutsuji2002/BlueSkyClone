@@ -225,7 +225,7 @@ namespace BSkyClone.Services
                 MapToUserDto(msg.Sender),
                 null, // LinkPreview handled by EnrichMessageAsync
                 null, // ReplyTo
-                msg.Reactions?.SelectMany(r => r.Dids.Select(did => new MessageReactionDto(did, r.Emoji, null))).ToList()
+                msg.Reactions?.Select(r => new MessageReactionDto(r.Sender?.Did ?? "", r.Emoji, null)).ToList()
             );
         }
 
@@ -290,16 +290,16 @@ namespace BSkyClone.Services
             public BlueskyMember Sender { get; set; } = new();
             
             [JsonPropertyName("reactions")]
-            public List<BlueskyReactionSet>? Reactions { get; set; }
+            public List<BlueskyMessageReaction>? Reactions { get; set; }
         }
 
-        private class BlueskyReactionSet
+        private class BlueskyMessageReaction
         {
             [JsonPropertyName("emoji")]
             public string Emoji { get; set; } = string.Empty;
             
-            [JsonPropertyName("dids")]
-            public List<string> Dids { get; set; } = new();
+            [JsonPropertyName("sender")]
+            public BlueskyMember? Sender { get; set; }
         }
 
         private class BlueskyLogResponse
