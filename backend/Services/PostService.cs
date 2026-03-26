@@ -1502,21 +1502,30 @@ public class PostService : IPostService
                         _unitOfWork.Posts.Update(post);
                         await _unitOfWork.CompleteAsync();
 
-                        Console.WriteLine($"[CreatePostAsync] Proxied post to Bluesky, URI: {post.Uri}");
+                        string successLog = $"[CreatePostAsync] SUCCESS: {post.Uri}\n";
+                        await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", successLog);
+                        Console.WriteLine(successLog);
                     }
                     else
                     {
                         var error = await bskyResponse.Content.ReadAsStringAsync();
-                        Console.WriteLine($"[CreatePostAsync] Bluesky Post Failed: {bskyResponse.StatusCode} - {error}");
+                        string errorLog = $"[CreatePostAsync] FAILED: {bskyResponse.StatusCode} - {error}\nPayload: {JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.post", record = postRecord })}\n";
+                        await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", errorLog);
+                        Console.WriteLine(errorLog);
                         _logger.LogWarning("[CreatePostAsync] Bluesky Post Failed for user {UserId}. Status: {Status}, Error: {Error}", userId, bskyResponse.StatusCode, error);
                     }
                 }
+                else
+                {
+                    await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", "[CreatePostAsync] NO TOKEN found for user\n");
+                }
             }
-            await _labelingService.RunAutomatedLabelingAsync(post);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CreatePostAsync] AT Proxy Error: {ex.Message}");
+            string exLog = $"[CreatePostAsync] EXCEPTION: {ex.Message}\n{ex.StackTrace}\n";
+            await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", exLog);
+            Console.WriteLine(exLog);
         }
 
         // Detect Mentions

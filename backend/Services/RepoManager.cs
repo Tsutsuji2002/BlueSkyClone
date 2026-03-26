@@ -221,13 +221,15 @@ namespace BSkyClone.Services
                             
                             if (!string.IsNullOrEmpty(cid))
                             {
-                                Console.WriteLine($"[RepoManager] Proxied blob upload to Bluesky, CID: {cid}");
+                                await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Blob Upload SUCCESS, CID: {cid}\n");
+                                Console.WriteLine($"[RepoManager] Proxied blob upload to BlueSky, CID: {cid}");
                                 return cid;
                             }
                         }
                         else
                         {
                             var error = await response.Content.ReadAsStringAsync();
+                            await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Blob Upload FAILED: {response.StatusCode} - {error}\n");
                             Console.WriteLine($"[RepoManager] Bluesky Blob Upload Failed: {response.StatusCode} - {error}");
                         }
                     }
