@@ -295,7 +295,7 @@ namespace BSkyClone.Services
 
         private class BlueskyMessageReaction
         {
-            [JsonPropertyName("emoji")]
+            [JsonPropertyName("value")]
             public string Emoji { get; set; } = string.Empty;
             
             [JsonPropertyName("sender")]

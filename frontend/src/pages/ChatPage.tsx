@@ -792,46 +792,45 @@ const ChatPage: React.FC = () => {
                                                     >
                                                         <FiSmile size={16} />
                                                     </button>
-                                                    
-                                                    {/* Full Emoji Picker per-message - Smart Positioned */}
-                                                    {selectedReactionMessageId === msg.id && showReactionPicker && (
-                                                        <div
-                                                            ref={reactionPickerRef}
-                                                            className={`absolute z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-visible
-                                                                ${isMe ? 'right-0' : 'left-0'} 
-                                                                ${(() => {
-                                                                    const msgIndex = activeConversationMessages.findIndex(m => m.id === msg.id);
-                                                                    const isTopFew = msgIndex < 3;
-                                                                    return isTopFew ? 'top-full mt-1' : 'bottom-full mb-1';
-                                                                })()}
-                                                            `}
-                                                            style={{ 
-                                                                width: '310px', 
-                                                                height: '380px',
-                                                                transform: isMe ? 'translateX(-10px)' : 'translateX(10px)'
-                                                            }}
-                                                        >
-                                                            <div className="bg-white dark:bg-dark-surface rounded-2xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-2xl">
-                                                                <EmojiPicker
-                                                                    onEmojiClick={(emojiData: EmojiClickData) => {
-                                                                        handleAddReaction(msg.id, emojiData.emoji);
-                                                                        setShowReactionPicker(false);
-                                                                        setSelectedReactionMessageId(null);
-                                                                    }}
-                                                                    theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
-                                                                    lazyLoadEmojis={true}
-                                                                    skinTonesDisabled={true}
-                                                                    searchPlaceholder="Search emojis..."
-                                                                    width="100%"
-                                                                    height={380}
-                                                                    previewConfig={{ showPreview: false }}
-                                                                    scrollConfig={{ categoryRef: null }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
+
+                                            {/* Full Emoji Picker per-message - Smart Positioned & Screen-Safe bounds */}
+                                            {selectedReactionMessageId === msg.id && showReactionPicker && (
+                                                <div
+                                                    ref={reactionPickerRef}
+                                                    className={`absolute z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200
+                                                        ${isMe ? 'right-4 sm:right-10' : 'left-4 sm:left-10'} 
+                                                        ${(() => {
+                                                            const msgIndex = activeConversationMessages.findIndex(m => m.id === msg.id);
+                                                            const isTopFew = msgIndex < 3;
+                                                            return isTopFew ? 'top-full mt-1' : 'bottom-full mb-1';
+                                                        })()}
+                                                    `}
+                                                    style={{ 
+                                                        width: '310px', 
+                                                        height: '380px'
+                                                    }}
+                                                >
+                                                    <div className="bg-white dark:bg-dark-surface rounded-2xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-2xl">
+                                                        <EmojiPicker
+                                                            onEmojiClick={(emojiData: EmojiClickData) => {
+                                                                handleAddReaction(msg.id, emojiData.emoji);
+                                                                setShowReactionPicker(false);
+                                                                setSelectedReactionMessageId(null);
+                                                            }}
+                                                            theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
+                                                            lazyLoadEmojis={true}
+                                                            skinTonesDisabled={true}
+                                                            searchPlaceholder="Search emojis..."
+                                                            width="100%"
+                                                            height={380}
+                                                            previewConfig={{ showPreview: false }}
+                                                            scrollConfig={{ categoryRef: null }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Timestamp removed from here as it should be outside the bubble+icons row */}
