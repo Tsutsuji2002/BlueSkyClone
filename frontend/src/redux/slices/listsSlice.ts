@@ -520,11 +520,11 @@ const listsSlice = createSlice({
                 action.type.endsWith('/repostPost/pending') ||
                 action.type.endsWith('/toggleBookmark/pending'),
             (state: ListsState, action: any) => {
-                const { uri } = action.meta.arg;
+                const { uri: actionUri } = action.meta.arg;
                 const type = action.type;
 
                 const applyOptimistic = (posts: Post[]) => {
-                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         if (type.includes('toggleLike')) {
                             const wasLiked = post.isLiked;
@@ -553,11 +553,11 @@ const listsSlice = createSlice({
                 action.type.endsWith('/toggleBookmark/fulfilled'),
             (state: ListsState, action: any) => {
                 const payload = action.payload;
-                const uri = payload.uri || payload.postId; // Fallback to postId for backward compatibility
-                if (!uri) return;
+                const actionUri = payload.uri || payload.postId; // Fallback to postId for backward compatibility
+                if (!actionUri) return;
 
                 const applyFinal = (posts: Post[]) => {
-                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         if (payload.isLiked !== undefined) post.isLiked = payload.isLiked;
                         if (payload.isReposted !== undefined) post.isReposted = payload.isReposted;
@@ -587,11 +587,11 @@ const listsSlice = createSlice({
                 action.type.endsWith('/repostPost/rejected') ||
                 action.type.endsWith('/toggleBookmark/rejected'),
             (state: ListsState, action: any) => {
-                const { uri } = action.meta.arg;
+                const { uri: actionUri } = action.meta.arg;
                 const type = action.type;
 
                 const rollback = (posts: Post[]) => {
-                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         if (type.includes('toggleLike')) {
                             const wasLiked = post.isLiked;
@@ -617,11 +617,11 @@ const listsSlice = createSlice({
         .addMatcher(
             (action) => action.type === 'posts/updatePostStats',
             (state: ListsState, action: any) => {
-                const { uri, likesCount, repostsCount, bookmarksCount, repliesCount, quotesCount } = action.payload;
-                if (!uri) return;
+                const { uri: actionUri, likesCount, repostsCount, bookmarksCount, repliesCount, quotesCount } = action.payload;
+                if (!actionUri) return;
 
                 const updateStats = (posts: Post[]) => {
-                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         if (likesCount !== undefined) post.likesCount = likesCount;
                         if (repostsCount !== undefined) post.repostsCount = repostsCount;
@@ -639,11 +639,11 @@ const listsSlice = createSlice({
         .addMatcher(
             (action) => action.type === 'posts/updateUserPostStatus',
             (state: ListsState, action: any) => {
-                const { uri, isLiked, isReposted, isBookmarked } = action.payload;
-                if (!uri) return;
+                const { uri: actionUri, isLiked, isReposted, isBookmarked } = action.payload;
+                if (!actionUri) return;
 
                 const updateStatus = (posts: Post[]) => {
-                    const post = posts.find(p => p.uri === uri || p.id === uri);
+                    const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         if (isLiked !== undefined) post.isLiked = isLiked;
                         if (isReposted !== undefined) post.isReposted = isReposted;

@@ -1478,6 +1478,13 @@ public class PostService : IPostService
 
         // Invalidate ALL user post-type caches so replies/posts/media tabs refresh
         await _cacheService.RemoveAsync($"user:{userId}:timeline");
+        await _distributedCache.RemoveAsync($"BlueskyTimeline_{userId}");
+        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_posts");
+        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_posts");
+        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_replies");
+        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_replies");
+        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_media");
+        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_media");
         await _cacheService.RemoveAsync($"user:{userId}:posts:posts:0:20:v2");
         await _cacheService.RemoveAsync($"user:{userId}:posts:posts:0:30:v2");
         await _cacheService.RemoveAsync($"user:{userId}:posts:replies:0:20:v2");
@@ -3432,14 +3439,34 @@ public class PostService : IPostService
 
         // Broadcast Real-time Updates
         var timestamp = DateTime.UtcNow;
+        int actLikes = post.LikesCount ?? 0;
+        int actReposts = post.RepostsCount ?? 0;
+        int actBookmarks = post.BookmarksCount ?? 0;
+        int actReplies = post.RepliesCount ?? 0;
+        int actQuotes = post.QuotesCount ?? 0;
+
+        bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
+        if (isRemote)
+        {
+            var postDto = await GetPostByIdAsync(postId, userId);
+            if (postDto != null)
+            {
+                actLikes = postDto.LikesCount;
+                actReposts = postDto.RepostsCount;
+                actBookmarks = postDto.BookmarksCount;
+                actReplies = postDto.RepliesCount;
+                actQuotes = postDto.QuotesCount;
+            }
+        }
+
         await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
         { 
             postId, 
-            likesCount = post.LikesCount,
-            repostsCount = post.RepostsCount,
-            bookmarksCount = post.BookmarksCount,
-            repliesCount = post.RepliesCount,
-            quotesCount = post.QuotesCount,
+            likesCount = actLikes,
+            repostsCount = actReposts,
+            bookmarksCount = actBookmarks,
+            repliesCount = actReplies,
+            quotesCount = actQuotes,
             timestamp
         });
 
@@ -3509,14 +3536,34 @@ public class PostService : IPostService
 
         // Broadcast Real-time Updates
         var timestamp = DateTime.UtcNow;
+        int actLikes = post.LikesCount ?? 0;
+        int actReposts = post.RepostsCount ?? 0;
+        int actBookmarks = post.BookmarksCount ?? 0;
+        int actReplies = post.RepliesCount ?? 0;
+        int actQuotes = post.QuotesCount ?? 0;
+
+        bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
+        if (isRemote)
+        {
+            var postDto = await GetPostByIdAsync(postId, userId);
+            if (postDto != null)
+            {
+                actLikes = postDto.LikesCount;
+                actReposts = postDto.RepostsCount;
+                actBookmarks = postDto.BookmarksCount;
+                actReplies = postDto.RepliesCount;
+                actQuotes = postDto.QuotesCount;
+            }
+        }
+
         await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
         { 
             postId, 
-            likesCount = post.LikesCount,
-            repostsCount = post.RepostsCount,
-            bookmarksCount = post.BookmarksCount,
-            repliesCount = post.RepliesCount,
-            quotesCount = post.QuotesCount,
+            likesCount = actLikes,
+            repostsCount = actReposts,
+            bookmarksCount = actBookmarks,
+            repliesCount = actReplies,
+            quotesCount = actQuotes,
             timestamp
         });
 
@@ -3719,14 +3766,34 @@ public class PostService : IPostService
 
         // Broadcast Real-time Updates
         var timestamp = DateTime.UtcNow;
+        int actLikes = post.LikesCount ?? 0;
+        int actReposts = post.RepostsCount ?? 0;
+        int actBookmarks = post.BookmarksCount ?? 0;
+        int actReplies = post.RepliesCount ?? 0;
+        int actQuotes = post.QuotesCount ?? 0;
+
+        bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
+        if (isRemote)
+        {
+            var postDto = await GetPostByIdAsync(postId, userId);
+            if (postDto != null)
+            {
+                actLikes = postDto.LikesCount;
+                actReposts = postDto.RepostsCount;
+                actBookmarks = postDto.BookmarksCount;
+                actReplies = postDto.RepliesCount;
+                actQuotes = postDto.QuotesCount;
+            }
+        }
+
         await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
         { 
             postId, 
-            likesCount = post.LikesCount,
-            repostsCount = post.RepostsCount,
-            bookmarksCount = post.BookmarksCount,
-            repliesCount = post.RepliesCount,
-            quotesCount = post.QuotesCount,
+            likesCount = actLikes,
+            repostsCount = actReposts,
+            bookmarksCount = actBookmarks,
+            repliesCount = actReplies,
+            quotesCount = actQuotes,
             timestamp
         });
 

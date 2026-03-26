@@ -462,9 +462,9 @@ const postsSlice = createSlice({
             state.hasMore = true;
         },
         updatePostStats: (state, action: PayloadAction<{ uri: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
-            const { uri, timestamp, ...stats } = action.payload;
+            const { uri: actionUri, timestamp, ...stats } = action.payload;
             const updateInArray = (arr: Post[]) => {
-                const post = arr.find((p: Post) => p.uri === uri);
+                const post = arr.find((p: Post) => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                 if (post) {
                     const isRemote = post.uri && !post.uri.includes('localhost') && !post.uri.includes('staging') && post.uri.includes('at://');
                     if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
@@ -493,9 +493,9 @@ const postsSlice = createSlice({
             updateInArray(state.bookmarkedPosts);
         },
         updateUserPostStatus: (state, action: PayloadAction<{ uri: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
-            const { uri, timestamp, ...status } = action.payload;
+            const { uri: actionUri, timestamp, ...status } = action.payload;
             const updateInArray = (arr: Post[]) => {
-                const post = arr.find((p: Post) => p.uri === uri);
+                const post = arr.find((p: Post) => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                 if (post) {
                     if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
                         Object.assign(post, status);
@@ -675,12 +675,12 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             .addCase(toggleLike.pending, (state: PostsState, action) => {
-                const { uri } = action.meta.arg;
-                state.actionLoading[uri] = true;
+                const { uri: actionUri } = action.meta.arg;
+                state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         const wasLiked = post.isLiked;
                         post.isLiked = !wasLiked;
@@ -693,9 +693,10 @@ const postsSlice = createSlice({
                 updateInArray(state.bookmarkedPosts);
             })
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isLiked: boolean, likeUri?: string, likesCount?: number }>) => {
-                state.actionLoading[action.payload.uri] = false;
+                const actionUri = action.payload.uri;
+                state.actionLoading[actionUri] = false;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === action.payload.uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         post.isLiked = action.payload.isLiked;
                         // Sync authoritative count from backend
@@ -713,12 +714,12 @@ const postsSlice = createSlice({
                 updateInArray(state.bookmarkedPosts);
             })
             .addCase(toggleLike.rejected, (state: PostsState, action) => {
-                const { uri } = action.meta.arg;
-                state.actionLoading[uri] = false;
+                const { uri: actionUri } = action.meta.arg;
+                state.actionLoading[actionUri] = false;
 
                 // Rollback on Error
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         const wasLiked = post.isLiked;
                         post.isLiked = !wasLiked;
@@ -732,12 +733,12 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             .addCase(repostPost.pending, (state: PostsState, action) => {
-                const { uri } = action.meta.arg;
-                state.actionLoading[uri] = true;
+                const { uri: actionUri } = action.meta.arg;
+                state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         const wasReposted = post.isReposted;
                         post.isReposted = !wasReposted;
@@ -750,9 +751,10 @@ const postsSlice = createSlice({
                 updateInArray(state.bookmarkedPosts);
             })
             .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isReposted: boolean, repostUri?: string, repostsCount?: number }>) => {
-                state.actionLoading[action.payload.uri] = false;
+                const actionUri = action.payload.uri;
+                state.actionLoading[actionUri] = false;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === action.payload.uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         post.isReposted = action.payload.isReposted;
                         // Sync authoritative count from backend
@@ -770,12 +772,12 @@ const postsSlice = createSlice({
                 updateInArray(state.bookmarkedPosts);
             })
             .addCase(repostPost.rejected, (state: PostsState, action) => {
-                const { uri } = action.meta.arg;
-                state.actionLoading[uri] = false;
+                const { uri: actionUri } = action.meta.arg;
+                state.actionLoading[actionUri] = false;
 
                 // Rollback
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         const wasReposted = post.isReposted;
                         post.isReposted = !wasReposted;
@@ -845,12 +847,12 @@ const postsSlice = createSlice({
             })
             // toggleBookmark
             .addCase(toggleBookmark.pending, (state: PostsState, action) => {
-                const { uri } = action.meta.arg;
-                state.actionLoading[uri] = true;
+                const { uri: actionUri } = action.meta.arg;
+                state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         const wasBookmarked = post.isBookmarked;
                         post.isBookmarked = !wasBookmarked;
@@ -863,9 +865,10 @@ const postsSlice = createSlice({
                 updateInArray(state.bookmarkedPosts);
             })
             .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, bookmarksCount?: number }>) => {
-                state.actionLoading[action.payload.uri] = false;
+                const actionUri = action.payload.uri;
+                state.actionLoading[actionUri] = false;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === action.payload.uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         post.isBookmarked = action.payload.isBookmarked;
                         if (action.payload.bookmarksCount !== undefined) post.bookmarksCount = action.payload.bookmarksCount;
@@ -883,12 +886,12 @@ const postsSlice = createSlice({
                 }
             })
             .addCase(toggleBookmark.rejected, (state: PostsState, action) => {
-                const { uri } = action.meta.arg;
-                state.actionLoading[uri] = false;
+                const { uri: actionUri } = action.meta.arg;
+                state.actionLoading[actionUri] = false;
 
                 // Rollback
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === uri);
+                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         const wasBookmarked = post.isBookmarked;
                         post.isBookmarked = !wasBookmarked;

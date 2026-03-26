@@ -267,17 +267,26 @@ namespace BSkyClone.Services
         }
         private class BlueskyMember
         {
+            [JsonPropertyName("did")]
             public string Did { get; set; } = string.Empty;
+            [JsonPropertyName("handle")]
             public string Handle { get; set; } = string.Empty;
+            [JsonPropertyName("displayName")]
             public string? DisplayName { get; set; }
+            [JsonPropertyName("avatar")]
             public string? Avatar { get; set; }
         }
         private class BlueskyMessage
         {
+            [JsonPropertyName("id")]
             public string Id { get; set; } = string.Empty;
+            [JsonPropertyName("rev")]
             public string Rev { get; set; } = string.Empty;
+            [JsonPropertyName("text")]
             public string Text { get; set; } = string.Empty;
+            [JsonPropertyName("sentAt")]
             public string SentAt { get; set; } = string.Empty;
+            [JsonPropertyName("sender")]
             public BlueskyMember Sender { get; set; } = new();
             
             [JsonPropertyName("reactions")]

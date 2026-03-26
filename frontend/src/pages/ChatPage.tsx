@@ -40,6 +40,7 @@ const ChatPage: React.FC = () => {
     const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
     const [forwardSearch, setForwardSearch] = useState('');
     const [selectedReactionMessageId, setSelectedReactionMessageId] = useState<string | null>(null);
+    const [activeQuickBarMessageId, setActiveQuickBarMessageId] = useState<string | null>(null);
     const [hubStatus, setHubStatus] = useState<HubStatus>(signalrService.hubStatus);
 
     // Link Preview State
@@ -660,26 +661,31 @@ const ChatPage: React.FC = () => {
                                         </div>
 
                                         {/* Reactions Display (Corner badges) */}
-                                        {(msg.reactions || []).length > 0 && (
-                                            <div className={`flex flex-wrap gap-1 mt-[-10px] z-10 ${isMe ? 'justify-end mr-2' : 'justify-start ml-2'}`}>
-                                                {Object.entries((msg.reactions || []).reduce((acc, r) => {
-                                                    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                                                    return acc;
-                                                }, {} as Record<string, number>)).map(([emoji, count]) => (
-                                                    <button
-                                                        key={emoji}
-                                                        onClick={() => handleAddReaction(msg.id, emoji)}
-                                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition-all border shadow-sm backdrop-blur-sm ${msg.reactions?.some(r => (r.userId === currentUser?.id || r.userId === currentUser?.did) && r.emoji === emoji)
-                                                            ? 'bg-primary-50/90 dark:bg-primary-500/20 border-primary-200 dark:border-primary-500/30 text-primary-600 dark:text-primary-400'
-                                                            : 'bg-white/90 dark:bg-dark-surface/90 border-gray-100 dark:border-dark-border text-gray-500 hover:border-gray-300 dark:hover:border-dark-text-secondary'
-                                                            }`}
-                                                    >
-                                                        <span>{emoji}</span>
-                                                        {count > 1 && <span className="font-bold">{count}</span>}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
+                                        {(() => {
+                                            if ((msg.reactions || []).length > 0) {
+                                                console.log(`Rendering ${msg.reactions?.length} reactions for message ${msg.id}:`, msg.reactions);
+                                            }
+                                            return (msg.reactions || []).length > 0 && (
+                                                <div className={`flex flex-wrap gap-1 mt-[-10px] z-10 ${isMe ? 'justify-end mr-2' : 'justify-start ml-2'}`}>
+                                                    {Object.entries((msg.reactions || []).reduce((acc, r) => {
+                                                        acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                                        return acc;
+                                                    }, {} as Record<string, number>)).map(([emoji, count]) => (
+                                                        <button
+                                                            key={emoji}
+                                                            onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
+                                                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition-all border shadow-sm backdrop-blur-sm ${msg.reactions?.some(r => (r.userId === currentUser?.id || r.userId === currentUser?.did) && r.emoji === emoji)
+                                                                ? 'bg-primary-50/90 dark:bg-primary-500/20 border-primary-200 dark:border-primary-500/30 text-primary-600 dark:text-primary-400'
+                                                                : 'bg-white/90 dark:bg-dark-surface/90 border-gray-100 dark:border-dark-border text-gray-500 hover:border-gray-300 dark:hover:border-dark-text-secondary'
+                                                                }`}
+                                                        >
+                                                            <span>{emoji}</span>
+                                                            {count > 1 && <span className="font-bold">{count}</span>}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
                                         <div className={`flex items-center gap-2 mt-1 px-1`}>
                                             <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary">
                                                 {formatChatMessageDate(msg.createdAt, i18n.language)}
@@ -689,8 +695,48 @@ const ChatPage: React.FC = () => {
                                                     {t('messages.read')}
                                                 </span>
                                             )}
+                                            {/* Hover Icons (... and 🙂) */}
+                                            <div className={`absolute -top-8 ${isMe ? 'right-0' : 'left-0'} flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-all duration-200 z-20`}>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(msg.id); setActiveQuickBarMessageId(null); }}
+                                                    className="w-8 h-8 flex items-center justify-center bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-lg hover:scale-110 active:scale-95 text-gray-500 dark:text-gray-400"
+                                                >
+                                                    <FiMoreHorizontal size={18} />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); setActiveQuickBarMessageId(msg.id); setSelectedReactionMessageId(null); }}
+                                                    className="w-8 h-8 flex items-center justify-center bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-lg hover:scale-110 active:scale-95 text-gray-500 dark:text-gray-400"
+                                                >
+                                                    <FiSmile size={18} />
+                                                </button>
+                                            </div>
 
-                                            {/* Full Action Menu (on click) */}
+                                            {/* Quick Reaction Bar (Open when 🙂 is clicked) */}
+                                            {activeQuickBarMessageId === msg.id && (
+                                                <div className={`absolute -top-12 ${isMe ? 'right-0' : 'left-0'} z-30 animate-in fade-in zoom-in-95 duration-200`}>
+                                                    <div className="flex items-center gap-0.5 p-1 bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
+                                                        {['👍', '😂', '❤️', '👀', '😢'].map(emoji => (
+                                                            <button
+                                                                key={emoji}
+                                                                onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); setActiveQuickBarMessageId(null); }}
+                                                                className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-xl active:scale-95"
+                                                                title={emoji}
+                                                            >
+                                                                {emoji}
+                                                            </button>
+                                                        ))}
+                                                        <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-1" />
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(true); setActiveQuickBarMessageId(null); }}
+                                                            className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
+                                                        >
+                                                            <FiMoreHorizontal size={18} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Full Action Menu (on click ...) */}
                                             {selectedReactionMessageId === msg.id && (
                                                 <div
                                                     ref={messageMenuRef}

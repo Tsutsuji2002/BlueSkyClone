@@ -512,12 +512,12 @@ const feedsSlice = createSlice({
                     action.type.endsWith('/repostPost/pending') ||
                     action.type.endsWith('/toggleBookmark/pending'),
                 (state: FeedsState, action: any) => {
-                    const { uri } = action.meta.arg;
+                    const { uri: actionUri } = action.meta.arg;
                     const type = action.type;
 
                     Object.keys(state.feedPosts).forEach(feedId => {
                         const posts = state.feedPosts[feedId];
-                        const post = posts.find(p => p.uri === uri || p.id === uri); // Handle both formats
+                        const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!))); // Handle all formats
                         if (post) {
                             if (type.includes('toggleLike')) {
                                 const wasLiked = post.isLiked;
@@ -543,12 +543,12 @@ const feedsSlice = createSlice({
                     action.type.endsWith('/toggleBookmark/fulfilled'),
                 (state: FeedsState, action: any) => {
                     const payload = action.payload;
-                    const uri = payload.uri;
-                    if (!uri) return;
+                    const actionUri = payload.uri;
+                    if (!actionUri) return;
 
                     Object.keys(state.feedPosts).forEach(feedId => {
                         const posts = state.feedPosts[feedId];
-                        const post = posts.find(p => p.uri === uri || p.id === uri);
+                        const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                         if (post) {
                             if (payload.isLiked !== undefined) post.isLiked = payload.isLiked;
                             if (payload.isReposted !== undefined) post.isReposted = payload.isReposted;
@@ -572,12 +572,12 @@ const feedsSlice = createSlice({
                     action.type.endsWith('/repostPost/rejected') ||
                     action.type.endsWith('/toggleBookmark/rejected'),
                 (state: FeedsState, action: any) => {
-                    const { uri } = action.meta.arg;
+                    const { uri: actionUri } = action.meta.arg;
                     const type = action.type;
 
                     Object.keys(state.feedPosts).forEach(feedId => {
                         const posts = state.feedPosts[feedId];
-                        const post = posts.find(p => p.uri === uri || p.id === uri);
+                        const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                         if (post) {
                             // Simple toggle back
                             if (type.includes('toggleLike')) {
@@ -617,12 +617,12 @@ const feedsSlice = createSlice({
             .addMatcher(
                 (action) => action.type === 'posts/updatePostStats',
                 (state: FeedsState, action: any) => {
-                    const { uri, likesCount, repostsCount, bookmarksCount, repliesCount, quotesCount, timestamp } = action.payload;
-                    if (!uri) return;
+                    const { uri: actionUri, likesCount, repostsCount, bookmarksCount, repliesCount, quotesCount, timestamp } = action.payload;
+                    if (!actionUri) return;
 
                     Object.keys(state.feedPosts).forEach(feedId => {
                         const posts = state.feedPosts[feedId];
-                        const post = posts.find(p => p.uri === uri || p.id === uri);
+                        const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                         if (post) {
                             const isRemote = post.uri && !post.uri.includes('localhost') && !post.uri.includes('staging') && post.uri.includes('at://');
                             if (likesCount !== undefined) {
@@ -649,12 +649,12 @@ const feedsSlice = createSlice({
             .addMatcher(
                 (action) => action.type === 'posts/updateUserPostStatus',
                 (state: FeedsState, action: any) => {
-                    const { uri, isLiked, isReposted, isBookmarked } = action.payload;
-                    if (!uri) return;
+                    const { uri: actionUri, isLiked, isReposted, isBookmarked } = action.payload;
+                    if (!actionUri) return;
 
                     Object.keys(state.feedPosts).forEach(feedId => {
                         const posts = state.feedPosts[feedId];
-                        const post = posts.find(p => p.uri === uri || p.id === uri);
+                        const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                         if (post) {
                             if (isLiked !== undefined) post.isLiked = isLiked;
                             if (isReposted !== undefined) post.isReposted = isReposted;
