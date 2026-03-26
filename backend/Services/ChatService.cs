@@ -429,7 +429,30 @@ public class ChatService : IChatService
                     // Fetch updated message to return
                     var updatedMessages = await _chatProxy.GetMessagesAsync(token, conversationId, 100);
                     var updated = updatedMessages.FirstOrDefault(m => m.Id == messageId);
-                    if (updated != null) return updated;
+                    
+                    // Manually enforce state if proxy result is stale (eventual consistency)
+                    if (updated != null)
+                    {
+                        // Check if the intended state is reflected
+                        var hasReactionNow = updated.Reactions?.Any(r => r.Emoji == emoji && (r.UserId == userId.ToString() || r.UserId == message.Reactions?.FirstOrDefault(ur => ur.Emoji == emoji)?.UserId)) == true;
+                        
+                        // UserReaction != null means we intended to REMOVE it
+                        if (userReaction != null && hasReactionNow)
+                        {
+                            updated.Reactions = updated.Reactions?.Where(r => r.Emoji != emoji || (r.UserId != userId.ToString() && r.UserId != userReaction.UserId)).ToList();
+                        }
+                        // UserReaction == null means we intended to ADD it
+                        else if (userReaction == null && !hasReactionNow)
+                        {
+                            var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Id == userId);
+                            var newReaction = new MessageReactionDto(user?.Did ?? userId.ToString(), emoji, user?.DisplayName);
+                            var newReactionsList = updated.Reactions?.ToList() ?? new List<MessageReactionDto>();
+                            newReactionsList.Add(newReaction);
+                            updated = updated with { Reactions = newReactionsList };
+                        }
+                        
+                        return updated;
+                    }
                 }
             }
         }

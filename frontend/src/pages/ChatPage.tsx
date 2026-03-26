@@ -144,6 +144,16 @@ const ChatPage: React.FC = () => {
     const messageMenuRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+    const [isConnected, setIsConnected] = useState(signalrService.hubStatus === HubStatus.Connected);
+
+    useEffect(() => {
+        const handleStatusChange = (status: HubStatus) => {
+            setIsConnected(status === HubStatus.Connected);
+        };
+        signalrService.onStatusChange(handleStatusChange);
+        setIsConnected(signalrService.hubStatus === HubStatus.Connected);
+    }, []);
+
     const { conversations, activeConversationMessages, isLoading, hasMore, isLoadingMore } = useAppSelector((state: RootState) => state.messages);
     const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
     const { mode } = useAppSelector((state: RootState) => state.theme);
@@ -189,16 +199,27 @@ const ChatPage: React.FC = () => {
             if (!conversation) {
                 dispatch(fetchConversationById(conversationId));
             }
+        }
+    }, [conversationId, dispatch]);
 
+    // Reliable Join conversation
+    useEffect(() => {
+        if (conversationId && isConnected) {
             signalrService.joinConversation(conversationId);
         }
         return () => {
-            if (conversationId) {
+            if (conversationId && isConnected) {
                 signalrService.leaveConversation(conversationId);
             }
-            dispatch(setActiveConversation(null));
         };
-    }, [conversationId, dispatch]);
+    }, [conversationId, isConnected]);
+
+    // Clear active conversation on unmount completely
+    useEffect(() => {
+        return () => {
+             dispatch(setActiveConversation(null));
+        }
+    }, [dispatch]);
 
     // Mark as read when new messages arrive
     useEffect(() => {
@@ -346,8 +367,34 @@ const ChatPage: React.FC = () => {
         if (!conversationId) return;
         try {
             console.log(`Adding reaction: ${emoji} to message: ${msgId}`);
-            await signalrService.addReaction(conversationId, msgId, emoji);
+            
+            // Optimistic Update
+            const msgToUpdate = activeConversationMessages.find((m: Message) => m.id === msgId);
+            if (msgToUpdate && currentUser) {
+                const existingReaction = msgToUpdate.reactions?.find((r: any) => r.userId === currentUser.id || r.userId === currentUser.did);
+                let newReactions = [...(msgToUpdate.reactions || [])];
+                
+                if (existingReaction) {
+                    if (existingReaction.emoji === emoji) {
+                        newReactions = newReactions.filter(r => r !== existingReaction);
+                    } else {
+                        newReactions = newReactions.map(r => r === existingReaction ? { ...r, emoji } : r);
+                    }
+                } else {
+                    newReactions.push({
+                        userId: currentUser.did || currentUser.id, // Prefer DID for proxy
+                        emoji,
+                        displayName: currentUser.displayName || currentUser.handle
+                    });
+                }
+                
+                const updatedMsg = { ...msgToUpdate, reactions: newReactions };
+                // @ts-ignore
+                store.dispatch({ type: 'messages/updateMessageInStore', payload: updatedMsg });
+            }
+
             setSelectedReactionMessageId(null);
+            await signalrService.addReaction(conversationId, msgId, emoji);
         } catch (err) {
             console.error('Failed to add reaction:', err);
         }
