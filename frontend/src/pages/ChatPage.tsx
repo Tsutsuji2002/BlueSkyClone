@@ -564,15 +564,27 @@ const ChatPage: React.FC = () => {
                     ) : (
                         <>
                             {isLoadingMore && (
-                                <div className="flex justify-center py-2">
+                <div className="flex justify-center py-2">
                                     <LoadingIndicator size="sm" center={false} />
                                 </div>
                             )}
                             <div className="flex-grow min-h-0"></div>
                             {activeConversationMessages.map((msg: Message) => {
-                                const isMe = (msg.sender?.did && currentUser?.did) 
-                                    ? msg.sender.did === currentUser.did 
-                                    : (msg.senderId === currentUser?.id || (msg.sender?.handle && currentUser?.handle && msg.sender.handle === currentUser.handle));
+                                 const senderDid = msg.sender?.did;
+                                 const senderId = msg.senderId;
+                                 const senderHandle = msg.sender?.handle;
+                                 const myDid = currentUser?.did;
+                                 const myId = currentUser?.id;
+                                 const myHandle = currentUser?.handle;
+
+                                 const isMe = (senderDid && myDid && String(senderDid) === String(myDid)) ||
+                                              (senderId && myId && String(senderId) === String(myId)) ||
+                                              (senderHandle && myHandle && String(senderHandle).toLowerCase() === String(myHandle).toLowerCase());
+                                 
+                                 // Debug reactions visibility
+                                 if (msg.reactions?.length > 0) {
+                                     // console.log(`Message ${msg.id} has ${msg.reactions.length} reactions`);
+                                 }
 
                                 return (
                                     <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative mb-2`}>
@@ -652,25 +664,31 @@ const ChatPage: React.FC = () => {
                                                 {/* Reaction badges overlapping the bubble corner - Pic 4 Style */}
                                                 {(() => {
                                                     const reactions = msg.reactions || [];
-                                                    return reactions.length > 0 ? (
-                                                        <div className={`absolute bottom-[-6px] ${isMe ? 'right-[-2px]' : 'left-[-2px]'} flex -space-x-1.5 z-20 pointer-events-none`}>
-                                                            {Object.entries(
-                                                                reactions.reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {} as Record<string, number>)
-                                                            ).map(([emoji, count]) => (
-                                                                <button
+                                                    if (reactions.length === 0) return null;
+
+                                                    // Group reactions by emoji
+                                                    const grouped = reactions.reduce((acc, r) => {
+                                                        acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                                        return acc;
+                                                    }, {} as Record<string, number>);
+
+                                                    return (
+                                                        <div className={`absolute bottom-[-5px] ${isMe ? 'right-1' : 'left-1'} flex -space-x-1 z-20 pointer-events-none`}>
+                                                            {Object.entries(grouped).map(([emoji, count]) => (
+                                                                <div
                                                                     key={emoji}
-                                                                    onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
                                                                     className={`flex items-center justify-center w-6 h-6 rounded-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-dark-border shadow-sm pointer-events-auto transition-transform hover:scale-110 active:scale-95 ${msg.reactions?.some(r => r.userId === currentUser?.id || r.userId === currentUser?.did)
-                                                                        ? 'ring-1 ring-primary-500/30'
+                                                                        ? 'ring-1 ring-primary-500/50'
                                                                         : ''
                                                                         }`}
                                                                     title={`${count} reactions`}
+                                                                    onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
                                                                 >
-                                                                    <span className="text-[13px] leading-none">{emoji}</span>
-                                                                </button>
+                                                                    <span className="text-[13px] leading-none mb-0.5">{emoji}</span>
+                                                                </div>
                                                             ))}
                                                         </div>
-                                                    ) : null;
+                                                    );
                                                 })()}
                                             </div>
 
@@ -736,17 +754,18 @@ const ChatPage: React.FC = () => {
                                                     {selectedReactionMessageId === msg.id && showReactionPicker && (
                                                         <div
                                                             ref={reactionPickerRef}
-                                                            className={`absolute ${isMe ? 'right-0' : 'left-0'} z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-visible
+                                                            className={`absolute z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-visible
+                                                                ${isMe ? 'right-0' : 'left-0'} 
                                                                 ${(() => {
-                                                                    // Simple heuristic for "at the top" vs "at the bottom"
                                                                     const msgIndex = activeConversationMessages.findIndex(m => m.id === msg.id);
                                                                     const isTopFew = msgIndex < 3;
-                                                                    return isTopFew ? 'top-full mt-2' : 'bottom-full mb-2';
+                                                                    return isTopFew ? 'top-full mt-1' : 'bottom-full mb-1';
                                                                 })()}
                                                             `}
                                                             style={{ 
-                                                                width: 'min(92vw, 320px)', 
+                                                                width: '310px', 
                                                                 height: '380px',
+                                                                transform: isMe ? 'translateX(-10px)' : 'translateX(10px)'
                                                             }}
                                                         >
                                                             <div className="bg-white dark:bg-dark-surface rounded-2xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-2xl">
@@ -759,7 +778,7 @@ const ChatPage: React.FC = () => {
                                                                     theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
                                                                     lazyLoadEmojis={true}
                                                                     skinTonesDisabled={true}
-                                                                    searchPlaceHolder={t('common.search_emojis')}
+                                                                    searchPlaceholder="Search emojis..."
                                                                     width="100%"
                                                                     height={380}
                                                                     previewConfig={{ showPreview: false }}
