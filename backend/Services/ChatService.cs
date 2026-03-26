@@ -439,7 +439,8 @@ public class ChatService : IChatService
                         // UserReaction != null means we intended to REMOVE it
                         if (userReaction != null && hasReactionNow)
                         {
-                            updated.Reactions = updated.Reactions?.Where(r => r.Emoji != emoji || (r.UserId != userId.ToString() && r.UserId != userReaction.UserId)).ToList();
+                            var filteredReactions = updated.Reactions?.Where(r => r.Emoji != emoji || (r.UserId != userId.ToString() && r.UserId != userReaction.UserId)).ToList();
+                            updated = updated with { Reactions = filteredReactions };
                         }
                         // UserReaction == null means we intended to ADD it
                         else if (userReaction == null && !hasReactionNow)
