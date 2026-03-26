@@ -573,7 +573,11 @@
         "replying_to": "Replying to {{name}}",
         "replying_to_prefix": "Replying to",
         "modified": "Modified",
-        "add_reaction": "Add reaction"
+        "add_reaction": "Add reaction",
+        "delete_for_me": "Delete for me",
+        "confirm_delete_for_me": "Are you sure you want to delete this message for yourself? It will remain visible to other participants.",
+        "delete_success": "Message deleted for you",
+        "delete_error": "Failed to delete message"
     },
     "search": {
         "title": "Search",
