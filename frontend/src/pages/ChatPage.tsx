@@ -48,6 +48,11 @@ const ChatPage: React.FC = () => {
     const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
     const [isLinkLoading, setIsLinkLoading] = useState(false);
     const [stickyLink, setStickyLink] = useState<string | null>(null);
+    
+    // Popup Layout State
+    const [pickerPosition, setPickerPosition] = useState<{ top: number, left: number } | null>(null);
+    const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null);
+
     const [dismissedLinks, setDismissedLinks] = useState<Set<string>>(new Set());
     const prevContentRef = useRef('');
 
@@ -745,7 +750,27 @@ const ChatPage: React.FC = () => {
                                                 {/* ... Options */}
                                                 <div className="relative">
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(selectedReactionMessageId === msg.id ? null : msg.id); setActiveQuickBarMessageId(null); setShowReactionPicker(false); }}
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            if (selectedReactionMessageId === msg.id && !showReactionPicker) {
+                                                                setSelectedReactionMessageId(null);
+                                                                return;
+                                                            }
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            const width = 170;
+                                                            const height = 180;
+                                                            let left = isMe ? rect.left - width : rect.right;
+                                                            let top = rect.bottom + 4;
+                                                            
+                                                            if (left + width > window.innerWidth - 10) left = window.innerWidth - width - 10;
+                                                            if (left < 10) left = 10;
+                                                            if (top + height > window.innerHeight - 10) top = rect.top - height - 4;
+                                                            
+                                                            setMenuPosition({ left, top });
+                                                            setSelectedReactionMessageId(msg.id); 
+                                                            setActiveQuickBarMessageId(null); 
+                                                            setShowReactionPicker(false); 
+                                                        }}
                                                         className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                                                         title="Options"
                                                     >
@@ -758,8 +783,24 @@ const ChatPage: React.FC = () => {
                                                     <button
                                                         onClick={(e) => { 
                                                             e.stopPropagation(); 
-                                                            setSelectedReactionMessageId(selectedReactionMessageId === msg.id ? null : msg.id); 
-                                                            setShowReactionPicker(selectedReactionMessageId === msg.id ? false : true);
+                                                            if (selectedReactionMessageId === msg.id && showReactionPicker) {
+                                                                setShowReactionPicker(false);
+                                                                setSelectedReactionMessageId(null);
+                                                                return;
+                                                            }
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            const width = Math.min(310, window.innerWidth - 20);
+                                                            const height = 400;
+                                                            let left = isMe ? rect.left - width : rect.right;
+                                                            let top = rect.bottom + 4;
+                                                            
+                                                            if (left + width > window.innerWidth - 10) left = window.innerWidth - width - 10;
+                                                            if (left < 10) left = 10;
+                                                            if (top + height > window.innerHeight - 10) top = rect.top - height - 4;
+                                                            
+                                                            setPickerPosition({ left, top });
+                                                            setSelectedReactionMessageId(msg.id); 
+                                                            setShowReactionPicker(true);
                                                             setActiveQuickBarMessageId(null); 
                                                         }}
                                                         className={`w-7 h-7 flex items-center justify-center rounded-full transition-all ${selectedReactionMessageId === msg.id && showReactionPicker 
@@ -773,45 +814,48 @@ const ChatPage: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Message Options Menu - Screen-Safe bounds */}
-                                            {selectedReactionMessageId === msg.id && !showReactionPicker && (
-                                                <div
-                                                    ref={messageMenuRef}
-                                                    className={`absolute ${isMe ? 'right-4 sm:right-10' : 'left-4 sm:left-10'} bottom-full mb-1 bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-30 min-w-[170px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
-                                                >
-                                                    <div className="py-1">
-                                                        <button onClick={() => { handleTranslate(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.translate')}</span>
-                                                            <FiGlobe size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
-                                                        </button>
-                                                        <button onClick={() => { handleCopyText(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.copy_text')}</span>
-                                                            <FiCopy size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
-                                                        </button>
-                                                        <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1 mx-2" />
-                                                        <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.delete_for_me')}</span>
-                                                            <FiTrash size={16} className="text-gray-400 group-hover/item:text-red-500 transition-colors" />
-                                                        </button>
+                                            {/* Message Options Menu - Dynamic JS Bounds */}
+                                            {selectedReactionMessageId === msg.id && !showReactionPicker && menuPosition && (
+                                                <>
+                                                    <div className="fixed inset-0 z-[90]" onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(null); }} />
+                                                    <div
+                                                        ref={messageMenuRef}
+                                                        className="fixed z-[100] bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                                                        style={{ left: `${menuPosition.left}px`, top: `${menuPosition.top}px`, width: '170px' }}
+                                                    >
+                                                        <div className="py-1">
+                                                            <button onClick={() => { handleTranslate(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                                <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.translate')}</span>
+                                                                <FiGlobe size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
+                                                            </button>
+                                                            <button onClick={() => { handleCopyText(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                                <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.copy_text')}</span>
+                                                                <FiCopy size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
+                                                            </button>
+                                                            <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1 mx-2" />
+                                                            <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                                <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.delete_for_me')}</span>
+                                                                <FiTrash size={16} className="text-gray-400 group-hover/item:text-red-500 transition-colors" />
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                </>
                                             )}
 
-                                            {/* Full Emoji Picker per-message - Fixed Modal Overlay for exact bounds */}
-                                            {selectedReactionMessageId === msg.id && showReactionPicker && (
-                                                <div 
-                                                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/5 dark:bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200"
-                                                    onClick={(e) => { 
-                                                        e.stopPropagation(); 
-                                                        e.preventDefault();
-                                                        setShowReactionPicker(false); 
-                                                        setSelectedReactionMessageId(null); 
-                                                    }}
-                                                >
+                                            {/* Full Emoji Picker per-message - Dynamic JS Bounds */}
+                                            {selectedReactionMessageId === msg.id && showReactionPicker && pickerPosition && (
+                                                <>
+                                                    <div className="fixed inset-0 z-[90]" onClick={(e) => { e.stopPropagation(); setShowReactionPicker(false); setSelectedReactionMessageId(null); }} />
                                                     <div 
                                                         ref={reactionPickerRef}
-                                                        className="bg-white dark:bg-dark-surface rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
-                                                        style={{ width: '90%', maxWidth: '320px', height: '400px' }}
+                                                        className="fixed z-[100] bg-white dark:bg-dark-surface rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+                                                        style={{ 
+                                                            left: `${pickerPosition.left}px`, 
+                                                            top: `${pickerPosition.top}px`,
+                                                            width: '310px',
+                                                            maxWidth: 'calc(100vw - 20px)',
+                                                            height: '400px'
+                                                        }}
                                                         onClick={(e) => { e.stopPropagation(); }}
                                                     >
                                                         <EmojiPicker
@@ -830,7 +874,7 @@ const ChatPage: React.FC = () => {
                                                             scrollConfig={{ categoryRef: null }}
                                                         />
                                                     </div>
-                                                </div>
+                                                </>
                                             )}
                                         </div>
 
