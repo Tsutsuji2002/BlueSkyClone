@@ -751,28 +751,6 @@ const ChatPage: React.FC = () => {
                                                     >
                                                         <FiMoreHorizontal size={15} />
                                                     </button>
-                                                    {selectedReactionMessageId === msg.id && !showReactionPicker && (
-                                                        <div
-                                                            ref={messageMenuRef}
-                                                            className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-1 bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-30 min-w-[170px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
-                                                        >
-                                                            <div className="py-1">
-                                                                <button onClick={() => { handleTranslate(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                                    <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.translate')}</span>
-                                                                    <FiGlobe size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
-                                                                </button>
-                                                                <button onClick={() => { handleCopyText(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                                    <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.copy_text')}</span>
-                                                                    <FiCopy size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
-                                                                </button>
-                                                                <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1 mx-2" />
-                                                                <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                                    <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.delete_for_me')}</span>
-                                                                    <FiTrash size={16} className="text-gray-400 group-hover/item:text-red-500 transition-colors" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
                                                 
                                                 {/* 🙂 React - Pic 4 Style: Direct Picker */}
@@ -794,6 +772,30 @@ const ChatPage: React.FC = () => {
                                                     </button>
                                                 </div>
                                             </div>
+
+                                            {/* Message Options Menu - Screen-Safe bounds */}
+                                            {selectedReactionMessageId === msg.id && !showReactionPicker && (
+                                                <div
+                                                    ref={messageMenuRef}
+                                                    className={`absolute ${isMe ? 'right-4 sm:right-10' : 'left-4 sm:left-10'} bottom-full mb-1 bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-30 min-w-[170px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
+                                                >
+                                                    <div className="py-1">
+                                                        <button onClick={() => { handleTranslate(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.translate')}</span>
+                                                            <FiGlobe size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
+                                                        </button>
+                                                        <button onClick={() => { handleCopyText(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.copy_text')}</span>
+                                                            <FiCopy size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
+                                                        </button>
+                                                        <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1 mx-2" />
+                                                        <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.delete_for_me')}</span>
+                                                            <FiTrash size={16} className="text-gray-400 group-hover/item:text-red-500 transition-colors" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* Full Emoji Picker per-message - Fixed Modal Overlay for exact bounds */}
                                             {selectedReactionMessageId === msg.id && showReactionPicker && (
