@@ -18,12 +18,19 @@ class PostSignalRService {
             .withAutomaticReconnect()
             .build();
 
-        this.connection.on('UpdatePostStats', (stats: { postId: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number, timestamp?: string }) => {
-            store.dispatch(updatePostStats({ ...stats, uri: stats.postId }));
+        this.connection.on('UpdatePostStats', (stats: { postId: string; uri?: string; tid?: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number, timestamp?: string }) => {
+            // Dispatch with uri so feedsSlice can match remote AT Protocol posts
+            store.dispatch(updatePostStats({ 
+                ...stats, 
+                uri: stats.uri || stats.postId // prefer AT Protocol uri, fall back to postId
+            }));
         });
 
-        this.connection.on('UpdateUserPostStatus', (status: { postId: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean, timestamp?: string }) => {
-            store.dispatch(updateUserPostStatus({ ...status, uri: status.postId }));
+        this.connection.on('UpdateUserPostStatus', (status: { postId: string; uri?: string; tid?: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean, timestamp?: string }) => {
+            store.dispatch(updateUserPostStatus({ 
+                ...status, 
+                uri: status.uri || status.postId 
+            }));
         });
 
         this.connection.on('PostDeleted', (postId: string) => {

@@ -3462,6 +3462,8 @@ public class PostService : IPostService
         await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
         { 
             postId, 
+            uri = post.Uri,
+            tid = post.Tid,
             likesCount = actLikes,
             repostsCount = actReposts,
             bookmarksCount = actBookmarks,
@@ -3473,6 +3475,8 @@ public class PostService : IPostService
         await _postHubContext.Clients.Group($"user-{userId}").SendAsync("UpdateUserPostStatus", new
         {
             postId,
+            uri = post.Uri,
+            tid = post.Tid,
             isLiked,
             isReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == userId),
             isBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(b => b.PostId == postId && b.UserId == userId),
@@ -3482,7 +3486,7 @@ public class PostService : IPostService
         return new 
         { 
             isLiked, 
-            likesCount = post.LikesCount 
+            likesCount = actLikes
         };
     }
     finally
@@ -3559,6 +3563,8 @@ public class PostService : IPostService
         await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
         { 
             postId, 
+            uri = post.Uri,
+            tid = post.Tid,
             likesCount = actLikes,
             repostsCount = actReposts,
             bookmarksCount = actBookmarks,
@@ -3570,6 +3576,8 @@ public class PostService : IPostService
         await _postHubContext.Clients.Group($"user-{userId}").SendAsync("UpdateUserPostStatus", new
         {
             postId,
+            uri = post.Uri,
+            tid = post.Tid,
             isBookmarked,
             isLiked = await _unitOfWork.Likes.Query().AnyAsync(l => l.PostId == postId && l.UserId == userId),
             isReposted = await _unitOfWork.Reposts.Query().AnyAsync(r => r.PostId == postId && r.UserId == userId),
@@ -3579,7 +3587,7 @@ public class PostService : IPostService
         return new 
         { 
             isBookmarked,
-            bookmarksCount = post.BookmarksCount
+            bookmarksCount = actBookmarks
         };
     }
     finally
@@ -3789,6 +3797,8 @@ public class PostService : IPostService
         await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
         { 
             postId, 
+            uri = post.Uri,
+            tid = post.Tid,
             likesCount = actLikes,
             repostsCount = actReposts,
             bookmarksCount = actBookmarks,
@@ -3800,6 +3810,8 @@ public class PostService : IPostService
         await _postHubContext.Clients.Group($"user-{userId}").SendAsync("UpdateUserPostStatus", new
         {
             postId,
+            uri = post.Uri,
+            tid = post.Tid,
             isReposted,
             isLiked = await _unitOfWork.Likes.Query().AnyAsync(l => l.PostId == postId && l.UserId == userId),
             isBookmarked = await _unitOfWork.Bookmarks.Query().AnyAsync(b => b.PostId == postId && b.UserId == userId),
@@ -3809,7 +3821,7 @@ public class PostService : IPostService
         return new
         {
             isReposted,
-            repostsCount = post.RepostsCount
+            repostsCount = actReposts
         };
     }
     finally
