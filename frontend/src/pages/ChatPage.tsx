@@ -649,29 +649,24 @@ const ChatPage: React.FC = () => {
                                                 </>
                                             )}
                                                 </div>
-
-                                                {/* Reaction badges overlapping the bubble corner */}
+                                                {/* Reaction badges overlapping the bubble corner - Pic 4 Style */}
                                                 {(() => {
                                                     const reactions = msg.reactions || [];
-                                                    if (reactions.length > 0) {
-                                                        // Debug log for visibility
-                                                        // console.log(`Rendering ${reactions.length} reactions for message ${msg.id}:`, reactions);
-                                                    }
                                                     return reactions.length > 0 ? (
-                                                        <div className={`absolute bottom-[-8px] ${isMe ? 'right-0 translate-x-1/4' : 'left-0 -translate-x-1/4'} flex gap-0.5 z-20 pointer-events-none`}>
+                                                        <div className={`absolute bottom-[-6px] ${isMe ? 'right-[-2px]' : 'left-[-2px]'} flex -space-x-1.5 z-20 pointer-events-none`}>
                                                             {Object.entries(
                                                                 reactions.reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {} as Record<string, number>)
                                                             ).map(([emoji, count]) => (
                                                                 <button
                                                                     key={emoji}
                                                                     onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
-                                                                    className={`flex items-center justify-center min-w-[24px] h-[24px] rounded-full border shadow-lg pointer-events-auto transition-all hover:scale-110 active:scale-90 ${msg.reactions?.some(r => r.userId === currentUser?.id || r.userId === currentUser?.did)
-                                                                        ? 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-800'
-                                                                        : 'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-dark-border'
+                                                                    className={`flex items-center justify-center w-6 h-6 rounded-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-dark-border shadow-sm pointer-events-auto transition-transform hover:scale-110 active:scale-95 ${msg.reactions?.some(r => r.userId === currentUser?.id || r.userId === currentUser?.did)
+                                                                        ? 'ring-1 ring-primary-500/30'
+                                                                        : ''
                                                                         }`}
+                                                                    title={`${count} reactions`}
                                                                 >
-                                                                    <span className="text-[14px] leading-none">{emoji}</span>
-                                                                    {count > 1 && <span className="text-[9px] font-bold ml-0.5 text-gray-500">{count}</span>}
+                                                                    <span className="text-[13px] leading-none">{emoji}</span>
                                                                 </button>
                                                             ))}
                                                         </div>
@@ -718,63 +713,59 @@ const ChatPage: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </div>
-
-                                                {/* 🙂 React */}
+                                                
+                                                {/* 🙂 React - Pic 4 Style: Direct Picker */}
                                                 <div className="relative">
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); setActiveQuickBarMessageId(activeQuickBarMessageId === msg.id ? null : msg.id); setSelectedReactionMessageId(null); setShowReactionPicker(false); }}
-                                                        className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            setSelectedReactionMessageId(selectedReactionMessageId === msg.id ? null : msg.id); 
+                                                            setShowReactionPicker(selectedReactionMessageId === msg.id ? false : true);
+                                                            setActiveQuickBarMessageId(null); 
+                                                        }}
+                                                        className={`w-7 h-7 flex items-center justify-center rounded-full transition-all ${selectedReactionMessageId === msg.id && showReactionPicker 
+                                                            ? 'text-primary-500 bg-primary-50 dark:bg-primary-500/10' 
+                                                            : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10'
+                                                        }`}
                                                         title="React"
                                                     >
-                                                        <FiSmile size={15} />
+                                                        <FiSmile size={16} />
                                                     </button>
-
-                                                    {/* Quick emoji bar */}
-                                                    {activeQuickBarMessageId === msg.id && (
-                                                        <div className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-1 z-40 animate-in fade-in zoom-in-95 duration-150`}>
-                                                            <div className="flex items-center gap-0.5 p-1 bg-white dark:bg-[#1a1a1a] border border-gray-200/60 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
-                                                                {['👍', '😂', '❤️', '👀', '😢'].map(emoji => (
-                                                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); setActiveQuickBarMessageId(null); }} className="w-8 h-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-lg active:scale-95" title={emoji}>
-                                                                        {emoji}
-                                                                    </button>
-                                                                ))}
-                                                                <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-0.5" />
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(msg.id); setActiveQuickBarMessageId(null); setShowReactionPicker(true); }}
-                                                                    className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
-                                                                    title="More emojis"
-                                                                >
-                                                                    <FiMoreHorizontal size={18} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Full Emoji Picker per-message */}
+                                                    
+                                                    {/* Full Emoji Picker per-message - Smart Positioned */}
                                                     {selectedReactionMessageId === msg.id && showReactionPicker && (
                                                         <div
                                                             ref={reactionPickerRef}
-                                                            className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-2 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-visible`}
+                                                            className={`absolute ${isMe ? 'right-0' : 'left-0'} z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-visible
+                                                                ${(() => {
+                                                                    // Simple heuristic for "at the top" vs "at the bottom"
+                                                                    const msgIndex = activeConversationMessages.findIndex(m => m.id === msg.id);
+                                                                    const isTopFew = msgIndex < 3;
+                                                                    return isTopFew ? 'top-full mt-2' : 'bottom-full mb-2';
+                                                                })()}
+                                                            `}
                                                             style={{ 
-                                                                width: 'min(92vw, 350px)', 
-                                                                maxHeight: '400px',
-                                                                // Use transform to nudge it if it's too close to the edge
-                                                                transform: isMe ? 'translateX(0)' : 'translateX(0)' 
+                                                                width: 'min(92vw, 320px)', 
+                                                                height: '380px',
                                                             }}
                                                         >
-                                                            <EmojiPicker
-                                                                onEmojiClick={(emojiData: EmojiClickData) => {
-                                                                    handleAddReaction(msg.id, emojiData.emoji);
-                                                                    setShowReactionPicker(false);
-                                                                    setSelectedReactionMessageId(null);
-                                                                }}
-                                                                theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
-                                                                lazyLoadEmojis={true}
-                                                                skinTonesDisabled={true}
-                                                                searchPlaceHolder={t('common.search_emojis')}
-                                                                width="100%"
-                                                                height={350}
-                                                            />
+                                                            <div className="bg-white dark:bg-dark-surface rounded-2xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-2xl">
+                                                                <EmojiPicker
+                                                                    onEmojiClick={(emojiData: EmojiClickData) => {
+                                                                        handleAddReaction(msg.id, emojiData.emoji);
+                                                                        setShowReactionPicker(false);
+                                                                        setSelectedReactionMessageId(null);
+                                                                    }}
+                                                                    theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
+                                                                    lazyLoadEmojis={true}
+                                                                    skinTonesDisabled={true}
+                                                                    searchPlaceHolder={t('common.search_emojis')}
+                                                                    width="100%"
+                                                                    height={380}
+                                                                    previewConfig={{ showPreview: false }}
+                                                                    scrollConfig={{ categoryRef: null }}
+                                                                />
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
