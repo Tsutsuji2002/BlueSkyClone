@@ -578,13 +578,15 @@ const ChatPage: React.FC = () => {
                                     <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative`}>
 
                                         {/* Row: bubble + inline hover icons */}
-                                        <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                        <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative`}>
 
-                                            {/* Message Bubble */}
-                                            <div className={`max-w-[85%] sm:max-w-[70%] overflow-hidden relative ${isMe
-                                                ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
-                                                : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
-                                                }`}>
+                                            {/* Message Bubble & Reactions Wrapper */}
+                                            <div className="relative max-w-[85%] sm:max-w-[70%]">
+                                                {/* Message Bubble */}
+                                                <div className={`overflow-hidden ${isMe
+                                                    ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
+                                                    : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
+                                                    }`}>
 
                                             {/* Reply Context */}
                                             {msg.replyTo && !msg.isRecalled && (
@@ -646,10 +648,41 @@ const ChatPage: React.FC = () => {
                                                     )}
                                                 </>
                                             )}
+                                                </div>
                                             </div>
+
+                                            {/* Reaction badges overlapping the bubble */}
+                                            {(() => {
+                                                const reactions = msg.reactions || [];
+                                                if (reactions.length === 0) return null;
+                                                
+                                                // Debug log for reactions visibility
+                                                console.log(`Message ${msg.id} has ${reactions.length} reactions:`, reactions);
+
+                                                return (
+                                                    <div className={`absolute bottom-[-10px] ${isMe ? 'left-[-4px]' : 'right-[-4px]'} flex gap-0.5 z-10 scale-90 origin-bottom`}>
+                                                        {Object.entries(
+                                                            reactions.reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {} as Record<string, number>)
+                                                        ).map(([emoji, count]) => (
+                                                            <button
+                                                                key={emoji}
+                                                                onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
+                                                                className={`flex items-center justify-center p-0.5 min-w-[24px] h-[24px] rounded-full border shadow-md transition-all ${msg.reactions?.some(r => r.userId === currentUser?.id || r.userId === currentUser?.did)
+                                                                    ? 'bg-primary-50 dark:bg-primary-900 border-primary-200 dark:border-primary-800'
+                                                                    : 'bg-white dark:bg-[#2a2a2a] border-gray-200 dark:border-dark-border'
+                                                                    }`}
+                                                            >
+                                                                <span className="text-[14px] leading-none">{emoji}</span>
+                                                                {count > 1 && <span className="text-[10px] font-bold ml-0.5 text-gray-500">{count}</span>}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
 
                                             {/* Inline hover icons: ... and 🙂 */}
                                             <div className="flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 mb-1">
+
 
                                                 {/* ... Options */}
                                                 <div className="relative">
@@ -719,7 +752,8 @@ const ChatPage: React.FC = () => {
                                                     {selectedReactionMessageId === msg.id && showReactionPicker && (
                                                         <div
                                                             ref={reactionPickerRef}
-                                                            className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-2 z-40 shadow-2xl animate-in fade-in zoom-in-95 duration-200`}
+                                                            className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-2 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-visible`}
+                                                            style={{ width: 'min(90vw, 350px)' }}
                                                         >
                                                             <EmojiPicker
                                                                 onEmojiClick={(emojiData: EmojiClickData) => {
@@ -731,6 +765,8 @@ const ChatPage: React.FC = () => {
                                                                 lazyLoadEmojis={true}
                                                                 skinTonesDisabled={true}
                                                                 searchPlaceHolder={t('common.search_emojis')}
+                                                                width="100%"
+                                                                height={400}
                                                             />
                                                         </div>
                                                     )}
@@ -738,26 +774,8 @@ const ChatPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* Reaction badges below the bubble */}
-                                        {(msg.reactions || []).length > 0 && (
-                                            <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
-                                                {Object.entries(
-                                                    (msg.reactions || []).reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {} as Record<string, number>)
-                                                ).map(([emoji, count]) => (
-                                                    <button
-                                                        key={emoji}
-                                                        onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
-                                                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-[12px] transition-all border shadow-sm ${msg.reactions?.some(r => (r.userId === currentUser?.id || r.userId === currentUser?.did) && r.emoji === emoji)
-                                                            ? 'bg-primary-50 dark:bg-primary-500/20 border-primary-100 dark:border-primary-500/30 text-primary-600 dark:text-primary-400'
-                                                            : 'bg-white/80 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10'
-                                                            }`}
-                                                    >
-                                                        <span className="text-[13px]">{emoji}</span>
-                                                        {count > 1 && <span className="font-bold text-[10px] ml-0.5">{count}</span>}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
+                                        {/* Timestamp removed from here as it should be outside the bubble+icons row */}
+
 
                                         {/* Timestamp */}
                                         <div className="flex items-center gap-2 mt-0.5 px-1">
@@ -770,7 +788,6 @@ const ChatPage: React.FC = () => {
                                                 </span>
                                             )}
                                         </div>
-
                                     </div>
                                 );
                             })}
