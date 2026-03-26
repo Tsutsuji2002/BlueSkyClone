@@ -538,7 +538,7 @@ const ChatPage: React.FC = () => {
 
                 {/* Chat Area */}
                 <div
-                    className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 scroll-smooth"
+                    className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col gap-3 scroll-smooth"
                     ref={messagesContainerRef}
                     onScroll={handleScroll}
                 >
@@ -575,10 +575,10 @@ const ChatPage: React.FC = () => {
                                     : (msg.senderId === currentUser?.id || (msg.sender?.handle && currentUser?.handle && msg.sender.handle === currentUser.handle));
 
                                 return (
-                                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative`}>
+                                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative mb-2`}>
 
                                         {/* Row: bubble + inline hover icons */}
-                                        <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative`}>
+                                        <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-2`}>
 
                                             {/* Message Bubble & Reactions Wrapper */}
                                             <div className="relative max-w-[85%] sm:max-w-[70%]">
@@ -649,39 +649,41 @@ const ChatPage: React.FC = () => {
                                                 </>
                                             )}
                                                 </div>
+
+                                                {/* Reaction badges overlapping the bubble corner */}
+                                                {(() => {
+                                                    const reactions = msg.reactions || [];
+                                                    if (reactions.length > 0) {
+                                                        // Debug log for visibility
+                                                        // console.log(`Rendering ${reactions.length} reactions for message ${msg.id}:`, reactions);
+                                                    }
+                                                    return reactions.length > 0 ? (
+                                                        <div className={`absolute bottom-[-8px] ${isMe ? 'right-0 translate-x-1/4' : 'left-0 -translate-x-1/4'} flex gap-0.5 z-20 pointer-events-none`}>
+                                                            {Object.entries(
+                                                                reactions.reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {} as Record<string, number>)
+                                                            ).map(([emoji, count]) => (
+                                                                <button
+                                                                    key={emoji}
+                                                                    onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
+                                                                    className={`flex items-center justify-center min-w-[24px] h-[24px] rounded-full border shadow-lg pointer-events-auto transition-all hover:scale-110 active:scale-90 ${msg.reactions?.some(r => r.userId === currentUser?.id || r.userId === currentUser?.did)
+                                                                        ? 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-800'
+                                                                        : 'bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-dark-border'
+                                                                        }`}
+                                                                >
+                                                                    <span className="text-[14px] leading-none">{emoji}</span>
+                                                                    {count > 1 && <span className="text-[9px] font-bold ml-0.5 text-gray-500">{count}</span>}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    ) : null;
+                                                })()}
                                             </div>
 
-                                            {/* Reaction badges overlapping the bubble */}
-                                            {(() => {
-                                                const reactions = msg.reactions || [];
-                                                if (reactions.length === 0) return null;
-                                                
-                                                // Debug log for reactions visibility
-                                                console.log(`Message ${msg.id} has ${reactions.length} reactions:`, reactions);
-
-                                                return (
-                                                    <div className={`absolute bottom-[-10px] ${isMe ? 'left-[-4px]' : 'right-[-4px]'} flex gap-0.5 z-10 scale-90 origin-bottom`}>
-                                                        {Object.entries(
-                                                            reactions.reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {} as Record<string, number>)
-                                                        ).map(([emoji, count]) => (
-                                                            <button
-                                                                key={emoji}
-                                                                onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
-                                                                className={`flex items-center justify-center p-0.5 min-w-[24px] h-[24px] rounded-full border shadow-md transition-all ${msg.reactions?.some(r => r.userId === currentUser?.id || r.userId === currentUser?.did)
-                                                                    ? 'bg-primary-50 dark:bg-primary-900 border-primary-200 dark:border-primary-800'
-                                                                    : 'bg-white dark:bg-[#2a2a2a] border-gray-200 dark:border-dark-border'
-                                                                    }`}
-                                                            >
-                                                                <span className="text-[14px] leading-none">{emoji}</span>
-                                                                {count > 1 && <span className="text-[10px] font-bold ml-0.5 text-gray-500">{count}</span>}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                );
-                                            })()}
-
+                                            {/* Reaction badges Logic removed from here */}
+                                            {(() => { return null; })()}
+                                            
                                             {/* Inline hover icons: ... and 🙂 */}
-                                            <div className="flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 mb-1">
+                                            <div className="flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 mb-1 z-10">
 
 
                                                 {/* ... Options */}
@@ -729,10 +731,10 @@ const ChatPage: React.FC = () => {
 
                                                     {/* Quick emoji bar */}
                                                     {activeQuickBarMessageId === msg.id && (
-                                                        <div className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-1 z-30 animate-in fade-in zoom-in-95 duration-150`}>
+                                                        <div className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-1 z-40 animate-in fade-in zoom-in-95 duration-150`}>
                                                             <div className="flex items-center gap-0.5 p-1 bg-white dark:bg-[#1a1a1a] border border-gray-200/60 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
                                                                 {['👍', '😂', '❤️', '👀', '😢'].map(emoji => (
-                                                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); setActiveQuickBarMessageId(null); }} className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-xl active:scale-95" title={emoji}>
+                                                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); setActiveQuickBarMessageId(null); }} className="w-8 h-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-lg active:scale-95" title={emoji}>
                                                                         {emoji}
                                                                     </button>
                                                                 ))}
@@ -753,7 +755,12 @@ const ChatPage: React.FC = () => {
                                                         <div
                                                             ref={reactionPickerRef}
                                                             className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-2 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-visible`}
-                                                            style={{ width: 'min(90vw, 350px)' }}
+                                                            style={{ 
+                                                                width: 'min(92vw, 350px)', 
+                                                                maxHeight: '400px',
+                                                                // Use transform to nudge it if it's too close to the edge
+                                                                transform: isMe ? 'translateX(0)' : 'translateX(0)' 
+                                                            }}
                                                         >
                                                             <EmojiPicker
                                                                 onEmojiClick={(emojiData: EmojiClickData) => {
@@ -766,7 +773,7 @@ const ChatPage: React.FC = () => {
                                                                 skinTonesDisabled={true}
                                                                 searchPlaceHolder={t('common.search_emojis')}
                                                                 width="100%"
-                                                                height={400}
+                                                                height={350}
                                                             />
                                                         </div>
                                                     )}
