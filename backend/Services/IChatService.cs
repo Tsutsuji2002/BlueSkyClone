@@ -17,6 +17,7 @@ public interface IChatService
     Task<MessageDto> AddOrUpdateReactionAsync(Guid userId, string conversationId, string messageId, string emoji);
     Task<IEnumerable<MessageDto>> ForwardMessageAsync(Guid userId, string messageId, List<string> targetConversationIds);
     Task MarkAsReadAsync(Guid userId, string conversationId);
+    Task DeleteMessageForSelfAsync(Guid userId, string conversationId, string messageId);
     Task<List<Guid>> GetParticipantIdsAsync(string conversationId);
     Task<ChatLogResult> GetLogAsync(Guid userId, string conversationId, string? cursor);
 }

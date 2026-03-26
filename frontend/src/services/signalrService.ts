@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr';
-import { addMessage, fetchConversationById, updateMessageInStore } from '../redux/slices/messagesSlice';
+import { addMessage, fetchConversationById, updateMessageInStore, removeMessageFromStore } from '../redux/slices/messagesSlice';
 import { addNotification } from '../redux/slices/notificationsSlice';
 import { store } from '../redux/store';
 import { Message } from '../types';
@@ -62,6 +62,10 @@ class SignalRService {
 
         this.connection.on('UpdateMessage', (message: Message) => {
             store.dispatch(updateMessageInStore(message));
+        });
+
+        this.connection.on('RemoveMessage', (messageId: string) => {
+            store.dispatch(removeMessageFromStore(messageId));
         });
 
         // Add handler for notifications
@@ -151,6 +155,17 @@ class SignalRService {
                 await this.connection.invoke('AddReaction', conversationId, messageId, emoji);
             } catch (err) {
                 console.error('Failed to add reaction:', err);
+                throw err;
+            }
+        }
+    }
+
+    public async deleteMessageForSelf(conversationId: string, messageId: string) {
+        if (this.connection?.state === signalR.HubConnectionState.Connected) {
+            try {
+                await this.connection.invoke('DeleteMessageForSelf', conversationId, messageId);
+            } catch (err) {
+                console.error('Failed to delete message for self:', err);
                 throw err;
             }
         }

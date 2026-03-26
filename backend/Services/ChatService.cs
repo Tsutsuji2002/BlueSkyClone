@@ -535,6 +535,25 @@ public class ChatService : IChatService
         return forwardedMessages;
     }
 
+    public async Task DeleteMessageForSelfAsync(Guid userId, string conversationId, string messageId)
+    {
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        {
+            await _chatProxy.DeleteMessageForSelfAsync(token, conversationId, messageId);
+            return;
+        }
+
+        var msgId = Guid.TryParse(messageId, out var g) ? g : Guid.Empty;
+        var message = await _unitOfWork.Messages.GetByIdAsync(msgId);
+        if (message != null)
+        {
+            message.IsDeleted = true;
+            await _unitOfWork.CompleteAsync();
+            await _cacheService.RemoveAsync($"conv:{conversationId}:messages");
+        }
+    }
+
     public async Task MarkAsReadAsync(Guid userId, string conversationId)
     {
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");

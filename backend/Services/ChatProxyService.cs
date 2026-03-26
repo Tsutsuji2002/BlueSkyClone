@@ -193,6 +193,15 @@ namespace BSkyClone.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<bool> DeleteMessageForSelfAsync(string token, string conversationId, string messageId)
+        {
+            var url = "chat.bsky.convo.deleteMessageForSelf";
+            var body = new { convoId = conversationId, messageId = messageId };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            return response.IsSuccessStatusCode;
+        }
+
 
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {

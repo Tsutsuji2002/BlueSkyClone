@@ -15,5 +15,6 @@ namespace BSkyClone.Services
         Task<ConversationDto> GetOrCreateConversationAsync(string token, List<string> members);
         Task<bool> AddReactionAsync(string token, string conversationId, string messageId, string emoji);
         Task<bool> RemoveReactionAsync(string token, string conversationId, string messageId, string emoji);
+        Task<bool> DeleteMessageForSelfAsync(string token, string conversationId, string messageId);
     }
 }

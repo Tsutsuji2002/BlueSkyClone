@@ -426,19 +426,23 @@ const ChatPage: React.FC = () => {
         });
     };
 
-    const handleDeleteForMe = async (msgId: string) => {
-        // For now, we'll just recall it locally if it's ours, or hide it.
-        // Bluesky chat doesn't strictly have a "delete for me" XRPC that is different from "deleteMessage"
-        // which is essentially a recall.
-        // Actually, we'll just use handleRecall for now or alert not implemented.
-        if (window.confirm(t('messages.confirm_delete_for_me'))) {
-            try {
-                // Remove from local Redux store to reflect "Delete for me"
-                store.dispatch(removeMessageFromStore(msgId));
-            } catch (err) {
-                console.error('Failed to delete for me:', err);
+    const handleDeleteForMe = (msgId: string) => {
+        if (!conversationId) return;
+        setConfirmModal({
+            isOpen: true,
+            title: t('messages.delete_for_me', 'Delete for me'),
+            message: t('messages.confirm_delete_for_me'),
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await signalrService.deleteMessageForSelf(conversationId, msgId);
+                    store.dispatch(removeMessageFromStore(msgId));
+                } catch (err) {
+                    console.error('Failed to delete for me:', err);
+                }
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
             }
-        }
+        });
     };
 
     const handleViewProfile = () => {

@@ -106,6 +106,20 @@ public class ChatHub : Hub
         catch (Exception ex) { throw new HubException(ex.Message); }
     }
 
+    public async Task DeleteMessageForSelf(string conversationId, string messageId)
+    {
+        var userId = GetUserIdFromContext();
+        if (userId == Guid.Empty) throw new HubException("Unauthorized");
+
+        try
+        {
+            await _chatService.DeleteMessageForSelfAsync(userId, conversationId, messageId);
+            // Notify the user's personal group to remove the message from their local UI
+            await Clients.Group($"user-{userId}").SendAsync("RemoveMessage", messageId);
+        }
+        catch (Exception ex) { throw new HubException(ex.Message); }
+    }
+
     private Guid GetUserIdFromContext()
     {
         var userIdString = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
