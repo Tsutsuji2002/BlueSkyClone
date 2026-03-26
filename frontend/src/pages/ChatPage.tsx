@@ -35,6 +35,7 @@ const ChatPage: React.FC = () => {
     const { conversationId } = useParams<{ conversationId: string }>();
     const [message, setMessage] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showReactionPicker, setShowReactionPicker] = useState(false);
     const [replyingTo, setReplyingTo] = useState<Message | null>(null);
     const [editingMessage, setEditingMessage] = useState<Message | null>(null);
     const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
@@ -138,6 +139,7 @@ const ChatPage: React.FC = () => {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const emojiPickerRef = useRef<HTMLDivElement>(null);
+    const reactionPickerRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const messageMenuRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -156,21 +158,25 @@ const ChatPage: React.FC = () => {
                 setShowEmojiPicker(false);
             }
 
+            if (reactionPickerRef.current && !reactionPickerRef.current.contains(target)) {
+                setShowReactionPicker(false);
+            }
+
+            if (messageMenuRef.current && !messageMenuRef.current.contains(target)) {
+                setSelectedReactionMessageId(null);
+            }
+
             if (showOptionsMenu && menuRef.current && !menuRef.current.contains(target)) {
                 const toggleButton = document.getElementById('chat-options-toggle');
                 if (!toggleButton?.contains(target)) {
                     setShowOptionsMenu(false);
                 }
             }
-
-            if (selectedReactionMessageId && messageMenuRef.current && !messageMenuRef.current.contains(target)) {
-                setSelectedReactionMessageId(null);
-            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showOptionsMenu, selectedReactionMessageId, showEmojiPicker]);
+    }, [showOptionsMenu, selectedReactionMessageId, showEmojiPicker, showReactionPicker]);
 
     const hasConversation = !!conversation;
     // Set active conversation and fetch messages on mount
@@ -648,13 +654,13 @@ const ChatPage: React.FC = () => {
                                                 {/* ... Options */}
                                                 <div className="relative">
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(selectedReactionMessageId === msg.id ? null : msg.id); setActiveQuickBarMessageId(null); setShowEmojiPicker(false); }}
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(selectedReactionMessageId === msg.id ? null : msg.id); setActiveQuickBarMessageId(null); setShowReactionPicker(false); }}
                                                         className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                                                         title="Options"
                                                     >
                                                         <FiMoreHorizontal size={15} />
                                                     </button>
-                                                    {selectedReactionMessageId === msg.id && !showEmojiPicker && (
+                                                    {selectedReactionMessageId === msg.id && !showReactionPicker && (
                                                         <div
                                                             ref={messageMenuRef}
                                                             className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-1 bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-30 min-w-[170px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
@@ -681,7 +687,7 @@ const ChatPage: React.FC = () => {
                                                 {/* 🙂 React */}
                                                 <div className="relative">
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); setActiveQuickBarMessageId(activeQuickBarMessageId === msg.id ? null : msg.id); setSelectedReactionMessageId(null); setShowEmojiPicker(false); }}
+                                                        onClick={(e) => { e.stopPropagation(); setActiveQuickBarMessageId(activeQuickBarMessageId === msg.id ? null : msg.id); setSelectedReactionMessageId(null); setShowReactionPicker(false); }}
                                                         className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                                                         title="React"
                                                     >
@@ -699,7 +705,7 @@ const ChatPage: React.FC = () => {
                                                                 ))}
                                                                 <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-0.5" />
                                                                 <button
-                                                                    onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(msg.id); setActiveQuickBarMessageId(null); setShowEmojiPicker(true); }}
+                                                                    onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(msg.id); setActiveQuickBarMessageId(null); setShowReactionPicker(true); }}
                                                                     className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
                                                                     title="More emojis"
                                                                 >
@@ -710,15 +716,15 @@ const ChatPage: React.FC = () => {
                                                     )}
 
                                                     {/* Full Emoji Picker per-message */}
-                                                    {selectedReactionMessageId === msg.id && showEmojiPicker && (
+                                                    {selectedReactionMessageId === msg.id && showReactionPicker && (
                                                         <div
-                                                            ref={emojiPickerRef}
+                                                            ref={reactionPickerRef}
                                                             className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-2 z-40 shadow-2xl animate-in fade-in zoom-in-95 duration-200`}
                                                         >
                                                             <EmojiPicker
                                                                 onEmojiClick={(emojiData: EmojiClickData) => {
                                                                     handleAddReaction(msg.id, emojiData.emoji);
-                                                                    setShowEmojiPicker(false);
+                                                                    setShowReactionPicker(false);
                                                                     setSelectedReactionMessageId(null);
                                                                 }}
                                                                 theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
@@ -734,20 +740,20 @@ const ChatPage: React.FC = () => {
 
                                         {/* Reaction badges below the bubble */}
                                         {(msg.reactions || []).length > 0 && (
-                                            <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end mr-1' : 'justify-start ml-1'}`}>
+                                            <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
                                                 {Object.entries(
                                                     (msg.reactions || []).reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {} as Record<string, number>)
                                                 ).map(([emoji, count]) => (
                                                     <button
                                                         key={emoji}
                                                         onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
-                                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] transition-all border shadow-sm ${msg.reactions?.some(r => (r.userId === currentUser?.id || r.userId === currentUser?.did) && r.emoji === emoji)
-                                                            ? 'bg-primary-50 dark:bg-primary-500/20 border-primary-200 dark:border-primary-500/30 text-primary-600 dark:text-primary-400'
-                                                            : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-dark-border text-gray-600 dark:text-gray-300 hover:border-gray-300'
+                                                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-[12px] transition-all border shadow-sm ${msg.reactions?.some(r => (r.userId === currentUser?.id || r.userId === currentUser?.did) && r.emoji === emoji)
+                                                            ? 'bg-primary-50 dark:bg-primary-500/20 border-primary-100 dark:border-primary-500/30 text-primary-600 dark:text-primary-400'
+                                                            : 'bg-white/80 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10'
                                                             }`}
                                                     >
-                                                        <span>{emoji}</span>
-                                                        {count > 1 && <span className="font-bold text-[11px]">{count}</span>}
+                                                        <span className="text-[13px]">{emoji}</span>
+                                                        {count > 1 && <span className="font-bold text-[10px] ml-0.5">{count}</span>}
                                                     </button>
                                                 ))}
                                             </div>

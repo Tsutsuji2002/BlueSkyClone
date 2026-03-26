@@ -186,15 +186,15 @@ const messagesSlice = createSlice({
         },
         updateMessageInStore: (state, action: PayloadAction<Message>) => {
             const updatedMessage = action.payload;
-            // Update in active conversation if matches
-            if (state.activeConversationId === updatedMessage.conversationId) {
-                const msgIndex = state.activeConversationMessages.findIndex(m => m.id === updatedMessage.id);
-                if (msgIndex !== -1) {
-                    state.activeConversationMessages[msgIndex] = updatedMessage;
-                }
+            // Always try to update by message id in active messages (handles conversationId format mismatches)
+            const msgIndex = state.activeConversationMessages.findIndex(m => m.id === updatedMessage.id);
+            if (msgIndex !== -1) {
+                state.activeConversationMessages[msgIndex] = updatedMessage;
             }
             // Update in conversation's lastMessage if matches
-            const conv = state.conversations.find(c => c.id === updatedMessage.conversationId);
+            const conv = state.conversations.find(
+                c => c.id === updatedMessage.conversationId || c.lastMessage?.id === updatedMessage.id
+            );
             if (conv && conv.lastMessage?.id === updatedMessage.id) {
                 conv.lastMessage = updatedMessage;
             }
