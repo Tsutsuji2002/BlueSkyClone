@@ -1329,6 +1329,49 @@ public class PostService : IPostService
                         }
                     }
 
+                    if (post.PostMedia.Any(m => m.Type == "video"))
+                    {
+                        foreach (var vid in post.PostMedia.Where(m => m.Type == "video" && !string.IsNullOrEmpty(m.Url)))
+                        {
+                            string fullPath = Path.Combine(_environment.WebRootPath, vid.Url.TrimStart('/'));
+                            if (File.Exists(fullPath))
+                            {
+                                using var stream = File.OpenRead(fullPath);
+                                string mimeType = "video/mp4"; // Standard for BlueSky
+                                
+                                var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
+                                if (!string.IsNullOrEmpty(blobCid))
+                                {
+                                    vid.Cid = blobCid;
+                                    var videoEmbed = new Dictionary<string, object>
+                                    {
+                                        { "$type", "app.bsky.embed.video" },
+                                        { "video", new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", blobCid } } }, { "mimeType", mimeType }, { "size", (int)new FileInfo(fullPath).Length } } }
+                                    };
+                                    
+                                    // Handle thumbnail if exists
+                                    if (!string.IsNullOrEmpty(vid.ThumbnailUrl))
+                                    {
+                                        string thumbPath = Path.Combine(_environment.WebRootPath, vid.ThumbnailUrl.TrimStart('/'));
+                                        if (File.Exists(thumbPath))
+                                        {
+                                            using var thumbStream = File.OpenRead(thumbPath);
+                                            var thumbCid = await _repoManager.UploadBlobAsync(authorUser.Did, thumbStream, "image/jpeg");
+                                            if (!string.IsNullOrEmpty(thumbCid))
+                                            {
+                                                videoEmbed["thumbnail"] = new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", thumbCid } } }, { "mimeType", "image/jpeg" }, { "size", (int)new FileInfo(thumbPath).Length } };
+                                            }
+                                        }
+                                    }
+
+                                    if (embedRecord != null && embedRecord["$type"].ToString() == "app.bsky.embed.record")
+                                        embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.recordWithMedia" }, { "record", embedRecord }, { "media", videoEmbed } };
+                                    else embedRecord = videoEmbed;
+                                }
+                            }
+                        }
+                    }
+
                     if (post.PostMedia.Any(m => m.Type == "image"))
                     {
                         var images = new List<Dictionary<string, object>>();
@@ -1337,24 +1380,52 @@ public class PostService : IPostService
                             string fullPath = Path.Combine(_environment.WebRootPath, img.Url.TrimStart('/'));
                             if (File.Exists(fullPath))
                             {
-                                using var stream = File.OpenRead(fullPath);
                                 string mimeType = img.Url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? "image/png" : 
-                                                 (img.Url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ? "image/gif" : "image/jpeg");
+                                                 (img.Url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ? "image/gif" : 
+                                                 (img.Url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ? "image/webp" : "image/jpeg"));
                                 
-                                var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
-                                img.Cid = blobCid;
+                                byte[] imgData;
+                                long originalSize = new FileInfo(fullPath).Length;
+                                
+                                // BLUEKSY COMPRESSION: If > 900KB, compress it
+                                if (originalSize > 900000 && !img.Url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    imgData = await CompressImageForBlueskyAsync(fullPath);
+                                    _logger.LogInformation("[CreatePostAsync] Compressed image {Url} from {Old} to {New} bytes", img.Url, originalSize, imgData.Length);
+                                }
+                                else
+                                {
+                                    imgData = await File.ReadAllBytesAsync(fullPath);
+                                }
 
-                                images.Add(new Dictionary<string, object> {
-                                    { "alt", img.AltText ?? "" },
-                                    { "image", new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", blobCid } } }, { "mimeType", mimeType }, { "size", (int)new FileInfo(fullPath).Length } } }
-                                });
+                                if (imgData != null && imgData.Length > 0)
+                                {
+                                    using var stream = new MemoryStream(imgData);
+                                    var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
+                                    if (!string.IsNullOrEmpty(blobCid))
+                                    {
+                                        img.Cid = blobCid;
+                                        images.Add(new Dictionary<string, object> {
+                                            { "alt", img.AltText ?? "" },
+                                            { "image", new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", blobCid } } }, { "mimeType", mimeType }, { "size", imgData.Length } } }
+                                        });
+                                    }
+                                }
                             }
                         }
                         if (images.Any())
                         {
                             var imageEmbed = new Dictionary<string, object> { { "$type", "app.bsky.embed.images" }, { "images", images } };
-                            if (embedRecord != null && embedRecord["$type"].ToString() == "app.bsky.embed.record")
-                                embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.recordWithMedia" }, { "record", embedRecord }, { "media", imageEmbed } };
+                            if (embedRecord != null && (embedRecord["$type"].ToString() == "app.bsky.embed.record" || embedRecord["$type"].ToString() == "app.bsky.embed.video"))
+                            {
+                                // If we already have a quote (record) or video, we can't easily stack them without recordWithMedia
+                                // But app.bsky.feed.post only allows ONE embed top-level.
+                                // If it's a quote, use recordWithMedia.
+                                if (embedRecord["$type"].ToString() == "app.bsky.embed.record")
+                                    embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.recordWithMedia" }, { "record", embedRecord }, { "media", imageEmbed } };
+                                // If it's already a video, BlueSky doesn't natively support video + images in one post easily via lexicon.
+                                // We'll stick with the video as it's higher priority for the user.
+                            }
                             else embedRecord = imageEmbed;
                         }
                     }
@@ -1375,8 +1446,20 @@ public class PostService : IPostService
                             {
                                 using var httpClient = new HttpClient();
                                 var imageBytes = await httpClient.GetByteArrayAsync(post.LinkPreview.Image);
+                                
+                                // Compress thumbnail too if needed
+                                if (imageBytes.Length > 900000)
+                                {
+                                    using var inStream = new MemoryStream(imageBytes);
+                                    using var image = await Image.LoadAsync(inStream);
+                                    image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(800, 800), Mode = ResizeMode.Max }));
+                                    using var outStream = new MemoryStream();
+                                    await image.SaveAsJpegAsync(outStream, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 75 });
+                                    imageBytes = outStream.ToArray();
+                                }
+
                                 using var stream = new MemoryStream(imageBytes);
-                                string mimeType = "image/jpeg"; // Default
+                                string mimeType = "image/jpeg";
                                 if (post.LinkPreview.Image.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) mimeType = "image/png";
 
                                 var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
@@ -4875,5 +4958,45 @@ public class PostService : IPostService
 
         await _unitOfWork.CompleteAsync();
         return post.Id;
+    }
+    private async Task<byte[]> CompressImageForBlueskyAsync(string fullPath)
+    {
+        try
+        {
+            using (var image = await Image.LoadAsync(fullPath))
+            {
+                int quality = 85;
+                int maxWidth = 2000;
+                
+                using (var ms = new MemoryStream())
+                {
+                    // Progressivesively reduce until < 950KB
+                    while (quality > 10)
+                    {
+                        ms.SetLength(0);
+                        bool resized = false;
+                        if (image.Width > maxWidth)
+                        {
+                            var ratio = (double)maxWidth / image.Width;
+                            image.Mutate(x => x.Resize(maxWidth, (int)(image.Height * ratio)));
+                            resized = true;
+                        }
+
+                        await image.SaveAsJpegAsync(ms, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = quality });
+                        if (ms.Length < 950000) break;
+                        
+                        quality -= 15;
+                        if (!resized) maxWidth -= 400; // Only reduce width if we didn't just resize
+                        if (maxWidth < 800) maxWidth = 800;
+                    }
+                    return ms.ToArray();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[CompressImageForBlueskyAsync] Error compressing {Path}", fullPath);
+            return await File.ReadAllBytesAsync(fullPath); // Fallback to original
+        }
     }
 }
