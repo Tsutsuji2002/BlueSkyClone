@@ -89,7 +89,6 @@ const AppRoutes: React.FC = () => {
                         <Route path="notifications" element={<NotificationsPage />} />
                         <Route path="explore" element={<ExplorePage />} />
                         <Route path="messages" element={<MessagesPage />} />
-                        <Route path="messages/:conversationId" element={<ChatPage />} />
                         <Route path="feeds" element={<FeedsPage />} />
                         <Route path="feeds/settings" element={<ManageFeedsPage />} />
                         <Route path="feeds/:feedId" element={<FeedDetailPage />} />
@@ -146,6 +145,14 @@ const AppRoutes: React.FC = () => {
                         <Route path="support" element={<SupportManagementPage />} />
                         <Route path="pages" element={<PageContentManagementPage />} />
                     </Route>
+
+                    {/* Chat Page - No Bottom Nav on mobile */}
+                    <Route path="/messages/:conversationId" element={
+                        <MainLayout hideTopBar={true} hideBottomNav={true}>
+                            <ChatPage />
+                        </MainLayout>
+                    } />
+
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
         </LazyErrorBoundary>

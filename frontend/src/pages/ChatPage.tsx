@@ -237,12 +237,29 @@ const ChatPage: React.FC = () => {
         }
     }, [activeConversationMessages, conversationId, dispatch, currentUser?.id]);
 
-    // Scroll to bottom immediately
+    // Scroll to bottom logic
+    const prevMessagesLength = useRef(activeConversationMessages.length);
+    const prevConversationId = useRef(conversationId);
+
     React.useLayoutEffect(() => {
-        if (messagesContainerRef.current) {
+        if (!messagesContainerRef.current) return;
+
+        const isNewConversation = conversationId !== prevConversationId.current;
+        const hasNewMessages = activeConversationMessages.length > prevMessagesLength.current;
+        const lastMessage = activeConversationMessages[activeConversationMessages.length - 1];
+        const sentByMe = lastMessage?.senderId === currentUser?.id;
+
+        // Check if user is already at the bottom
+        const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+        if (isNewConversation || sentByMe || (hasNewMessages && isAtBottom)) {
             messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
         }
-    }, [activeConversationMessages, conversationId]);
+
+        prevMessagesLength.current = activeConversationMessages.length;
+        prevConversationId.current = conversationId;
+    }, [activeConversationMessages, conversationId, currentUser?.id]);
 
     // Incremental Sync Polling - Mirroring BlueSky getLog (Feature 2)
     // This acts as a reliable fallback for SignalR and ensures no messages are missed.
@@ -513,7 +530,7 @@ const ChatPage: React.FC = () => {
 
     return (
         <>
-            <div className="flex flex-col h-screen lg:h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border relative">
+            <div className="flex flex-col h-[100dvh] bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border relative overflow-hidden">
                 {/* Connection Status Banner */}
                 {hubStatus !== HubStatus.Connected && (
                     <div className={`px-4 py-2 text-xs flex items-center justify-between ${hubStatus === HubStatus.Connecting || hubStatus === HubStatus.Reconnecting
@@ -530,7 +547,7 @@ const ChatPage: React.FC = () => {
                     </div>
                 )}
                 {/* Header */}
-                <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-dark-border bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md sticky top-0 z-10">
+                <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-dark-border bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md z-10">
                     <div className="flex items-center gap-3">
                         <button onClick={() => navigate('/messages')} className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors">
                             <FiArrowLeft size={20} className="text-gray-600 dark:text-dark-text" />
