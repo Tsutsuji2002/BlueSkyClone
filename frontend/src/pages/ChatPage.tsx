@@ -641,7 +641,7 @@ const ChatPage: React.FC = () => {
                                         <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-2`}>
 
                                             {/* Message Bubble & Reactions Wrapper */}
-                                            <div className="relative max-w-[calc(100%-72px)] sm:max-w-[70%]">
+                                            <div className="relative max-w-[75%] sm:max-w-[70%]">
                                                 {/* Message Bubble */}
                                                 <div className={`overflow-hidden ${isMe
                                                     ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
