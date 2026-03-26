@@ -570,10 +570,15 @@ const ChatPage: React.FC = () => {
 
                                 return (
                                     <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative`}>
-                                        <div className={`max-w-[85%] sm:max-w-[70%] overflow-hidden relative ${isMe
-                                            ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
-                                            : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
-                                            }`}>
+
+                                        {/* Row: bubble + inline hover icons */}
+                                        <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+
+                                            {/* Message Bubble */}
+                                            <div className={`max-w-[85%] sm:max-w-[70%] overflow-hidden relative ${isMe
+                                                ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
+                                                : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
+                                                }`}>
 
                                             {/* Reply Context */}
                                             {msg.replyTo && !msg.isRecalled && (
@@ -635,58 +640,121 @@ const ChatPage: React.FC = () => {
                                                     )}
                                                 </>
                                             )}
-                                        </div>
+                                            </div>
 
-                                        {/* Quick Reaction Bar (Bluesky style - visible on hover) */}
-                                        <div className={`absolute -top-11 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/msg:opacity-100 transition-all duration-300 z-20 pointer-events-none group-hover/msg:pointer-events-auto transform translate-y-2 group-hover/msg:translate-y-0`}>
-                                            <div className="flex items-center gap-0.5 p-1 bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
-                                                {['👍', '❤️', '😆', '😮', '😢', '🔥'].map(emoji => (
+                                            {/* Inline hover icons: ... and 🙂 */}
+                                            <div className="flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 mb-1">
+
+                                                {/* ... Options */}
+                                                <div className="relative">
                                                     <button
-                                                        key={emoji}
-                                                        onClick={() => handleAddReaction(msg.id, emoji)}
-                                                        className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-xl active:scale-95"
-                                                        title={emoji}
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(selectedReactionMessageId === msg.id ? null : msg.id); setActiveQuickBarMessageId(null); setShowEmojiPicker(false); }}
+                                                        className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                                                        title="Options"
                                                     >
-                                                        {emoji}
+                                                        <FiMoreHorizontal size={15} />
                                                     </button>
-                                                ))}
-                                                <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-1" />
-                                                <button
-                                                    onClick={() => setSelectedReactionMessageId(msg.id)}
-                                                    className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
-                                                >
-                                                    <FiMoreHorizontal size={18} />
-                                                </button>
+                                                    {selectedReactionMessageId === msg.id && !showEmojiPicker && (
+                                                        <div
+                                                            ref={messageMenuRef}
+                                                            className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-1 bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-30 min-w-[170px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
+                                                        >
+                                                            <div className="py-1">
+                                                                <button onClick={() => { handleTranslate(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                                    <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.translate')}</span>
+                                                                    <FiGlobe size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
+                                                                </button>
+                                                                <button onClick={() => { handleCopyText(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                                    <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.copy_text')}</span>
+                                                                    <FiCopy size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
+                                                                </button>
+                                                                <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1 mx-2" />
+                                                                <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
+                                                                    <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.delete_for_me')}</span>
+                                                                    <FiTrash size={16} className="text-gray-400 group-hover/item:text-red-500 transition-colors" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* 🙂 React */}
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setActiveQuickBarMessageId(activeQuickBarMessageId === msg.id ? null : msg.id); setSelectedReactionMessageId(null); setShowEmojiPicker(false); }}
+                                                        className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                                                        title="React"
+                                                    >
+                                                        <FiSmile size={15} />
+                                                    </button>
+
+                                                    {/* Quick emoji bar */}
+                                                    {activeQuickBarMessageId === msg.id && (
+                                                        <div className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-1 z-30 animate-in fade-in zoom-in-95 duration-150`}>
+                                                            <div className="flex items-center gap-0.5 p-1 bg-white dark:bg-[#1a1a1a] border border-gray-200/60 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
+                                                                {['👍', '😂', '❤️', '👀', '😢'].map(emoji => (
+                                                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); setActiveQuickBarMessageId(null); }} className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-xl active:scale-95" title={emoji}>
+                                                                        {emoji}
+                                                                    </button>
+                                                                ))}
+                                                                <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-0.5" />
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(msg.id); setActiveQuickBarMessageId(null); setShowEmojiPicker(true); }}
+                                                                    className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
+                                                                    title="More emojis"
+                                                                >
+                                                                    <FiMoreHorizontal size={18} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Full Emoji Picker per-message */}
+                                                    {selectedReactionMessageId === msg.id && showEmojiPicker && (
+                                                        <div
+                                                            ref={emojiPickerRef}
+                                                            className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-2 z-40 shadow-2xl animate-in fade-in zoom-in-95 duration-200`}
+                                                        >
+                                                            <EmojiPicker
+                                                                onEmojiClick={(emojiData: EmojiClickData) => {
+                                                                    handleAddReaction(msg.id, emojiData.emoji);
+                                                                    setShowEmojiPicker(false);
+                                                                    setSelectedReactionMessageId(null);
+                                                                }}
+                                                                theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
+                                                                lazyLoadEmojis={true}
+                                                                skinTonesDisabled={true}
+                                                                searchPlaceHolder={t('common.search_emojis')}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Reactions Display (Corner badges) */}
-                                        {(() => {
-                                            if ((msg.reactions || []).length > 0) {
-                                                console.log(`Rendering ${msg.reactions?.length} reactions for message ${msg.id}:`, msg.reactions);
-                                            }
-                                            return (msg.reactions || []).length > 0 && (
-                                                <div className={`flex flex-wrap gap-1 mt-[-10px] z-10 ${isMe ? 'justify-end mr-2' : 'justify-start ml-2'}`}>
-                                                    {Object.entries((msg.reactions || []).reduce((acc, r) => {
-                                                        acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                                                        return acc;
-                                                    }, {} as Record<string, number>)).map(([emoji, count]) => (
-                                                        <button
-                                                            key={emoji}
-                                                            onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
-                                                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition-all border shadow-sm backdrop-blur-sm ${msg.reactions?.some(r => (r.userId === currentUser?.id || r.userId === currentUser?.did) && r.emoji === emoji)
-                                                                ? 'bg-primary-50/90 dark:bg-primary-500/20 border-primary-200 dark:border-primary-500/30 text-primary-600 dark:text-primary-400'
-                                                                : 'bg-white/90 dark:bg-dark-surface/90 border-gray-100 dark:border-dark-border text-gray-500 hover:border-gray-300 dark:hover:border-dark-text-secondary'
-                                                                }`}
-                                                        >
-                                                            <span>{emoji}</span>
-                                                            {count > 1 && <span className="font-bold">{count}</span>}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            );
-                                        })()}
-                                        <div className={`flex items-center gap-2 mt-1 px-1`}>
+                                        {/* Reaction badges below the bubble */}
+                                        {(msg.reactions || []).length > 0 && (
+                                            <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end mr-1' : 'justify-start ml-1'}`}>
+                                                {Object.entries(
+                                                    (msg.reactions || []).reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {} as Record<string, number>)
+                                                ).map(([emoji, count]) => (
+                                                    <button
+                                                        key={emoji}
+                                                        onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
+                                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] transition-all border shadow-sm ${msg.reactions?.some(r => (r.userId === currentUser?.id || r.userId === currentUser?.did) && r.emoji === emoji)
+                                                            ? 'bg-primary-50 dark:bg-primary-500/20 border-primary-200 dark:border-primary-500/30 text-primary-600 dark:text-primary-400'
+                                                            : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-dark-border text-gray-600 dark:text-gray-300 hover:border-gray-300'
+                                                            }`}
+                                                    >
+                                                        <span>{emoji}</span>
+                                                        {count > 1 && <span className="font-bold text-[11px]">{count}</span>}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Timestamp */}
+                                        <div className="flex items-center gap-2 mt-0.5 px-1">
                                             <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary">
                                                 {formatChatMessageDate(msg.createdAt, i18n.language)}
                                             </span>
@@ -694,73 +762,6 @@ const ChatPage: React.FC = () => {
                                                 <span className="text-[10px] font-bold text-primary-500 uppercase tracking-tighter">
                                                     {t('messages.read')}
                                                 </span>
-                                            )}
-                                            {/* Hover Icons (... and 🙂) */}
-                                            <div className={`absolute -top-8 ${isMe ? 'right-0' : 'left-0'} flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-all duration-200 z-20`}>
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(msg.id); setActiveQuickBarMessageId(null); }}
-                                                    className="w-8 h-8 flex items-center justify-center bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-lg hover:scale-110 active:scale-95 text-gray-500 dark:text-gray-400"
-                                                >
-                                                    <FiMoreHorizontal size={18} />
-                                                </button>
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); setActiveQuickBarMessageId(msg.id); setSelectedReactionMessageId(null); }}
-                                                    className="w-8 h-8 flex items-center justify-center bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-lg hover:scale-110 active:scale-95 text-gray-500 dark:text-gray-400"
-                                                >
-                                                    <FiSmile size={18} />
-                                                </button>
-                                            </div>
-
-                                            {/* Quick Reaction Bar (Open when 🙂 is clicked) */}
-                                            {activeQuickBarMessageId === msg.id && (
-                                                <div className={`absolute -top-12 ${isMe ? 'right-0' : 'left-0'} z-30 animate-in fade-in zoom-in-95 duration-200`}>
-                                                    <div className="flex items-center gap-0.5 p-1 bg-white/95 dark:bg-[#1a1a1a]/95 border border-gray-200/50 dark:border-white/10 rounded-full shadow-2xl backdrop-blur-md">
-                                                        {['👍', '😂', '❤️', '👀', '😢'].map(emoji => (
-                                                            <button
-                                                                key={emoji}
-                                                                onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); setActiveQuickBarMessageId(null); }}
-                                                                className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all hover:scale-125 text-xl active:scale-95"
-                                                                title={emoji}
-                                                            >
-                                                                {emoji}
-                                                            </button>
-                                                        ))}
-                                                        <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-1" />
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(true); setActiveQuickBarMessageId(null); }}
-                                                            className="w-9 h-9 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all text-gray-500 hover:text-primary-500"
-                                                        >
-                                                            <FiMoreHorizontal size={18} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Full Action Menu (on click ...) */}
-                                            {selectedReactionMessageId === msg.id && (
-                                                <div
-                                                    ref={messageMenuRef}
-                                                    className={`absolute top-full mt-2 ${isMe ? 'right-0' : 'left-0'} bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border z-20 min-w-[170px] overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
-                                                >
-                                                    <div className="py-1">
-                                                        <button onClick={() => { handleTranslate(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.translate')}</span>
-                                                            <FiGlobe size={18} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
-                                                        </button>
-                                                        
-                                                        <button onClick={() => { handleCopyText(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.copy_text')}</span>
-                                                            <FiCopy size={18} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
-                                                        </button>
-
-                                                        <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1 mx-1 opacity-50" />
-                                                        
-                                                        <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                            <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.delete_for_me')}</span>
-                                                            <FiTrash size={18} className="text-gray-400 group-hover/item:text-red-500 transition-colors" />
-                                                        </button>
-                                                    </div>
-                                                </div>
                                             )}
                                         </div>
 
