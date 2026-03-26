@@ -795,24 +795,23 @@ const ChatPage: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Full Emoji Picker per-message - Smart Positioned & Screen-Safe bounds */}
+                                            {/* Full Emoji Picker per-message - Fixed Modal Overlay for exact bounds */}
                                             {selectedReactionMessageId === msg.id && showReactionPicker && (
-                                                <div
-                                                    ref={reactionPickerRef}
-                                                    className={`absolute z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200
-                                                        ${isMe ? 'right-4 sm:right-10' : 'left-4 sm:left-10'} 
-                                                        ${(() => {
-                                                            const msgIndex = activeConversationMessages.findIndex(m => m.id === msg.id);
-                                                            const isTopFew = msgIndex < 3;
-                                                            return isTopFew ? 'top-full mt-1' : 'bottom-full mb-1';
-                                                        })()}
-                                                    `}
-                                                    style={{ 
-                                                        width: '310px', 
-                                                        height: '380px'
+                                                <div 
+                                                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/5 dark:bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200"
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        e.preventDefault();
+                                                        setShowReactionPicker(false); 
+                                                        setSelectedReactionMessageId(null); 
                                                     }}
                                                 >
-                                                    <div className="bg-white dark:bg-dark-surface rounded-2xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-2xl">
+                                                    <div 
+                                                        ref={reactionPickerRef}
+                                                        className="bg-white dark:bg-dark-surface rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
+                                                        style={{ width: '90%', maxWidth: '320px', height: '400px' }}
+                                                        onClick={(e) => { e.stopPropagation(); }}
+                                                    >
                                                         <EmojiPicker
                                                             onEmojiClick={(emojiData: EmojiClickData) => {
                                                                 handleAddReaction(msg.id, emojiData.emoji);
@@ -824,7 +823,7 @@ const ChatPage: React.FC = () => {
                                                             skinTonesDisabled={true}
                                                             searchPlaceholder="Search emojis..."
                                                             width="100%"
-                                                            height={380}
+                                                            height="100%"
                                                             previewConfig={{ showPreview: false }}
                                                             scrollConfig={{ categoryRef: null }}
                                                         />
