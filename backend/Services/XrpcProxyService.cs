@@ -5,6 +5,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using BSkyClone.Models;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 namespace BSkyClone.Services
@@ -22,10 +24,29 @@ namespace BSkyClone.Services
             _logger = logger;
         }
 
-        public async Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null)
+        public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null)
         {
+            string did = didOrHandle;
             try
             {
+                if (!didOrHandle.StartsWith("did:"))
+                {
+                    // Resolve handle to DID first
+                    try
+                    {
+                        var idResponse = await _httpClient.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
+                        if (idResponse.IsSuccessStatusCode)
+                        {
+                            var data = await idResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                            if (data != null && data.TryGetValue("did", out var resolvedDid))
+                            {
+                                did = resolvedDid;
+                            }
+                        }
+                    }
+                    catch { /* Fallback to using it as-is */ }
+                }
+
                 // 1. Resolve the DID Document to find the service endpoint
                 var doc = await _didResolver.ResolveToDocumentAsync(did);
                 if (doc == null || doc.Service == null || !doc.Service.Any())

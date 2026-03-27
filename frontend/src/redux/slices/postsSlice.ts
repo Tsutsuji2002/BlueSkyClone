@@ -206,7 +206,7 @@ export const deletePost = createAsyncThunk(
             const token = localStorage.getItem('token');
             // Extract GUID from URI
             const postId = postUri.includes('/') ? postUri.split('/').pop()! : postUri;
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}?uri=${encodeURIComponent(postUri)}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

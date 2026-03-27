@@ -2181,16 +2181,18 @@ public class PostService : IPostService
     }
     public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null)
     {
-        _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid='{Tid}'", tid);
+        _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid='{Tid}' (case-insensitive)", tid);
         
-        // Search by Tid column OR by Uri suffix for robustness
+        var tidLower = tid.ToLowerInvariant();
+        
+        // Search by Tid column OR by Uri suffix for robustness (case-insensitive)
         var post = await _unitOfWork.Posts.Query()
-            .FirstOrDefaultAsync(p => (p.Tid == tid || (p.Uri != null && p.Uri.EndsWith("/" + tid))) && 
+            .FirstOrDefaultAsync(p => (p.Tid.ToLower() == tidLower || (p.Uri != null && p.Uri.ToLower().EndsWith("/" + tidLower))) && 
                                      (p.IsDeleted == false || p.IsDeleted == null));
 
         if (post == null) 
         {
-            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with identifier '{Tid}' NOT FOUND in database.", tid);
+            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with identifier '{Tid}' NOT FOUND in database (tried Tid match and Uri suffix).", tid);
             return null;
         }
 
@@ -2464,20 +2466,8 @@ public class PostService : IPostService
                 };
             }
 
-            // 2. Remote post - resolve handle to DID if needed, then proxy
+            // 2. Remote post - XrpcProxy handles both DID and handle
             string didForProxy = didOrHandle;
-
-            if (!didOrHandle.StartsWith("did:"))
-            {
-                // It's a handle â€” resolve to DID via .well-known
-                try
-                {
-                    var response = await new System.Net.Http.HttpClient().GetAsync($"https://{didOrHandle}/.well-known/atproto-did");
-                    if (response.IsSuccessStatusCode)
-                        didForProxy = (await response.Content.ReadAsStringAsync()).Trim();
-                }
-                catch { /* Use handle as-is; proxy will fail gracefully */ }
-            }
 
             var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
             {
