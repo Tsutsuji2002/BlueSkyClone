@@ -669,14 +669,11 @@ namespace BSkyClone.Controllers
                 int followersCount, followsCount, postsCount;
                 if (isRemoteUser)
                 {
-                    // Use cached counts from ResolveRemoteProfileAsync (sourced from bsky.app)
-                    // Fall back to DB count which may be partial if the user also has local follows
-                    var dbFollowersCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowingId == user.Id);
-                    var dbFollowsCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowerId == user.Id);
-                    var dbPostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
-                    followersCount = Math.Max(dbFollowersCount, user.FollowersCount ?? 0);
-                    followsCount = Math.Max(dbFollowsCount, user.FollowingCount ?? 0);
-                    postsCount = Math.Max(dbPostsCount, user.PostsCount ?? 0);
+                    // For network users, the network stats are the source of truth.
+                    // Local counts are only fallback if network sync fails.
+                    followersCount = user.FollowersCount ?? await _unitOfWork.Follows.Query().CountAsync(f => f.FollowingId == user.Id);
+                    followsCount = user.FollowingCount ?? await _unitOfWork.Follows.Query().CountAsync(f => f.FollowerId == user.Id);
+                    postsCount = user.PostsCount ?? await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
                 }
                 else
                 {

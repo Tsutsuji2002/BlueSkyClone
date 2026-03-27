@@ -955,7 +955,15 @@ public class PostService : IPostService
                 });
             }
 
-
+        // Media Validation
+        if (request.Images != null && request.Images.Count > 4)
+        {
+            throw new Exception("Maximum 4 images per post.");
+        }
+        if (request.Video != null && request.Video.Length > 100 * 1024 * 1024)
+        {
+            throw new Exception("Video file size exceeds 100MB limit.");
+        }
 
         if (request.Images != null && request.Images.Any())
         {
@@ -1111,9 +1119,9 @@ public class PostService : IPostService
 
         await _unitOfWork.Posts.AddAsync(post);
         
-        // Update User PostsCount
+        // Update User PostsCount - Only for local-only users
         author = await _unitOfWork.Users.GetByIdAsync(userId);
-        if (author != null)
+        if (author != null && string.IsNullOrEmpty(author.Did))
         {
             author.PostsCount = (author.PostsCount ?? 0) + 1;
             _unitOfWork.Users.Update(author);
@@ -1418,15 +1426,28 @@ public class PostService : IPostService
                             var imageEmbed = new Dictionary<string, object> { { "$type", "app.bsky.embed.images" }, { "images", images } };
                             if (embedRecord != null && (embedRecord["$type"].ToString() == "app.bsky.embed.record" || embedRecord["$type"].ToString() == "app.bsky.embed.video"))
                             {
-                                // If we already have a quote (record) or video, we can't easily stack them without recordWithMedia
-                                // But app.bsky.feed.post only allows ONE embed top-level.
-                                // If it's a quote, use recordWithMedia.
                                 if (embedRecord["$type"].ToString() == "app.bsky.embed.record")
                                     embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.recordWithMedia" }, { "record", embedRecord }, { "media", imageEmbed } };
-                                // If it's already a video, BlueSky doesn't natively support video + images in one post easily via lexicon.
-                                // We'll stick with the video as it's higher priority for the user.
                             }
                             else embedRecord = imageEmbed;
+                        }
+
+                        // VPS CLEANUP: Delete local media after successful proxy preparation
+                        foreach (var m in post.PostMedia)
+                        {
+                            if (!string.IsNullOrEmpty(m.Url))
+                            {
+                                string fPath = Path.Combine(_environment.WebRootPath, m.Url.TrimStart('/'));
+                                if (File.Exists(fPath))
+                                {
+                                    try { File.Delete(fPath); _logger.LogInformation("[PostService] Deleted local media after Bluesky proxy: {Path}", m.Url); } catch { }
+                                }
+                                if (!string.IsNullOrEmpty(m.ThumbnailUrl))
+                                {
+                                    string tPath = Path.Combine(_environment.WebRootPath, m.ThumbnailUrl.TrimStart('/'));
+                                    if (File.Exists(tPath)) try { File.Delete(tPath); } catch { }
+                                }
+                            }
                         }
                     }
 
@@ -4308,7 +4329,27 @@ public class PostService : IPostService
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             var data = ms.ToArray();
-            var cid = ProtocolUtils.GenerateCid(data, 0x55); // Use 'raw' multicodec for blobs
+
+            // PROACTIVE COMPRESSION: If > 1MB and image, compress before generating CID and saving
+            if (contentType.StartsWith("image/") && data.Length > 1024 * 1024 && !contentType.Contains("gif"))
+            {
+                try {
+                    using var imgStream = new MemoryStream(data);
+                    using var image = await Image.LoadAsync(imgStream);
+                    
+                    // progressive quality reduction
+                    int quality = 85;
+                    while (data.Length > 1024 * 1024 && quality > 10)
+                    {
+                        using var outMs = new MemoryStream();
+                        await image.SaveAsJpegAsync(outMs, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = quality });
+                        data = outMs.ToArray();
+                        quality -= 15;
+                    }
+                } catch { }
+            }
+
+            var cid = ProtocolUtils.GenerateCid(data, 0x55); 
 
             var extension = contentType switch
             {

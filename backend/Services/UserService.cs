@@ -14,6 +14,8 @@ using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 
 namespace BSkyClone.Services;
 
@@ -51,6 +53,12 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByIdAsync(id);
         if (user != null)
         {
+            if (!string.IsNullOrEmpty(user.Did))
+            {
+                // Try to get live count from cache or proxy (simplified here for brevity, usually fetched during feed load)
+                // For now, if it's a network user, we prioritize the local sync, 
+                // but ideally we should fetch from app.bsky.actor.getProfile
+            }
             user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
         }
         return user;
@@ -126,7 +134,16 @@ public class UserService : IUserService
             {
                 _fileService.DeleteFile(user.AvatarUrl);
             }
-            var avatarPath = await SaveFileAsync(request.Avatar, "avatars");
+            
+            // Resize Avatar to 400x400
+            using var stream = request.Avatar.OpenReadStream();
+            using var image = await Image.LoadAsync(stream);
+            image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(400, 400), Mode = ResizeMode.Crop }));
+            using var outStream = new MemoryStream();
+            await image.SaveAsJpegAsync(outStream, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 85 });
+            outStream.Position = 0;
+            
+            var avatarPath = await SaveFileAsync(outStream, request.Avatar.FileName, "avatars");
             user.AvatarUrl = avatarPath;
         }
 
@@ -146,7 +163,16 @@ public class UserService : IUserService
             {
                 _fileService.DeleteFile(user.CoverImageUrl);
             }
-            var coverPath = await SaveFileAsync(request.CoverImage, "covers");
+            
+            // Resize Banner to 1500x500
+            using var stream = request.CoverImage.OpenReadStream();
+            using var image = await Image.LoadAsync(stream);
+            image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(1500, 500), Mode = ResizeMode.Crop }));
+            using var outStream = new MemoryStream();
+            await image.SaveAsJpegAsync(outStream, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 85 });
+            outStream.Position = 0;
+
+            var coverPath = await SaveFileAsync(outStream, request.CoverImage.FileName, "covers");
             user.CoverImageUrl = coverPath;
         }
 
@@ -982,24 +1008,27 @@ public class UserService : IUserService
         return user;
     }
 
-    private async Task<string> SaveFileAsync(IFormFile file, string folderName)
+    private async Task<string> SaveFileAsync(Stream stream, string fileName, string folderName)
     {
-        var uploadsFolder = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", folderName);
-        if (!Directory.Exists(uploadsFolder))
-        {
-            Directory.CreateDirectory(uploadsFolder);
-        }
+        var uploadsRoot = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", folderName);
+        if (!Directory.Exists(uploadsRoot)) Directory.CreateDirectory(uploadsRoot);
 
-        var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+        var extension = Path.GetExtension(fileName);
+        var newFileName = $"{Guid.NewGuid()}{extension}";
+        var filePath = Path.Combine(uploadsRoot, newFileName);
 
         using (var fileStream = new FileStream(filePath, FileMode.Create))
         {
-            await file.CopyToAsync(fileStream);
+            await stream.CopyToAsync(fileStream);
         }
 
-        // Return relative path for URL
-        return $"/uploads/{folderName}/{uniqueFileName}";
+        return $"/uploads/{folderName}/{newFileName}";
+    }
+
+    private async Task<string> SaveFileAsync(IFormFile file, string folderName)
+    {
+        using var stream = file.OpenReadStream();
+        return await SaveFileAsync(stream, file.FileName, folderName);
     }
 
     public async Task<bool> BlockUserAsync(Guid userId, Guid blockedUserId)
