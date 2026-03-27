@@ -2241,6 +2241,14 @@ public class PostService : IPostService
                 }
             }
 
+            // 4. TID-only fallback: if the DID stored locally doesn't match (e.g. different format)
+            //    fall back to just looking up by TID, since TIDs are unique per-author and effectively globally unique.
+            if (existing == null && !string.IsNullOrEmpty(rkey))
+            {
+                existing = await _unitOfWork.Posts.Query()
+                    .FirstOrDefaultAsync(p => p.Tid == rkey && (p.IsDeleted == false || p.IsDeleted == null));
+            }
+
             if (existing != null)
             {
                 return await GetPostByIdAsync(existing.Id, viewerId);
@@ -2498,6 +2506,18 @@ public class PostService : IPostService
                             .Include(p => p.Interests)
                             .FirstOrDefaultAsync(p => p.Tid == rkey && p.AuthorId == matchingAuthor.Id && 
                                                       (p.IsDeleted == false || p.IsDeleted == null));
+                    }
+
+                    // TID-only fallback: if DID doesn't match any local user, try matching by TID alone
+                    if (post == null && !string.IsNullOrEmpty(rkey))
+                    {
+                        post = await _unitOfWork.Posts.Query()
+                            .Include(p => p.Author)
+                            .Include(p => p.PostMedia)
+                            .Include(p => p.LinkPreview)
+                            .Include(p => p.Hashtags)
+                            .Include(p => p.Interests)
+                            .FirstOrDefaultAsync(p => p.Tid == rkey && (p.IsDeleted == false || p.IsDeleted == null));
                     }
                 }
             }
