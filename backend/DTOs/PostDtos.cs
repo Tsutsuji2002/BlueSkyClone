@@ -168,4 +168,5 @@ public class FeedDto
     public bool IsPinned { get; set; }
     public int PinnedOrder { get; set; }
     public bool IsSubscribed { get; set; }
+    public string? Uri { get; set; }
 }

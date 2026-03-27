@@ -166,76 +166,96 @@ public class FeedsController : ControllerBase
 
     [Authorize]
     [HttpPost("save/{feedId}")]
-    public async Task<IActionResult> SaveFeed(Guid feedId)
+    public async Task<IActionResult> SaveFeed(string feedId, [FromQuery] string? uri = null)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            var result = await _feedService.SaveFeedAsync(userId, feedId);
+            Guid fId = Guid.Empty;
+            string? resolvedUri = uri;
+            if (feedId.StartsWith("at://") || feedId == "following") resolvedUri = feedId;
+            else Guid.TryParse(feedId, out fId);
+
+            var result = await _feedService.SaveFeedAsync(userId, fId, resolvedUri);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FeedsController] SaveFeed error: {ex.Message}");
+            _logger.LogError(ex, "[FeedsController] SaveFeed error: {Msg}", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
 
     [Authorize]
     [HttpDelete("unsave/{feedId}")]
-    public async Task<IActionResult> UnsaveFeed(Guid feedId)
+    public async Task<IActionResult> UnsaveFeed(string feedId, [FromQuery] string? uri = null)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            var result = await _feedService.UnsaveFeedAsync(userId, feedId);
+            Guid fId = Guid.Empty;
+            string? resolvedUri = uri;
+            if (feedId.StartsWith("at://") || feedId == "following") resolvedUri = feedId;
+            else Guid.TryParse(feedId, out fId);
+
+            var result = await _feedService.UnsaveFeedAsync(userId, fId, resolvedUri);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FeedsController] UnsaveFeed error: {ex.Message}");
+            _logger.LogError(ex, "[FeedsController] UnsaveFeed error: {Msg}", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
 
     [Authorize]
     [HttpPost("pin/{feedId}")]
-    public async Task<IActionResult> PinFeed(Guid feedId)
+    public async Task<IActionResult> PinFeed(string feedId, [FromQuery] string? uri = null)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            var result = await _feedService.PinFeedAsync(userId, feedId);
+            Guid fId = Guid.Empty;
+            string? resolvedUri = uri;
+            if (feedId.StartsWith("at://") || feedId == "following") resolvedUri = feedId;
+            else Guid.TryParse(feedId, out fId);
+
+            var result = await _feedService.PinFeedAsync(userId, fId, resolvedUri);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FeedsController] PinFeed error: {ex.Message}");
+            _logger.LogError(ex, "[FeedsController] PinFeed error: {Msg}", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
 
     [Authorize]
     [HttpDelete("unpin/{feedId}")]
-    public async Task<IActionResult> UnpinFeed(Guid feedId)
+    public async Task<IActionResult> UnpinFeed(string feedId, [FromQuery] string? uri = null)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            var result = await _feedService.UnpinFeedAsync(userId, feedId);
+            Guid fId = Guid.Empty;
+            string? resolvedUri = uri;
+            if (feedId.StartsWith("at://") || feedId == "following") resolvedUri = feedId;
+            else Guid.TryParse(feedId, out fId);
+
+            var result = await _feedService.UnpinFeedAsync(userId, fId, resolvedUri);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FeedsController] UnpinFeed error: {ex.Message}");
+            _logger.LogError(ex, "[FeedsController] UnpinFeed error: {Msg}", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -280,14 +300,26 @@ public class FeedsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("{feedId}/posts")]
-    public async Task<IActionResult> GetFeedPosts(Guid feedId, [FromQuery] int skip = 0, [FromQuery] int take = 10)
+    public async Task<IActionResult> GetFeedPosts(string feedId, [FromQuery] string? uri = null, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
         try
         {
             var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? userId = Guid.TryParse(userIdString, out var cid) ? cid : null;
+
+            Guid fId = Guid.Empty;
+            string? resolvedUri = uri;
+
+            if (feedId.StartsWith("at://") || feedId == "following")
+            {
+                resolvedUri = feedId;
+            }
+            else if (Guid.TryParse(feedId, out var gId))
+            {
+                fId = gId;
+            }
     
-            var posts = await _feedService.GetFeedPostsAsync(feedId, userId, skip, take);
+            var posts = await _feedService.GetFeedPostsAsync(fId, userId, skip, take, resolvedUri);
             return Ok(posts);
         }
         catch (Exception ex)

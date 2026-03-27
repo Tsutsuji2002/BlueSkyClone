@@ -5,6 +5,11 @@ using BSkyClone.Constants;
 using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace BSkyClone.Services;
 
@@ -13,6 +18,9 @@ public class FeedService : IFeedService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPostService _postService;
     private readonly ILogger<FeedService> _logger;
+    private readonly IXrpcProxyService _xrpcProxy;
+    private readonly IDistributedCache _cache;
+    private readonly IHttpClientFactory _httpClientFactory;
     private static bool _isSeeded = false;
     private static readonly SemaphoreSlim _seedSemaphore = new(1, 1);
 
@@ -173,6 +181,21 @@ public class FeedService : IFeedService
 
     public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId)
     {
+        try
+        {
+            var remoteFeeds = await GetRemoteFeedsAsync(userId);
+            if (remoteFeeds.Any())
+            {
+                _logger.LogInformation("[FeedService] GetUserFeedsAsync for User {UserId}: Found {Count} remote feeds.", userId, remoteFeeds.Count);
+                return remoteFeeds;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] Failed to fetch remote feeds for {UserId}", userId);
+        }
+
+        // Fallback to local subscriptions if remote fails or returns none
         var subscriptions = await _unitOfWork.UserFeedSubscriptions.Query()
             .Where(s => s.UserId == userId)
             .Include(s => s.Feed)
@@ -181,8 +204,125 @@ public class FeedService : IFeedService
             .ThenBy(s => s.PinnedOrder)
             .ToListAsync();
 
-        _logger.LogInformation("[FeedService] GetUserFeedsAsync for User {UserId}: Found {Count} subscriptions.", userId, subscriptions.Count);
+        _logger.LogInformation("[FeedService] GetUserFeedsAsync for User {UserId}: Falling back to {Count} local subscriptions.", userId, subscriptions.Count);
         return subscriptions.Select(s => MapToDto(s.Feed, s.IsPinned ?? false, s.PinnedOrder ?? 0));
+    }
+
+    private async Task<List<FeedDto>> GetRemoteFeedsAsync(Guid userId)
+    {
+        var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+        if (string.IsNullOrEmpty(token)) return new List<FeedDto>();
+
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null || string.IsNullOrEmpty(user.Did)) return new List<FeedDto>();
+
+        // 1. Get Preferences
+        var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
+        if (!prefResponse.Success) return new List<FeedDto>();
+
+        using var doc = JsonDocument.Parse(prefResponse.Content);
+        if (!doc.RootElement.TryGetProperty("preferences", out var prefs)) return new List<FeedDto>();
+        
+        var savedUris = new List<string>();
+        var pinnedUris = new List<string>();
+
+        foreach (var pref in prefs.EnumerateArray())
+        {
+            // Handle V2 Saved Feeds (Modern)
+            if (pref.TryGetProperty("$type", out var type) && type.GetString() == "app.bsky.actor.defs#savedFeedsPrefV2")
+            {
+                if (pref.TryGetProperty("items", out var items))
+                {
+                    foreach (var item in items.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("value", out var val) && item.TryGetProperty("type", out var t))
+                        {
+                            var uri = val.GetString()!;
+                            savedUris.Add(uri);
+                            if (item.TryGetProperty("pinned", out var pinned) && pinned.GetBoolean())
+                                pinnedUris.Add(uri);
+                        }
+                    }
+                }
+            }
+            // Handle V1 Saved Feeds (Legacy Fallback)
+            else if (type.GetString() == "app.bsky.actor.defs#savedFeedsPref")
+            {
+                if (pref.TryGetProperty("saved", out var saved))
+                {
+                    foreach (var s in saved.EnumerateArray()) savedUris.Add(s.GetString()!);
+                }
+                if (pref.TryGetProperty("pinned", out var pinned))
+                {
+                    foreach (var p in pinned.EnumerateArray()) pinnedUris.Add(p.GetString()!);
+                }
+            }
+        }
+
+        if (!savedUris.Any()) return new List<FeedDto>();
+
+        // 2. Resolve Feed Metadata (Batch)
+        var feeds = new List<FeedDto>();
+        // Filter out synthetic types that aren't AT URIs (like 'timeline')
+        var atUris = savedUris.Where(u => u.StartsWith("at://")).Distinct().ToList();
+
+        for (int i = 0; i < atUris.Count; i += 25)
+        {
+            var chunk = atUris.Skip(i).Take(25);
+            var query = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+            
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            var genResponse = await httpClient.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?{query}");
+            
+            if (genResponse.IsSuccessStatusCode)
+            {
+                var genContent = await genResponse.Content.ReadAsStringAsync();
+                using var genDoc = JsonDocument.Parse(genContent);
+                foreach (var gen in genDoc.RootElement.GetProperty("feeds").EnumerateArray())
+                {
+                    var uri = gen.GetProperty("uri").GetString()!;
+                    var creatorDid = gen.GetProperty("did").GetString()!;
+                    
+                    var dto = new FeedDto
+                    {
+                        Id = Guid.NewGuid(), 
+                        Uri = uri,
+                        Tid = uri.Split('/').Last(),
+                        Name = gen.GetProperty("displayName").GetString()!,
+                        Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
+                        AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+                        IsPinned = pinnedUris.Contains(uri),
+                        IsSubscribed = true,
+                        SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+                        Handle = creatorDid,
+                        Creator = new AuthorDto
+                        {
+                             Did = creatorDid,
+                             Handle = creatorDid,
+                             DisplayName = gen.GetProperty("creator").GetProperty("displayName").GetString(),
+                             AvatarUrl = gen.GetProperty("creator").TryGetProperty("avatar", out var cav) ? cav.GetString() : null
+                        }
+                    };
+                    feeds.Add(dto);
+                }
+            }
+        }
+
+        // Add back synthetic feeds if they were pinned/saved (e.g. Following)
+        if (savedUris.Contains("following"))
+        {
+             feeds.Insert(0, new FeedDto 
+             { 
+                 Id = Guid.Empty, 
+                 Name = "Following", 
+                 Uri = "following", 
+                 IsPinned = pinnedUris.Contains("following"), 
+                 IsSubscribed = true 
+             });
+        }
+
+        return feeds;
     }
 
     public async Task<FeedDto?> GetFeedByTidAsync(string tid)
@@ -194,8 +334,13 @@ public class FeedService : IFeedService
         return feed != null ? MapToDto(feed, false, 0, false) : null;
     }
 
-    public async Task<bool> SaveFeedAsync(Guid userId, Guid feedId)
+    public async Task<bool> SaveFeedAsync(Guid userId, Guid feedId, string? uri = null)
     {
+        if (!string.IsNullOrEmpty(uri))
+        {
+            return await UpdateRemoteFeedPreferenceAsync(userId, uri, true, false);
+        }
+
         var existing = await _unitOfWork.UserFeedSubscriptions.Query()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FeedId == feedId);
         if (existing != null) return true;
@@ -213,8 +358,13 @@ public class FeedService : IFeedService
         return await _unitOfWork.CompleteAsync() > 0;
     }
 
-    public async Task<bool> UnsaveFeedAsync(Guid userId, Guid feedId)
+    public async Task<bool> UnsaveFeedAsync(Guid userId, Guid feedId, string? uri = null)
     {
+        if (!string.IsNullOrEmpty(uri))
+        {
+            return await UpdateRemoteFeedPreferenceAsync(userId, uri, false);
+        }
+
         var existing = await _unitOfWork.UserFeedSubscriptions.Query()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FeedId == feedId);
         if (existing == null) return true;
@@ -223,8 +373,13 @@ public class FeedService : IFeedService
         return await _unitOfWork.CompleteAsync() > 0;
     }
 
-    public async Task<bool> PinFeedAsync(Guid userId, Guid feedId)
+    public async Task<bool> PinFeedAsync(Guid userId, Guid feedId, string? uri = null)
     {
+        if (!string.IsNullOrEmpty(uri))
+        {
+            return await UpdateRemoteFeedPreferenceAsync(userId, uri, true, true);
+        }
+
         var existing = await _unitOfWork.UserFeedSubscriptions.Query()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FeedId == feedId);
 
@@ -254,8 +409,13 @@ public class FeedService : IFeedService
         return await _unitOfWork.CompleteAsync() > 0;
     }
 
-    public async Task<bool> UnpinFeedAsync(Guid userId, Guid feedId)
+    public async Task<bool> UnpinFeedAsync(Guid userId, Guid feedId, string? uri = null)
     {
+        if (!string.IsNullOrEmpty(uri))
+        {
+            return await UpdateRemoteFeedPreferenceAsync(userId, uri, true, false);
+        }
+
         var existing = await _unitOfWork.UserFeedSubscriptions.Query()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FeedId == feedId);
         if (existing == null) return false;
@@ -264,6 +424,72 @@ public class FeedService : IFeedService
         existing.PinnedOrder = 0;
 
         return await _unitOfWork.CompleteAsync() > 0;
+    }
+
+    private async Task<bool> UpdateRemoteFeedPreferenceAsync(Guid userId, string feedUri, bool save, bool? pinAction = null)
+    {
+        try
+        {
+            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            if (string.IsNullOrEmpty(token)) return false;
+
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null || string.IsNullOrEmpty(user.Did)) return false;
+
+            // 1. Get current preferences
+            var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
+            if (!prefResponse.Success) return false;
+
+            var root = JsonNode.Parse(prefResponse.Content);
+            if (root == null || root["preferences"] == null) return false;
+            
+            var prefs = root["preferences"]!.AsArray();
+            
+            // 2. Find and modify savedFeedsPrefV2
+            var v2Pref = prefs.FirstOrDefault(p => p?["$type"]?.GetValue<string>() == "app.bsky.actor.defs#savedFeedsPrefV2");
+            if (v2Pref == null && save) {
+                v2Pref = new JsonObject { ["$type"] = "app.bsky.actor.defs#savedFeedsPrefV2", ["items"] = new JsonArray() };
+                prefs.Add(v2Pref);
+            }
+
+            if (v2Pref != null)
+            {
+                var items = v2Pref["items"]!.AsArray();
+                var item = items.FirstOrDefault(i => i?["value"]?.GetValue<string>() == feedUri);
+
+                if (save) {
+                    if (item == null) {
+                        items.Add(new JsonObject {
+                            ["id"] = Guid.NewGuid().ToString().Substring(0, 8),
+                            ["type"] = feedUri.StartsWith("at://") ? "feed" : "timeline",
+                            ["value"] = feedUri,
+                            ["pinned"] = pinAction ?? false
+                        });
+                    } else if (pinAction.HasValue) {
+                        item["pinned"] = pinAction.Value;
+                    }
+                } else {
+                    if (item != null) items.Remove(item);
+                }
+            }
+
+            // 3. Put Preferences (Send the whole list back)
+            // No need for 'preferences' wrapper if the body itself is the request object conventionally,
+            // but app.bsky.actor.putPreferences expects { "preferences": [...] }
+            var putResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.putPreferences", queryParams: new Dictionary<string, string?>(), token: token, method: "POST", body: new { preferences = prefs });
+            
+            if (putResponse.Success)
+            {
+                _logger.LogInformation("[FeedService] Successfully updated remote feed preferences for {UserId} (Feed: {Uri}, Save: {Save}, Pin: {Pin})", userId, feedUri, save, pinAction);
+            }
+            
+            return putResponse.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] Error updating remote feed preferences for {FeedUri}", feedUri);
+            return false;
+        }
     }
 
     public async Task<bool> ReorderFeedsAsync(Guid userId, List<Guid> feedIds)
@@ -358,45 +584,59 @@ public class FeedService : IFeedService
     }
 
 
-    public async Task<IEnumerable<PostDto>> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take)
+    public async Task<IEnumerable<PostDto>> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take, string? uri = null)
     {
         try
         {
+            // 1. Prioritize Remote Feed URI
+            if (!string.IsNullOrEmpty(uri) && (uri.StartsWith("at://") || uri == "following"))
+            {
+                if (uri == "following" && userId.HasValue)
+                {
+                    return await _postService.GetTimelineAsync(userId.Value, skip, take);
+                }
+                return await GetRemoteFeedPostsAsync(uri, userId, skip, take);
+            }
+            
             await PreSeedFeedsAsync();
             var feed = await _unitOfWork.Feeds.GetByIdAsync(feedId);
-            if (feed == null) return new List<PostDto>();
-
-            // 1. Special handling for Trending (still logic-based)
-            if (feed.IsOfficial && (feed.Name == "Trending" || feed.Tid == "official-trending"))
+            
+            // 2. Special handling for Trending (still logic-based)
+            if (feed != null && feed.IsOfficial && (feed.Name == "Trending" || feed.Tid == "official-trending"))
             {
                 return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
             }
 
-            // 2. Generic AI/Category Sort: Fetch posts tagged with an interest matching the feed name or handle
-            // Remove .Include(p => p.Interests) because PostInterests join table may not exist on VPS
+            // 3. Generic AI/Category Sort: Fetch posts tagged with an interest matching the feed name or handle
             List<PostDto> postDtos;
-            try
+            if (feed != null)
             {
-                var posts = await _unitOfWork.Posts.Query()
-                    .Include(p => p.Author)
-                    .Include(p => p.PostMedia)
-                    .Include(p => p.LinkPreview)
-                    .Include(p => p.Interests)
-                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
-                                p.Interests.Any(i => i.Name == feed.Name))
-                    .OrderByDescending(p => p.CreatedAt)
-                    .Skip(skip)
-                    .Take(take)
-                    .ToListAsync();
+                try
+                {
+                    var posts = await _unitOfWork.Posts.Query()
+                        .Include(p => p.Author)
+                        .Include(p => p.PostMedia)
+                        .Include(p => p.LinkPreview)
+                        .Include(p => p.Interests)
+                        .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                                    p.Interests.Any(i => i.Name == feed.Name))
+                        .OrderByDescending(p => p.CreatedAt)
+                        .Skip(skip)
+                        .Take(take)
+                        .ToListAsync();
 
-                _logger.LogInformation("[FeedService] Query for feed '{Name}' returned {Count} posts via Interests.", feed.Name, posts.Count);
-                postDtos = posts.Select(p => _postService.MapToDto(p)).ToList();
+                    _logger.LogInformation("[FeedService] Query for feed '{Name}' returned {Count} posts via Interests.", feed.Name, posts.Count);
+                    postDtos = posts.Select(p => _postService.MapToDto(p)).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("[FeedService] Interests query failed for feed '{Name}': {Msg}. Falling back to trending.", feed.Name, ex.Message);
+                    return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                // Fallback: Interests table/join may not exist on VPS — return trending instead
-                System.Console.WriteLine($"[FeedService] GetFeedPostsAsync: Error querying by Interests for feed '{feed.Name}': {ex.Message}. Falling back to trending.");
-                return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
+                 return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
             }
 
             if (userId.HasValue)
@@ -408,7 +648,44 @@ public class FeedService : IFeedService
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"[FeedService] GetFeedPostsAsync: Outer error: {ex.Message}");
+            _logger.LogError(ex, "[FeedService] GetFeedPostsAsync: Outer error");
+            return new List<PostDto>();
+        }
+    }
+
+    private async Task<IEnumerable<PostDto>> GetRemoteFeedPostsAsync(string uri, Guid? userId, int skip, int take)
+    {
+        try
+        {
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            
+            if (userId.HasValue)
+            {
+                var token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+                if (!string.IsNullOrEmpty(token))
+                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            var limit = Math.Min(take, 100);
+            var response = await httpClient.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(uri)}&limit={limit}");
+            
+            if (!response.IsSuccessStatusCode) 
+            {
+                _logger.LogWarning("[FeedService] getFeed failed for {Uri}: {Status}", uri, response.StatusCode);
+                return new List<PostDto>();
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(content);
+            if (!doc.RootElement.TryGetProperty("feed", out var feedArray)) return new List<PostDto>();
+
+            var posts = _postService.MapBlueskyFeed(feedArray);
+            return posts; // getFeed doesn't support offset pagination, usually cursor-based
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] Error fetching remote feed posts for {Uri}", uri);
             return new List<PostDto>();
         }
     }
