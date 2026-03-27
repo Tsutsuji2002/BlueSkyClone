@@ -43,6 +43,12 @@ public class ProfileController : ControllerBase
             
             if (user == null) return NotFound();
         }
+        else if (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
+        {
+            // THIN-CLIENT: For remote profiles we already know, trigger a refresh to sync latest counts/metadata
+            var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did);
+            if (refreshed != null) user = refreshed;
+        }
 
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         bool isFollowing = false;
@@ -106,6 +112,13 @@ public class ProfileController : ControllerBase
     {
         var user = await _userService.GetUserByIdAsync(userId);
         if (user == null) return NotFound();
+
+        // THIN-CLIENT: Refresh remote profile to sync counts/metadata
+        if (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
+        {
+            var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did);
+            if (refreshed != null) user = refreshed;
+        }
 
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         bool isFollowing = false;

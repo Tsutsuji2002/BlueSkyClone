@@ -2499,6 +2499,12 @@ public class PostService : IPostService
                     {
                         rawJson = await response.Content.ReadAsStringAsync();
                     }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        _logger.LogWarning("Post strictly Not Found on AppView: {Uri}", uri);
+                        // If it's definitely gone from Bluesky, we should NOT show it from local cache
+                        return null; 
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -2506,7 +2512,7 @@ public class PostService : IPostService
                 }
             }
 
-            // 2. Fallback to local DB or PDS Proxy if AppView fails
+            // 2. Fallback to local DB or PDS Proxy if AppView fails (only if not strictly NotFound)
             if (rawJson == null)
             {
                 // Try to find the post locally (needed for at://local/ or as emergency fallback)
@@ -3410,7 +3416,9 @@ public class PostService : IPostService
                 _ = Task.Run(async () => {
                     try
                     {
-                        await _repoManager.DeleteRecordAsync(authorDid, "app.bsky.feed.post", postTid);
+                        using var scope = _scopeFactory.CreateScope();
+                        var repoManager = scope.ServiceProvider.GetRequiredService<IRepoManager>();
+                        await repoManager.DeleteRecordAsync(authorDid, "app.bsky.feed.post", postTid);
                     }
                     catch (Exception ex)
                     {
@@ -3467,6 +3475,22 @@ public class PostService : IPostService
         // Broad timeline/trending invalidation
         cleanupTasks.Add(_cacheService.RemoveAsync($"user:{userId}:timeline"));
         cleanupTasks.Add(_cacheService.RemoveAsync("posts:trending"));
+
+        // THIN-CLIENT: also invalidate author-feed caches to reflect deletion immediately
+        if (rootPost.Author != null)
+        {
+            var author = rootPost.Author;
+            var handles = new List<string?> { author.Handle, author.Did }.Where(h => !string.IsNullOrEmpty(h)).ToList();
+            var subTypes = new List<string?> { "posts", "replies", "media", null };
+            
+            foreach (var h in handles)
+            {
+                foreach (var t in subTypes)
+                {
+                    cleanupTasks.Add(_distributedCache.RemoveAsync($"BlueskyAuthorFeed_{h}_{t}"));
+                }
+            }
+        }
 
         await Task.WhenAll(cleanupTasks);
 
