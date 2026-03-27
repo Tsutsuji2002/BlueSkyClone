@@ -1337,11 +1337,10 @@ public class PostService : IPostService
                         }
                     }
 
-                    if (post.PostMedia.Any(m => m.Type == "video"))
-                    {
+                        var webRoot = _environment.WebRootPath ?? "wwwroot";
                         foreach (var vid in post.PostMedia.Where(m => m.Type == "video" && !string.IsNullOrEmpty(m.Url)))
                         {
-                            string fullPath = Path.Combine(_environment.WebRootPath, vid.Url.TrimStart('/'));
+                            string fullPath = Path.Combine(webRoot, vid.Url.TrimStart('/'));
                             if (File.Exists(fullPath))
                             {
                                 using var stream = File.OpenRead(fullPath);
@@ -1360,7 +1359,7 @@ public class PostService : IPostService
                                     // Handle thumbnail if exists
                                     if (!string.IsNullOrEmpty(vid.ThumbnailUrl))
                                     {
-                                        string thumbPath = Path.Combine(_environment.WebRootPath, vid.ThumbnailUrl.TrimStart('/'));
+                                        string thumbPath = Path.Combine(webRoot, vid.ThumbnailUrl.TrimStart('/'));
                                         if (File.Exists(thumbPath))
                                         {
                                             using var thumbStream = File.OpenRead(thumbPath);
@@ -1378,14 +1377,13 @@ public class PostService : IPostService
                                 }
                             }
                         }
-                    }
 
                     if (post.PostMedia.Any(m => m.Type == "image"))
                     {
                         var images = new List<Dictionary<string, object>>();
                         foreach (var img in post.PostMedia.Where(m => m.Type == "image" && !string.IsNullOrEmpty(m.Url)))
                         {
-                            string fullPath = Path.Combine(_environment.WebRootPath, img.Url.TrimStart('/'));
+                            string fullPath = Path.Combine(webRoot, img.Url.TrimStart('/'));
                             if (File.Exists(fullPath))
                             {
                                 string mimeType = img.Url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? "image/png" : 
@@ -1415,7 +1413,7 @@ public class PostService : IPostService
                                         img.Cid = blobCid;
                                         images.Add(new Dictionary<string, object> {
                                             { "alt", img.AltText ?? "" },
-                                            { "image", new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", blobCid } } }, { "mimeType", mimeType }, { "size", imgData.Length } } }
+                                            { "image", new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", blobCid } } }, { "mimeType", mimeType ?? "image/jpeg" }, { "size", imgData.Length } } }
                                         });
                                     }
                                 }
@@ -1424,7 +1422,7 @@ public class PostService : IPostService
                         if (images.Any())
                         {
                             var imageEmbed = new Dictionary<string, object> { { "$type", "app.bsky.embed.images" }, { "images", images } };
-                            if (embedRecord != null && (embedRecord["$type"].ToString() == "app.bsky.embed.record" || embedRecord["$type"].ToString() == "app.bsky.embed.video"))
+                            if (embedRecord != null && embedRecord.ContainsKey("$type") && (embedRecord["$type"].ToString() == "app.bsky.embed.record" || embedRecord["$type"].ToString() == "app.bsky.embed.video"))
                             {
                                 if (embedRecord["$type"].ToString() == "app.bsky.embed.record")
                                     embedRecord = new Dictionary<string, object> { { "$type", "app.bsky.embed.recordWithMedia" }, { "record", embedRecord }, { "media", imageEmbed } };
@@ -4343,7 +4341,7 @@ public class PostService : IPostService
             var data = ms.ToArray();
 
             // PROACTIVE COMPRESSION: If > 1MB and image, compress before generating CID and saving
-            if (contentType.StartsWith("image/") && data.Length > 1024 * 1024 && !contentType.Contains("gif"))
+            if (!string.IsNullOrEmpty(contentType) && contentType.StartsWith("image/") && data.Length > 1024 * 1024 && !contentType.Contains("gif"))
             {
                 try {
                     using var imgStream = new MemoryStream(data);
@@ -4363,7 +4361,7 @@ public class PostService : IPostService
 
             var cid = ProtocolUtils.GenerateCid(data, 0x55); 
 
-            var extension = contentType switch
+            var extension = (contentType ?? "image/jpeg") switch
             {
                 "image/jpeg" => ".jpg",
                 "image/png" => ".png",
@@ -4372,7 +4370,7 @@ public class PostService : IPostService
                 _ => ".bin"
             };
 
-            var uploadsRoot = Path.Combine(_environment.WebRootPath, "uploads", folder);
+            var uploadsRoot = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", folder);
             if (!Directory.Exists(uploadsRoot)) Directory.CreateDirectory(uploadsRoot);
 
             var fileName = $"{cid}{extension}";
