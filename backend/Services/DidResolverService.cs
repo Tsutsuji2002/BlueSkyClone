@@ -14,14 +14,14 @@ namespace BSkyClone.Services
     public class DidResolverService : IDidResolver
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly HttpClient _httpClient;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly string _plcDirectory;
         private readonly string _localDomain;
 
-        public DidResolverService(IUnitOfWork unitOfWork, IConfiguration configuration)
+        public DidResolverService(IUnitOfWork unitOfWork, IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
             _unitOfWork = unitOfWork;
-            _httpClient = new HttpClient();
+            _httpClientFactory = httpClientFactory;
             _plcDirectory = configuration["PlcDirectory"] ?? "https://plc.directory";
             _localDomain = configuration["DomainName"] ?? "bskyclone.site";
         }
@@ -49,7 +49,10 @@ namespace BSkyClone.Services
             // B. HTTP .well-known
             try
             {
-                var response = await _httpClient.GetAsync($"https://{handle}/.well-known/atproto-did");
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                
+                var response = await client.GetAsync($"https://{handle}/.well-known/atproto-did");
                 if (response.IsSuccessStatusCode)
                 {
                     var did = await response.Content.ReadAsStringAsync();
@@ -57,11 +60,14 @@ namespace BSkyClone.Services
                 }
             }
             catch { /* Skip and continue */ }
-
+ 
             // C. Fallback to bsky.social AppView for handle resolution
             try
             {
-                var response = await _httpClient.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={handle}");
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                
+                var response = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={handle}");
                 if (response.IsSuccessStatusCode)
                 {
                     var data = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
@@ -109,7 +115,9 @@ namespace BSkyClone.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<DidDocument>($"{_plcDirectory}/{did}");
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                return await client.GetFromJsonAsync<DidDocument>($"{_plcDirectory}/{did}");
             }
             catch
             {
@@ -122,7 +130,9 @@ namespace BSkyClone.Services
             try
             {
                 var domain = did.Split(':').Last();
-                return await _httpClient.GetFromJsonAsync<DidDocument>($"https://{domain}/.well-known/did.json");
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                return await client.GetFromJsonAsync<DidDocument>($"https://{domain}/.well-known/did.json");
             }
             catch
             {

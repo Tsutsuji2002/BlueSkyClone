@@ -14,13 +14,13 @@ namespace BSkyClone.Services
     public class XrpcProxyService : IXrpcProxyService
     {
         private readonly IDidResolver _didResolver;
-        private readonly HttpClient _httpClient;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<XrpcProxyService> _logger;
 
-        public XrpcProxyService(IDidResolver didResolver, HttpClient httpClient, ILogger<XrpcProxyService> logger)
+        public XrpcProxyService(IDidResolver didResolver, IHttpClientFactory httpClientFactory, ILogger<XrpcProxyService> logger)
         {
             _didResolver = didResolver;
-            _httpClient = httpClient;
+            _httpClientFactory = httpClientFactory;
             _logger = logger;
         }
 
@@ -34,7 +34,10 @@ namespace BSkyClone.Services
                     // Resolve handle to DID first
                     try
                     {
-                        var idResponse = await _httpClient.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
+                        var client = _httpClientFactory.CreateClient();
+                        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                        
+                        var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
                         if (idResponse.IsSuccessStatusCode)
                         {
                             var data = await idResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
@@ -90,9 +93,17 @@ namespace BSkyClone.Services
                 }
 
                 // 4. Forward the request
-                var response = await _httpClient.SendAsync(request);
+                var clientReq = _httpClientFactory.CreateClient();
+                clientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                
+                var response = await clientReq.SendAsync(request);
                 var content = await response.Content.ReadAsStringAsync();
 
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("[XrpcProxy] Remote error {Status} for {Url}: {Content}", response.StatusCode, url, content);
+                }
+ 
                 return new ProxyResponse
                 {
                     Success = response.IsSuccessStatusCode,

@@ -2483,7 +2483,7 @@ public class PostService : IPostService
                 _logger.LogInformation("Trying Public AppView for GetPostThread: {Uri}", uri);
                 using var client = new System.Net.Http.HttpClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
+                var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
                 if (response.IsSuccessStatusCode)
                 {
                     rawJson = await response.Content.ReadAsStringAsync();
