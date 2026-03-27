@@ -1432,23 +1432,6 @@ public class PostService : IPostService
                             else embedRecord = imageEmbed;
                         }
 
-                        // VPS CLEANUP: Delete local media after successful proxy preparation
-                        foreach (var m in post.PostMedia)
-                        {
-                            if (!string.IsNullOrEmpty(m.Url))
-                            {
-                                string fPath = Path.Combine(_environment.WebRootPath, m.Url.TrimStart('/'));
-                                if (File.Exists(fPath))
-                                {
-                                    try { File.Delete(fPath); _logger.LogInformation("[PostService] Deleted local media after Bluesky proxy: {Path}", m.Url); } catch { }
-                                }
-                                if (!string.IsNullOrEmpty(m.ThumbnailUrl))
-                                {
-                                    string tPath = Path.Combine(_environment.WebRootPath, m.ThumbnailUrl.TrimStart('/'));
-                                    if (File.Exists(tPath)) try { File.Delete(tPath); } catch { }
-                                }
-                            }
-                        }
                     }
 
                     if (post.LinkPreview != null && embedRecord == null)
@@ -1519,9 +1502,23 @@ public class PostService : IPostService
                         post.Cid = json.RootElement.GetProperty("cid").GetString();
                         post.Tid = post.Uri?.Split('/').Last() ?? post.Tid;
                         
-                        // PERSISTENCE FIX: Save the official Bluesky Uri and Cid to the local database
-                        _unitOfWork.Posts.Update(post);
-                        await _unitOfWork.CompleteAsync();
+                        // VPS CLEANUP: Delete local media ONLY after successful network persistence
+                        foreach (var m in post.PostMedia)
+                        {
+                            if (!string.IsNullOrEmpty(m.Url))
+                            {
+                                string fPath = Path.Combine(_environment.WebRootPath, m.Url.TrimStart('/'));
+                                if (File.Exists(fPath))
+                                {
+                                    try { File.Delete(fPath); _logger.LogInformation("[PostService] Deleted local media after successful Bluesky post: {Path}", m.Url); } catch { }
+                                }
+                                if (!string.IsNullOrEmpty(m.ThumbnailUrl))
+                                {
+                                    string tPath = Path.Combine(_environment.WebRootPath, m.ThumbnailUrl.TrimStart('/'));
+                                    if (File.Exists(tPath)) try { File.Delete(tPath); } catch { }
+                                }
+                            }
+                        }
 
                         string successLog = $"[CreatePostAsync] SUCCESS: {post.Uri}\n";
                         await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", successLog);
@@ -1534,6 +1531,21 @@ public class PostService : IPostService
                         await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", errorLog);
                         Console.WriteLine(errorLog);
                         _logger.LogWarning("[CreatePostAsync] Bluesky Post Failed for user {UserId}. Status: {Status}, Error: {Error}", userId, bskyResponse.StatusCode, error);
+
+                        // ROLLBACK: Delete local post if network creation failed
+                        _unitOfWork.Posts.Remove(post);
+                        await _unitOfWork.CompleteAsync();
+                        _logger.LogInformation("[PostService] Rolled back local post {PostId} due to network failure.", post.Id);
+
+                        // Cleanup media even on failure to save space
+                        foreach (var m in post.PostMedia)
+                        {
+                            if (!string.IsNullOrEmpty(m.Url))
+                            {
+                                string fPath = Path.Combine(_environment.WebRootPath, m.Url.TrimStart('/'));
+                                if (File.Exists(fPath)) try { File.Delete(fPath); } catch { }
+                            }
+                        }
                     }
                 }
                 else
