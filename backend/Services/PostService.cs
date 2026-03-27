@@ -1398,6 +1398,7 @@ public class PostService : IPostService
                                 if (originalSize > 900000 && !img.Url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
                                 {
                                     imgData = await CompressImageForBlueskyAsync(fullPath);
+                                    mimeType = "image/jpeg"; // Force mimeType to match the JPEG byte array output by CompressImageForBlueskyAsync
                                     _logger.LogInformation("[CreatePostAsync] Compressed image {Url} from {Old} to {New} bytes", img.Url, originalSize, imgData.Length);
                                 }
                                 else
