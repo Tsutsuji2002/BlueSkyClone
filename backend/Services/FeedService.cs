@@ -47,8 +47,8 @@ public class FeedService : IFeedService
             _logger.LogWarning(ex, "[FeedService] Failed to fetch popular remote feeds for discovery.");
         }
 
-        // NO FALLBACK to local feeds in Pure Bluesky mode.
-        return new List<FeedDto>();
+        // NO FALLBACK to local database feeds, but we use hardcoded official remote feeds as a safety net.
+        return await GetHardcodedOfficialFeedsAsync(userId);
     }
 
     private async Task<List<FeedDto>> GetPopularRemoteFeedsAsync(Guid userId)
@@ -140,6 +140,127 @@ public class FeedService : IFeedService
             _logger.LogWarning(ex, "[FeedService] Error in GetPopularRemoteFeedsAsync");
             return new List<FeedDto>();
         }
+    }
+
+    private async Task<List<FeedDto>> GetHardcodedOfficialFeedsAsync(Guid userId)
+    {
+        // Guaranteed official feeds to show if discovery fails
+        var officialUris = new List<string>
+        {
+            "at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot",
+            "at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/bsky-team",
+            "at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/with-friends"
+        };
+        
+        return await ResolveFeedsMetadataAsync(officialUris, userId);
+    }
+
+    private async Task<List<FeedDto>> ResolveFeedsMetadataAsync(List<string> uris, Guid userId)
+    {
+        if (!uris.Any()) return new List<FeedDto>();
+        
+        try
+        {
+            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            var savedUris = new HashSet<string>();
+            var pinnedUris = new HashSet<string>();
+            
+            // Try to get user preferences to mark sub/pin status
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user != null && !string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(token))
+                {
+                    var pref = await GetUserPreferencesAsync(user.Did, token);
+                    if (pref != null)
+                    {
+                        savedUris = pref.SavedUris;
+                        pinnedUris = pref.PinnedUris;
+                    }
+                }
+            } catch { }
+
+            var result = new List<FeedDto>();
+            // app.bsky.feed.getFeedGenerators supports batching
+            var query = string.Join("&", uris.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+            
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
+            
+            var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?{query}");
+            if (!response.IsSuccessStatusCode) return new List<FeedDto>();
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(content);
+            
+            if (doc.RootElement.TryGetProperty("feeds", out var feeds))
+            {
+                foreach (var gen in feeds.EnumerateArray())
+                {
+                    var uri = gen.GetProperty("uri").GetString()!;
+                    var creator = gen.GetProperty("creator");
+                    result.Add(new FeedDto
+                    {
+                        Id = Guid.NewGuid(),
+                        Uri = uri,
+                        Tid = uri.Split('/').Last(),
+                        Name = gen.GetProperty("displayName").GetString()!,
+                        Description = gen.TryGetProperty("description", out var ds) ? ds.GetString() : null,
+                        AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+                        IsSubscribed = savedUris.Contains(uri),
+                        IsPinned = pinnedUris.Contains(uri),
+                        SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+                        Handle = creator.GetProperty("handle").GetString()!,
+                        Creator = new AuthorDto
+                        {
+                            Did = creator.GetProperty("did").GetString()!,
+                            Handle = creator.GetProperty("handle").GetString()!,
+                            DisplayName = creator.TryGetProperty("displayName", out var dname) ? dname.GetString() : null,
+                            AvatarUrl = creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null
+                        }
+                    });
+                }
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] Error resolving feeds metadata");
+            return new List<FeedDto>();
+        }
+    }
+
+    private class UserPrefs { public HashSet<string> SavedUris { get; set; } = new(); public HashSet<string> PinnedUris { get; set; } = new(); }
+
+    private async Task<UserPrefs?> GetUserPreferencesAsync(string did, string token)
+    {
+        var response = await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
+        if (!response.Success) return null;
+
+        var prefs = new UserPrefs();
+        using var doc = JsonDocument.Parse(response.Content);
+        if (doc.RootElement.TryGetProperty("preferences", out var items))
+        {
+            foreach (var pref in items.EnumerateArray())
+            {
+                var type = pref.TryGetProperty("$type", out var t) ? t.GetString() : "";
+                if (type == "app.bsky.actor.defs#savedFeedsPrefV2")
+                {
+                    if (pref.TryGetProperty("items", out var its))
+                        foreach (var it in its.EnumerateArray()) {
+                            var uri = it.GetProperty("value").GetString()!;
+                            prefs.SavedUris.Add(uri);
+                            if (it.TryGetProperty("pinned", out var p) && p.GetBoolean()) prefs.PinnedUris.Add(uri);
+                        }
+                }
+                else if (type == "app.bsky.actor.defs#savedFeedsPref")
+                {
+                    if (pref.TryGetProperty("saved", out var s)) foreach (var x in s.EnumerateArray()) prefs.SavedUris.Add(x.GetString()!);
+                    if (pref.TryGetProperty("pinned", out var p)) foreach (var x in p.EnumerateArray()) prefs.PinnedUris.Add(x.GetString()!);
+                }
+            }
+        }
+        return prefs;
     }
 
 
