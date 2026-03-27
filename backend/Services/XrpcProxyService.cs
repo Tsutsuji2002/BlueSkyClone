@@ -35,7 +35,7 @@ namespace BSkyClone.Services
                     try
                     {
                         var client = _httpClientFactory.CreateClient();
-                        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
+                        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                         
                         var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
                         if (idResponse.IsSuccessStatusCode)

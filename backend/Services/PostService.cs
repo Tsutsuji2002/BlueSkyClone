@@ -2215,14 +2215,38 @@ public class PostService : IPostService
             var collection = parts[1];
             var rkey = parts[2];
 
-            // 1. Check local DB first
-            var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || (p.Tid == rkey && p.Author.Did == didOrHandle));
+            // 1. Check local DB first - exact URI match
+            var existing = await _unitOfWork.Posts.Query()
+                .FirstOrDefaultAsync(p => p.Uri == uri);
+
+            // 2. Fallback: local lookup by ID (for at://local/ URIs)
+            if (existing == null && didOrHandle == "local" && Guid.TryParse(rkey, out var postId))
+            {
+                existing = await _unitOfWork.Posts.GetByIdAsync(postId);
+                if (existing != null && existing.IsDeleted == true) existing = null;
+            }
+
+            // 3. Fallback: two-step lookup by TID + Author DID.
+            //    Handles local users whose post.Uri may be null.
+            if (existing == null)
+            {
+                var matchingAuthor = await _unitOfWork.Users.Query()
+                    .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
+
+                if (matchingAuthor != null)
+                {
+                    existing = await _unitOfWork.Posts.Query()
+                        .FirstOrDefaultAsync(p => p.Tid == rkey && p.AuthorId == matchingAuthor.Id &&
+                                                  (p.IsDeleted == false || p.IsDeleted == null));
+                }
+            }
+
             if (existing != null)
             {
                 return await GetPostByIdAsync(existing.Id, viewerId);
             }
 
-            // 2. Remote post - Ingest on-demand
+            // 4. Remote post - Ingest on-demand
             if (collection == "app.bsky.feed.post")
             {
                 var ingested = await IngestRemotePostAsync(uri);
@@ -2275,7 +2299,7 @@ public class PostService : IPostService
             try
             {
                 using var client = new System.Net.Http.HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                 var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=0");
                 if (response.IsSuccessStatusCode)
                 {
@@ -2445,7 +2469,38 @@ public class PostService : IPostService
                 .Include(p => p.LinkPreview)
                 .Include(p => p.Hashtags)
                 .Include(p => p.Interests)
-                .FirstOrDefaultAsync(p => p.Uri == uri || (p.Tid == rkey && (p.Author.Did == didOrHandle || p.Author.Handle == didOrHandle)));
+                .FirstOrDefaultAsync(p => p.Uri == uri);
+
+            if (post == null)
+            {
+                if (didOrHandle == "local" && Guid.TryParse(rkey, out var postId))
+                {
+                    post = await _unitOfWork.Posts.Query()
+                        .Include(p => p.Author)
+                        .Include(p => p.PostMedia)
+                        .Include(p => p.LinkPreview)
+                        .Include(p => p.Hashtags)
+                        .Include(p => p.Interests)
+                        .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
+                }
+                else
+                {
+                    var matchingAuthor = await _unitOfWork.Users.Query()
+                        .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
+                    
+                    if (matchingAuthor != null)
+                    {
+                        post = await _unitOfWork.Posts.Query()
+                            .Include(p => p.Author)
+                            .Include(p => p.PostMedia)
+                            .Include(p => p.LinkPreview)
+                            .Include(p => p.Hashtags)
+                            .Include(p => p.Interests)
+                            .FirstOrDefaultAsync(p => p.Tid == rkey && p.AuthorId == matchingAuthor.Id && 
+                                                      (p.IsDeleted == false || p.IsDeleted == null));
+                    }
+                }
+            }
 
             if (post != null)
             {
@@ -2488,7 +2543,7 @@ public class PostService : IPostService
             {
                 _logger.LogInformation("Trying Public AppView for GetPostThread: {Uri}", uri);
                 using var client = new System.Net.Http.HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                 var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
                 if (response.IsSuccessStatusCode)
                 {
