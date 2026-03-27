@@ -1363,11 +1363,17 @@ public class PostService : IPostService
                                         string thumbPath = Path.Combine(webRoot, vid.ThumbnailUrl.TrimStart('/'));
                                         if (File.Exists(thumbPath))
                                         {
-                                            using var thumbStream = File.OpenRead(thumbPath);
-                                            var thumbCid = await _repoManager.UploadBlobAsync(authorUser.Did, thumbStream, "image/jpeg");
+                                            string fileMimeType = "image/jpeg";
+                                            // Handle thumbnail magic bytes safely
+                                            var thumbData = await File.ReadAllBytesAsync(thumbPath);
+                                            if (thumbData.Length > 2 && thumbData[0] == 0xFF && thumbData[1] == 0xD8) fileMimeType = "image/jpeg";
+                                            else if (thumbData.Length > 4 && thumbData[0] == 0x89 && thumbData[1] == 0x50 && thumbData[2] == 0x4E && thumbData[3] == 0x47) fileMimeType = "image/png";
+                                            else if (thumbData.Length > 4 && thumbData[0] == 0x52 && thumbData[1] == 0x49 && thumbData[2] == 0x46 && thumbData[3] == 0x46) fileMimeType = "image/webp";
+                                            
+                                            var thumbCid = await _repoManager.UploadBlobAsync(authorUser.Did, new MemoryStream(thumbData), fileMimeType);
                                             if (!string.IsNullOrEmpty(thumbCid))
                                             {
-                                                videoEmbed["thumbnail"] = new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", thumbCid } } }, { "mimeType", "image/jpeg" }, { "size", (int)new FileInfo(thumbPath).Length } };
+                                                videoEmbed["thumbnail"] = new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", thumbCid } } }, { "mimeType", fileMimeType }, { "size", thumbData.Length } };
                                             }
                                         }
                                     }
@@ -1411,6 +1417,12 @@ public class PostService : IPostService
 
                                 if (imgData != null && imgData.Length > 0)
                                 {
+                                    // NO MATTER WHAT HAPPENED BEFORE, WE TRUST ONLY THE RAW MATHEMATICAL MAGIC BYTES:
+                                    if (imgData.Length > 2 && imgData[0] == 0xFF && imgData[1] == 0xD8) mimeType = "image/jpeg";
+                                    else if (imgData.Length > 4 && imgData[0] == 0x89 && imgData[1] == 0x50 && imgData[2] == 0x4E && imgData[3] == 0x47) mimeType = "image/png";
+                                    else if (imgData.Length > 4 && imgData[0] == 0x52 && imgData[1] == 0x49 && imgData[2] == 0x46 && imgData[3] == 0x46) mimeType = "image/webp";
+                                    else mimeType = "image/jpeg"; // Final fallback
+                                    
                                     using var stream = new MemoryStream(imgData);
                                     var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
                                     if (!string.IsNullOrEmpty(blobCid))
@@ -1465,10 +1477,12 @@ public class PostService : IPostService
                                     imageBytes = outStream.ToArray();
                                 }
 
-                                using var stream = new MemoryStream(imageBytes);
                                 string mimeType = "image/jpeg";
-                                if (post.LinkPreview.Image.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) mimeType = "image/png";
+                                if (imageBytes.Length > 2 && imageBytes[0] == 0xFF && imageBytes[1] == 0xD8) mimeType = "image/jpeg";
+                                else if (imageBytes.Length > 4 && imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47) mimeType = "image/png";
+                                else if (imageBytes.Length > 4 && imageBytes[0] == 0x52 && imageBytes[1] == 0x49 && imageBytes[2] == 0x46 && imageBytes[3] == 0x46) mimeType = "image/webp";
 
+                                using var stream = new MemoryStream(imageBytes);
                                 var blobCid = await _repoManager.UploadBlobAsync(authorUser.Did, stream, mimeType);
                                 if (!string.IsNullOrEmpty(blobCid))
                                 {
