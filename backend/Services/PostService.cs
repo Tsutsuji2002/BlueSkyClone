@@ -970,6 +970,7 @@ public class PostService : IPostService
             for (int i = 0; i < request.Images.Count; i++)
             {
                 var file = request.Images[i];
+                if (file == null || file.Length == 0) continue;
                 var altText = request.AltTexts != null && i < request.AltTexts.Count ? request.AltTexts[i] : null;
                 var (imagePath, imageCid, thumbPath) = await SaveFileAsync(file, "posts");
                 post.PostMedia.Add(new PostMedium
@@ -4402,6 +4403,7 @@ public class PostService : IPostService
 
         private async Task<(string path, string cid, string? thumbnail)> SaveFileAsync(IFormFile file, string folder)
         {
+            if (file == null) throw new ArgumentNullException(nameof(file), "File cannot be null.");
             using var stream = file.OpenReadStream();
             return await SaveBlobAsync(stream, file.ContentType, folder);
         }
@@ -4770,7 +4772,7 @@ public class PostService : IPostService
             var fileName = Path.GetFileName(fullPath);
             var folder = Path.GetFileName(Path.GetDirectoryName(fullPath));
             
-            var thumbDirectory = Path.Combine(_environment.WebRootPath, "uploads", "thumbnails", folder);
+            var thumbDirectory = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", "thumbnails", folder ?? "");
             if (!Directory.Exists(thumbDirectory)) Directory.CreateDirectory(thumbDirectory);
 
             var thumbPath = Path.Combine(thumbDirectory, fileName);
