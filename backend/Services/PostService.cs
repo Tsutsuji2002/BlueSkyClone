@@ -1654,7 +1654,9 @@ public class PostService : IPostService
                 }
             }
 
-            return MapToDto(savedPost!);
+            var dto = MapToDto(savedPost!);
+            await _postHubContext.Clients.All.SendAsync("NewPost", dto);
+            return dto;
         }
         finally
         {
@@ -4371,7 +4373,10 @@ public class PostService : IPostService
 
             if (!File.Exists(filePath))
             {
-                await File.WriteAllBytesAsync(filePath, data);
+                var tempPath = filePath + ".tmp";
+                await File.WriteAllBytesAsync(tempPath, data);
+                if (File.Exists(filePath)) File.Delete(tempPath); // Handle rare race condition where another task finished first
+                else File.Move(tempPath, filePath);
             }
 
             string? thumbnailPath = null;

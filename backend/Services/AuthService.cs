@@ -11,6 +11,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using BSkyClone.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
 namespace BSkyClone.Services;
@@ -32,15 +34,17 @@ public class AuthService : IAuthService
     private readonly IDistributedCache _cache;
     private readonly ICryptoService _crypto;
     private readonly IXrpcProxyService _xrpcProxy;
+    private readonly IHubContext<PostHub> _postHubContext;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto, IXrpcProxyService xrpcProxy, ILogger<AuthService> logger)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto, IXrpcProxyService xrpcProxy, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _cache = cache;
         _crypto = crypto;
         _xrpcProxy = xrpcProxy;
+        _postHubContext = postHubContext;
         _logger = logger;
     }
 
@@ -213,6 +217,10 @@ public class AuthService : IAuthService
 
         await _unitOfWork.CompleteAsync();
 
+        // Broadcast Real-time Profile Update (Sync from Bluesky)
+        var userDto = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);
+        await _postHubContext.Clients.All.SendAsync("UserUpdated", userDto);
+
         var token = GenerateJwtToken(user, request.RememberMe);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id, request.RememberMe);
 
@@ -324,8 +332,11 @@ public class AuthService : IAuthService
                         if (profileRoot.TryGetProperty("displayName", out var dn)) user.DisplayName = dn.GetString();
                         if (profileRoot.TryGetProperty("avatar", out var av)) user.AvatarUrl = av.GetString();
                         
-                        _unitOfWork.Users.Update(user);
                         await _unitOfWork.CompleteAsync();
+
+                        // Broadcast Real-time Profile Sync
+                        var userDtoSync = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);
+                        await _postHubContext.Clients.All.SendAsync("UserUpdated", userDtoSync);
                     }
                 }
             }

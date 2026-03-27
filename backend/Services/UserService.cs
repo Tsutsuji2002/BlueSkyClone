@@ -30,14 +30,16 @@ public class UserService : IUserService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IDidResolver _didResolver;
     private readonly IRepoManager _repoManager;
+    private readonly IHubContext<PostHub> _postHubContext;
     private readonly ILogger<UserService> _logger;
     private readonly IConfiguration _configuration;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager, IHttpClientFactory httpClientFactory, IDidResolver didResolver, ILogger<UserService> logger, IConfiguration configuration)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager, IHttpClientFactory httpClientFactory, IDidResolver didResolver, ILogger<UserService> logger, IConfiguration configuration)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _hubContext = hubContext;
+        _postHubContext = postHubContext;
         _cacheService = cacheService;
         _searchService = searchService;
         _fileService = fileService;
@@ -270,6 +272,10 @@ public class UserService : IUserService
         // Index in Elasticsearch
         await _searchService.IndexUserAsync(user);
 
+        // Broadcast Real-time Profile Update
+        var userDto = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);
+        await _postHubContext.Clients.All.SendAsync("UserUpdated", userDto);
+
         return user;
     }
 
@@ -345,6 +351,10 @@ public class UserService : IUserService
 
         // Index in Elasticsearch
         await _searchService.IndexUserAsync(user);
+
+        // Broadcast Real-time Profile Update
+        var userDto = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);
+        await _postHubContext.Clients.All.SendAsync("UserUpdated", userDto);
 
         return user;
     }
