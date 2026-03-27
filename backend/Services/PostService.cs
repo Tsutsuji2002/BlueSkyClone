@@ -2447,7 +2447,7 @@ public class PostService : IPostService
         catch { return null; }
     }
 
-    public async Task<object> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null)
+    public async Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null)
     {
         if (string.IsNullOrEmpty(uri)) return null;
 

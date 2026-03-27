@@ -115,7 +115,7 @@ public class PostsController : ControllerBase
                 userGuid = user.Id;
             }
 
-            var posts = await _postService.GetUserPostsAsync(userGuid, type, viewerId, take, skip);
+            var posts = await _postService.GetUserPostsAsync(userId, viewerId, skip, take, type);
             return Ok(posts);
         }
         catch (Exception ex)
