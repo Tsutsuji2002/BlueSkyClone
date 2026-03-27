@@ -2275,7 +2275,7 @@ public class PostService : IPostService
             try
             {
                 using var client = new System.Net.Http.HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
                 var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=0");
                 if (response.IsSuccessStatusCode)
                 {
@@ -2375,6 +2375,7 @@ public class PostService : IPostService
 
     private async Task<Post?> IngestViaGetRecordAsync(User author, string uri, string rkey)
     {
+        _logger.LogInformation("[IngestViaGetRecordAsync] Attempting getRecord for {Uri} via Proxy (Author: {Did})", uri, author.Did);
         try
         {
             var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
@@ -2386,8 +2387,13 @@ public class PostService : IPostService
             var qCollection = new QueryCollection(qDict);
 
             var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "com.atproto.repo.getRecord", qCollection);
-            if (!proxyResult.Success) return null;
+            if (!proxyResult.Success) 
+            {
+                _logger.LogWarning("[IngestViaGetRecordAsync] Proxy failed with {Status}: {Content}", proxyResult.StatusCode, proxyResult.Content);
+                return null;
+            }
 
+            _logger.LogInformation("[IngestViaGetRecordAsync] Successfully fetched record data via Proxy");
             var data = System.Text.Json.JsonDocument.Parse(proxyResult.Content);
             var record = data.RootElement.GetProperty("value");
             var cid = data.RootElement.TryGetProperty("cid", out var c) ? c.GetString() : null;
@@ -2482,7 +2488,7 @@ public class PostService : IPostService
             {
                 _logger.LogInformation("Trying Public AppView for GetPostThread: {Uri}", uri);
                 using var client = new System.Net.Http.HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
                 var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
                 if (response.IsSuccessStatusCode)
                 {

@@ -35,7 +35,7 @@ namespace BSkyClone.Services
                     try
                     {
                         var client = _httpClientFactory.CreateClient();
-                        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
                         
                         var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
                         if (idResponse.IsSuccessStatusCode)
@@ -51,20 +51,31 @@ namespace BSkyClone.Services
                 }
 
                 // 1. Resolve the DID Document to find the service endpoint
+                _logger.LogInformation("[XrpcProxy] Resolving DID document for {Did}", did);
                 var doc = await _didResolver.ResolveToDocumentAsync(did);
-                if (doc == null || doc.Service == null || !doc.Service.Any())
+                if (doc == null)
                 {
+                    _logger.LogWarning("[XrpcProxy] DID Document not found for {Did}", did);
+                    return new ProxyResponse { Success = false, StatusCode = 404, Content = "DID Document not found" };
+                }
+ 
+                if (doc.Service == null || !doc.Service.Any())
+                {
+                    _logger.LogWarning("[XrpcProxy] DID {Did} has no service endpoints", did);
                     return new ProxyResponse { Success = false, StatusCode = 404, Content = "DID Service endpoint not found" };
                 }
-
+ 
                 // AT Protocol PDS service type is usually "AtprotoPds" or "#atproto_pds"
                 var service = doc.Service.FirstOrDefault(s => s.Type == "AtprotoPds") 
                              ?? doc.Service.FirstOrDefault(); // Fallback to first if not explicitly typed correctly
-
+ 
                 if (service == null || string.IsNullOrEmpty(service.ServiceEndpoint))
                 {
+                    _logger.LogWarning("[XrpcProxy] PDS endpoint not found in DID document for {Did}", did);
                     return new ProxyResponse { Success = false, StatusCode = 404, Content = "PDS endpoint not found" };
                 }
+ 
+                _logger.LogInformation("[XrpcProxy] Resolved PDS endpoint: {Endpoint} for {Did}", service.ServiceEndpoint, did);
 
                 // 2. Construct the remote URL
                 var baseUrl = service.ServiceEndpoint.TrimEnd('/');

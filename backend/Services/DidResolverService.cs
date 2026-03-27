@@ -65,7 +65,7 @@ namespace BSkyClone.Services
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
                 
                 var response = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={handle}");
                 if (response.IsSuccessStatusCode)
@@ -116,7 +116,7 @@ namespace BSkyClone.Services
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
                 return await client.GetFromJsonAsync<DidDocument>($"{_plcDirectory}/{did}");
             }
             catch
@@ -131,7 +131,7 @@ namespace BSkyClone.Services
             {
                 var domain = did.Split(':').Last();
                 var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; BSkyClone/1.0; +https://bskyclone.site)");
                 return await client.GetFromJsonAsync<DidDocument>($"https://{domain}/.well-known/did.json");
             }
             catch
