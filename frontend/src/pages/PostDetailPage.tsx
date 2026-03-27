@@ -182,7 +182,8 @@ const PostDetailPage: React.FC = () => {
     const [isInteractionModalOpen, setIsInteractionModalOpen] = React.useState(false);
     const isOwnPost = post && currentUser && (
         currentUser.id === post.author.id || 
-        (currentUser.did && post.author.did && currentUser.did === post.author.did)
+        (currentUser.did && post.author.did && currentUser.did === post.author.did) ||
+        (currentUser.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
     const observerTarget = React.useRef<HTMLDivElement>(null);
     const REPLIES_PER_PAGE = 20;
@@ -278,24 +279,29 @@ const PostDetailPage: React.FC = () => {
         hasScrolledRef.current = false;
     }, [postId]);
 
-    if (!post) {
+
+    // Show loading if post is absent OR is a stub (no content, no media) while still fetching
+    if (!post || (!post.content && !post.media?.length && !post.imageUrls?.length && isLoading)) {
         if (isLoading) {
             return (
                 <LoadingIndicator text={t('post.loading', { defaultValue: 'Loading post...' })} />
             );
         }
-        return (
-            <div className="p-4 text-center">
-                <p className="text-gray-500 dark:text-dark-text-secondary">{t('common.post_not_found')}</p>
-                <button
-                    onClick={() => navigate(-1)}
-                    className="mt-4 text-primary-500 hover:underline"
-                >
-                    {t('common.go_back')}
-                </button>
-            </div>
-        );
+        if (!post) {
+            return (
+                <div className="p-4 text-center">
+                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('common.post_not_found')}</p>
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="mt-4 text-primary-500 hover:underline"
+                    >
+                        {t('common.go_back')}
+                    </button>
+                </div>
+            );
+        }
     }
+
 
     const handleBack = () => {
         navigate(-1);

@@ -814,10 +814,17 @@ const postsSlice = createSlice({
             })
             // Delete Post
             .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string>) => {
-                const deletedUri = action.payload;
-                state.posts = state.posts.filter((p: Post) => p.uri !== deletedUri);
-                state.discoverPosts = state.discoverPosts.filter((p: Post) => p.uri !== deletedUri);
-                state.trendingPosts = state.trendingPosts.filter((p: Post) => p.uri !== deletedUri);
+                const deletedUri = action.payload; // original postUri passed in
+                // Extract TID/ID from the URI for broader matching
+                const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop()! : deletedUri;
+                const matchesPost = (p: Post) =>
+                    p.uri === deletedUri ||
+                    (deletedId && (p.tid === deletedId || p.id === deletedId)) ||
+                    (p.uri && p.uri.endsWith('/' + deletedId));
+                state.posts = state.posts.filter((p: Post) => !matchesPost(p));
+                state.discoverPosts = state.discoverPosts.filter((p: Post) => !matchesPost(p));
+                state.trendingPosts = state.trendingPosts.filter((p: Post) => !matchesPost(p));
+                state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => !matchesPost(p));
             })
             // Fetch Post By ID
             .addCase(fetchPostById.pending, (state: PostsState) => {
