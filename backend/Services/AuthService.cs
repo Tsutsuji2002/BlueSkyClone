@@ -11,6 +11,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace BSkyClone.Services;
 
@@ -31,14 +32,16 @@ public class AuthService : IAuthService
     private readonly IDistributedCache _cache;
     private readonly ICryptoService _crypto;
     private readonly IXrpcProxyService _xrpcProxy;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto, IXrpcProxyService xrpcProxy)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto, IXrpcProxyService xrpcProxy, ILogger<AuthService> logger)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _cache = cache;
         _crypto = crypto;
         _xrpcProxy = xrpcProxy;
+        _logger = logger;
     }
 
     public async Task RequestPhoneVerificationAsync(string phone)
@@ -96,6 +99,7 @@ public class AuthService : IAuthService
         
         string did = bskySession.GetProperty("did").GetString()!;
         string accessJwt = bskySession.GetProperty("accessJwt").GetString()!;
+        string refreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
 
         var userId = Guid.NewGuid();
         var user = new User
@@ -127,9 +131,11 @@ public class AuthService : IAuthService
         var token = GenerateJwtToken(user);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id);
 
-        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, new DistributedCacheEntryOptions { 
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) // Long-lived for register
-        });
+        var bskyCacheOptions = new DistributedCacheEntryOptions { 
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) 
+        };
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
+        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
 
         return MapToAuthResponse(user, token, refreshToken);
     }
@@ -156,6 +162,7 @@ public class AuthService : IAuthService
         string handle = bskySession.GetProperty("handle").GetString()!;
         string email = bskySession.TryGetProperty("email", out var emailProp) ? emailProp.GetString()! : $"{handle}@bluesky.local";
         string accessJwt = bskySession.GetProperty("accessJwt").GetString()!;
+        string refreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
 
         var user = await _unitOfWork.Users.GetByDidAsync(did) ?? await _unitOfWork.Users.GetByHandleAsync(handle);
         
@@ -213,6 +220,7 @@ public class AuthService : IAuthService
             AbsoluteExpirationRelativeToNow = request.RememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
         };
         await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
+        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
 
         return MapToAuthResponse(user, token, refreshToken);
     }
@@ -232,13 +240,42 @@ public class AuthService : IAuthService
         var newToken = GenerateJwtToken(user, rememberMe);
         var newRefreshToken = await GenerateAndSaveRefreshToken(user.Id, rememberMe);
         
-        // Extend BlueskyToken life if it exists
-        var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{user.Id}");
-        if (!string.IsNullOrEmpty(bskyToken))
+        // Synchronize Bluesky session refresh
+        if (!string.IsNullOrEmpty(user.Did))
         {
-            await _cache.SetStringAsync($"BlueskyToken_{user.Id}", bskyToken, new DistributedCacheEntryOptions { 
-                AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
-            });
+            var bskyRefreshToken = await _cache.GetStringAsync($"BlueskyRefreshToken_{user.Id}");
+            if (!string.IsNullOrEmpty(bskyRefreshToken))
+            {
+                try 
+                {
+                    using var httpClient = new HttpClient();
+                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bskyRefreshToken);
+                    var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.refreshSession", null);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var bskySession = await JsonSerializer.DeserializeAsync<JsonElement>(await response.Content.ReadAsStreamAsync());
+                        string nextAccessJwt = bskySession.GetProperty("accessJwt").GetString()!;
+                        string nextRefreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
+
+                        var bskyCacheOptions = new DistributedCacheEntryOptions { 
+                            AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+                        };
+                        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
+                        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
+                        _logger.LogInformation("Successfully refreshed Bluesky session for user {UserId}", user.Id);
+                    }
+                    else
+                    {
+                        var errorBody = await response.Content.ReadAsStringAsync();
+                        _logger.LogWarning("Failed to refresh Bluesky session for user {UserId}. Status: {Status}, Body: {Body}", user.Id, response.StatusCode, errorBody);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error refreshing Bluesky session for user {UserId}", user.Id);
+                }
+            }
         }
 
         return MapToAuthResponse(user, newToken, newRefreshToken);
