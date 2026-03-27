@@ -1545,6 +1545,9 @@ public class PostService : IPostService
                                 if (File.Exists(fPath)) try { File.Delete(fPath); } catch { }
                             }
                         }
+
+                        // Abort the rest of the post creation process and inform the client why it failed
+                        throw new Exception($"Bluesky network post failed: {error}");
                     }
                 }
                 else
@@ -1638,7 +1641,10 @@ public class PostService : IPostService
             .FirstOrDefaultAsync(p => p.Id == post.Id);
 
         // Index in Elasticsearch
-        await _searchService.IndexPostAsync(savedPost!);
+        if (savedPost != null)
+        {
+            await _searchService.IndexPostAsync(savedPost);
+        }
 
             // Broadcast Real-time Updates for parents
             var timestamp = DateTime.UtcNow;
