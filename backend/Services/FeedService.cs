@@ -21,31 +21,8 @@ public class FeedService : IFeedService
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly IDistributedCache _cache;
     private readonly IHttpClientFactory _httpClientFactory;
-    private static bool _isSeeded = false;
+    private static bool _isSeeded = true;
     private static readonly SemaphoreSlim _seedSemaphore = new(1, 1);
-
-    private static readonly Dictionary<string, Guid> OfficialFeedIds = new()
-    {
-        { "Trending", new Guid("c9a34220-a27e-4782-8a1d-1ee3a6be80d3") },
-        { "Art", new Guid("1c7ee051-7bc1-46a2-a1aa-26cdb3565565") },
-        { "Photography", new Guid("354ce3eb-f074-44bf-b558-7fdf57a8d874") },
-        { "Tech", new Guid("ed41a546-f71b-4ae2-8731-18427e4e45ae") },
-        { "Gaming", new Guid("3fa97b04-ff91-4e05-8f6e-20c4d8f024b3") },
-        { "Nature", new Guid("d9591c01-d945-4460-8317-e28044e4f32d") },
-        { "Music", new Guid("bb49e212-d0c5-4e6a-ba22-b67fd9d1ef1e") },
-        { "News", new Guid("5f252ec5-92e4-47a6-9d0f-25c47ffe246d") },
-        { "Politics", new Guid("d38ab5b8-ad81-43e2-a279-d584ca199c72") },
-        { "Movies", new Guid("a234222d-4d48-495a-95e2-2210faa2d781") },
-        { "Science", new Guid("7ab05dbf-4cff-4a79-ac74-43af3c07fce0") },
-        { "Sports", new Guid("e778e399-2ea4-4cad-b266-69c74256ae2e") },
-        { "Food", new Guid("de806225-78f2-4440-87e9-8f4e416a777d") },
-        { "Travel", new Guid("e823c6a7-416e-45c0-b105-9ae497855e1d") },
-        { "Fitness", new Guid("41d5fe89-74f9-4b41-bf21-3f1a3a336f88") },
-        { "Anime", new Guid("770d49de-26bc-4697-beb8-4cdf94fa26ef") },
-        { "Environment", new Guid("ebdc2c23-7b12-4e63-8ad9-781c4e0bde45") },
-        { "Fashion", new Guid("3a8718b9-35c9-42ce-b503-7c491fba6260") },
-        { "Health", new Guid("3609d0f4-d4d1-4e10-ad08-e95120969ae3") }
-    };
 
     public FeedService(IUnitOfWork unitOfWork, IPostService postService, ILogger<FeedService> logger)
     {
@@ -56,9 +33,21 @@ public class FeedService : IFeedService
 
     public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid userId)
     {
-        await PreSeedFeedsAsync();
+        try
+        {
+            var popularFeeds = await GetPopularRemoteFeedsAsync(userId);
+            if (popularFeeds.Any())
+            {
+                _logger.LogInformation("[FeedService] GetTrendingFeedsAsync: Returning {Count} popular remote feeds.", popularFeeds.Count());
+                return popularFeeds;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[FeedService] Failed to fetch popular remote feeds for recommendation fallback.");
+        }
+
         var feeds = await _unitOfWork.Feeds.GetTrendingFeedsAsync();
-        System.Console.WriteLine($"[FeedService] GetTrendingFeedsAsync: DB returned {feeds.Count()} feeds. First ID: {feeds.FirstOrDefault()?.Id}");
         
         var userSubscribedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
             .Where(s => s.UserId == userId)
@@ -78,106 +67,88 @@ public class FeedService : IFeedService
         ));
     }
 
-    private async Task EnsureOfficialFeedsSeededAsync()
+    private async Task<List<FeedDto>> GetPopularRemoteFeedsAsync(Guid userId)
     {
-        var targetTrendingId = OfficialFeedIds["Trending"];
-        var trendingFeed = await _unitOfWork.Feeds.Query()
-            .FirstOrDefaultAsync(f => f.IsOfficial && f.Name == "Trending");
-
-        // If ID mismatched but Name matches, delete and recreate to enforce stable IDs
-        if (trendingFeed != null && trendingFeed.Id != targetTrendingId)
+        try
         {
-            _unitOfWork.Feeds.Remove(trendingFeed);
-            await _unitOfWork.CompleteAsync();
-            trendingFeed = null;
-        }
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
 
-        if (trendingFeed == null)
-        {
-            trendingFeed = new Feed
+            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token))
+                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await httpClient.GetAsync("https://api.bsky.app/xrpc/app.bsky.unspecced.getPopularFeedGenerators?limit=10");
+            if (!response.IsSuccessStatusCode) return new List<FeedDto>();
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(content);
+            if (!doc.RootElement.TryGetProperty("feeds", out var feedsArray)) return new List<FeedDto>();
+
+            // Get user preferences to mark subscription status
+            var savedUris = new HashSet<string>();
+            try 
             {
-                Id = targetTrendingId,
-                Tid = "official-trending",
-                Name = "Trending",
-                Description = "The most popular posts from the last 24 hours.",
-                Handle = "trending.official",
-                IsOfficial = true,
-                CreatedAt = DateTime.UtcNow,
-                SubscribersCount = 0,
-                IsDeleted = false
-            };
-            await _unitOfWork.Feeds.AddAsync(trendingFeed);
-            await _unitOfWork.CompleteAsync();
-        }
-
-        var topics = new List<(string Name, string Description, string Handle)>
-        {
-            (PostCategoryConstants.Art, "Discover amazing drawings, paintings, and digital art.", "art.official"),
-            (PostCategoryConstants.Photography, "Professional and amateur photography from around the world.", "photo.official"),
-            (PostCategoryConstants.Gaming, "Latest from the gaming world, consoles, and streaming.", "gaming.official"),
-            (PostCategoryConstants.Tech, "Software, hardware, AI, and developer updates.", "tech.official"),
-            (PostCategoryConstants.Music, "New releases, concerts, and music discussions.", "music.official"),
-            (PostCategoryConstants.News, "Headlines and breaking news from trusted sources.", "news.official"),
-            (PostCategoryConstants.Nature, "Beautiful landscapes, wildlife, and environmental topics.", "nature.official"),
-            (PostCategoryConstants.Politics, "Discussion about global and local political events.", "politics.official"),
-            (PostCategoryConstants.Movies, "Reviews, trailers, and news from the cinema world.", "movies.official"),
-            (PostCategoryConstants.Science, "Space, biology, physics, and latest scientific research.", "science.official"),
-            (PostCategoryConstants.Sports, "Match results, athletes, and sporting event updates.", "sports.official"),
-            (PostCategoryConstants.Food, "Recipes, cooking tips, and culinary adventures.", "food.official")
-        };
-
-        foreach (var topic in topics)
-        {
-            // Ensure Interest exists for AI tagging
-            var interest = await _unitOfWork.Interests.Query()
-                .FirstOrDefaultAsync(i => i.Name == topic.Name);
-            
-            if (interest == null)
-            {
-                interest = new Interest
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user != null && !string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(token))
                 {
-                    Name = topic.Name,
-                    Slug = topic.Name.ToLower(),
-                    IsDeleted = false
-                };
-                await _unitOfWork.Interests.AddAsync(interest);
-                await _unitOfWork.CompleteAsync();
-            }
+                    var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
+                    if (prefResponse.Success)
+                    {
+                        using var prefDoc = JsonDocument.Parse(prefResponse.Content);
+                        if (prefDoc.RootElement.TryGetProperty("preferences", out var prefs))
+                        {
+                            foreach (var pref in prefs.EnumerateArray())
+                            {
+                                if (pref.TryGetProperty("$type", out var type) && 
+                                   (type.GetString() == "app.bsky.actor.defs#savedFeedsPrefV2" || type.GetString() == "app.bsky.actor.defs#savedFeedsPref"))
+                                {
+                                     if (type.GetString() == "app.bsky.actor.defs#savedFeedsPrefV2" && pref.TryGetProperty("items", out var items))
+                                         foreach (var it in items.EnumerateArray()) savedUris.Add(it.GetProperty("value").GetString()!);
+                                     else if (pref.TryGetProperty("saved", out var saved))
+                                         foreach (var s in saved.EnumerateArray()) savedUris.Add(s.GetString()!);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch { /* subscription status fallback to false */ }
 
-            // Ensure Feed exists
-            var targetId = OfficialFeedIds.ContainsKey(topic.Name) ? OfficialFeedIds[topic.Name] : Guid.NewGuid();
-            var feed = await _unitOfWork.Feeds.Query()
-                .FirstOrDefaultAsync(f => f.IsOfficial && f.Name == topic.Name);
-
-            // If ID mismatched but Name matches, delete and recreate to enforce stable IDs
-            if (feed != null && feed.Id != targetId)
+            var result = new List<FeedDto>();
+            foreach (var gen in feedsArray.EnumerateArray())
             {
-                _unitOfWork.Feeds.Remove(feed);
-                await _unitOfWork.CompleteAsync();
-                feed = null;
-            }
-
-            if (feed == null)
-            {
-                var newFeed = new Feed
+                var uri = gen.GetProperty("uri").GetString()!;
+                var creator = gen.GetProperty("creator");
+                result.Add(new FeedDto
                 {
-                    Id = targetId,
-                    Tid = $"official-{topic.Name.ToLower()}",
-                    Name = topic.Name,
-                    Description = topic.Description,
-                    Handle = topic.Handle,
-                    IsOfficial = true,
-                    CreatedAt = DateTime.UtcNow,
-                    SubscribersCount = 0,
-                    IsDeleted = false
-                };
-                await _unitOfWork.Feeds.AddAsync(newFeed);
-                await _unitOfWork.CompleteAsync();
-                _logger.LogInformation("[FeedService] Seeded/Verified feed: {Name} ({Id})", topic.Name, targetId);
+                    Id = Guid.NewGuid(),
+                    Uri = uri,
+                    Tid = uri.Split('/').Last(),
+                    Name = gen.GetProperty("displayName").GetString()!,
+                    Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
+                    AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+                    IsSubscribed = savedUris.Contains(uri),
+                    SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+                    Handle = gen.GetProperty("did").GetString()!,
+                    Creator = new AuthorDto
+                    {
+                        Did = creator.GetProperty("did").GetString()!,
+                        Handle = creator.GetProperty("handle").GetString()!,
+                        DisplayName = creator.TryGetProperty("displayName", out var dname) ? dname.GetString() : null,
+                        AvatarUrl = creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null
+                    }
+                });
             }
+            return result;
         }
-        _logger.LogInformation("[FeedService] Official feeds seeding completed.");
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[FeedService] Error in GetPopularRemoteFeedsAsync");
+            return new List<List<FeedDto>>().FirstOrDefault()!; // Return empty list safely
+        }
     }
+
+
 
     public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId)
     {
@@ -598,53 +569,12 @@ public class FeedService : IFeedService
                 return await GetRemoteFeedPostsAsync(uri, userId, skip, take);
             }
             
-            await PreSeedFeedsAsync();
-            var feed = await _unitOfWork.Feeds.GetByIdAsync(feedId);
-            
-            // 2. Special handling for Trending (still logic-based)
-            if (feed != null && feed.IsOfficial && (feed.Name == "Trending" || feed.Tid == "official-trending"))
-            {
-                return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
-            }
+            // 2. Legacy/Local feed resolution
+            var feed = await _unitOfWork.Feeds.Query().FirstOrDefaultAsync(f => f.Id == feedId);
 
-            // 3. Generic AI/Category Sort: Fetch posts tagged with an interest matching the feed name or handle
-            List<PostDto> postDtos;
-            if (feed != null)
-            {
-                try
-                {
-                    var posts = await _unitOfWork.Posts.Query()
-                        .Include(p => p.Author)
-                        .Include(p => p.PostMedia)
-                        .Include(p => p.LinkPreview)
-                        .Include(p => p.Interests)
-                        .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
-                                    p.Interests.Any(i => i.Name == feed.Name))
-                        .OrderByDescending(p => p.CreatedAt)
-                        .Skip(skip)
-                        .Take(take)
-                        .ToListAsync();
-
-                    _logger.LogInformation("[FeedService] Query for feed '{Name}' returned {Count} posts via Interests.", feed.Name, posts.Count);
-                    postDtos = posts.Select(p => _postService.MapToDto(p)).ToList();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning("[FeedService] Interests query failed for feed '{Name}': {Msg}. Falling back to trending.", feed.Name, ex.Message);
-                    return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
-                }
-            }
-            else
-            {
-                 return await _postService.GetTrendingPosts24hAsync(userId, take, skip);
-            }
-
-            if (userId.HasValue)
-            {
-                return await _postService.EnrichAndFilterPostsAsync(postDtos, userId.Value);
-            }
-
-            return postDtos;
+            // Redirect all local/official legacy feeds to "What's Hot" in Bluesky
+            _logger.LogInformation("[FeedService] Redirecting legacy/local feed '{Name}' to remote 'What's Hot' discovering.", feed?.Name ?? "Unknown");
+            return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", userId, skip, take);
         }
         catch (Exception ex)
         {
@@ -691,25 +621,9 @@ public class FeedService : IFeedService
     }
 
 
-    public async Task PreSeedFeedsAsync()
+    public Task PreSeedFeedsAsync()
     {
-        if (_isSeeded) return;
-
-        await _seedSemaphore.WaitAsync();
-        try 
-        {
-            if (_isSeeded) return;
-            await EnsureOfficialFeedsSeededAsync();
-            _isSeeded = true;
-        } 
-        catch (Exception ex) 
-        {
-            _logger.LogError(ex, "Error during PreSeedFeedsAsync");
-        } 
-        finally 
-        {
-            _seedSemaphore.Release();
-        }
+        return Task.CompletedTask;
     }
 }
 
