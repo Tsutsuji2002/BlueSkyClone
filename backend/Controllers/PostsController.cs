@@ -162,8 +162,8 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PostsController] CreatePost error: {ex.Message}");
-            return BadRequest(new { message = ex.Message });
+            Console.WriteLine($"[PostsController] CreatePost error: {ex.ToString()}");
+            return BadRequest(new { message = ex.Message, trace = ex.StackTrace, full = ex.ToString() });
         }
     }
 
