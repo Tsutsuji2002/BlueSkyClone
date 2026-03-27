@@ -1,4 +1,4 @@
-﻿using BSkyClone.DTOs;
+using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
 using BSkyClone.Constants;
@@ -24,11 +24,20 @@ public class FeedService : IFeedService
     private static bool _isSeeded = true;
     private static readonly SemaphoreSlim _seedSemaphore = new(1, 1);
 
-    public FeedService(IUnitOfWork unitOfWork, IPostService postService, ILogger<FeedService> logger)
+    public FeedService(
+        IUnitOfWork unitOfWork, 
+        IPostService postService, 
+        ILogger<FeedService> logger,
+        IXrpcProxyService xrpcProxy,
+        IDistributedCache cache,
+        IHttpClientFactory httpClientFactory)
     {
         _unitOfWork = unitOfWork;
         _postService = postService;
         _logger = logger;
+        _xrpcProxy = xrpcProxy;
+        _cache = cache;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid userId)
@@ -82,7 +91,7 @@ public class FeedService : IFeedService
             var savedUris = new HashSet<string>();
             try 
             {
-                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                // Shadowing fix: 'user' is already declared at line 59
                 if (user != null && !string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(token))
                 {
                     var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
