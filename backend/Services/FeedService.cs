@@ -1,4 +1,4 @@
-using BSkyClone.DTOs;
+﻿using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.UnitOfWork;
 using BSkyClone.Constants;
@@ -55,28 +55,27 @@ public class FeedService : IFeedService
     {
         try
         {
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
-
             var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
-            if (!string.IsNullOrEmpty(token))
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
             {
-                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            }
-
-            // Use public.api.bsky.app for more reliable AppView metadata calls
-            var url = "https://public.api.bsky.app/xrpc/app.bsky.unspecced.getPopularFeedGenerators?limit=10";
-            var response = await httpClient.GetAsync(url);
-            
-            if (!response.IsSuccessStatusCode)
-            {
-                var err = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("[FeedService] getPopularFeedGenerators failed with status {Status}: {Content}", response.StatusCode, err);
+                // Unauthenticated or no DID, but we still want discovery. 
+                // We'll fall back to hardcoded official feeds.
                 return new List<FeedDto>();
             }
 
-            var content = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(content);
+            // Route discovery through the authenticated proxy to bypass network blocks
+            var response = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.unspecced.getPopularFeedGenerators", 
+                queryParams: new Dictionary<string, string?> { ["limit"] = "10" }, 
+                token: token);
+            
+            if (!response.Success)
+            {
+                _logger.LogWarning("[FeedService] getPopularFeedGenerators failed via proxy: {Content}", response.Content);
+                return new List<FeedDto>();
+            }
+
+            using var doc = JsonDocument.Parse(response.Content);
             if (!doc.RootElement.TryGetProperty("feeds", out var feedsArray)) return new List<FeedDto>();
 
             // Get user preferences to mark subscription status
@@ -168,10 +167,10 @@ public class FeedService : IFeedService
             // Try to get user preferences to mark sub/pin status
             try
             {
-                var user = await _unitOfWork.Users.GetByIdAsync(userId);
-                if (user != null && !string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(token))
+                var userObj = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (userObj != null && !string.IsNullOrEmpty(userObj.Did) && !string.IsNullOrEmpty(token))
                 {
-                    var pref = await GetUserPreferencesAsync(user.Did, token);
+                    var pref = await GetUserPreferencesAsync(userObj.Did, token);
                     if (pref != null)
                     {
                         savedUris = pref.SavedUris;
@@ -180,54 +179,84 @@ public class FeedService : IFeedService
                 }
             } catch { }
 
-            var result = new List<FeedDto>();
-            // app.bsky.feed.getFeedGenerators supports batching
-            var query = string.Join("&", uris.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-            
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
-            
-            var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?{query}");
-            if (!response.IsSuccessStatusCode) return new List<FeedDto>();
-
-            var content = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(content);
-            
-            if (doc.RootElement.TryGetProperty("feeds", out var feeds))
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
             {
-                foreach (var gen in feeds.EnumerateArray())
+                // If not authenticated, we can't use the proxy for specific DID. 
+                // We'll use a direct call to the public AppView as a final fallback.
+                return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris);
+            }
+
+            // Use the proxy for metadata resolution to ensure consistent network access via PDS
+            var resultList = new List<FeedDto>();
+            foreach (var uri in uris)
+            {
+                var resp = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.feed.getFeedGenerator", 
+                    new Dictionary<string, string?> { ["generator"] = uri }, token);
+                
+                if (resp.Success)
                 {
-                    var uri = gen.GetProperty("uri").GetString()!;
-                    var creator = gen.GetProperty("creator");
-                    result.Add(new FeedDto
+                    using var gDoc = JsonDocument.Parse(resp.Content);
+                    if (gDoc.RootElement.TryGetProperty("view", out var gen))
                     {
-                        Id = Guid.NewGuid(),
-                        Uri = uri,
-                        Tid = uri.Split('/').Last(),
-                        Name = gen.GetProperty("displayName").GetString()!,
-                        Description = gen.TryGetProperty("description", out var ds) ? ds.GetString() : null,
-                        AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
-                        IsSubscribed = savedUris.Contains(uri),
-                        IsPinned = pinnedUris.Contains(uri),
-                        SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
-                        Handle = creator.GetProperty("handle").GetString()!,
-                        Creator = new AuthorDto
-                        {
-                            Did = creator.GetProperty("did").GetString()!,
-                            Handle = creator.GetProperty("handle").GetString()!,
-                            DisplayName = creator.TryGetProperty("displayName", out var dname) ? dname.GetString() : null,
-                            AvatarUrl = creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null
-                        }
-                    });
+                         resultList.Add(MapGeneratorViewToDto(gen, savedUris, pinnedUris));
+                    }
                 }
             }
-            return result;
+            return resultList;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[FeedService] Error resolving feeds metadata");
+            _logger.LogError(ex, "[FeedService] Error resolving feeds metadata via proxy");
             return new List<FeedDto>();
         }
+    }
+
+    private async Task<List<FeedDto>> ResolveMetadataDirectAsync(List<string> uris, HashSet<string> saved, HashSet<string> pinned)
+    {
+        var result = new List<FeedDto>();
+        try {
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
+            foreach (var uri in uris)
+            {
+                 var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?generator={Uri.EscapeDataString(uri)}");
+                 if (response.IsSuccessStatusCode)
+                 {
+                     var content = await response.Content.ReadAsStringAsync();
+                     using var doc = JsonDocument.Parse(content);
+                     if (doc.RootElement.TryGetProperty("view", out var gen))
+                         result.Add(MapGeneratorViewToDto(gen, saved, pinned));
+                 }
+            }
+        } catch {}
+        return result;
+    }
+
+    private FeedDto MapGeneratorViewToDto(JsonElement gen, HashSet<string> saved, HashSet<string> pinned)
+    {
+        var uri = gen.GetProperty("uri").GetString()!;
+        var creator = gen.GetProperty("creator");
+        return new FeedDto
+        {
+            Id = Guid.NewGuid(),
+            Uri = uri,
+            Tid = uri.Split('/').Last(),
+            Name = gen.GetProperty("displayName").GetString()!,
+            Description = gen.TryGetProperty("description", out var ds) ? ds.GetString() : null,
+            AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+            IsSubscribed = saved.Contains(uri),
+            IsPinned = pinned.Contains(uri),
+            SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+            Handle = creator.GetProperty("handle").GetString()!,
+            Creator = new AuthorDto
+            {
+                Did = creator.GetProperty("did").GetString()!,
+                Handle = creator.GetProperty("handle").GetString()!,
+                DisplayName = creator.TryGetProperty("displayName", out var dname) ? dname.GetString() : null,
+                AvatarUrl = creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null
+            }
+        };
     }
 
     private class UserPrefs { public HashSet<string> SavedUris { get; set; } = new(); public HashSet<string> PinnedUris { get; set; } = new(); }
@@ -741,4 +770,3 @@ public class FeedService : IFeedService
         return Task.CompletedTask;
     }
 }
-
