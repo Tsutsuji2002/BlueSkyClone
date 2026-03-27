@@ -31,7 +31,12 @@ namespace BSkyClone.Services
             if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
 
             var response = await CallAsync(token, url);
-            if (!response.IsSuccessStatusCode) return Enumerable.Empty<ConversationDto>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Chat proxy listConvos failed: {StatusCode} - {Error}", response.StatusCode, error);
+                throw new Exception($"Failed to fetch conversations from proxy: {response.StatusCode}");
+            }
 
             var json = await response.Content.ReadAsStringAsync();
             var data = JsonSerializer.Deserialize<BlueskyConvoListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -234,7 +239,11 @@ namespace BSkyClone.Services
                 MapToUserDto(msg.Sender),
                 null, // LinkPreview handled by EnrichMessageAsync
                 null, // ReplyTo
-                msg.Reactions?.Select(r => new MessageReactionDto(r.Sender?.Did ?? "", r.Emoji, null)).ToList()
+                msg.Reactions?.Select(r => new MessageReactionDto(
+                    r.Sender?.Did ?? "", 
+                    r.Emoji, 
+                    r.Sender != null ? (string.IsNullOrEmpty(r.Sender.DisplayName) ? r.Sender.Handle : r.Sender.DisplayName) : null
+                )).ToList()
             );
         }
 

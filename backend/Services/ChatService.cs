@@ -39,12 +39,14 @@ public class ChatService : IChatService
         {
             try 
             {
-                var proxyConvos = await _chatProxy.GetConversationsAsync(token);
-                if (proxyConvos.Any()) return proxyConvos;
+                // If a token exists, the user is a Bluesky user.
+                // We fetch from proxy and return whatever it gives us (even empty list).
+                // We only fall back if an error occurs and we explicitly want to show local data.
+                return await _chatProxy.GetConversationsAsync(token);
             }
             catch (Exception ex)
             {
-                // Log and continue to local fallback
+                // Log and continue to local fallback for robustness if proxy is down
                 System.Diagnostics.Debug.WriteLine($"Chat proxy fetch failed: {ex.Message}");
             }
         }
@@ -697,7 +699,7 @@ public class ChatService : IChatService
             u.Username,
             u.Handle,
             u.Email,
-            u.DisplayName,
+            u.DisplayName ?? u.Handle,
             u.AvatarUrl,
             u.CoverImageUrl,
             u.Bio,
