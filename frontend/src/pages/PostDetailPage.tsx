@@ -180,6 +180,10 @@ const PostDetailPage: React.FC = () => {
 
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
     const [isInteractionModalOpen, setIsInteractionModalOpen] = React.useState(false);
+    const isOwnPost = post && currentUser && (
+        currentUser.id === post.author.id || 
+        (currentUser.did && post.author.did && currentUser.did === post.author.did)
+    );
     const observerTarget = React.useRef<HTMLDivElement>(null);
     const REPLIES_PER_PAGE = 20;
 
@@ -445,7 +449,23 @@ const PostDetailPage: React.FC = () => {
                     dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
                 }
             },
-        }
+        },
+        ...(isOwnPost ? [
+            { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
+            {
+                id: 'edit',
+                label: t('common.edit_post', 'Edit Post'),
+                icon: <FiType />,
+                onClick: () => dispatch(openEditPost(post)),
+            },
+            {
+                id: 'delete',
+                label: t('common.delete_post', 'Delete Post'),
+                icon: <FiTrash2 />,
+                onClick: () => setShowDeleteConfirm(true),
+                danger: true,
+            }
+        ] : []),
     ];
 
     const dateLocale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
@@ -626,10 +646,10 @@ const PostDetailPage: React.FC = () => {
                         <div
                             className={cn(
                                 "flex items-center gap-1 cursor-default",
-                                (currentUser?.id === post.author.id || (currentUser?.did && post.author.did && currentUser.did === post.author.did)) && "text-[#0085FF] cursor-pointer hover:underline"
+                                isOwnPost && "text-[#0085FF] cursor-pointer hover:underline"
                             )}
                             onClick={() => {
-                                if (currentUser?.id === post.author.id || (currentUser?.did && post.author.did && currentUser.did === post.author.did)) {
+                                if (isOwnPost) {
                                     setIsInteractionModalOpen(true);
                                 }
                             }}

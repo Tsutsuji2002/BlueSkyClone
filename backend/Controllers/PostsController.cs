@@ -196,15 +196,24 @@ public class PostsController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetPost(Guid id)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetPost(string id)
     {
         try
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-            var post = await _postService.GetPostByIdAsync(id, viewerId);
+            Guid postId;
+            if (!Guid.TryParse(id, out postId))
+            {
+                // Resolve by TID if it's not a GUID
+                var p = await _postService.GetPostByTidAsync(id, viewerId);
+                if (p == null) return NotFound("Post not found by identifier.");
+                postId = p.Id;
+            }
+
+            var post = await _postService.GetPostByIdAsync(postId, viewerId);
             if (post == null) return NotFound();
 
             // If it's a remote post (stub), fetch the full thread from AppView
@@ -317,7 +326,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeletePost(string id)
+    public async Task<IActionResult> DeletePost(string id, [FromQuery] string? uri = null)
     {
         try
         {
@@ -327,12 +336,23 @@ public class PostsController : ControllerBase
             Guid postId;
             if (!Guid.TryParse(id, out postId))
             {
-                var post = await _postService.GetPostByTidAsync(id);
-                if (post == null) return NotFound();
-                postId = post.Id;
+                // Resolve by AT-URI or TID
+                var actualUri = uri ?? (id.StartsWith("at://") ? id : null);
+                if (!string.IsNullOrEmpty(actualUri))
+                {
+                    var post = await _postService.GetPostByUriAsync(actualUri, userId);
+                    if (post == null) return NotFound("Post URI could not be resolved.");
+                    postId = post.Id;
+                }
+                else
+                {
+                    var post = await _postService.GetPostByTidAsync(id, userId);
+                    if (post == null) return NotFound("Post identifier could not be resolved.");
+                    postId = post.Id;
+                }
             }
             var deletedIds = await _postService.DeletePostAsync(userId, postId);
-            if (deletedIds == null) return BadRequest("Could not delete post");
+            if (deletedIds == null || !deletedIds.Any()) return BadRequest("Could not delete post (unauthorized or not found)");
             return Ok(deletedIds);
         }
         catch (Exception ex)
