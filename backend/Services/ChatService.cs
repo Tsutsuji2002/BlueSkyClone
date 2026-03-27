@@ -10,6 +10,7 @@ using BSkyClone.Utilities;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 
 namespace BSkyClone.Services;
 
@@ -21,8 +22,9 @@ public class ChatService : IChatService
     private readonly IHubContext<ChatHub> _hubContext;
     private readonly IChatProxyService _chatProxy;
     private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
+    private readonly ILogger<ChatService> _logger;
 
-    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext, IChatProxyService chatProxy, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache)
+    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext, IChatProxyService chatProxy, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, ILogger<ChatService> logger)
     {
         _unitOfWork = unitOfWork;
         _linkService = linkService;
@@ -30,6 +32,7 @@ public class ChatService : IChatService
         _hubContext = hubContext;
         _chatProxy = chatProxy;
         _distributedCache = distributedCache;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId)
@@ -45,15 +48,25 @@ public class ChatService : IChatService
         {
             if (!string.IsNullOrEmpty(token))
             {
-                try { return await _chatProxy.GetConversationsAsync(token); }
+                try 
+                { 
+                    var proxyConvos = await _chatProxy.GetConversationsAsync(token); 
+                    _logger.LogInformation("Fetched {Count} conversations from proxy for user {UserId}", proxyConvos.Count(), userId);
+                    return proxyConvos;
+                }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Chat proxy fetch failed for {userId}: {ex.Message}");
+                    _logger.LogError(ex, "Chat proxy fetch failed for {UserId}", userId);
                 }
+            }
+            else
+            {
+                _logger.LogWarning("Missing Bluesky token for user {UserId} (DID: {Did}) in cache", userId, user.Did);
             }
             
             // For Bluesky users, we return empty if proxy is unavailable or token is missing.
             // This prevents "local sns chats" from intermittently appearing.
+            _logger.LogInformation("Returning empty conversations for Bluesky user {UserId} (No valid proxy results)", userId);
             return Enumerable.Empty<ConversationDto>();
         }
 

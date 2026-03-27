@@ -127,7 +127,9 @@ public class AuthService : IAuthService
         var token = GenerateJwtToken(user);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id);
 
-        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, new DistributedCacheEntryOptions { 
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) // Long-lived for register
+        });
 
         return MapToAuthResponse(user, token, refreshToken);
     }
@@ -207,7 +209,10 @@ public class AuthService : IAuthService
         var token = GenerateJwtToken(user, request.RememberMe);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id, request.RememberMe);
 
-        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
+        var bskyCacheOptions = new DistributedCacheEntryOptions { 
+            AbsoluteExpirationRelativeToNow = request.RememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+        };
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
 
         return MapToAuthResponse(user, token, refreshToken);
     }
@@ -226,6 +231,15 @@ public class AuthService : IAuthService
 
         var newToken = GenerateJwtToken(user, rememberMe);
         var newRefreshToken = await GenerateAndSaveRefreshToken(user.Id, rememberMe);
+        
+        // Extend BlueskyToken life if it exists
+        var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{user.Id}");
+        if (!string.IsNullOrEmpty(bskyToken))
+        {
+            await _cache.SetStringAsync($"BlueskyToken_{user.Id}", bskyToken, new DistributedCacheEntryOptions { 
+                AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+            });
+        }
 
         return MapToAuthResponse(user, newToken, newRefreshToken);
     }
@@ -313,7 +327,7 @@ public class AuthService : IAuthService
             user.Username,
             user.Handle,
             user.Email,
-            user.DisplayName,
+            string.IsNullOrWhiteSpace(user.DisplayName) ? user.Handle : user.DisplayName,
             user.AvatarUrl,
             user.CoverImageUrl,
             user.Bio,
