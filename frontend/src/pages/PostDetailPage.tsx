@@ -577,7 +577,7 @@ const PostDetailPage: React.FC = () => {
                                 </span>
                             </div>
                         </div>
-                        {currentUser?.id !== post.author.id && currentUser?.did !== post.author.did && (
+                        {!isOwnPost && (
                             <button
                                 onClick={handleFollowToggle}
                                 disabled={userActionLoading[post.author.id]}

@@ -305,8 +305,25 @@ public class PostsController : ControllerBase
             // Support URI-based deletion
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByUriAsync(uri ?? id, userId);
-                if (post == null) return NotFound("Post URI could not be resolved.");
+                var resolvedUri = uri ?? id;
+                var post = await _postService.GetPostByUriAsync(resolvedUri, userId);
+                
+                // If URI resolution fails, try direct TID lookup as fallback
+                if (post == null)
+                {
+                    // Extract TID from the URI (last segment)
+                    var tid = resolvedUri.Contains('/') ? resolvedUri.Split('/').Last() : resolvedUri;
+                    if (!string.IsNullOrEmpty(tid))
+                    {
+                        post = await _postService.GetPostByTidAsync(tid, userId);
+                    }
+                }
+                
+                if (post == null) 
+                {
+                    _logger.LogWarning("[PostsController] DeletePost: Could not resolve URI={Uri} or TID fallback for id={Id}", uri, id);
+                    return NotFound("Post URI could not be resolved.");
+                }
                 postId = post.Id;
             }
             else if (!Guid.TryParse(id, out postId))

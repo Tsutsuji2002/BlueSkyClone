@@ -65,7 +65,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const isOwnPost = isOwnPostProp ?? (
         currentUser?.id === post.author.id || 
-        (currentUser?.did && post.author.did && currentUser.did === post.author.did)
+        (currentUser?.did && post.author.did && currentUser.did === post.author.did) ||
+        (currentUser?.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
     const [isUnmuted, setIsUnmuted] = React.useState(false);
     const [isExpanded, setIsExpanded] = React.useState(false);
