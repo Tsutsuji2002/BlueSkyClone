@@ -463,51 +463,25 @@ public class PostService : IPostService
                 }
             }
 
-            var usersFollowingViewerIdsTask = _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync();
-            var likedPostUrisTask = _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).ToDictionaryAsync(l => l.PostId, l => l.Uri ?? "");
-            var repostPostUrisTask = _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).ToDictionaryAsync(r => r.PostId, r => r.Uri ?? "");
-            var followingUrisTask = _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
-            var mutedWordsTask = _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync();
-            var mutedAccountsTask = _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId);
-            var blockedUserIdsTask = _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
-            var blockedByUserIdsTask = _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync();
-            var bookmarkedPostIdsTask = _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync();
-            var blockingUrisTask = _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}");
-            var viewerUserTask = _unitOfWork.Users.GetByIdAsync(viewerId);
-            
-            var localLikesCountsTask = _unitOfWork.Likes.Query().Where(l => postIds.Contains(l.PostId)).GroupBy(l => l.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
-            var localRepostsCountsTask = _unitOfWork.Reposts.Query().Where(r => postIds.Contains(r.PostId)).GroupBy(r => r.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
-            var localBookmarksCountsTask = _unitOfWork.Bookmarks.Query().Where(b => postIds.Contains(b.PostId)).GroupBy(b => b.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
-            var localRepliesCountsTask = _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
-            var localQuotesCountsTask = _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIds.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
-
-            await Task.WhenAll(
-                usersFollowingViewerIdsTask, likedPostUrisTask, repostPostUrisTask, 
-                followingUrisTask, mutedWordsTask, mutedAccountsTask, 
-                blockedUserIdsTask, blockedByUserIdsTask, bookmarkedPostIdsTask, 
-                blockingUrisTask, viewerUserTask, localLikesCountsTask, 
-                localRepostsCountsTask, localBookmarksCountsTask, 
-                localRepliesCountsTask, localQuotesCountsTask
-            );
-
-            var usersFollowingViewerIds = await usersFollowingViewerIdsTask;
-            var likedPostUris = await likedPostUrisTask;
-            var repostPostUris = await repostPostUrisTask;
-            var followingUris = await followingUrisTask;
-            var mutedWords = await mutedWordsTask;
-            var mutedAccounts = await mutedAccountsTask;
+            var usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync();
+            var likedPostUris = await _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).ToDictionaryAsync(l => l.PostId, l => l.Uri ?? "");
+            var repostPostUris = await _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).ToDictionaryAsync(r => r.PostId, r => r.Uri ?? "");
+            var followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
+            var mutedWords = await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync();
+            var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId);
             var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
-            var blockedUserIds = await blockedUserIdsTask;
-            var blockedByUserIds = await blockedByUserIdsTask;
-            var bookmarkedPostIds = await bookmarkedPostIdsTask;
-            var blockingUris = await blockingUrisTask;
-            var viewerUser = await viewerUserTask;
+            var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
+            var blockedByUserIds = await _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync();
+            var bookmarkedPostIds = await _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync();
+            var blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}");
+            var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
             var viewerHandle = viewerUser?.Handle?.ToLower();
-            var localLikesCounts = await localLikesCountsTask;
-            var localRepostsCounts = await localRepostsCountsTask;
-            var localBookmarksCounts = await localBookmarksCountsTask;
-            var localRepliesCounts = await localRepliesCountsTask;
-            var localQuotesCounts = await localQuotesCountsTask;
+            
+            var localLikesCounts = await _unitOfWork.Likes.Query().Where(l => postIds.Contains(l.PostId)).GroupBy(l => l.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localRepostsCounts = await _unitOfWork.Reposts.Query().Where(r => postIds.Contains(r.PostId)).GroupBy(r => r.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localBookmarksCounts = await _unitOfWork.Bookmarks.Query().Where(b => postIds.Contains(b.PostId)).GroupBy(b => b.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localRepliesCounts = await _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
+            var localQuotesCounts = await _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIds.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
 
             // Fetch user settings for timeline filtering
             UserSetting? userSettings = null;
