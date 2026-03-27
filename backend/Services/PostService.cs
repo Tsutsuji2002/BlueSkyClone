@@ -668,7 +668,7 @@ public class PostService : IPostService
                     post.IsLiked = !string.IsNullOrEmpty(post.Viewer.Like);
                     post.IsReposted = !string.IsNullOrEmpty(post.Viewer.Repost);
                 }
-                }
+
 
                 if (post.ParentPost != null)
                 {
