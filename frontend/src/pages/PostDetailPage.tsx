@@ -280,9 +280,11 @@ const PostDetailPage: React.FC = () => {
     }, [postId]);
 
 
-    // Show loading if post is absent OR is a stub (no content, no media) while still fetching
-    if (!post || (!post.content && !post.media?.length && !post.imageUrls?.length && isLoading)) {
-        if (isLoading) {
+    // Show loading if post is absent OR is a stub (no content, no media) while still fetching or if we haven't resolved full thread yet
+    const isShell = post && !post.content && !post.media?.length && (!post.imageUrls || post.imageUrls.length === 0);
+    
+    if (!post || (isShell && isLoading)) {
+        if (isLoading || isShell) {
             return (
                 <LoadingIndicator text={t('post.loading', { defaultValue: 'Loading post...' })} />
             );

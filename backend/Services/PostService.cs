@@ -619,11 +619,24 @@ public class PostService : IPostService
                 {
                     if (post.Uri != null && remoteInteractionCache.TryGetValue(post.Uri, out var remotePost))
                     {
-                        // THIN-CLIENT: Strictly prioritize AppView counts for remote posts
+                        // THIN-CLIENT: Strictly prioritize AppView counts and viewer state for remote posts
                         if (remotePost.TryGetProperty("likeCount", out var lc)) post.LikesCount = lc.GetInt32();
                         if (remotePost.TryGetProperty("repostCount", out var rc)) post.RepostsCount = rc.GetInt32();
                         if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = rpc.GetInt32();
                         if (remotePost.TryGetProperty("quoteCount", out var qc)) post.QuotesCount = qc.GetInt32();
+
+                        // Viewer state from Remote
+                        if (remotePost.TryGetProperty("viewer", out var v))
+                        {
+                            var rLike = v.TryGetProperty("like", out var vl) && vl.ValueKind != JsonValueKind.Null ? vl.GetString() : null;
+                            var rRepost = v.TryGetProperty("repost", out var vr) && vr.ValueKind != JsonValueKind.Null ? vr.GetString() : null;
+                            
+                            post.Viewer ??= new PostViewerDto();
+                            post.Viewer.Like = rLike;
+                            post.Viewer.Repost = rRepost;
+                            post.IsLiked = !string.IsNullOrEmpty(rLike);
+                            post.IsReposted = !string.IsNullOrEmpty(rRepost);
+                        }
 
                         post.BookmarksCount = localBookmarks;
 
@@ -635,8 +648,7 @@ public class PostService : IPostService
                     }
                     else
                     {
-                        // Fallback if AppView proxy failed for this specific URI: 
-                        // Keep values already mapped from local DB in MapToDto
+                        // If AppView proxy failed, we keep whatever MapBlueskyPost set (which was already remote)
                         post.BookmarksCount = localBookmarks;
                     }
                 }
@@ -648,6 +660,14 @@ public class PostService : IPostService
                     post.RepliesCount = localReplies;
                     post.QuotesCount = localQuotes;
                     post.BookmarksCount = localBookmarks;
+                    post.Viewer = new PostViewerDto
+                    {
+                        Like = likedPostUris.TryGetValue(post.Id, out var lUriLocal) ? lUriLocal : post.Viewer?.Like,
+                        Repost = repostPostUris.TryGetValue(post.Id, out var rUriLocal) ? rUriLocal : post.Viewer?.Repost
+                    };
+                    post.IsLiked = !string.IsNullOrEmpty(post.Viewer.Like);
+                    post.IsReposted = !string.IsNullOrEmpty(post.Viewer.Repost);
+                }
                 }
 
                 if (post.ParentPost != null)
@@ -2215,19 +2235,26 @@ public class PostService : IPostService
             var collection = parts[1];
             var rkey = parts[2];
 
-            // 1. Check local DB first - exact URI match
+            // 1. Remote post Ingestion FIRST (for federated content)
+            if (didOrHandle != "local" && collection == "app.bsky.feed.post")
+            {
+                var ingested = await IngestRemotePostAsync(uri);
+                if (ingested != null)
+                {
+                    return await GetPostByIdAsync(ingested.Id, viewerId);
+                }
+            }
+
+            // 2. Local DB Lookups (for at://local/ or as emergency fallback)
             var existing = await _unitOfWork.Posts.Query()
                 .FirstOrDefaultAsync(p => p.Uri == uri);
 
-            // 2. Fallback: local lookup by ID (for at://local/ URIs)
             if (existing == null && didOrHandle == "local" && Guid.TryParse(rkey, out var postId))
             {
                 existing = await _unitOfWork.Posts.GetByIdAsync(postId);
                 if (existing != null && existing.IsDeleted == true) existing = null;
             }
 
-            // 3. Fallback: two-step lookup by TID + Author DID.
-            //    Handles local users whose post.Uri may be null.
             if (existing == null)
             {
                 var matchingAuthor = await _unitOfWork.Users.Query()
@@ -2241,8 +2268,6 @@ public class PostService : IPostService
                 }
             }
 
-            // 4. TID-only fallback: if the DID stored locally doesn't match (e.g. different format)
-            //    fall back to just looking up by TID, since TIDs are unique per-author and effectively globally unique.
             if (existing == null && !string.IsNullOrEmpty(rkey))
             {
                 existing = await _unitOfWork.Posts.Query()
@@ -2252,16 +2277,6 @@ public class PostService : IPostService
             if (existing != null)
             {
                 return await GetPostByIdAsync(existing.Id, viewerId);
-            }
-
-            // 4. Remote post - Ingest on-demand
-            if (collection == "app.bsky.feed.post")
-            {
-                var ingested = await IngestRemotePostAsync(uri);
-                if (ingested != null)
-                {
-                    return await GetPostByIdAsync(ingested.Id, viewerId);
-                }
             }
 
             return null;
@@ -2470,114 +2485,118 @@ public class PostService : IPostService
             var collection = parts[1];
             var rkey = parts[2];
 
-            // 1. Try to find the post locally FIRST (for instant visibility of new posts and replies)
-            var post = await _unitOfWork.Posts.Query()
-                .Include(p => p.Author)
-                .Include(p => p.PostMedia)
-                .Include(p => p.LinkPreview)
-                .Include(p => p.Hashtags)
-                .Include(p => p.Interests)
-                .FirstOrDefaultAsync(p => p.Uri == uri);
-
-            if (post == null)
+            // 1. Try Public AppView directly FIRST (to get global counts instead of PDS local counts)
+            string? rawJson = null;
+            if (didOrHandle != "local")
             {
-                if (didOrHandle == "local" && Guid.TryParse(rkey, out var postId))
+                try
                 {
-                    post = await _unitOfWork.Posts.Query()
-                        .Include(p => p.Author)
-                        .Include(p => p.PostMedia)
-                        .Include(p => p.LinkPreview)
-                        .Include(p => p.Hashtags)
-                        .Include(p => p.Interests)
-                        .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
-                }
-                else
-                {
-                    var matchingAuthor = await _unitOfWork.Users.Query()
-                        .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
-                    
-                    if (matchingAuthor != null)
+                    _logger.LogInformation("Trying Public AppView for GetPostThread: {Uri}", uri);
+                    using var client = new System.Net.Http.HttpClient();
+                    client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                    var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
+                    if (response.IsSuccessStatusCode)
                     {
-                        post = await _unitOfWork.Posts.Query()
-                            .Include(p => p.Author)
-                            .Include(p => p.PostMedia)
-                            .Include(p => p.LinkPreview)
-                            .Include(p => p.Hashtags)
-                            .Include(p => p.Interests)
-                            .FirstOrDefaultAsync(p => p.Tid == rkey && p.AuthorId == matchingAuthor.Id && 
-                                                      (p.IsDeleted == false || p.IsDeleted == null));
-                    }
-
-                    // TID-only fallback: if DID doesn't match any local user, try matching by TID alone
-                    if (post == null && !string.IsNullOrEmpty(rkey))
-                    {
-                        post = await _unitOfWork.Posts.Query()
-                            .Include(p => p.Author)
-                            .Include(p => p.PostMedia)
-                            .Include(p => p.LinkPreview)
-                            .Include(p => p.Hashtags)
-                            .Include(p => p.Interests)
-                            .FirstOrDefaultAsync(p => p.Tid == rkey && (p.IsDeleted == false || p.IsDeleted == null));
+                        rawJson = await response.Content.ReadAsStringAsync();
                     }
                 }
-            }
-
-            if (post != null)
-            {
-                // Sync resolution for single-thread view to avoid raw handle/DID display if not yet resolved
-                if (post.Author != null && post.Author.Did == post.Author.Handle && !string.IsNullOrEmpty(post.Author.Did))
+                catch (Exception ex)
                 {
-                    await _userService.ResolveRemoteProfileAsync(post.Author.Did!);
-                }
-
-                var postDto = MapToDto(post);
-                var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty);
-                postDto = enriched.First();
-
-                // Build thread structure from local data
-                return new
-                {
-                    thread = new
-                    {
-                        @type = "app.bsky.feed.defs#threadViewPost",
-                        post = postDto,
-                        replies = (await GetPostRepliesAsync(post.Id, viewerId)).Select(r => new { post = r, @type = "app.bsky.feed.defs#threadViewPost" }),
-                        parent = post.ReplyToPostId.HasValue ? new { post = await GetPostByIdAsync(post.ReplyToPostId.Value, viewerId), @type = "app.bsky.feed.defs#threadViewPost" } : null
-                    }
-                };
-            }
-
-            // 2. Remote post - XrpcProxy handles both DID and handle
-            string didForProxy = didOrHandle;
-
-            var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
-            {
-                { "uri", uri },
-                { "depth", depth.ToString() },
-                { "parentHeight", parentHeight.ToString() }
-            };
-
-            // 3. Try Public AppView directly FIRST (to get global counts instead of PDS local counts)
-            string rawJson = null;
-            try
-            {
-                _logger.LogInformation("Trying Public AppView for GetPostThread: {Uri}", uri);
-                using var client = new System.Net.Http.HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
-                if (response.IsSuccessStatusCode)
-                {
-                    rawJson = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning(ex, "Public AppView failed for {Uri}, falling back to Proxy/Local", uri);
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Public AppView failed for {Uri}, falling back to Proxy", uri);
-            }
 
-            // 4. Fallback to proxying to the PDS if AppView fails
+            // 2. Fallback to local DB or PDS Proxy if AppView fails
             if (rawJson == null)
             {
+                // Try to find the post locally (needed for at://local/ or as emergency fallback)
+                var post = await _unitOfWork.Posts.Query()
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .Include(p => p.Hashtags)
+                    .Include(p => p.Interests)
+                    .FirstOrDefaultAsync(p => p.Uri == uri);
+
+                if (post == null)
+                {
+                    if (didOrHandle == "local" && Guid.TryParse(rkey, out var postId))
+                    {
+                        post = await _unitOfWork.Posts.Query()
+                            .Include(p => p.Author)
+                            .Include(p => p.PostMedia)
+                            .Include(p => p.LinkPreview)
+                            .Include(p => p.Hashtags)
+                            .Include(p => p.Interests)
+                            .FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null));
+                    }
+                    else
+                    {
+                        var matchingAuthor = await _unitOfWork.Users.Query()
+                            .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
+                        
+                        if (matchingAuthor != null)
+                        {
+                            post = await _unitOfWork.Posts.Query()
+                                .Include(p => p.Author)
+                                .Include(p => p.PostMedia)
+                                .Include(p => p.LinkPreview)
+                                .Include(p => p.Hashtags)
+                                .Include(p => p.Interests)
+                                .FirstOrDefaultAsync(p => p.Tid == rkey && p.AuthorId == matchingAuthor.Id && 
+                                                          (p.IsDeleted == false || p.IsDeleted == null));
+                        }
+
+                        // TID-only fallback: if DID doesn't match any local user, try matching by TID alone
+                        if (post == null && !string.IsNullOrEmpty(rkey))
+                        {
+                            post = await _unitOfWork.Posts.Query()
+                                .Include(p => p.Author)
+                                .Include(p => p.PostMedia)
+                                .Include(p => p.LinkPreview)
+                                .Include(p => p.Hashtags)
+                                .Include(p => p.Interests)
+                                .FirstOrDefaultAsync(p => p.Tid == rkey && (p.IsDeleted == false || p.IsDeleted == null));
+                        }
+                    }
+                }
+
+                if (post != null)
+                {
+                    // Sync resolution for single-thread view to avoid raw handle/DID display if not yet resolved
+                    if (post.Author != null && post.Author.Did == post.Author.Handle && !string.IsNullOrEmpty(post.Author.Did))
+                    {
+                        await _userService.ResolveRemoteProfileAsync(post.Author.Did!);
+                    }
+
+                    var postDto = MapToDto(post);
+                    var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty);
+                    postDto = enriched.First();
+
+                    // Build thread structure from local data
+                    return new
+                    {
+                        thread = new
+                        {
+                            @type = "app.bsky.feed.defs#threadViewPost",
+                            post = postDto,
+                            replies = (await GetPostRepliesAsync(post.Id, viewerId)).Select(r => new { post = r, @type = "app.bsky.feed.defs#threadViewPost" }),
+                            parent = post.ReplyToPostId.HasValue ? new { post = await GetPostByIdAsync(post.ReplyToPostId.Value, viewerId), @type = "app.bsky.feed.defs#threadViewPost" } : null
+                        }
+                    };
+                }
+            }
+
+            // 3. Remote post PDS Proxy (handles both DID and handle) fallback
+            if (rawJson == null)
+            {
+                string didForProxy = didOrHandle;
+                var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+                {
+                    { "uri", uri },
+                    { "depth", depth.ToString() },
+                    { "parentHeight", parentHeight.ToString() }
+                };
                 var qCollection = new QueryCollection(qDict);
                 var proxyResult = await _xrpcProxy.ProxyRequestAsync(didForProxy, "app.bsky.feed.getPostThread", qCollection);
                 if (proxyResult.Success)

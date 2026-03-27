@@ -123,6 +123,43 @@ namespace BSkyClone.Services
 
         public async Task DeleteRecordAsync(string did, string collection, string rkey)
         {
+            // 1. Try to proxy delete to official PDS if user is logged in
+            try
+            {
+                var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Did == did);
+                if (user != null)
+                {
+                    var token = await _cache.GetStringAsync($"BlueskyToken_{user.Id}");
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        using var client = new HttpClient();
+                        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                        
+                        var payload = new { repo = did, collection = collection, rkey = rkey };
+                        var jsonPayload = JsonSerializer.Serialize(payload);
+                        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                        
+                        var response = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord", content);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Remote Record Delete SUCCESS: {collection}/{rkey} for {did}\n");
+                            Console.WriteLine($"[RepoManager] Proxied record delete to BlueSky: {collection}/{rkey}");
+                        }
+                        else
+                        {
+                            var error = await response.Content.ReadAsStringAsync();
+                            await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Remote Record Delete FAILED: {response.StatusCode} - {error}\n");
+                            Console.WriteLine($"[RepoManager] Bluesky Record Delete Failed: {response.StatusCode} - {error}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RepoManager] Error proxying record delete: {ex.Message}");
+            }
+
+            // 2. Perform local MST update (Sync local state)
             string mstKey = $"{collection}/{rkey}";
             var newRoot = await _mst.DeleteRecordAsync(did, mstKey);
 
