@@ -2183,12 +2183,14 @@ public class PostService : IPostService
     {
         _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid='{Tid}'", tid);
         
+        // Search by Tid column OR by Uri suffix for robustness
         var post = await _unitOfWork.Posts.Query()
-            .FirstOrDefaultAsync(p => p.Tid == tid && (p.IsDeleted == false || p.IsDeleted == null));
+            .FirstOrDefaultAsync(p => (p.Tid == tid || (p.Uri != null && p.Uri.EndsWith("/" + tid))) && 
+                                     (p.IsDeleted == false || p.IsDeleted == null));
 
         if (post == null) 
         {
-            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with Tid='{Tid}' NOT FOUND in database.", tid);
+            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with identifier '{Tid}' NOT FOUND in database.", tid);
             return null;
         }
 
