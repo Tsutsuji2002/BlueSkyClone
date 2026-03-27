@@ -56,14 +56,24 @@ public class FeedService : IFeedService
         try
         {
             using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
 
             var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
             if (!string.IsNullOrEmpty(token))
+            {
                 httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
 
-            var response = await httpClient.GetAsync("https://api.bsky.app/xrpc/app.bsky.unspecced.getPopularFeedGenerators?limit=10");
-            if (!response.IsSuccessStatusCode) return new List<FeedDto>();
+            // Use public.api.bsky.app for more reliable AppView metadata calls
+            var url = "https://public.api.bsky.app/xrpc/app.bsky.unspecced.getPopularFeedGenerators?limit=10";
+            var response = await httpClient.GetAsync(url);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("[FeedService] getPopularFeedGenerators failed with status {Status}: {Content}", response.StatusCode, err);
+                return new List<FeedDto>();
+            }
 
             var content = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(content);
