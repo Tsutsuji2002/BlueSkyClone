@@ -44,27 +44,11 @@ public class FeedService : IFeedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[FeedService] Failed to fetch popular remote feeds for recommendation fallback.");
+            _logger.LogWarning(ex, "[FeedService] Failed to fetch popular remote feeds for discovery.");
         }
 
-        var feeds = await _unitOfWork.Feeds.GetTrendingFeedsAsync();
-        
-        var userSubscribedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
-            .Where(s => s.UserId == userId)
-            .Select(s => s.FeedId)
-            .ToListAsync();
-
-        var userPinnedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
-            .Where(s => s.UserId == userId && s.IsPinned == true)
-            .Select(s => s.FeedId)
-            .ToListAsync();
-
-        return feeds.Select(f => MapToDto(
-            f, 
-            userPinnedFeedIds.Contains(f.Id), 
-            0, 
-            userSubscribedFeedIds.Contains(f.Id)
-        ));
+        // NO FALLBACK to local feeds in Pure Bluesky mode.
+        return new List<FeedDto>();
     }
 
     private async Task<List<FeedDto>> GetPopularRemoteFeedsAsync(Guid userId)
@@ -144,7 +128,7 @@ public class FeedService : IFeedService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[FeedService] Error in GetPopularRemoteFeedsAsync");
-            return new List<List<FeedDto>>().FirstOrDefault()!; // Return empty list safely
+            return new List<FeedDto>();
         }
     }
 
