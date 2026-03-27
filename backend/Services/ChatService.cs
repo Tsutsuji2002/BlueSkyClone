@@ -34,21 +34,27 @@ public class ChatService : IChatService
 
     public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId)
     {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return Enumerable.Empty<ConversationDto>();
+
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-        if (!string.IsNullOrEmpty(token))
+        
+        // If the user has a DID, they are a Bluesky user.
+        // We MUST fetch from proxy and NOT fall back to local chats.
+        if (!string.IsNullOrEmpty(user.Did))
         {
-            try 
+            if (!string.IsNullOrEmpty(token))
             {
-                // If a token exists, the user is a Bluesky user.
-                // We fetch from proxy and return whatever it gives us (even empty list).
-                // We only fall back if an error occurs and we explicitly want to show local data.
-                return await _chatProxy.GetConversationsAsync(token);
+                try { return await _chatProxy.GetConversationsAsync(token); }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Chat proxy fetch failed for {userId}: {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                // Log and continue to local fallback for robustness if proxy is down
-                System.Diagnostics.Debug.WriteLine($"Chat proxy fetch failed: {ex.Message}");
-            }
+            
+            // For Bluesky users, we return empty if proxy is unavailable or token is missing.
+            // This prevents "local sns chats" from intermittently appearing.
+            return Enumerable.Empty<ConversationDto>();
         }
 
         var cacheKey = $"user:{userId}:conversations";
@@ -699,7 +705,7 @@ public class ChatService : IChatService
             u.Username,
             u.Handle,
             u.Email,
-            u.DisplayName ?? u.Handle,
+            string.IsNullOrWhiteSpace(u.DisplayName) ? u.Handle : u.DisplayName,
             u.AvatarUrl,
             u.CoverImageUrl,
             u.Bio,

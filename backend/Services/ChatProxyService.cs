@@ -242,7 +242,7 @@ namespace BSkyClone.Services
                 msg.Reactions?.Select(r => new MessageReactionDto(
                     r.Sender?.Did ?? "", 
                     r.Emoji, 
-                    r.Sender != null ? (string.IsNullOrEmpty(r.Sender.DisplayName) ? r.Sender.Handle : r.Sender.DisplayName) : null
+                    r.Sender != null ? (string.IsNullOrWhiteSpace(r.Sender.DisplayName) ? r.Sender.Handle : r.Sender.DisplayName) : null
                 )).ToList()
             );
         }
@@ -254,7 +254,7 @@ namespace BSkyClone.Services
                 m.Handle,
                 m.Handle,
                 null,
-                string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName,
+                string.IsNullOrWhiteSpace(m.DisplayName) ? m.Handle : m.DisplayName,
                 m.Avatar,
                 null,
                 null,
