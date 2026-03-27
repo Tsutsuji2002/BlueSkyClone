@@ -3287,15 +3287,25 @@ public class PostService : IPostService
             _logger.LogError(ex, "Error processing remote firehose post");
         }
     }
-
     public async Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId)
     {
         var rootPost = await _unitOfWork.Posts.Query()
             .Include(p => p.Author)
             .FirstOrDefaultAsync(p => p.Id == postId);
 
-        if (rootPost == null || rootPost.AuthorId != userId)
+        if (rootPost == null)
             return new List<Guid>();
+
+        // Ownership check: must be author OR the user's DID must match the author's DID (for remote posts)
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        bool isOwner = rootPost.AuthorId == userId || (user != null && !string.IsNullOrEmpty(user.Did) && rootPost.Author?.Did == user.Did);
+
+        if (!isOwner)
+        {
+            _logger.LogWarning("[DeletePostAsync] User {UserId} unauthorized to delete post {PostId} (AuthorId: {AuthorId}, AuthorDid: {AuthorDid})", 
+                userId, postId, rootPost.AuthorId, rootPost.Author?.Did);
+            return new List<Guid>();
+        }
 
         if (rootPost.IsDeleted == true)
             return new List<Guid> { postId };
@@ -4382,7 +4392,7 @@ public class PostService : IPostService
             }
 
             string? thumbnailPath = null;
-            if (contentType.StartsWith("image/"))
+            if (!string.IsNullOrEmpty(contentType) && contentType.StartsWith("image/"))
             {
                 thumbnailPath = await GenerateThumbnailAsync(filePath);
             }
