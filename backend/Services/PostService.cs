@@ -1561,6 +1561,7 @@ public class PostService : IPostService
             string exLog = $"[CreatePostAsync] EXCEPTION: {ex.Message}\n{ex.StackTrace}\n";
             await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", exLog);
             Console.WriteLine(exLog);
+            throw; // Actually abort the request!
         }
 
         // Detect Mentions
