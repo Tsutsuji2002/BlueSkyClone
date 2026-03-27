@@ -52,10 +52,17 @@ public class ProfileController : ControllerBase
 
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
-            isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
-            isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
-            isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
-            isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+            var blockedByTask = _userService.IsBlockedByAsync(currentUserId, user.Id);
+            var followingTask = _userService.IsFollowingAsync(currentUserId, user.Id);
+            var blockingTask = _userService.IsBlockedAsync(currentUserId, user.Id);
+            var mutedTask = _userService.IsMutedAsync(currentUserId, user.Id);
+
+            await Task.WhenAll(blockedByTask, followingTask, blockingTask, mutedTask);
+
+            isBlockedBy = await blockedByTask;
+            isFollowing = await followingTask;
+            isBlocking = await blockingTask;
+            isMuted = await mutedTask;
         }
 
         var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 
@@ -115,10 +122,17 @@ public class ProfileController : ControllerBase
 
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
-            isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
-            isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
-            isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
-            isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+            var blockedByTask = _userService.IsBlockedByAsync(currentUserId, user.Id);
+            var followingTask = _userService.IsFollowingAsync(currentUserId, user.Id);
+            var blockingTask = _userService.IsBlockedAsync(currentUserId, user.Id);
+            var mutedTask = _userService.IsMutedAsync(currentUserId, user.Id);
+
+            await Task.WhenAll(blockedByTask, followingTask, blockingTask, mutedTask);
+
+            isBlockedBy = await blockedByTask;
+            isFollowing = await followingTask;
+            isBlocking = await blockingTask;
+            isMuted = await mutedTask;
         }
 
         var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 

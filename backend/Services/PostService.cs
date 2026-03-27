@@ -463,70 +463,51 @@ public class PostService : IPostService
                 }
             }
 
-            var usersFollowingViewerIds = new List<Guid>();
-            try { usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync(); } catch { }
+            var usersFollowingViewerIdsTask = _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync();
+            var likedPostUrisTask = _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).ToDictionaryAsync(l => l.PostId, l => l.Uri ?? "");
+            var repostPostUrisTask = _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).ToDictionaryAsync(r => r.PostId, r => r.Uri ?? "");
+            var followingUrisTask = _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
+            var mutedWordsTask = _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync();
+            var mutedAccountsTask = _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId);
+            var blockedUserIdsTask = _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
+            var blockedByUserIdsTask = _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync();
+            var bookmarkedPostIdsTask = _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync();
+            var blockingUrisTask = _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}");
+            var viewerUserTask = _unitOfWork.Users.GetByIdAsync(viewerId);
+            
+            var localLikesCountsTask = _unitOfWork.Likes.Query().Where(l => postIds.Contains(l.PostId)).GroupBy(l => l.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localRepostsCountsTask = _unitOfWork.Reposts.Query().Where(r => postIds.Contains(r.PostId)).GroupBy(r => r.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localBookmarksCountsTask = _unitOfWork.Bookmarks.Query().Where(b => postIds.Contains(b.PostId)).GroupBy(b => b.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localRepliesCountsTask = _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
+            var localQuotesCountsTask = _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIds.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
 
-            // Fetch interaction URIs for viewer context
-            var likedPostUris = new Dictionary<Guid, string>();
-            try { likedPostUris = await _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).ToDictionaryAsync(l => l.PostId, l => l.Uri ?? ""); } catch { }
+            await Task.WhenAll(
+                usersFollowingViewerIdsTask, likedPostUrisTask, repostPostUrisTask, 
+                followingUrisTask, mutedWordsTask, mutedAccountsTask, 
+                blockedUserIdsTask, blockedByUserIdsTask, bookmarkedPostIdsTask, 
+                blockingUrisTask, viewerUserTask, localLikesCountsTask, 
+                localRepostsCountsTask, localBookmarksCountsTask, 
+                localRepliesCountsTask, localQuotesCountsTask
+            );
 
-            var repostPostUris = new Dictionary<Guid, string>();
-            try { repostPostUris = await _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).ToDictionaryAsync(r => r.PostId, r => r.Uri ?? ""); } catch { }
-
-            var followingUris = new Dictionary<Guid, string>();
-            try { followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? ""); } catch { }
-
-            var mutedWords = new List<MutedWord>();
-            try { mutedWords = await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync(); } catch { }
-
-            var mutedUserIds = new List<Guid>();
-            try { var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId); mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList(); } catch { }
-
-            var blockedUserIds = new List<Guid>();
-            try { blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId); } catch { }
-
-            var blockedByUserIds = new List<Guid>();
-            try { blockedByUserIds = await _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync(); } catch { }
-
-            var bookmarkedPostIds = new List<Guid>();
-            try { bookmarkedPostIds = await _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync(); } catch { }
-
-            var blockingUris = new Dictionary<Guid, string>();
-            try { blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}"); } catch { }
-
-            var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
+            var usersFollowingViewerIds = await usersFollowingViewerIdsTask;
+            var likedPostUris = await likedPostUrisTask;
+            var repostPostUris = await repostPostUrisTask;
+            var followingUris = await followingUrisTask;
+            var mutedWords = await mutedWordsTask;
+            var mutedAccounts = await mutedAccountsTask;
+            var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
+            var blockedUserIds = await blockedUserIdsTask;
+            var blockedByUserIds = await blockedByUserIdsTask;
+            var bookmarkedPostIds = await bookmarkedPostIdsTask;
+            var blockingUris = await blockingUrisTask;
+            var viewerUser = await viewerUserTask;
             var viewerHandle = viewerUser?.Handle?.ToLower();
-
-            // Batch fetch local interaction counts to avoid N+1 queries later in the loop
-            var localLikesCounts = await _unitOfWork.Likes.Query()
-                .Where(l => postIds.Contains(l.PostId))
-                .GroupBy(l => l.PostId)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count);
-
-            var localRepostsCounts = await _unitOfWork.Reposts.Query()
-                .Where(r => postIds.Contains(r.PostId))
-                .GroupBy(r => r.PostId)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count);
-
-            var localBookmarksCounts = await _unitOfWork.Bookmarks.Query()
-                .Where(b => postIds.Contains(b.PostId))
-                .GroupBy(b => b.PostId)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count);
-
-            var localRepliesCounts = await _unitOfWork.Posts.Query()
-                .Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value))
-                .GroupBy(p => p.ReplyToPostId)
-                .Select(g => new { Id = g.Key!.Value, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Id, x => x.Count);
-
-            var localQuotesCounts = await _unitOfWork.Posts.Query()
-                .Where(p => p.QuotePostId != null && postIds.Contains(p.QuotePostId.Value))
-                .GroupBy(p => p.QuotePostId)
-                .Select(g => new { Id = g.Key!.Value, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Id, x => x.Count);
+            var localLikesCounts = await localLikesCountsTask;
+            var localRepostsCounts = await localRepostsCountsTask;
+            var localBookmarksCounts = await localBookmarksCountsTask;
+            var localRepliesCounts = await localRepliesCountsTask;
+            var localQuotesCounts = await localQuotesCountsTask;
 
             // Fetch user settings for timeline filtering
             UserSetting? userSettings = null;
@@ -544,7 +525,32 @@ public class PostService : IPostService
             }
 
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, IsTimeline={IsTimeline}", posts.Count, viewerId, isTimeline);
-            var filteredPosts = new List<PostDto>();
+        // Pre-resolve all stub authors in parallel to avoid N+1 network/DB calls inside the loop
+        var stubs = new HashSet<string>();
+        foreach (var p in posts)
+        {
+            if (p.Author != null && (p.Author.Id == Guid.Empty || p.Author.Did == p.Author.Handle)) stubs.Add(p.Author.Did!);
+            if (p.ParentPost?.Author != null && (p.ParentPost.Author.Id == Guid.Empty || p.ParentPost.Author.Did == p.ParentPost.Author.Handle)) stubs.Add(p.ParentPost.Author.Did!);
+            if (p.QuotePost?.Author != null && (p.QuotePost.Author.Id == Guid.Empty || p.QuotePost.Author.Did == p.QuotePost.Author.Handle)) stubs.Add(p.QuotePost.Author.Did!);
+        }
+
+        var resolvedAuthors = new Dictionary<string, User>();
+        if (stubs.Any())
+        {
+            var resolveTasks = stubs.Select(async did => 
+            {
+                try { 
+                    using var scope = _scopeFactory.CreateScope(); 
+                    var user = await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(did); 
+                    if (user != null) return (did, user);
+                } catch { }
+                return (did, null as User);
+            });
+            var results = await Task.WhenAll(resolveTasks);
+            foreach (var r in results) if (r.Item2 != null) resolvedAuthors[r.Item1] = r.Item2;
+        }
+
+        var filteredPosts = new List<PostDto>();
             foreach (var post in posts)
             {
                 // Apply Timeline Filtering
@@ -585,33 +591,27 @@ public class PostService : IPostService
                     continue;
                 }
 
-                // Phase 35: On-demand profile resolution for stub authors
-                // For small batches (typical for single post views or small threads), resolve synchronously
-                // to ensure the user sees full profile data immediately and has a valid local GUID for interactions.
-                bool shouldResolveSync = posts.Count <= 15;
-
-                if (post.Author != null && (post.Author.Did == post.Author.Handle || post.Author.Id == Guid.Empty))
+                // Apply resolved authors
+                if (post.Author != null && resolvedAuthors.TryGetValue(post.Author.Did ?? "", out var ra))
                 {
-                    if (shouldResolveSync && !string.IsNullOrEmpty(post.Author.Did))
-                    {
-                        try 
-                        { 
-                            using var scope = _scopeFactory.CreateScope(); 
-                            var resolvedUser = await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did); 
-                            if (resolvedUser != null)
-                            {
-                                post.Author.Id = resolvedUser.Id;
-                                post.Author.Handle = resolvedUser.Handle;
-                                post.Author.DisplayName = resolvedUser.DisplayName;
-                                post.Author.AvatarUrl = resolvedUser.AvatarUrl;
-                            }
-                        } 
-                        catch { }
-                    }
-                    else if (!string.IsNullOrEmpty(post.Author.Did))
-                    {
-                        _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.Author.Did!); } catch { } });
-                    }
+                    post.Author.Id = ra.Id;
+                    post.Author.Handle = ra.Handle;
+                    post.Author.DisplayName = ra.DisplayName;
+                    post.Author.AvatarUrl = ra.AvatarUrl;
+                }
+                if (post.ParentPost?.Author != null && resolvedAuthors.TryGetValue(post.ParentPost.Author.Did ?? "", out var rpa))
+                {
+                    post.ParentPost.Author.Id = rpa.Id;
+                    post.ParentPost.Author.Handle = rpa.Handle;
+                    post.ParentPost.Author.DisplayName = rpa.DisplayName;
+                    post.ParentPost.Author.AvatarUrl = rpa.AvatarUrl;
+                }
+                if (post.QuotePost?.Author != null && resolvedAuthors.TryGetValue(post.QuotePost.Author.Did ?? "", out var rqa))
+                {
+                    post.QuotePost.Author.Id = rqa.Id;
+                    post.QuotePost.Author.Handle = rqa.Handle;
+                    post.QuotePost.Author.DisplayName = rqa.DisplayName;
+                    post.QuotePost.Author.AvatarUrl = rqa.AvatarUrl;
                 }
 
                 if (post.Author != null)
@@ -738,29 +738,6 @@ public class PostService : IPostService
                             if (remAuth.TryGetProperty("avatar", out var av)) post.QuotePost.Author.AvatarUrl = av.GetString();
                             if (remAuth.TryGetProperty("handle", out var hndl)) post.QuotePost.Author.Handle = hndl.GetString();
                         }
-                    }
-                }
-
-                if (post.QuotePost?.Author != null && (post.QuotePost.Author.Did == post.QuotePost.Author.Handle || post.QuotePost.Author.Id == Guid.Empty))
-                {
-                    if (shouldResolveSync && !string.IsNullOrEmpty(post.QuotePost.Author.Did))
-                    {
-                        try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.QuotePost.Author.Did!); } catch { }
-                    }
-                    else if (!string.IsNullOrEmpty(post.QuotePost.Author.Did))
-                    {
-                        _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.QuotePost.Author.Did!); } catch { } });
-                    }
-                }
-                if (post.ParentPost?.Author != null && (post.ParentPost.Author.Did == post.ParentPost.Author.Handle || post.ParentPost.Author.Id == Guid.Empty))
-                {
-                    if (shouldResolveSync && !string.IsNullOrEmpty(post.ParentPost.Author.Did))
-                    {
-                        try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.ParentPost.Author.Did!); } catch { }
-                    }
-                    else if (!string.IsNullOrEmpty(post.ParentPost.Author.Did))
-                    {
-                        _ = Task.Run(async () => { try { using var scope = _scopeFactory.CreateScope(); await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(post.ParentPost.Author.Did!); } catch { } });
                     }
                 }
 
@@ -1589,6 +1566,7 @@ public class PostService : IPostService
             .Distinct()
             .ToList();
 
+        var notificationTasks = new List<Task>();
         foreach (var handle in mentions)
         {
             var mentionedUser = await _unitOfWork.Users.GetByHandleAsync($"{handle}.bsky.social");
@@ -1608,42 +1586,42 @@ public class PostService : IPostService
                 };
                 await _unitOfWork.Notifications.AddAsync(mentionNotification);
                 await _unitOfWork.CompleteAsync();
-                await SendNotificationAsync(mentionNotification.Id);
+                notificationTasks.Add(SendNotificationAsync(mentionNotification.Id));
             }
         }
 
-        if (replyNotification != null)
-        {
-            await SendNotificationAsync(replyNotification.Id);
-        }
-
-        if (quoteNotification != null)
-        {
-            await SendNotificationAsync(quoteNotification.Id);
-        }
+        if (replyNotification != null) notificationTasks.Add(SendNotificationAsync(replyNotification.Id));
+        if (quoteNotification != null) notificationTasks.Add(SendNotificationAsync(quoteNotification.Id));
+        
+        if (notificationTasks.Any()) await Task.WhenAll(notificationTasks);
 
         // Invalidate ALL user post-type caches so replies/posts/media tabs refresh
-        await _cacheService.RemoveAsync($"user:{userId}:timeline");
-        await _distributedCache.RemoveAsync($"BlueskyTimeline_{userId}");
-        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_posts");
-        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_posts");
-        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_replies");
-        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_replies");
-        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_media");
-        await _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_media");
-        await _cacheService.RemoveAsync($"user:{userId}:posts:posts:0:20:v2");
-        await _cacheService.RemoveAsync($"user:{userId}:posts:posts:0:30:v2");
-        await _cacheService.RemoveAsync($"user:{userId}:posts:replies:0:20:v2");
-        await _cacheService.RemoveAsync($"user:{userId}:posts:replies:0:30:v2");
-        await _cacheService.RemoveAsync($"user:{userId}:posts:media:0:20:v2");
-        await _cacheService.RemoveAsync($"user:{userId}:posts:media:0:30:v2");
-        await _cacheService.RemoveAsync($"user:{userId}:posts:likes:0:20:v2");
-        await _cacheService.RemoveAsync($"user:{userId}:posts:likes:0:30:v2");
+        var cacheTasks = new List<Task>
+        {
+            _cacheService.RemoveAsync($"user:{userId}:timeline"),
+            _distributedCache.RemoveAsync($"BlueskyTimeline_{userId}"),
+            _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_posts"),
+            _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_posts"),
+            _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_replies"),
+            _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_replies"),
+            _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Handle}_media"),
+            _distributedCache.RemoveAsync($"BlueskyUserPosts_{author.Did}_media"),
+            _cacheService.RemoveAsync($"user:{userId}:posts:posts:0:20:v2"),
+            _cacheService.RemoveAsync($"user:{userId}:posts:posts:0:30:v2"),
+            _cacheService.RemoveAsync($"user:{userId}:posts:replies:0:20:v2"),
+            _cacheService.RemoveAsync($"user:{userId}:posts:replies:0:30:v2"),
+            _cacheService.RemoveAsync($"user:{userId}:posts:media:0:20:v2"),
+            _cacheService.RemoveAsync($"user:{userId}:posts:media:0:30:v2"),
+            _cacheService.RemoveAsync($"user:{userId}:posts:likes:0:20:v2"),
+            _cacheService.RemoveAsync($"user:{userId}:posts:likes:0:30:v2")
+        };
         
         // Invalidate parent/root/quote post caches to update counts (RepliesCount, QuotesCount)
-        if (replyToPostId.HasValue) await _cacheService.RemoveAsync($"post:{replyToPostId.Value}");
-        if (rootPostId.HasValue) await _cacheService.RemoveAsync($"post:{rootPostId.Value}");
-        if (quotePostId.HasValue) await _cacheService.RemoveAsync($"post:{quotePostId.Value}");
+        if (replyToPostId.HasValue) cacheTasks.Add(_cacheService.RemoveAsync($"post:{replyToPostId.Value}"));
+        if (rootPostId.HasValue) cacheTasks.Add(_cacheService.RemoveAsync($"post:{rootPostId.Value}"));
+        if (quotePostId.HasValue) cacheTasks.Add(_cacheService.RemoveAsync($"post:{quotePostId.Value}"));
+
+        await Task.WhenAll(cacheTasks);
 
         // Refresh to get Author and Media, and Reply info for the DTO
         var savedPost = await _unitOfWork.Posts.Query()
@@ -3356,17 +3334,21 @@ public class PostService : IPostService
             post.IsDeleted = true;
             _unitOfWork.Posts.Update(post);
 
-            // 1b. Delete from Repo (Synchronize Federated Content)
-            if (post.Author != null && !string.IsNullOrEmpty(post.Author.Did))
+            // 1b. Background Delete from Repo (Synchronize Federated Content)
+            if (post.Author != null && !string.IsNullOrEmpty(post.Author.Did) && !string.IsNullOrEmpty(post.Tid))
             {
-                try
-                {
-                    await _repoManager.DeleteRecordAsync(post.Author.Did, "app.bsky.feed.post", post.Tid);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to delete repo record for post {PostId}", post.Id);
-                }
+                var authorDid = post.Author.Did;
+                var postTid = post.Tid;
+                _ = Task.Run(async () => {
+                    try
+                    {
+                        await _repoManager.DeleteRecordAsync(authorDid, "app.bsky.feed.post", postTid);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Background task failed to delete repo record for TID {Tid} from DID {Did}", postTid, authorDid);
+                    }
+                });
             }
 
             // 2. Decrement Author's PostsCount
@@ -3406,18 +3388,19 @@ public class PostService : IPostService
         }
 
         await _unitOfWork.CompleteAsync();
-
         // Cleanup caches and search index for all affected posts
-        foreach (var id in affectedIds)
+        var cleanupTasks = affectedIds.SelectMany(id => new List<Task>
         {
-            await _cacheService.RemoveAsync($"post:{id}");
-            await _searchService.DeletePostAsync(id);
-            await _postHubContext.Clients.All.SendAsync("PostDeleted", id);
-        }
+            _cacheService.RemoveAsync($"post:{id}"),
+            _searchService.DeletePostAsync(id),
+            _postHubContext.Clients.All.SendAsync("PostDeleted", id)
+        }).ToList();
 
         // Broad timeline/trending invalidation
-        await _cacheService.RemoveAsync($"user:{userId}:timeline");
-        await _cacheService.RemoveAsync("posts:trending");
+        cleanupTasks.Add(_cacheService.RemoveAsync($"user:{userId}:timeline"));
+        cleanupTasks.Add(_cacheService.RemoveAsync("posts:trending"));
+
+        await Task.WhenAll(cleanupTasks);
 
         return affectedIds;
     }
