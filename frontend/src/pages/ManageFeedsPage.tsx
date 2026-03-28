@@ -12,6 +12,8 @@ import { RootState } from '../redux/store';
 import { showToast } from '../redux/slices/toastSlice';
 import {
     fetchSubscribedFeeds,
+    pinFeed,
+    unpinFeed,
     reorderFeeds,
     reorderPinnedFeeds,
 } from '../redux/slices/feedsSlice';
@@ -29,6 +31,7 @@ const ManageFeedsPage: React.FC = () => {
     const { subscribedFeeds, pinnedFeedIds } = useAppSelector((state: RootState) => state.feeds);
 
     const [currentPinnedIds, setCurrentPinnedIds] = useState<string[]>(pinnedFeedIds);
+    const [initialPinnedIds, setInitialPinnedIds] = useState<string[]>(pinnedFeedIds);
     const [hasChanges, setHasChanges] = useState(false);
 
     React.useEffect(() => {
@@ -39,6 +42,7 @@ const ManageFeedsPage: React.FC = () => {
 
     React.useEffect(() => {
         setCurrentPinnedIds(pinnedFeedIds);
+        setInitialPinnedIds(pinnedFeedIds);
     }, [pinnedFeedIds]);
 
     // Derived lists
@@ -78,22 +82,37 @@ const ManageFeedsPage: React.FC = () => {
     };
 
     const handlePin = (id: string) => {
+        if (currentPinnedIds.includes(id)) return;
         setCurrentPinnedIds([...currentPinnedIds, id]);
         setHasChanges(true);
     };
 
     const handleSave = async () => {
-        const guidIds = currentPinnedIds.filter(isGuidString);
-        const hasRemotePin = currentPinnedIds.some((k) => k.startsWith('at://') || k === 'following');
+        const uniqueCurrentPinnedIds = Array.from(new Set(currentPinnedIds));
+        const toUnpin = initialPinnedIds.filter((id) => !uniqueCurrentPinnedIds.includes(id));
+        const toPin = uniqueCurrentPinnedIds.filter((id) => !initialPinnedIds.includes(id));
+
+        const guidIds = uniqueCurrentPinnedIds.filter(isGuidString);
+        const remotePinnedKeys = uniqueCurrentPinnedIds.filter((k) => !isGuidString(k));
 
         try {
-            if (hasRemotePin) {
-                await dispatch(reorderPinnedFeeds(currentPinnedIds)).unwrap();
+            for (const key of toUnpin) {
+                await dispatch(unpinFeed(key)).unwrap();
             }
+
+            for (const key of toPin) {
+                await dispatch(pinFeed(key)).unwrap();
+            }
+
+            if (remotePinnedKeys.length > 0) {
+                await dispatch(reorderPinnedFeeds(remotePinnedKeys)).unwrap();
+            }
+
             if (guidIds.length > 0) {
                 await dispatch(reorderFeeds(guidIds)).unwrap();
             }
-            if (!hasRemotePin && guidIds.length === 0) {
+
+            if (remotePinnedKeys.length === 0 && guidIds.length === 0 && toPin.length === 0 && toUnpin.length === 0) {
                 dispatch(showToast({
                     message: t('feeds.nothing_to_save_order', { defaultValue: 'No feeds to reorder.' }),
                     type: 'info',
@@ -103,6 +122,7 @@ const ManageFeedsPage: React.FC = () => {
             dispatch(showToast({ message: t('common.save_success', { defaultValue: 'Changes saved successfully!' }), type: 'success' }));
             setHasChanges(false);
             dispatch(fetchSubscribedFeeds());
+            setInitialPinnedIds(uniqueCurrentPinnedIds);
         } catch (error: any) {
             dispatch(showToast({ message: String(error) || 'Failed to save changes', type: 'error' }));
         }

@@ -15,9 +15,18 @@ export function feedActionKey(feed: FeedKeyInput): string {
     return feed.id;
 }
 
+export function normalizeRouteFeedKey(routeKey: string): string {
+    const key = routeKey?.trim().toLowerCase();
+    if (!key) return '';
+    if (key.startsWith(DISCOVER_URI_PREFIX)) return 'discover';
+    return key;
+}
+
 export function feedsMatchRouteKey(feed: FeedKeyInput, routeKey: string): boolean {
     if (!routeKey) return false;
-    const k = routeKey.toLowerCase();
-    return feed.id?.toLowerCase() === k || (!!feed.uri && feed.uri.toLowerCase() === k);
+    const normalizedRoute = normalizeRouteFeedKey(routeKey);
+    const actionKey = feedActionKey(feed).toLowerCase();
+    if (actionKey === normalizedRoute) return true;
+    return feed.id?.toLowerCase() === normalizedRoute || (!!feed.uri && feed.uri.toLowerCase() === normalizedRoute);
 }
 

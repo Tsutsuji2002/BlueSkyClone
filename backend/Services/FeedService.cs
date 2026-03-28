@@ -371,6 +371,7 @@ public class FeedService : IFeedService
         
         var savedUris = new List<string>();
         var pinnedUris = new List<string>();
+        var pinnedOrderKeys = new List<string>();
 
         foreach (var pref in prefs.EnumerateArray())
         {
@@ -391,6 +392,10 @@ public class FeedService : IFeedService
                         {
                             pinnedUris.Add(uri);
                             pinnedUris.Add(canonical);
+                            if (!pinnedOrderKeys.Any(x => MatchesFeedValue(x, canonical)))
+                            {
+                                pinnedOrderKeys.Add(canonical);
+                            }
                         }
                     }
                 }
@@ -412,14 +417,33 @@ public class FeedService : IFeedService
                     foreach (var p in pinned.EnumerateArray())
                     {
                         var raw = p.GetString()!;
+                        var canonical = CanonicalizeFeedValue(raw);
                         pinnedUris.Add(raw);
-                        pinnedUris.Add(CanonicalizeFeedValue(raw));
+                        pinnedUris.Add(canonical);
+                        if (!pinnedOrderKeys.Any(x => MatchesFeedValue(x, canonical)))
+                        {
+                            pinnedOrderKeys.Add(canonical);
+                        }
                     }
                 }
             }
         }
 
         if (!savedUris.Any()) return new List<FeedDto>();
+
+        int ResolvePinnedOrder(string? uri)
+        {
+            if (string.IsNullOrWhiteSpace(uri))
+                return 0;
+
+            for (var i = 0; i < pinnedOrderKeys.Count; i++)
+            {
+                if (MatchesFeedValue(uri, pinnedOrderKeys[i]))
+                    return i + 1;
+            }
+
+            return 0;
+        }
 
         // 2. Resolve Feed Metadata (Batch)
         var feeds = new List<FeedDto>();
@@ -434,6 +458,9 @@ public class FeedService : IFeedService
             foreach (var dto in resolvedFeeds)
             {
                 dto.IsSubscribed = true;
+                if (pinnedUris.Any(x => MatchesFeedValue(dto.Uri, x)))
+                    dto.IsPinned = true;
+                dto.PinnedOrder = ResolvePinnedOrder(dto.Uri);
                 feeds.Add(dto);
             }
         }
@@ -446,13 +473,32 @@ public class FeedService : IFeedService
         // Add back synthetic feeds if they were pinned/saved.
         if (hasFollowingSaved && !feeds.Any(f => string.Equals(f.Uri, FollowingFeedKey, StringComparison.OrdinalIgnoreCase)))
         {
-            feeds.Insert(0, CreateSyntheticTimelineFeed(FollowingFeedKey, isFollowingPinned));
+            var following = CreateSyntheticTimelineFeed(FollowingFeedKey, isFollowingPinned);
+            following.PinnedOrder = ResolvePinnedOrder(FollowingFeedKey);
+            feeds.Insert(0, following);
         }
 
         if (hasDiscoverSaved && !feeds.Any(f => string.Equals(f.Uri, DiscoverFeedKey, StringComparison.OrdinalIgnoreCase) || IsDiscoverFeedValue(f.Uri)))
         {
             var insertIndex = feeds.Any(f => string.Equals(f.Uri, FollowingFeedKey, StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
-            feeds.Insert(insertIndex, CreateSyntheticTimelineFeed(DiscoverFeedKey, isDiscoverPinned));
+            var discover = CreateSyntheticTimelineFeed(DiscoverFeedKey, isDiscoverPinned);
+            discover.PinnedOrder = ResolvePinnedOrder(DiscoverFeedKey);
+            feeds.Insert(insertIndex, discover);
+        }
+
+        // Ensure all saved AT URI feeds still show in My Feeds, even if metadata resolution fails.
+        var unresolvedAtUris = atUris
+            .Where(uri => !IsDiscoverFeedValue(uri) && !feeds.Any(f => MatchesFeedValue(f.Uri, uri)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var unresolvedUri in unresolvedAtUris)
+        {
+            var fallback = CreateFallbackRemoteFeed(unresolvedUri);
+            fallback.IsSubscribed = true;
+            fallback.IsPinned = pinnedUris.Any(x => MatchesFeedValue(unresolvedUri, x));
+            fallback.PinnedOrder = ResolvePinnedOrder(unresolvedUri);
+            feeds.Add(fallback);
         }
 
         return MergeFeedsByKey(feeds);
@@ -688,6 +734,7 @@ public class FeedService : IFeedService
         var keys = orderedPinnedKeys
             .Select(k => k.Trim())
             .Where(k => k.Length > 0)
+            .Select(CanonicalizeFeedValue)
             .ToList();
 
         try
@@ -721,22 +768,22 @@ public class FeedService : IFeedService
             var pinned = all.Where(n => n["pinned"]?.GetValue<bool>() == true).ToList();
             var unpinned = all.Where(n => n["pinned"]?.GetValue<bool>() != true).ToList();
 
-            var pinnedByValue = pinned.ToDictionary(
-                static n => n["value"]!.GetValue<string>(),
-                static n => n,
-                StringComparer.Ordinal);
-
             var reorderedPinned = new List<JsonNode>();
+            var remainingPinned = new List<JsonNode>(pinned);
             foreach (var k in keys)
             {
-                if (pinnedByValue.TryGetValue(k, out var node))
+                var idx = remainingPinned.FindIndex(n =>
+                    MatchesFeedValue(n["value"]?.GetValue<string>(), k));
+
+                if (idx >= 0)
                 {
+                    var node = remainingPinned[idx];
                     reorderedPinned.Add(node);
-                    pinnedByValue.Remove(k);
+                    remainingPinned.RemoveAt(idx);
                 }
             }
 
-            foreach (var node in pinnedByValue.Values)
+            foreach (var node in remainingPinned)
                 reorderedPinned.Add(node);
 
             var newArr = new JsonArray();
@@ -914,6 +961,25 @@ public class FeedService : IFeedService
         var normalized = CreateSyntheticTimelineFeed(DiscoverFeedKey, dto.IsPinned, dto.IsSubscribed, dto.Description, dto.AvatarUrl, dto.SubscribersCount);
         normalized.Creator = dto.Creator;
         return normalized;
+    }
+
+    private static FeedDto CreateFallbackRemoteFeed(string uri)
+    {
+        var tid = uri.Split('/').LastOrDefault() ?? uri;
+        var handlePart = uri.Split('/').Skip(2).FirstOrDefault() ?? "feed";
+
+        return new FeedDto
+        {
+            Id = StableFeedIdFromKey(uri),
+            Uri = uri,
+            Tid = tid,
+            Name = tid.Replace('-', ' '),
+            Description = "Remote feed metadata is temporarily unavailable.",
+            Handle = handlePart,
+            IsSubscribed = true,
+            IsPinned = false,
+            SubscribersCount = 0
+        };
     }
 
     private static List<FeedDto> MergeFeedsByKey(IEnumerable<FeedDto> feeds)

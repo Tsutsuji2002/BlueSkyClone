@@ -35,18 +35,20 @@ const HomePage: React.FC = () => {
     const isInitialLoading = feedsLoading && subscribedFeeds.length === 0 && pinnedLists.length === 0;
 
     useEffect(() => {
-        // Fetch feeds first
         dispatch(fetchSubscribedFeeds());
         dispatch(fetchPinnedLists());
+    }, [dispatch]);
 
+    useEffect(() => {
+        if (!activeTab) return;
         const now = Date.now();
 
-        // Initial fetch based on persisted activeTab - ONLY if empty or stale
         if (activeTab.startsWith('list:')) {
             const listId = activeTab.replace('list:', '');
-            dispatch(fetchListFeed({ id: listId, skip: 0 }));
+            if (activeListFeed.length === 0) {
+                dispatch(fetchListFeed({ id: listId, skip: 0 }));
+            }
         } else {
-            // Check if it's a custom feed, home, or discover
             const lastFetch = feedLastFetch[activeTab] || 0;
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             const currentFeedPosts = feedPosts[activeTab] || [];
@@ -56,7 +58,7 @@ const HomePage: React.FC = () => {
         }
 
         lastTab.current = activeTab;
-    }, [dispatch]);
+    }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedPosts]);
 
     // Unified Scroll Preservation Logic
     useEffect(() => {
@@ -131,23 +133,45 @@ const HomePage: React.FC = () => {
         }
     };
 
-    const pinnedCustomFeeds = subscribedFeeds
-        .filter((f: FeedType) => f.handle !== 'following' && f.handle !== 'discover' && f.name !== 'Following' && f.name !== 'Discover' && f.isPinned)
-        .sort((a: FeedType, b: FeedType) => (a.pinnedOrder || 0) - (b.pinnedOrder || 0));
+    const pinnedHomeFeeds = useMemo(() => {
+        const sorted = [...subscribedFeeds]
+            .filter((f: FeedType) => !!f.isPinned)
+            .sort((a: FeedType, b: FeedType) => {
+                const ao = a.pinnedOrder || 0;
+                const bo = b.pinnedOrder || 0;
+                if (ao > 0 && bo > 0 && ao !== bo) return ao - bo;
+                if (ao > 0 && bo === 0) return -1;
+                if (bo > 0 && ao === 0) return 1;
+                return feedActionKey(a).localeCompare(feedActionKey(b), undefined, { sensitivity: 'base' });
+            });
 
-    // Display feeds: Following, Discover, then pinned lists, then pinned sub feeds
+        const seen = new Set<string>();
+        return sorted.filter((f: FeedType) => {
+            const key = feedActionKey(f);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }, [subscribedFeeds]);
+
+    // Display tabs based on current pinned order from Feed settings.
     const tabs = useMemo(() => [
-        { id: 'discover', label: t('nav.discover') },
-        { id: 'following', label: t('nav.following') },
+        ...pinnedHomeFeeds.map((f: FeedType) => {
+            const key = feedActionKey(f);
+            return {
+                id: key,
+                label: key === 'discover'
+                    ? t('nav.discover')
+                    : key === 'following'
+                        ? t('nav.following')
+                        : f.name
+            };
+        }),
         ...pinnedLists.map((l: ListDto) => ({
             id: `list:${l.id}`,
             label: l.name
-        })),
-        ...pinnedCustomFeeds.slice(0, 10).map((f: FeedType) => ({
-            id: feedActionKey(f),
-            label: f.name
         }))
-    ], [pinnedCustomFeeds, pinnedLists, t]);
+    ], [pinnedHomeFeeds, pinnedLists, t]);
 
     // Ensure a valid tab is always selected
     useEffect(() => {
@@ -242,27 +266,29 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
-                <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>
-                    <Feed
-                        posts={feedPosts['discover'] || []}
-                        isLoading={!!(feedLoading['discover'] ?? (feedsLoading && activeTab === 'discover'))}
-                        hasMore={feedHasMore['discover'] !== false}
-                        onLoadMore={handleLoadMore}
-                        endMessage={t('feeds.end', 'End of feed')}
-                        emptyMessage={t('feeds.discover_empty', { defaultValue: 'Nothing new to discover yet.' })}
-                    />
-                </div>
-
-                <div style={{ display: activeTab === 'following' ? 'block' : 'none' }}>
-                    <Feed
-                        posts={feedPosts['following'] || []}
-                        isLoading={!!(feedLoading['following'] ?? (feedsLoading && activeTab === 'following'))}
-                        hasMore={feedHasMore['following'] !== false}
-                        onLoadMore={handleLoadMore}
-                        endMessage={t('feeds.following_end', 'Follow more people to get more content...')}
-                        emptyMessage={t('feeds.follow_more_cta', 'Follow more accounts to see more content.')}
-                    />
-                </div>
+                {pinnedHomeFeeds.map((feed: FeedType) => {
+                    const tabId = feedActionKey(feed);
+                    const isDiscover = tabId === 'discover';
+                    const isFollowing = tabId === 'following';
+                    return (
+                        <div key={tabId} style={{ display: activeTab === tabId ? 'block' : 'none' }}>
+                            <Feed
+                                posts={feedPosts[tabId] || []}
+                                isLoading={!!(feedLoading[tabId] ?? (feedsLoading && activeTab === tabId))}
+                                hasMore={feedHasMore[tabId] !== false}
+                                onLoadMore={handleLoadMore}
+                                endMessage={isFollowing
+                                    ? t('feeds.following_end', 'Follow more people to get more content...')
+                                    : t('feeds.end', 'End of feed')}
+                                emptyMessage={isDiscover
+                                    ? t('feeds.discover_empty', { defaultValue: 'Nothing new to discover yet.' })
+                                    : isFollowing
+                                        ? t('feeds.follow_more_cta', 'Follow more accounts to see more content.')
+                                        : t('feeds.end', 'End of feed')}
+                            />
+                        </div>
+                    );
+                })}
 
                 {/* Pinned Lists Panels */}
                 {pinnedLists.map((list: ListDto) => {
@@ -281,20 +307,6 @@ const HomePage: React.FC = () => {
                     );
                 })}
 
-                {/* Custom Feeds Panels */}
-                {pinnedCustomFeeds.map((feed: FeedType) => {
-                    const fk = feedActionKey(feed);
-                    return (
-                    <div key={fk} style={{ display: activeTab === fk ? 'block' : 'none' }}>
-                        <Feed
-                            posts={feedPosts[fk] || []}
-                            isLoading={!!(feedLoading[fk] ?? (feedsLoading && activeTab === fk))}
-                            hasMore={feedHasMore[fk] !== false}
-                            onLoadMore={handleLoadMore}
-                        />
-                    </div>
-                    );
-                })}
         </div>
     );
 };
