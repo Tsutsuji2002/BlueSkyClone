@@ -20,6 +20,23 @@ const initialState: UserState = {
     hasMore: true,
 };
 
+const normalizeIdentifier = (value?: string | null): string => {
+    if (!value) return '';
+    return value.trim().replace(/^@/, '').toLowerCase();
+};
+
+const profileMatchesIdentifier = (profile: User | null, identifier: string): boolean => {
+    if (!profile) return false;
+    const normalizedIdentifier = normalizeIdentifier(identifier);
+    if (!normalizedIdentifier) return false;
+
+    return [
+        normalizeIdentifier(profile.id),
+        normalizeIdentifier(profile.did),
+        normalizeIdentifier(profile.handle),
+        normalizeIdentifier(profile.username),
+    ].includes(normalizedIdentifier);
+};
 export const searchUsers = createAsyncThunk<
     User[],
     { query: string, skip: number, take: number },
@@ -542,9 +559,11 @@ const userSlice = createSlice({
             .addCase(followUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg;
                 state.actionLoading[userId] = false;
-                if (state.profile && state.profile.id === userId) {
-                    state.profile.isFollowing = true;
-                    state.profile.followingReference = action.payload.uri;
+                const profile = state.profile;
+                if (profile && profileMatchesIdentifier(profile, userId)) {
+                    profile.isFollowing = true;
+                    profile.followingReference = action.payload.uri;
+                    profile.followersCount = action.payload.followersCount;
                 }
             })
             .addCase(followUserAsync.rejected, (state: UserState, action) => {
@@ -557,9 +576,11 @@ const userSlice = createSlice({
             .addCase(unfollowUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
                 state.actionLoading[userId] = false;
-                if (state.profile && state.profile.id === userId) {
-                    state.profile.isFollowing = false;
-                    state.profile.followingReference = undefined;
+                const profile = state.profile;
+                if (profile && profileMatchesIdentifier(profile, userId)) {
+                    profile.isFollowing = false;
+                    profile.followingReference = undefined;
+                    profile.followersCount = action.payload.followersCount;
                 }
             })
             .addCase(unfollowUserAsync.rejected, (state: UserState, action) => {

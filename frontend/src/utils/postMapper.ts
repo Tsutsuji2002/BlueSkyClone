@@ -13,6 +13,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
     }
 
     const record = atPost.record || {};
+    const authorFollowingReference = atPost.author?.viewer?.following || atPost.author?.followingReference;
     
     // Map author
     const author: Partial<User> & { id: string; username: string; handle: string; displayName: string; avatarUrl?: string } = {
@@ -22,6 +23,11 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         displayName: atPost.author?.displayName || atPost.author?.handle || '',
         avatarUrl: atPost.author?.avatar,
         avatar: atPost.author?.avatar,
+        isFollowing: Boolean(authorFollowingReference) || atPost.author?.isFollowing === true,
+        followingReference: authorFollowingReference || undefined,
+        isMuted: atPost.author?.viewer?.muted || atPost.author?.isMuted,
+        isBlockedBy: atPost.author?.viewer?.blockedBy || atPost.author?.isBlockedBy,
+        isBlocking: Boolean(atPost.author?.viewer?.blocking) || atPost.author?.isBlocking,
     };
 
     const embed = atPost.embed || {};

@@ -25,6 +25,58 @@ const initialState: PostsState = {
     lastUserPostsType: null,
 };
 
+const normalizeIdentifier = (value?: string | null): string => {
+    if (!value) return '';
+    return value.trim().replace(/^@/, '').toLowerCase();
+};
+
+const identifiersForUser = (user?: any): string[] => {
+    if (!user) return [];
+    return [
+        normalizeIdentifier(user.id),
+        normalizeIdentifier(user.did),
+        normalizeIdentifier(user.handle),
+        normalizeIdentifier(user.username),
+    ].filter(Boolean);
+};
+
+const userMatchesIdentifier = (user: any, identifier: string): boolean => {
+    const normalizedIdentifier = normalizeIdentifier(identifier);
+    if (!normalizedIdentifier) return false;
+    return identifiersForUser(user).includes(normalizedIdentifier);
+};
+
+const mergeUserSnapshot = (existingUser: any, incomingUser: any) => {
+    if (!existingUser) return incomingUser;
+    if (!incomingUser) return existingUser;
+
+    return {
+        ...existingUser,
+        ...incomingUser,
+        isFollowing: incomingUser.isFollowing ?? existingUser.isFollowing,
+        followingReference: incomingUser.followingReference ?? existingUser.followingReference,
+    };
+};
+
+const applyFollowStateToPosts = (posts: Post[], identifier: string, isFollowing: boolean, followUri?: string) => {
+    posts.forEach((post) => {
+        if (userMatchesIdentifier(post.author, identifier)) {
+            post.author = {
+                ...post.author,
+                isFollowing,
+                followingReference: isFollowing ? followUri : undefined,
+            };
+        }
+
+        if (post.repostedBy && userMatchesIdentifier(post.repostedBy, identifier)) {
+            post.repostedBy = {
+                ...post.repostedBy,
+                isFollowing,
+                followingReference: isFollowing ? followUri : undefined,
+            };
+        }
+    });
+};
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
@@ -842,7 +894,13 @@ const postsSlice = createSlice({
                     );
                     
                     if (index !== -1) {
-                        state.posts[index] = { ...state.posts[index], ...fetchedPost };
+                        const existingPost = state.posts[index];
+                        state.posts[index] = {
+                            ...existingPost,
+                            ...fetchedPost,
+                            author: mergeUserSnapshot(existingPost.author, fetchedPost.author),
+                            repostedBy: mergeUserSnapshot(existingPost.repostedBy, fetchedPost.repostedBy),
+                        };
                     } else {
                         state.posts.push(fetchedPost);
                     }
@@ -1048,10 +1106,10 @@ const postsSlice = createSlice({
 
                     const updateAuthorInArray = (arr: Post[]) => {
                         arr.forEach(post => {
-                            if (post.author && post.author.id === updatedUser.id) {
+                            if (userMatchesIdentifier(post.author, updatedUser.id) || userMatchesIdentifier(post.author, updatedUser.did) || userMatchesIdentifier(post.author, updatedUser.handle)) {
                                 post.author = { ...post.author, ...updatedUser };
                             }
-                            if (post.repostedBy && post.repostedBy.id === updatedUser.id) {
+                            if (post.repostedBy && (userMatchesIdentifier(post.repostedBy, updatedUser.id) || userMatchesIdentifier(post.repostedBy, updatedUser.did) || userMatchesIdentifier(post.repostedBy, updatedUser.handle))) {
                                 post.repostedBy = { ...post.repostedBy, ...updatedUser };
                             }
                         });
@@ -1061,6 +1119,31 @@ const postsSlice = createSlice({
                     updateAuthorInArray(state.discoverPosts);
                     updateAuthorInArray(state.trendingPosts);
                     updateAuthorInArray(state.bookmarkedPosts);
+                }
+            )
+            .addMatcher(
+                (action) => action.type === 'user/follow/fulfilled',
+                (state: PostsState, action: any) => {
+                    const identifier = action.meta?.arg as string;
+                    const followUri = action.payload?.uri as string | undefined;
+                    if (!identifier) return;
+
+                    applyFollowStateToPosts(state.posts, identifier, true, followUri);
+                    applyFollowStateToPosts(state.discoverPosts, identifier, true, followUri);
+                    applyFollowStateToPosts(state.trendingPosts, identifier, true, followUri);
+                    applyFollowStateToPosts(state.bookmarkedPosts, identifier, true, followUri);
+                }
+            )
+            .addMatcher(
+                (action) => action.type === 'user/unfollow/fulfilled',
+                (state: PostsState, action: any) => {
+                    const identifier = action.meta?.arg?.userId as string;
+                    if (!identifier) return;
+
+                    applyFollowStateToPosts(state.posts, identifier, false);
+                    applyFollowStateToPosts(state.discoverPosts, identifier, false);
+                    applyFollowStateToPosts(state.trendingPosts, identifier, false);
+                    applyFollowStateToPosts(state.bookmarkedPosts, identifier, false);
                 }
             );
     }

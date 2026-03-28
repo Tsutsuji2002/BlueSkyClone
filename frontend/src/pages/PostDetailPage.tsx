@@ -484,11 +484,8 @@ const PostDetailPage: React.FC = () => {
             const author = post.author as User;
             if (author.isFollowing && author.followingReference) {
                 await dispatch(unfollowUserAsync({ userId: author.id, followUri: author.followingReference })).unwrap();
-                // Optimistically update or re-fetch
-                dispatch(fetchPostById(post.uri!));
             } else {
                 await dispatch(followUserAsync(post.author.id)).unwrap();
-                dispatch(fetchPostById(post.uri!));
             }
         } catch (error: any) {
             console.error('Failed to toggle follow:', error);
