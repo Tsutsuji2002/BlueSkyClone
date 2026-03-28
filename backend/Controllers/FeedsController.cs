@@ -347,6 +347,29 @@ public class FeedsController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("reorder-pinned")]
+    public async Task<IActionResult> ReorderPinnedFeeds([FromBody] List<string> orderedPinnedKeys)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            if (orderedPinnedKeys == null || orderedPinnedKeys.Count == 0)
+                return Ok(true);
+
+            var result = await _feedService.ReorderRemotePinnedFeedsAsync(userId, orderedPinnedKeys);
+            if (!result) return BadRequest(new { message = "Could not reorder pinned feeds (Bluesky session or preferences missing)." });
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedsController] ReorderPinnedFeeds error: {Msg}", ex.Message);
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize]
     [HttpGet("search")]
     public async Task<IActionResult> SearchFeeds([FromQuery] string query, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {

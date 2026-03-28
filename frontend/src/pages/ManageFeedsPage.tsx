@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import MainLayout from '../components/layout/MainLayout';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Feed } from '../types';
@@ -14,6 +13,7 @@ import { showToast } from '../redux/slices/toastSlice';
 import {
     fetchSubscribedFeeds,
     reorderFeeds,
+    reorderPinnedFeeds,
 } from '../redux/slices/feedsSlice';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { feedActionKey } from '../utils/feedKeys';
@@ -84,26 +84,31 @@ const ManageFeedsPage: React.FC = () => {
 
     const handleSave = async () => {
         const guidIds = currentPinnedIds.filter(isGuidString);
-        if (guidIds.length !== currentPinnedIds.length) {
-            dispatch(showToast({
-                message: t('feeds.reorder_local_only', { defaultValue: 'Reorder here applies only to app-internal feeds. Bluesky feeds follow your account preferences.' }),
-                type: 'info',
-            }));
-            setHasChanges(false);
-            dispatch(fetchSubscribedFeeds());
-            return;
-        }
+        const hasRemotePin = currentPinnedIds.some((k) => k.startsWith('at://') || k === 'following');
+
         try {
-            await dispatch(reorderFeeds(guidIds)).unwrap();
+            if (hasRemotePin) {
+                await dispatch(reorderPinnedFeeds(currentPinnedIds)).unwrap();
+            }
+            if (guidIds.length > 0) {
+                await dispatch(reorderFeeds(guidIds)).unwrap();
+            }
+            if (!hasRemotePin && guidIds.length === 0) {
+                dispatch(showToast({
+                    message: t('feeds.nothing_to_save_order', { defaultValue: 'No feeds to reorder.' }),
+                    type: 'info',
+                }));
+                return;
+            }
             dispatch(showToast({ message: t('common.save_success', { defaultValue: 'Changes saved successfully!' }), type: 'success' }));
             setHasChanges(false);
             dispatch(fetchSubscribedFeeds());
         } catch (error: any) {
-            dispatch(showToast({ message: error || 'Failed to save changes', type: 'error' }));
+            dispatch(showToast({ message: String(error) || 'Failed to save changes', type: 'error' }));
         }
     };
 
-    useDocumentTitle(t('feeds.title'));
+    useDocumentTitle(t('feeds.home_order_settings', { defaultValue: 'Feed order & pins' }));
 
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
@@ -117,7 +122,7 @@ const ManageFeedsPage: React.FC = () => {
                             <FiArrowLeft size={20} className="dark:text-dark-text" />
                         </button>
                         <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                            {t('feeds.title')}
+                            {t('feeds.home_order_settings', { defaultValue: 'Feed order & pins' })}
                         </h1>
                     </div>
                     <Button
@@ -182,7 +187,7 @@ const ManageFeedsPage: React.FC = () => {
                                         <FiArrowDown size={18} />
                                     </button>
                                     <button
-                                        onClick={() => handleUnpin(feed.id)}
+                                        onClick={() => handleUnpin(feedActionKey(feed))}
                                         className="p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                                     >
                                         <FiAnchor size={18} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     FiArrowLeft, FiSettings, FiPlus, FiSearch, FiRss,
     FiChevronRight, FiGrid, FiCheck, FiMenu, FiActivity, FiMapPin
@@ -105,8 +105,20 @@ const FeedsPage: React.FC = () => {
 
     useDocumentTitle(t('feeds.title'));
 
-    const pinnedSubscribed = subscribedFeeds.filter((f: Feed) => f.isPinned);
-    const savedWithoutPin = subscribedFeeds.filter((f: Feed) => !f.isPinned);
+    const myFeedsSorted = useMemo(() => {
+        const list = [...subscribedFeeds];
+        list.sort((a, b) => {
+            const ap = a.isPinned ? 0 : 1;
+            const bp = b.isPinned ? 0 : 1;
+            if (ap !== bp) return ap - bp;
+            const po = (a.pinnedOrder || 0) - (b.pinnedOrder || 0);
+            if (po !== 0) return po;
+            return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+        });
+        return list;
+    }, [subscribedFeeds]);
+
+    const myFeedsCollapsedAt = 12;
 
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
@@ -136,120 +148,79 @@ const FeedsPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col">
-                    {/* My Feeds Section - THE PINNED LIST */}
+                    {/* My feeds: all subscribed; pin toggles visibility on Home */}
                     <div className="p-4 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/10">
-                        <div className="flex items-center gap-4 mb-4">
+                        <div className="flex items-center gap-4 mb-1">
                             <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
                                 <FiGrid className="text-primary-500" size={20} />
                             </div>
-                            <h2 className="font-bold text-gray-900 dark:text-dark-text">{t('feeds.my_feeds')}</h2>
+                            <div>
+                                <h2 className="font-bold text-gray-900 dark:text-dark-text">{t('feeds.my_feeds')}</h2>
+                                <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-0.5">
+                                    {t('feeds.my_feeds_hint', { defaultValue: 'Pin feeds to add them to Home. Use settings for order on Home.' })}
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="space-y-1">
-                            {pinnedSubscribed.length === 0 && subscribedFeeds.length === 0 && (
+                        <div className="space-y-1 mt-3">
+                            {myFeedsSorted.length === 0 && (
                                 <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-2 italic text-center">
                                     {t('feeds.no_saved_feeds')}
                                 </p>
                             )}
-                            {pinnedSubscribed.length === 0 && subscribedFeeds.length > 0 && (
-                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-2 text-center">
-                                    {t('feeds.pin_feeds_hint', { defaultValue: 'Pin feeds to show them here and on your home tabs.' })}
-                                </p>
-                            )}
-                            {pinnedSubscribed.slice(0, showMorePinned ? undefined : 5).map((feed: Feed) => {
+                            {(showAllMyFeeds ? myFeedsSorted : myFeedsSorted.slice(0, myFeedsCollapsedAt)).map((feed: Feed) => {
                                 const fk = feedActionKey(feed);
                                 return (
-                                <div
-                                    key={fk}
-                                    onClick={() => {
-                                        navigate(`/feeds/${encodeURIComponent(fk)}`);
-                                    }}
-                                    className="flex items-center justify-between p-3 hover:bg-white dark:hover:bg-dark-surface rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
-                                >
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <FeedAvatar
-                                            src={feed.avatarUrl || feed.avatar}
-                                            alt={feed.name}
-                                            size="sm"
-                                            className="rounded-md"
-                                        />
-                                        <span className="font-semibold text-gray-900 dark:text-dark-text truncate">
-                                            {(feed.handle === 'following' || feed.name === 'Following') ? t('nav.following') : feed.name}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
-                                            disabled={actionLoading[fk]}
-                                            className={cn(
-                                                "p-2 rounded-full transition-colors disabled:opacity-50",
-                                                feed.isPinned ? "text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
-                                            )}
-                                        >
-                                            <FiMapPin
-                                                size={18}
-                                                className={cn(feed.isPinned ? "fill-current" : "")}
-                                                title={feed.isPinned ? t('feeds.unpin') : t('feeds.pin')}
+                                    <div
+                                        key={fk}
+                                        onClick={() => navigate(`/feeds/${encodeURIComponent(fk)}`)}
+                                        className="flex items-center justify-between p-3 hover:bg-white dark:hover:bg-dark-surface rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
+                                    >
+                                        <div className="flex items-center gap-3 overflow-hidden min-w-0">
+                                            <FeedAvatar
+                                                src={feed.avatarUrl || feed.avatar}
+                                                alt={feed.name}
+                                                size="sm"
+                                                className="rounded-md flex-shrink-0"
                                             />
-                                        </button>
-                                        <FiChevronRight className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <span className="font-semibold text-gray-900 dark:text-dark-text truncate">
+                                                {(feed.handle === 'following' || feed.name === 'Following') ? t('nav.following') : feed.name}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <button
+                                                type="button"
+                                                onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
+                                                disabled={actionLoading[fk]}
+                                                className={cn(
+                                                    'p-2 rounded-full transition-colors disabled:opacity-50',
+                                                    feed.isPinned
+                                                        ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                                                        : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface'
+                                                )}
+                                            >
+                                                <FiMapPin
+                                                    size={18}
+                                                    className={cn(feed.isPinned ? 'fill-current' : '')}
+                                                    title={feed.isPinned ? t('feeds.unpin') : t('feeds.pin')}
+                                                />
+                                            </button>
+                                            <FiChevronRight className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
                                     </div>
-                                </div>
                                 );
                             })}
-                            {pinnedSubscribed.length > 5 && (
+                            {myFeedsSorted.length > myFeedsCollapsedAt && (
                                 <button
-                                    onClick={() => setShowMorePinned(!showMorePinned)}
+                                    type="button"
+                                    onClick={() => setShowAllMyFeeds(!showAllMyFeeds)}
                                     className="w-full py-2 mt-2 text-sm font-bold text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
                                 >
-                                    {showMorePinned ? t('common.show_less') : t('common.show_more')}
+                                    {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
                                 </button>
                             )}
                         </div>
                     </div>
-
-                    {savedWithoutPin.length > 0 && (
-                        <div className="p-4 border-b border-gray-100 dark:border-dark-border">
-                            <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">{t('feeds.saved_feeds', { defaultValue: 'Saved feeds' })}</h2>
-                            <div className="space-y-1">
-                                {savedWithoutPin.map((feed: Feed) => {
-                                    const fk = feedActionKey(feed);
-                                    return (
-                                        <div
-                                            key={fk}
-                                            onClick={() => navigate(`/feeds/${encodeURIComponent(fk)}`)}
-                                            className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-dark-surface/50 rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
-                                        >
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <FeedAvatar
-                                                    src={feed.avatarUrl || feed.avatar}
-                                                    alt={feed.name}
-                                                    size="sm"
-                                                    className="rounded-md"
-                                                />
-                                                <span className="font-semibold text-gray-900 dark:text-dark-text truncate">
-                                                    {(feed.handle === 'following' || feed.name === 'Following') ? t('nav.following') : feed.name}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
-                                                    disabled={actionLoading[fk]}
-                                                    className={cn(
-                                                        "p-2 rounded-full transition-colors disabled:opacity-50",
-                                                        "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
-                                                    )}
-                                                >
-                                                    <FiMapPin size={18} className="" title={t('feeds.pin')} />
-                                                </button>
-                                                <FiChevronRight className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
 
                     {/* Search Bar */}
                     <div className="sticky top-[73px] z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md p-4 border-b border-gray-100 dark:border-dark-border">

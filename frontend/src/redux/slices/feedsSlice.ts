@@ -235,6 +235,32 @@ export const reorderFeeds = createAsyncThunk<
     }
 );
 
+export const reorderPinnedFeeds = createAsyncThunk<
+    boolean,
+    string[],
+    { rejectValue: string }
+>(
+    'feeds/reorderPinned',
+    async (orderedKeys: string[], { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/feeds/reorder-pinned`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(orderedKeys)
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to reorder pinned feeds');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const fetchFeedInfo = createAsyncThunk<
     Feed,
     string,

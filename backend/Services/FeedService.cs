@@ -655,6 +655,87 @@ public class FeedService : IFeedService
         return await _unitOfWork.CompleteAsync() > 0;
     }
 
+    public async Task<bool> ReorderRemotePinnedFeedsAsync(Guid userId, List<string> orderedPinnedKeys)
+    {
+        if (orderedPinnedKeys == null || orderedPinnedKeys.Count == 0)
+            return true;
+
+        var keys = orderedPinnedKeys
+            .Select(k => k.Trim())
+            .Where(k => k.Length > 0)
+            .ToList();
+
+        try
+        {
+            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            if (string.IsNullOrEmpty(token)) return false;
+
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null || string.IsNullOrEmpty(user.Did)) return false;
+
+            var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
+            if (!prefResponse.Success) return false;
+
+            var root = JsonNode.Parse(prefResponse.Content);
+            if (root == null || root["preferences"] == null) return false;
+
+            var prefs = root["preferences"]!.AsArray();
+            var v2Pref = prefs.FirstOrDefault(p => p?["$type"]?.GetValue<string>() == "app.bsky.actor.defs#savedFeedsPrefV2");
+            if (v2Pref == null) return false;
+
+            if (v2Pref["items"] is not JsonArray itemsArray)
+                return false;
+
+            var all = new List<JsonNode>();
+            foreach (var n in itemsArray)
+            {
+                if (n != null)
+                    all.Add(n.DeepClone());
+            }
+
+            var pinned = all.Where(n => n["pinned"]?.GetValue<bool>() == true).ToList();
+            var unpinned = all.Where(n => n["pinned"]?.GetValue<bool>() != true).ToList();
+
+            var pinnedByValue = pinned.ToDictionary(
+                static n => n["value"]!.GetValue<string>(),
+                static n => n,
+                StringComparer.Ordinal);
+
+            var reorderedPinned = new List<JsonNode>();
+            foreach (var k in keys)
+            {
+                if (pinnedByValue.TryGetValue(k, out var node))
+                {
+                    reorderedPinned.Add(node);
+                    pinnedByValue.Remove(k);
+                }
+            }
+
+            foreach (var node in pinnedByValue.Values)
+                reorderedPinned.Add(node);
+
+            var newArr = new JsonArray();
+            foreach (var n in reorderedPinned)
+                newArr.Add(n);
+            foreach (var n in unpinned)
+                newArr.Add(n);
+
+            v2Pref["items"] = newArr;
+
+            var putResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.putPreferences", queryParams: new Dictionary<string, string?>(), token: token, method: "POST", body: new { preferences = prefs });
+
+            if (putResponse.Success)
+                _logger.LogInformation("[FeedService] Reordered remote pinned feeds for {UserId}", userId);
+
+            return putResponse.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] ReorderRemotePinnedFeedsAsync failed for {UserId}", userId);
+            return false;
+        }
+    }
+
     public async Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid userId, string query, int skip, int take)
     {
         var feeds = await _unitOfWork.Feeds.Query()

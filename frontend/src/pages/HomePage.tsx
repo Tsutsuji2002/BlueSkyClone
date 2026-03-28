@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo } from 'react';
-import InterestsSection from '../components/feed/InterestsSection';
 import Feed from '../components/feed/Feed';
 import { PostFeedSkeleton } from '../components/feed/PostSkeleton';
 import { useTranslation } from 'react-i18next';
@@ -201,13 +200,22 @@ const HomePage: React.FC = () => {
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                         />
 
-                        <button
-                            onClick={() => navigate('/feeds')}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text flex-shrink-0"
-                            title={t('feeds.title')}
-                        >
-                            <FiHash size={24} />
-                        </button>
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                            <button
+                                onClick={() => navigate('/feeds/settings')}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
+                                title={t('feeds.home_order_settings', { defaultValue: 'Feed order & pins' })}
+                            >
+                                <FiSettings size={22} />
+                            </button>
+                            <button
+                                onClick={() => navigate('/feeds')}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
+                                title={t('feeds.title')}
+                            >
+                                <FiHash size={24} />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
@@ -235,8 +243,14 @@ const HomePage: React.FC = () => {
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
                 <div style={{ display: activeTab === 'discover' ? 'block' : 'none' }}>
-                    <InterestsSection />
-                    <Feed posts={feedPosts['discover'] || []} isLoading={!!(feedLoading['discover'] ?? (feedsLoading && activeTab === 'discover'))} hasMore={feedHasMore['discover'] !== false} onLoadMore={handleLoadMore} />
+                    <Feed
+                        posts={feedPosts['discover'] || []}
+                        isLoading={!!(feedLoading['discover'] ?? (feedsLoading && activeTab === 'discover'))}
+                        hasMore={feedHasMore['discover'] !== false}
+                        onLoadMore={handleLoadMore}
+                        endMessage={t('feeds.end', 'End of feed')}
+                        emptyMessage={t('feeds.discover_empty', { defaultValue: 'Nothing new to discover yet.' })}
+                    />
                 </div>
 
                 <div style={{ display: activeTab === 'following' ? 'block' : 'none' }}>

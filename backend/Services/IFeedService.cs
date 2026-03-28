@@ -12,6 +12,8 @@ public interface IFeedService
     Task<bool> PinFeedAsync(Guid userId, Guid feedId, string? uri = null);
     Task<bool> UnpinFeedAsync(Guid userId, Guid feedId, string? uri = null);
     Task<bool> ReorderFeedsAsync(Guid userId, List<Guid> feedIds);
+    /// <summary>Reorders pinned entries in Bluesky savedFeedsPrefV2 (at:// and following keys).</summary>
+    Task<bool> ReorderRemotePinnedFeedsAsync(Guid userId, List<string> orderedPinnedKeys);
     Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid userId, string query, int skip, int take);
     Task<FeedDto?> GetFeedByIdAsync(Guid feedId, Guid userId);
     Task<FeedDto?> GetFeedMetadataByUriAsync(string uri);
