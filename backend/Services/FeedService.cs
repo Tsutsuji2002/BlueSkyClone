@@ -423,45 +423,36 @@ public class FeedService : IFeedService
 
         // 2. Resolve Feed Metadata (Batch)
         var feeds = new List<FeedDto>();
-        // Filter out synthetic types that aren't AT URIs (like 'timeline')
-        var atUris = savedUris.Where(u => u.StartsWith("at://")).Distinct().ToList();
+        var atUris = savedUris
+            .Where(u => u.StartsWith("at://", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        for (int i = 0; i < atUris.Count; i += 25)
+        if (atUris.Count > 0)
         {
-            var chunk = atUris.Skip(i).Take(25);
-            var query = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-            
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-            var genResponse = await httpClient.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?{query}");
-            
-            if (genResponse.IsSuccessStatusCode)
+            var resolvedFeeds = await ResolveFeedsMetadataAsync(atUris, userId);
+            foreach (var dto in resolvedFeeds)
             {
-                var genContent = await genResponse.Content.ReadAsStringAsync();
-                using var genDoc = JsonDocument.Parse(genContent);
-                foreach (var gen in genDoc.RootElement.GetProperty("feeds").EnumerateArray())
-                {
-                    var uri = gen.GetProperty("uri").GetString()!;
-                    var creatorDid = gen.GetProperty("did").GetString()!;
-                    
-                    var dto = MapFeedGeneratorRowToDto(gen);
-                    dto.IsSubscribed = true;
-                    dto.IsPinned = pinnedUris.Contains(uri) || (string.Equals(dto.Uri, DiscoverFeedKey, StringComparison.OrdinalIgnoreCase) && pinnedUris.Contains(DiscoverFeedKey));
-                    feeds.Add(dto);
-                }
+                dto.IsSubscribed = true;
+                feeds.Add(dto);
             }
         }
 
+        var hasFollowingSaved = savedUris.Any(u => string.Equals(u, FollowingFeedKey, StringComparison.OrdinalIgnoreCase));
+        var hasDiscoverSaved = savedUris.Any(IsDiscoverFeedValue);
+        var isFollowingPinned = pinnedUris.Any(u => string.Equals(u, FollowingFeedKey, StringComparison.OrdinalIgnoreCase));
+        var isDiscoverPinned = pinnedUris.Any(IsDiscoverFeedValue);
+
         // Add back synthetic feeds if they were pinned/saved.
-        if (savedUris.Contains(FollowingFeedKey) && !feeds.Any(f => string.Equals(f.Uri, FollowingFeedKey, StringComparison.OrdinalIgnoreCase)))
+        if (hasFollowingSaved && !feeds.Any(f => string.Equals(f.Uri, FollowingFeedKey, StringComparison.OrdinalIgnoreCase)))
         {
-            feeds.Insert(0, CreateSyntheticTimelineFeed(FollowingFeedKey, pinnedUris.Contains(FollowingFeedKey)));
+            feeds.Insert(0, CreateSyntheticTimelineFeed(FollowingFeedKey, isFollowingPinned));
         }
 
-        if (savedUris.Contains(DiscoverFeedKey) && !feeds.Any(f => string.Equals(f.Uri, DiscoverFeedKey, StringComparison.OrdinalIgnoreCase)))
+        if (hasDiscoverSaved && !feeds.Any(f => string.Equals(f.Uri, DiscoverFeedKey, StringComparison.OrdinalIgnoreCase) || IsDiscoverFeedValue(f.Uri)))
         {
             var insertIndex = feeds.Any(f => string.Equals(f.Uri, FollowingFeedKey, StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
-            feeds.Insert(insertIndex, CreateSyntheticTimelineFeed(DiscoverFeedKey, pinnedUris.Contains(DiscoverFeedKey)));
+            feeds.Insert(insertIndex, CreateSyntheticTimelineFeed(DiscoverFeedKey, isDiscoverPinned));
         }
 
         return MergeFeedsByKey(feeds);
@@ -1160,6 +1151,7 @@ public class FeedService : IFeedService
         return Task.CompletedTask;
     }
 }
+
 
 
 
