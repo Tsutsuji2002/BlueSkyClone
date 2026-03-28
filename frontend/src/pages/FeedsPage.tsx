@@ -32,6 +32,7 @@ const FeedsPage: React.FC = () => {
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
     const [showMorePinned, setShowMorePinned] = useState(false);
+    const [showAllMyFeeds, setShowAllMyFeeds] = useState(false);
 
     const {
         subscribedFeeds,
@@ -335,3 +336,4 @@ const FeedsPage: React.FC = () => {
 };
 
 export default FeedsPage;
+
