@@ -22,6 +22,30 @@ public class FeedsController : ControllerBase
     }
 
     /// <summary>
+    /// Percent-decodes route/query segments until stable. Some stacks pass <c>at%3A%2F%2F...</c> so <c>at://</c> checks would fail.
+    /// </summary>
+    private static string NormalizeFeedRouteSegment(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+        var t = s.Trim();
+        for (var i = 0; i < 3 && t.Contains('%', StringComparison.Ordinal); i++)
+        {
+            try
+            {
+                var next = Uri.UnescapeDataString(t);
+                if (next == t) break;
+                t = next;
+            }
+            catch (UriFormatException)
+            {
+                break;
+            }
+        }
+
+        return t.Trim();
+    }
+
+    /// <summary>
     /// Parses <paramref name="feedId"/> from a catch-all route so at:// URIs are not split on '/' (reverse proxies often decode %2F).
     /// Optional <paramref name="uriQuery"/> overrides when the path is ambiguous.
     /// </summary>
@@ -29,7 +53,7 @@ public class FeedsController : ControllerBase
     {
         if (!string.IsNullOrWhiteSpace(uriQuery))
         {
-            var q = uriQuery.Trim();
+            var q = NormalizeFeedRouteSegment(uriQuery);
             if (q.StartsWith("at://", StringComparison.OrdinalIgnoreCase) || q.Equals("following", StringComparison.OrdinalIgnoreCase))
                 return (Guid.Empty, q);
         }
@@ -37,7 +61,10 @@ public class FeedsController : ControllerBase
         if (string.IsNullOrWhiteSpace(feedId))
             return (Guid.Empty, null);
 
-        var t = feedId.Trim();
+        var t = NormalizeFeedRouteSegment(feedId);
+        if (t.Length == 0)
+            return (Guid.Empty, null);
+
         if (t.StartsWith("at://", StringComparison.OrdinalIgnoreCase) || t.Equals("following", StringComparison.OrdinalIgnoreCase))
             return (Guid.Empty, t);
 
