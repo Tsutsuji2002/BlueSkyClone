@@ -24,9 +24,10 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-const extractPostId = (content: string) => {
-    const match = content.match(/profile\/[\w.-]+\/post\/([a-zA-Z0-9-]+)/);
-    return match ? match[1] : null;
+const extractPostDetails = (content: string) => {
+    const match = content.match(/profile\/([\w.-]+)\/post\/([a-zA-Z0-9-]+)/);
+    if (!match) return null;
+    return { handle: match[1], postId: match[2] };
 };
 
 const ChatPage: React.FC = () => {
@@ -663,13 +664,13 @@ const ChatPage: React.FC = () => {
                                  
 
                                 return (
-                                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg relative mb-2`}>
+                                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col w-full ${isMe ? 'items-end pl-[15%] sm:pl-[20%]' : 'items-start pr-[15%] sm:pr-[20%]'} group/msg relative mb-2`}>
 
                                         {/* Row: bubble + inline hover icons */}
-                                        <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-2`}>
+                                        <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-2 max-w-full w-full ${isMe ? 'justify-start' : 'justify-start'}`}>
 
                                             {/* Message Bubble & Reactions Wrapper */}
-                                            <div className="relative max-w-[75%] sm:max-w-[70%]">
+                                            <div className="relative min-w-0 max-w-full">
                                                 {/* Message Bubble */}
                                                 <div className={`overflow-hidden ${isMe
                                                     ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
@@ -727,11 +728,13 @@ const ChatPage: React.FC = () => {
                                                             {msg.isModified && (
                                                                 <span className="text-[10px] opacity-70 block mt-1 italic leading-none">{t('messages.modified')}</span>
                                                             )}
-                                                            {extractPostId(msg.content) ? (
-                                                                <PostEmbed postId={extractPostId(msg.content)!} />
-                                                            ) : (
-                                                                msg.linkPreview && <LinkPreviewCard preview={msg.linkPreview} />
-                                                            )}
+                                                            {(() => {
+                                                                const details = extractPostDetails(msg.content!);
+                                                                if (details) {
+                                                                    return <PostEmbed postId={details.postId} handle={details.handle} />;
+                                                                }
+                                                                return msg.linkPreview && <LinkPreviewCard preview={msg.linkPreview} />;
+                                                            })()}
                                                         </div>
                                                     )}
                                                 </>

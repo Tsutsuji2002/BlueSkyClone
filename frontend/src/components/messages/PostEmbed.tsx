@@ -14,9 +14,10 @@ import RichText from '../common/RichText';
 
 interface PostEmbedProps {
     postId: string;
+    handle?: string;
 }
 
-const PostEmbed: React.FC<PostEmbedProps> = ({ postId }) => {
+const PostEmbed: React.FC<PostEmbedProps> = ({ postId, handle }) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
 
@@ -30,9 +31,9 @@ const PostEmbed: React.FC<PostEmbedProps> = ({ postId }) => {
 
     useEffect(() => {
         if (!post) {
-            dispatch(fetchPostById(postId));
+            dispatch(fetchPostById(handle ? { uri: postId, handle } : postId));
         }
-    }, [dispatch, postId, post]);
+    }, [dispatch, postId, handle, post]);
 
     if (!post) {
         if (isLoading) {

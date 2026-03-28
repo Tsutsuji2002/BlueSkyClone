@@ -40,6 +40,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [imageError, setImageError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isVideoLoading, setIsVideoLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
@@ -129,25 +130,41 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         muted={!isDetailView}
                         playsInline
                         loop
-                        onPlay={() => setIsPlaying(true)}
+                        onLoadStart={() => setIsVideoLoading(true)}
+                        onCanPlay={() => setIsVideoLoading(false)}
+                        onWaiting={() => setIsVideoLoading(true)}
+                        onPlaying={() => {
+                            setIsPlaying(true);
+                            setIsVideoLoading(false);
+                        }}
                         onPause={() => setIsPlaying(false)}
                         onError={(e) => {
                             // On video error, we'll just show a generic indicator or nothing
                             console.error('Video load error:', item.url);
+                            setIsVideoLoading(false);
                         }}
                     />
                     <div className={cn(
                         "absolute inset-0 bg-black/10 transition-colors flex items-center justify-center",
                         isPlaying ? "opacity-0" : "group-hover/video:bg-transparent"
                     )}>
-                        <div className={cn(
-                            "w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white transition-opacity",
-                            isPlaying ? "opacity-0" : "opacity-80 group-hover/video:opacity-0"
-                        )}>
-                            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z" />
-                            </svg>
-                        </div>
+                        {isVideoLoading ? (
+                            <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white">
+                                <svg className="animate-spin w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                        ) : (
+                            <div className={cn(
+                                "w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white transition-opacity",
+                                isPlaying ? "opacity-0" : "opacity-80 group-hover/video:opacity-0"
+                            )}>
+                                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                            </div>
+                        )}
                     </div>
                 </div>
             ) : (
@@ -167,8 +184,8 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     }}
                 />
             )}
-            {isLoading && (
-                <div className="absolute inset-0">
+            {isLoading && !item.isVideo && (
+                <div className="absolute inset-0 pointer-events-none">
                     <Skeleton variant="rectangular" width="100%" height="100%" />
                 </div>
             )}
