@@ -127,7 +127,7 @@ export const saveFeed = createAsyncThunk<
         console.log('saveFeed thunk started for:', feedId);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/feeds/save/${feedId}`, {
+            const response = await fetch(`${API_BASE_URL}/feeds/save/${encodeURIComponent(feedId)}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -732,4 +732,5 @@ const feedsSlice = createSlice({
 
 export const { setActiveFeed, setActiveTab, setPinnedFeedIds } = feedsSlice.actions;
 export default feedsSlice.reducer;
+
 
