@@ -8,41 +8,94 @@ interface RichTextProps {
     className?: string;
 }
 
+const FALLBACK_TOKEN_REGEX = /(@[a-zA-Z0-9._-]+|https?:\/\/[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?|#[a-zA-Z0-9_]+)/g;
+const TRAILING_PUNCTUATION_REGEX = /[),.!?:;]+$/;
+
+const splitTrailingPunctuation = (value: string): { core: string; trailing: string } => {
+    const match = value.match(TRAILING_PUNCTUATION_REGEX);
+    if (!match) return { core: value, trailing: '' };
+    const trailing = match[0];
+    return {
+        core: value.slice(0, value.length - trailing.length),
+        trailing,
+    };
+};
+
+const renderFallbackRichText = (text: string, keyPrefix: string) => {
+    const parts = text.split(FALLBACK_TOKEN_REGEX).filter(Boolean);
+
+    return parts.map((part, index) => {
+        const { core, trailing } = splitTrailingPunctuation(part);
+        const token = core || part;
+        const tail = core ? trailing : '';
+
+        if (token.startsWith('@')) {
+            const handle = token.substring(1);
+            return (
+                <React.Fragment key={`${keyPrefix}-${index}`}>
+                    <Link
+                        to={`/profile/${handle}`}
+                        className="text-primary-500 dark:text-primary-400 hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {token}
+                    </Link>
+                    {tail}
+                </React.Fragment>
+            );
+        }
+
+        if (token.startsWith('#')) {
+            const tag = token.substring(1);
+            return (
+                <React.Fragment key={`${keyPrefix}-${index}`}>
+                    <Link
+                        to={`/tag/${encodeURIComponent(tag)}`}
+                        className="text-primary-500 dark:text-primary-400 hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {token}
+                    </Link>
+                    {tail}
+                </React.Fragment>
+            );
+        }
+
+        const isEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(token);
+        const isUrl = /^https?:\/\//i.test(token);
+        const isBareDomain = /^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?$/.test(token);
+
+        if (isEmail || isUrl || isBareDomain) {
+            const href = isEmail
+                ? `mailto:${token}`
+                : isUrl
+                    ? token
+                    : `https://${token}`;
+            return (
+                <React.Fragment key={`${keyPrefix}-${index}`}>
+                    <a
+                        href={href}
+                        target={isEmail ? undefined : "_blank"}
+                        rel={isEmail ? undefined : "noopener noreferrer"}
+                        className="text-primary-500 dark:text-primary-400 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {token}
+                    </a>
+                    {tail}
+                </React.Fragment>
+            );
+        }
+
+        return <React.Fragment key={`${keyPrefix}-${index}`}>{part}</React.Fragment>;
+    });
+};
+
 const RichText: React.FC<RichTextProps> = ({ content, facets, className }) => {
     if (!content) return null;
 
     if (!facets || facets.length === 0) {
-        // Fallback to simple regex if no facets provided (e.g. legacy posts)
-        const parts = content.split(/(@[a-zA-Z0-9.-]+)|(https?:\/\/[^\s]+|www\.[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}[^\s]*)|(#\w+)/g).filter(Boolean);
-        return (
-            <p className={className}>
-                {parts.map((part, index) => {
-                    if (part.startsWith('@')) {
-                        const handle = part.substring(1);
-                        return (
-                            <Link key={index} to={`/profile/${handle}`} className="text-primary-500 hover:underline font-medium" onClick={(e) => e.stopPropagation()}>
-                                {part}
-                            </Link>
-                        );
-                    } else if (part.startsWith('#')) {
-                        const tag = part.substring(1);
-                        return (
-                            <Link key={index} to={`/tag/${tag}`} className="text-primary-500 hover:underline font-medium" onClick={(e) => e.stopPropagation()}>
-                                {part}
-                            </Link>
-                        );
-                    } else if (part.startsWith('http') || part.startsWith('www.')) {
-                        const href = part.startsWith('http') ? part : `https://${part}`;
-                        return (
-                            <a key={index} href={href} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline" onClick={(e) => e.stopPropagation()}>
-                                {part.length > 40 ? part.substring(0, 37) + '...' : part}
-                            </a>
-                        );
-                    }
-                    return part;
-                })}
-            </p>
-        );
+        return <p className={className}>{renderFallbackRichText(content, 'plain')}</p>;
     }
 
     try {
@@ -61,7 +114,12 @@ const RichText: React.FC<RichTextProps> = ({ content, facets, className }) => {
             if (byteStart < lastByteOffset || byteEnd <= byteStart || byteEnd > bytes.length) return;
 
             if (byteStart > lastByteOffset) {
-                elements.push(<span key={`text-${i}`}>{utf8Decoder.decode(bytes.slice(lastByteOffset, byteStart))}</span>);
+                const plainTextSegment = utf8Decoder.decode(bytes.slice(lastByteOffset, byteStart));
+                elements.push(
+                    <React.Fragment key={`text-${i}`}>
+                        {renderFallbackRichText(plainTextSegment, `text-${i}`)}
+                    </React.Fragment>
+                );
             }
 
             const facetBytes = bytes.slice(byteStart, byteEnd);
@@ -73,7 +131,7 @@ const RichText: React.FC<RichTextProps> = ({ content, facets, className }) => {
                     <Link
                         key={`facet-${i}`}
                         to={`/profile/${feature.did || facetText.substring(1)}`}
-                        className="text-primary-500 hover:underline font-medium"
+                        className="text-primary-500 dark:text-primary-400 hover:underline font-medium"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {facetText}
@@ -86,7 +144,7 @@ const RichText: React.FC<RichTextProps> = ({ content, facets, className }) => {
                         href={feature.uri}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary-500 hover:underline"
+                        className="text-primary-500 dark:text-primary-400 hover:underline"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {facetText.length > 40 ? facetText.substring(0, 37) + '...' : facetText}
@@ -97,21 +155,30 @@ const RichText: React.FC<RichTextProps> = ({ content, facets, className }) => {
                     <Link
                         key={`facet-${i}`}
                         to={`/tag/${feature.tag || facetText.substring(1)}`}
-                        className="text-primary-500 hover:underline font-medium"
+                        className="text-primary-500 dark:text-primary-400 hover:underline font-medium"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {facetText}
                     </Link>
                 );
             } else {
-                elements.push(<span key={`facet-${i}`}>{facetText}</span>);
+                elements.push(
+                    <React.Fragment key={`facet-${i}`}>
+                        {renderFallbackRichText(facetText, `facet-${i}`)}
+                    </React.Fragment>
+                );
             }
 
             lastByteOffset = byteEnd;
         });
 
         if (lastByteOffset < bytes.length) {
-            elements.push(<span key="text-end">{utf8Decoder.decode(bytes.slice(lastByteOffset))}</span>);
+            const trailingText = utf8Decoder.decode(bytes.slice(lastByteOffset));
+            elements.push(
+                <React.Fragment key="text-end">
+                    {renderFallbackRichText(trailingText, 'text-end')}
+                </React.Fragment>
+            );
         }
 
         return <p className={className}>{elements}</p>;

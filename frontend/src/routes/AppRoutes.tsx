@@ -10,7 +10,6 @@ import LazyErrorBoundary from '../components/common/LazyErrorBoundary';
 // Lazy Load Pages
 import HomePage from '../pages/HomePage';
 const ProfilePage = React.lazy(() => import('../pages/ProfilePage'));
-const SampleProfilePage = React.lazy(() => import('../pages/SampleProfilePage'));
 const FollowersPage = React.lazy(() => import('../pages/FollowersPage'));
 const FollowingPage = React.lazy(() => import('../pages/FollowingPage'));
 const NotificationsPage = React.lazy(() => import('../pages/NotificationsPage'));
@@ -83,9 +82,7 @@ const AppRoutes: React.FC = () => {
                         <Route path="profile/:handle" element={<ProfilePage />} />
                         <Route path="profile/:handle/followers" element={<FollowersPage />} />
                         <Route path="profile/:handle/following" element={<FollowingPage />} />
-                        <Route path="profile/user/:userId" element={<SampleProfilePage />} />
-                        <Route path="profile/user/:userId/followers" element={<FollowersPage />} />
-                        <Route path="profile/user/:userId/following" element={<FollowingPage />} />
+                        <Route path="profile/:handle/following" element={<FollowingPage />} />
                         <Route path="notifications" element={<NotificationsPage />} />
                         <Route path="explore" element={<ExplorePage />} />
                         <Route path="messages" element={<MessagesPage />} />

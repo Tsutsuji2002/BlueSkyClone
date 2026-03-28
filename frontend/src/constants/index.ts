@@ -25,9 +25,7 @@ export const PROFILE_TABS = [
     { id: 'replies', label: 'nav.replies' },
     { id: 'media', label: 'nav.media' },
     { id: 'video', label: 'nav.video' },
-    { id: 'likes', label: 'nav.likes' },
     { id: 'feeds', label: 'nav.feeds' },
-    { id: 'lists', label: 'nav.lists' },
 ];
 
 // Theme colors

@@ -33,7 +33,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.Reposts).ThenInclude(r => r.User)
             .Where(p => (followedUserIds.Contains(p.AuthorId) || p.Reposts.Any(r => followedUserIds.Contains(r.UserId)))
                 && (p.IsDeleted == false || p.IsDeleted == null)) // Allow replies in timeline
-            .OrderByDescending(p => p.CreatedAt)
+           .OrderByDescending(p => p.CreatedAt)
             .Take(limit)
             .ToListAsync();
     }
@@ -81,7 +81,7 @@ public class PostRepository : Repository<Post>, IPostRepository
                 .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.Author)
                 .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.PostMedia)
                 .Include(l => l.Post.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-                .OrderByDescending(l => l.CreatedAt)
+               .OrderByDescending(l => l.CreatedAt)
                 .Skip(offset)
                 .Take(limit)
                 .Select(l => l.Post)
@@ -94,6 +94,7 @@ public class PostRepository : Repository<Post>, IPostRepository
 
         return await query
             .OrderByDescending(p => p.CreatedAt)
+            .ThenByDescending(p => p.Id)
             .Skip(offset)
             .Take(limit)
             .ToListAsync();
@@ -115,7 +116,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
                         && p.ReplyToPostId == null
                         && p.CreatedAt >= window)
-            .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
+           .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
             .ThenByDescending(p => p.CreatedAt)
             .Skip(offset)
             .Take(limit)
@@ -136,6 +137,7 @@ public class PostRepository : Repository<Post>, IPostRepository
                         && p.ReplyToPostId == null
                         && p.Hashtags.Any(h => h.Slug == tag.ToLower() || h.Name.ToLower() == tag.ToLower()))
             .OrderByDescending(p => p.CreatedAt)
+            .ThenByDescending(p => p.Id)
             .Skip(offset)
             .Take(limit)
             .ToListAsync();

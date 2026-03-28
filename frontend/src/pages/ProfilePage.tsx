@@ -16,6 +16,7 @@ import { showToast } from '../redux/slices/toastSlice';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { PROFILE_TABS, COVER_PLACEHOLDER } from '../constants';
 import { cn } from '../utils/classNames';
+import { formatCount } from '../utils/formatNumber';
 import PostCard from '../components/feed/PostCard';
 import MediaGrid from '../components/profile/MediaGrid';
 import { fetchUserPosts, clearPosts } from '../redux/slices/postsSlice';
@@ -26,6 +27,7 @@ import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import Feed from '../components/feed/Feed';
+import RichText from '../components/common/RichText';
 
 import { Post, ListDto } from '../types';
 
@@ -40,8 +42,7 @@ const ProfilePage: React.FC = () => {
     const isProfileLoading = useAppSelector((state: RootState) => state.user.isLoading);
     const reduxPosts = useAppSelector((state: RootState) => state.posts.posts);
     const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
-    const cursor = useAppSelector((state: RootState) => state.posts.cursor);
-    const hasMore = !!cursor;
+    const hasMore = useAppSelector((state: RootState) => state.posts.hasMore);
     const userLists = useAppSelector((state: RootState) => state.lists.userLists);
     const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
     const actionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
@@ -57,6 +58,7 @@ const ProfilePage: React.FC = () => {
         isOpen: boolean;
         type: 'mute' | 'unmute' | 'block' | 'unblock' | null;
     }>({ isOpen: false, type: null });
+    const isFetchingRef = React.useRef(false);
 
     useEffect(() => {
         if (handle) {
@@ -93,10 +95,16 @@ const ProfilePage: React.FC = () => {
 
                 // Fetch if different user/tab, stale, or never fetched before
                 if (!matchesCurrent || isStale || !lastUserPostsFetch) {
+                    if (isFetchingRef.current) return;
+                    isFetchingRef.current = true;
+                    
                     if (!matchesCurrent) {
                         dispatch(clearPosts());
                     }
-                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, skip: 0, take: 20 }));
+                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, skip: 0, take: 20 }))
+                        .finally(() => {
+                            isFetchingRef.current = false;
+                        });
                 }
             }
         }
@@ -130,9 +138,7 @@ const ProfilePage: React.FC = () => {
 
 
 
-    const isOwnProfile = (currentUser?.did && profileUser?.did) 
-        ? currentUser.did === profileUser.did 
-        : (currentUser?.id === profileUser?.id);
+    const isOwnProfile = currentUser?.did === profileUser?.did;
 
     // Use profileUser's cover image or placeholder
     const coverImage = profileUser?.coverImage || COVER_PLACEHOLDER;
@@ -358,58 +364,58 @@ const ProfilePage: React.FC = () => {
                             </div>
                         )
                         }
-                        <Dropdown
-                            trigger={
-                                <button className="bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-full p-2.5 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors flex items-center justify-center">
-                                    <FiMoreHorizontal size={20} className="text-gray-900 dark:text-dark-text" />
-                                </button>
-                            }
-                            items={dropdownItems}
-                            align="right"
-                        />
-                    </div>
-
-                    {/* Identity Section */}
-                    <div className="mt-6 lg:mt-10 mb-1">
-                        <h1 className="text-[28px] lg:text-[32px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight flex items-center gap-1.5">
-                            {profileUser?.displayName || (profileUser?.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : profileUser?.handle) || 'Unknown'}
-                            {profileUser?.isVerified && (
-                                <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={24} />
-                            )}
-                        </h1>
-                        <p className="text-[17px] text-gray-500 dark:text-dark-text-secondary">
-                            {profileUser?.handle?.startsWith('did:') ? '' : `@${profileUser?.handle}`}
-                        </p>
-                    </div>
-
-                    {!profileUser?.isBlockedBy && (
-                        <>
-                            {/* Stats Section (One-line compact) */}
-                            <div className="flex items-center gap-2 mb-3 mt-1.5 text-[15px]">
-                                <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/${profileUser?.handle}/followers`)}>
-                                    <span className="font-bold text-black dark:text-dark-text">{profileUser?.followersCount || 0}</span>
-                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.followers')}</p>
-                                </div>
-                                <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/${profileUser?.handle}/following`)}>
-                                    <span className="font-bold text-black dark:text-dark-text">{profileUser?.followingCount || 0}</span>
-                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.following')}</p>
-                                </div>
-                                <div className="flex items-center gap-1 cursor-pointer">
-                                    <span className="font-bold text-black dark:text-dark-text">{profileUser?.postsCount || 0}</span>
-                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.posts_stat')}</p>
-                                </div>
-                            </div>
-
-                            {/* Bio Section */}
-                            {profileUser?.bio && (
-                                <div className="mb-4 text-gray-900 dark:text-dark-text whitespace-pre-wrap text-[16px] leading-normal">
-                                    {profileUser?.bio}
-                                </div>
-                            )}
-                        </>
-                    )}
+                    <Dropdown
+                        trigger={
+                            <button className="bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-full p-2.5 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors flex items-center justify-center">
+                                <FiMoreHorizontal size={20} className="text-gray-900 dark:text-dark-text" />
+                            </button>
+                        }
+                        items={dropdownItems}
+                        align="right"
+                    />
                 </div>
+
+                {/* Identity Section */}
+                <div className="mt-4 lg:mt-6 mb-1">
+                    <h1 className="text-[24px] lg:text-[28px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight flex items-center gap-1.5">
+                        {profileUser?.displayName || profileUser?.handle}
+                        {profileUser?.isVerified && (
+                            <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={20} />
+                        )}
+                    </h1>
+                    <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary">
+                        @{profileUser?.handle}
+                    </p>
+                </div>
+
+                {!profileUser?.isBlockedBy && (
+                    <>
+                        {/* Stats Section (One-line compact) */}
+                        <div className="flex items-center gap-3 mb-3 mt-1 text-[15px]">
+                            <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/${profileUser?.handle}/followers`)}>
+                                <span className="font-bold text-black dark:text-dark-text">{formatCount(profileUser?.followersCount || 0)}</span>
+                                <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.followers')}</p>
+                            </div>
+                            <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/${profileUser?.handle}/following`)}>
+                                <span className="font-bold text-black dark:text-dark-text">{formatCount(profileUser?.followingCount || 0)}</span>
+                                <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.following')}</p>
+                            </div>
+                            <div className="flex items-center gap-1 cursor-pointer">
+                                <span className="font-bold text-black dark:text-dark-text">{formatCount(profileUser?.postsCount || 0)}</span>
+                                <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.posts_stat')}</p>
+                            </div>
+                        </div>
+
+                        {/* Bio Section */}
+                        {profileUser?.bio && (
+                            <div className="mb-3 text-gray-900 dark:text-dark-text text-[15px] leading-normal">
+                                <RichText content={profileUser.bio} className="whitespace-pre-wrap break-words" />
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
+        </div>
 
             {/* Blocked States */}
             {profileUser?.isBlockedBy ? (
@@ -554,7 +560,7 @@ const ProfilePage: React.FC = () => {
                                 isLoading={isPostsLoading}
                                 hasMore={hasMore}
                                 onLoadMore={() => {
-                                    if (profileUser?.id) {
+                                    if (profileUser?.id && hasMore && !isPostsLoading) {
                                         dispatch(fetchUserPosts({
                                             userId: profileUser.id,
                                             type: activeTab,

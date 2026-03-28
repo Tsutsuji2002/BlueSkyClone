@@ -77,6 +77,33 @@ const applyFollowStateToPosts = (posts: Post[], identifier: string, isFollowing:
         }
     });
 };
+const getPostIdentityKey = (post?: Partial<Post> | null): string => {
+    if (!post) return '';
+    if (post.uri) return `uri:${post.uri}`;
+    if (post.tid) return `tid:${post.tid}`;
+    if (post.id) return `id:${post.id}`;
+    if (post.cid) return `cid:${post.cid}`;
+    return '';
+};
+
+const dedupePostsByIdentity = (posts: Post[]): Post[] => {
+    const seen = new Set<string>();
+    const deduped: Post[] = [];
+
+    posts.forEach((post) => {
+        const key = getPostIdentityKey(post);
+        if (!key) {
+            deduped.push(post);
+            return;
+        }
+        if (!seen.has(key)) {
+            seen.add(key);
+            deduped.push(post);
+        }
+    });
+
+    return deduped;
+};
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
@@ -644,20 +671,35 @@ const postsSlice = createSlice({
             .addCase(fetchUserPosts.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 const { posts, userId, cursor, type } = action.payload;
-                const { skip } = action.meta.arg;
+                const { skip = 0, take = 20 } = action.meta.arg || {};
+                const dedupedFetchedPosts = dedupePostsByIdentity(posts);
+                let appendedCount = 0;
 
                 if (skip === 0) {
-                    state.posts = posts;
+                    state.posts = dedupedFetchedPosts;
+                    appendedCount = dedupedFetchedPosts.length;
                     state.lastUserPostsFetch = Date.now();
                     state.lastUserPostsUserId = userId;
                     state.lastUserPostsType = type || 'posts';
                 } else {
-                    const existingUris = new Set(state.posts.map((p: Post) => p.uri));
-                    const newPosts = posts.filter((p: Post) => !existingUris.has(p.uri));
+                    const existingKeys = new Set(
+                        state.posts
+                            .map((p: Post) => getPostIdentityKey(p))
+                            .filter(Boolean)
+                    );
+                    const newPosts = dedupedFetchedPosts.filter((p: Post) => {
+                        const key = getPostIdentityKey(p);
+                        if (!key) return true;
+                        if (existingKeys.has(key)) return false;
+                        existingKeys.add(key);
+                        return true;
+                    });
                     state.posts = [...state.posts, ...newPosts];
+                    appendedCount = newPosts.length;
                 }
-                state.cursor = cursor;
-                state.hasMore = action.payload.posts.length > 0;
+
+                state.hasMore = posts.length >= take && appendedCount > 0;
+                state.cursor = state.hasMore ? (cursor ?? String(skip + posts.length)) : null;
             })
             .addCase(fetchUserPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
