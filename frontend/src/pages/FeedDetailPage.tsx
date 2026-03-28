@@ -8,9 +8,10 @@ import { cn } from '../utils/classNames';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed } from '../redux/slices/feedsSlice';
+import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed, pinFeed, unpinFeed } from '../redux/slices/feedsSlice';
 import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
+import { feedsMatchRouteKey, feedActionKey } from '../utils/feedKeys';
 
 const FeedDetailPage: React.FC = () => {
     const { feedId: id } = useParams<{ feedId: string }>();
@@ -22,55 +23,38 @@ const FeedDetailPage: React.FC = () => {
 
     const take = 20;
 
-    const feed = subscribedFeeds.find((f: FeedType) => f.id?.toLowerCase() === id?.toLowerCase()) ||
-        recommendedFeeds.find((f: FeedType) => f.id?.toLowerCase() === id?.toLowerCase()) ||
-        searchResults.find((f: FeedType) => f.id?.toLowerCase() === id?.toLowerCase()) ||
-        feeds.find((f: FeedType) => f.id?.toLowerCase() === id?.toLowerCase());
+    const routeKey = id || '';
+    const feed = subscribedFeeds.find((f: FeedType) => feedsMatchRouteKey(f, routeKey)) ||
+        recommendedFeeds.find((f: FeedType) => feedsMatchRouteKey(f, routeKey)) ||
+        searchResults.find((f: FeedType) => feedsMatchRouteKey(f, routeKey)) ||
+        feeds.find((f: FeedType) => feedsMatchRouteKey(f, routeKey));
 
     const count = feed ? (feed.subscribersCount || feed.followersCount || 0) : 0;
-    const posts = id ? feedPosts[id] || [] : [];
+    const posts = routeKey ? feedPosts[routeKey] || [] : [];
     // Use per-feed loading for pagination (avoids re-mounting the Virtuoso list)
-    const isFeedLoading = id ? (feedLoading[id] ?? isLoading) : isLoading;
+    const isFeedLoading = routeKey ? (feedLoading[routeKey] ?? isLoading) : isLoading;
 
     useDocumentTitle(feed?.name || t('feeds.title'));
 
     useEffect(() => {
-        const feedId = id?.toLowerCase();
-        console.log('FeedDetailPage: useEffect [id, feed, infoLoading]', { 
-            id: feedId, 
-            hasFeed: !!feed, 
-            loadingStatus: feedId ? infoLoading[feedId] : 'no-id',
-            subscribedLen: subscribedFeeds.length 
-        });
-
         if (subscribedFeeds.length === 0) {
-            console.log('FeedDetailPage: Dispatching fetchSubscribedFeeds');
             dispatch(fetchSubscribedFeeds());
         }
-        
-        if (feedId && !feed && infoLoading[feedId] === undefined) {
-            console.log('FeedDetailPage: Dispatching fetchFeedInfo for:', feedId);
-            dispatch(fetchFeedInfo(feedId));
-        }
-    }, [dispatch, subscribedFeeds.length, id, feed, infoLoading]);
 
-    console.log('FeedDetailPage: Current State', { 
-        id, 
-        feedName: feed?.name,
-        isFound: !!feed,
-        isLoading: id ? infoLoading[id.toLowerCase()] : false, 
-        error: id ? infoError[id.toLowerCase()] : null 
-    });
+        if (routeKey && !feed && infoLoading[routeKey] === undefined) {
+            dispatch(fetchFeedInfo(routeKey));
+        }
+    }, [dispatch, subscribedFeeds.length, routeKey, feed, infoLoading]);
 
     useEffect(() => {
-        if (id) {
-            dispatch(fetchFeedPosts({ feedId: id, skip: 0, take }));
+        if (routeKey) {
+            dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take }));
         }
-    }, [dispatch, id]);
+    }, [dispatch, routeKey]);
 
     const handleLoadMore = () => {
-        if (id) {
-            dispatch(fetchFeedPosts({ feedId: id, skip: posts.length, take }));
+        if (routeKey) {
+            dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take }));
         }
     };
 
@@ -97,14 +81,13 @@ const FeedDetailPage: React.FC = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [id, isLoading, posts.length]);
 
-    const currentId = id?.toLowerCase();
-    if (!feed && currentId && infoLoading[currentId] === false && infoError[currentId]) {
+    if (!feed && routeKey && infoLoading[routeKey] === false && infoError[routeKey]) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
                     {t('feeds.not_found')}
                 </h2>
-                <p className="text-sm text-gray-500 mb-4">{infoError[currentId]}</p>
+                <p className="text-sm text-gray-500 mb-4">{infoError[routeKey]}</p>
                 <button
                     onClick={() => navigate(-1)}
                     className="text-primary-500 hover:underline"
@@ -122,7 +105,7 @@ const FeedDetailPage: React.FC = () => {
                 <p className="text-gray-500 text-sm">Loading feed information...</p>
                 {/* Fallback link if loading takes too long */}
                 <button 
-                   onClick={() => id && dispatch(fetchFeedInfo(id))}
+                   onClick={() => routeKey && dispatch(fetchFeedInfo(routeKey))}
                    className="mt-4 text-xs text-primary-500 opacity-50 hover:opacity-100"
                 >
                     Retry loading
@@ -166,8 +149,17 @@ const FeedDetailPage: React.FC = () => {
                             <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors group">
                                 <FiMoreHorizontal size={20} className="text-gray-700 dark:text-dark-text" />
                             </button>
-                            <button className={cn(
-                                "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors",
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const fk = feedActionKey(feed);
+                                    if (feed.isPinned) await dispatch(unpinFeed(fk));
+                                    else await dispatch(pinFeed(fk));
+                                    dispatch(fetchSubscribedFeeds());
+                                }}
+                                disabled={feeds_actionLoading[feedActionKey(feed)]}
+                                className={cn(
+                                "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors disabled:opacity-50",
                                 feed.isPinned ? "text-primary-500" : "text-gray-700 dark:text-dark-text"
                             )}>
                                 <FiMapPin size={20} className={feed.isPinned ? "fill-current" : ""} />
@@ -197,15 +189,16 @@ const FeedDetailPage: React.FC = () => {
                                 </div>
                                 <button
                                     onClick={async () => {
+                                        const fk = feedActionKey(feed);
                                         if (feed.isSubscribed) {
-                                            await dispatch(unsaveFeed(feed.id));
+                                            await dispatch(unsaveFeed(fk));
                                         } else {
-                                            await dispatch(saveFeed(feed.id));
+                                            await dispatch(saveFeed(fk));
                                         }
                                         dispatch(fetchSubscribedFeeds());
-                                        if (id) dispatch(fetchFeedInfo(id));
+                                        if (routeKey) dispatch(fetchFeedInfo(routeKey));
                                     }}
-                                    disabled={feeds_actionLoading[feed.id]}
+                                    disabled={feeds_actionLoading[feedActionKey(feed)]}
                                     className={cn(
                                         "px-5 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm flex-shrink-0 disabled:opacity-50",
                                         feed.isSubscribed

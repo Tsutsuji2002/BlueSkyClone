@@ -32,6 +32,20 @@ public class UnifiedFeedController : ControllerBase
 
             _logger.LogInformation("[UnifiedFeed] Request for FeedId: {FeedId}, ViewerId: {ViewerId}", feedId, viewerId);
 
+            if (!string.IsNullOrEmpty(feedId) &&
+                (feedId.StartsWith("at://", StringComparison.OrdinalIgnoreCase) ||
+                 feedId.Equals("following", StringComparison.OrdinalIgnoreCase)))
+            {
+                var uriPosts = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId);
+                return Ok(new
+                {
+                    feedId = feedId,
+                    posts = uriPosts,
+                    skip = skip,
+                    hasMore = (uriPosts?.Count() ?? 0) >= take
+                });
+            }
+
             IEnumerable<PostDto> posts = new List<PostDto>();
 
             switch (feedId.ToLower())

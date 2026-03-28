@@ -14,6 +14,7 @@ public interface IFeedService
     Task<bool> ReorderFeedsAsync(Guid userId, List<Guid> feedIds);
     Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid userId, string query, int skip, int take);
     Task<FeedDto?> GetFeedByIdAsync(Guid feedId, Guid userId);
+    Task<FeedDto?> GetFeedMetadataByUriAsync(string uri);
     Task<IEnumerable<PostDto>> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take, string? uri = null);
     Task PreSeedFeedsAsync();
 }

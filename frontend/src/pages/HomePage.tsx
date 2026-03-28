@@ -16,6 +16,7 @@ import { Feed as FeedType, ListDto } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import ButterflyLogo from '../components/common/ButterflyLogo';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { feedActionKey } from '../utils/feedKeys';
 
 const RELOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
@@ -144,7 +145,7 @@ const HomePage: React.FC = () => {
             label: l.name
         })),
         ...pinnedCustomFeeds.slice(0, 10).map((f: FeedType) => ({
-            id: f.id,
+            id: feedActionKey(f),
             label: f.name
         }))
     ], [pinnedCustomFeeds, pinnedLists, t]);
@@ -267,16 +268,19 @@ const HomePage: React.FC = () => {
                 })}
 
                 {/* Custom Feeds Panels */}
-                {pinnedCustomFeeds.map((feed: FeedType) => (
-                    <div key={feed.id} style={{ display: activeTab === feed.id ? 'block' : 'none' }}>
+                {pinnedCustomFeeds.map((feed: FeedType) => {
+                    const fk = feedActionKey(feed);
+                    return (
+                    <div key={fk} style={{ display: activeTab === fk ? 'block' : 'none' }}>
                         <Feed
-                            posts={feedPosts[feed.id] || []}
-                            isLoading={!!(feedLoading[feed.id] ?? (feedsLoading && activeTab === feed.id))}
-                            hasMore={feedHasMore[feed.id] !== false}
+                            posts={feedPosts[fk] || []}
+                            isLoading={!!(feedLoading[fk] ?? (feedsLoading && activeTab === fk))}
+                            hasMore={feedHasMore[fk] !== false}
                             onLoadMore={handleLoadMore}
                         />
                     </div>
-                ))}
+                    );
+                })}
         </div>
     );
 };

@@ -272,6 +272,9 @@ export interface TrendingAccount {
 // Feed types
 export interface Feed {
     id: string;
+    /** Bluesky AT URI or "following" for the timeline; prefer with feedActionKey() for API routes. */
+    uri?: string;
+    tid?: string;
     name: string;
     description: string;
     handle: string;

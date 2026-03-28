@@ -23,6 +23,7 @@ import {
 } from '../redux/slices/feedsSlice';
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { feedActionKey } from '../utils/feedKeys';
 
 const FeedsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -81,26 +82,31 @@ const FeedsPage: React.FC = () => {
 
     const handlePinToggle = async (e: React.MouseEvent, feed: Feed) => {
         e.stopPropagation();
+        const key = feedActionKey(feed);
         if (feed.isPinned) {
-            await dispatch(unpinFeed(feed.id));
+            await dispatch(unpinFeed(key));
         } else {
-            await dispatch(pinFeed(feed.id));
+            await dispatch(pinFeed(key));
         }
         dispatch(fetchSubscribedFeeds());
     };
 
     const handleSaveToggle = async (e: React.MouseEvent, feed: Feed) => {
         e.stopPropagation();
+        const key = feedActionKey(feed);
         if (feed.isSubscribed) {
-            await dispatch(unsaveFeed(feed.id));
+            await dispatch(unsaveFeed(key));
         } else {
-            await dispatch(saveFeed(feed.id));
+            await dispatch(saveFeed(key));
         }
         dispatch(fetchSubscribedFeeds());
         dispatch(fetchRecommendedFeeds()); // Refresh recommendations after interaction
     };
 
     useDocumentTitle(t('feeds.title'));
+
+    const pinnedSubscribed = subscribedFeeds.filter((f: Feed) => f.isPinned);
+    const savedWithoutPin = subscribedFeeds.filter((f: Feed) => !f.isPinned);
 
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
@@ -140,12 +146,23 @@ const FeedsPage: React.FC = () => {
                         </div>
 
                         <div className="space-y-1">
-                            {subscribedFeeds.slice(0, showMorePinned ? undefined : 5).map((feed: Feed) => (
+                            {pinnedSubscribed.length === 0 && subscribedFeeds.length === 0 && (
+                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-2 italic text-center">
+                                    {t('feeds.no_saved_feeds')}
+                                </p>
+                            )}
+                            {pinnedSubscribed.length === 0 && subscribedFeeds.length > 0 && (
+                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-2 text-center">
+                                    {t('feeds.pin_feeds_hint', { defaultValue: 'Pin feeds to show them here and on your home tabs.' })}
+                                </p>
+                            )}
+                            {pinnedSubscribed.slice(0, showMorePinned ? undefined : 5).map((feed: Feed) => {
+                                const fk = feedActionKey(feed);
+                                return (
                                 <div
-                                    key={feed.id}
+                                    key={fk}
                                     onClick={() => {
-                                        console.log('FeedsPage: Navigating to feed:', feed.id, feed.name);
-                                        navigate(`/feeds/${feed.id}`);
+                                        navigate(`/feeds/${encodeURIComponent(fk)}`);
                                     }}
                                     className="flex items-center justify-between p-3 hover:bg-white dark:hover:bg-dark-surface rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
                                 >
@@ -163,7 +180,7 @@ const FeedsPage: React.FC = () => {
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
-                                            disabled={actionLoading[feed.id]}
+                                            disabled={actionLoading[fk]}
                                             className={cn(
                                                 "p-2 rounded-full transition-colors disabled:opacity-50",
                                                 feed.isPinned ? "text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
@@ -178,8 +195,9 @@ const FeedsPage: React.FC = () => {
                                         <FiChevronRight className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
                                 </div>
-                            ))}
-                            {subscribedFeeds.length > 5 && (
+                                );
+                            })}
+                            {pinnedSubscribed.length > 5 && (
                                 <button
                                     onClick={() => setShowMorePinned(!showMorePinned)}
                                     className="w-full py-2 mt-2 text-sm font-bold text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
@@ -187,13 +205,51 @@ const FeedsPage: React.FC = () => {
                                     {showMorePinned ? t('common.show_less') : t('common.show_more')}
                                 </button>
                             )}
-                            {subscribedFeeds.length === 0 && (
-                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-2 italic text-center">
-                                    {t('feeds.no_saved_feeds')}
-                                </p>
-                            )}
                         </div>
                     </div>
+
+                    {savedWithoutPin.length > 0 && (
+                        <div className="p-4 border-b border-gray-100 dark:border-dark-border">
+                            <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">{t('feeds.saved_feeds', { defaultValue: 'Saved feeds' })}</h2>
+                            <div className="space-y-1">
+                                {savedWithoutPin.map((feed: Feed) => {
+                                    const fk = feedActionKey(feed);
+                                    return (
+                                        <div
+                                            key={fk}
+                                            onClick={() => navigate(`/feeds/${encodeURIComponent(fk)}`)}
+                                            className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-dark-surface/50 rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
+                                        >
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <FeedAvatar
+                                                    src={feed.avatarUrl || feed.avatar}
+                                                    alt={feed.name}
+                                                    size="sm"
+                                                    className="rounded-md"
+                                                />
+                                                <span className="font-semibold text-gray-900 dark:text-dark-text truncate">
+                                                    {(feed.handle === 'following' || feed.name === 'Following') ? t('nav.following') : feed.name}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
+                                                    disabled={actionLoading[fk]}
+                                                    className={cn(
+                                                        "p-2 rounded-full transition-colors disabled:opacity-50",
+                                                        "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
+                                                    )}
+                                                >
+                                                    <FiMapPin size={18} className="" title={t('feeds.pin')} />
+                                                </button>
+                                                <FiChevronRight className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Search Bar */}
                     <div className="sticky top-[73px] z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md p-4 border-b border-gray-100 dark:border-dark-border">
@@ -217,10 +273,9 @@ const FeedsPage: React.FC = () => {
                             </div>
                             {searchResults.map((feed: Feed) => (
                                 <div
-                                    key={feed.id}
+                                    key={feedActionKey(feed)}
                                     onClick={() => {
-                                        console.log('FeedsPage (Search): Navigating to feed:', feed.id, feed.name);
-                                        navigate(`/feeds/${feed.id}`);
+                                        navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
                                     }}
                                     className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
                                 >
@@ -250,10 +305,9 @@ const FeedsPage: React.FC = () => {
 
                             {recommendedFeeds.map((feed: Feed) => (
                                 <div
-                                    key={feed.id}
+                                    key={feedActionKey(feed)}
                                     onClick={() => {
-                                        console.log('FeedsPage (Recommended): Navigating to feed:', feed.id, feed.name);
-                                        navigate(`/feeds/${feed.id}`);
+                                        navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
                                     }}
                                     className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
                                 >
@@ -271,7 +325,7 @@ const FeedsPage: React.FC = () => {
                                         </div>
                                         <button
                                             onClick={(e: React.MouseEvent) => handleSaveToggle(e, feed)}
-                                            disabled={actionLoading[feed.id]}
+                                            disabled={actionLoading[feedActionKey(feed)]}
                                             className={cn(
                                                 "p-2 rounded-full transition-colors disabled:opacity-50",
                                                 feed.isSubscribed ? "text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"

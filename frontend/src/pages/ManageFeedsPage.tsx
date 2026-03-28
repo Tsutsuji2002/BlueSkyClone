@@ -16,6 +16,11 @@ import {
     reorderFeeds,
 } from '../redux/slices/feedsSlice';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { feedActionKey } from '../utils/feedKeys';
+
+function isGuidString(s: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
 
 const ManageFeedsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -38,11 +43,13 @@ const ManageFeedsPage: React.FC = () => {
 
     // Derived lists
     const pinnedFeeds = currentPinnedIds
-        .map((id: string) => subscribedFeeds.find((f: Feed) => f.id === id))
+        .map((pid: string) => subscribedFeeds.find((f: Feed) => f.id === pid || feedActionKey(f) === pid))
         .filter(Boolean) as Feed[];
 
-    const savedFeeds = subscribedFeeds.filter((f: Feed) =>
-        f.isSubscribed && !currentPinnedIds.includes(f.id)
+    const savedFeeds = subscribedFeeds.filter(
+        (f: Feed) =>
+            f.isSubscribed &&
+            !currentPinnedIds.some((pid) => pid === f.id || pid === feedActionKey(f))
     );
 
     const handleMoveUp = (index: number) => {
@@ -76,8 +83,18 @@ const ManageFeedsPage: React.FC = () => {
     };
 
     const handleSave = async () => {
+        const guidIds = currentPinnedIds.filter(isGuidString);
+        if (guidIds.length !== currentPinnedIds.length) {
+            dispatch(showToast({
+                message: t('feeds.reorder_local_only', { defaultValue: 'Reorder here applies only to app-internal feeds. Bluesky feeds follow your account preferences.' }),
+                type: 'info',
+            }));
+            setHasChanges(false);
+            dispatch(fetchSubscribedFeeds());
+            return;
+        }
         try {
-            await dispatch(reorderFeeds(currentPinnedIds)).unwrap();
+            await dispatch(reorderFeeds(guidIds)).unwrap();
             dispatch(showToast({ message: t('common.save_success', { defaultValue: 'Changes saved successfully!' }), type: 'success' }));
             setHasChanges(false);
             dispatch(fetchSubscribedFeeds());
@@ -129,7 +146,7 @@ const ManageFeedsPage: React.FC = () => {
 
                     <div className="divide-y divide-gray-100 dark:divide-dark-border border-b border-gray-100 dark:border-dark-border">
                         {pinnedFeeds.map((feed: Feed, index: number) => (
-                            <div key={feed.id} className="flex items-center justify-between p-4 bg-white dark:bg-dark-bg">
+                            <div key={feedActionKey(feed)} className="flex items-center justify-between p-4 bg-white dark:bg-dark-bg">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
                                     <div className="flex flex-col min-w-0">
@@ -189,7 +206,7 @@ const ManageFeedsPage: React.FC = () => {
 
                     <div className="divide-y divide-gray-100 dark:divide-dark-border border-b border-gray-100 dark:border-dark-border">
                         {savedFeeds.map((feed: Feed) => (
-                            <div key={feed.id} className="flex items-center justify-between p-4 bg-white dark:bg-dark-bg">
+                            <div key={feedActionKey(feed)} className="flex items-center justify-between p-4 bg-white dark:bg-dark-bg">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
                                     <div className="flex flex-col min-w-0">
@@ -205,7 +222,7 @@ const ManageFeedsPage: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => handlePin(feed.id)}
+                                        onClick={() => handlePin(feedActionKey(feed))}
                                         className="p-2 rounded-md bg-gray-50 dark:bg-dark-surface text-gray-400 hover:text-gray-600 dark:hover:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors"
                                     >
                                         <FiAnchor size={18} />

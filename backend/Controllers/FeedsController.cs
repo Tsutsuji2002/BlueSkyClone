@@ -127,6 +127,24 @@ public class FeedsController : ControllerBase
     }
 
     [AllowAnonymous]
+    [HttpGet("resolve")]
+    public async Task<IActionResult> ResolveFeedByUri([FromQuery] string uri)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(uri)) return BadRequest(new { message = "uri is required" });
+            var dto = await _feedService.GetFeedMetadataByUriAsync(uri.Trim());
+            if (dto == null) return NotFound(new { message = "Feed not found" });
+            return Ok(dto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedsController] ResolveFeedByUri error: {Msg}", ex.Message);
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [AllowAnonymous]
     [HttpGet("{tid}")]
     public async Task<IActionResult> GetFeed(string tid)
     {

@@ -20,6 +20,7 @@ import PostSkeleton from '../components/feed/PostSkeleton';
 import api from '../utils/api';
 import InterestsEditor from '../components/feed/InterestsEditor';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { feedActionKey } from '../utils/feedKeys';
 
 const ExplorePage: React.FC = () => {
     const { t } = useTranslation();
@@ -130,8 +131,8 @@ const ExplorePage: React.FC = () => {
 
     const handleResultClick = (result: any) => {
         if (result._type === 'feed') {
-            console.log('ExplorePage (Search Result): Navigating to feed:', result.id, result.name);
-            navigate(`/feeds/${result.id}`);
+            const fk = feedActionKey(result as Feed);
+            navigate(`/feeds/${encodeURIComponent(fk)}`);
         } else {
             navigate(`/profile/${result.handle}`);
         }
@@ -155,10 +156,11 @@ const ExplorePage: React.FC = () => {
 
     const handlePinToggle = async (e: React.MouseEvent, feed: Feed) => {
         e.stopPropagation();
+        const key = feedActionKey(feed);
         if (feed.isPinned) {
-            await dispatch(unpinFeed(feed.id));
+            await dispatch(unpinFeed(key));
         } else {
-            await dispatch(pinFeed(feed.id));
+            await dispatch(pinFeed(key));
         }
         dispatch(fetchSubscribedFeeds());
     };
@@ -366,10 +368,9 @@ const ExplorePage: React.FC = () => {
                         <div className="flex flex-col gap-4">
                              {feeds.map((feed: Feed) => (
                                 <div
-                                    key={feed.id}
+                                    key={feedActionKey(feed)}
                                     onClick={() => {
-                                        console.log('ExplorePage (Discover): Navigating to feed:', feed.id, feed.name);
-                                        navigate(`/feeds/${feed.id}`);
+                                        navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
                                     }}
                                     className="flex flex-col gap-3 p-4 rounded-2xl border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-all cursor-pointer shadow-sm group"
                                 >
