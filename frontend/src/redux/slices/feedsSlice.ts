@@ -270,7 +270,7 @@ export const fetchFeedInfo = createAsyncThunk<
     async (feedId: string, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
-            const isRemoteKey = feedId.startsWith('at://') || feedId === 'following';
+            const isRemoteKey = feedId.startsWith('at://') || feedId === 'following' || feedId === 'discover';
             const url = isRemoteKey
                 ? `${API_BASE_URL}/feeds/resolve?uri=${encodeURIComponent(feedId)}`
                 : `${API_BASE_URL}/feeds/info/${feedId}`;
@@ -732,3 +732,4 @@ const feedsSlice = createSlice({
 
 export const { setActiveFeed, setActiveTab, setPinnedFeedIds } = feedsSlice.actions;
 export default feedsSlice.reducer;
+

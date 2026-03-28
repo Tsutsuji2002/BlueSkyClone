@@ -25,6 +25,11 @@ public class FeedService : IFeedService
     private readonly IHttpClientFactory _httpClientFactory;
     private static bool _isSeeded = true;
     private static readonly SemaphoreSlim _seedSemaphore = new(1, 1);
+    private const string FollowingFeedKey = "following";
+    private const string DiscoverFeedKey = "discover";
+    private const string DiscoverFeedName = "Discover";
+    private const string DiscoverFeedDid = "did:web:discover.bsky.app";
+    private const string DiscoverFeedHandle = "discover.bsky.app";
 
     public FeedService(
         IUnitOfWork unitOfWork, 
@@ -121,29 +126,10 @@ public class FeedService : IFeedService
             var result = new List<FeedDto>();
             foreach (var gen in feedsArray.EnumerateArray())
             {
-                var uri = gen.GetProperty("uri").GetString()!;
-                var creator = gen.GetProperty("creator");
-                result.Add(new FeedDto
-                {
-                    Id = StableFeedIdFromKey(uri),
-                    Uri = uri,
-                    Tid = uri.Split('/').Last(),
-                    Name = gen.GetProperty("displayName").GetString()!,
-                    Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
-                    AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
-                    IsSubscribed = savedUris.Contains(uri),
-                    SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
-                    Handle = gen.GetProperty("did").GetString()!,
-                    Creator = new AuthorDto
-                    {
-                        Did = creator.GetProperty("did").GetString()!,
-                        Handle = creator.GetProperty("handle").GetString()!,
-                        DisplayName = creator.TryGetProperty("displayName", out var dname) ? dname.GetString() : null,
-                        AvatarUrl = creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null
-                    }
-                });
+                var dto = MapGeneratorViewToDto(gen, savedUris, new HashSet<string>());
+                result.Add(dto);
             }
-            return result;
+            return MergeFeedsByKey(result);
         }
         catch (Exception ex)
         {
@@ -248,26 +234,32 @@ public class FeedService : IFeedService
     {
         var uri = gen.GetProperty("uri").GetString()!;
         var creator = gen.GetProperty("creator");
-        return new FeedDto
+        var creatorDid = creator.GetProperty("did").GetString()!;
+        var creatorHandle = creator.GetProperty("handle").GetString()!;
+        var isDiscover = IsOfficialDiscoverFeed(gen.GetProperty("displayName").GetString(), creatorDid, creatorHandle);
+
+        var dto = new FeedDto
         {
-            Id = StableFeedIdFromKey(uri),
-            Uri = uri,
-            Tid = uri.Split('/').Last(),
-            Name = gen.GetProperty("displayName").GetString()!,
+            Id = StableFeedIdFromKey(isDiscover ? DiscoverFeedKey : uri),
+            Uri = isDiscover ? DiscoverFeedKey : uri,
+            Tid = isDiscover ? DiscoverFeedKey : uri.Split('/').Last(),
+            Name = isDiscover ? DiscoverFeedName : gen.GetProperty("displayName").GetString()!,
             Description = gen.TryGetProperty("description", out var ds) ? ds.GetString() : null,
             AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
-            IsSubscribed = saved.Contains(uri),
-            IsPinned = pinned.Contains(uri),
+            IsSubscribed = saved.Contains(uri) || (isDiscover && saved.Contains(DiscoverFeedKey)),
+            IsPinned = pinned.Contains(uri) || (isDiscover && pinned.Contains(DiscoverFeedKey)),
             SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
-            Handle = creator.GetProperty("handle").GetString()!,
+            Handle = isDiscover ? DiscoverFeedKey : creatorHandle,
             Creator = new AuthorDto
             {
-                Did = creator.GetProperty("did").GetString()!,
-                Handle = creator.GetProperty("handle").GetString()!,
+                Did = creatorDid,
+                Handle = creatorHandle,
                 DisplayName = creator.TryGetProperty("displayName", out var dname) ? dname.GetString() : null,
                 AvatarUrl = creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null
             }
         };
+
+        return NormalizeSpecialFeed(dto, creatorDid, creatorHandle);
     }
 
     private class UserPrefs { public HashSet<string> SavedUris { get; set; } = new(); public HashSet<string> PinnedUris { get; set; } = new(); }
@@ -409,47 +401,27 @@ public class FeedService : IFeedService
                     var uri = gen.GetProperty("uri").GetString()!;
                     var creatorDid = gen.GetProperty("did").GetString()!;
                     
-                    var dto = new FeedDto
-                    {
-                        Id = StableFeedIdFromKey(uri),
-                        Uri = uri,
-                        Tid = uri.Split('/').Last(),
-                        Name = gen.GetProperty("displayName").GetString()!,
-                        Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
-                        AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
-                        IsPinned = pinnedUris.Contains(uri),
-                        IsSubscribed = true,
-                        SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
-                        Handle = creatorDid,
-                        Creator = new AuthorDto
-                        {
-                             Did = creatorDid,
-                             Handle = creatorDid,
-                             DisplayName = gen.GetProperty("creator").GetProperty("displayName").GetString(),
-                             AvatarUrl = gen.GetProperty("creator").TryGetProperty("avatar", out var cav) ? cav.GetString() : null
-                        }
-                    };
+                    var dto = MapFeedGeneratorRowToDto(gen);
+                    dto.IsSubscribed = true;
+                    dto.IsPinned = pinnedUris.Contains(uri) || (string.Equals(dto.Uri, DiscoverFeedKey, StringComparison.OrdinalIgnoreCase) && pinnedUris.Contains(DiscoverFeedKey));
                     feeds.Add(dto);
                 }
             }
         }
 
-        // Add back synthetic feeds if they were pinned/saved (e.g. Following)
-        if (savedUris.Contains("following"))
+        // Add back synthetic feeds if they were pinned/saved.
+        if (savedUris.Contains(FollowingFeedKey) && !feeds.Any(f => string.Equals(f.Uri, FollowingFeedKey, StringComparison.OrdinalIgnoreCase)))
         {
-             feeds.Insert(0, new FeedDto 
-             { 
-                 Id = StableFeedIdFromKey("following"),
-                 Tid = "following",
-                 Name = "Following",
-                 Handle = "following",
-                 Uri = "following",
-                 IsPinned = pinnedUris.Contains("following"),
-                 IsSubscribed = true
-             });
+            feeds.Insert(0, CreateSyntheticTimelineFeed(FollowingFeedKey, pinnedUris.Contains(FollowingFeedKey)));
         }
 
-        return feeds;
+        if (savedUris.Contains(DiscoverFeedKey) && !feeds.Any(f => string.Equals(f.Uri, DiscoverFeedKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            var insertIndex = feeds.Any(f => string.Equals(f.Uri, FollowingFeedKey, StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
+            feeds.Insert(insertIndex, CreateSyntheticTimelineFeed(DiscoverFeedKey, pinnedUris.Contains(DiscoverFeedKey)));
+        }
+
+        return MergeFeedsByKey(feeds);
     }
 
     public async Task<FeedDto?> GetFeedByTidAsync(string tid)
@@ -815,21 +787,83 @@ public class FeedService : IFeedService
         return new Guid(bytes);
     }
 
+    private static bool IsOfficialDiscoverFeed(string? name, string? creatorDid, string? creatorHandle)
+    {
+        if (!string.Equals(name, DiscoverFeedName, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return string.Equals(creatorDid, DiscoverFeedDid, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(creatorHandle, DiscoverFeedDid, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(creatorHandle, DiscoverFeedHandle, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static FeedDto CreateSyntheticTimelineFeed(string feedKey, bool isPinned = false, bool isSubscribed = true, string? description = null, string? avatarUrl = null, int subscribersCount = 0)
+    {
+        var normalizedKey = feedKey.ToLowerInvariant();
+        var name = normalizedKey == DiscoverFeedKey ? DiscoverFeedName : "Following";
+
+        return new FeedDto
+        {
+            Id = StableFeedIdFromKey(normalizedKey),
+            Tid = normalizedKey,
+            Name = name,
+            Description = description,
+            Handle = normalizedKey,
+            Uri = normalizedKey,
+            AvatarUrl = avatarUrl,
+            IsPinned = isPinned,
+            IsSubscribed = isSubscribed,
+            SubscribersCount = subscribersCount
+        };
+    }
+
+    private static FeedDto NormalizeSpecialFeed(FeedDto dto, string? creatorDid = null, string? creatorHandle = null)
+    {
+        if (!IsOfficialDiscoverFeed(dto.Name, creatorDid ?? dto.Creator?.Did, creatorHandle ?? dto.Creator?.Handle ?? dto.Handle))
+            return dto;
+
+        var normalized = CreateSyntheticTimelineFeed(DiscoverFeedKey, dto.IsPinned, dto.IsSubscribed, dto.Description, dto.AvatarUrl, dto.SubscribersCount);
+        normalized.Creator = dto.Creator;
+        return normalized;
+    }
+
+    private static List<FeedDto> MergeFeedsByKey(IEnumerable<FeedDto> feeds)
+    {
+        var merged = new Dictionary<string, FeedDto>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var feed in feeds)
+        {
+            var key = feed.Uri ?? feed.Id.ToString();
+            if (!merged.TryGetValue(key, out var existing))
+            {
+                merged[key] = feed;
+                continue;
+            }
+
+            existing.IsPinned = existing.IsPinned || feed.IsPinned;
+            existing.IsSubscribed = existing.IsSubscribed || feed.IsSubscribed;
+            existing.SubscribersCount = Math.Max(existing.SubscribersCount, feed.SubscribersCount);
+            if (existing.PinnedOrder == 0 && feed.PinnedOrder != 0)
+                existing.PinnedOrder = feed.PinnedOrder;
+            existing.Description ??= feed.Description;
+            existing.AvatarUrl ??= feed.AvatarUrl;
+            existing.Creator ??= feed.Creator;
+        }
+
+        return merged.Values
+            .OrderByDescending(f => f.IsPinned)
+            .ThenBy(f => f.PinnedOrder == 0 ? int.MaxValue : f.PinnedOrder)
+            .ThenBy(f => f.Name)
+            .ToList();
+    }
+
     public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri)
     {
         if (string.IsNullOrWhiteSpace(uri)) return null;
 
-        if (uri.Equals("following", StringComparison.OrdinalIgnoreCase))
+        if (uri.Equals(FollowingFeedKey, StringComparison.OrdinalIgnoreCase) || uri.Equals(DiscoverFeedKey, StringComparison.OrdinalIgnoreCase))
         {
-            return new FeedDto
-            {
-                Id = StableFeedIdFromKey("following"),
-                Tid = "following",
-                Name = "Following",
-                Handle = "following",
-                Uri = "following",
-                IsSubscribed = true
-            };
+            return CreateSyntheticTimelineFeed(uri);
         }
 
         if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) return null;
@@ -880,31 +914,35 @@ public class FeedService : IFeedService
     {
         var outUri = gen.GetProperty("uri").GetString()!;
         var creatorDid = gen.GetProperty("did").GetString()!;
+        var name = gen.GetProperty("displayName").GetString()!;
         if (!gen.TryGetProperty("creator", out var creator))
         {
-            return new FeedDto
+            var dtoWithoutCreator = new FeedDto
             {
                 Id = StableFeedIdFromKey(outUri),
                 Uri = outUri,
                 Tid = outUri.Split('/').Last(),
-                Name = gen.GetProperty("displayName").GetString()!,
+                Name = name,
                 Description = gen.TryGetProperty("description", out var d0) ? d0.GetString() : null,
                 AvatarUrl = gen.TryGetProperty("avatar", out var a0) ? a0.GetString() : null,
                 Handle = creatorDid,
                 SubscribersCount = gen.TryGetProperty("likeCount", out var lc0) ? lc0.GetInt32() : 0,
                 Creator = new AuthorDto { Did = creatorDid, Handle = creatorDid }
             };
+
+            return NormalizeSpecialFeed(dtoWithoutCreator, creatorDid, creatorDid);
         }
 
-        return new FeedDto
+        var creatorHandle = creator.TryGetProperty("handle", out var h) ? h.GetString()! : creatorDid;
+        var dto = new FeedDto
         {
             Id = StableFeedIdFromKey(outUri),
             Uri = outUri,
             Tid = outUri.Split('/').Last(),
-            Name = gen.GetProperty("displayName").GetString()!,
+            Name = name,
             Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
             AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
-            Handle = creator.TryGetProperty("handle", out var h) ? h.GetString()! : creatorDid,
+            Handle = creatorHandle,
             SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
             Creator = new AuthorDto
             {
@@ -914,6 +952,8 @@ public class FeedService : IFeedService
                 AvatarUrl = creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null
             }
         };
+
+        return NormalizeSpecialFeed(dto, creatorDid, creatorHandle);
     }
 
 
@@ -922,12 +962,23 @@ public class FeedService : IFeedService
         try
         {
             // 1. Prioritize Remote Feed URI
-            if (!string.IsNullOrEmpty(uri) && (uri.StartsWith("at://") || uri == "following"))
+            if (!string.IsNullOrEmpty(uri) && (uri.StartsWith("at://") || uri == FollowingFeedKey || uri == DiscoverFeedKey))
             {
-                if (uri == "following" && userId.HasValue)
+                if (uri == FollowingFeedKey && userId.HasValue)
                 {
                     return await _postService.GetTimelineAsync(userId.Value, skip, take);
                 }
+
+                if (uri == DiscoverFeedKey)
+                {
+                    if (userId.HasValue)
+                    {
+                        return await _postService.GetDiscoverPostsAsync(userId.Value, take, skip);
+                    }
+
+                    return await _postService.GetTrendingPosts24hAsync(null, take, skip);
+                }
+
                 return await GetRemoteFeedPostsAsync(uri, userId, skip, take);
             }
             
@@ -1011,3 +1062,11 @@ public class FeedService : IFeedService
         return Task.CompletedTask;
     }
 }
+
+
+
+
+
+
+
+

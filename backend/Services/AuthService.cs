@@ -34,16 +34,18 @@ public class AuthService : IAuthService
     private readonly IDistributedCache _cache;
     private readonly ICryptoService _crypto;
     private readonly IXrpcProxyService _xrpcProxy;
+    private readonly IFeedService _feedService;
     private readonly IHubContext<PostHub> _postHubContext;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto, IXrpcProxyService xrpcProxy, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto, IXrpcProxyService xrpcProxy, IFeedService feedService, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _cache = cache;
         _crypto = crypto;
         _xrpcProxy = xrpcProxy;
+        _feedService = feedService;
         _postHubContext = postHubContext;
         _logger = logger;
     }
@@ -140,6 +142,15 @@ public class AuthService : IAuthService
         };
         await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
         await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
+
+        try
+        {
+            await SeedDefaultFeedsAsync(user.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to seed default saved feeds for user {UserId}", user.Id);
+        }
 
         return MapToAuthResponse(user, token, refreshToken);
     }
@@ -346,6 +357,12 @@ public class AuthService : IAuthService
         return MapToAuthResponse(user, "", ""); // No new tokens needed for a profile sync
     }
 
+    private async Task SeedDefaultFeedsAsync(Guid userId)
+    {
+        await _feedService.PinFeedAsync(userId, Guid.Empty, "following");
+        await _feedService.PinFeedAsync(userId, Guid.Empty, "discover");
+    }
+
     public async Task LogoutAsync(string refreshToken)
     {
         await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
@@ -489,3 +506,8 @@ public class AuthService : IAuthService
         return tokenHandler.WriteToken(token);
     }
 }
+
+
+
+
+

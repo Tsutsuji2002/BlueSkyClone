@@ -2,8 +2,11 @@
 export type FeedKeyInput = { id: string; uri?: string | null };
 
 export function feedActionKey(feed: FeedKeyInput): string {
-    const u = feed.uri?.trim();
-    if (u && (u.startsWith('at://') || u === 'following')) return u;
+    const uri = feed.uri?.trim();
+    const lower = uri?.toLowerCase();
+    if (uri && (uri.startsWith('at://') || lower === 'following' || lower === 'discover')) {
+        return lower === 'following' || lower === 'discover' ? lower : uri;
+    }
     return feed.id;
 }
 

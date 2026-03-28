@@ -54,7 +54,9 @@ public class FeedsController : ControllerBase
         if (!string.IsNullOrWhiteSpace(uriQuery))
         {
             var q = NormalizeFeedRouteSegment(uriQuery);
-            if (q.StartsWith("at://", StringComparison.OrdinalIgnoreCase) || q.Equals("following", StringComparison.OrdinalIgnoreCase))
+            if (q.StartsWith("at://", StringComparison.OrdinalIgnoreCase) ||
+                q.Equals("following", StringComparison.OrdinalIgnoreCase) ||
+                q.Equals("discover", StringComparison.OrdinalIgnoreCase))
                 return (Guid.Empty, q);
         }
 
@@ -65,7 +67,9 @@ public class FeedsController : ControllerBase
         if (t.Length == 0)
             return (Guid.Empty, null);
 
-        if (t.StartsWith("at://", StringComparison.OrdinalIgnoreCase) || t.Equals("following", StringComparison.OrdinalIgnoreCase))
+        if (t.StartsWith("at://", StringComparison.OrdinalIgnoreCase) ||
+            t.Equals("following", StringComparison.OrdinalIgnoreCase) ||
+            t.Equals("discover", StringComparison.OrdinalIgnoreCase))
             return (Guid.Empty, t);
 
         if (Guid.TryParse(t, out var g) && g != Guid.Empty)
@@ -409,3 +413,5 @@ public class FeedsController : ControllerBase
         }
     }
 }
+
+
