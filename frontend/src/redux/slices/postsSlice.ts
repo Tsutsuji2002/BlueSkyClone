@@ -635,6 +635,9 @@ const postsSlice = createSlice({
                 if (skip === 0) {
                     state.posts = action.payload.posts;
                     state.lastTimelineFetch = Date.now();
+                    // Invalidate profile cache since we overwrote the shared posts array
+                    state.lastUserPostsUserId = null;
+                    state.lastUserPostsType = null;
                 } else {
                     const existingUris = new Set(state.posts.map((p: Post) => p.uri));
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
@@ -690,15 +693,20 @@ const postsSlice = createSlice({
                             .map((p: Post) => getPostIdentityKey(p))
                             .filter(Boolean)
                     );
-                    const newPosts = dedupedFetchedPosts.filter((p: Post) => {
-                        const key = getPostIdentityKey(p);
-                        if (!key) return true;
-                        if (existingKeys.has(key)) return false;
-                        existingKeys.add(key);
-                        return true;
-                    });
-                    state.posts = [...state.posts, ...newPosts];
-                    appendedCount = newPosts.length;
+                    if (state.lastUserPostsUserId !== userId && state.lastUserPostsUserId !== null) {
+                        // If the currently viewed profile user has changed, don't append stale pagination!
+                        // If it's null, we might be on timeline, we definitely shouldn't append.
+                    } else if (state.lastUserPostsUserId === userId) {
+                        const newPosts = dedupedFetchedPosts.filter((p: Post) => {
+                            const key = getPostIdentityKey(p);
+                            if (!key) return true;
+                            if (existingKeys.has(key)) return false;
+                            existingKeys.add(key);
+                            return true;
+                        });
+                        state.posts = [...state.posts, ...newPosts];
+                        appendedCount = newPosts.length;
+                    }
                 }
 
                 state.hasMore = posts.length >= take && appendedCount > 0;
