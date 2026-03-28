@@ -36,6 +36,8 @@ interface FeedsState {
     feedLastFetch: Record<string, number>;
     infoLoading: Record<string, boolean>;
     infoError: Record<string, string | null>;
+    userFeeds: Feed[];
+    userFeedsLoading: boolean;
 }
 
 const initialState: FeedsState = {
@@ -57,6 +59,8 @@ const initialState: FeedsState = {
     feedLastFetch: {},
     infoLoading: {},
     infoError: {},
+    userFeeds: [],
+    userFeedsLoading: false,
 };
 
 export const fetchTrendingFeeds = createAsyncThunk<
@@ -124,6 +128,27 @@ export const fetchSubscribedFeeds = createAsyncThunk<
             const data = await response.json();
             console.log('feedsSlice: fetchSubscribedFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch subscribed feeds');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchUserFeeds = createAsyncThunk<
+    Feed[],
+    string,
+    { rejectValue: string }
+>(
+    'feeds/fetchUserFeeds',
+    async (actor: string, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/feeds/actor/${actor}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch user feeds');
             return data;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -493,6 +518,19 @@ const feedsSlice = createSlice({
             })
             .addCase(pinFeed.rejected, (state: FeedsState, action: any) => {
                 state.actionLoading[action.meta.arg] = false;
+            })
+            // Fetch User Feeds (Actor Feeds)
+            .addCase(fetchUserFeeds.pending, (state: FeedsState) => {
+                state.userFeedsLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchUserFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
+                state.userFeedsLoading = false;
+                state.userFeeds = action.payload;
+            })
+            .addCase(fetchUserFeeds.rejected, (state: FeedsState, action: any) => {
+                state.userFeedsLoading = false;
+                state.error = action.payload;
             })
             .addCase(unpinFeed.pending, (state: FeedsState, action) => {
                 state.actionLoading[action.meta.arg] = true;

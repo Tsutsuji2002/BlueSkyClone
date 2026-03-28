@@ -26,10 +26,11 @@ import ProfileSkeleton from '../components/profile/ProfileSkeleton';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import Feed from '../components/feed/Feed';
+import FeedComponent from '../components/feed/Feed';
 import RichText from '../components/common/RichText';
+import { fetchUserFeeds } from '../redux/slices/feedsSlice';
 
-import { Post, ListDto } from '../types';
+import { Post, ListDto, Feed } from '../types';
 
 const ProfilePage: React.FC = () => {
     const { handle } = useParams<{ handle: string }>();
@@ -50,8 +51,11 @@ const ProfilePage: React.FC = () => {
     const { 
         lastUserPostsFetch, 
         lastUserPostsUserId, 
-        lastUserPostsType 
+        lastUserPostsType,
+        cursor: postCursor
     } = useAppSelector((state: RootState) => state.posts);
+    const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
+    const isUserFeedsLoading = useAppSelector((state: RootState) => state.feeds.userFeedsLoading);
     const activeTab = activeProfileTab || 'posts';
     const observerTarget = React.useRef(null);
     const [confirmModal, setConfirmModal] = useState<{
@@ -84,6 +88,8 @@ const ProfilePage: React.FC = () => {
         if (profileUser?.id && !isPostsLoading) {
             if (activeTab === 'lists') {
                 dispatch(fetchUserLists(profileUser.id));
+            } else if (activeTab === 'feeds' && profileUser?.handle) {
+                dispatch(fetchUserFeeds(profileUser.handle));
             } else {
                 const RELOAD_TIMEOUT = 5 * 60 * 1000;
                 const now = Date.now();
@@ -93,7 +99,6 @@ const ProfilePage: React.FC = () => {
                     lastUserPostsUserId === profileUser.id && 
                     lastUserPostsType === activeTab;
 
-                // Fetch if different user/tab, stale, or never fetched before
                 if (!matchesCurrent || isStale || !lastUserPostsFetch) {
                     if (isFetchingRef.current) return;
                     isFetchingRef.current = true;
@@ -101,15 +106,18 @@ const ProfilePage: React.FC = () => {
                     if (!matchesCurrent) {
                         dispatch(clearPosts());
                     }
-                    dispatch(fetchUserPosts({ userId: profileUser.id, type: activeTab, skip: 0, take: 20 }))
-                        .finally(() => {
-                            isFetchingRef.current = false;
-                        });
+                    dispatch(fetchUserPosts({ 
+                        userId: profileUser.id, 
+                        type: activeTab, 
+                        skip: 0, 
+                        take: 20 
+                    })).finally(() => {
+                        isFetchingRef.current = false;
+                    });
                 }
             }
         }
-    }, [dispatch, profileUser?.id, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType]);
-
+    }, [dispatch, profileUser?.id, profileUser?.handle, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType]);
 
     // Scroll Persistence Logic
     useEffect(() => {
@@ -479,12 +487,59 @@ const ProfilePage: React.FC = () => {
                     {/* Content Section */}
                     <div className="flex-1 bg-white dark:bg-dark-bg">
                         {activeTab === 'feeds' ? (
-                            <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                                <FiRss size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                                <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
-                                    {t('profile.feeds_coming_soon')}
-                                </h3>
-                            </div>
+                            isUserFeedsLoading ? (
+                                <div className="flex items-center justify-center py-20">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                                </div>
+                            ) : userFeeds.length > 0 ? (
+                                <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
+                                    {userFeeds.map((feed) => (
+                                        <div
+                                            key={feed.uri}
+                                            className="p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer transition-colors"
+                                            onClick={() => navigate(`/feeds/${encodeURIComponent(feed.uri || '')}`)}
+                                        >
+                                            <div className="flex gap-4">
+                                                <div className="shrink-0">
+                                                    <ListAvatar src={feed.avatarUrl} alt={feed.name} size="lg" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="font-bold text-gray-900 dark:text-dark-text truncate">{feed.name}</h4>
+                                                        <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                            {t('feeds.likes_count', { count: feed.subscribersCount || 0 })}
+                                                        </span>
+                                                    </div>
+                                                    {feed.description && (
+                                                        <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
+                                                            {feed.description}
+                                                        </p>
+                                                    )}
+                                                    {feed.creator && (
+                                                        <div className="flex items-center gap-2 mt-2">
+                                                            <Avatar
+                                                                src={feed.creator.avatarUrl}
+                                                                alt={feed.creator.displayName}
+                                                                size="xs"
+                                                            />
+                                                            <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
+                                                                {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{feed.creator.handle}</span>
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
+                                    <FiRss size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
+                                    <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
+                                        {t('profile.no_feeds')}
+                                    </h3>
+                                </div>
+                            )
                         ) : activeTab === 'lists' ? (
                             isListsLoading ? (
                                 <div className="flex items-center justify-center py-20">
@@ -555,7 +610,7 @@ const ProfilePage: React.FC = () => {
                                 </div>
                             )
                         ) : (
-                            <Feed
+                            <FeedComponent
                                 posts={reduxPosts}
                                 isLoading={isPostsLoading}
                                 hasMore={hasMore}
@@ -565,7 +620,8 @@ const ProfilePage: React.FC = () => {
                                             userId: profileUser.id,
                                             type: activeTab,
                                             skip: reduxPosts.length,
-                                            take: 20
+                                            take: 20,
+                                            cursor: postCursor || undefined
                                         }));
                                     }
                                 }}

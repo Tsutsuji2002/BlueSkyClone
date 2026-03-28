@@ -111,20 +111,20 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null)
+    public async Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null)
     {
         try
         {
-            var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}";
+            var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}_{skip}_{take}";
             var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
-            List<PostDto>? mappedPosts = null;
+            PagedPostDto? result = null;
 
             if (!string.IsNullOrEmpty(cachedJson))
             {
-                try { mappedPosts = System.Text.Json.JsonSerializer.Deserialize<List<PostDto>>(cachedJson); } catch {}
+                try { result = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson); } catch {}
             }
 
-            if (mappedPosts == null)
+            if (result == null)
             {
                 using var httpClient = new HttpClient();
                 
@@ -136,20 +136,32 @@ public class PostService : IPostService
                         httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                 }
                 
-                var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : "posts_no_replies";
-                var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit=100&filter={filter}");
+                var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
+                var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit={take + skip}&filter={filter}";
+                if (!string.IsNullOrEmpty(cursor))
+                {
+                    url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit={take}&filter={filter}&cursor={Uri.EscapeDataString(cursor)}";
+                }
+
+                var response = await httpClient.GetAsync(url);
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("[GetUserPostsAsync] fetch failed: {Res}", await response.Content.ReadAsStringAsync());
-                    return new List<PostDto>();
+                    return new PagedPostDto();
                 }
 
                 var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
-                mappedPosts = new List<PostDto>();
+                var mappedPosts = new List<PostDto>();
+                string? nextCursor = null;
 
                 if (responseBody.TryGetProperty("feed", out var feedArray))
                 {
                     mappedPosts = MapBlueskyFeed(feedArray);
+                }
+                
+                if (responseBody.TryGetProperty("cursor", out var cProp))
+                {
+                    nextCursor = cProp.GetString();
                 }
 
                 // FILTER: If "replies" tab is requested, only show posts that are actually replies
@@ -158,15 +170,21 @@ public class PostService : IPostService
                     mappedPosts = mappedPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
                 }
 
-                await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(mappedPosts), new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                result = new PagedPostDto 
+                { 
+                    Posts = string.IsNullOrEmpty(cursor) ? mappedPosts.Skip(skip).Take(take) : mappedPosts,
+                    Cursor = nextCursor 
+                };
+
+                await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(result), new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
             }
 
-            return mappedPosts.Skip(skip).Take(take);
+            return result;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[GetUserPostsAsync] Error proxying author feed for {Handle}", handleOrDid);
-            return new List<PostDto>();
+            return new PagedPostDto();
         }
     }
 

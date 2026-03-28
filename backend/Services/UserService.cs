@@ -55,13 +55,10 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByIdAsync(id);
         if (user != null)
         {
-            if (!string.IsNullOrEmpty(user.Did))
+            if (user.Did?.StartsWith("did:local:") == true || user.PostsCount == null)
             {
-                // Try to get live count from cache or proxy (simplified here for brevity, usually fetched during feed load)
-                // For now, if it's a network user, we prioritize the local sync, 
-                // but ideally we should fetch from app.bsky.actor.getProfile
+                user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
             }
-            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
         }
         return user;
     }
@@ -82,7 +79,10 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByHandleAsync(handle);
         if (user != null)
         {
-            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+            if (user.Did?.StartsWith("did:local:") == true || user.PostsCount == null)
+            {
+                user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+            }
         }
         return user;
     }
@@ -92,7 +92,10 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByUsernameAsync(username);
         if (user != null)
         {
-            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+            if (user.Did?.StartsWith("did:local:") == true || user.PostsCount == null)
+            {
+                user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+            }
         }
         return user;
     }
@@ -102,7 +105,10 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByDidAsync(did);
         if (user != null)
         {
-            user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+            if (user.Did?.StartsWith("did:local:") == true || user.PostsCount == null)
+            {
+                user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+            }
         }
         return user;
     }

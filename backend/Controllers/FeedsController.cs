@@ -412,6 +412,26 @@ public class FeedsController : ControllerBase
             return Ok(new List<PostDto>());
         }
     }
+
+    [AllowAnonymous]
+    [HttpGet("actor/{actor}")]
+    public async Task<IActionResult> GetActorFeeds(string actor)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            Guid? viewerId = Guid.TryParse(userIdStr, out var vid) ? vid : null;
+
+            var feeds = await _feedService.GetActorFeedsAsync(actor, viewerId);
+            return Ok(feeds);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedsController] GetActorFeeds error for {Actor}", actor);
+            return Ok(new List<FeedDto>());
+        }
+    }
 }
+
 
 

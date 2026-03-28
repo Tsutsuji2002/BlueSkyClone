@@ -99,7 +99,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0)
+    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0, [FromQuery] string? cursor = null)
     {
         try
         {
@@ -116,13 +116,13 @@ public class PostsController : ControllerBase
                 }
             }
 
-            var posts = await _postService.GetUserPostsAsync(handleOrDid, viewerId, skip, take, type);
-            return Ok(posts);
+            var result = await _postService.GetUserPostsAsync(handleOrDid, viewerId, skip, take, type, cursor);
+            return Ok(result);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[PostsController] GetUserPosts error: {ex.Message}");
-            return Ok(new List<PostDto>());
+            return Ok(new PagedPostDto());
         }
     }
 

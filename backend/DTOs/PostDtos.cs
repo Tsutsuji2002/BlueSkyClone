@@ -170,3 +170,10 @@ public class FeedDto
     public bool IsSubscribed { get; set; }
     public string? Uri { get; set; }
 }
+
+public class PagedPostDto
+{
+    public IEnumerable<PostDto> Posts { get; set; } = new List<PostDto>();
+    public string? Cursor { get; set; }
+}
+

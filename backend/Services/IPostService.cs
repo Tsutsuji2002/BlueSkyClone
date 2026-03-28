@@ -6,7 +6,7 @@ namespace BSkyClone.Services;
 public interface IPostService
 {
     Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20);
-    Task<IEnumerable<PostDto>> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null);
+    Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null);
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
     Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null);

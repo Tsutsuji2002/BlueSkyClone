@@ -124,11 +124,12 @@ export const fetchTimeline = createAsyncThunk(
 
 export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
-    async ({ userId, type, take = 20, skip = 0 }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ userId, type, take = 20, skip = 0, cursor }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams({ take: String(take), skip: String(skip) });
             if (type) params.set('type', type);
+            if (cursor) params.set('cursor', cursor);
             const response = await fetch(
                 `${API_BASE_URL}/posts/user/${userId}?${params}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }

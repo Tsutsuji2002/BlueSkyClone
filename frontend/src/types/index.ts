@@ -285,6 +285,12 @@ export interface Feed {
     isSubscribed?: boolean;
     isPinned?: boolean; // For UI state in FeedsPage/ProfilePage
     pinnedOrder?: number;
+    creator?: {
+        id: string;
+        handle: string;
+        displayName: string;
+        avatarUrl?: string;
+    };
 }
 
 export interface MessageReaction {

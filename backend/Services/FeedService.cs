@@ -1218,11 +1218,76 @@ public class FeedService : IFeedService
     }
 
 
+    public async Task<IEnumerable<FeedDto>> GetActorFeedsAsync(string actor, Guid? viewerId = null)
+    {
+        try
+        {
+            string? token = null;
+            string? viewerDid = null;
+
+            if (viewerId.HasValue)
+            {
+                token = await _cache.GetStringAsync($"BlueskyToken_{viewerId.Value}");
+                var viewer = await _unitOfWork.Users.GetByIdAsync(viewerId.Value);
+                viewerDid = viewer?.Did;
+            }
+
+            var queryParams = new Dictionary<string, string?> { ["actor"] = actor };
+            
+            // 1. Fetch from BlueSky
+            XrpcResponse resp;
+            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(viewerDid))
+            {
+                resp = await _xrpcProxy.ProxyRequestAsync(viewerDid, "app.bsky.feed.getActorFeeds", queryParams, token);
+            }
+            else
+            {
+                // Fallback to public if no viewer
+                using var client = _httpClientFactory.CreateClient();
+                var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getActorFeeds?actor={Uri.EscapeDataString(actor)}";
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode) return new List<FeedDto>();
+                resp = new XrpcResponse { Success = true, Content = await response.Content.ReadAsStringAsync() };
+            }
+
+            if (!resp.Success) return new List<FeedDto>();
+
+            // 2. Parse and Map
+            using var doc = JsonDocument.Parse(resp.Content);
+            if (!doc.RootElement.TryGetProperty("feeds", out var feedsArray)) return new List<FeedDto>();
+
+            var savedUris = new HashSet<string>();
+            var pinnedUris = new HashSet<string>();
+            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(viewerDid))
+            {
+                var prefs = await GetUserPreferencesAsync(viewerDid, token);
+                if (prefs != null)
+                {
+                    savedUris = prefs.SavedUris;
+                    pinnedUris = prefs.PinnedUris;
+                }
+            }
+
+            var result = new List<FeedDto>();
+            foreach (var gen in feedsArray.EnumerateArray())
+            {
+                result.Add(MapGeneratorViewToDto(gen, savedUris, pinnedUris));
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] Error in GetActorFeedsAsync for {Actor}", actor);
+            return new List<FeedDto>();
+        }
+    }
+
     public Task PreSeedFeedsAsync()
     {
         return Task.CompletedTask;
     }
 }
+
 
 
 
