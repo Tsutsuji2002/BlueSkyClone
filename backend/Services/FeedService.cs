@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -123,7 +125,7 @@ public class FeedService : IFeedService
                 var creator = gen.GetProperty("creator");
                 result.Add(new FeedDto
                 {
-                    Id = Guid.NewGuid(),
+                    Id = StableFeedIdFromKey(uri),
                     Uri = uri,
                     Tid = uri.Split('/').Last(),
                     Name = gen.GetProperty("displayName").GetString()!,
@@ -248,7 +250,7 @@ public class FeedService : IFeedService
         var creator = gen.GetProperty("creator");
         return new FeedDto
         {
-            Id = Guid.NewGuid(),
+            Id = StableFeedIdFromKey(uri),
             Uri = uri,
             Tid = uri.Split('/').Last(),
             Name = gen.GetProperty("displayName").GetString()!,
@@ -359,18 +361,17 @@ public class FeedService : IFeedService
                 {
                     foreach (var item in items.EnumerateArray())
                     {
-                        if (item.TryGetProperty("value", out var val) && item.TryGetProperty("type", out var t))
-                        {
-                            var uri = val.GetString()!;
-                            savedUris.Add(uri);
-                            if (item.TryGetProperty("pinned", out var pinned) && pinned.GetBoolean())
-                                pinnedUris.Add(uri);
-                        }
+                        if (!item.TryGetProperty("value", out var val)) continue;
+                        var uri = val.GetString();
+                        if (string.IsNullOrEmpty(uri)) continue;
+                        savedUris.Add(uri);
+                        if (item.TryGetProperty("pinned", out var pinned) && pinned.GetBoolean())
+                            pinnedUris.Add(uri);
                     }
                 }
             }
             // Handle V1 Saved Feeds (Legacy Fallback)
-            else if (type.GetString() == "app.bsky.actor.defs#savedFeedsPref")
+            else if (pref.TryGetProperty("$type", out var typeV1) && typeV1.GetString() == "app.bsky.actor.defs#savedFeedsPref")
             {
                 if (pref.TryGetProperty("saved", out var saved))
                 {
@@ -410,7 +411,7 @@ public class FeedService : IFeedService
                     
                     var dto = new FeedDto
                     {
-                        Id = Guid.NewGuid(), 
+                        Id = StableFeedIdFromKey(uri),
                         Uri = uri,
                         Tid = uri.Split('/').Last(),
                         Name = gen.GetProperty("displayName").GetString()!,
@@ -438,11 +439,13 @@ public class FeedService : IFeedService
         {
              feeds.Insert(0, new FeedDto 
              { 
-                 Id = Guid.Empty, 
-                 Name = "Following", 
-                 Uri = "following", 
-                 IsPinned = pinnedUris.Contains("following"), 
-                 IsSubscribed = true 
+                 Id = StableFeedIdFromKey("following"),
+                 Tid = "following",
+                 Name = "Following",
+                 Handle = "following",
+                 Uri = "following",
+                 IsPinned = pinnedUris.Contains("following"),
+                 IsSubscribed = true
              });
         }
 
@@ -705,6 +708,76 @@ public class FeedService : IFeedService
             subscription?.PinnedOrder ?? 0, 
             subscription != null
         );
+    }
+
+    private static Guid StableFeedIdFromKey(string feedKey)
+    {
+        var bytes = MD5.HashData(Encoding.UTF8.GetBytes(feedKey));
+        return new Guid(bytes);
+    }
+
+    public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri)
+    {
+        if (string.IsNullOrWhiteSpace(uri)) return null;
+
+        if (uri.Equals("following", StringComparison.OrdinalIgnoreCase))
+        {
+            return new FeedDto
+            {
+                Id = StableFeedIdFromKey("following"),
+                Tid = "following",
+                Name = "Following",
+                Handle = "following",
+                Uri = "following",
+                IsSubscribed = true
+            };
+        }
+
+        if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) return null;
+
+        try
+        {
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+
+            var response = await httpClient.GetAsync(
+                $"https://api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?uris={Uri.EscapeDataString(uri)}");
+
+            if (!response.IsSuccessStatusCode) return null;
+
+            var genContent = await response.Content.ReadAsStringAsync();
+            using var genDoc = JsonDocument.Parse(genContent);
+            if (!genDoc.RootElement.TryGetProperty("feeds", out var feedsArr) || feedsArr.GetArrayLength() == 0)
+                return null;
+
+            var gen = feedsArr[0];
+            var outUri = gen.GetProperty("uri").GetString()!;
+            var creatorDid = gen.GetProperty("did").GetString()!;
+
+            return new FeedDto
+            {
+                Id = StableFeedIdFromKey(outUri),
+                Uri = outUri,
+                Tid = outUri.Split('/').Last(),
+                Name = gen.GetProperty("displayName").GetString()!,
+                Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
+                AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+                Handle = creatorDid,
+                SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+                Creator = new AuthorDto
+                {
+                    Did = creatorDid,
+                    Handle = creatorDid,
+                    DisplayName = gen.GetProperty("creator").GetProperty("displayName").GetString(),
+                    AvatarUrl = gen.GetProperty("creator").TryGetProperty("avatar", out var cav) ? cav.GetString() : null
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] GetFeedMetadataByUriAsync failed for {Uri}", uri);
+            return null;
+        }
     }
 
 
