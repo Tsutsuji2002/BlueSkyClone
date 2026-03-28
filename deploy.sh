@@ -7,6 +7,14 @@ echo "Starting deployment process..."
 # 1. Pull latest changes
 git pull origin main || echo "Warning: Pull failed, proceeding with current files..."
 
+# Fix DNS resolution issues for Docker build
+echo "Configuring Docker DNS if needed..."
+if [ ! -f /etc/docker/daemon.json ] || ! grep -q "8.8.8.8" /etc/docker/daemon.json; then
+    echo '{"dns": ["8.8.8.8", "8.8.4.4"]}' | sudo tee /etc/docker/daemon.json
+    echo "Restarting Docker to apply DNS changes..."
+    sudo systemctl restart docker || echo "Warning: Could not restart docker, build might still fail."
+fi
+
 # 2. Check for .env file
 if [ ! -f .env ]; then
     echo "Error: .env file not found!"
