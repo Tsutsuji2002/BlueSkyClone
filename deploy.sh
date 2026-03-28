@@ -5,7 +5,7 @@
 echo "Starting deployment process..."
 
 # 1. Pull latest changes
-git pull origin bskyclone-deploy
+git pull origin main || echo "Warning: Pull failed, proceeding with current files..."
 
 # 2. Check for .env file
 if [ ! -f .env ]; then
