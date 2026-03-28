@@ -3,6 +3,20 @@ import { Feed, Post } from '../../types';
 import { API_BASE_URL } from '../../constants';
 import { feedActionKey } from '../../utils/feedKeys';
 
+const REMOTE_METADATA_FALLBACK_DESCRIPTION = 'Remote feed metadata is temporarily unavailable.';
+
+const isRemoteMetadataFallback = (feed: Feed): boolean =>
+    (feed.description || '').trim().toLowerCase() === REMOTE_METADATA_FALLBACK_DESCRIPTION.toLowerCase();
+
+const applyVisualMetadata = (target: Feed, source: Feed) => {
+    target.name = source.name || target.name;
+    target.description = source.description || target.description;
+    target.handle = source.handle || target.handle;
+    target.avatarUrl = source.avatarUrl || source.avatar || target.avatarUrl;
+    target.avatar = source.avatar || source.avatarUrl || target.avatar;
+    target.uri = source.uri || target.uri;
+};
+
 interface FeedsState {
     feeds: Feed[];
     subscribedFeeds: Feed[];
@@ -368,9 +382,36 @@ const feedsSlice = createSlice({
             })
             .addCase(fetchRecommendedFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
                 state.recommendedFeeds = action.payload;
+
+                const recommendedByKey = new Map<string, Feed>();
+                action.payload.forEach((feed) => {
+                    recommendedByKey.set(feedActionKey(feed), feed);
+                });
+
+                state.subscribedFeeds.forEach((feed) => {
+                    if (!isRemoteMetadataFallback(feed)) return;
+                    const preferred = recommendedByKey.get(feedActionKey(feed));
+                    if (preferred) {
+                        applyVisualMetadata(feed, preferred);
+                    }
+                });
             })
             .addCase(fetchSubscribedFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
-                state.subscribedFeeds = action.payload;
+                const cacheByKey = new Map<string, Feed>();
+                [...state.subscribedFeeds, ...state.recommendedFeeds, ...state.searchResults, ...state.feeds].forEach((feed) => {
+                    cacheByKey.set(feedActionKey(feed), feed);
+                });
+
+                state.subscribedFeeds = action.payload.map((incoming) => {
+                    const key = feedActionKey(incoming);
+                    const cached = cacheByKey.get(key);
+                    if (!cached) return incoming;
+                    if (!isRemoteMetadataFallback(incoming) && incoming.name?.trim()) return incoming;
+
+                    const merged = { ...incoming };
+                    applyVisualMetadata(merged, cached);
+                    return merged;
+                });
                 state.pinnedFeedIds = action.payload
                     .filter((f: Feed) => f.isPinned)
                     .map((f: Feed) => feedActionKey(f));

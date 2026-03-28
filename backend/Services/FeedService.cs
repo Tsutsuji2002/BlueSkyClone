@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Globalization;
 
 namespace BSkyClone.Services;
 
@@ -967,13 +968,18 @@ public class FeedService : IFeedService
     {
         var tid = uri.Split('/').LastOrDefault() ?? uri;
         var handlePart = uri.Split('/').Skip(2).FirstOrDefault() ?? "feed";
+        var textInfo = CultureInfo.InvariantCulture.TextInfo;
+        var normalizedName = tid.Replace('-', ' ').Replace('_', ' ').Trim();
+        var friendlyName = string.IsNullOrWhiteSpace(normalizedName)
+            ? "Saved Feed"
+            : textInfo.ToTitleCase(normalizedName.ToLowerInvariant());
 
         return new FeedDto
         {
             Id = StableFeedIdFromKey(uri),
             Uri = uri,
             Tid = tid,
-            Name = tid.Replace('-', ' '),
+            Name = friendlyName,
             Description = "Remote feed metadata is temporarily unavailable.",
             Handle = handlePart,
             IsSubscribed = true,
