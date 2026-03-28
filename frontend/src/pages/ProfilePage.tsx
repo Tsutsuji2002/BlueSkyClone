@@ -95,8 +95,9 @@ const ProfilePage: React.FC = () => {
                 const now = Date.now();
                 const isStale = (now - lastUserPostsFetch) > RELOAD_TIMEOUT;
                 
+                const dispatchUserId = profileUser.handle || profileUser.did || profileUser.id;
                 const matchesCurrent = 
-                    lastUserPostsUserId === profileUser.id && 
+                    lastUserPostsUserId === dispatchUserId && 
                     lastUserPostsType === activeTab;
 
                 if (!matchesCurrent || isStale || !lastUserPostsFetch) {
@@ -107,7 +108,7 @@ const ProfilePage: React.FC = () => {
                         dispatch(clearPosts());
                     }
                     dispatch(fetchUserPosts({ 
-                        userId: profileUser.handle || profileUser.did || profileUser.id, 
+                        userId: dispatchUserId, 
                         type: activeTab, 
                         skip: 0, 
                         take: 20 
