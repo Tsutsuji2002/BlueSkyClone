@@ -468,6 +468,12 @@ public class FeedService : IFeedService
             return await UpdateRemoteFeedPreferenceAsync(userId, uri, true, false);
         }
 
+        if (feedId == Guid.Empty)
+        {
+            _logger.LogWarning("[FeedService] SaveFeedAsync: empty GUID without remote uri.");
+            return false;
+        }
+
         var existing = await _unitOfWork.UserFeedSubscriptions.Query()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FeedId == feedId);
         if (existing != null) return true;
@@ -492,6 +498,9 @@ public class FeedService : IFeedService
             return await UpdateRemoteFeedPreferenceAsync(userId, uri, false);
         }
 
+        if (feedId == Guid.Empty)
+            return false;
+
         var existing = await _unitOfWork.UserFeedSubscriptions.Query()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FeedId == feedId);
         if (existing == null) return true;
@@ -505,6 +514,12 @@ public class FeedService : IFeedService
         if (!string.IsNullOrEmpty(uri))
         {
             return await UpdateRemoteFeedPreferenceAsync(userId, uri, true, true);
+        }
+
+        if (feedId == Guid.Empty)
+        {
+            _logger.LogWarning("[FeedService] PinFeedAsync: empty GUID without remote uri (avoid EF FK error).");
+            return false;
         }
 
         var existing = await _unitOfWork.UserFeedSubscriptions.Query()
@@ -542,6 +557,9 @@ public class FeedService : IFeedService
         {
             return await UpdateRemoteFeedPreferenceAsync(userId, uri, true, false);
         }
+
+        if (feedId == Guid.Empty)
+            return false;
 
         var existing = await _unitOfWork.UserFeedSubscriptions.Query()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FeedId == feedId);
@@ -735,49 +753,86 @@ public class FeedService : IFeedService
 
         if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) return null;
 
+        var noPrefs = new HashSet<string>();
         try
         {
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
 
-            var response = await httpClient.GetAsync(
-                $"https://api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?uris={Uri.EscapeDataString(uri)}");
+            foreach (var host in new[] { "https://api.bsky.app", "https://public.api.bsky.app" })
+            {
+                try
+                {
+                    var batch = await httpClient.GetAsync(
+                        $"{host}/xrpc/app.bsky.feed.getFeedGenerators?uris={Uri.EscapeDataString(uri)}");
+                    if (batch.IsSuccessStatusCode)
+                    {
+                        using var genDoc = JsonDocument.Parse(await batch.Content.ReadAsStringAsync());
+                        if (genDoc.RootElement.TryGetProperty("feeds", out var feedsArr) && feedsArr.GetArrayLength() > 0)
+                            return MapFeedGeneratorRowToDto(feedsArr[0]);
+                    }
 
-            if (!response.IsSuccessStatusCode) return null;
+                    var one = await httpClient.GetAsync(
+                        $"{host}/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(uri)}");
+                    if (one.IsSuccessStatusCode)
+                    {
+                        using var doc = JsonDocument.Parse(await one.Content.ReadAsStringAsync());
+                        if (doc.RootElement.TryGetProperty("view", out var view))
+                            return MapGeneratorViewToDto(view, noPrefs, noPrefs);
+                    }
+                }
+                catch (Exception inner)
+                {
+                    _logger.LogDebug(inner, "[FeedService] Metadata attempt failed on {Host} for {Uri}", host, uri);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] GetFeedMetadataByUriAsync failed for {Uri}", uri);
+        }
 
-            var genContent = await response.Content.ReadAsStringAsync();
-            using var genDoc = JsonDocument.Parse(genContent);
-            if (!genDoc.RootElement.TryGetProperty("feeds", out var feedsArr) || feedsArr.GetArrayLength() == 0)
-                return null;
+        return null;
+    }
 
-            var gen = feedsArr[0];
-            var outUri = gen.GetProperty("uri").GetString()!;
-            var creatorDid = gen.GetProperty("did").GetString()!;
-
+    private static FeedDto MapFeedGeneratorRowToDto(JsonElement gen)
+    {
+        var outUri = gen.GetProperty("uri").GetString()!;
+        var creatorDid = gen.GetProperty("did").GetString()!;
+        if (!gen.TryGetProperty("creator", out var creator))
+        {
             return new FeedDto
             {
                 Id = StableFeedIdFromKey(outUri),
                 Uri = outUri,
                 Tid = outUri.Split('/').Last(),
                 Name = gen.GetProperty("displayName").GetString()!,
-                Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
-                AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+                Description = gen.TryGetProperty("description", out var d0) ? d0.GetString() : null,
+                AvatarUrl = gen.TryGetProperty("avatar", out var a0) ? a0.GetString() : null,
                 Handle = creatorDid,
-                SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
-                Creator = new AuthorDto
-                {
-                    Did = creatorDid,
-                    Handle = creatorDid,
-                    DisplayName = gen.GetProperty("creator").GetProperty("displayName").GetString(),
-                    AvatarUrl = gen.GetProperty("creator").TryGetProperty("avatar", out var cav) ? cav.GetString() : null
-                }
+                SubscribersCount = gen.TryGetProperty("likeCount", out var lc0) ? lc0.GetInt32() : 0,
+                Creator = new AuthorDto { Did = creatorDid, Handle = creatorDid }
             };
         }
-        catch (Exception ex)
+
+        return new FeedDto
         {
-            _logger.LogError(ex, "[FeedService] GetFeedMetadataByUriAsync failed for {Uri}", uri);
-            return null;
-        }
+            Id = StableFeedIdFromKey(outUri),
+            Uri = outUri,
+            Tid = outUri.Split('/').Last(),
+            Name = gen.GetProperty("displayName").GetString()!,
+            Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
+            AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
+            Handle = creator.TryGetProperty("handle", out var h) ? h.GetString()! : creatorDid,
+            SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+            Creator = new AuthorDto
+            {
+                Did = creator.GetProperty("did").GetString()!,
+                Handle = creator.GetProperty("handle").GetString()!,
+                DisplayName = creator.TryGetProperty("displayName", out var dn) ? dn.GetString() : null,
+                AvatarUrl = creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null
+            }
+        };
     }
 
 
@@ -815,29 +870,52 @@ public class FeedService : IFeedService
         {
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-            
+
             if (userId.HasValue)
             {
                 var token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
                 if (!string.IsNullOrEmpty(token))
-                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
 
-            var limit = Math.Min(take, 100);
-            var response = await httpClient.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(uri)}&limit={limit}");
-            
-            if (!response.IsSuccessStatusCode) 
+            var fetchLimit = Math.Clamp(take + skip, Math.Max(take, 1), 100);
+            List<PostDto>? fallback = null;
+
+            foreach (var host in new[] { "https://api.bsky.app", "https://public.api.bsky.app" })
             {
-                _logger.LogWarning("[FeedService] getFeed failed for {Uri}: {Status}", uri, response.StatusCode);
-                return new List<PostDto>();
+                try
+                {
+                    var response = await httpClient.GetAsync(
+                        $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(uri)}&limit={fetchLimit}");
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("[FeedService] getFeed {Status} on {Host} for {Uri}", response.StatusCode, host, uri);
+                        continue;
+                    }
+
+                    var content = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(content);
+                    if (!doc.RootElement.TryGetProperty("feed", out var feedArray))
+                        continue;
+
+                    var posts = _postService.MapBlueskyFeed(feedArray);
+                    fallback ??= posts;
+                    if (posts.Count > 0)
+                    {
+                        _logger.LogInformation("[FeedService] getFeed returned {Count} posts from {Host} for {Uri}", posts.Count, host, uri);
+                        return posts.Skip(skip).Take(take);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "[FeedService] getFeed error on {Host} for {Uri}", host, uri);
+                }
             }
 
-            var content = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(content);
-            if (!doc.RootElement.TryGetProperty("feed", out var feedArray)) return new List<PostDto>();
-
-            var posts = _postService.MapBlueskyFeed(feedArray);
-            return posts; // getFeed doesn't support offset pagination, usually cursor-based
+            _logger.LogInformation("[FeedService] getFeed returned no posts for {Uri} (both app views).", uri);
+            return (fallback ?? new List<PostDto>()).Skip(skip).Take(take);
         }
         catch (Exception ex)
         {

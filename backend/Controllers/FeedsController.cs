@@ -21,6 +21,32 @@ public class FeedsController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Parses <paramref name="feedId"/> from a catch-all route so at:// URIs are not split on '/' (reverse proxies often decode %2F).
+    /// Optional <paramref name="uriQuery"/> overrides when the path is ambiguous.
+    /// </summary>
+    private static (Guid LocalFeedId, string? RemoteFeedUri) ParseFeedRouteKey(string? feedId, string? uriQuery)
+    {
+        if (!string.IsNullOrWhiteSpace(uriQuery))
+        {
+            var q = uriQuery.Trim();
+            if (q.StartsWith("at://", StringComparison.OrdinalIgnoreCase) || q.Equals("following", StringComparison.OrdinalIgnoreCase))
+                return (Guid.Empty, q);
+        }
+
+        if (string.IsNullOrWhiteSpace(feedId))
+            return (Guid.Empty, null);
+
+        var t = feedId.Trim();
+        if (t.StartsWith("at://", StringComparison.OrdinalIgnoreCase) || t.Equals("following", StringComparison.OrdinalIgnoreCase))
+            return (Guid.Empty, t);
+
+        if (Guid.TryParse(t, out var g) && g != Guid.Empty)
+            return (g, null);
+
+        return (Guid.Empty, null);
+    }
+
     [Authorize]
     [HttpGet("recommended")]
     public async Task<IActionResult> GetRecommended()
@@ -183,7 +209,7 @@ public class FeedsController : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("save/{feedId}")]
+    [HttpPost("save/{*feedId}")]
     public async Task<IActionResult> SaveFeed(string feedId, [FromQuery] string? uri = null)
     {
         try
@@ -191,10 +217,9 @@ public class FeedsController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            Guid fId = Guid.Empty;
-            string? resolvedUri = uri;
-            if (feedId.StartsWith("at://") || feedId == "following") resolvedUri = feedId;
-            else Guid.TryParse(feedId, out fId);
+            var (fId, resolvedUri) = ParseFeedRouteKey(feedId, uri);
+            if (resolvedUri == null && fId == Guid.Empty)
+                return BadRequest(new { message = "Invalid feed id. Use an at:// URI or app feed GUID." });
 
             var result = await _feedService.SaveFeedAsync(userId, fId, resolvedUri);
             return Ok(result);
@@ -207,7 +232,7 @@ public class FeedsController : ControllerBase
     }
 
     [Authorize]
-    [HttpDelete("unsave/{feedId}")]
+    [HttpDelete("unsave/{*feedId}")]
     public async Task<IActionResult> UnsaveFeed(string feedId, [FromQuery] string? uri = null)
     {
         try
@@ -215,10 +240,9 @@ public class FeedsController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            Guid fId = Guid.Empty;
-            string? resolvedUri = uri;
-            if (feedId.StartsWith("at://") || feedId == "following") resolvedUri = feedId;
-            else Guid.TryParse(feedId, out fId);
+            var (fId, resolvedUri) = ParseFeedRouteKey(feedId, uri);
+            if (resolvedUri == null && fId == Guid.Empty)
+                return BadRequest(new { message = "Invalid feed id. Use an at:// URI or app feed GUID." });
 
             var result = await _feedService.UnsaveFeedAsync(userId, fId, resolvedUri);
             return Ok(result);
@@ -231,7 +255,7 @@ public class FeedsController : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("pin/{feedId}")]
+    [HttpPost("pin/{*feedId}")]
     public async Task<IActionResult> PinFeed(string feedId, [FromQuery] string? uri = null)
     {
         try
@@ -239,10 +263,9 @@ public class FeedsController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            Guid fId = Guid.Empty;
-            string? resolvedUri = uri;
-            if (feedId.StartsWith("at://") || feedId == "following") resolvedUri = feedId;
-            else Guid.TryParse(feedId, out fId);
+            var (fId, resolvedUri) = ParseFeedRouteKey(feedId, uri);
+            if (resolvedUri == null && fId == Guid.Empty)
+                return BadRequest(new { message = "Invalid feed id. Use an at:// URI or app feed GUID." });
 
             var result = await _feedService.PinFeedAsync(userId, fId, resolvedUri);
             return Ok(result);
@@ -255,7 +278,7 @@ public class FeedsController : ControllerBase
     }
 
     [Authorize]
-    [HttpDelete("unpin/{feedId}")]
+    [HttpDelete("unpin/{*feedId}")]
     public async Task<IActionResult> UnpinFeed(string feedId, [FromQuery] string? uri = null)
     {
         try
@@ -263,10 +286,9 @@ public class FeedsController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            Guid fId = Guid.Empty;
-            string? resolvedUri = uri;
-            if (feedId.StartsWith("at://") || feedId == "following") resolvedUri = feedId;
-            else Guid.TryParse(feedId, out fId);
+            var (fId, resolvedUri) = ParseFeedRouteKey(feedId, uri);
+            if (resolvedUri == null && fId == Guid.Empty)
+                return BadRequest(new { message = "Invalid feed id. Use an at:// URI or app feed GUID." });
 
             var result = await _feedService.UnpinFeedAsync(userId, fId, resolvedUri);
             return Ok(result);
@@ -325,18 +347,8 @@ public class FeedsController : ControllerBase
             var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? userId = Guid.TryParse(userIdString, out var cid) ? cid : null;
 
-            Guid fId = Guid.Empty;
-            string? resolvedUri = uri;
+            var (fId, resolvedUri) = ParseFeedRouteKey(feedId, uri);
 
-            if (feedId.StartsWith("at://") || feedId == "following")
-            {
-                resolvedUri = feedId;
-            }
-            else if (Guid.TryParse(feedId, out var gId))
-            {
-                fId = gId;
-            }
-    
             var posts = await _feedService.GetFeedPostsAsync(fId, userId, skip, take, resolvedUri);
             return Ok(posts);
         }
