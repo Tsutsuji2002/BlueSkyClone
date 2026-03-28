@@ -30,6 +30,7 @@ public class FeedService : IFeedService
     private const string DiscoverFeedName = "Discover";
     private const string DiscoverFeedDid = "did:web:discover.bsky.app";
     private const string DiscoverFeedHandle = "discover.bsky.app";
+    private const string DiscoverFeedUri = "at://did:web:discover.bsky.app/app.bsky.feed.generator/whats-hot";
 
     public FeedService(
         IUnitOfWork unitOfWork, 
@@ -115,7 +116,12 @@ public class FeedService : IFeedService
                                      if (type.GetString() == "app.bsky.actor.defs#savedFeedsPrefV2" && pref.TryGetProperty("items", out var items))
                                          foreach (var it in items.EnumerateArray()) savedUris.Add(it.GetProperty("value").GetString()!);
                                      else if (pref.TryGetProperty("saved", out var saved))
-                                         foreach (var s in saved.EnumerateArray()) savedUris.Add(s.GetString()!);
+                                         foreach (var s in saved.EnumerateArray())
+                    {
+                        var raw = s.GetString()!;
+                        savedUris.Add(raw);
+                        savedUris.Add(CanonicalizeFeedValue(raw));
+                    }
                                 }
                             }
                         }
@@ -281,14 +287,36 @@ public class FeedService : IFeedService
                     if (pref.TryGetProperty("items", out var its))
                         foreach (var it in its.EnumerateArray()) {
                             var uri = it.GetProperty("value").GetString()!;
+                            var canonical = CanonicalizeFeedValue(uri);
                             prefs.SavedUris.Add(uri);
-                            if (it.TryGetProperty("pinned", out var p) && p.GetBoolean()) prefs.PinnedUris.Add(uri);
+                            prefs.SavedUris.Add(canonical);
+                            if (it.TryGetProperty("pinned", out var p) && p.GetBoolean())
+                            {
+                                prefs.PinnedUris.Add(uri);
+                                prefs.PinnedUris.Add(canonical);
+                            }
                         }
                 }
                 else if (type == "app.bsky.actor.defs#savedFeedsPref")
                 {
-                    if (pref.TryGetProperty("saved", out var s)) foreach (var x in s.EnumerateArray()) prefs.SavedUris.Add(x.GetString()!);
-                    if (pref.TryGetProperty("pinned", out var p)) foreach (var x in p.EnumerateArray()) prefs.PinnedUris.Add(x.GetString()!);
+                    if (pref.TryGetProperty("saved", out var s))
+                    {
+                        foreach (var x in s.EnumerateArray())
+                        {
+                            var raw = x.GetString()!;
+                            prefs.SavedUris.Add(raw);
+                            prefs.SavedUris.Add(CanonicalizeFeedValue(raw));
+                        }
+                    }
+                    if (pref.TryGetProperty("pinned", out var p))
+                    {
+                        foreach (var x in p.EnumerateArray())
+                        {
+                            var raw = x.GetString()!;
+                            prefs.PinnedUris.Add(raw);
+                            prefs.PinnedUris.Add(CanonicalizeFeedValue(raw));
+                        }
+                    }
                 }
             }
         }
@@ -356,9 +384,14 @@ public class FeedService : IFeedService
                         if (!item.TryGetProperty("value", out var val)) continue;
                         var uri = val.GetString();
                         if (string.IsNullOrEmpty(uri)) continue;
+                        var canonical = CanonicalizeFeedValue(uri);
                         savedUris.Add(uri);
+                        savedUris.Add(canonical);
                         if (item.TryGetProperty("pinned", out var pinned) && pinned.GetBoolean())
+                        {
                             pinnedUris.Add(uri);
+                            pinnedUris.Add(canonical);
+                        }
                     }
                 }
             }
@@ -367,11 +400,21 @@ public class FeedService : IFeedService
             {
                 if (pref.TryGetProperty("saved", out var saved))
                 {
-                    foreach (var s in saved.EnumerateArray()) savedUris.Add(s.GetString()!);
+                    foreach (var s in saved.EnumerateArray())
+                    {
+                        var raw = s.GetString()!;
+                        savedUris.Add(raw);
+                        savedUris.Add(CanonicalizeFeedValue(raw));
+                    }
                 }
                 if (pref.TryGetProperty("pinned", out var pinned))
                 {
-                    foreach (var p in pinned.EnumerateArray()) pinnedUris.Add(p.GetString()!);
+                    foreach (var p in pinned.EnumerateArray())
+                    {
+                        var raw = p.GetString()!;
+                        pinnedUris.Add(raw);
+                        pinnedUris.Add(CanonicalizeFeedValue(raw));
+                    }
                 }
             }
         }
@@ -553,6 +596,8 @@ public class FeedService : IFeedService
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did)) return false;
 
+            var normalizedFeedUri = CanonicalizeFeedValue(feedUri);
+
             // 1. Get current preferences
             var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
             if (!prefResponse.Success) return false;
@@ -572,21 +617,38 @@ public class FeedService : IFeedService
             if (v2Pref != null)
             {
                 var items = v2Pref["items"]!.AsArray();
-                var item = items.FirstOrDefault(i => i?["value"]?.GetValue<string>() == feedUri);
+                var matchedItems = items
+                    .Where(i => MatchesFeedValue(i?["value"]?.GetValue<string>(), normalizedFeedUri))
+                    .ToList();
 
-                if (save) {
-                    if (item == null) {
+                if (save)
+                {
+                    var prefType = normalizedFeedUri.StartsWith("at://", StringComparison.OrdinalIgnoreCase) ? "feed" : "timeline";
+                    if (matchedItems.Count == 0)
+                    {
                         items.Add(new JsonObject {
                             ["id"] = Guid.NewGuid().ToString().Substring(0, 8),
-                            ["type"] = feedUri.StartsWith("at://") ? "feed" : "timeline",
-                            ["value"] = feedUri,
+                            ["type"] = prefType,
+                            ["value"] = normalizedFeedUri,
                             ["pinned"] = pinAction ?? false
                         });
-                    } else if (pinAction.HasValue) {
-                        item["pinned"] = pinAction.Value;
                     }
-                } else {
-                    if (item != null) items.Remove(item);
+                    else
+                    {
+                        var primary = matchedItems[0];
+                        primary["type"] = prefType;
+                        primary["value"] = normalizedFeedUri;
+                        if (pinAction.HasValue)
+                            primary["pinned"] = pinAction.Value;
+
+                        foreach (var extra in matchedItems.Skip(1).ToList())
+                            items.Remove(extra);
+                    }
+                }
+                else
+                {
+                    foreach (var item in matchedItems)
+                        items.Remove(item);
                 }
             }
 
@@ -597,7 +659,7 @@ public class FeedService : IFeedService
             
             if (putResponse.Success)
             {
-                _logger.LogInformation("[FeedService] Successfully updated remote feed preferences for {UserId} (Feed: {Uri}, Save: {Save}, Pin: {Pin})", userId, feedUri, save, pinAction);
+                _logger.LogInformation("[FeedService] Successfully updated remote feed preferences for {UserId} (Feed: {Uri}, Save: {Save}, Pin: {Pin})", userId, normalizedFeedUri, save, pinAction);
             }
             
             return putResponse.Success;
@@ -795,6 +857,42 @@ public class FeedService : IFeedService
         return string.Equals(creatorDid, DiscoverFeedDid, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(creatorHandle, DiscoverFeedDid, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(creatorHandle, DiscoverFeedHandle, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDiscoverFeedValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var v = value.Trim();
+        return string.Equals(v, DiscoverFeedKey, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(v, DiscoverFeedUri, StringComparison.OrdinalIgnoreCase) ||
+               v.StartsWith("at://did:web:discover.bsky.app/app.bsky.feed.generator/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string CanonicalizeFeedValue(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return value;
+
+        if (string.Equals(value, FollowingFeedKey, StringComparison.OrdinalIgnoreCase))
+            return FollowingFeedKey;
+
+        if (IsDiscoverFeedValue(value))
+            return DiscoverFeedUri;
+
+        return value.Trim();
+    }
+
+    private static bool MatchesFeedValue(string? existingValue, string targetFeedValue)
+    {
+        if (string.IsNullOrWhiteSpace(existingValue))
+            return false;
+
+        if (string.Equals(existingValue, targetFeedValue, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return IsDiscoverFeedValue(existingValue) && IsDiscoverFeedValue(targetFeedValue);
     }
 
     private static FeedDto CreateSyntheticTimelineFeed(string feedKey, bool isPinned = false, bool isSubscribed = true, string? description = null, string? avatarUrl = null, int subscribersCount = 0)
@@ -1062,6 +1160,16 @@ public class FeedService : IFeedService
         return Task.CompletedTask;
     }
 }
+
+
+
+
+
+
+
+
+
+
 
 
 
