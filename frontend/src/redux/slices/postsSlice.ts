@@ -135,8 +135,10 @@ export const fetchUserPosts = createAsyncThunk(
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
-            const posts: Post[] = await response.json();
-            return { posts, userId, cursor: null, type };
+            const data = await response.json();
+            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const cursorVal = data.cursor || null;
+            return { posts, userId, cursor: cursorVal, type };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
