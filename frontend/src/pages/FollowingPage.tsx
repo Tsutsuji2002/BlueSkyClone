@@ -140,7 +140,7 @@ const FollowingPage: React.FC = () => {
                                     className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
                                 >
                                     <div className="flex items-start gap-3">
-                                        <button onClick={() => navigate(`/profile/user/${user.id}`)}>
+                                        <button onClick={() => navigate(`/profile/${user.handle || 'user/' + user.id}`)}>
                                             <Avatar
                                                 src={user.avatarUrl || user.avatar}
                                                 alt={user.displayName}
@@ -149,7 +149,7 @@ const FollowingPage: React.FC = () => {
                                         </button>
                                         <div className="flex-1 min-w-0">
                                             <button
-                                                onClick={() => navigate(`/profile/user/${user.id}`)}
+                                                onClick={() => navigate(`/profile/${user.handle || 'user/' + user.id}`)}
                                                 className="block text-left"
                                             >
                                                 <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">

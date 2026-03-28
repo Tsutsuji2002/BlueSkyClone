@@ -80,6 +80,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="/" element={<MainLayout hideTopBar={true} />}>
                         <Route index element={<HomePage />} />
                         <Route path="profile/:handle" element={<ProfilePage />} />
+                        <Route path="profile/user/:handle" element={<ProfilePage />} />
                         <Route path="profile/:handle/followers" element={<FollowersPage />} />
                         <Route path="profile/:handle/following" element={<FollowingPage />} />
                         <Route path="profile/:handle/following" element={<FollowingPage />} />

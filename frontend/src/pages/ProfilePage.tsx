@@ -107,7 +107,7 @@ const ProfilePage: React.FC = () => {
                         dispatch(clearPosts());
                     }
                     dispatch(fetchUserPosts({ 
-                        userId: profileUser.id, 
+                        userId: profileUser.handle || profileUser.did || profileUser.id, 
                         type: activeTab, 
                         skip: 0, 
                         take: 20 
@@ -615,9 +615,9 @@ const ProfilePage: React.FC = () => {
                                 isLoading={isPostsLoading}
                                 hasMore={hasMore}
                                 onLoadMore={() => {
-                                    if (profileUser?.id && hasMore && !isPostsLoading) {
+                                    if ((profileUser?.handle || profileUser?.did || profileUser?.id) && hasMore && !isPostsLoading) {
                                         dispatch(fetchUserPosts({
-                                            userId: profileUser.id,
+                                            userId: profileUser!.handle || profileUser!.did || profileUser!.id,
                                             type: activeTab,
                                             skip: reduxPosts.length,
                                             take: 20,

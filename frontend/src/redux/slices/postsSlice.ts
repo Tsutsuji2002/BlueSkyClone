@@ -705,7 +705,10 @@ const postsSlice = createSlice({
             .addCase(fetchUserPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
-                state.lastUserPostsFetch = Date.now(); // Mark as attempted to prevent infinite loop
+                state.lastUserPostsFetch = Date.now();
+                const { userId, type } = (action.meta as any).arg || {};
+                state.lastUserPostsUserId = userId;
+                state.lastUserPostsType = type || 'posts';
             })
             // Create Post
             .addCase(createPost.pending, (state: PostsState) => {
