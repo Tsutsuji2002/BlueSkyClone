@@ -746,7 +746,7 @@ namespace BSkyClone.Controllers
 
                 var posts = await _postService.GetUserPostsAsync(actor ?? user.Did ?? user.Handle, viewerId, skip, limit, filter);
                 
-                var feed = posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
+                var feed = posts.Posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
                 {
                     Post = new Lexicons.App.Bsky.Feed.PostView
                     {
@@ -780,7 +780,7 @@ namespace BSkyClone.Controllers
                 return Ok(new Lexicons.App.Bsky.Feed.GetAuthorFeedResponse
                 {
                     Feed = feed,
-                    Cursor = (skip + limit).ToString()
+                    Cursor = posts.Cursor ?? (skip + limit).ToString()
                 });
             }
             catch (Exception ex)

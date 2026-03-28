@@ -1235,7 +1235,7 @@ public class FeedService : IFeedService
             var queryParams = new Dictionary<string, string?> { ["actor"] = actor };
             
             // 1. Fetch from BlueSky
-            XrpcResponse resp;
+            ProxyResponse resp;
             if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(viewerDid))
             {
                 resp = await _xrpcProxy.ProxyRequestAsync(viewerDid, "app.bsky.feed.getActorFeeds", queryParams, token);
@@ -1247,7 +1247,7 @@ public class FeedService : IFeedService
                 var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getActorFeeds?actor={Uri.EscapeDataString(actor)}";
                 var response = await client.GetAsync(url);
                 if (!response.IsSuccessStatusCode) return new List<FeedDto>();
-                resp = new XrpcResponse { Success = true, Content = await response.Content.ReadAsStringAsync() };
+                resp = new ProxyResponse { Success = true, Content = await response.Content.ReadAsStringAsync() };
             }
 
             if (!resp.Success) return new List<FeedDto>();
