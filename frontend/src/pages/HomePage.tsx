@@ -45,20 +45,21 @@ const HomePage: React.FC = () => {
 
         if (activeTab.startsWith('list:')) {
             const listId = activeTab.replace('list:', '');
-            if (activeListFeed.length === 0) {
+            if (activeListFeed.length === 0 && !listsLoading) {
                 dispatch(fetchListFeed({ id: listId, skip: 0 }));
             }
         } else {
+            if (feedLoading[activeTab]) return;
             const lastFetch = feedLastFetch[activeTab] || 0;
+            const neverFetched = lastFetch === 0;
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
-            const currentFeedPosts = feedPosts[activeTab] || [];
-            if (currentFeedPosts.length === 0 || isStale) {
+            if (neverFetched || isStale) {
                 dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: 20 }));
             }
         }
 
         lastTab.current = activeTab;
-    }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedPosts]);
+    }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading]);
 
     // Unified Scroll Preservation Logic
     useEffect(() => {
