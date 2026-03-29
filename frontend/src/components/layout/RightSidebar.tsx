@@ -25,7 +25,7 @@ const RightSidebar: React.FC = () => {
     const [showResults, setShowResults] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
-    const { user } = useAppSelector((state: RootState) => state.auth);
+    const { user, isAuthenticated } = useAppSelector((state: RootState) => state.auth);
     const dispatch = useAppDispatch();
 
     useEffect(() => {
@@ -118,6 +118,13 @@ const RightSidebar: React.FC = () => {
     const { feeds, subscribedFeeds, pinnedFeedIds } = useAppSelector((state: RootState) => state.feeds);
 
     const pinnedFeeds = useMemo(() => {
+        if (!isAuthenticated) {
+            return [
+                { id: 'discover', uri: 'discover', name: t('nav.discover', { defaultValue: 'Discover' }), isPinned: true },
+                { id: 'hot', uri: 'hot', name: 'Hot', isPinned: true },
+                { id: 'science', uri: 'science', name: 'Science', isPinned: true }
+            ];
+        }
         const allFeeds = [...feeds, ...subscribedFeeds];
         return pinnedFeedIds
             .map(id => {
@@ -129,7 +136,7 @@ const RightSidebar: React.FC = () => {
             })
             .filter(Boolean)
             .slice(0, 10);
-    }, [feeds, subscribedFeeds, pinnedFeedIds, t]);
+    }, [feeds, subscribedFeeds, pinnedFeedIds, t, isAuthenticated]);
 
     const handleFeedClick = (feed: any) => {
         if (feedActionKey(feed) === 'following') {

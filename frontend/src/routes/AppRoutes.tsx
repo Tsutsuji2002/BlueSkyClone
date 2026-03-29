@@ -6,8 +6,13 @@ import AdminLayout from '../components/layout/AdminLayout';
 import MainLayout from '../components/layout/MainLayout';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import LazyErrorBoundary from '../components/common/LazyErrorBoundary';
+import ProtectedRoute from '../components/auth/ProtectedRoute';
 
 // Lazy Load Pages
+const WelcomePage = React.lazy(() => import('../pages/auth/WelcomePage'));
+const LoginPage = React.lazy(() => import('../pages/auth/LoginPage'));
+const SignUpPage = React.lazy(() => import('../pages/auth/SignUpPage'));
+
 import HomePage from '../pages/HomePage';
 const ProfilePage = React.lazy(() => import('../pages/ProfilePage'));
 const FollowersPage = React.lazy(() => import('../pages/FollowersPage'));
@@ -84,42 +89,150 @@ const AppRoutes: React.FC = () => {
                         <Route path="profile/:handle/followers" element={<FollowersPage />} />
                         <Route path="profile/:handle/following" element={<FollowingPage />} />
                         <Route path="profile/:handle/following" element={<FollowingPage />} />
-                        <Route path="notifications" element={<NotificationsPage />} />
+                        <Route path="notifications" element={
+                            <ProtectedRoute>
+                                <NotificationsPage />
+                            </ProtectedRoute>
+                        } />
                         <Route path="explore" element={<ExplorePage />} />
-                        <Route path="messages" element={<MessagesPage />} />
+                        <Route path="messages" element={
+                            <ProtectedRoute>
+                                <MessagesPage />
+                            </ProtectedRoute>
+                        } />
                         <Route path="feeds" element={<FeedsPage />} />
-                        <Route path="feeds/settings" element={<ManageFeedsPage />} />
+                        <Route path="feeds/settings" element={
+                            <ProtectedRoute>
+                                <ManageFeedsPage />
+                            </ProtectedRoute>
+                        } />
                         <Route path="feeds/:feedId" element={<FeedDetailPage />} />
                         <Route path="lists" element={<ListsPage />} />
                         <Route path="lists/:id" element={<ListDetailPage />} />
-                        <Route path="saved" element={<SavedPage />} />
+                        <Route path="saved" element={
+                            <ProtectedRoute>
+                                <SavedPage />
+                            </ProtectedRoute>
+                        } />
                         <Route path="search" element={<SearchPage />} />
-                        <Route path="interests" element={<MyInterestsPage />} />
+                        <Route path="interests" element={
+                            <ProtectedRoute>
+                                <MyInterestsPage />
+                            </ProtectedRoute>
+                        } />
                         <Route path="tag/:tag" element={<TagPage />} />
                         <Route path="profile/:handle/post/:postId" element={<PostDetailPage />} />
                         <Route path="profile/:handle/post/:postId/media/:index" element={<MediaViewerPage />} />
-                        <Route path="settings" element={<SettingsPage />} />
-                        <Route path="settings/account" element={<AccountSettingsPage />} />
-                        <Route path="settings/privacy" element={<PrivacySettingsPage />} />
-                        <Route path="settings/privacy/app-passwords" element={<AppPasswordsPage />} />
-                        <Route path="settings/privacy/post-notifications" element={<PostNotificationSettingsPage />} />
-                        <Route path="settings/moderation" element={<ModerationSettingsPage />} />
-                        <Route path="settings/moderation/interaction" element={<ModerationInteractionPage />} />
-                        <Route path="settings/moderation/muted-words" element={<MutedWordsPage />} />
-                        <Route path="settings/moderation/lists" element={<ModerationListsPage />} />
-                        <Route path="settings/moderation/muted-accounts" element={<MutedAccountsPage />} />
-                        <Route path="settings/moderation/blocked-accounts" element={<BlockedAccountsPage />} />
-                        <Route path="settings/moderation/verification" element={<VerificationSettingsPage />} />
-                        <Route path="settings/notifications" element={<NotificationSettingsPage />} />
-                        <Route path="settings/notifications/:type" element={<NotificationTypeSettingsPage />} />
-                        <Route path="settings/appearance" element={<AppearancePage />} />
-                        <Route path="settings/language" element={<LanguagePage />} />
-                        <Route path="settings/about" element={<AboutPage />} />
-                        <Route path="settings/accessibility" element={<AccessibilityPage />} />
-                        <Route path="settings/content" element={<ContentSettingsPage />} />
-                        <Route path="settings/content/discussion" element={<DiscussionSettingsPage />} />
-                        <Route path="settings/content/following-feed" element={<FollowingFeedSettingsPage />} />
-                        <Route path="settings/content/external-media" element={<ExternalMediaPage />} />
+                        <Route path="settings" element={
+                            <ProtectedRoute>
+                                <SettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/account" element={
+                            <ProtectedRoute>
+                                <AccountSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/privacy" element={
+                            <ProtectedRoute>
+                                <PrivacySettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/privacy/app-passwords" element={
+                            <ProtectedRoute>
+                                <AppPasswordsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/privacy/post-notifications" element={
+                            <ProtectedRoute>
+                                <PostNotificationSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/moderation" element={
+                            <ProtectedRoute>
+                                <ModerationSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/moderation/interaction" element={
+                            <ProtectedRoute>
+                                <ModerationInteractionPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/moderation/muted-words" element={
+                            <ProtectedRoute>
+                                <MutedWordsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/moderation/lists" element={
+                            <ProtectedRoute>
+                                <ModerationListsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/moderation/muted-accounts" element={
+                            <ProtectedRoute>
+                                <MutedAccountsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/moderation/blocked-accounts" element={
+                            <ProtectedRoute>
+                                <BlockedAccountsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/moderation/verification" element={
+                            <ProtectedRoute>
+                                <VerificationSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/notifications" element={
+                            <ProtectedRoute>
+                                <NotificationSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/notifications/:type" element={
+                            <ProtectedRoute>
+                                <NotificationTypeSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/appearance" element={
+                            <ProtectedRoute>
+                                <AppearancePage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/language" element={
+                            <ProtectedRoute>
+                                <LanguagePage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/about" element={
+                            <ProtectedRoute>
+                                <AboutPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/accessibility" element={
+                            <ProtectedRoute>
+                                <AccessibilityPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/content" element={
+                            <ProtectedRoute>
+                                <ContentSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/content/discussion" element={
+                            <ProtectedRoute>
+                                <DiscussionSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/content/following-feed" element={
+                            <ProtectedRoute>
+                                <FollowingFeedSettingsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings/content/external-media" element={
+                            <ProtectedRoute>
+                                <ExternalMediaPage />
+                            </ProtectedRoute>
+                        } />
                     </Route>
 
                     {/* Non-Layout Pages */}
@@ -143,6 +256,11 @@ const AppRoutes: React.FC = () => {
                         <Route path="support" element={<SupportManagementPage />} />
                         <Route path="pages" element={<PageContentManagementPage />} />
                     </Route>
+
+                    {/* Auth Routes reachable via MainLayout or standalone */}
+                    <Route path="/welcome" element={<WelcomePage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignUpPage />} />
 
                     {/* Chat Page - No Bottom Nav on mobile */}
                     <Route path="/messages/:conversationId" element={

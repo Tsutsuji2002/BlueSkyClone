@@ -80,7 +80,7 @@ const MobileMenu: React.FC = () => {
                     </div>
 
                     {/* User Info */}
-                    {user && (
+                    {user ? (
                         <div
                             className="mb-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface p-2 rounded-xl transition-colors"
                             onClick={() => {
@@ -106,12 +106,36 @@ const MobileMenu: React.FC = () => {
                                 </span>
                             </div>
                         </div>
+                    ) : (
+                        <div className="mb-6 p-2 text-center flex flex-col items-center">
+                            <h3 className="text-xl font-black text-gray-900 dark:text-dark-text mb-4">
+                                {t('auth.welcome.title', { defaultValue: 'Join the conversation!' })}
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    dispatch(closeMobileMenu());
+                                    navigate('/signup');
+                                }}
+                                className="w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-3 rounded-full mb-3 transition-colors"
+                            >
+                                {t('auth.welcome.create_account', { defaultValue: 'Create account' })}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    dispatch(closeMobileMenu());
+                                    navigate('/login');
+                                }}
+                                className="w-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-gray-900 dark:text-dark-text font-bold py-3 rounded-full transition-colors"
+                            >
+                                {t('auth.welcome.login', { defaultValue: 'Log in' })}
+                            </button>
+                        </div>
                     )}
                 </div>
 
                 {/* Navigation Items */}
                 <nav className="p-4">
-                    {NAV_ITEMS.map((item) => {
+                    {NAV_ITEMS.filter(item => user || ['home', 'search', 'feeds', 'lists'].includes(item.id)).map((item) => {
                         const isActive = location.pathname === item.path ||
                             (item.path === '/profile' && location.pathname.startsWith('/profile'));
 
@@ -179,17 +203,19 @@ const MobileMenu: React.FC = () => {
 
                 {/* Footer Links & Logout */}
                 <div className="p-4 border-t border-gray-200 dark:border-dark-border">
-                    <button
-                        onClick={async () => {
-                            await dispatch(logoutAsync());
-                            dispatch(closeMobileMenu());
-                            navigate('/welcome');
-                        }}
-                        className="w-full flex items-center gap-4 px-4 py-3 rounded-xl mb-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors font-bold"
-                    >
-                        <FiLogOut size={22} />
-                        <span>{t('settings.logout_label')}</span>
-                    </button>
+                    {user && (
+                        <button
+                            onClick={async () => {
+                                await dispatch(logoutAsync());
+                                dispatch(closeMobileMenu());
+                                navigate('/welcome');
+                            }}
+                            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl mb-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors font-bold"
+                        >
+                            <FiLogOut size={22} />
+                            <span>{t('settings.logout_label')}</span>
+                        </button>
+                    )}
 
                     <div className="flex flex-col gap-2 px-4 mb-6">
                         <button

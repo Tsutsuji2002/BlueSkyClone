@@ -2,12 +2,15 @@ import React, { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import LoadingIndicator from '../common/LoadingIndicator';
 import Sidebar from './Sidebar';
+import GuestSidebar from './GuestSidebar';
 import RightSidebar from './RightSidebar';
 import TopBar from './TopBar';
 import BottomNav from './BottomNav';
 import MobileCreateButton from './MobileCreateButton';
 import MobileMenu from './MobileMenu';
 import { cn } from '../../utils/classNames';
+import { useAppSelector } from '../../hooks/useAppSelector';
+import { RootState } from '../../redux/store';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 interface MainLayoutProps {
@@ -19,6 +22,7 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, hideBottomNav = false, title }) => {
     useDocumentTitle(title || '');
+    const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">
@@ -29,7 +33,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                 <div className="flex w-full max-w-[1200px] justify-center px-2 lg:px-4">
                     {/* Left Sidebar - Desktop only */}
                     <div className="hidden lg:block w-20 xl:w-64 flex-shrink-0">
-                        <Sidebar />
+                        {isAuthenticated ? <Sidebar /> : <GuestSidebar />}
                     </div>
 
                     {/* Main Content */}

@@ -13,6 +13,7 @@ import EditProfileModal from './modals/EditProfileModal';
 import ImageViewerModal from './modals/ImageViewerModal';
 import SharePostModal from './modals/SharePostModal';
 import ReportModal from './modals/ReportModal';
+import AuthWallModal from './modals/AuthWallModal';
 import Toast from './components/common/Toast';
 import ScrollToTop from './components/common/ScrollToTop';
 import GlobalDeleteConfirmModal from './components/common/GlobalDeleteConfirmModal';
@@ -165,15 +166,16 @@ const AppContent: React.FC = () => {
     return <LoadingScreen />;
   }
 
-  return (
+    return (
     <>
-      {isAuthenticated ? <AppRoutes /> : <AuthRoutes />}
+      <AppRoutes />
       <CreatePostModal />
       <ReplyModal />
       <EditProfileModal />
       <ImageViewerModal />
       <SharePostModal />
       <ReportModal />
+      <AuthWallModal />
       <GlobalDeleteConfirmModal />
       <Toast />
     </>

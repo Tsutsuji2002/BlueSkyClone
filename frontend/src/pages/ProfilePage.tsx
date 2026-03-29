@@ -4,7 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab } from '../redux/slices/userSlice';
-import { openEditProfile, openCreatePost, openReport } from '../redux/slices/modalsSlice';
+import { openEditProfile, openCreatePost, openReport, openAuthWall } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
@@ -158,8 +158,17 @@ const ProfilePage: React.FC = () => {
     // Use profileUser's cover image or placeholder
     const coverImage = profileUser?.coverImage || COVER_PLACEHOLDER;
 
+    const ensureAuth = (callback: () => void) => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+        callback();
+    };
+
     const handleFollowToggle = async () => {
-        if (!profileUser) return;
+        ensureAuth(async () => {
+            if (!profileUser) return;
         try {
             if (profileUser.isFollowing) {
                 if (!profileUser.followingReference) {
@@ -176,6 +185,7 @@ const ProfilePage: React.FC = () => {
         } catch (error: any) {
             dispatch(showToast({ message: error || 'Failed to update follow status', type: 'error' }));
         }
+        });
     };
 
     const handleBlockToggle = () => {
@@ -232,13 +242,15 @@ const ProfilePage: React.FC = () => {
     };
 
     const handleMessageClick = async () => {
-        if (!profileUser) return;
+        ensureAuth(async () => {
+            if (!profileUser) return;
         try {
             const conversation = await dispatch(startConversation([profileUser.id])).unwrap();
             navigate(`/messages/${conversation.id}`);
         } catch (error: any) {
             dispatch(showToast({ message: error || 'Failed to start conversation', type: 'error' }));
         }
+        });
     };
 
     const dropdownItems: DropdownItem[] = [

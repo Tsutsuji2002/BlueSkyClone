@@ -4,7 +4,7 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { toggleLike, repostPost, toggleBookmark } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
-import { openReply, openEditPost, openQuote, openDeleteConfirm, openReport } from '../../redux/slices/modalsSlice';
+import { openReply, openEditPost, openQuote, openDeleteConfirm, openReport, openAuthWall } from '../../redux/slices/modalsSlice';
 import QuotedPost from './QuotedPost';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
@@ -77,6 +77,13 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
     };
 
     // handleBookmark removed as not supported by standard BSky lexicons yet
+    const ensureAuth = (callback: () => void) => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+        callback();
+    };
 
 
     const handleAvatarClick = (e: React.MouseEvent) => {
@@ -459,11 +466,13 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                     )}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (post.canReply === false) {
-                                            dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' }));
-                                            return;
-                                        }
-                                        dispatch(openReply(post));
+                                        ensureAuth(() => {
+                                            if (post.canReply === false) {
+                                                dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' }));
+                                                return;
+                                            }
+                                            dispatch(openReply(post));
+                                        });
                                     }}
                                     title={post.canReply === false ? t('post.replies_disabled') : undefined}
                                 >
@@ -489,13 +498,13 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                                 id: 'repost',
                                                 label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
                                                 icon: <FiRepeat />,
-                                                onClick: () => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted }))
+                                                onClick: () => ensureAuth(() => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted })))
                                             },
                                             {
                                                 id: 'quote',
                                                 label: t('post.quote_post', 'Quote post'),
                                                 icon: <FiType />,
-                                                onClick: () => dispatch(openQuote(post))
+                                                onClick: () => ensureAuth(() => dispatch(openQuote(post)))
                                             }
                                         ]}
                                         align="left"
@@ -505,7 +514,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked }));
+                                        ensureAuth(() => dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked })));
                                     }}
                                     className={cn(
                                         "flex items-center gap-2 group transition-colors",
@@ -519,7 +528,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        dispatch(toggleBookmark({ uri: post.uri!, isBookmarked: !!post.isBookmarked }));
+                                        ensureAuth(() => dispatch(toggleBookmark({ uri: post.uri!, isBookmarked: !!post.isBookmarked })));
                                     }}
                                     className={cn(
                                         "flex items-center gap-2 group transition-colors",

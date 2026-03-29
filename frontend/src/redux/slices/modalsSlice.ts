@@ -15,6 +15,9 @@ interface ExtendedModalsState extends ModalsState {
         isOpen: boolean;
         subject: { uri?: string, did?: string, cid?: string, type: string } | null;
     };
+    authWall: {
+        isOpen: boolean;
+    };
 }
 
 const initialState: ExtendedModalsState = {
@@ -56,6 +59,9 @@ const initialState: ExtendedModalsState = {
     report: {
         isOpen: false,
         subject: null,
+    },
+    authWall: {
+        isOpen: false,
     },
 };
 
@@ -192,6 +198,12 @@ const modalsSlice = createSlice({
                 subject: null,
             };
         },
+        openAuthWall: (state) => {
+            state.authWall = { isOpen: true };
+        },
+        closeAuthWall: (state) => {
+            state.authWall = { isOpen: false };
+        },
         closeAllModals: (state) => {
             state.createPost = false;
             state.editProfile = false;
@@ -232,6 +244,9 @@ const modalsSlice = createSlice({
                 isOpen: false,
                 subject: null,
             };
+            state.authWall = {
+                isOpen: false,
+            };
         },
     },
 });
@@ -260,6 +275,8 @@ export const {
     closeDeleteConfirm,
     openReport,
     closeReport,
+    openAuthWall,
+    closeAuthWall,
     closeAllModals,
 } = modalsSlice.actions;
 

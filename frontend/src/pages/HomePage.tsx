@@ -27,6 +27,7 @@ const HomePage: React.FC = () => {
     const lastTab = React.useRef<string>('');
     const hasRestoredScroll = React.useRef<Record<string, boolean>>({});
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
+    const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
     
     // Lists state
@@ -156,30 +157,44 @@ const HomePage: React.FC = () => {
     }, [subscribedFeeds]);
 
     // Display tabs based on current pinned order from Feed settings.
-    const tabs = useMemo(() => [
-        ...pinnedHomeFeeds.map((f: FeedType) => {
-            const key = feedActionKey(f);
-            return {
-                id: key,
-                label: key === 'discover'
-                    ? t('nav.discover')
-                    : key === 'following'
-                        ? t('nav.following')
-                        : f.name
-            };
-        }),
-        ...pinnedLists.map((l: ListDto) => ({
-            id: `list:${l.id}`,
-            label: l.name
-        }))
-    ], [pinnedHomeFeeds, pinnedLists, t]);
+    const tabs = useMemo(() => {
+        if (!isAuthenticated && subscribedFeeds.length === 0) {
+            return [
+                { id: 'discover', label: t('nav.discover') },
+                { id: 'tag-politics', label: 'Politics' },
+                { id: 'tag-art', label: 'Art' },
+            ];
+        }
+
+        return [
+            ...pinnedHomeFeeds.map((f: FeedType) => {
+                const key = feedActionKey(f);
+                return {
+                    id: key,
+                    label: key === 'discover'
+                        ? t('nav.discover')
+                        : key === 'following'
+                            ? t('nav.following')
+                            : f.name
+                };
+            }),
+            ...pinnedLists.map((l: ListDto) => ({
+                id: `list:${l.id}`,
+                label: l.name
+            }))
+        ];
+    }, [pinnedHomeFeeds, pinnedLists, t, isAuthenticated, subscribedFeeds.length]);
 
     // Ensure a valid tab is always selected
     useEffect(() => {
         if (tabs.length > 0) {
             const isValidTab = tabs.some(tab => tab.id === activeTab);
             if (!isValidTab || !activeTab) {
-                dispatch(setActiveTab(tabs[0].id));
+                // For guests, prefer discover if available
+                const defaultTab = !isAuthenticated && tabs.some(t => t.id === 'discover') 
+                    ? 'discover' 
+                    : tabs[0].id;
+                dispatch(setActiveTab(defaultTab));
             }
         }
     }, [tabs, activeTab, dispatch]);
@@ -226,13 +241,15 @@ const HomePage: React.FC = () => {
                         />
 
                         <div className="flex items-center gap-0.5 flex-shrink-0">
-                            <button
-                                onClick={() => navigate('/feeds/settings')}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
-                                title={t('feeds.home_order_settings', { defaultValue: 'Feed order & pins' })}
-                            >
-                                <FiSettings size={22} />
-                            </button>
+                            {isAuthenticated && (
+                                <button
+                                    onClick={() => navigate('/feeds/settings')}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
+                                    title={t('feeds.home_order_settings', { defaultValue: 'Feed order & pins' })}
+                                >
+                                    <FiSettings size={22} />
+                                </button>
+                            )}
                             <button
                                 onClick={() => navigate('/feeds')}
                                 className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
@@ -267,8 +284,8 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
-                {pinnedHomeFeeds.map((feed: FeedType) => {
-                    const tabId = feedActionKey(feed);
+                {[...pinnedHomeFeeds, ...(!isAuthenticated && subscribedFeeds.length === 0 ? [{ id: 'discover' }, { id: 'tag-politics' }, { id: 'tag-art' }] : [])].map((feed: any) => {
+                    const tabId = feed.id || feedActionKey(feed);
                     const isDiscover = tabId === 'discover';
                     const isFollowing = tabId === 'following';
                     return (
