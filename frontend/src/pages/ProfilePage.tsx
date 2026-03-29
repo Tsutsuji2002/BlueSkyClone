@@ -64,16 +64,22 @@ const ProfilePage: React.FC = () => {
     }>({ isOpen: false, type: null });
     const isFetchingRef = React.useRef(false);
 
+    const lastFetchedHandle = React.useRef<string | null>(null);
+
     useEffect(() => {
-        if (handle) {
+        if (handle && handle !== lastFetchedHandle.current) {
             // Only fetch if we don't have this profile or it's different
-            if (!profileUser || profileUser.handle !== handle) {
+            if (!profileUser || (profileUser.handle !== handle && profileUser.did !== handle)) {
+                if (profileUser) {
+                    // Prevent previous user data and posts from bleeding entirely while new profile loads
+                    dispatch(clearProfile());
+                    dispatch(clearPosts());
+                }
+                lastFetchedHandle.current = handle;
                 dispatch(fetchUserProfile(handle));
             }
         }
-        // Remove clearProfile() from unmount to prevent flicker during navigation
-        // It will be cleared by the next fetch or a explicit logout if needed
-    }, [dispatch, handle, profileUser?.handle]);
+    }, [dispatch, handle, profileUser]);
 
     useEffect(() => {
         if (handle && profileUser?.handle && handle !== profileUser.handle) {
