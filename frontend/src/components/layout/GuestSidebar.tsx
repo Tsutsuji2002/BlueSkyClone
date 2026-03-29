@@ -60,18 +60,56 @@ const GuestSidebar: React.FC = () => {
             {/* Language Selector */}
             <div className="mt-auto relative group">
                 <div className="flex items-center gap-1 text-[15px] text-gray-500 dark:text-dark-text-secondary hover:underline cursor-pointer py-2">
-                    <span>{appLanguage === 'vi' ? 'Tiếng Việt' : 'English'}</span>
+                    <span>{t(`language.${appLanguage}`)}</span>
                     <FiChevronDown size={14} />
                 </div>
-                {/* Simplified dropdown for now */}
+                {/* Full list of 40+ languages matching bsky.app */}
                 <select
                     value={appLanguage}
                     onChange={(e) => handleLanguageChange(e.target.value)}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                 >
-                    <option value="en">English</option>
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="de">Deutsch</option>
+                    <option value="en">English (US)</option>
+                    <option value="en-GB">English (UK)</option>
+                    <option value="es">español (Spanish)</option>
+                    <option value="fr">français (French)</option>
+                    <option value="de">Deutsch (German)</option>
+                    <option value="ja">日本語 (Japanese)</option>
+                    <option value="ko">한국어 (Korean)</option>
+                    <option value="vi">Tiếng Việt (Vietnamese)</option>
+                    <option value="zh-CN">简体中文 (Simplified Chinese)</option>
+                    <option value="zh-TW">繁體中文 (Traditional Chinese)</option>
+                    <option value="pt-BR">português do Brasil (Brazilian Portuguese)</option>
+                    <option value="pt-PT">português europeu (European Portuguese)</option>
+                    <option value="it">italiano (Italian)</option>
+                    <option value="ru">русский (Russian)</option>
+                    <option value="uk">українська (Ukrainian)</option>
+                    <option value="hi">हिंदी (Hindi)</option>
+                    <option value="id">Bahasa Indonesia (Indonesian)</option>
+                    <option value="th">ภาษาไทย (Thai)</option>
+                    <option value="tr">Türkçe (Turkish)</option>
+                    <option value="pl">polski (Polish)</option>
+                    <option value="nl">Nederlands (Dutch)</option>
+                    <option value="sv">svenska (Swedish)</option>
+                    <option value="fi">suomi (Finnish)</option>
+                    <option value="el">Ελληνικά (Greek)</option>
+                    <option value="hu">magyar (Hungarian)</option>
+                    <option value="ro">română (Romanian)</option>
+                    <option value="ca">català (Catalan)</option>
+                    <option value="eu">euskara (Basque)</option>
+                    <option value="gl">galego (Galician)</option>
+                    <option value="ast">asturianu (Asturian)</option>
+                    <option value="an">aragonés (Aragonese)</option>
+                    <option value="cy">Cymraeg (Welsh)</option>
+                    <option value="da">dansk (Danish)</option>
+                    <option value="eo">Esperanto</option>
+                    <option value="fy">Frysk (West Frisian)</option>
+                    <option value="ga">Gaeilge (Irish)</option>
+                    <option value="gd">Gàidhlig (Scottish Gaelic)</option>
+                    <option value="ia">Interlingua</option>
+                    <option value="km">ภาษาเขมr (Khmer)</option>
+                    <option value="ne">नेपाली (Nepali)</option>
+                    <option value="yue">粵文 (Cantonese)</option>
                 </select>
             </div>
         </div>
