@@ -15,7 +15,6 @@ import { Feed as FeedType, ListDto } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import Button from '../components/common/Button';
 import ButterflyLogo from '../components/common/ButterflyLogo';
-import FeedsDiscovery from '../components/feed/FeedsDiscovery';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { feedActionKey } from '../utils/feedKeys';
 
@@ -111,6 +110,11 @@ const HomePage: React.FC = () => {
     }, [activeTab, feedPosts, activeListFeed.length]);
 
     const handleTabChange = (tabId: string) => {
+        if (tabId === 'feeds-discovery' && !isAuthenticated) {
+            navigate('/feeds');
+            return;
+        }
+
         dispatch(setActiveTab(tabId));
         const now = Date.now();
 
@@ -309,10 +313,6 @@ const HomePage: React.FC = () => {
                     );
                 })}
 
-                {/* Feeds Discovery Panel for Guests */}
-                {!isAuthenticated && activeTab === 'feeds-discovery' && (
-                    <FeedsDiscovery />
-                )}
 
                 {/* Pinned Lists Panels */}
                 {pinnedLists.map((list: ListDto) => {
