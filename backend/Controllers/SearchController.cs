@@ -24,22 +24,30 @@ public class SearchController : ControllerBase
         _cache = cache;
     }
 
+    [AllowAnonymous]
     [HttpGet("posts")]
     public async Task<IActionResult> SearchPosts([FromQuery] string q, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
 
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
-
-        // 1. Check for Bluesky token
-        var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId}");
-        if (!string.IsNullOrEmpty(bskyToken))
+        Guid? userId = null;
+        if (Guid.TryParse(userIdStr, out var parsedUserId))
         {
-            var remotePosts = await _postService.SearchPostsRemoteAsync(q, bskyToken, skip, take);
-            if (remotePosts.Any())
+            userId = parsedUserId;
+        }
+
+        if (userId.HasValue)
+        {
+            // 1. Check for Bluesky token
+            var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+            if (!string.IsNullOrEmpty(bskyToken))
             {
-                return Ok(remotePosts);
+                var remotePosts = await _postService.SearchPostsRemoteAsync(q, bskyToken, skip, take);
+                if (remotePosts.Any())
+                {
+                    return Ok(remotePosts);
+                }
             }
         }
 
@@ -49,43 +57,52 @@ public class SearchController : ControllerBase
         // 3. Fallback to DB search
         if (postIds.Count == 0)
         {
-            var dbPosts = await _postService.SearchPostsDBAsync(q, userId, take, skip);
+            // DB search can work without user authentication if we just skip subscription checking
+            var dbPosts = await _postService.SearchPostsDBAsync(q, userId ?? Guid.Empty, take, skip);
             return Ok(dbPosts);
         }
 
         // Hydrate posts from DB
-        var posts = await _postService.GetPostsByIdsAsync(postIds, userId);
+        var posts = await _postService.GetPostsByIdsAsync(postIds, userId ?? Guid.Empty);
         return Ok(posts);
     }
 
+    [AllowAnonymous]
     [HttpGet("users")]
     public async Task<IActionResult> SearchUsers([FromQuery] string q, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
 
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
-
-        // 1. Check for Bluesky token
-        var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId}");
-        if (!string.IsNullOrEmpty(bskyToken))
+        Guid? userId = null;
+        if (Guid.TryParse(userIdStr, out var parsedUserId))
         {
-            var remoteUsers = await _userService.SearchActorsRemoteAsync(q, bskyToken, skip, take);
-            if (remoteUsers.Any())
+            userId = parsedUserId;
+        }
+
+        if (userId.HasValue)
+        {
+            // 1. Check for Bluesky token
+            var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+            if (!string.IsNullOrEmpty(bskyToken))
             {
-                return Ok(remoteUsers.Select(user => new
+                var remoteUsers = await _userService.SearchActorsRemoteAsync(q, bskyToken, skip, take);
+                if (remoteUsers.Any())
                 {
-                    user.Id,
-                    user.Handle,
-                    user.Username,
-                    user.DisplayName,
-                    user.AvatarUrl,
-                    user.Bio,
-                    user.FollowersCount,
-                    user.FollowingCount,
-                    user.PostsCount,
-                    user.Did
-                }));
+                    return Ok(remoteUsers.Select(user => new
+                    {
+                        user.Id,
+                        user.Handle,
+                        user.Username,
+                        user.DisplayName,
+                        user.AvatarUrl,
+                        user.Bio,
+                        user.FollowersCount,
+                        user.FollowingCount,
+                        user.PostsCount,
+                        user.Did
+                    }));
+                }
             }
         }
 
