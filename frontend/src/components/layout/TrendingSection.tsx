@@ -42,7 +42,7 @@ const TrendingSection: React.FC = () => {
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1">
                     <svg fill="none" width="16" height="16" viewBox="0 0 24 24">
-                        <path fill="#FFFFFF" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z" />
+                        <path fill="currentColor" className="text-gray-900 dark:text-white" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z" />
                     </svg>
                     <h2 className="text-[15px] font-semibold text-gray-900 dark:text-dark-text">
                         {t('sidebar.trending_header', { defaultValue: 'Trending' })}
@@ -50,7 +50,7 @@ const TrendingSection: React.FC = () => {
                 </div>
                 <button 
                     onClick={() => setIsConfirmModalOpen(true)}
-                    className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full text-gray-500 dark:text-[#8798b0] transition-colors"
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full text-gray-400 dark:text-[#8798b0] transition-colors"
                 >
                     <FiMoreHorizontal size={15} />
                 </button>
@@ -68,10 +68,10 @@ const TrendingSection: React.FC = () => {
                             onClick={() => navigate(`/search?q=${encodeURIComponent(topic.hashtag)}`)}
                             className="flex items-center gap-1 text-left group"
                         >
-                            <span className="text-[13.1px] text-gray-400 dark:text-[#526580] min-w-[20px]">
+                            <span className="text-[13.1px] text-gray-500 min-w-[20px]">
                                 {index + 1}.
                             </span>
-                            <span className="text-[13.1px] text-gray-700 dark:text-[#a5b2c5] group-hover:underline truncate">
+                            <span className="text-[14px] font-medium text-gray-900 dark:text-[#a5b2c5] group-hover:underline truncate">
                                 {topic.hashtag}
                             </span>
                         </button>

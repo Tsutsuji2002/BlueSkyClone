@@ -156,8 +156,8 @@ const RightSidebar: React.FC = () => {
         <div className="flex flex-col gap-4 w-[330px] h-screen sticky top-0 py-[20px] pr-[2px] pb-[20px] pl-[28px] overflow-y-auto no-scrollbar">
             {/* Search Bar Container */}
             <div className="relative w-full group" ref={searchRef}>
-                <div className="flex items-center gap-3 px-3 py-2 bg-gray-100 dark:bg-[#19222e] rounded-[10px] border border-transparent focus-within:border-primary-500 transition-all">
-                    <FiSearch className="text-gray-500 dark:text-[#667b99] flex-shrink-0" size={18} />
+                <div className="flex items-center gap-3 px-3 py-2 bg-gray-100/80 dark:bg-[#19222e] rounded-full border border-transparent focus-within:border-primary-500 transition-all">
+                    <FiSearch className="text-gray-400 dark:text-[#667b99] flex-shrink-0" size={18} />
                     <input
                         type="text"
                         placeholder={t('sidebar.search_placeholder', { defaultValue: 'Search' })}
@@ -168,7 +168,7 @@ const RightSidebar: React.FC = () => {
                         }}
                         onFocus={() => setShowResults(true)}
                         onKeyDown={handleKeyDown}
-                        className="bg-transparent border-none outline-none text-[15px] text-gray-900 dark:text-white w-full placeholder-gray-500 dark:placeholder-[#667b99] py-1"
+                        className="bg-transparent border-none outline-none text-[15px] text-gray-900 dark:text-white w-full placeholder-gray-400 dark:placeholder-[#667b99] py-1"
                     />
                     {searchQuery && (
                         <button onClick={clearSearch} className="text-gray-500 dark:text-[#667b99] hover:text-gray-700 dark:hover:text-white">
@@ -318,14 +318,12 @@ const RightSidebar: React.FC = () => {
             <TrendingSection />
 
             {/* Footer Links */}
-            <div className="px-2 mt-auto flex flex-wrap gap-x-2.5 gap-y-1">
-                <a href="#" className="text-[13.1px] text-gray-500 dark:text-[#a5b2c5] hover:underline">Feedback</a>
-                <span className="text-gray-300 dark:text-[#526580]">∙</span>
-                <a href="#" className="text-[13.1px] text-gray-500 dark:text-[#a5b2c5] hover:underline">Privacy</a>
-                <span className="text-gray-300 dark:text-[#526580]">∙</span>
-                <a href="#" className="text-[13.1px] text-gray-500 dark:text-[#a5b2c5] hover:underline">Terms</a>
-                <span className="text-gray-300 dark:text-[#526580]">∙</span>
-                <a href="#" className="text-[13.1px] text-gray-500 dark:text-[#a5b2c5] hover:underline">Help</a>
+            <div className="px-2 mt-auto flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-dark-text-secondary">
+                <a href="#" className="text-[13.1px] hover:underline">Privacy</a>
+                <span className="text-[13.1px]">·</span>
+                <a href="#" className="text-[13.1px] hover:underline">Terms</a>
+                <span className="text-[13.1px]">·</span>
+                <a href="#" className="text-[13.1px] hover:underline">Help</a>
             </div>
         </div>
     );

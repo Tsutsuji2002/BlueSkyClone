@@ -13,6 +13,7 @@ import { useNavigate, useNavigationType } from 'react-router-dom';
 import { FiHash, FiMenu, FiSettings } from 'react-icons/fi';
 import { Feed as FeedType, ListDto } from '../types';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
+import Button from '../components/common/Button';
 import ButterflyLogo from '../components/common/ButterflyLogo';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { feedActionKey } from '../utils/feedKeys';
@@ -161,8 +162,7 @@ const HomePage: React.FC = () => {
         if (!isAuthenticated && subscribedFeeds.length === 0) {
             return [
                 { id: 'discover', label: t('nav.discover') },
-                { id: 'tag-politics', label: 'Politics' },
-                { id: 'tag-art', label: 'Art' },
+                { id: 'feeds-discovery', label: t('nav.feeds_discovery', { defaultValue: 'Feeds ✨' }) },
             ];
         }
 
@@ -284,7 +284,7 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
-                {[...pinnedHomeFeeds, ...(!isAuthenticated && subscribedFeeds.length === 0 ? [{ id: 'discover' }, { id: 'tag-politics' }, { id: 'tag-art' }] : [])].map((feed: any) => {
+                {[...pinnedHomeFeeds, ...(!isAuthenticated && subscribedFeeds.length === 0 ? [{ id: 'discover' }, { id: 'feeds-discovery' }] : [])].map((feed: any) => {
                     const tabId = feedActionKey(feed) || feed.id;
                     const isDiscover = tabId === 'discover';
                     const isFollowing = tabId === 'following';
@@ -307,6 +307,24 @@ const HomePage: React.FC = () => {
                         </div>
                     );
                 })}
+
+                {/* Feeds Discovery Panel for Guests */}
+                {!isAuthenticated && activeTab === 'feeds-discovery' && (
+                    <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+                        <ButterflyLogo className="w-16 h-16 text-primary-500 mb-6 opacity-20" />
+                        <h3 className="text-xl font-bold mb-2">{t('feeds.discovery_guest_title', { defaultValue: 'Discover Feeds' })}</h3>
+                        <p className="text-gray-500 dark:text-dark-text-secondary mb-6 max-w-sm">
+                            {t('feeds.discovery_guest_desc', { defaultValue: 'Sign in to discover and subscribe to thousands of custom feeds created by the community.' })}
+                        </p>
+                        <Button 
+                            variant="primary" 
+                            className="rounded-full px-8"
+                            onClick={() => navigate('/login')}
+                        >
+                            {t('auth.welcome.login', { defaultValue: 'Sign in' })}
+                        </Button>
+                    </div>
+                )}
 
                 {/* Pinned Lists Panels */}
                 {pinnedLists.map((list: ListDto) => {

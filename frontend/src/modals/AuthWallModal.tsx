@@ -36,11 +36,12 @@ const AuthWallModal: React.FC = () => {
                     <FiX size={20} />
                 </button>
 
-                <div className="p-8 flex flex-col items-center text-center">
-                    <ButterflyLogo className="w-12 h-12 text-primary-500 mb-6" />
+                <div className="p-8 pb-10 flex flex-col items-center text-center">
+                    <ButterflyLogo className="w-16 h-16 text-[#0085FF] mb-2" />
+                    <h1 className="text-[26px] font-black text-[#0085FF] mb-6">Bluesky</h1>
                     
-                    <h2 className="text-2xl font-black text-gray-900 dark:text-dark-text leading-tight mb-8 px-4">
-                        {t('auth.wall.title', { defaultValue: 'Sign up or Log in to join the conversation!' })}
+                    <h2 className="text-[20px] font-bold text-gray-900 dark:text-dark-text leading-snug mb-8 px-2">
+                        {t('auth.wall.title', { defaultValue: 'Sign in or create your account to join the conversation!' })}
                     </h2>
 
                     <div className="space-y-3 w-full">
@@ -49,9 +50,9 @@ const AuthWallModal: React.FC = () => {
                             size="lg"
                             fullWidth
                             onClick={() => handleAction('/signup')}
-                            className="rounded-full font-bold text-base h-[48px]"
+                            className="rounded-full font-bold text-[17px] h-[52px] bg-[#0085FF] hover:bg-[#0074e0] border-none"
                         >
-                            {t('auth.welcome.create_account', { defaultValue: 'Create account' })}
+                            {t('auth.welcome.create_account', { defaultValue: 'Create an account' })}
                         </Button>
 
                         <Button
@@ -59,7 +60,7 @@ const AuthWallModal: React.FC = () => {
                             size="lg"
                             fullWidth
                             onClick={() => handleAction('/login')}
-                            className="rounded-full font-bold text-base h-[48px] bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-gray-900 dark:text-dark-text"
+                            className="rounded-full font-bold text-[17px] h-[52px] bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-gray-900 dark:text-dark-text border-none"
                         >
                             {t('auth.welcome.login', { defaultValue: 'Sign in' })}
                         </Button>
