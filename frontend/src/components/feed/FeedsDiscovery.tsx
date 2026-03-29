@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiSettings, FiSearch } from 'react-icons/fi';
-import ButterflyLogo from '../common/ButterflyLogo';
 
 interface ShowcaseFeed {
     id: string;
@@ -13,8 +13,13 @@ interface ShowcaseFeed {
     color: string;
 }
 
-const FeedsDiscovery: React.FC = () => {
+interface FeedsDiscoveryProps {
+    hideHeader?: boolean;
+}
+
+const FeedsDiscovery: React.FC<FeedsDiscoveryProps> = ({ hideHeader = false }) => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
 
     const showcaseFeeds: ShowcaseFeed[] = [
         {
@@ -60,7 +65,23 @@ const FeedsDiscovery: React.FC = () => {
     ];
 
     return (
-        <div className="flex flex-col bg-white dark:bg-dark-bg">
+        <div className="flex flex-col min-h-screen bg-white dark:bg-dark-bg">
+            {!hideHeader && (
+                <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md border-b border-gray-100 dark:border-dark-border px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                        >
+                            <FiArrowLeft className="text-gray-900 dark:text-dark-text" size={20} />
+                        </button>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text">
+                            {t('feeds.title', { defaultValue: 'Feeds' })}
+                        </h2>
+                    </div>
+                    <FiSettings className="text-gray-900 dark:text-dark-text cursor-pointer" size={20} />
+                </div>
+            )}
             <div className="p-4 space-y-6">
                 {/* Discover Header Section */}
                 <div className="flex items-start gap-4">

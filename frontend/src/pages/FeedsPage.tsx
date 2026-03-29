@@ -24,6 +24,7 @@ import {
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { feedActionKey } from '../utils/feedKeys';
+import FeedsDiscovery from '../components/feed/FeedsDiscovery';
 
 const FeedsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -120,6 +121,12 @@ const FeedsPage: React.FC = () => {
     }, [subscribedFeeds]);
 
     const myFeedsCollapsedAt = 12;
+
+    const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
+
+    if (!isAuthenticated) {
+        return <FeedsDiscovery />;
+    }
 
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
