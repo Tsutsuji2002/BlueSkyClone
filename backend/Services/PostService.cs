@@ -35,8 +35,9 @@ public class PostService : IPostService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly string _localDomain;
     private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, IHttpClientFactory httpClientFactory)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -54,6 +55,7 @@ public class PostService : IPostService
         _scopeFactory = scopeFactory;
         _localDomain = configuration["DomainName"] ?? "bskyclone.site";
         _distributedCache = distributedCache;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)

@@ -49,7 +49,7 @@ public class FeedService : IFeedService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid userId)
+    public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid? userId)
     {
         try
         {
@@ -69,12 +69,14 @@ public class FeedService : IFeedService
         return await GetHardcodedOfficialFeedsAsync(userId);
     }
 
-    private async Task<List<FeedDto>> GetPopularRemoteFeedsAsync(Guid userId)
+    private async Task<List<FeedDto>> GetPopularRemoteFeedsAsync(Guid? userId)
     {
         try
         {
-            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
-            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (!userId.HasValue) return new List<FeedDto>();
+            
+            var token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+            var user = await _unitOfWork.Users.GetByIdAsync(userId.Value);
             if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
             {
                 // Unauthenticated or no DID, but we still want discovery. 
@@ -145,7 +147,7 @@ public class FeedService : IFeedService
         }
     }
 
-    private async Task<List<FeedDto>> GetHardcodedOfficialFeedsAsync(Guid userId)
+    private async Task<List<FeedDto>> GetHardcodedOfficialFeedsAsync(Guid? userId)
     {
         // Guaranteed official feeds to show if discovery fails
         var officialUris = new List<string>
@@ -158,32 +160,35 @@ public class FeedService : IFeedService
         return await ResolveFeedsMetadataAsync(officialUris, userId);
     }
 
-    private async Task<List<FeedDto>> ResolveFeedsMetadataAsync(List<string> uris, Guid userId)
+    private async Task<List<FeedDto>> ResolveFeedsMetadataAsync(List<string> uris, Guid? userId)
     {
         if (!uris.Any()) return new List<FeedDto>();
         
         try
         {
-            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = userId.HasValue ? await _cache.GetStringAsync($"BlueskyToken_{userId.Value}") : null;
             var savedUris = new HashSet<string>();
             var pinnedUris = new HashSet<string>();
             
             // Try to get user preferences to mark sub/pin status
             try
             {
-                var userObj = await _unitOfWork.Users.GetByIdAsync(userId);
-                if (userObj != null && !string.IsNullOrEmpty(userObj.Did) && !string.IsNullOrEmpty(token))
+                if (userId.HasValue)
                 {
-                    var pref = await GetUserPreferencesAsync(userObj.Did, token);
-                    if (pref != null)
+                    var userObj = await _unitOfWork.Users.GetByIdAsync(userId.Value);
+                    if (userObj != null && !string.IsNullOrEmpty(userObj.Did) && !string.IsNullOrEmpty(token))
                     {
-                        savedUris = pref.SavedUris;
-                        pinnedUris = pref.PinnedUris;
+                        var pref = await GetUserPreferencesAsync(userObj.Did, token);
+                        if (pref != null)
+                        {
+                            savedUris = pref.SavedUris;
+                            pinnedUris = pref.PinnedUris;
+                        }
                     }
                 }
             } catch { }
 
-            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            var user = userId.HasValue ? await _unitOfWork.Users.GetByIdAsync(userId.Value) : null;
             if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
             {
                 // If not authenticated, we can't use the proxy for specific DID. 
@@ -809,7 +814,7 @@ public class FeedService : IFeedService
         }
     }
 
-    public async Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid userId, string query, int skip, int take)
+    public async Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid? userId, string query, int skip, int take)
     {
         var feeds = await _unitOfWork.Feeds.Query()
             .Include(f => f.Creator)
@@ -820,15 +825,21 @@ public class FeedService : IFeedService
             .Take(take)
             .ToListAsync();
 
-        var userSubscribedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
-            .Where(s => s.UserId == userId)
-            .Select(s => s.FeedId)
-            .ToListAsync();
+        var userSubscribedFeedIds = new List<Guid>();
+        var userPinnedFeedIds = new List<Guid>();
 
-        var userPinnedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
-            .Where(s => s.UserId == userId && s.IsPinned == true)
-            .Select(s => s.FeedId)
-            .ToListAsync();
+        if (userId.HasValue)
+        {
+            userSubscribedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
+                .Where(s => s.UserId == userId.Value)
+                .Select(s => s.FeedId)
+                .ToListAsync();
+
+            userPinnedFeedIds = await _unitOfWork.UserFeedSubscriptions.Query()
+                .Where(s => s.UserId == userId.Value && s.IsPinned == true)
+                .Select(s => s.FeedId)
+                .ToListAsync();
+        }
 
         return feeds.Select(f => MapToDto(f, userPinnedFeedIds.Contains(f.Id), 0, userSubscribedFeedIds.Contains(f.Id)));
     }
