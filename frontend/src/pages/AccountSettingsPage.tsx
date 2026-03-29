@@ -408,66 +408,62 @@ const AccountSettingsPage: React.FC = () => {
                 {/* Content */}
                 <div className="flex flex-col">
                     {/* Access / Security Group */}
-                    <div className="py-2">
-                        <button
-                            onClick={() => !isRemoteUser && setActiveModal('email')}
-                            disabled={isRemoteUser}
-                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 
-                                ${isRemoteUser ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-dark-surface/50'}`}
-                        >
-                            <div className="flex items-center gap-4">
-                                <FiMail size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <div className="flex flex-col items-start">
-                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.email')}</span>
-                                    <span className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                        {isLoadingAccount ? '...' : (accountInfo?.email || user?.email)}
-                                    </span>
+                    {!isRemoteUser && (
+                        <div className="py-2">
+                            <button
+                                onClick={() => setActiveModal('email')}
+                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <FiMail size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
+                                    <div className="flex flex-col items-start">
+                                        <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.email')}</span>
+                                        <span className="text-sm text-gray-500 dark:text-dark-text-secondary">
+                                            {isLoadingAccount ? '...' : (accountInfo?.email || user?.email)}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {user?.isVerified && <FiCheck className="text-blue-500" />}
-                            </div>
-                        </button>
+                                <div className="flex items-center gap-2">
+                                    {user?.isVerified && <FiCheck className="text-blue-500" />}
+                                </div>
+                            </button>
 
-                        <button
-                            onClick={() => !isRemoteUser && setActiveModal('email')}
-                            disabled={isRemoteUser}
-                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 
-                                ${isRemoteUser ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-dark-surface/50'}`}
-                        >
-                            <div className="flex items-center gap-4">
-                                <FiEdit2 size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.update_email')}</span>
-                            </div>
-                            <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
-                        </button>
+                            <button
+                                onClick={() => setActiveModal('email')}
+                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <FiEdit2 size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
+                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.update_email')}</span>
+                                </div>
+                                <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
+                            </button>
 
-                        <button
-                            onClick={() => !isRemoteUser && setActiveModal('password')}
-                            disabled={isRemoteUser}
-                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 
-                                ${isRemoteUser ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-dark-surface/50'}`}
-                        >
-                            <div className="flex items-center gap-4">
-                                <FiLock size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.password')}</span>
-                            </div>
-                            <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
-                        </button>
+                            <button
+                                onClick={() => setActiveModal('password')}
+                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <FiLock size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
+                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.password')}</span>
+                                </div>
+                                <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
+                            </button>
 
-                        <button
-                            onClick={() => !isRemoteUser && setActiveModal('handle')}
-                            disabled={isRemoteUser}
-                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 
-                                ${isRemoteUser ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-dark-surface/50'}`}
-                        >
-                            <div className="flex items-center gap-4">
-                                <FiAtSign size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">Change Handle</span>
-                            </div>
-                            <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
-                        </button>
+                            <button
+                                onClick={() => setActiveModal('handle')}
+                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <FiAtSign size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
+                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">Change Handle</span>
+                                </div>
+                                <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
+                            </button>
+                        </div>
+                    )}
 
+                    <div className="py-2">
                         <button
                             onClick={() => setActiveModal('birthdate')}
                             className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
@@ -497,27 +493,31 @@ const AccountSettingsPage: React.FC = () => {
                             <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
                         </button>
 
-                        <button
-                            onClick={() => setActiveModal('deactivate')}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <FiAlertCircle size={22} className="text-red-500 group-hover:text-red-600" />
-                                <span className="text-[15px] font-medium text-red-500 group-hover:text-red-600">{t('settings.deactivate_account')}</span>
-                            </div>
-                            <FiChevronRight className="text-red-200 group-hover:text-red-300" />
-                        </button>
+                        {!isRemoteUser && (
+                            <>
+                                <button
+                                    onClick={() => setActiveModal('deactivate')}
+                                    className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <FiAlertCircle size={22} className="text-red-500" />
+                                        <span className="text-[15px] font-medium text-red-500">{t('settings.deactivate_account')}</span>
+                                    </div>
+                                    <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
+                                </button>
 
-                        <button
-                            onClick={() => setActiveModal('delete')}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <FiTrash2 size={22} className="text-red-500 group-hover:text-red-600" />
-                                <span className="text-[15px] font-medium text-red-500 group-hover:text-red-600">{t('settings.delete_account')}</span>
-                            </div>
-                            <FiChevronRight className="text-red-200 group-hover:text-red-300" />
-                        </button>
+                                <button
+                                    onClick={() => setActiveModal('delete')}
+                                    className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <FiTrash2 size={22} className="text-red-500" />
+                                        <span className="text-[15px] font-medium text-red-500">{t('settings.delete_account')}</span>
+                                    </div>
+                                    <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
