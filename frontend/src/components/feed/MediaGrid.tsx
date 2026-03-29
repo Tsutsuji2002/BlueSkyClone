@@ -241,7 +241,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
 
     const isVideoUrl = (url: string) => {
         if (!url) return false;
-        const videoExtensions = ['.mp4', '.mov', '.webm', '.ogg', '.m4v'];
+        const videoExtensions = ['.mp4', '.mov', '.webm', '.ogg', '.m4v', '.m3u8'];
         const urlWithoutQuery = url.split('?')[0].toLowerCase();
         return videoExtensions.some(ext => urlWithoutQuery.endsWith(ext));
     };

@@ -280,40 +280,6 @@ public class PostService : IPostService
             var createdAtStr = recordObj.TryGetProperty("createdAt", out var ca) ? ca.GetString() : null;
             DateTime.TryParse(createdAtStr, out var createdAt);
 
-            var imageUrls = new List<string>();
-            LinkPreviewDto? linkPreview = null;
-            if (postObj.TryGetProperty("embed", out var postEmbed))
-            {
-                var embedType = postEmbed.TryGetProperty("$type", out var et) ? et.GetString() : "";
-
-                if (embedType == "app.bsky.embed.images#view" || postEmbed.TryGetProperty("images", out var _))
-                {
-                    if (postEmbed.TryGetProperty("images", out var pImages))
-                    {
-                        foreach (var pImg in pImages.EnumerateArray())
-                        {
-                            if (pImg.TryGetProperty("fullsize", out var fz) && fz.ValueKind != System.Text.Json.JsonValueKind.Null)
-                                imageUrls.Add(fz.GetString()!);
-                        }
-                    }
-                }
-                
-                if (embedType == "app.bsky.embed.external#view" || postEmbed.TryGetProperty("external", out var _))
-                {
-                    if (postEmbed.TryGetProperty("external", out var pExternal))
-                    {
-                        linkPreview = new LinkPreviewDto
-                        {
-                            Url = pExternal.GetProperty("uri").GetString()!,
-                            Title = pExternal.TryGetProperty("title", out var title) ? title.GetString() : null,
-                            Description = pExternal.TryGetProperty("description", out var desc) ? desc.GetString() : null,
-                            Image = pExternal.TryGetProperty("thumb", out var thumb) ? thumb.GetString() : null,
-                            Domain = new Uri(pExternal.GetProperty("uri").GetString()!).Host.Replace("www.", "")
-                        };
-                    }
-                }
-            }
-
             var facets = new List<FacetDto>();
             if (recordObj.TryGetProperty("facets", out var facetsProp))
             {
@@ -349,7 +315,7 @@ public class PostService : IPostService
             var cid = postObj.GetProperty("cid").GetString();
             var tid = uri?.Split('/').Last() ?? Guid.NewGuid().ToString();
 
-            return new PostDto
+            var postDto = new PostDto
             {
                 Id = Guid.NewGuid(),
                 Tid = tid,
@@ -364,10 +330,15 @@ public class PostService : IPostService
                 RepliesCount = replyCount,
                 QuotesCount = quoteCount,
                 IsLiked = isLiked,
-                IsReposted = isReposted,
-                ImageUrls = imageUrls,
-                LinkPreview = linkPreview
+                IsReposted = isReposted
             };
+
+            if (postObj.TryGetProperty("embed", out var postEmbed))
+            {
+                MapEmbedToDto(postDto, postEmbed);
+            }
+
+            return postDto;
         }
         catch (Exception ex)
         {

@@ -1137,7 +1137,9 @@ public class FeedService : IFeedService
                         return await _postService.GetDiscoverPostsAsync(userId.Value, take, skip);
                     }
 
-                    return await _postService.GetTrendingPosts24hAsync(null, take, skip);
+                    // For guests, use official Bluesky "What's Hot" instead of local trending
+                    _logger.LogInformation("[FeedService] Guest Discover: Fetching remote 'What's Hot' feed for unauthenticated user.");
+                    return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", null, skip, take);
                 }
 
                 return await GetRemoteFeedPostsAsync(uri, userId, skip, take);
