@@ -70,14 +70,14 @@ const OnboardingCard: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#19222e] rounded-xl p-4 relative mb-3">
+        <div className="bg-gray-50 dark:bg-[#19222e] rounded-xl p-4 relative mb-3 border border-gray-100 dark:border-transparent">
             <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-[15px] text-white">
+                <h3 className="font-semibold text-[15px] text-gray-900 dark:text-white">
                     {t('sidebar.follow_ten', { defaultValue: 'Follow 10 people to get started' })}
                 </h3>
                 <button 
                     onClick={() => setIsHidden(true)}
-                    className="p-1 hover:bg-white/10 rounded-full text-[#8798b0] transition-colors"
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full text-gray-500 dark:text-[#8798b0] transition-colors"
                 >
                     <FiX size={15} />
                 </button>
@@ -88,20 +88,20 @@ const OnboardingCard: React.FC = () => {
                     {avatars.length > 0 ? (
                         <>
                             {avatars.map((avatar, i) => (
-                                <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] overflow-hidden border border-[#232e3e] z-[10]">
+                                <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-gray-50 dark:ring-[#19222e] overflow-hidden border border-gray-200 dark:border-[#232e3e] z-[10]">
                                     <img src={avatar} alt="" className="h-full w-full object-cover" />
                                 </div>
                             ))}
                             {avatars.length < 10 && [...Array(10 - avatars.length)].map((_, i) => (
-                                <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#232e3e] flex items-center justify-center border border-[#232e3e]">
-                                    <FiUser className="text-[#526580]" size={16} />
+                                <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-gray-50 dark:ring-[#19222e] bg-gray-100 dark:bg-[#232e3e] flex items-center justify-center border border-gray-200 dark:border-[#232e3e]">
+                                    <FiUser className="text-gray-400 dark:text-[#526580]" size={16} />
                                 </div>
                             ))}
                         </>
                     ) : (
                         [...Array(10)].map((_, i) => (
-                            <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#232e3e] flex items-center justify-center border border-[#232e3e]">
-                                <FiUser className="text-[#526580]" size={16} />
+                            <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-gray-50 dark:ring-[#19222e] bg-gray-100 dark:bg-[#232e3e] flex items-center justify-center border border-gray-200 dark:border-[#232e3e]">
+                                <FiUser className="text-gray-400 dark:text-[#526580]" size={16} />
                             </div>
                         ))
                     )}

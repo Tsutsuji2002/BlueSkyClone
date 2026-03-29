@@ -285,7 +285,7 @@ const HomePage: React.FC = () => {
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
                 {[...pinnedHomeFeeds, ...(!isAuthenticated && subscribedFeeds.length === 0 ? [{ id: 'discover' }, { id: 'tag-politics' }, { id: 'tag-art' }] : [])].map((feed: any) => {
-                    const tabId = feed.id || feedActionKey(feed);
+                    const tabId = feedActionKey(feed) || feed.id;
                     const isDiscover = tabId === 'discover';
                     const isFollowing = tabId === 'following';
                     return (
