@@ -64,7 +64,10 @@ public class UnifiedFeedController : ControllerBase
                 case "discover":
                     if (viewerId == null)
                     {
-                        posts = await _postService.GetTrendingPosts24hAsync(null, take, skip);
+                        // For guests, use official Bluesky "What's Hot" feed for rich, media-full content
+                        _logger.LogInformation("[UnifiedFeed] Guest discover: routing to remote Bluesky What's Hot");
+                        posts = await feedService.GetFeedPostsAsync(Guid.Empty, null, skip, take,
+                            "at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot");
                     }
                     else
                     {
