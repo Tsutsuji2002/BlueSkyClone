@@ -38,44 +38,42 @@ const TrendingSection: React.FC = () => {
     };
 
     return (
-        <div className="bg-gray-50/50 dark:bg-dark-surface rounded-2xl overflow-hidden mb-4">
-            <div className="flex items-center justify-between p-4 pb-2">
-                <h2 className="text-[17px] font-bold text-gray-900 dark:text-dark-text">
-                    {t('sidebar.trending_header', { defaultValue: 'Trending Topics' })}
-                </h2>
+        <div className="border border-[#232e3e] rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1">
+                    <svg fill="none" width="16" height="16" viewBox="0 0 24 24">
+                        <path fill="#FFFFFF" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z" />
+                    </svg>
+                    <h2 className="text-[15px] font-semibold text-white">
+                        {t('sidebar.trending_header', { defaultValue: 'Trending' })}
+                    </h2>
+                </div>
                 <button 
                     onClick={() => setIsConfirmModalOpen(true)}
-                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-hover rounded-full text-gray-500 transition-colors"
+                    className="p-1 hover:bg-white/10 rounded-full text-[#8798b0] transition-colors"
                 >
-                    <FiMoreHorizontal size={18} />
+                    <FiMoreHorizontal size={15} />
                 </button>
             </div>
 
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-1">
                 {isLoading ? (
-                    <div className="p-8 flex justify-center">
-                        <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="py-4 flex justify-center">
+                        <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : (
                     trendingTopics.slice(0, 5).map((topic: TrendingTopic, index) => (
                         <button
                             key={topic.id}
                             onClick={() => navigate(`/search?q=${encodeURIComponent(topic.hashtag)}`)}
-                            className="flex items-start gap-4 px-4 py-3 hover:bg-gray-200/50 dark:hover:bg-dark-hover transition-colors text-left group"
+                            className="flex items-center gap-1 text-left group"
                         >
-                            <span className="text-[15px] font-bold text-gray-400 mt-0.5">
+                            <span className="text-[13.1px] text-[#526580] min-w-[20px]">
                                 {index + 1}.
                             </span>
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-[15px] font-bold text-gray-900 dark:text-dark-text leading-tight group-hover:text-primary-500 transition-colors truncate">
-                                    {topic.hashtag}
-                                </span>
-                                {topic.postsCount !== undefined && (
-                                    <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary mt-0.5">
-                                        {topic.postsCount} {t('common.posts', { defaultValue: 'posts' })}
-                                    </span>
-                                )}
-                            </div>
+                            <span className="text-[13.1px] text-[#a5b2c5] group-hover:underline truncate">
+                                {topic.hashtag}
+                            </span>
                         </button>
                     ))
                 )}
@@ -83,8 +81,8 @@ const TrendingSection: React.FC = () => {
 
             {!isLoading && trendingTopics.length > 5 && (
                 <button
-                    onClick={() => navigate('/trending')}
-                    className="w-full flex items-center justify-between px-4 py-3 text-primary-500 hover:bg-gray-200/50 dark:hover:bg-dark-hover transition-colors text-[15px] font-medium"
+                    onClick={() => navigate('/explore')}
+                    className="w-full mt-3 flex items-center justify-between text-[#006aff] hover:underline text-[15px] font-medium"
                 >
                     {t('common.show_more', { defaultValue: 'Show more' })}
                     <FiChevronRight size={18} />
@@ -104,5 +102,6 @@ const TrendingSection: React.FC = () => {
         </div>
     );
 };
+
 
 export default TrendingSection;

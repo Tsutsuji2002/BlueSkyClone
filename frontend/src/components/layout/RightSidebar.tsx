@@ -12,6 +12,7 @@ import LoadingIndicator from '../common/LoadingIndicator';
 import TrendingSection from './TrendingSection';
 import OnboardingCard from './OnboardingCard';
 import { feedActionKey } from '../../utils/feedKeys';
+import { cn } from '../../utils/classNames';
 
 const RightSidebar: React.FC = () => {
     const { t } = useTranslation();
@@ -114,7 +115,11 @@ const RightSidebar: React.FC = () => {
     }, [feeds, pinnedFeedIds]);
 
     const handleFeedClick = (feed: any) => {
-        navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
+        if (feedActionKey(feed) === 'following') {
+            navigate('/');
+        } else {
+            navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
+        }
     };
 
     const clearSearch = () => {
@@ -124,14 +129,14 @@ const RightSidebar: React.FC = () => {
     };
 
     return (
-        <div className="h-screen sticky top-0 py-2 px-4 space-y-4 overflow-y-auto no-scrollbar">
-            {/* Search Bar */}
-            <div className="relative pt-1" ref={searchRef}>
-                <div className="relative">
-                    <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
+        <div className="flex flex-col gap-4 w-[330px] h-screen sticky top-0 py-[20px] pr-[2px] pb-[20px] pl-[28px] overflow-y-auto no-scrollbar">
+            {/* Search Bar Container */}
+            <div className="relative w-full group" ref={searchRef}>
+                <div className="flex items-center gap-3 px-3 py-2 bg-[#19222e] rounded-[10px] border border-transparent focus-within:border-blue-500 transition-all">
+                    <FiSearch className="text-[#667b99] flex-shrink-0" size={18} />
                     <input
                         type="text"
-                        placeholder={t('feeds.search_placeholder', { defaultValue: 'Find' })}
+                        placeholder={t('sidebar.search_placeholder', { defaultValue: 'Search' })}
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
@@ -139,13 +144,10 @@ const RightSidebar: React.FC = () => {
                         }}
                         onFocus={() => setShowResults(true)}
                         onKeyDown={handleKeyDown}
-                        className="w-full pl-11 pr-10 py-2.5 text-[15px] rounded-xl bg-gray-100 dark:bg-dark-surface border-none text-gray-900 dark:text-dark-text placeholder-gray-500 dark:placeholder-dark-text-secondary focus:outline-none focus:ring-1 focus:ring-primary-500 transition-shadow"
+                        className="bg-transparent border-none outline-none text-[15px] text-white w-full placeholder-[#667b99] py-1"
                     />
                     {searchQuery && (
-                        <button
-                            onClick={clearSearch}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
-                        >
+                        <button onClick={clearSearch} className="text-[#667b99] hover:text-white">
                             <FiX size={16} />
                         </button>
                     )}
@@ -156,7 +158,7 @@ const RightSidebar: React.FC = () => {
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl shadow-xl z-50 overflow-hidden min-h-[100px] max-h-[80vh] flex flex-col">
                         <div className="p-3 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50">
                             <p className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
-                                {t('search.searching_for', { defaultValue: 'Tìm kiếm "{{query}}"', query: searchQuery })}
+                                {t('search.searching_for', { defaultValue: 'Search for "{{query}}"', query: searchQuery })}
                             </p>
                         </div>
 
@@ -210,7 +212,7 @@ const RightSidebar: React.FC = () => {
                             ) : searchQuery.trim() ? (
                                 <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface"
                                     onClick={() => navigate(`/search?q=${encodeURIComponent(searchQuery)}`)}>
-                                    <p className="font-medium text-primary-500">{t('search.goto_search', { defaultValue: 'Tìm kiếm tất cả cho "{{query}}"', query: searchQuery })}</p>
+                                    <p className="font-medium text-primary-500">{t('search.goto_search', { defaultValue: 'Search all for "{{query}}"', query: searchQuery })}</p>
                                 </div>
                             ) : null}
                         </div>
@@ -219,36 +221,48 @@ const RightSidebar: React.FC = () => {
             </div>
 
             {/* Pinned Feeds */}
-            <div className="flex flex-col gap-1">
-                {pinnedFeeds.map((feed: any) => (
-                    <button
-                        key={feedActionKey(feed)}
-                        onClick={() => handleFeedClick(feed)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors text-left group"
-                    >
-                        <div className="w-6 h-6 rounded-md bg-primary-100 dark:bg-primary-900/30 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                            {feed.avatar || feed.avatarUrl ? (
-                                <img src={feed.avatar || feed.avatarUrl} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                                <span className="text-[10px] font-bold text-primary-600 dark:text-primary-400">
-                                    {feed.name?.[0].toUpperCase()}
-                                </span>
-                            )}
-                        </div>
-                        <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text truncate">
-                            {feed.name}
-                        </span>
-                    </button>
-                ))}
+            <div className="flex flex-col gap-[2px]">
+                {pinnedFeeds.map((feed: any) => {
+                    const isFollowing = feedActionKey(feed) === 'following';
+                    return (
+                        <button
+                            key={feedActionKey(feed)}
+                            onClick={() => handleFeedClick(feed)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-left group"
+                        >
+                            <div className={cn(
+                                "w-5 h-5 rounded-[4px] flex-shrink-0 flex items-center justify-center overflow-hidden",
+                                isFollowing ? "bg-[#006aff]" : "bg-[#111822]"
+                            )}>
+                                {isFollowing ? (
+                                    <svg fill="none" viewBox="0 0 24 24" width="14" height="14">
+                                        <path fill="#FFFFFF" d="M7.002 5a1 1 0 0 0-2 0v11.587l-1.295-1.294a1 1 0 0 0-1.414 1.414l3.002 3a1 1 0 0 0 1.414 0l2.998-3a1 1 0 0 0-1.414-1.414l-1.291 1.292V5ZM16 16a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2h-4Zm-3-4a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2h-6a1 1 0 0 1-1-1Zm-1-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-8Z" />
+                                    </svg>
+                                ) : (
+                                    feed.avatar || feed.avatarUrl ? (
+                                        <img src={feed.avatar || feed.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-[10px] font-bold text-[#a5b2c5]">
+                                            {feed.name?.[0].toUpperCase()}
+                                        </span>
+                                    )
+                                )}
+                            </div>
+                            <span className="text-[15px] font-normal text-[#a5b2c5] truncate group-hover:text-white transition-colors">
+                                {feed.name}
+                            </span>
+                        </button>
+                    );
+                })}
                 
                 <button
                     onClick={() => navigate('/feeds')}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors text-left text-gray-500 dark:text-dark-text-secondary"
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-left group"
                 >
-                    <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-dark-surface flex-shrink-0 flex items-center justify-center">
-                        <FiPlus size={14} />
+                    <div className="w-5 h-5 rounded-[4px] bg-[#19222e] flex-shrink-0 flex items-center justify-center">
+                        <FiPlus size={16} className="text-[#a5b2c5]" />
                     </div>
-                    <span className="text-[15px] font-medium">
+                    <span className="text-[15px] font-normal text-[#a5b2c5] group-hover:text-white transition-colors">
                         {t('sidebar.more_feeds', { defaultValue: 'More feeds' })}
                     </span>
                 </button>
@@ -261,31 +275,14 @@ const RightSidebar: React.FC = () => {
             <TrendingSection />
 
             {/* Footer Links */}
-            <div className="px-1 py-4 text-gray-400 dark:text-dark-text-secondary">
-                <div className="flex flex-wrap gap-x-2 gap-y-1 text-[13px]">
-                    <a href={supportLink} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary-500 font-medium">{t('sidebar.feedback', { defaultValue: 'Phản hồi' })}</a>
-                    <span>·</span>
-                    <button
-                        onClick={() => navigate('/about/privacy-policy')}
-                        className="hover:underline hover:text-gray-600 dark:hover:text-dark-text transition-colors"
-                    >
-                        {t('sidebar.privacy', { defaultValue: 'Quyền riêng tư' })}
-                    </button>
-                    <span>·</span>
-                    <button
-                        onClick={() => navigate('/settings/about')}
-                        className="hover:underline hover:text-gray-600 dark:hover:text-dark-text transition-colors"
-                    >
-                        {t('sidebar.terms', { defaultValue: 'Điều khoản' })}
-                    </button>
-                    <span>·</span>
-                    <button
-                        onClick={() => navigate('/support')}
-                        className="hover:underline hover:text-gray-600 dark:hover:text-dark-text transition-colors"
-                    >
-                        {t('sidebar.help', { defaultValue: 'Giúp đỡ' })}
-                    </button>
-                </div>
+            <div className="px-2 mt-auto flex flex-wrap gap-x-2.5 gap-y-1">
+                <a href="#" className="text-[13.1px] text-[#a5b2c5] hover:underline">Feedback</a>
+                <span className="text-[#526580]">∙</span>
+                <a href="#" className="text-[13.1px] text-[#a5b2c5] hover:underline">Privacy</a>
+                <span className="text-[#526580]">∙</span>
+                <a href="#" className="text-[13.1px] text-[#a5b2c5] hover:underline">Terms</a>
+                <span className="text-[#526580]">∙</span>
+                <a href="#" className="text-[13.1px] text-[#a5b2c5] hover:underline">Help</a>
             </div>
         </div>
     );

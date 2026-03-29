@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiX, FiUserPlus } from 'react-icons/fi';
+import { FiX, FiUsers } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import Button from '../common/Button';
@@ -41,50 +41,47 @@ const OnboardingCard: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#15202b] dark:bg-[#15202b] rounded-2xl p-5 relative border border-gray-800 shadow-sm mb-4">
-            <button 
-                onClick={() => setIsHidden(true)}
-                className="absolute top-3 right-3 p-1.5 hover:bg-white/10 rounded-full text-gray-400 transition-colors"
-                aria-label="Close"
-            >
-                <FiX size={18} />
-            </button>
-
-            <div className="flex flex-col gap-4">
-                <h3 className="font-bold text-[17px] text-white pr-6 leading-tight">
+        <div className="bg-[#19222e] rounded-xl p-4 relative mb-3">
+            <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-[15px] text-white">
                     {t('sidebar.follow_ten', { defaultValue: 'Follow 10 people to get started' })}
                 </h3>
+                <button 
+                    onClick={() => setIsHidden(true)}
+                    className="p-1 hover:bg-white/10 rounded-full text-[#8798b0] transition-colors"
+                >
+                    <FiX size={15} />
+                </button>
+            </div>
 
+            <div className="flex flex-col gap-3">
                 <div className="flex items-center -space-x-2">
                     {suggestedAvatars.length > 0 ? (
                         suggestedAvatars.map((avatar, i) => (
-                            <img 
-                                key={i} 
-                                src={avatar} 
-                                alt="" 
-                                className="h-9 w-9 rounded-full ring-2 ring-[#15202b] object-cover bg-gray-800"
-                            />
+                            <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] overflow-hidden border border-[#232e3e]">
+                                <img src={avatar} alt="" className="h-full w-full object-cover" />
+                            </div>
                         ))
                     ) : (
-                        // Skeleton placeholders
-                        [...Array(6)].map((_, i) => (
-                            <div key={i} className="h-9 w-9 rounded-full ring-2 ring-[#15202b] bg-gray-700 animate-pulse" />
+                        [...Array(5)].map((_, i) => (
+                            <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#405168] flex items-center justify-center border border-[#232e3e]">
+                                <FiUsers className="text-[#19222e]" size={16} />
+                            </div>
                         ))
                     )}
-                    {(suggestedAvatars.length >= 9 || suggestedAvatars.length === 0) && (
-                        <div className="h-9 w-9 rounded-full ring-2 ring-[#15202b] bg-gray-700 flex items-center justify-center text-gray-400 text-xs font-bold">
-                            {user.followingCount}/10
+                    {suggestedAvatars.length < 9 && [...Array(Math.max(0, 5 - suggestedAvatars.length))].map((_, i) => (
+                         <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#405168] flex items-center justify-center border border-[#232e3e]">
+                            <FiUsers className="text-[#19222e]" size={16} />
                         </div>
-                    )}
+                    ))}
                 </div>
 
                 <Button
                     variant="primary"
                     fullWidth
-                    className="rounded-full font-bold text-[15px] py-2.5 bg-[#0085ff] hover:bg-[#0074e0] border-none flex items-center justify-center gap-2"
+                    className="rounded-full font-medium text-[13.1px] py-2 bg-[#006aff] hover:bg-[#005cd9] border-none"
                     onClick={() => navigate('/explore')}
                 >
-                    <FiUserPlus size={18} />
                     {t('sidebar.find_people', { defaultValue: 'Find people to follow' })}
                 </Button>
             </div>
