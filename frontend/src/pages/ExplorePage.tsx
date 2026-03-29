@@ -296,24 +296,9 @@ const ExplorePage: React.FC = () => {
 
                     {/* Trending Section */}
                     <section className="flex flex-col border-b border-gray-200 dark:border-dark-border pb-4">
-                        <div className="flex items-center justify-between px-2 mb-2">
-                            <h2 className="text-[17px] font-bold text-gray-900 dark:text-white mt-2 border-b-0">{t('nav.trending', { defaultValue: 'Trending' })}</h2>
-                             {feeds.find(f => f.name === 'Trending') && (
-                                <button
-                                    onClick={() => {
-                                        const trendingFeed = feeds.find(f => f.name === 'Trending');
-                                        console.log('ExplorePage (Trending Link): Navigating to feed:', trendingFeed?.id, trendingFeed?.name);
-                                        navigate(`/feeds/${trendingFeed?.id}`);
-                                    }}
-                                    className="text-primary-500 hover:underline text-sm font-bold mt-2"
-                                >
-                                    {t('common.show_more')}
-                                </button>
-                            )}
-                        </div>
                         {topics.length === 0 ? (
                             <LoadingIndicator text={t('explore.loading_topics', { defaultValue: 'Loading trending topics...' })} />
-                        ) : topics.map((item, index) => {
+                        ) : topics.slice(0, 5).map((item, index) => {
                             // Generate stable mock values to match exact UI screenshot
                             let hash = 0;
                             for (let i = 0; i < item.hashtag.length; i++) hash = item.hashtag.charCodeAt(i) + ((hash << 5) - hash);
@@ -346,14 +331,14 @@ const ExplorePage: React.FC = () => {
                                             </span>
                                             
                                             {index === 0 ? (
-                                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-900/30 text-red-500 text-[11px] font-bold shrink-0 self-start border border-red-900/50">
+                                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3e141a] dark:bg-[#3e141a] text-[#ef4444] text-[11px] font-bold shrink-0 self-start">
                                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M12 2C12 2 12 10 18 13C22 15 23 20 20 23C17 26 12 25 10 21C8 17 9 14 9 14C9 14 6 17 5 19C4 21 0 17 2 12C4 7 12 2 12 2Z" />
                                                     </svg>
                                                     Hot
                                                 </span>
                                             ) : (
-                                                <span className="px-2 py-0.5 rounded-full bg-transparent dark:bg-[#1f2937]/50 text-gray-500 dark:text-[#8b98a5] text-[12px] shrink-0 border border-gray-200 dark:border-dark-border">
+                                                <span className="px-2 py-[3px] rounded-full bg-gray-200 dark:bg-[#202E39] text-gray-600 dark:text-[#8b98a5] text-[12px] shrink-0 font-medium">
                                                     {timeAgo}
                                                 </span>
                                             )}
