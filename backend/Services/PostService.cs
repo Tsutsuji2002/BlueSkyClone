@@ -4185,6 +4185,64 @@ public class PostService : IPostService
         }
     }
 
+    /// <summary>
+    /// Fetches media-rich posts from prominent public Bluesky accounts for unauthenticated (guest) users.
+    /// Uses app.bsky.feed.getAuthorFeed which works on the public API without authentication.
+    /// </summary>
+    public async Task<IEnumerable<PostDto>> GetGuestDiscoverPostsAsync(int take = 20, int skip = 0)
+    {
+        try
+        {
+            // Prominent public Bluesky accounts known to post frequently with media
+            var publicActors = new[]
+            {
+                "bsky.app",
+                "nytimes.com",
+                "rebekahbsky.bsky.social",
+                "natgeowild.bsky.social",
+                "nasa.gov"
+            };
+
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+
+            var allPosts = new List<PostDto>();
+            var perActor = Math.Max(8, (int)Math.Ceiling((take + skip + 5) / (double)publicActors.Length));
+
+            foreach (var actor in publicActors)
+            {
+                try
+                {
+                    var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={Uri.EscapeDataString(actor)}&limit={perActor}&filter=posts_and_author_threads";
+                    var response = await httpClient.GetAsync(url);
+                    if (!response.IsSuccessStatusCode) continue;
+
+                    var content = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(content);
+                    if (!doc.RootElement.TryGetProperty("feed", out var feedArray)) continue;
+
+                    var posts = MapBlueskyFeed(feedArray);
+                    allPosts.AddRange(posts);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "[GetGuestDiscoverPostsAsync] Error fetching actor feed for {Actor}", actor);
+                }
+            }
+
+            // Shuffle to mix up accounts, then paginate
+            var rng = new Random();
+            var shuffled = allPosts.OrderBy(_ => rng.Next()).ToList();
+            return shuffled.Skip(skip).Take(take);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostService] GetGuestDiscoverPostsAsync: Error");
+            // Fall back to local trending if remote fails
+            return await GetTrendingPosts24hAsync(null, take, skip);
+        }
+    }
+
     public async Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId)
     {
         var bookmarkedPosts = await _unitOfWork.Bookmarks.Query()
