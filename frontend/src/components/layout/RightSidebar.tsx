@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiSearch, FiX } from 'react-icons/fi';
+import { FiSearch, FiX, FiPlus, FiChevronRight } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
@@ -10,7 +10,8 @@ import { BsPatchCheckFill } from 'react-icons/bs';
 import LoadingIndicator from '../common/LoadingIndicator';
 
 import TrendingSection from './TrendingSection';
-import SuggestedUsersSection from './SuggestedUsersSection';
+import OnboardingCard from './OnboardingCard';
+import { feedActionKey } from '../../utils/feedKeys';
 
 const RightSidebar: React.FC = () => {
     const { t } = useTranslation();
@@ -101,6 +102,19 @@ const RightSidebar: React.FC = () => {
             navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
             setShowResults(false);
         }
+    };
+
+    const { feeds, pinnedFeedIds } = useAppSelector((state: RootState) => state.feeds);
+
+    const pinnedFeeds = useMemo(() => {
+        return pinnedFeedIds
+            .map(id => feeds.find(f => feedActionKey(f) === id || f.id === id || f.uri === id))
+            .filter(Boolean)
+            .slice(0, 10);
+    }, [feeds, pinnedFeedIds]);
+
+    const handleFeedClick = (feed: any) => {
+        navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
     };
 
     const clearSearch = () => {
@@ -204,8 +218,44 @@ const RightSidebar: React.FC = () => {
                 )}
             </div>
 
+            {/* Pinned Feeds */}
+            <div className="flex flex-col gap-1">
+                {pinnedFeeds.map((feed: any) => (
+                    <button
+                        key={feedActionKey(feed)}
+                        onClick={() => handleFeedClick(feed)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors text-left group"
+                    >
+                        <div className="w-6 h-6 rounded-md bg-primary-100 dark:bg-primary-900/30 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                            {feed.avatar || feed.avatarUrl ? (
+                                <img src={feed.avatar || feed.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="text-[10px] font-bold text-primary-600 dark:text-primary-400">
+                                    {feed.name?.[0].toUpperCase()}
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text truncate">
+                            {feed.name}
+                        </span>
+                    </button>
+                ))}
+                
+                <button
+                    onClick={() => navigate('/feeds')}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors text-left text-gray-500 dark:text-dark-text-secondary"
+                >
+                    <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-dark-surface flex-shrink-0 flex items-center justify-center">
+                        <FiPlus size={14} />
+                    </div>
+                    <span className="text-[15px] font-medium">
+                        {t('sidebar.more_feeds', { defaultValue: 'More feeds' })}
+                    </span>
+                </button>
+            </div>
+
             {/* Suggested Users / Onboarding */}
-            <SuggestedUsersSection />
+            <OnboardingCard />
 
             {/* Trending Topics */}
             <TrendingSection />

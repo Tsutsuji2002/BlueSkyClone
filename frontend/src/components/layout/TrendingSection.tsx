@@ -7,6 +7,8 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
 import { TrendingTopic } from '../../types';
 import { fetchTrending } from '../../redux/slices/trendingSlice';
+import { updateNotificationSettings } from '../../redux/slices/authSlice';
+import ConfirmModal from '../common/ConfirmModal';
 import { cn } from '../../utils/classNames';
 
 const TrendingSection: React.FC = () => {
@@ -15,7 +17,7 @@ const TrendingSection: React.FC = () => {
     const { t } = useTranslation();
     const { topics: trendingTopics, isLoading } = useAppSelector((state: RootState) => state.trending);
     const settings = useAppSelector((state: RootState) => state.auth.settings);
-    const [isVisible, setIsVisible] = useState(true);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
     useEffect(() => {
         if (settings?.openTrendingTopics !== false) {
@@ -23,7 +25,7 @@ const TrendingSection: React.FC = () => {
         }
     }, [dispatch, settings?.openTrendingTopics]);
 
-    if (!isVisible || settings?.openTrendingTopics === false) {
+    if (settings?.openTrendingTopics === false) {
         return null;
     }
 
@@ -31,26 +33,22 @@ const TrendingSection: React.FC = () => {
         return null;
     }
 
+    const handleHideTrending = () => {
+        dispatch(updateNotificationSettings({ openTrendingTopics: false }));
+    };
+
     return (
-        <div className="bg-gray-50 dark:bg-dark-surface rounded-2xl overflow-hidden">
+        <div className="bg-gray-50/50 dark:bg-dark-surface rounded-2xl overflow-hidden mb-4">
             <div className="flex items-center justify-between p-4 pb-2">
-                <div className="flex items-center gap-2">
-                    <FiTrendingUp className="text-blue-500" size={18} />
-                    <h2 className="text-[17px] font-bold text-gray-900 dark:text-dark-text">
-                        {t('sidebar.trending_header', { defaultValue: 'Trending Topics' })}
-                    </h2>
-                </div>
-                <div className="flex items-center gap-1">
-                    <button className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-hover rounded-full text-gray-500 transition-colors">
-                        <FiMoreHorizontal size={18} />
-                    </button>
-                    <button
-                        onClick={() => setIsVisible(false)}
-                        className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-hover rounded-full text-gray-500 transition-colors"
-                    >
-                        <FiX size={18} />
-                    </button>
-                </div>
+                <h2 className="text-[17px] font-bold text-gray-900 dark:text-dark-text">
+                    {t('sidebar.trending_header', { defaultValue: 'Trending Topics' })}
+                </h2>
+                <button 
+                    onClick={() => setIsConfirmModalOpen(true)}
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-hover rounded-full text-gray-500 transition-colors"
+                >
+                    <FiMoreHorizontal size={18} />
+                </button>
             </div>
 
             <div className="flex flex-col">
@@ -88,10 +86,21 @@ const TrendingSection: React.FC = () => {
                     onClick={() => navigate('/trending')}
                     className="w-full flex items-center justify-between px-4 py-3 text-primary-500 hover:bg-gray-200/50 dark:hover:bg-dark-hover transition-colors text-[15px] font-medium"
                 >
-                    {t('common.show_more', { defaultValue: 'Hiển thị thêm' })}
+                    {t('common.show_more', { defaultValue: 'Show more' })}
                     <FiChevronRight size={18} />
                 </button>
             )}
+
+            <ConfirmModal
+                isOpen={isConfirmModalOpen}
+                onClose={() => setIsConfirmModalOpen(false)}
+                onConfirm={handleHideTrending}
+                title={t('sidebar.hide_trending_title', { defaultValue: 'Hide trending topics?' })}
+                message={t('sidebar.hide_trending_message', { defaultValue: 'You can always turn them back on in settings.' })}
+                confirmLabel={t('sidebar.hide', { defaultValue: 'Hide' })}
+                cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+                variant="danger"
+            />
         </div>
     );
 };
