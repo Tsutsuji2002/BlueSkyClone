@@ -122,11 +122,7 @@ const FeedsPage: React.FC = () => {
 
     const myFeedsCollapsedAt = 12;
 
-    const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
-
-    if (!isAuthenticated) {
-        return <FeedsDiscovery />;
-    }
+    // Removed: Guests now see the actual FeedsPage with real data instead of a hardcoded stub
 
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">

@@ -96,10 +96,11 @@ export const fetchRecommendedFeeds = createAsyncThunk<
     async (_: void, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_BASE_URL}/feeds/recommended`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers
             });
             const data = await response.json();
             console.log('feedsSlice: fetchRecommendedFeeds returned:', data);
@@ -335,8 +336,11 @@ export const searchFeeds = createAsyncThunk<
     async ({ query, skip, take }: { query: string, skip: number, take: number }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_BASE_URL}/feeds/search?query=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to search feeds');

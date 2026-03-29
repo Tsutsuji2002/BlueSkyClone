@@ -78,15 +78,19 @@ public class FeedsController : ControllerBase
         return (Guid.Empty, null);
     }
 
-    [Authorize]
+    [AllowAnonymous]
     [HttpGet("recommended")]
     public async Task<IActionResult> GetRecommended()
     {
         try
         {
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) 
-                return Unauthorized();
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            {
+                // Unauthenticated users get trending feeds as recommended
+                var trendingFeeds = await _feedService.GetTrendingFeedsAsync(null);
+                return Ok(trendingFeeds);
+            }
 
             var feeds = await _recommendationService.GetRecommendedFeedsAsync(userId);
             return Ok(feeds);
@@ -373,14 +377,18 @@ public class FeedsController : ControllerBase
         }
     }
 
-    [Authorize]
+    [AllowAnonymous]
     [HttpGet("search")]
     public async Task<IActionResult> SearchFeeds([FromQuery] string query, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+            Guid? userId = null;
+            if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var parsedId))
+            {
+                userId = parsedId;
+            }
 
             var feeds = await _feedService.SearchFeedsAsync(userId, query, skip, take);
             return Ok(feeds);
