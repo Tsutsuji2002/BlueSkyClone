@@ -5,7 +5,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiChevronRight, FiMail, FiEdit2, FiLock, FiAtSign, FiGift, FiDownload, FiX, FiTrash2, FiAlertCircle, FiCheck, FiCalendar } from 'react-icons/fi';
 import Button from '../components/common/Button';
-import { updateUserAccount } from '../redux/slices/authSlice';
+import { updateUserAccount, updateUser, verifyDomain } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import ChangeHandleModal from '../modals/ChangeHandleModal';
 import agent, { SERVICE_URL } from '../services/atpAgent';
@@ -14,26 +14,48 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 // Functional Modal Components for updating account settings
 const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: string }> = ({ isOpen, onClose, email }) => {
     const { t } = useTranslation();
-    const dispatch = useAppDispatch();
     const [newEmail, setNewEmail] = useState(email);
-    const [password, setPassword] = useState('');
+    const [token, setToken] = useState('');
+    const [isTokenSent, setIsTokenSent] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
     if (!isOpen) return null;
 
-    const handleSave = async () => {
-        if (!password) {
-            setError(t('settings.password_required'));
+    const handleRequestUpdate = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const response = await (agent.com.atproto.server as any).requestEmailUpdate();
+            if (response.data.tokenRequired) {
+                setIsTokenSent(true);
+            } else {
+                // If token not required by PDS, we can try direct update path
+                await (agent.com.atproto.server as any).updateEmail({ email: newEmail });
+                onClose();
+            }
+        } catch (err: any) {
+            setError(err.message || 'Failed to request email update');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleConfirmUpdate = async () => {
+        if (!token && isTokenSent) {
+            setError(t('settings.token_required', 'Verification token is required'));
             return;
         }
         setIsLoading(true);
         setError('');
         try {
-            await dispatch(updateUserAccount({ email: newEmail, currentPassword: password })).unwrap();
+            await (agent.com.atproto.server as any).updateEmail({ 
+                email: newEmail, 
+                token: token || undefined 
+            });
             onClose();
         } catch (err: any) {
-            setError(err || 'Failed to update email');
+            setError(err.message || 'Failed to update email');
         } finally {
             setIsLoading(false);
         }
@@ -47,31 +69,41 @@ const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: 
                     <button onClick={onClose}><FiX size={24} className="text-gray-500" /></button>
                 </div>
                 {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-                <p className="text-gray-500 dark:text-dark-text-secondary mb-4">{t('settings.update_email_desc')}</p>
+                <p className="text-gray-500 dark:text-dark-text-secondary mb-4">
+                    {isTokenSent ? t('settings.enter_email_token', 'Enter the token sent to your current email') : t('settings.update_email_desc')}
+                </p>
                 <div className="flex flex-col gap-4 mb-6">
                     <div className="flex items-center gap-2 border border-blue-500 rounded-xl px-4 py-3 bg-blue-50 dark:bg-blue-900/10">
                         <FiMail className="text-blue-500" />
                         <input
                             type="email"
                             value={newEmail}
+                            disabled={isTokenSent}
                             onChange={(e) => setNewEmail(e.target.value)}
-                            className="bg-transparent border-none focus:outline-none w-full text-gray-900 dark:text-dark-text"
+                            className="bg-transparent border-none focus:outline-none w-full text-gray-900 dark:text-dark-text disabled:opacity-50"
                             placeholder={t('settings.new_email_placeholder')}
                         />
                     </div>
-                    <div className="flex items-center gap-2 border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3">
-                        <FiLock className="text-gray-400" />
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="bg-transparent border-none focus:outline-none w-full text-gray-900 dark:text-dark-text"
-                            placeholder={t('settings.current_password_placeholder')}
-                        />
-                    </div>
+                    {isTokenSent && (
+                        <div className="flex items-center gap-2 border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3">
+                            <FiLock className="text-gray-400" />
+                            <input
+                                type="text"
+                                value={token}
+                                onChange={(e) => setToken(e.target.value)}
+                                className="bg-transparent border-none focus:outline-none w-full text-gray-900 dark:text-dark-text"
+                                placeholder={t('settings.verification_token', 'Verification Token')}
+                            />
+                        </div>
+                    )}
                 </div>
-                <Button variant="primary" fullWidth onClick={handleSave} loading={isLoading}>
-                    {t('settings.update_email_btn')}
+                <Button 
+                    variant="primary" 
+                    fullWidth 
+                    onClick={isTokenSent ? handleConfirmUpdate : handleRequestUpdate} 
+                    loading={isLoading}
+                >
+                    {isTokenSent ? t('settings.confirm_update', 'Confirm Update') : t('settings.update_email_btn')}
                 </Button>
             </div>
         </div>
@@ -80,8 +112,6 @@ const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: 
 
 const ChangePasswordModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     const { t } = useTranslation();
-    const dispatch = useAppDispatch();
-    const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -97,13 +127,12 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
         setIsLoading(true);
         setError('');
         try {
-            await dispatch(updateUserAccount({
-                currentPassword,
-                newPassword
-            })).unwrap();
+            await (agent.com.atproto.server as any).updatePassword({
+                password: newPassword
+            });
             onClose();
         } catch (err: any) {
-            setError(err || 'Failed to update password');
+            setError(err.message || 'Failed to update password');
         } finally {
             setIsLoading(false);
         }
@@ -118,13 +147,6 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
                 </div>
                 {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
                 <div className="flex flex-col gap-4 mb-6">
-                    <input
-                        type="password"
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder={t('settings.current_password')}
-                        className="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-gray-900 dark:text-dark-text focus:outline-none focus:border-primary-500"
-                    />
                     <input
                         type="password"
                         value={newPassword}
@@ -321,11 +343,49 @@ const DeleteAccountModal: React.FC<{ isOpen: boolean; onClose: () => void; usern
 const AccountSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const dispatch = useAppDispatch();
     const user = useAppSelector((state) => state.auth.user);
+    const [accountInfo, setAccountInfo] = useState<{ email?: string; handle?: string; did?: string } | null>(null);
+    const [isLoadingAccount, setIsLoadingAccount] = useState(true);
 
     const [activeModal, setActiveModal] = useState<'email' | 'password' | 'handle' | 'birthdate' | 'export' | 'deactivate' | 'delete' | null>(null);
 
-    const closeModal = () => setActiveModal(null);
+    const closeModal = () => {
+        setActiveModal(null);
+        // Refresh account info after potential updates
+        fetchAccountInfo();
+    };
+
+    const fetchAccountInfo = async () => {
+        try {
+            const response = await (agent.com.atproto.server as any).getAccount();
+            if (response.success) {
+                setAccountInfo(response.data);
+                // Also sync email back to Redux if it's different (optional but helps consistency)
+                if (response.data.email !== user?.email) {
+                    dispatch(updateUser({ email: response.data.email }));
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch account info', error);
+        } finally {
+            setIsLoadingAccount(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchAccountInfo();
+    }, []);
+
+    const isRemoteUser = React.useMemo(() => {
+        if (!user?.did) return false;
+        // Basic heuristic: if DID is not did:local and doesn't contain our domain, it's likely remote
+        // For BSkyClone, we assume local users have did:local:... or a specific domain.
+        // If it's did:plc:... it might be a migrated user or a remote one.
+        // However, a stronger check is if the agent service URL matches the PDS of the DID.
+        // For now, let's look for 'did:local' as the 'native' indicator.
+        return user.did.startsWith('did:plc') && !user.email?.includes('bskyclone');
+    }, [user?.did, user?.email]);
 
     useDocumentTitle(t('settings.account'));
 
@@ -350,14 +410,18 @@ const AccountSettingsPage: React.FC = () => {
                     {/* Access / Security Group */}
                     <div className="py-2">
                         <button
-                            onClick={() => setActiveModal('email')}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            onClick={() => !isRemoteUser && setActiveModal('email')}
+                            disabled={isRemoteUser}
+                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 
+                                ${isRemoteUser ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-dark-surface/50'}`}
                         >
                             <div className="flex items-center gap-4">
                                 <FiMail size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
                                 <div className="flex flex-col items-start">
                                     <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.email')}</span>
-                                    <span className="text-sm text-gray-500 dark:text-dark-text-secondary">{user?.email}</span>
+                                    <span className="text-sm text-gray-500 dark:text-dark-text-secondary">
+                                        {isLoadingAccount ? '...' : (accountInfo?.email || user?.email)}
+                                    </span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -366,8 +430,10 @@ const AccountSettingsPage: React.FC = () => {
                         </button>
 
                         <button
-                            onClick={() => setActiveModal('email')}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            onClick={() => !isRemoteUser && setActiveModal('email')}
+                            disabled={isRemoteUser}
+                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 
+                                ${isRemoteUser ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-dark-surface/50'}`}
                         >
                             <div className="flex items-center gap-4">
                                 <FiEdit2 size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
@@ -377,8 +443,10 @@ const AccountSettingsPage: React.FC = () => {
                         </button>
 
                         <button
-                            onClick={() => setActiveModal('password')}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            onClick={() => !isRemoteUser && setActiveModal('password')}
+                            disabled={isRemoteUser}
+                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 
+                                ${isRemoteUser ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-dark-surface/50'}`}
                         >
                             <div className="flex items-center gap-4">
                                 <FiLock size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
@@ -388,8 +456,10 @@ const AccountSettingsPage: React.FC = () => {
                         </button>
 
                         <button
-                            onClick={() => setActiveModal('handle')}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            onClick={() => !isRemoteUser && setActiveModal('handle')}
+                            disabled={isRemoteUser}
+                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 
+                                ${isRemoteUser ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-dark-surface/50'}`}
                         >
                             <div className="flex items-center gap-4">
                                 <FiAtSign size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
@@ -453,7 +523,7 @@ const AccountSettingsPage: React.FC = () => {
             </div>
 
             {/* Modals */}
-            <UpdateEmailModal isOpen={activeModal === 'email'} onClose={closeModal} email={user?.email || ''} />
+            <UpdateEmailModal isOpen={activeModal === 'email'} onClose={closeModal} email={accountInfo?.email || user?.email || ''} />
             <ChangePasswordModal isOpen={activeModal === 'password'} onClose={closeModal} />
             <ChangeHandleModal isOpen={activeModal === 'handle'} onClose={closeModal} />
             <EditBirthdateModal isOpen={activeModal === 'birthdate'} onClose={closeModal} birthdate={user?.dateOfBirth} />

@@ -7,6 +7,8 @@ import { verifyDomain, updateUserAccount } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import Button from '../components/common/Button';
 import { cn } from '../utils/classNames';
+import agent from '../services/atpAgent';
+import { updateUser } from '../redux/slices/authSlice';
 
 interface ChangeHandleModalProps {
     isOpen: boolean;
@@ -52,11 +54,13 @@ const ChangeHandleModal: React.FC<ChangeHandleModalProps> = ({ isOpen, onClose }
         if (!username.trim()) return;
         setIsLoading(true);
         try {
-            await dispatch(updateUserAccount({ username: username.trim() })).unwrap();
+            const newHandle = `${username.trim().toLowerCase()}.bsky.social`;
+            await (agent.com.atproto.identity as any).updateHandle({ handle: newHandle });
+            dispatch(updateUser({ handle: newHandle, username: username.trim().toLowerCase() }));
             dispatch(showToast({ message: t('settings.username_updated_success'), type: 'success' }));
             onClose();
         } catch (error: any) {
-            dispatch(showToast({ message: error || 'Failed to update handle', type: 'error' }));
+            dispatch(showToast({ message: error.message || 'Failed to update handle', type: 'error' }));
         } finally {
             setIsLoading(false);
         }

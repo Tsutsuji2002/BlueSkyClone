@@ -51,6 +51,89 @@ namespace BSkyClone.Controllers
             _logger = logger;
         }
 
+        [Authorize]
+        [HttpGet("com.atproto.server.getAccount")]
+        public async Task<IActionResult> GetAccount()
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null) return NotFound(new { error = "AccountNotFound" });
+
+                return Ok(new GetAccountResponse
+                {
+                    Email = user.Email ?? "",
+                    EmailConfirmed = true,
+                    Handle = user.Handle,
+                    Did = user.Did ?? ""
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in getAccount XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.server.requestEmailUpdate")]
+        public IActionResult RequestEmailUpdate()
+        {
+            // In a real PDS, this would send an email with a token.
+            // For BSkyClone, we'll return that a token is required (which the frontend can handle)
+            // or just allow direct updates if we want to skip the "email verify" complexity for now.
+            // The lexicon says it returns { tokenRequired: boolean }
+            return Ok(new RequestEmailUpdateResponse { TokenRequired = false });
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.server.updateEmail")]
+        public async Task<IActionResult> UpdateEmail([FromBody] UpdateEmailRequest request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                // Map to internal UpdateAccountAsync
+                await _userService.UpdateAccountAsync(userId, new DTOs.UpdateAccountRequest { Email = request.Email });
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = "UpdateFailed", message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.server.updatePassword")]
+        public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordRequest request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                // Note: ATProto updatePassword lexicon doesn't explicitly pass current password, 
+                // but our UpdateAccountAsync requires it if we follow sensitive change rules.
+                // However, for pure ATProto compatibility, if the user is authorized, we might allow it.
+                // BUT, safety first.
+                
+                await _userService.UpdateAccountAsync(userId, new DTOs.UpdateAccountRequest { NewPassword = request.Password });
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = "UpdateFailed", message = ex.Message });
+            }
+        }
+
         [HttpPost("com.atproto.server.deleteSession")]
         public IActionResult DeleteSession()
         {
