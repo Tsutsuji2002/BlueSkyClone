@@ -8,12 +8,13 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import LazyErrorBoundary from '../components/common/LazyErrorBoundary';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
+import HomePage from '../pages/HomePage';
+
 // Lazy Load Pages
 const WelcomePage = React.lazy(() => import('../pages/auth/WelcomePage'));
 const LoginPage = React.lazy(() => import('../pages/auth/LoginPage'));
 const SignUpPage = React.lazy(() => import('../pages/auth/SignUpPage'));
 
-import HomePage from '../pages/HomePage';
 const ProfilePage = React.lazy(() => import('../pages/ProfilePage'));
 const FollowersPage = React.lazy(() => import('../pages/FollowersPage'));
 const FollowingPage = React.lazy(() => import('../pages/FollowingPage'));
