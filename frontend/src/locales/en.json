@@ -422,6 +422,7 @@
         "my_feeds_desc": "All the feeds you've saved in one place.",
         "liked_by_users": "Liked by {{count}} users",
         "discover_new_feeds": "Discover New Feeds",
+        "discover_new_feeds_desc": "Pick your own feeds! Community-built feeds help you find the content you love.",
         "search_feeds": "Search feeds",
         "liked_by": "Liked by {{count}} users",
         "no_feeds_found": "No matching feeds found.",

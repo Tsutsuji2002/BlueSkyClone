@@ -60,18 +60,7 @@ const FeedsDiscovery: React.FC = () => {
     ];
 
     return (
-        <div className="flex flex-col min-h-screen bg-white dark:bg-dark-bg">
-            {/* Header */}
-            <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md border-b border-gray-100 dark:border-dark-border px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                    <FiArrowLeft className="text-gray-900 dark:text-dark-text cursor-pointer" size={20} />
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                        {t('feeds.title', { defaultValue: 'Feeds' })}
-                    </h2>
-                </div>
-                <FiSettings className="text-gray-900 dark:text-dark-text cursor-pointer" size={20} />
-            </div>
-
+        <div className="flex flex-col bg-white dark:bg-dark-bg">
             <div className="p-4 space-y-6">
                 {/* Discover Header Section */}
                 <div className="flex items-start gap-4">
@@ -85,7 +74,7 @@ const FeedsDiscovery: React.FC = () => {
                             {t('feeds.discover_new_feeds', { defaultValue: 'Discover New Feeds' })}
                         </h3>
                         <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary mt-1 max-w-md">
-                            Choose your own timeline! Feeds built by the community help you find content you love.
+                            {t('feeds.discover_new_feeds_desc', { defaultValue: 'Pick your own feeds! Community-built feeds help you find the content you love.' })}
                         </p>
                     </div>
                 </div>
@@ -98,7 +87,7 @@ const FeedsDiscovery: React.FC = () => {
                     <input
                         type="text"
                         placeholder={t('feeds.search_feeds', { defaultValue: 'Search feeds' })}
-                        className="w-full bg-gray-100 dark:bg-dark-surface border-none rounded-xl py-3 pl-12 pr-4 text-[15px] focus:ring-0 focus:outline-none placeholder-gray-500"
+                        className="w-full bg-gray-100 dark:bg-dark-surface border-none rounded-xl py-2 pl-12 pr-4 text-[15px] focus:ring-0 focus:outline-none placeholder-gray-500"
                     />
                 </div>
 
@@ -115,13 +104,16 @@ const FeedsDiscovery: React.FC = () => {
                                         {feed.name}
                                     </h4>
                                     <div className="flex items-center gap-1 text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                        <span>Feed by {feed.handle}</span>
+                                        <span>{t('profile.feed_by', { defaultValue: 'Feed by' })} {feed.handle}</span>
                                     </div>
                                     <p className="text-[14px] text-gray-700 dark:text-dark-text-secondary mt-2 line-clamp-3">
                                         {feed.description}
                                     </p>
                                     <div className="mt-2 text-[13px] font-medium text-gray-500 dark:text-dark-text-secondary">
-                                        {t('feeds.liked_by_users', { count: parseInt(feed.likedBy.replace(/,/g, ''), 10) }) || `Liked by ${feed.likedBy} users`}
+                                        {t('feeds.liked_by_users', { 
+                                            count: parseInt(feed.likedBy.replace(/,/g, ''), 10),
+                                            defaultValue: `Liked by ${feed.likedBy} users` 
+                                        })}
                                     </div>
                                 </div>
                             </div>

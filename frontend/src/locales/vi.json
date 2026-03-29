@@ -373,6 +373,7 @@
         "my_feeds_desc": "Tất cả bảng tin bạn đã lưu tại cùng một nơi.",
         "liked_by_users": "Thích bởi {{count}} người dùng",
         "discover_new_feeds": "Khám phá bảng tin mới",
+        "discover_new_feeds_desc": "Chọn bảng tin của riêng bạn! Các bảng tin được xây dựng bởi cộng đồng giúp bạn tìm nội dung bạn yêu thích.",
         "search_feeds": "Tìm bảng tin",
         "liked_by": "Thích bởi {{count}} người dùng",
         "no_feeds_found": "Không tìm thấy bảng tin nào phù hợp.",
@@ -466,7 +467,7 @@
     },
     "auth": {
         "welcome": {
-            "title": "Xem điều gì đang diễn ra",
+            "title": "Tham gia trò chuyện",
             "description": "Tham gia BlueSky ngay hôm nay",
             "create_account": "Tạo tài khoản",
             "login": "Đăng nhập",

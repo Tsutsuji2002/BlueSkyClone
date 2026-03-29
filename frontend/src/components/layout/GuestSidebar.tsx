@@ -27,12 +27,9 @@ const GuestSidebar: React.FC = () => {
 
             {/* Content Area - Roughly Centered Vertically */}
             <div className="flex-1 flex flex-col justify-center py-10">
-                <h1 className="text-[32px] font-black leading-tight text-gray-900 dark:text-dark-text mb-2">
+                <h1 className="text-[32px] font-black leading-tight text-gray-900 dark:text-dark-text mb-8">
                     {t('auth.welcome.title', { defaultValue: 'Join the conversation' })}
                 </h1>
-                <p className="text-[17px] text-gray-500 dark:text-dark-text-secondary mb-8">
-                    Join Bluesky today.
-                </p>
 
                 <div className="space-y-3 w-full max-w-[280px]">
                     <Button
