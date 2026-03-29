@@ -1054,6 +1054,8 @@ const postsSlice = createSlice({
                 const { skip } = action.meta.arg;
                 if (skip === 0 || !skip) {
                     state.posts = [];
+                    state.lastUserPostsUserId = null;
+                    state.lastUserPostsType = null;
                 }
             })
             .addCase(fetchPostsByTag.fulfilled, (state: PostsState, action: any) => {
@@ -1061,6 +1063,8 @@ const postsSlice = createSlice({
                 const { skip } = action.meta.arg;
                 if (skip === 0 || !skip) {
                     state.posts = action.payload.posts;
+                    state.lastUserPostsUserId = null;
+                    state.lastUserPostsType = null;
                 } else {
                     const existingUris = new Set(state.posts.map((p: Post) => p.uri));
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
@@ -1078,6 +1082,8 @@ const postsSlice = createSlice({
                 const { skip } = action.meta.arg;
                 if (skip === 0 || !skip) {
                     state.posts = [];
+                    state.lastUserPostsUserId = null;
+                    state.lastUserPostsType = null;
                 }
             })
             .addCase(fetchPostsSearch.fulfilled, (state: PostsState, action: any) => {
@@ -1085,6 +1091,8 @@ const postsSlice = createSlice({
                 const { skip } = action.meta.arg;
                 if (skip === 0) {
                     state.posts = action.payload.posts;
+                    state.lastUserPostsUserId = null;
+                    state.lastUserPostsType = null;
                 } else {
                     const existingUris = new Set(state.posts.map((p: Post) => p.uri));
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
