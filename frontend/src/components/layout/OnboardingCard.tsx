@@ -57,23 +57,25 @@ const OnboardingCard: React.FC = () => {
             <div className="flex flex-col gap-3">
                 <div className="flex items-center -space-x-2">
                     {suggestedAvatars.length > 0 ? (
-                        suggestedAvatars.map((avatar, i) => (
-                            <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] overflow-hidden border border-[#232e3e]">
-                                <img src={avatar} alt="" className="h-full w-full object-cover" />
-                            </div>
-                        ))
+                        <>
+                            {suggestedAvatars.map((avatar, i) => (
+                                <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] overflow-hidden border border-[#232e3e]">
+                                    <img src={avatar} alt="" className="h-full w-full object-cover" />
+                                </div>
+                            ))}
+                            {suggestedAvatars.length < 5 && [...Array(5 - suggestedAvatars.length)].map((_, i) => (
+                                <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#232e3e] flex items-center justify-center border border-[#232e3e]">
+                                    <FiUsers className="text-[#526580]" size={16} />
+                                </div>
+                            ))}
+                        </>
                     ) : (
-                        [...Array(5)].map((_, i) => (
-                            <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#405168] flex items-center justify-center border border-[#232e3e]">
-                                <FiUsers className="text-[#19222e]" size={16} />
+                        [...Array(7)].map((_, i) => (
+                            <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#232e3e] flex items-center justify-center border border-[#232e3e]">
+                                <FiUsers className="text-[#526580]" size={16} />
                             </div>
                         ))
                     )}
-                    {suggestedAvatars.length < 9 && [...Array(Math.max(0, 5 - suggestedAvatars.length))].map((_, i) => (
-                         <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#405168] flex items-center justify-center border border-[#232e3e]">
-                            <FiUsers className="text-[#19222e]" size={16} />
-                        </div>
-                    ))}
                 </div>
 
                 <Button

@@ -13,6 +13,8 @@ import TrendingSection from './TrendingSection';
 import OnboardingCard from './OnboardingCard';
 import { feedActionKey } from '../../utils/feedKeys';
 import { cn } from '../../utils/classNames';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { fetchSubscribedFeeds } from '../../redux/slices/feedsSlice';
 
 const RightSidebar: React.FC = () => {
     const { t } = useTranslation();
@@ -24,6 +26,14 @@ const RightSidebar: React.FC = () => {
     const searchRef = useRef<HTMLDivElement>(null);
 
     const { user } = useAppSelector((state: RootState) => state.auth);
+    const dispatch = useAppDispatch();
+
+    useEffect(() => {
+        if (user) {
+            dispatch(fetchSubscribedFeeds());
+        }
+    }, [dispatch, user]);
+
     const supportLink = user
         ? `/support?email=${encodeURIComponent(`${user.username}@gmail.com`)}&username=${encodeURIComponent(user.handle)}`
         : '/support';
@@ -105,14 +115,21 @@ const RightSidebar: React.FC = () => {
         }
     };
 
-    const { feeds, pinnedFeedIds } = useAppSelector((state: RootState) => state.feeds);
+    const { feeds, subscribedFeeds, pinnedFeedIds } = useAppSelector((state: RootState) => state.feeds);
 
     const pinnedFeeds = useMemo(() => {
+        const allFeeds = [...feeds, ...subscribedFeeds];
         return pinnedFeedIds
-            .map(id => feeds.find(f => feedActionKey(f) === id || f.id === id || f.uri === id))
+            .map(id => {
+                // Special case for built-in feeds if they are in pinnedFeedIds but not in the lists
+                if (id === 'following') {
+                    return { id: 'following', uri: 'following', name: t('feeds.following', { defaultValue: 'Following' }), isPinned: true };
+                }
+                return allFeeds.find(f => feedActionKey(f) === id || f.id === id || f.uri === id);
+            })
             .filter(Boolean)
             .slice(0, 10);
-    }, [feeds, pinnedFeedIds]);
+    }, [feeds, subscribedFeeds, pinnedFeedIds, t]);
 
     const handleFeedClick = (feed: any) => {
         if (feedActionKey(feed) === 'following') {

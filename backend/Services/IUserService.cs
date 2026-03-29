@@ -42,4 +42,5 @@ public interface IUserService
     Task<User?> ResolveRemoteProfileAsync(string identifier);
     Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds);
     Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true);
+    Task<List<User>> GetSuggestedUsersAsync(int limit = 10);
 }

@@ -1519,4 +1519,14 @@ public class UserService : IUserService
             return new List<User>();
         }
     }
+
+    public async Task<List<User>> GetSuggestedUsersAsync(int limit = 10)
+    {
+        return await _unitOfWork.Users.Query()
+            .AsNoTracking()
+            .Where(u => !string.IsNullOrEmpty(u.AvatarUrl) && u.Did != null)
+            .OrderByDescending(u => u.FollowersCount ?? 0)
+            .Take(limit)
+            .ToListAsync();
+    }
 }

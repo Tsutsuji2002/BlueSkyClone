@@ -402,6 +402,35 @@ namespace BSkyClone.Controllers
         }
 
         [AllowAnonymous]
+        [HttpGet("app.bsky.actor.getSuggestions")]
+        public async Task<IActionResult> GetSuggestions([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                var suggestions = await _userService.GetSuggestedUsersAsync(limit);
+                return Ok(new
+                {
+                    actors = suggestions.Select(u => new Lexicons.App.Bsky.Actor.Defs.ProfileView
+                    {
+                        Did = u.Did ?? "",
+                        Handle = u.Handle,
+                        DisplayName = u.DisplayName,
+                        Avatar = u.AvatarUrl,
+                        Description = u.Bio,
+                        IndexedAt = DateTime.UtcNow.ToString("o"),
+                        Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
+                    }).ToList(),
+                    cursor = (string?)null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in getSuggestions XRPC");
+                return Ok(new { actors = new List<object>(), cursor = (string?)null });
+            }
+        }
+
+        [AllowAnonymous]
         [HttpGet("app.bsky.feed.getPostThread")]
         public async Task<IActionResult> GetPostThread([FromQuery] string uri, [FromQuery] int depth = 6, [FromQuery] int parentHeight = 80)
         {
