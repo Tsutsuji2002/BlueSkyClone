@@ -26,7 +26,7 @@ const ExplorePage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { accounts, interests } = useAppSelector((state: RootState) => state.trending);
+    const { accounts, interests, topics } = useAppSelector((state: RootState) => state.trending);
     const { feeds } = useAppSelector((state: RootState) => state.feeds);
     const { discoverPosts, discoverHasMore, discoverLoading } = useAppSelector((state: RootState) => state.posts);
     const [searchQuery, setSearchQuery] = useState('');
@@ -268,29 +268,29 @@ const ExplorePage: React.FC = () => {
 
                 <div className="flex flex-col gap-6 p-4">
                     {/* Interests Section */}
-                    <section className="bg-gray-50/50 dark:bg-dark-surface/30 rounded-2xl p-4 border border-gray-100 dark:border-dark-border relative">
-                        <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text transition-colors">
+                    <section className="flex flex-col relative px-2">
+                        <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text transition-colors">
                             <FiX size={20} />
                         </button>
 
-                        <div className="flex items-center gap-2 mb-4 text-primary-600 dark:text-primary-400">
-                            <FiGrid size={20} />
-                            <h2 className="text-lg font-bold">{t('explore.interests')}</h2>
+                        <div className="flex items-center gap-2 mb-3 text-primary-500">
+                            <FiGrid size={18} />
+                            <h2 className="text-[17px] font-bold text-gray-900 dark:text-white">{t('explore.your_interests', { defaultValue: 'Your interests' })}</h2>
                         </div>
 
-                        <div className="mb-6">
-                            <InterestsEditor variant="condensed" />
+                        <div className="mb-4">
+                            <InterestsEditor variant="full" limit={18} />
                         </div>
 
-                        <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-4">
-                            {t('explore.interests_desc')}
+                        <p className="text-[14px] text-gray-900 dark:text-gray-100 mb-4 font-medium">
+                            {t('explore.your_interests_desc', { defaultValue: 'Your interests help us find what you like!' })}
                         </p>
 
                         <button
                             onClick={() => navigate('/interests')}
-                            className="w-full py-2.5 rounded-full bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm transition-colors mb-2"
+                            className="w-full py-2.5 rounded-full bg-[#0085ff] hover:bg-[#0070d6] text-white font-bold text-[15px] transition-colors mb-2"
                         >
-                            {t('explore.edit_interests')}
+                            {t('explore.edit_interests', { defaultValue: 'Edit interests' })}
                         </button>
                     </section>
 
@@ -311,44 +311,37 @@ const ExplorePage: React.FC = () => {
                                 </button>
                             )}
                         </div>
-                        {accounts.length === 0 ? (
-                            <LoadingIndicator text={t('explore.loading_accounts', { defaultValue: 'Loading trending accounts...' })} />
-                        ) : accounts.map((item, index) => (
+                        {topics.length === 0 ? (
+                            <LoadingIndicator text={t('explore.loading_topics', { defaultValue: 'Loading trending topics...' })} />
+                        ) : topics.map((item, index) => (
                             <div
                                 key={item.id}
-                                onClick={() => navigate(`/profile/user/${item.id}`)}
+                                onClick={() => navigate(`/search?q=${encodeURIComponent(item.hashtag)}`)}
                                 className="flex items-center gap-4 py-4 px-2 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer border-b border-gray-100 dark:border-dark-border last:border-0"
                             >
-                                <span className="text-lg font-bold text-gray-400 w-6">
+                                <span className="text-[17px] font-bold text-gray-900 dark:text-white w-6 text-center">
                                     {index + 1}.
                                 </span>
 
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center justify-between">
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-gray-900 dark:text-dark-text truncate">
-                                                {item.displayName}
+                                            <span className="font-bold text-[16px] text-gray-900 dark:text-dark-text truncate hover:text-primary-500 transition-colors">
+                                                {item.hashtag.replace('#', '')}
                                             </span>
-                                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-dark-text-secondary mt-0.5">
-                                                <div className="flex -space-x-2">
-                                                    {item.followersAvatars.map((url, i) => (
-                                                        <img key={i} src={url} alt="" className="w-4 h-4 rounded-full border border-white dark:border-dark-bg" />
-                                                    ))}
-                                                </div>
-                                                <span>{item.postsCount} {t('profile.posts_stat')} · {item.category}</span>
+                                            <div className="flex items-center gap-2 text-[14px] text-gray-500 dark:text-dark-text-secondary mt-0.5">
+                                                <span>{item.category || 'Topic'}</span>
                                             </div>
                                         </div>
 
-                                        {item.isPromoted ? (
-                                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 text-[11px] font-bold border border-red-100 dark:border-red-900/30">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                                {t('explore.promoted')}
-                                            </span>
-                                        ) : (
-                                            <span className="text-[11px] text-gray-400 dark:text-dark-text-secondary">
-                                                {item.hoursAgo ? t('common.hours_ago', { count: item.hoursAgo }) : item.timeAgo}
-                                            </span>
-                                        )}
+                                        <div className="flex flex-col items-end gap-1">
+                                            {index === 0 && (
+                                                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500 text-white text-[11px] font-bold">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                                    Hot
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

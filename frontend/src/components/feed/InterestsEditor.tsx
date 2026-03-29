@@ -54,7 +54,7 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
     }
 
     return (
-        <div className={cn("flex flex-wrap", variant === 'full' ? "gap-3" : "gap-2")}>
+        <div className={cn("flex flex-wrap", variant === 'full' ? "gap-2.5" : "gap-2")}>
             {displayInterests.map((interest: string, index: number) => {
                 const isSelected = selectedInterests.some(i => i.toLowerCase() === interest.toLowerCase());
                 const label = t(`interests_tags.${interest.toLowerCase()}`, interest);
@@ -65,10 +65,10 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
                             key={index}
                             onClick={() => toggleInterest(interest)}
                             className={cn(
-                                "px-5 py-2 rounded-full text-[15px] font-bold transition-all border",
+                                "px-4 py-2 rounded-full text-[14px] font-bold transition-all",
                                 isSelected
-                                    ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-black shadow-md'
-                                    : 'bg-gray-100 border-transparent text-gray-900 dark:bg-dark-surface dark:text-dark-text hover:bg-gray-200 dark:hover:bg-dark-hover dark:border-dark-border'
+                                    ? 'bg-primary-500 text-white shadow-md'
+                                    : 'bg-gray-100 dark:bg-[#1f2937] text-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-[#374151]'
                             )}
                         >
                             {label}
@@ -81,10 +81,10 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
                         key={index}
                         onClick={() => toggleInterest(interest)}
                         className={cn(
-                            "px-4 py-1.5 rounded-full border text-sm font-medium transition-all shadow-sm",
+                            "px-3 py-1.5 rounded-full text-[14px] font-bold transition-all",
                             isSelected
-                                ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400'
-                                : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text-secondary hover:border-primary-500 hover:text-primary-500 dark:hover:text-primary-400'
+                                ? 'bg-primary-500 text-white'
+                                : 'bg-gray-100 dark:bg-[#1a2332] text-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2c3b54]'
                         )}
                     >
                         {label}
