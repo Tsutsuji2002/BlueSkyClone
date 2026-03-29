@@ -240,7 +240,12 @@ const RightSidebar: React.FC = () => {
             {/* Pinned Feeds */}
             <div className="flex flex-col gap-[2px]">
                 {pinnedFeeds.map((feed: any) => {
+                    const name = feed.name?.toLowerCase() || '';
                     const isFollowing = feedActionKey(feed) === 'following';
+                    const isNews = name.includes('news');
+                    const isScience = name.includes('science');
+                    const isDiscover = name.includes('discover') || name.includes('hot');
+
                     return (
                         <button
                             key={feedActionKey(feed)}
@@ -249,11 +254,23 @@ const RightSidebar: React.FC = () => {
                         >
                             <div className={cn(
                                 "w-5 h-5 rounded-[4px] flex-shrink-0 flex items-center justify-center overflow-hidden",
-                                isFollowing ? "bg-[#006aff]" : "bg-[#111822]"
+                                isFollowing || isScience || isDiscover ? "bg-[#006aff]" : (isNews ? "bg-[#405168]" : "bg-[#111822]")
                             )}>
                                 {isFollowing ? (
                                     <svg fill="none" viewBox="0 0 24 24" width="14" height="14">
                                         <path fill="#FFFFFF" d="M7.002 5a1 1 0 0 0-2 0v11.587l-1.295-1.294a1 1 0 0 0-1.414 1.414l3.002 3a1 1 0 0 0 1.414 0l2.998-3a1 1 0 0 0-1.414-1.414l-1.291 1.292V5ZM16 16a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2h-4Zm-3-4a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2h-6a1 1 0 0 1-1-1Zm-1-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-8Z" />
+                                    </svg>
+                                ) : isNews ? (
+                                    <svg fill="none" viewBox="0 0 24 24" width="12" height="12">
+                                        <path fill="#FFFFFF" d="M19 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm-5 10H7a1 1 0 1 1 0-2h7a1 1 0 1 1 0 2Zm3-4H7a1 1 0 1 1 0-2h10a1 1 0 1 1 0 2Z" />
+                                    </svg>
+                                ) : isScience ? (
+                                    <svg fill="none" viewBox="0 0 24 24" width="12" height="12">
+                                        <path fill="#FFFFFF" d="M18.5 20h-13a.5.5 0 0 1-.41-.787L11 10.158V4.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v5.658l5.91 9.055a.5.5 0 0 1-.41.787ZM12 4v6.5a.5.5 0 0 1-.09.287L7.02 18h9.96l-4.89-7.213a.5.5 0 0 1-.09-.287V4h-1Z" />
+                                    </svg>
+                                ) : isDiscover ? (
+                                    <svg fill="none" viewBox="0 0 24 24" width="12" height="12">
+                                        <path fill="#FFFFFF" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
                                     </svg>
                                 ) : (
                                     feed.avatar || feed.avatarUrl ? (
@@ -265,7 +282,7 @@ const RightSidebar: React.FC = () => {
                                     )
                                 )}
                             </div>
-                            <span className="text-[15px] font-normal text-[#a5b2c5] truncate group-hover:text-white transition-colors">
+                            <span className="text-[15px] font-normal text-white truncate group-hover:underline transition-all">
                                 {feed.name}
                             </span>
                         </button>

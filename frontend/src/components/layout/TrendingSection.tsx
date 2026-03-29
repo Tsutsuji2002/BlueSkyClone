@@ -79,16 +79,6 @@ const TrendingSection: React.FC = () => {
                 )}
             </div>
 
-            {!isLoading && trendingTopics.length > 5 && (
-                <button
-                    onClick={() => navigate('/explore')}
-                    className="w-full mt-3 flex items-center justify-between text-[#006aff] hover:underline text-[15px] font-medium"
-                >
-                    {t('common.show_more', { defaultValue: 'Show more' })}
-                    <FiChevronRight size={18} />
-                </button>
-            )}
-
             <ConfirmModal
                 isOpen={isConfirmModalOpen}
                 onClose={() => setIsConfirmModalOpen(false)}

@@ -1,39 +1,57 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiX, FiUsers } from 'react-icons/fi';
+import { FiX, FiUser } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
+import { fetchFollowing } from '../../redux/slices/userSlice';
 import Button from '../common/Button';
 import agent from '../../services/atpAgent';
 
 const OnboardingCard: React.FC = () => {
     const navigate = useNavigate();
+    const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const { user } = useAppSelector((state: RootState) => state.auth);
-    const [suggestedAvatars, setSuggestedAvatars] = useState<string[]>([]);
+    const [avatars, setAvatars] = useState<string[]>([]);
     const [isHidden, setIsHidden] = useState(false);
 
     useEffect(() => {
-        const fetchSuggestions = async () => {
+        const loadAvatars = async () => {
+            if (!user) return;
+
             try {
-                // Fetch suggestions to get avatars for the UI
-                const response = await agent.app.bsky.actor.getSuggestions({ limit: 12 });
-                if (response.success) {
-                    const avatars = response.data.actors
-                        .map((a: any) => a.avatar)
-                        .filter(Boolean);
-                    setSuggestedAvatars(avatars.slice(0, 9));
+                // 1. Fetch people the user already follows
+                const followingRes = await dispatch(fetchFollowing({ actor: user.id || user.handle, limit: 10 })).unwrap();
+                const followedAvatars = followingRes.users
+                    .map(u => u.avatarUrl)
+                    .filter(Boolean) as string[];
+
+                // 2. Fetch suggestions if we don't have enough
+                let suggestedAvatars: string[] = [];
+                if (followedAvatars.length < 10) {
+                    const response = await agent.app.bsky.actor.getSuggestions({ limit: 15 });
+                    if (response.success) {
+                        suggestedAvatars = response.data.actors
+                            .map((a: any) => a.avatar)
+                            .filter(Boolean)
+                            .filter((avg: string) => !followedAvatars.includes(avg));
+                    }
                 }
+
+                // 3. Combine: followers first, then suggestions
+                const combined = [...followedAvatars, ...suggestedAvatars].slice(0, 10);
+                setAvatars(combined);
             } catch (error) {
-                console.error('Failed to fetch suggestions for onboarding card', error);
+                console.error('Failed to load avatars for onboarding card', error);
             }
         };
 
         if (user && user.followingCount < 10 && !isHidden) {
-            fetchSuggestions();
+            loadAvatars();
         }
-    }, [user?.followingCount, isHidden]);
+    }, [user, isHidden, dispatch]);
 
     // Only show if user follows 9 or less people
     if (isHidden || !user || user.followingCount >= 10) {
@@ -56,23 +74,23 @@ const OnboardingCard: React.FC = () => {
 
             <div className="flex flex-col gap-3">
                 <div className="flex items-center -space-x-2">
-                    {suggestedAvatars.length > 0 ? (
+                    {avatars.length > 0 ? (
                         <>
-                            {suggestedAvatars.map((avatar, i) => (
-                                <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] overflow-hidden border border-[#232e3e]">
+                            {avatars.map((avatar, i) => (
+                                <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] overflow-hidden border border-[#232e3e] z-[10]">
                                     <img src={avatar} alt="" className="h-full w-full object-cover" />
                                 </div>
                             ))}
-                            {suggestedAvatars.length < 5 && [...Array(5 - suggestedAvatars.length)].map((_, i) => (
+                            {avatars.length < 10 && [...Array(10 - avatars.length)].map((_, i) => (
                                 <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#232e3e] flex items-center justify-center border border-[#232e3e]">
-                                    <FiUsers className="text-[#526580]" size={16} />
+                                    <FiUser className="text-[#526580]" size={16} />
                                 </div>
                             ))}
                         </>
                     ) : (
-                        [...Array(7)].map((_, i) => (
+                        [...Array(10)].map((_, i) => (
                             <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-[#19222e] bg-[#232e3e] flex items-center justify-center border border-[#232e3e]">
-                                <FiUsers className="text-[#526580]" size={16} />
+                                <FiUser className="text-[#526580]" size={16} />
                             </div>
                         ))
                     )}
@@ -81,7 +99,7 @@ const OnboardingCard: React.FC = () => {
                 <Button
                     variant="primary"
                     fullWidth
-                    className="rounded-full font-medium text-[13.1px] py-2 bg-[#006aff] hover:bg-[#005cd9] border-none"
+                    className="rounded-full font-bold text-[14.5px] py-2.5 bg-[#006aff] hover:bg-[#005cd9] border-none"
                     onClick={() => navigate('/explore')}
                 >
                     {t('sidebar.find_people', { defaultValue: 'Find people to follow' })}
