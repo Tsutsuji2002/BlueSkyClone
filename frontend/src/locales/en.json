@@ -701,13 +701,13 @@
         "cookies": "Cookies",
         "posts": "posts",
         "start_header": "START",
-        "follow_ten": "Follow 10 accounts",
+        "follow_ten": "Follow 10 people to get started",
         "bluesky_better": "Bluesky is better with friends!",
         "find_people": "Find people to follow",
         "other_feeds": "Other feeds",
         "feedback": "Feedback",
         "help": "Help",
-        "trending_header": "Trending Topics"
+        "trending_header": "Trending"
     },
     "about": {
         "title": "About",

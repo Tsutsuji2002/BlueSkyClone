@@ -23,21 +23,32 @@ const OnboardingCard: React.FC = () => {
 
             try {
                 // 1. Fetch people the user already follows
-                const followingRes = await dispatch(fetchFollowing({ actor: user.id || user.handle, limit: 10 })).unwrap();
-                const followedAvatars = followingRes.users
-                    .map(u => u.avatarUrl)
-                    .filter(Boolean) as string[];
+                // Use DID if available, otherwise handle. Avoid using internal ID.
+                const actor = user.did || user.handle;
+                
+                // Concurrently fetch following and suggestions for speed and reliability
+                const [followingResult, suggestionsResult] = await Promise.allSettled([
+                    dispatch(fetchFollowing({ actor, limit: 10 })).unwrap(),
+                    agent.app.bsky.actor.getSuggestions({ limit: 15 })
+                ]);
 
-                // 2. Fetch suggestions if we don't have enough
+                let followedAvatars: string[] = [];
+                if (followingResult.status === 'fulfilled') {
+                    followedAvatars = followingResult.value.users
+                        .map(u => u.avatarUrl || u.avatar)
+                        .filter(Boolean) as string[];
+                } else {
+                    console.warn('Failed to fetch following for onboarding card:', followingResult.reason);
+                }
+
                 let suggestedAvatars: string[] = [];
-                if (followedAvatars.length < 10) {
-                    const response = await agent.app.bsky.actor.getSuggestions({ limit: 15 });
-                    if (response.success) {
-                        suggestedAvatars = response.data.actors
-                            .map((a: any) => a.avatar)
-                            .filter(Boolean)
-                            .filter((avg: string) => !followedAvatars.includes(avg));
-                    }
+                if (suggestionsResult.status === 'fulfilled' && suggestionsResult.value.success) {
+                    suggestedAvatars = suggestionsResult.value.data.actors
+                        .map((a: any) => a.avatar)
+                        .filter(Boolean)
+                        .filter((avg: string) => !followedAvatars.includes(avg));
+                } else if (suggestionsResult.status === 'rejected') {
+                    console.warn('Failed to fetch suggestions for onboarding card:', suggestionsResult.reason);
                 }
 
                 // 3. Combine: followers first, then suggestions
