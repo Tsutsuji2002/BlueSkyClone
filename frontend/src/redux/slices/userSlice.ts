@@ -46,9 +46,14 @@ export const searchUsers = createAsyncThunk<
     async ({ query, skip, take }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(
                 `${API_BASE_URL}/search/users?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Search failed');

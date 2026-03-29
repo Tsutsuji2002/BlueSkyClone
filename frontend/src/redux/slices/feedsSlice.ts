@@ -337,7 +337,7 @@ export const searchFeeds = createAsyncThunk<
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
 
             const response = await fetch(`${API_BASE_URL}/feeds/search?query=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
                 headers
