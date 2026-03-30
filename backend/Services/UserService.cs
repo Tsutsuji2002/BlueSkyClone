@@ -1112,6 +1112,26 @@ public class UserService : IUserService
 
         _unitOfWork.Blocks.Remove(block);
         await _unitOfWork.CompleteAsync();
+
+        // --- AT Protocol: Delete block record on unblock ---
+        try
+        {
+            var blocker = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (blocker != null && !string.IsNullOrEmpty(blocker.Did) && !string.IsNullOrEmpty(block.Uri))
+            {
+                var rkey = block.Uri.Split('/').Last();
+                var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord",
+                        new StringContent(JsonSerializer.Serialize(new { repo = blocker.Did, collection = "app.bsky.graph.block", rkey }), Encoding.UTF8, "application/json"));
+                }
+            }
+        }
+        catch (Exception ex) { Console.WriteLine($"[UnblockUserAsync] ATProto sync error: {ex.Message}"); }
+
         return true;
     }
 
@@ -1140,6 +1160,26 @@ public class UserService : IUserService
 
         await _unitOfWork.Mutes.AddAsync(mute);
         await _unitOfWork.CompleteAsync();
+
+        // --- AT Protocol: Sync mute to Bluesky ---
+        try
+        {
+            var muter = await _unitOfWork.Users.GetByIdAsync(userId);
+            var muted = await _unitOfWork.Users.GetByIdAsync(mutedUserId);
+            if (muter != null && muted != null && !string.IsNullOrEmpty(muted.Did))
+            {
+                var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    await client.PostAsync("https://bsky.social/xrpc/app.bsky.graph.muteActor",
+                        new StringContent(JsonSerializer.Serialize(new { actor = muted.Did }), Encoding.UTF8, "application/json"));
+                }
+            }
+        }
+        catch (Exception ex) { Console.WriteLine($"[MuteUserAsync] ATProto sync error: {ex.Message}"); }
+
         return true;
     }
 
@@ -1150,6 +1190,25 @@ public class UserService : IUserService
 
         _unitOfWork.Mutes.Remove(mute);
         await _unitOfWork.CompleteAsync();
+
+        // --- AT Protocol: Sync unmute to Bluesky ---
+        try
+        {
+            var muted = await _unitOfWork.Users.GetByIdAsync(mutedUserId);
+            if (muted != null && !string.IsNullOrEmpty(muted.Did))
+            {
+                var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    await client.PostAsync("https://bsky.social/xrpc/app.bsky.graph.unmuteActor",
+                        new StringContent(JsonSerializer.Serialize(new { actor = muted.Did }), Encoding.UTF8, "application/json"));
+                }
+            }
+        }
+        catch (Exception ex) { Console.WriteLine($"[UnmuteUserAsync] ATProto sync error: {ex.Message}"); }
+
         return true;
     }
 

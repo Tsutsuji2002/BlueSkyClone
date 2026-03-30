@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
-import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss, FiAlertTriangle } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss, FiAlertTriangle, FiLock } from 'react-icons/fi';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import ListAvatar from '../components/common/ListAvatar';
 import { showToast } from '../redux/slices/toastSlice';
@@ -41,6 +41,7 @@ const ProfilePage: React.FC = () => {
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const profileUser = useAppSelector((state: RootState) => state.user.profile);
     const isProfileLoading = useAppSelector((state: RootState) => state.user.isLoading);
+    const profileError = useAppSelector((state: RootState) => state.user.error);
     const reduxPosts = useAppSelector((state: RootState) => state.posts.posts);
     const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
     const hasMore = useAppSelector((state: RootState) => state.posts.hasMore);
@@ -304,6 +305,26 @@ const ProfilePage: React.FC = () => {
 
     if (isProfileLoading && !profileUser) {
         return <ProfileSkeleton />;
+    }
+
+    // Private profile state (RequireLogoutVisibility is on and user is a guest)
+    if (!currentUser && profileError === 'PROFILE_PRIVATE') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
+                <div className="bg-gray-100 dark:bg-dark-surface p-6 rounded-full mb-6">
+                    <FiLock size={48} className="text-gray-400 dark:text-gray-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                    {t('profile.private_account', 'This account is private')}
+                </h2>
+                <p className="text-gray-500 dark:text-dark-text-secondary mb-6 max-w-sm">
+                    {t('profile.private_account_desc', 'Sign in to view this profile.')}
+                </p>
+                <Button onClick={() => dispatch(openAuthWall())}>
+                    {t('auth.sign_in', 'Sign in')}
+                </Button>
+            </div>
+        );
     }
 
     if (!profileUser && !isProfileLoading) {

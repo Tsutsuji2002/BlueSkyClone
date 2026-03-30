@@ -3,6 +3,7 @@ using BSkyClone.Models;
 using BSkyClone.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace BSkyClone.Controllers;
@@ -13,12 +14,15 @@ namespace BSkyClone.Controllers;
 public class ProfileController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly BSkyClone.Models.BSkyDbContext _db;
 
-    public ProfileController(IUserService userService)
+    public ProfileController(IUserService userService, BSkyClone.Models.BSkyDbContext db)
     {
         _userService = userService;
+        _db = db;
     }
 
+    [AllowAnonymous]
     [HttpGet("profile/{*handle}")]
     public async Task<IActionResult> GetProfile(string handle)
     {
@@ -50,7 +54,23 @@ public class ProfileController : ControllerBase
             if (refreshed != null) user = refreshed;
         }
 
+        // Enforce guest visibility setting: if the profile owner requires login to view, block unauthenticated callers
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        bool isGuest = string.IsNullOrEmpty(currentUserIdString);
+        if (isGuest && user.Id != Guid.Empty)
+        {
+            // Only check for local users (did:local or null did)
+            bool isLocalUser = string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:");
+            if (isLocalUser)
+            {
+                var settings = await _db.Set<UserSetting>().FirstOrDefaultAsync(s => s.UserId == user.Id);
+                if (settings?.RequireLogoutVisibility == true)
+                {
+                    return StatusCode(403, new { message = "This account is not visible to logged-out users." });
+                }
+            }
+        }
+
         bool isFollowing = false;
         bool isBlockedBy = false;
         bool isBlocking = false;
@@ -107,6 +127,7 @@ public class ProfileController : ControllerBase
         });
     }
 
+    [AllowAnonymous]
     [HttpGet("profile/id/{userId}")]
     public async Task<IActionResult> GetProfileById(Guid userId)
     {
@@ -120,7 +141,22 @@ public class ProfileController : ControllerBase
             if (refreshed != null) user = refreshed;
         }
 
+        // Enforce guest visibility
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        bool isGuest = string.IsNullOrEmpty(currentUserIdString);
+        if (isGuest)
+        {
+            bool isLocalUser = string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:");
+            if (isLocalUser)
+            {
+                var settings = await _db.Set<UserSetting>().FirstOrDefaultAsync(s => s.UserId == user.Id);
+                if (settings?.RequireLogoutVisibility == true)
+                {
+                    return StatusCode(403, new { message = "This account is not visible to logged-out users." });
+                }
+            }
+        }
+
         bool isFollowing = false;
         bool isBlockedBy = false;
         bool isBlocking = false;

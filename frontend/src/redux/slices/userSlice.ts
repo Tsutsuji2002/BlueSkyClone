@@ -84,11 +84,21 @@ export const fetchUserProfile = createAsyncThunk<
     async (actor: string, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            // actor can be a handle or a did/id — try handle endpoint first
+            const headers: Record<string, string> = {};
+            // Send token if available (authenticated); otherwise request as guest
+            if (token && token !== 'null') {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(
                 `${API_BASE_URL}/users/profile/${encodeURIComponent(actor)}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
+
+            if (response.status === 403) {
+                return rejectWithValue('PROFILE_PRIVATE');
+            }
+
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch profile');
 

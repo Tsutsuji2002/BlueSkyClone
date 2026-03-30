@@ -5,7 +5,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
 import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings, fetchPostReplies, createPost } from '../redux/slices/postsSlice';
-import { openReply, openMobileMenu, openEditPost, openReport, openQuote } from '../redux/slices/modalsSlice';
+import { openReply, openMobileMenu, openEditPost, openReport, openQuote, openAuthWall } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import IconButton from '../components/common/IconButton';
 import PostCard from '../components/feed/PostCard';
@@ -479,7 +479,11 @@ const PostDetailPage: React.FC = () => {
     const dateLocale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
     const handleFollowToggle = async () => {
-        if (!currentUser || !post) return;
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+        if (!post) return;
         try {
             const author = post.author as User;
             if (author.isFollowing && author.followingReference) {
@@ -775,7 +779,17 @@ const PostDetailPage: React.FC = () => {
                 </div>
 
                 {/* Reply Input */}
-                {post.canReply !== false ? (
+                {!currentUser ? (
+                    <div
+                        onClick={() => dispatch(openAuthWall())}
+                        className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-dark-border cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+                    >
+                        <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-dark-surface flex-shrink-0" />
+                        <div className="flex-1 text-gray-400 dark:text-dark-text-secondary text-sm">
+                            {t('auth.sign_in_to_reply', 'Sign in to reply')}
+                        </div>
+                    </div>
+                ) : post.canReply !== false ? (
                     <div
                         onClick={() => dispatch(openReply(post))}
                         className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-dark-border cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
