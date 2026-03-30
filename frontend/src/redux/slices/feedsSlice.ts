@@ -98,7 +98,7 @@ export const fetchRecommendedFeeds = createAsyncThunk<
     async (params, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const cursor = params && typeof params === 'object' ? params.cursor : null;
-            const limit = params && typeof params === 'object' ? params.limit : 10;
+            const limit = (params && typeof params === 'object' && typeof params.limit === 'number') ? params.limit : 10;
 
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};

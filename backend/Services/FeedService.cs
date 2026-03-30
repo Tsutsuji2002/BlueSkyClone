@@ -31,7 +31,7 @@ public class FeedService : IFeedService
     private const string DiscoverFeedName = "Discover";
     private const string DiscoverFeedDid = "did:web:discover.bsky.app";
     private const string DiscoverFeedHandle = "discover.bsky.app";
-    private const string DiscoverFeedUri = "at://did:web:discover.bsky.app/app.bsky.feed.generator/whats-hot";
+    private const string DiscoverFeedUri = "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
 
     public FeedService(
         IUnitOfWork unitOfWork, 
@@ -150,9 +150,11 @@ public class FeedService : IFeedService
         // Guaranteed official feeds to show if discovery fails
         var officialUris = new List<string>
         {
-            "at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot",
-            "at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/bsky-team",
-            "at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/with-friends"
+            "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot",
+            "at://did:plc:jfhpnnst6flqway4eaeqzj2a/app.bsky.feed.generator/for-science",
+            "at://did:plc:y7crv2yh74s7qhmtx3mvbgv5/app.bsky.feed.generator/art-new",
+            "at://did:plc:kkf4naxqmweop7dv4l2iqqf5/app.bsky.feed.generator/verified-news",
+            "at://did:plc:w4xbfzo7kqfes5zb7r6qv3rw/app.bsky.feed.generator/blacksky"
         };
         
         return await ResolveFeedsMetadataAsync(officialUris, userId);

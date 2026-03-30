@@ -11,7 +11,7 @@ import { Feed } from '../types';
 import IconButton from '../components/common/IconButton';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { openMobileMenu } from '../redux/slices/modalsSlice';
+import { openMobileMenu, openAuthWall } from '../redux/slices/modalsSlice';
 import {
     fetchSubscribedFeeds,
     fetchRecommendedFeeds,
@@ -109,6 +109,10 @@ const FeedsPage: React.FC = () => {
 
     const handlePinToggle = async (e: React.MouseEvent, feed: Feed) => {
         e.stopPropagation();
+        if (!isAuthenticated) {
+            dispatch(openAuthWall());
+            return;
+        }
         const key = feedActionKey(feed);
         if (feed.isPinned) {
             await dispatch(unpinFeed(key));
@@ -120,6 +124,10 @@ const FeedsPage: React.FC = () => {
 
     const handleSaveToggle = async (e: React.MouseEvent, feed: Feed) => {
         e.stopPropagation();
+        if (!isAuthenticated) {
+            dispatch(openAuthWall());
+            return;
+        }
         const key = feedActionKey(feed);
         if (feed.isSubscribed) {
             await dispatch(unsaveFeed(key));
@@ -376,18 +384,16 @@ const FeedsPage: React.FC = () => {
                                             </span>
                                         </div>
                                     </div>
-                                    {isAuthenticated && (
-                                        <button
-                                            onClick={(e: React.MouseEvent) => handleSaveToggle(e, feed)}
-                                            disabled={actionLoading[feedActionKey(feed)]}
-                                            className={cn(
-                                                "p-2 rounded-full transition-colors disabled:opacity-50",
-                                                feed.isSubscribed ? "text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
-                                            )}
-                                        >
-                                            {feed.isSubscribed ? <FiCheck size={20} /> : <FiPlus size={20} />}
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={(e: React.MouseEvent) => handleSaveToggle(e, feed)}
+                                        disabled={actionLoading[feedActionKey(feed)]}
+                                        className={cn(
+                                            "p-2 rounded-full transition-colors disabled:opacity-50",
+                                            feed.isSubscribed ? "text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
+                                        )}
+                                    >
+                                        {feed.isSubscribed ? <FiCheck size={20} /> : <FiPlus size={20} />}
+                                    </button>
                                 </div>
 
                                 <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed mb-1 pl-[52px]">

@@ -64,8 +64,8 @@ public class UnifiedFeedController : ControllerBase
                 case "discover":
                     if (viewerId == null)
                     {
-                        // Guests get media-rich posts from public Bluesky accounts
-                        posts = await _postService.GetGuestDiscoverPostsAsync(take, skip);
+                        // Guests get the official "What's Hot" Discover feed
+                        posts = await feedService.GetFeedPostsAsync(Guid.Empty, null, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot");
                     }
                     else
                     {
