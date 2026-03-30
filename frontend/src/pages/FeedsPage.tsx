@@ -42,6 +42,8 @@ const FeedsPage: React.FC = () => {
         recommendedFeeds,
         actionLoading
     } = useAppSelector((state: RootState) => state.feeds);
+    
+    const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
 
     useEffect(() => {
@@ -62,7 +64,7 @@ const FeedsPage: React.FC = () => {
     useEffect(() => {
         if (navType !== 'POP') return;
         const scrollKey = `feeds_list_scroll`;
-        
+
         // Restoration
         const savedScroll = sessionStorage.getItem(scrollKey);
         if (savedScroll && subscribedFeeds.length > 0) {
@@ -126,178 +128,200 @@ const FeedsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
-                {/* Header */}
-                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => dispatch(openMobileMenu())}
-                            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
-                        >
-                            <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
-                        </button>
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors hidden sm:block"
-                        >
-                            <FiArrowLeft size={20} className="dark:text-dark-text" />
-                        </button>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                            {t('feeds.title')}
-                        </h1>
-                    </div>
-                    <IconButton
-                        icon={<FiSettings size={20} />}
-                        onClick={() => navigate('/feeds/settings')}
-                    />
+            {/* Header */}
+            <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => dispatch(openMobileMenu())}
+                        className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
+                    >
+                        <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
+                    </button>
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors hidden sm:block"
+                    >
+                        <FiArrowLeft size={20} className="dark:text-dark-text" />
+                    </button>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
+                        {t('feeds.title')}
+                    </h1>
                 </div>
+                <IconButton
+                    icon={<FiSettings size={20} />}
+                    onClick={() => navigate('/feeds/settings')}
+                />
+            </div>
 
                 <div className="flex flex-col">
-                    {/* My feeds: all subscribed; pin toggles visibility on Home */}
-                    <div className="p-4 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/10">
-                        <div className="flex items-center gap-4 mb-1">
-                            <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
-                                <FiGrid className="text-primary-500" size={20} />
-                            </div>
-                            <div>
-                                <h2 className="font-bold text-gray-900 dark:text-dark-text">{t('feeds.my_feeds')}</h2>
-                                <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-0.5">
-                                    {t('feeds.my_feeds_hint', { defaultValue: 'Pin feeds to add them to Home. Use settings for order on Home.' })}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1 mt-3">
-                            {myFeedsSorted.length === 0 && (
-                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-2 italic text-center">
-                                    {t('feeds.no_saved_feeds')}
-                                </p>
-                            )}
-                            {(showAllMyFeeds ? myFeedsSorted : myFeedsSorted.slice(0, myFeedsCollapsedAt)).map((feed: Feed) => {
-                                const fk = feedActionKey(feed);
-                                return (
-                                    <div
-                                        key={fk}
-                                        onClick={() => navigate(`/feeds/${encodeURIComponent(fk)}`)}
-                                        className="flex items-center justify-between p-3 hover:bg-white dark:hover:bg-dark-surface rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
-                                    >
-                                        <div className="flex items-center gap-3 overflow-hidden min-w-0">
-                                            <FeedAvatar
-                                                src={feed.avatarUrl || feed.avatar}
-                                                alt={feed.name}
-                                                size="sm"
-                                                className="rounded-md flex-shrink-0"
-                                            />
-                                            <span className="font-semibold text-gray-900 dark:text-dark-text truncate">
-                                                {(feed.handle === 'following' || feed.name === 'Following') ? t('nav.following') : feed.name}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                            <button
-                                                type="button"
-                                                onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
-                                                disabled={actionLoading[fk]}
-                                                className={cn(
-                                                    'p-2 rounded-full transition-colors disabled:opacity-50',
-                                                    feed.isPinned
-                                                        ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
-                                                        : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface'
-                                                )}
-                                            >
-                                                <FiMapPin
-                                                    size={18}
-                                                    className={cn(feed.isPinned ? 'fill-current' : '')}
-                                                    title={feed.isPinned ? t('feeds.unpin') : t('feeds.pin')}
-                                                />
-                                            </button>
-                                            <FiChevronRight className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            {myFeedsSorted.length > myFeedsCollapsedAt && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllMyFeeds(!showAllMyFeeds)}
-                                    className="w-full py-2 mt-2 text-sm font-bold text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
-                                >
-                                    {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Search Bar */}
-                    <div className="sticky top-[73px] z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md p-4 border-b border-gray-100 dark:border-dark-border">
-                        <div className="relative group">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
-                            <input
-                                type="text"
-                                placeholder={t('feeds.search_placeholder')}
-                                value={searchQuery}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-2.5 pl-12 pr-4 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Search Results */}
-                    {searchQuery.length > 2 && (
-                        <div className="flex flex-col">
-                            <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/5 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-                                {t('feeds.search_results')}
-                            </div>
-                            {searchResults.map((feed: Feed) => (
-                                <div
-                                    key={feedActionKey(feed)}
-                                    onClick={() => {
-                                        navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
-                                    }}
-                                    className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
-                                >
-                                    <div className="flex items-start justify-between gap-3 mb-2">
-                                        <div className="flex gap-3 min-w-0">
-                                            <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-gray-900 dark:text-dark-text hover:underline truncate">{feed.name}</span>
-                                                <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">@{feed.handle}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed mb-1 pl-[52px]">
-                                        {feed.description}
+                    {isAuthenticated ? (
+                        /* My feeds: all subscribed; pin toggles visibility on Home */
+                        <div className="p-4 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/10">
+                            <div className="flex items-center gap-4 mb-1">
+                                <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                                    <FiGrid className="text-primary-500" size={20} />
+                                </div>
+                                <div>
+                                    <h2 className="font-bold text-gray-900 dark:text-dark-text">{t('feeds.my_feeds')}</h2>
+                                    <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-0.5">
+                                        {t('feeds.my_feeds_hint', { defaultValue: 'Pin feeds to add them to Home. Use settings for order on Home.' })}
                                     </p>
                                 </div>
-                            ))}
+                            </div>
+        
+                            <div className="space-y-1 mt-3">
+                                {myFeedsSorted.length === 0 && (
+                                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-2 italic text-center">
+                                        {t('feeds.no_saved_feeds')}
+                                    </p>
+                                )}
+                                {(showAllMyFeeds ? myFeedsSorted : myFeedsSorted.slice(0, myFeedsCollapsedAt)).map((feed: Feed) => {
+                                    const fk = feedActionKey(feed);
+                                    return (
+                                        <div
+                                            key={fk}
+                                            onClick={() => navigate(`/feeds/${encodeURIComponent(fk)}`)}
+                                            className="flex items-center justify-between p-3 hover:bg-white dark:hover:bg-dark-surface rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
+                                        >
+                                            <div className="flex items-center gap-3 overflow-hidden min-w-0">
+                                                <FeedAvatar
+                                                    src={feed.avatarUrl || feed.avatar}
+                                                    alt={feed.name}
+                                                    size="sm"
+                                                    className="rounded-md flex-shrink-0"
+                                                />
+                                                <span className="font-semibold text-gray-900 dark:text-dark-text truncate">
+                                                    {(feed.handle === 'following' || feed.name === 'Following') ? t('nav.following') : feed.name}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
+                                                    disabled={actionLoading[fk]}
+                                                    className={cn(
+                                                        'p-2 rounded-full transition-colors disabled:opacity-50',
+                                                        feed.isPinned
+                                                            ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                                                            : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface'
+                                                    )}
+                                                >
+                                                    <FiMapPin
+                                                        size={18}
+                                                        className={cn(feed.isPinned ? 'fill-current' : '')}
+                                                        title={feed.isPinned ? t('feeds.unpin') : t('feeds.pin')}
+                                                    />
+                                                </button>
+                                                <FiChevronRight className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {myFeedsSorted.length > myFeedsCollapsedAt && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllMyFeeds(!showAllMyFeeds)}
+                                        className="w-full py-2 mt-2 text-sm font-bold text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
+                                    >
+                                        {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        /* Guest Discover Header */
+                        <div className="p-4 border-b border-gray-100 dark:border-dark-border flex items-start gap-4">
+                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6 text-blue-500">
+                                    <path d="M4 6h16M4 12h16M4 18h7" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-[20px] font-bold text-gray-900 dark:text-dark-text">
+                                    {t('feeds.discover_new_feeds', { defaultValue: 'Discover New Feeds' })}
+                                </h3>
+                                <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary mt-1 max-w-md">
+                                    {t('feeds.discover_new_feeds_desc', { defaultValue: 'Pick your own feeds! Community-built feeds help you find the content you love.' })}
+                                </p>
+                            </div>
                         </div>
                     )}
 
-                    {/* Recommended Feeds (Only when not searching) */}
-                    {searchQuery.length <= 2 && (
-                        <div className="flex flex-col">
+                {/* Search Bar */}
+                <div className="sticky top-[73px] z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md p-4 border-b border-gray-100 dark:border-dark-border">
+                    <div className="relative group">
+                        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
+                        <input
+                            type="text"
+                            placeholder={t('feeds.search_placeholder')}
+                            value={searchQuery}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                            className="w-full bg-gray-100 dark:bg-dark-surface py-2.5 pl-12 pr-4 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
+                        />
+                    </div>
+                </div>
+
+                {/* Search Results */}
+                {searchQuery.length > 2 && (
+                    <div className="flex flex-col">
+                        <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/5 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
+                            {t('feeds.search_results')}
+                        </div>
+                        {searchResults.map((feed: Feed) => (
+                            <div
+                                key={feedActionKey(feed)}
+                                onClick={() => {
+                                    navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
+                                }}
+                                className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
+                            >
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                    <div className="flex gap-3 min-w-0">
+                                        <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="font-bold text-gray-900 dark:text-dark-text hover:underline truncate">{feed.name}</span>
+                                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">@{feed.handle}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed mb-1 pl-[52px]">
+                                    {feed.description}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Recommended Feeds (Only when not searching) */}
+                {searchQuery.length <= 2 && (
+                    <div className="flex flex-col">
+                        {isAuthenticated && (
                             <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/5 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider flex items-center gap-2">
                                 <FiActivity className="text-primary-500" /> {t('feeds.recommended_for_you')}
                             </div>
+                        )}
 
-                            {recommendedFeeds.map((feed: Feed) => (
-                                <div
-                                    key={feedActionKey(feed)}
-                                    onClick={() => {
-                                        navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
-                                    }}
-                                    className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
-                                >
-                                    <div className="flex items-start justify-between gap-3 mb-2">
-                                        <div className="flex gap-3 min-w-0">
-                                            <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-gray-900 dark:text-dark-text hover:underline truncate">
-                                                    {feed.name}
-                                                </span>
-                                                <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
-                                                    {t('profile.feed_by')} @{feed.handle}
-                                                </span>
-                                            </div>
+                        {recommendedFeeds.map((feed: Feed) => (
+                            <div
+                                key={feedActionKey(feed)}
+                                onClick={() => {
+                                    navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
+                                }}
+                                className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
+                            >
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                    <div className="flex gap-3 min-w-0">
+                                        <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="font-bold text-gray-900 dark:text-dark-text group-hover:underline truncate">
+                                                {feed.name}
+                                            </span>
+                                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
+                                                {t('profile.feed_by', { defaultValue: 'Feed by' })} @{feed.handle}
+                                            </span>
                                         </div>
+                                    </div>
+                                    {isAuthenticated && (
                                         <button
                                             onClick={(e: React.MouseEvent) => handleSaveToggle(e, feed)}
                                             disabled={actionLoading[feedActionKey(feed)]}
@@ -308,32 +332,42 @@ const FeedsPage: React.FC = () => {
                                         >
                                             {feed.isSubscribed ? <FiCheck size={20} /> : <FiPlus size={20} />}
                                         </button>
-                                    </div>
+                                    )}
+                                </div>
 
-                                    <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed mb-1 pl-[52px]">
-                                        {feed.description}
-                                    </p>
-                                    <div className="pl-[52px] flex items-center gap-2 mt-2">
+                                <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed mb-1 pl-[52px]">
+                                    {feed.description}
+                                </p>
+                                <div className="pl-[52px] flex items-center gap-2 mt-2">
+                                    {isAuthenticated ? (
                                         <span className="text-xs text-gray-400 dark:text-dark-text-secondary font-medium px-2 py-0.5 bg-gray-100 dark:bg-dark-surface rounded-full">
-                                            {feed.subscribersCount || feed.followersCount} {t('profile.followers')}
+                                            {feed.subscribersCount || feed.followersCount || 0} {t('profile.followers')}
                                         </span>
-                                    </div>
+                                    ) : (
+                                        <span className="text-[13px] font-medium text-gray-500 dark:text-dark-text-secondary">
+                                            {t('feeds.liked_by_users', { 
+                                                count: feed.subscribersCount || feed.followersCount || 0,
+                                                defaultValue: `Liked by ${feed.subscribersCount || feed.followersCount || 0} users` 
+                                            })}
+                                        </span>
+                                    )}
                                 </div>
-                            ))}
+                            </div>
+                        ))}
 
-                            {recommendedFeeds.length === 0 && (
-                                <div className="p-8 text-center flex flex-col items-center">
-                                    <div className="w-12 h-12 bg-gray-100 dark:bg-dark-surface rounded-full flex items-center justify-center mb-3">
-                                        <FiRss className="text-gray-400" size={24} />
-                                    </div>
-                                    <p className="text-gray-500 dark:text-dark-text-secondary">
-                                        {t('feeds.no_recommendations')}
-                                    </p>
+                        {recommendedFeeds.length === 0 && (
+                            <div className="p-8 text-center flex flex-col items-center">
+                                <div className="w-12 h-12 bg-gray-100 dark:bg-dark-surface rounded-full flex items-center justify-center mb-3">
+                                    <FiRss className="text-gray-400" size={24} />
                                 </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                                <p className="text-gray-500 dark:text-dark-text-secondary">
+                                    {t('feeds.no_recommendations')}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
