@@ -26,6 +26,7 @@ interface FeedsState {
     activeTab: string;
     feedPosts: Record<string, Post[]>;
     recommendedFeeds: Feed[];
+    recommendedCursor: string | null;
     isLoading: boolean;
     feedLoading: Record<string, boolean>; // per-feed loading flag for pagination
     searchLoading: boolean;
@@ -49,6 +50,7 @@ const initialState: FeedsState = {
     activeTab: localStorage.getItem('home_active_tab') || 'following', // Default to following or persisted tab
     feedPosts: {},
     recommendedFeeds: [],
+    recommendedCursor: null,
     isLoading: false,
     feedLoading: {},
     searchLoading: false,
@@ -88,24 +90,33 @@ export const fetchTrendingFeeds = createAsyncThunk<
 );
 
 export const fetchRecommendedFeeds = createAsyncThunk<
-    Feed[],
-    void,
+    { feeds: Feed[], cursor: string | null },
+    { cursor?: string | null, limit?: number } | void,
     { rejectValue: string }
 >(
     'feeds/fetchRecommendedFeeds',
-    async (_: void, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async (params, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
+            const cursor = params && typeof params === 'object' ? params.cursor : null;
+            const limit = params && typeof params === 'object' ? params.limit : 10;
+
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
 
-            const response = await fetch(`${API_BASE_URL}/feeds/recommended`, {
-                headers
-            });
+            let url = `${API_BASE_URL}/feeds/recommended?limit=${limit}`;
+            if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+
+            const response = await fetch(url, { headers });
             const data = await response.json();
-            console.log('feedsSlice: fetchRecommendedFeeds returned:', data);
+            
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch recommended feeds');
-            return data;
+            
+            // Backend now returns PagedFeedsDto { feeds, cursor }
+            return {
+                feeds: data.feeds || data, // Fallback for backward compatibility if backend not updated yet
+                cursor: data.cursor || null
+            };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -412,11 +423,21 @@ const feedsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            .addCase(fetchRecommendedFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
-                state.recommendedFeeds = action.payload;
+            .addCase(fetchRecommendedFeeds.fulfilled, (state: FeedsState, action: any) => {
+                const { feeds, cursor } = action.payload;
+                
+                if (!action.meta.arg || !(action.meta.arg as any).cursor) {
+                    state.recommendedFeeds = feeds;
+                } else {
+                    const existingUris = new Set(state.recommendedFeeds.map((f: Feed) => feedActionKey(f)));
+                    const newFeeds = feeds.filter((f: Feed) => !existingUris.has(feedActionKey(f)));
+                    state.recommendedFeeds = [...state.recommendedFeeds, ...newFeeds];
+                }
+                
+                state.recommendedCursor = cursor;
 
                 const recommendedByKey = new Map<string, Feed>();
-                action.payload.forEach((feed) => {
+                feeds.forEach((feed: Feed) => {
                     recommendedByKey.set(feedActionKey(feed), feed);
                 });
 

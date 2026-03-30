@@ -80,7 +80,7 @@ public class FeedsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("recommended")]
-    public async Task<IActionResult> GetRecommended()
+    public async Task<IActionResult> GetRecommended([FromQuery] string? cursor = null, [FromQuery] int limit = 10)
     {
         try
         {
@@ -88,23 +88,23 @@ public class FeedsController : ControllerBase
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
             {
                 // Unauthenticated users get trending feeds as recommended
-                var trendingFeeds = await _feedService.GetTrendingFeedsAsync(null);
-                return Ok(trendingFeeds);
+                var trendingPaged = await _feedService.GetTrendingFeedsAsync(null, cursor, limit);
+                return Ok(trendingPaged);
             }
 
-            var feeds = await _recommendationService.GetRecommendedFeedsAsync(userId);
-            return Ok(feeds);
+            var paged = await _recommendationService.GetRecommendedFeedsAsync(userId, cursor, limit);
+            return Ok(paged);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FeedsController] GetRecommended error: {ex.Message}");
-            return Ok(new List<FeedDto>());
+            _logger.LogError(ex, "[FeedsController] GetRecommended error: {Msg}", ex.Message);
+            return Ok(new PagedFeedsDto());
         }
     }
 
     [Authorize]
     [HttpGet("trending")]
-    public async Task<IActionResult> GetTrending()
+    public async Task<IActionResult> GetTrending([FromQuery] string? cursor = null, [FromQuery] int limit = 10)
     {
         try
         {
@@ -112,14 +112,14 @@ public class FeedsController : ControllerBase
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) 
                 return Unauthorized();
 
-            var feeds = await _feedService.GetTrendingFeedsAsync(userId);
-            _logger.LogInformation("[FeedsController] GetTrending returned {Count} feeds. First Feed ID: {FirstId}", feeds.Count(), feeds.FirstOrDefault()?.Id);
-            return Ok(feeds);
+            var paged = await _feedService.GetTrendingFeedsAsync(userId, cursor, limit);
+            _logger.LogInformation("[FeedsController] GetTrending returned {Count} feeds. Cursor: {Cursor}", paged.Feeds.Count(), paged.Cursor);
+            return Ok(paged);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FeedsController] GetTrending error: {ex.Message}");
-            return Ok(new List<FeedDto>());
+            _logger.LogError(ex, "[FeedsController] GetTrending error: {Msg}", ex.Message);
+            return Ok(new PagedFeedsDto());
         }
     }
 

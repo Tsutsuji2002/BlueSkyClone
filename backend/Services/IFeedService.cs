@@ -4,7 +4,7 @@ namespace BSkyClone.Services;
 
 public interface IFeedService
 {
-    Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid? userId);
+    Task<PagedFeedsDto> GetTrendingFeedsAsync(Guid? userId, string? cursor = null, int limit = 10);
     Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId);
     Task<FeedDto?> GetFeedByTidAsync(string tid);
     Task<bool> SaveFeedAsync(Guid userId, Guid feedId, string? uri = null);

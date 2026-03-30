@@ -7,7 +7,7 @@ namespace BSkyClone.Services;
 
 public interface IRecommendationService
 {
-    Task<IEnumerable<FeedDto>> GetRecommendedFeedsAsync(Guid userId);
+    Task<PagedFeedsDto> GetRecommendedFeedsAsync(Guid userId, string? cursor = null, int limit = 10);
 }
 
 public class RecommendationService : IRecommendationService
@@ -21,10 +21,10 @@ public class RecommendationService : IRecommendationService
         _feedService = feedService;
     }
 
-    public async Task<IEnumerable<FeedDto>> GetRecommendedFeedsAsync(Guid userId)
+    public async Task<PagedFeedsDto> GetRecommendedFeedsAsync(Guid userId, string? cursor = null, int limit = 10)
     {
         // For Pure Bluesky, "Recommended" feeds are just the popular feeds from the network.
         // We delegate to FeedService which already handles the remote fetch and preference sync.
-        return await _feedService.GetTrendingFeedsAsync(userId);
+        return await _feedService.GetTrendingFeedsAsync(userId, cursor, limit);
     }
 }

@@ -177,3 +177,9 @@ public class PagedPostDto
     public string? Cursor { get; set; }
 }
 
+public class PagedFeedsDto
+{
+    public IEnumerable<FeedDto> Feeds { get; set; } = new List<FeedDto>();
+    public string? Cursor { get; set; }
+}
+

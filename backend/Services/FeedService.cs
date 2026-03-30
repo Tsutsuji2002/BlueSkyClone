@@ -49,15 +49,15 @@ public class FeedService : IFeedService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<IEnumerable<FeedDto>> GetTrendingFeedsAsync(Guid? userId)
+    public async Task<PagedFeedsDto> GetTrendingFeedsAsync(Guid? userId, string? cursor = null, int limit = 10)
     {
         try
         {
-            var popularFeeds = await GetPopularRemoteFeedsAsync(userId);
-            if (popularFeeds.Any())
+            var pagedFeeds = await GetPopularRemoteFeedsAsync(userId, cursor, limit);
+            if (pagedFeeds.Feeds.Any())
             {
-                _logger.LogInformation("[FeedService] GetTrendingFeedsAsync: Returning {Count} popular remote feeds.", popularFeeds.Count());
-                return popularFeeds;
+                _logger.LogInformation("[FeedService] GetTrendingFeedsAsync: Returning {Count} popular remote feeds. Cursor: {Cursor}", pagedFeeds.Feeds.Count(), pagedFeeds.Cursor);
+                return pagedFeeds;
             }
         }
         catch (Exception ex)
@@ -65,85 +65,83 @@ public class FeedService : IFeedService
             _logger.LogWarning(ex, "[FeedService] Failed to fetch popular remote feeds for discovery.");
         }
 
-        // NO FALLBACK to local database feeds, but we use hardcoded official remote feeds as a safety net.
-        return await GetHardcodedOfficialFeedsAsync(userId);
+        if (string.IsNullOrEmpty(cursor))
+        {
+            var hardcoded = await GetHardcodedOfficialFeedsAsync(userId);
+            return new PagedFeedsDto { Feeds = hardcoded, Cursor = null };
+        }
+
+        return new PagedFeedsDto { Feeds = new List<FeedDto>(), Cursor = null };
     }
 
-    private async Task<List<FeedDto>> GetPopularRemoteFeedsAsync(Guid? userId)
+    private async Task<PagedFeedsDto> GetPopularRemoteFeedsAsync(Guid? userId, string? cursor = null, int limit = 10)
     {
         try
         {
-            if (!userId.HasValue) return new List<FeedDto>();
-            
-            var token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
-            var user = await _unitOfWork.Users.GetByIdAsync(userId.Value);
-            if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
+            string? token = null;
+            string? actorDid = null;
+
+            if (userId.HasValue)
             {
-                // Unauthenticated or no DID, but we still want discovery. 
-                // We'll fall back to hardcoded official feeds.
-                return new List<FeedDto>();
+                token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+                var user = await _unitOfWork.Users.GetByIdAsync(userId.Value);
+                if (user != null) actorDid = user.Did;
             }
 
-            // Route discovery through the authenticated proxy to bypass network blocks
-            var response = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.unspecced.getPopularFeedGenerators", 
-                queryParams: new Dictionary<string, string?> { ["limit"] = "10" }, 
-                token: token);
-            
-            if (!response.Success)
+            var queryParams = new Dictionary<string, string?> { ["limit"] = limit.ToString() };
+            if (!string.IsNullOrEmpty(cursor)) queryParams["cursor"] = cursor;
+
+            ProxyResponse response;
+            if (userId.HasValue && !string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(actorDid))
             {
-                _logger.LogWarning("[FeedService] getPopularFeedGenerators failed via proxy: {Content}", response.Content);
-                return new List<FeedDto>();
+                response = await _xrpcProxy.ProxyRequestAsync(actorDid, "app.bsky.unspecced.getPopularFeedGenerators", queryParams: queryParams, token: token);
             }
+            else
+            {
+                using var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                var url = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getPopularFeedGenerators?limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+                var httpResponse = await client.GetAsync(url);
+                response = new ProxyResponse 
+                { 
+                    Success = httpResponse.IsSuccessStatusCode, 
+                    StatusCode = (int)httpResponse.StatusCode,
+                    Content = await httpResponse.Content.ReadAsStringAsync()
+                };
+            }
+            
+            if (!response.Success) return new PagedFeedsDto();
 
             using var doc = JsonDocument.Parse(response.Content);
-            if (!doc.RootElement.TryGetProperty("feeds", out var feedsArray)) return new List<FeedDto>();
+            if (!doc.RootElement.TryGetProperty("feeds", out var feedsArray)) return new PagedFeedsDto();
 
-            // Get user preferences to mark subscription status
-            var savedUris = new HashSet<string>();
-            try 
+            var resultCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+            var feeds = new List<FeedDto>();
+            var savedUris = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var pinnedUris = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (userId.HasValue && !string.IsNullOrEmpty(actorDid) && !string.IsNullOrEmpty(token))
             {
-                // Shadowing fix: 'user' is already declared at line 59
-                if (user != null && !string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(token))
+                var userPrefs = await GetUserPreferencesAsync(actorDid, token);
+                if (userPrefs != null)
                 {
-                    var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
-                    if (prefResponse.Success)
-                    {
-                        using var prefDoc = JsonDocument.Parse(prefResponse.Content);
-                        if (prefDoc.RootElement.TryGetProperty("preferences", out var prefs))
-                        {
-                            foreach (var pref in prefs.EnumerateArray())
-                            {
-                                if (pref.TryGetProperty("$type", out var type) && 
-                                   (type.GetString() == "app.bsky.actor.defs#savedFeedsPrefV2" || type.GetString() == "app.bsky.actor.defs#savedFeedsPref"))
-                                {
-                                     if (type.GetString() == "app.bsky.actor.defs#savedFeedsPrefV2" && pref.TryGetProperty("items", out var items))
-                                         foreach (var it in items.EnumerateArray()) savedUris.Add(it.GetProperty("value").GetString()!);
-                                     else if (pref.TryGetProperty("saved", out var saved))
-                                         foreach (var s in saved.EnumerateArray())
-                    {
-                        var raw = s.GetString()!;
-                        savedUris.Add(raw);
-                        savedUris.Add(CanonicalizeFeedValue(raw));
-                    }
-                                }
-                            }
-                        }
-                    }
+                    savedUris = userPrefs.SavedUris;
+                    pinnedUris = userPrefs.PinnedUris;
                 }
-            } catch { /* subscription status fallback to false */ }
-
-            var result = new List<FeedDto>();
-            foreach (var gen in feedsArray.EnumerateArray())
-            {
-                var dto = MapGeneratorViewToDto(gen, savedUris, new HashSet<string>());
-                result.Add(dto);
             }
-            return MergeFeedsByKey(result);
+
+            foreach (var feedElem in feedsArray.EnumerateArray())
+            {
+                feeds.Add(MapGeneratorViewToDto(feedElem, savedUris, pinnedUris));
+            }
+
+            return new PagedFeedsDto { Feeds = feeds, Cursor = resultCursor };
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[FeedService] Error in GetPopularRemoteFeedsAsync");
-            return new List<FeedDto>();
+            _logger.LogError(ex, "[FeedService] GetPopularRemoteFeedsAsync error");
+            return new PagedFeedsDto();
         }
     }
 
