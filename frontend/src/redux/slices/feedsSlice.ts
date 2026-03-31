@@ -83,7 +83,7 @@ export const fetchTrendingFeeds = createAsyncThunk<
             const data = await response.json();
             console.log('feedsSlice: fetchTrendingFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch trending feeds');
-            return data;
+            return data.feeds || data;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

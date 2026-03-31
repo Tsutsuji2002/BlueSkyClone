@@ -1519,7 +1519,7 @@ public class UserService : IUserService
                 }
 
                 // --- Follow State Sync ---
-                if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
+                if (viewerId.HasValue && !string.IsNullOrEmpty(bskyToken) && root.TryGetProperty("viewer", out var viewerProp))
                 {
                     bool isFollowingRemotely = false;
                     string? followingUri = null;
