@@ -51,11 +51,11 @@ const Sidebar: React.FC = () => {
             
             {/* Account Switcher - AT TOP */}
             {user ? (
-                <div className="w-full flex justify-center xl:justify-start mb-2">
+                <div className="w-full flex justify-center xl:justify-start">
                     <Dropdown
                         trigger={
-                            <button aria-label="Switch accounts" className="group flex items-center justify-center xl:justify-between p-2 lg:p-3 xl:px-4 xl:w-full rounded-full bg-transparent hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-200 gap-3 outline-none">
-                                <div className="flex-shrink-0 relative z-10 transform origin-left transition-transform duration-200 group-hover:scale-[0.8] group-hover:-translate-x-2">
+                            <button aria-label="Switch accounts" className="group flex items-center justify-center xl:justify-between p-3 xl:w-full rounded-full bg-transparent hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-150 gap-3 outline-none">
+                                <div className="flex-shrink-0 relative z-10 transform origin-left transition-transform duration-150 group-hover:scale-[0.80] group-hover:-translate-x-1">
                                     <Avatar
                                         src={user.avatarUrl || user.avatar}
                                         alt={user.displayName}
@@ -112,7 +112,7 @@ const Sidebar: React.FC = () => {
             )}
 
             {/* Navigation */}
-            <nav className="flex-1 space-y-1 w-full" role="navigation">
+            <nav className="flex-1 flex flex-col w-full" role="navigation">
                 {NAV_ITEMS.map((item) => {
                     const isActive = location.pathname === item.path ||
                         (item.path === '/profile' && location.pathname.startsWith('/profile'));
@@ -171,11 +171,11 @@ const Sidebar: React.FC = () => {
             </nav>
 
             {/* Post Button */}
-            <div className="px-1 mt-4 mb-4 flex justify-center xl:justify-start w-full">
+            <div className="mt-4 mb-4 flex justify-center xl:justify-start w-full">
                 <button
                     aria-label="Compose new post"
                     onClick={() => dispatch(openCreatePost())}
-                    className="flex items-center justify-center bg-[#0085FF] hover:bg-[#0070DF] text-white transition-colors rounded-full xl:w-fit xl:py-[10px] xl:px-[20px] w-[52px] h-[52px] shadow-md gap-2"
+                    className="flex items-center justify-center bg-[#0085FF] hover:bg-[#0070DF] text-white transition-colors rounded-full xl:w-fit xl:py-[10px] xl:pl-[12px] xl:pr-[24px] w-[52px] h-[52px] shadow-md gap-3"
                 >
                     <div className="flex items-center justify-center w-[18px] h-[18px] xl:mr-0.5">
                         <svg fill="none" width="16" viewBox="0 0 24 24" height="16" style={{color: 'rgb(255, 255, 255)'}}><path fill="#FFFFFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M17.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1 0 1.414l-9 9A1 1 0 0 1 12 16H9a1 1 0 0 1-1-1v-3a1 1 0 0 1 .293-.707l9-9ZM10 12.414V14h1.586l8-8L18 4.414l-8 8ZM3 4a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2H5v14h14v-6a1 1 0 1 1 2 0v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Z"></path></svg>
