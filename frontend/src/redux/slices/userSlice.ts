@@ -581,7 +581,13 @@ const userSlice = createSlice({
             })
             // Follow User
             .addCase(followUserAsync.pending, (state: UserState, action) => {
-                state.actionLoading[action.meta.arg] = true;
+                const userId = action.meta.arg;
+                state.actionLoading[userId] = true;
+                // Optimistic update
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
+                    state.profile.isFollowing = true;
+                    if (state.profile.followersCount != null) state.profile.followersCount += 1;
+                }
             })
             .addCase(followUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg;
@@ -589,16 +595,35 @@ const userSlice = createSlice({
                 const profile = state.profile;
                 if (profile && profileMatchesIdentifier(profile, userId)) {
                     profile.isFollowing = true;
-                    profile.followingReference = action.payload.uri;
-                    profile.followersCount = action.payload.followersCount;
+                    profile.followingReference = action.payload.uri || profile.followingReference;
+                    if (action.payload.followersCount > 0) {
+                        profile.followersCount = action.payload.followersCount;
+                    }
                 }
             })
             .addCase(followUserAsync.rejected, (state: UserState, action) => {
-                state.actionLoading[action.meta.arg] = false;
+                const userId = action.meta.arg;
+                state.actionLoading[userId] = false;
+                // Revert optimistic update on failure
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
+                    state.profile.isFollowing = false;
+                    if (state.profile.followersCount != null && state.profile.followersCount > 0) {
+                        state.profile.followersCount -= 1;
+                    }
+                }
             })
             // Unfollow User
             .addCase(unfollowUserAsync.pending, (state: UserState, action) => {
-                state.actionLoading[action.meta.arg.userId] = true;
+                const userId = action.meta.arg.userId;
+                state.actionLoading[userId] = true;
+                // Optimistic update
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
+                    state.profile.isFollowing = false;
+                    state.profile.followingReference = undefined;
+                    if (state.profile.followersCount != null && state.profile.followersCount > 0) {
+                        state.profile.followersCount -= 1;
+                    }
+                }
             })
             .addCase(unfollowUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
@@ -607,11 +632,19 @@ const userSlice = createSlice({
                 if (profile && profileMatchesIdentifier(profile, userId)) {
                     profile.isFollowing = false;
                     profile.followingReference = undefined;
-                    profile.followersCount = action.payload.followersCount;
+                    if (action.payload.followersCount > 0) {
+                        profile.followersCount = action.payload.followersCount;
+                    }
                 }
             })
             .addCase(unfollowUserAsync.rejected, (state: UserState, action) => {
-                state.actionLoading[action.meta.arg.userId] = false;
+                const userId = action.meta.arg.userId;
+                state.actionLoading[userId] = false;
+                // Revert optimistic update on failure
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
+                    state.profile.isFollowing = true;
+                    if (state.profile.followersCount != null) state.profile.followersCount += 1;
+                }
             })
             // Block User
             .addCase(blockUserAsync.fulfilled, (state: UserState, action) => {
