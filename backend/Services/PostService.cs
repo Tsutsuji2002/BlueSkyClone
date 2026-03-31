@@ -349,14 +349,18 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string token, int skip = 0, int take = 20)
+    public async Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20)
     {
         try
         {
             using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            if (!string.IsNullOrEmpty(token))
+            {
+                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
             
-            var url = $"https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(query)}&limit={take}";
+            var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+            var url = $"{baseUrl}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(query)}&limit={take}";
             if (skip > 0)
             {
                 // Note: bsky search typically uses 'cursor' for pagination, but some endpoints support offset.

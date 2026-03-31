@@ -109,9 +109,12 @@ export const fetchTimeline = createAsyncThunk(
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(
                 `${API_BASE_URL}/posts/timeline?skip=${skip}&take=${take}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts: Post[] = await response.json();
@@ -127,12 +130,15 @@ export const fetchUserPosts = createAsyncThunk(
     async ({ userId, type, take = 20, skip = 0, cursor }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const params = new URLSearchParams({ take: String(take), skip: String(skip) });
             if (type) params.set('type', type);
             if (cursor) params.set('cursor', cursor);
             const response = await fetch(
                 `${API_BASE_URL}/posts/user/${userId}?${params}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
@@ -328,9 +334,12 @@ export const fetchPostsByTag = createAsyncThunk(
     async ({ tag, take = 20, skip = 0 }: { tag: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(
                 `${API_BASE_URL}/posts/tag/${encodeURIComponent(tag)}?take=${take}&skip=${skip}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch posts by tag');
             const posts: Post[] = await response.json();
@@ -346,9 +355,12 @@ export const fetchPostsSearch = createAsyncThunk(
     async ({ query, skip = 0, take = 20 }: { query: string; skip?: number; take?: number; cursor?: string }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(
                 `${API_BASE_URL}/search/posts?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to search posts');
             const posts: Post[] = await response.json();
@@ -386,9 +398,12 @@ export const fetchPostById = createAsyncThunk(
                 endpoint = `${API_BASE_URL}/posts/tid/${postId}`;
             }
             
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(
                 endpoint,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch post');
             
@@ -447,9 +462,12 @@ export const fetchPostReplies = createAsyncThunk(
     async ({ postId, skip = 0, take = 20 }: { postId: string; skip?: number; take?: number }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(
                 `${API_BASE_URL}/posts/${postId}/replies?skip=${skip}&take=${take}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch replies');
             const posts: Post[] = await response.json();
@@ -465,9 +483,12 @@ export const fetchTrendingPosts = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(
                 `${API_BASE_URL}/posts/trending`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch trending');
             return await response.json() as Post[];
@@ -519,9 +540,12 @@ export const fetchDiscoverPosts = createAsyncThunk(
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(
                 `${API_BASE_URL}/posts/discover?skip=${skip}&take=${take}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();

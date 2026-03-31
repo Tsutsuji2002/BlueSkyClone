@@ -40,7 +40,7 @@ const getXrpcBase = () =>
 
 const getAuthHeaders = (): Record<string, string> => {
     const token = localStorage.getItem('token');
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+    return (token && token !== 'null') ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
 const mapListFromXrpc = (list: any): ListDto => {
@@ -271,9 +271,12 @@ export const fetchCandidatePosts = createAsyncThunk(
     'lists/fetchCandidatePosts',
     async ({ listId, userId, take = 20, skip = 0 }: { listId: string; userId: string; take?: number; skip?: number }, { rejectWithValue }) => {
         try {
+            const headers: Record<string, string> = {};
             const token = localStorage.getItem('token');
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_BASE_URL}/lists/${listId}/candidate-posts?userId=${userId}&take=${take}&skip=${skip}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch posts');

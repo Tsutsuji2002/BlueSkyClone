@@ -74,10 +74,11 @@ export const fetchTrendingFeeds = createAsyncThunk<
     async (_: void, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_BASE_URL}/feeds/trending`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers
             });
             const data = await response.json();
             console.log('feedsSlice: fetchTrendingFeeds returned:', data);
@@ -132,10 +133,11 @@ export const fetchSubscribedFeeds = createAsyncThunk<
     async (_: void, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_BASE_URL}/feeds/subscribed`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers
             });
             const data = await response.json();
             console.log('feedsSlice: fetchSubscribedFeeds returned:', data);
@@ -156,8 +158,11 @@ export const fetchUserFeeds = createAsyncThunk<
     async (actor: string, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_BASE_URL}/feeds/actor/${actor}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch user feeds');
@@ -321,12 +326,15 @@ export const fetchFeedInfo = createAsyncThunk<
     async (feedId: string, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const isRemoteKey = feedId.startsWith('at://') || feedId === 'following' || feedId === 'discover';
             const url = isRemoteKey
                 ? `${API_BASE_URL}/feeds/resolve?uri=${encodeURIComponent(feedId)}`
                 : `${API_BASE_URL}/feeds/info/${feedId}`;
             const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers
             });
             const data = await response.json();
             console.log('feedsSlice: fetchFeedInfo returned for ID', feedId, ':', data);

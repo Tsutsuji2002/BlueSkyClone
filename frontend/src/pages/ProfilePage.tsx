@@ -39,6 +39,7 @@ const ProfilePage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated);
     const profileUser = useAppSelector((state: RootState) => state.user.profile);
     const isProfileLoading = useAppSelector((state: RootState) => state.user.isLoading);
     const profileError = useAppSelector((state: RootState) => state.user.error);
@@ -273,7 +274,7 @@ const ProfilePage: React.FC = () => {
             },
             hasDivider: !isOwnProfile
         },
-        ...(!isOwnProfile ? [
+        ...(!isOwnProfile && isAuthenticated ? [
             {
                 id: 'mute-account',
                 label: profileUser?.isMuted ? `${t('profile.unmute')} @${profileUser?.handle}` : `${t('profile.mute')} @${profileUser?.handle}`,

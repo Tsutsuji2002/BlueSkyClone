@@ -98,6 +98,7 @@ public class PostsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0, [FromQuery] string? cursor = null)
     {

@@ -27,7 +27,7 @@ public interface IPostService
     Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0);
     Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0);
     Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0);
-    Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string token, int skip = 0, int take = 20);
+    Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20);
     Task<PostDto?> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request);
     Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null);
     PostDto MapToDto(Post post);

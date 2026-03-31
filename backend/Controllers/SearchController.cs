@@ -50,6 +50,15 @@ public class SearchController : ControllerBase
                 }
             }
         }
+        else
+        {
+            // NEW: Guests can also search remote via Public API
+            var remotePosts = await _postService.SearchPostsRemoteAsync(q, null, skip, take);
+            if (remotePosts.Any())
+            {
+                return Ok(remotePosts);
+            }
+        }
 
         // 2. Local ElasticSearch
         var postIds = (await _searchService.SearchPostsAsync(q, skip, take)).ToList();

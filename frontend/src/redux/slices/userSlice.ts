@@ -147,12 +147,15 @@ export const fetchFollowers = createAsyncThunk<
     async ({ actor, cursor, limit = 20 }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
+
             const params = new URLSearchParams({ limit: String(limit) });
             if (cursor) params.append('cursor', cursor);
             
             const response = await fetch(
                 `${API_BASE_URL}/users/${encodeURIComponent(actor)}/followers?${params.toString()}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch followers');
@@ -186,12 +189,15 @@ export const fetchFollowing = createAsyncThunk<
     async ({ actor, cursor, limit = 20 }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
+
             const params = new URLSearchParams({ limit: String(limit) });
             if (cursor) params.append('cursor', cursor);
 
             const response = await fetch(
                 `${API_BASE_URL}/users/${encodeURIComponent(actor)}/following?${params.toString()}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { headers }
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch following');
