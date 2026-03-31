@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiCheck, FiPlus } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
+import UserHoverCard from '../components/common/UserHoverCard';
 import UserSkeleton from '../components/common/UserSkeleton';
 import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -159,13 +160,15 @@ const FollowersPage: React.FC = () => {
                                     className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
                                 >
                                     <div className="flex items-start gap-3">
-                                        <button onClick={() => navigate(`/profile/${follower.handle || 'user/' + follower.id}`)}>
-                                            <Avatar
-                                                src={follower.avatarUrl || follower.avatar}
-                                                alt={follower.displayName}
-                                                size="md"
-                                            />
-                                        </button>
+                                        <UserHoverCard user={follower}>
+                                            <button onClick={() => navigate(`/profile/${follower.handle || 'user/' + follower.id}`)}>
+                                                <Avatar
+                                                    src={follower.avatarUrl || follower.avatar}
+                                                    alt={follower.displayName}
+                                                    size="md"
+                                                />
+                                            </button>
+                                        </UserHoverCard>
                                         <div className="flex-1 min-w-0">
                                             <button
                                                 onClick={() => navigate(`/profile/${follower.handle || 'user/' + follower.id}`)}

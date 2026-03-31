@@ -1,6 +1,7 @@
 import React from 'react';
 import { Conversation } from '../../types';
 import Avatar from '../common/Avatar';
+import UserHoverCard from '../common/UserHoverCard';
 import { formatPostDate } from '../../utils/formatDate';
 import { cn } from '../../utils/classNames';
 import { useAppSelector } from '../../hooks/useAppSelector';
@@ -46,12 +47,16 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
             )}
             onClick={onClick}
         >
-            <div className="flex-shrink-0" onClick={handleProfileClick}>
-                <Avatar
-                    src={otherParticipant.avatarUrl || otherParticipant.avatar}
-                    alt={otherParticipant.displayName}
-                    size="md"
-                />
+            <div className="flex-shrink-0">
+                <UserHoverCard user={otherParticipant}>
+                    <div onClick={handleProfileClick}>
+                        <Avatar
+                            src={otherParticipant.avatarUrl || otherParticipant.avatar}
+                            alt={otherParticipant.displayName}
+                            size="md"
+                        />
+                    </div>
+                </UserHoverCard>
             </div>
 
             <div className="flex-1 min-w-0">

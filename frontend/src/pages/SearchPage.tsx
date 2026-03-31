@@ -10,8 +10,10 @@ import { searchUsers } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import Avatar from '../components/common/Avatar';
+import UserHoverCard from '../components/common/UserHoverCard';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+
 
 const SearchPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -155,7 +157,12 @@ const SearchPage: React.FC = () => {
                                             onClick={() => navigate(`/profile/${user.handle}`)}
                                             className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer transition-colors"
                                         >
-                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName || user.handle || '?'} size="lg" />
+                                            <UserHoverCard user={user}>
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName || user.handle || '?'} size="lg" />
+                                                </div>
+                                            </UserHoverCard>
+
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-1">
                                                     <span className="font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName || user.handle || 'Unknown'}</span>

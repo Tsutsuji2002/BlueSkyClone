@@ -12,6 +12,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import Avatar from '../common/Avatar';
 import Dropdown, { DropdownItem } from '../common/Dropdown';
+import UserHoverCard from '../common/UserHoverCard';
 import { cn } from '../../utils/classNames';
 import { useNavigate, Link } from 'react-router-dom';
 import MediaGrid from './MediaGrid';
@@ -343,12 +344,16 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                         {hasTopLine && (
                             <div className="absolute top-[-12px] bottom-[auto] w-[2px] h-[12px] bg-gray-200 dark:bg-dark-border z-0" />
                         )}
-                        <div className="z-10 bg-white dark:bg-dark-bg cursor-pointer rounded-full flex-shrink-0" onClick={handleAvatarClick}>
-                            <Avatar
-                                src={post.author.avatarUrl || post.author.avatar}
-                                alt={post.author.displayName || post.author.handle || '?'}
-                                size="md"
-                            />
+                        <div className="z-10 bg-white dark:bg-dark-bg cursor-pointer rounded-full flex-shrink-0">
+                            <UserHoverCard user={post.author}>
+                                <div onClick={handleAvatarClick}>
+                                    <Avatar
+                                        src={post.author.avatarUrl || post.author.avatar}
+                                        alt={post.author.displayName || post.author.handle || '?'}
+                                        size="md"
+                                    />
+                                </div>
+                            </UserHoverCard>
                         </div>
                         {hasBottomLine && (
                             <div className="absolute top-[40px] bottom-[-12px] w-[2px] bg-gray-200 dark:bg-dark-border z-0" />
@@ -359,15 +364,17 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                     <div className="flex-1 min-w-0">
                         {/* Header */}
                         <div className="flex items-center gap-1.5 mb-0.5">
-                            <span
-                                className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline flex items-center gap-0.5"
-                                onClick={handleAvatarClick}
-                            >
-                                {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
-                                {post.author.isVerified && (
-                                    <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
-                                )}
-                            </span>
+                            <UserHoverCard user={post.author}>
+                                <span
+                                    className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline flex items-center gap-0.5"
+                                    onClick={handleAvatarClick}
+                                >
+                                    {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
+                                    {post.author.isVerified && (
+                                        <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
+                                    )}
+                                </span>
+                            </UserHoverCard>
                             <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary truncate">
                                 {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
                             </span>
