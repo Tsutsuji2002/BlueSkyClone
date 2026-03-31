@@ -508,15 +508,11 @@ public class UserService : IUserService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _unitOfWork.Follows.AddAsync(follow);
-        
-        follower.FollowingCount++;
-        following.FollowersCount++;
-
         // --- Phase 4: Repo Signing for Follows ---
-        try
+        bool isRemoteInteraction = !string.IsNullOrEmpty(follower.Did) && !string.IsNullOrEmpty(following.Did);
+        if (isRemoteInteraction)
         {
-            if (!string.IsNullOrEmpty(follower.Did) && !string.IsNullOrEmpty(following.Did))
+            try
             {
                 var followRecord = new Dictionary<string, object>
                 {
@@ -542,21 +538,37 @@ public class UserService : IUserService
                         follow.Cid = json.RootElement.GetProperty("cid").GetString();
                         follow.Tid = follow.Uri?.Split('/').Last() ?? follow.Tid;
                         
-                        _unitOfWork.Follows.Update(follow);
                         Console.WriteLine($"[FollowUserAsync] Proxied follow to Bluesky for User {followerId}");
                     }
                     else
                     {
                         var error = await bskyResponse.Content.ReadAsStringAsync();
                         Console.WriteLine($"[FollowUserAsync] Bluesky Follow Failed: {bskyResponse.StatusCode} - {error}");
+                        return null; // Remote proxy failed, abort local commit
                     }
                 }
+                else
+                {
+                    Console.WriteLine($"[FollowUserAsync] Bluesky token expired for user {followerId}");
+                    return null; // Token expired, cannot proxy
+                }
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine($"[FollowUserAsync] Repo Signing Error: {ex.Message}");
+                 return null;
             }
         }
-        catch (Exception ex)
+        else
         {
-             Console.WriteLine($"[FollowUserAsync] Repo Signing Error: {ex.Message}");
+            // Local interaction fallback
+            follow.Uri = $"at://{follower.Did ?? "local"}/app.bsky.graph.follow/{follow.Tid}";
         }
+
+        // Only save to DB if proxy succeeded (or skipped for local)
+        await _unitOfWork.Follows.AddAsync(follow);
+        follower.FollowingCount++;
+        following.FollowersCount++;
 
         // Create notification
         bool createNotif = await ShouldCreateNotificationAsync(followingId, "follow");
@@ -630,7 +642,7 @@ public class UserService : IUserService
             }
         }
 
-        return follow?.Uri;
+        return follow.Uri;
     }
     finally
     {

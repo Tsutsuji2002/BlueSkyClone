@@ -8,7 +8,7 @@ import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFollowers, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearUsers } from '../redux/slices/userSlice';
+import { fetchFollowers, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearUsers, clearProfile } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
 
@@ -25,24 +25,39 @@ const FollowersPage: React.FC = () => {
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.followers'));
 
     useEffect(() => {
+        dispatch(clearProfile());
         dispatch(clearUsers());
+
+        let profilePromise: any;
+        let listPromise: any;
+
         if (effectiveId) {
             if (effectiveId.includes('.')) {
                 // It's a handle, we need the profile first to get the DID
-                dispatch(fetchUserProfile(effectiveId));
+                profilePromise = dispatch(fetchUserProfile(effectiveId));
             } else {
                 // It's a DID, we can fetch profile and list in parallel
-                dispatch(fetchUserProfileById(effectiveId));
-                dispatch(fetchFollowers({ actor: effectiveId }));
+                profilePromise = dispatch(fetchUserProfileById(effectiveId));
+                listPromise = dispatch(fetchFollowers({ actor: effectiveId }));
             }
         }
+
+        return () => {
+            if (profilePromise) profilePromise.abort();
+            if (listPromise) listPromise.abort();
+        };
     }, [dispatch, effectiveId]);
 
     useEffect(() => {
+        let listPromise: any;
         // Guard: fetch list only when profile matches the handle
         if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
-            dispatch(fetchFollowers({ actor: profile.id }));
+            listPromise = dispatch(fetchFollowers({ actor: profile.id }));
         }
+
+        return () => {
+            if (listPromise) listPromise.abort();
+        };
     }, [dispatch, profile?.id, profile?.handle, profile?.did, effectiveId]);
 
     // Infinite Scroll Observer

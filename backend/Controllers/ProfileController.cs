@@ -73,6 +73,14 @@ public class ProfileController : ControllerBase
             }
         }
 
+        // Dynamically compute counts for local users to prevent stale metrics
+        if (string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:"))
+        {
+            user.PostsCount = await _db.Posts.CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+            user.FollowersCount = await _db.UserFollows.CountAsync(f => f.FollowingId == user.Id);
+            user.FollowingCount = await _db.UserFollows.CountAsync(f => f.FollowerId == user.Id);
+        }
+
         bool isFollowing = false;
         bool isBlockedBy = false;
         bool isBlocking = false;
@@ -159,6 +167,14 @@ public class ProfileController : ControllerBase
             }
         }
 
+        // Dynamically compute counts for local users to prevent stale metrics
+        if (string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:"))
+        {
+            user.PostsCount = await _db.Posts.CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
+            user.FollowersCount = await _db.UserFollows.CountAsync(f => f.FollowingId == user.Id);
+            user.FollowingCount = await _db.UserFollows.CountAsync(f => f.FollowerId == user.Id);
+        }
+
         bool isFollowing = false;
         bool isBlockedBy = false;
         bool isBlocking = false;
@@ -219,14 +235,14 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> Follow(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
         var currentUserId = Guid.Parse(userIdStr);
 
         var targetUser = await ResolveUserAsync(userIdOrDid);
-        if (targetUser == null) return NotFound("User not found or could not be resolved");
+        if (targetUser == null) return NotFound(new { message = "User not found or could not be resolved" });
 
         var followUri = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
-        if (followUri == null) return BadRequest("Could not follow user");
+        if (followUri == null) return BadRequest(new { message = "Could not follow user. Your Bluesky session may have expired. Please log out and log back in." });
 
         // Re-fetch to get updated counters
         targetUser = await _userService.GetUserByIdAsync(targetUser.Id);
@@ -252,11 +268,11 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> Unfollow(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
         var currentUserId = Guid.Parse(userIdStr);
 
         var targetUser = await ResolveUserAsync(userIdOrDid);
-        if (targetUser == null) return NotFound("User not found");
+        if (targetUser == null) return NotFound(new { message = "User not found" });
 
         await _userService.UnfollowUserAsync(currentUserId, targetUser.Id);
 
@@ -271,14 +287,14 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> Block(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
         var currentUserId = Guid.Parse(userIdStr);
 
         var targetUser = await ResolveUserAsync(userIdOrDid);
-        if (targetUser == null) return NotFound("User not found");
+        if (targetUser == null) return NotFound(new { message = "User not found" });
 
         var result = await _userService.BlockUserAsync(currentUserId, targetUser.Id);
-        if (!result) return BadRequest("Could not block user");
+        if (!result) return BadRequest(new { message = "Could not block user" });
 
         return Ok(new { isBlocking = true, isFollowing = false });
     }
@@ -287,11 +303,11 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> Unblock(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
         var currentUserId = Guid.Parse(userIdStr);
 
         var targetUser = await ResolveUserAsync(userIdOrDid);
-        if (targetUser == null) return NotFound("User not found");
+        if (targetUser == null) return NotFound(new { message = "User not found" });
 
         await _userService.UnblockUserAsync(currentUserId, targetUser.Id);
         return Ok(new { isBlocking = false });
@@ -301,14 +317,14 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> Mute(string userIdOrDid)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
         var currentUserId = Guid.Parse(userIdStr);
 
         var targetUser = await ResolveUserAsync(userIdOrDid);
-        if (targetUser == null) return NotFound("User not found");
+        if (targetUser == null) return NotFound(new { message = "User not found" });
 
         var result = await _userService.MuteUserAsync(currentUserId, targetUser.Id);
-        if (!result) return BadRequest("Could not mute user");
+        if (!result) return BadRequest(new { message = "Could not mute user" });
         return Ok(new { isMuted = true });
     }
 
