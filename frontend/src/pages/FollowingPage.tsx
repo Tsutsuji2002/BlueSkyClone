@@ -8,7 +8,7 @@ import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
+import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearUsers } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
 
@@ -25,6 +25,7 @@ const FollowingPage: React.FC = () => {
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.following'));
 
     useEffect(() => {
+        dispatch(clearUsers());
         if (effectiveId) {
             if (effectiveId.includes('.')) {
                 // It's a handle

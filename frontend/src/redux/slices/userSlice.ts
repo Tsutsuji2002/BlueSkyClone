@@ -528,6 +528,12 @@ const userSlice = createSlice({
             if (state.profile) {
                 state.profile = { ...state.profile, ...action.payload };
             }
+        },
+        clearUsers: (state) => {
+            state.users = [];
+            state.cursor = null;
+            state.hasMore = true;
+            state.isLoading = false;
         }
     },
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
@@ -755,5 +761,5 @@ const userSlice = createSlice({
     }
 });
 
-export const { clearProfile, updateProfileLocal, setActiveProfileTab } = userSlice.actions;
+export const { clearProfile, updateProfileLocal, setActiveProfileTab, clearUsers } = userSlice.actions;
 export default userSlice.reducer;

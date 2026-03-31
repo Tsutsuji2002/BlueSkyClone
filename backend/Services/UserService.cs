@@ -1443,7 +1443,7 @@ public class UserService : IUserService
         return success;
     }
 
-    public async Task<User?> ResolveRemoteProfileAsync(string identifier)
+    public async Task<User?> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null)
     {
         if (string.IsNullOrEmpty(identifier)) return null;
 
@@ -1480,6 +1480,11 @@ public class UserService : IUserService
         {
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            if (!string.IsNullOrEmpty(token))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
             var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={did}");
 
             if (response.IsSuccessStatusCode)
@@ -1505,6 +1510,42 @@ public class UserService : IUserService
                 else
                 {
                     _unitOfWork.Users.Update(user);
+                }
+
+                // --- Follow State Sync ---
+                if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
+                {
+                    if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind == JsonValueKind.String)
+                    {
+                        var followingUri = followingProp.GetString();
+                        if (!string.IsNullOrEmpty(followingUri))
+                        {
+                            var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
+                            if (existingFollow == null)
+                            {
+                                await _unitOfWork.Follows.AddAsync(new UserFollow
+                                {
+                                    FollowerId = viewerId.Value,
+                                    FollowingId = user.Id,
+                                    Uri = followingUri,
+                                    CreatedAt = DateTime.UtcNow,
+                                    Tid = followingUri.Split('/').Last()
+                                });
+                            }
+                            else if (existingFollow.Uri != followingUri)
+                            {
+                                existingFollow.Uri = followingUri;
+                                existingFollow.Tid = followingUri.Split('/').Last();
+                                _unitOfWork.Follows.Update(existingFollow);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // If Bluesky says NOT following, but we have a local record, it might be stale.
+                        // However, we should be careful about deleting local-only follows if this is a hybrid system.
+                        // For now, only ADDING/UPDATING is safer.
+                    }
                 }
                 
                 await _unitOfWork.CompleteAsync();

@@ -235,20 +235,7 @@ const FeedsPage: React.FC = () => {
             )}
 
             <div className="flex-1 min-h-[500px]">
-                {isAuthenticated && (
-                    <div className="p-4 bg-gray-50 dark:bg-dark-surface-secondary/30 transition-colors">
-                        <div className="relative group">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                            <input
-                                type="text"
-                                placeholder={t('feeds.search_feeds_placeholder', { defaultValue: 'Search feeds...' })}
-                                className="w-full bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all dark:text-dark-text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                )}
+
 
                 {isAuthenticated && searchQuery.length < 2 && (
                     /* My feeds section for authenticated users */
@@ -322,6 +309,21 @@ const FeedsPage: React.FC = () => {
                                     {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
                                 </button>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {isAuthenticated && (
+                    <div className="p-4 bg-gray-50 dark:bg-dark-surface-secondary/30 transition-colors border-b border-gray-100 dark:border-dark-border">
+                        <div className="relative group">
+                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
+                            <input
+                                type="text"
+                                placeholder={t('feeds.search_feeds_placeholder', { defaultValue: 'Search feeds...' })}
+                                className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
                     </div>
                 )}

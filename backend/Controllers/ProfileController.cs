@@ -37,12 +37,17 @@ public class ProfileController : ControllerBase
                    ?? await _userService.GetUserByUsernameAsync(handle);
         }
                    
+        // Enforce guest visibility setting: if the profile owner requires login to view, block unauthenticated callers
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+        Guid? currentUserIdGuid = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
         if (user == null) 
         {
             // If not found locally, and it looks like a remote handle (contains a dot or starts with did:), try resolving it.
             if (!string.IsNullOrEmpty(handle) && (handle.Contains(".") || handle.StartsWith("did:")))
             {
-                 user = await _userService.ResolveRemoteProfileAsync(handle);
+                 user = await _userService.ResolveRemoteProfileAsync(handle, token, currentUserIdGuid);
             }
             
             if (user == null) return NotFound();
@@ -50,12 +55,9 @@ public class ProfileController : ControllerBase
         else if (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
         {
             // THIN-CLIENT: For remote profiles we already know, trigger a refresh to sync latest counts/metadata
-            var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did);
+            var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did, token, currentUserIdGuid);
             if (refreshed != null) user = refreshed;
         }
-
-        // Enforce guest visibility setting: if the profile owner requires login to view, block unauthenticated callers
-        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         bool isGuest = string.IsNullOrEmpty(currentUserIdString);
         if (isGuest && user.Id != Guid.Empty)
         {
