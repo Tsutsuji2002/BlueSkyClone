@@ -174,9 +174,11 @@ const FollowersPage: React.FC = () => {
                                                 onClick={() => navigate(`/profile/${follower.handle || 'user/' + follower.id}`)}
                                                 className="block text-left"
                                             >
-                                                <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">
-                                                    {follower.displayName}
-                                                </h3>
+                                                <UserHoverCard user={follower}>
+                                                    <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">
+                                                        {follower.displayName}
+                                                    </h3>
+                                                </UserHoverCard>
                                                 <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
                                                     {follower.handle}
                                                 </p>

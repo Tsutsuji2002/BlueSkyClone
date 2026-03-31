@@ -11,6 +11,7 @@ import { cn } from '../utils/classNames';
 import { Feed } from '../types';
 import FeedAvatar from '../components/common/FeedAvatar';
 import Avatar from '../components/common/Avatar';
+import UserHoverCard from '../components/common/UserHoverCard';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { fetchTrending, fetchInterestsList } from '../redux/slices/trendingSlice';
 import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds } from '../redux/slices/feedsSlice';
@@ -233,15 +234,23 @@ const ExplorePage: React.FC = () => {
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <Avatar
-                                                            src={result.avatarUrl || result.avatar}
-                                                            alt={result.displayName}
-                                                            size="md"
-                                                        />
+                                                        <UserHoverCard user={result}>
+                                                            <div onClick={(e) => { e.stopPropagation(); handleResultClick(result); }}>
+                                                                <Avatar
+                                                                    src={result.avatarUrl || result.avatar}
+                                                                    alt={result.displayName}
+                                                                    size="md"
+                                                                />
+                                                            </div>
+                                                        </UserHoverCard>
                                                     )}
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-bold text-gray-900 dark:text-dark-text truncate">
-                                                            {result._type === 'feed' ? result.name : result.displayName}
+                                                            {result._type === 'feed' ? result.name : (
+                                                                <UserHoverCard user={result}>
+                                                                    <span>{result.displayName}</span>
+                                                                </UserHoverCard>
+                                                            )}
                                                         </p>
                                                         <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary truncate">
                                                             {result._type === 'feed' ? (

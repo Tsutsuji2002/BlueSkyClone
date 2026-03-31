@@ -6,6 +6,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import api from '../../utils/api';
 import Avatar from '../common/Avatar';
+import UserHoverCard from '../common/UserHoverCard';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import LoadingIndicator from '../common/LoadingIndicator';
 
@@ -208,16 +209,24 @@ const RightSidebar: React.FC = () => {
                                                     )}
                                                 </div>
                                             ) : (
-                                                <Avatar
-                                                    src={result.avatarUrl || result.avatar}
-                                                    alt={result.displayName}
-                                                    size="md"
-                                                />
+                                                <UserHoverCard user={result}>
+                                                    <div onClick={(e) => { e.stopPropagation(); handleResultClick(result); }}>
+                                                        <Avatar
+                                                            src={result.avatarUrl || result.avatar}
+                                                            alt={result.displayName}
+                                                            size="md"
+                                                        />
+                                                    </div>
+                                                </UserHoverCard>
                                             )}
 
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-bold text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
-                                                    {result._type === 'feed' ? result.name : result.displayName}
+                                                    {result._type === 'feed' ? result.name : (
+                                                        <UserHoverCard user={result}>
+                                                            <span>{result.displayName}</span>
+                                                        </UserHoverCard>
+                                                    )}
                                                     {result.isVerified && (
                                                         <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
                                                     )}

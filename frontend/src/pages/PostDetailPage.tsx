@@ -7,6 +7,7 @@ import { Post, User } from '../types';
 import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings, fetchPostReplies, createPost } from '../redux/slices/postsSlice';
 import { openReply, openMobileMenu, openEditPost, openReport, openQuote, openAuthWall } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
+import UserHoverCard from '../components/common/UserHoverCard';
 import IconButton from '../components/common/IconButton';
 import PostCard from '../components/feed/PostCard';
 import MediaGrid from '../components/feed/MediaGrid';
@@ -563,47 +564,29 @@ const PostDetailPage: React.FC = () => {
                                 {parentPost && (
                                     <div className="absolute top-[-16px] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border z-0" />
                                 )}
-                                <div className="z-10 bg-white dark:bg-dark-bg rounded-full" onClick={() => navigate(`/profile/${post.author.handle}`)} style={{ cursor: 'pointer' }}>
-                                    <Avatar
-                                        src={post.author.avatarUrl || post.author.avatar}
-                                        alt={post.author.displayName}
-                                        size="md"
-                                    />
+                                <div className="z-10 bg-white dark:bg-dark-bg rounded-full" style={{ cursor: 'pointer' }}>
+                                    <UserHoverCard user={post.author}>
+                                        <div onClick={() => navigate(`/profile/${post.author.handle}`)}>
+                                            <Avatar
+                                                src={post.author.avatarUrl || post.author.avatar}
+                                                alt={post.author.displayName}
+                                                size="md"
+                                            />
+                                        </div>
+                                    </UserHoverCard>
                                 </div>
                             </div>
                             <div className="flex flex-col">
-                                <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
-                                    {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
-                                </span>
+                                <UserHoverCard user={post.author}>
+                                    <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
+                                        {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
+                                    </span>
+                                </UserHoverCard>
                                 <span className="text-gray-500 dark:text-dark-text-secondary">
                                     {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
                                 </span>
                             </div>
                         </div>
-                        {!isOwnPost && (
-                            <button
-                                onClick={handleFollowToggle}
-                                disabled={userActionLoading[post.author.id]}
-                                className={cn(
-                                    "px-4 py-1.5 rounded-full text-sm font-bold transition-opacity flex items-center gap-1 disabled:opacity-50",
-                                    post.author.isFollowing
-                                        ? "bg-gray-200 dark:bg-dark-surface text-gray-900 dark:text-dark-text hover:bg-gray-300 dark:hover:bg-dark-surface/80"
-                                        : "bg-gray-900 dark:bg-dark-text text-white dark:text-dark-bg hover:opacity-90"
-                                )}
-                            >
-                                {post.author.isFollowing ? (
-                                    <>
-                                        <FiCheck size={16} />
-                                        {t('profile.following_btn')}
-                                    </>
-                                ) : (
-                                    <>
-                                        <FiPlus size={16} />
-                                        {t('profile.follow')}
-                                    </>
-                                )}
-                            </button>
-                        )}
                     </div>
 
                     {/* Content */}

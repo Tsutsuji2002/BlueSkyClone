@@ -173,9 +173,11 @@ const FollowingPage: React.FC = () => {
                                                 onClick={() => navigate(`/profile/${user.handle || 'user/' + user.id}`)}
                                                 className="block text-left"
                                             >
-                                                <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">
-                                                    {user.displayName}
-                                                </h3>
+                                                <UserHoverCard user={user}>
+                                                    <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">
+                                                        {user.displayName}
+                                                    </h3>
+                                                </UserHoverCard>
                                                 <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
                                                     {user.handle}
                                                 </p>

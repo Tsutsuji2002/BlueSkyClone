@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiImage, FiX, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
-import UserHoverCard from '../components/common/UserHoverCard';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -554,21 +553,11 @@ const ChatPage: React.FC = () => {
                         <button onClick={() => navigate('/messages')} className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors">
                             <FiArrowLeft size={20} className="text-gray-600 dark:text-dark-text" />
                         </button>
-                        {otherParticipant ? (
-                            <UserHoverCard user={otherParticipant}>
-                                <Avatar
-                                    src={otherParticipant?.avatarUrl || otherParticipant?.avatar}
-                                    alt={otherParticipant?.displayName || 'User'}
-                                    size="md"
-                                />
-                            </UserHoverCard>
-                        ) : (
-                            <Avatar
-                                src={undefined}
-                                alt="User"
-                                size="md"
-                            />
-                        )}
+                        <Avatar
+                            src={otherParticipant?.avatarUrl || otherParticipant?.avatar}
+                            alt={otherParticipant?.displayName || 'User'}
+                            size="md"
+                        />
                         <div>
                             <h2 className="font-bold text-gray-900 dark:text-dark-text leading-tight">
                                 {otherParticipant?.displayName || t('messages.unknown_user')}
