@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-    FiHome, FiSearch, FiBell, FiMail, FiUser, FiSettings,
-    FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle
+    FiHome, FiSearch, FiBell, FiSettings,
+    FiSun, FiMoon, FiLogOut, FiEdit, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle, FiUser
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { NAV_ITEMS } from '../../constants';
@@ -11,26 +11,23 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useTheme } from '../../hooks/useTheme';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
 import { logoutAsync } from '../../redux/slices/authSlice';
-import Button from '../common/Button';
 import Avatar from '../common/Avatar';
-import IconButton from '../common/IconButton';
 import Dropdown from '../common/Dropdown';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
-
 import ButterflyLogo from '../common/ButterflyLogo';
 
 const iconMap: Record<string, React.ReactNode> = {
-    home: <FiHome size={24} />,
-    search: <FiSearch size={24} />,
-    bell: <FiBell size={24} />,
-    mail: <FiMessageCircle size={24} />,
-    notifications: <FiBell size={24} />,
-    feeds: <FiHash size={24} />,
-    lists: <FiList size={24} />,
-    saved: <FiBookmark size={24} />,
-    user: <FiUser size={24} />,
-    settings: <FiSettings size={24} />,
+    home: <FiHome size={28} strokeWidth={2} />,
+    search: <FiSearch size={28} strokeWidth={2} />,
+    bell: <FiBell size={28} strokeWidth={2} />,
+    mail: <FiMessageCircle size={28} strokeWidth={2} />,
+    notifications: <FiBell size={28} strokeWidth={2} />,
+    feeds: <FiHash size={28} strokeWidth={2} />,
+    lists: <FiList size={28} strokeWidth={2} />,
+    saved: <FiBookmark size={28} strokeWidth={2} />,
+    user: <FiUser size={28} strokeWidth={2} />,
+    settings: <FiSettings size={28} strokeWidth={2} />,
 };
 
 const Sidebar: React.FC = () => {
@@ -50,120 +47,42 @@ const Sidebar: React.FC = () => {
     };
 
     return (
-        <div className="h-screen sticky top-0 flex flex-col p-3">
-            {/* Logo */}
-            <div className="p-3 mb-2" onClick={() => navigate('/')}>
-                <ButterflyLogo className="w-8 h-8 text-primary-500 cursor-pointer" />
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 space-y-1">
-                {NAV_ITEMS.map((item) => {
-                    const isActive = location.pathname === item.path ||
-                        (item.path === '/profile' && location.pathname.startsWith('/profile'));
-
-                    const badgeCount = item.id === 'notifications' ? unreadNotifications : (item.id === 'messages' ? unreadMessages : 0);
-
-                    return (
-                        <button
-                            key={item.id}
-                            onClick={() => navigate(item.id === 'profile' ? `/profile/${user?.handle}` : item.path)}
-                            className={cn(
-                                'w-full flex items-center gap-4 px-3 py-2.5 rounded-full transition-colors text-left',
-                                isActive || badgeCount > 0
-                                    ? 'font-bold text-gray-900 dark:text-dark-text'
-                                    : 'font-normal text-gray-700 dark:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-surface'
-                            )}
-                        >
-                            <div className="relative">
-                                {iconMap[item.icon]}
-                                {badgeCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-primary-500 text-white text-[10px] px-1 rounded-full flex items-center justify-center font-bold">
-                                        {badgeCount > 9 ? '9+' : badgeCount}
-                                    </span>
-                                )}
-                            </div>
-                            <span className="text-xl hidden xl:inline">{t(`nav.${item.id}`)}</span>
-                        </button>
-                    );
-                })}
-
-                {user?.role === 'admin' && (
-                    <button
-                        onClick={() => navigate('/admin')}
-                        className={cn(
-                            'w-full flex items-center gap-4 px-3 py-2.5 rounded-full transition-colors text-left',
-                            location.pathname.startsWith('/admin')
-                                ? 'font-bold text-gray-900 dark:text-dark-text'
-                                : 'font-normal text-gray-700 dark:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-surface'
-                        )}
-                    >
-                        <div className="relative">
-                            <FiShield size={24} />
-                        </div>
-                        <span className="text-xl hidden xl:inline">{t('nav.admin')}</span>
-                    </button>
-                )}
-            </nav>
-
-            {/* Post Button */}
-            <div className="px-3 mb-4">
-                <Button
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    onClick={() => dispatch(openCreatePost())}
-                    className="hidden xl:flex"
-                >
-                    {t('common.post')}
-                </Button>
-                <button
-                    onClick={() => dispatch(openCreatePost())}
-                    className="xl:hidden w-12 h-12 bg-primary-500 hover:bg-primary-600 text-white rounded-full flex items-center justify-center transition-colors"
-                >
-                    <FiEdit size={20} />
-                </button>
-            </div>
-
-            {/* Theme Toggle */}
-            <div className="space-y-2">
-                <div className="flex items-center justify-between px-4">
-                    <span className="text-sm text-gray-600 dark:text-dark-text-secondary">
-                        {isDark ? t('settings.dark_mode') : t('settings.light_mode')}
-                    </span>
-                    <IconButton
-                        icon={isDark ? <FiSun size={20} /> : <FiMoon size={20} />}
-                        onClick={toggle}
-                        variant="default"
-                    />
-                </div>
-            </div>
-
-            {/* User Profile */}
-            {user && (
-                <div className="p-3">
+        <div className="h-screen sticky top-0 flex flex-col py-3 px-2 lg:px-4 w-[72px] xl:w-[280px] transition-all overflow-y-auto no-scrollbar border-r border-transparent">
+            
+            {/* Account Switcher - AT TOP */}
+            {user ? (
+                <div className="w-full flex justify-center xl:justify-start mb-2">
                     <Dropdown
                         trigger={
-                            <button className="w-full flex items-center gap-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors">
-                                <Avatar
-                                    src={user.avatarUrl || user.avatar}
-                                    alt={user.displayName}
-                                    size="md"
-                                />
-                                <div className="flex-1 text-left hidden xl:block">
-                                    <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
-                                        {user.displayName}
-                                        {user.isVerified && (
-                                            <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
-                                        )}
-                                    </p>
-                                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
+                            <button aria-label="Switch accounts" className="flex items-center justify-center xl:justify-between p-2 lg:p-3 xl:w-full rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors gap-3 outline-none">
+                                <div className="flex-shrink-0">
+                                    <Avatar
+                                        src={user.avatarUrl || user.avatar}
+                                        alt={user.displayName}
+                                        size="lg" // 48x48
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left">
+                                    <div className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
+                                        <span className="truncate">{user.displayName}</span>
+                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
+                                    </div>
+                                    <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate mt-0.5">
                                         @{user.handle}
-                                    </p>
+                                    </div>
+                                </div>
+                                <div className="hidden xl:block flex-shrink-0 text-gray-400 dark:text-gray-500 pl-1">
+                                    <svg fill="none" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style={{color: 'currentcolor'}}><path fill="currentColor" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path></svg>
                                 </div>
                             </button>
                         }
                         items={[
+                            {
+                                id: 'theme-toggle',
+                                label: isDark ? t('settings.light_mode') : t('settings.dark_mode'),
+                                icon: isDark ? <FiSun /> : <FiMoon />,
+                                onClick: toggle,
+                            },
                             {
                                 id: 'logout',
                                 label: t('settings.logout_label'),
@@ -172,10 +91,91 @@ const Sidebar: React.FC = () => {
                                 danger: true,
                             },
                         ]}
-                        align="right"
+                        align="left"
                     />
                 </div>
+            ) : (
+                <div className="px-3 mb-4 mt-2 flex justify-center xl:justify-start" onClick={() => navigate('/')}>
+                    <ButterflyLogo className="w-9 h-9 text-primary-500 cursor-pointer" />
+                </div>
             )}
+
+            {/* Navigation */}
+            <nav className="flex-1 space-y-1 w-full" role="navigation">
+                {NAV_ITEMS.map((item) => {
+                    const isActive = location.pathname === item.path ||
+                        (item.path === '/profile' && location.pathname.startsWith('/profile'));
+
+                    const badgeCount = item.id === 'notifications' ? unreadNotifications : (item.id === 'messages' ? unreadMessages : 0);
+
+                    return (
+                        <div key={item.id} className="flex justify-center xl:justify-start group w-full">
+                            <button
+                                aria-label={t(`nav.${item.id}`)!}
+                                onClick={() => navigate(item.id === 'profile' ? `/profile/${user?.handle}` : item.path)}
+                                className={cn(
+                                    'flex items-center p-3 rounded-full transition-colors outline-none max-w-full',
+                                    'xl:px-4 xl:py-3',
+                                    isActive 
+                                        ? 'font-bold text-gray-900 dark:text-white'
+                                        : 'text-gray-800 dark:text-gray-100 group-hover:bg-gray-100 dark:group-hover:bg-dark-surface'
+                                )}
+                            >
+                                <div className="relative flex-shrink-0 flex items-center justify-center w-[28px] h-[28px] xl:mr-3">
+                                    {iconMap[item.icon]}
+                                    {badgeCount > 0 && (
+                                        <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] bg-primary-500 text-white text-[11px] px-1 rounded-full flex items-center justify-center font-bold shadow-sm border border-white dark:border-dark-bg">
+                                            {badgeCount > 9 ? '9+' : badgeCount}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="hidden xl:block flex-1 min-w-0 pr-4">
+                                    <span className="text-[19px] truncate tracking-wide">{t(`nav.${item.id}`)}</span>
+                                </div>
+                            </button>
+                        </div>
+                    );
+                })}
+
+                {user?.role === 'admin' && (
+                    <div className="flex justify-center xl:justify-start group w-full">
+                        <button
+                            aria-label={t('nav.admin')!}
+                            onClick={() => navigate('/admin')}
+                            className={cn(
+                                'flex items-center p-3 rounded-full transition-colors outline-none max-w-full xl:px-4 xl:py-3',
+                                location.pathname.startsWith('/admin')
+                                    ? 'font-bold text-gray-900 dark:text-white'
+                                    : 'text-gray-800 dark:text-gray-100 group-hover:bg-gray-100 dark:group-hover:bg-dark-surface'
+                            )}
+                        >
+                            <div className="relative flex-shrink-0 flex items-center justify-center w-[28px] h-[28px] xl:mr-3">
+                                <FiShield size={28} strokeWidth={2} />
+                            </div>
+                            <div className="hidden xl:block flex-1 min-w-0 pr-4">
+                                <span className="text-[19px] truncate tracking-wide">{t('nav.admin')}</span>
+                            </div>
+                        </button>
+                    </div>
+                )}
+            </nav>
+
+            {/* Post Button */}
+            <div className="px-1 mt-6 mb-4 flex justify-center xl:justify-start w-full">
+                <button
+                    aria-label="Compose new post"
+                    onClick={() => dispatch(openCreatePost())}
+                    className="flex items-center justify-center bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white transition-colors rounded-full xl:w-[90%] xl:py-3.5 xl:px-6 w-[52px] h-[52px] xl:h-auto shadow-md"
+                >
+                    <div className="xl:hidden flex items-center justify-center w-[20px] h-[20px]">
+                        <svg fill="none" width="20" viewBox="0 0 24 24" height="20" style={{color: 'rgb(255, 255, 255)'}}><path fill="#FFFFFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M17.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1 0 1.414l-9 9A1 1 0 0 1 12 16H9a1 1 0 0 1-1-1v-3a1 1 0 0 1 .293-.707l9-9ZM10 12.414V14h1.586l8-8L18 4.414l-8 8ZM3 4a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2H5v14h14v-6a1 1 0 1 1 2 0v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Z"></path></svg>
+                    </div>
+                    <span className="hidden xl:inline text-[16px] font-bold tracking-wide">
+                        {t('common.post')}
+                    </span>
+                </button>
+            </div>
+            
         </div>
     );
 };
