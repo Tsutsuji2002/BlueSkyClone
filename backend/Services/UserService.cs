@@ -1480,9 +1480,14 @@ public class UserService : IUserService
         {
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-            if (!string.IsNullOrEmpty(token))
+            string? bskyToken = null;
+            if (viewerId.HasValue)
             {
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                bskyToken = await _cacheService.GetAsync<string>($"BlueskyToken_{viewerId.Value}");
+            }
+            if (!string.IsNullOrEmpty(bskyToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bskyToken);
             }
 
             var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={did}");

@@ -299,9 +299,10 @@ const ExplorePage: React.FC = () => {
                         {topics.length === 0 ? (
                             <LoadingIndicator text={t('explore.loading_topics', { defaultValue: 'Loading trending topics...' })} />
                         ) : topics.slice(0, 5).map((item, index) => {
+                            const hashtagStr = item.hashtag || (item as any).topic || item.id || '';
                             // Generate stable mock values to match exact UI screenshot
                             let hash = 0;
-                            for (let i = 0; i < item.hashtag.length; i++) hash = item.hashtag.charCodeAt(i) + ((hash << 5) - hash);
+                            for (let i = 0; i < hashtagStr.length; i++) hash = hashtagStr.charCodeAt(i) + ((hash << 5) - hash);
                             const hours = (Math.abs(hash) % 12) + 1;
                             const timeAgo = `${hours}h ago`;
                             
@@ -309,15 +310,15 @@ const ExplorePage: React.FC = () => {
                             const mockAvatars = accounts.length >= 3 
                                 ? accounts.slice(index % accounts.length, (index % accounts.length) + 3).map((a: any) => a.avatar || `https://ui-avatars.com/api/?name=${a.displayName || 'U'}&background=random`)
                                 : [
-                                    `https://ui-avatars.com/api/?name=${item.hashtag.charAt(0)}&background=random`,
-                                    `https://ui-avatars.com/api/?name=${item.hashtag.charAt(1)}&background=random`,
-                                    `https://ui-avatars.com/api/?name=${item.hashtag.charAt(2)}&background=random`
+                                    `https://ui-avatars.com/api/?name=${hashtagStr.charAt(0) || 'A'}&background=random`,
+                                    `https://ui-avatars.com/api/?name=${hashtagStr.charAt(1) || 'B'}&background=random`,
+                                    `https://ui-avatars.com/api/?name=${hashtagStr.charAt(2) || 'C'}&background=random`
                                   ];
 
                             return (
                                 <div
-                                    key={item.id}
-                                    onClick={() => navigate(`/search?q=${encodeURIComponent(item.hashtag)}`)}
+                                    key={item.id || index}
+                                    onClick={() => navigate(`/search?q=${encodeURIComponent(hashtagStr)}`)}
                                     className="flex items-start gap-3 py-3 px-4 hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer border-b border-gray-100 dark:border-dark-border last:border-0"
                                 >
                                     <span className="text-[15px] font-bold text-gray-900 dark:text-white w-5 text-left mt-0.5">
@@ -327,7 +328,7 @@ const ExplorePage: React.FC = () => {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-start gap-2">
                                             <span className="font-bold text-[15px] text-gray-900 dark:text-white truncate">
-                                                {item.hashtag.replace('#', '')}
+                                                {hashtagStr.replace('#', '')}
                                             </span>
                                             
                                             {index === 0 ? (

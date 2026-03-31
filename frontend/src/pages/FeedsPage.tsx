@@ -314,7 +314,7 @@ const FeedsPage: React.FC = () => {
                 )}
 
                 {isAuthenticated && (
-                    <div className="p-4 bg-gray-50 dark:bg-dark-surface-secondary/30 transition-colors border-b border-gray-100 dark:border-dark-border">
+                    <div className="p-4 bg-gray-50 dark:bg-dark-bg transition-colors border-b border-gray-100 dark:border-dark-border">
                         <div className="relative group">
                             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
                             <input
