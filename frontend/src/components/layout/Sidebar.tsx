@@ -49,6 +49,9 @@ const Sidebar: React.FC = () => {
     return (
         <div className="h-screen sticky top-0 flex flex-col py-3 px-2 lg:px-4 w-[72px] xl:w-[280px] transition-all overflow-y-auto no-scrollbar border-r border-transparent">
             
+            {/* Navigation wrapping everything */}
+            <nav className="flex-1 flex flex-col w-full" role="navigation">
+            
             {/* Account Switcher - AT TOP */}
             {user ? (
                 <div className="w-full flex justify-center xl:justify-start">
@@ -63,11 +66,11 @@ const Sidebar: React.FC = () => {
                                     />
                                 </div>
                                 <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out -ml-4">
-                                    <div className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
+                                    <div className="font-bold text-[14px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
                                         <span className="truncate">{user.displayName}</span>
-                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
+                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={12} />}
                                     </div>
-                                    <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate mt-0.5">
+                                    <div className="text-[12px] text-gray-500 dark:text-dark-text-secondary truncate mt-[1px]">
                                         @{user.handle}
                                     </div>
                                 </div>
@@ -111,8 +114,6 @@ const Sidebar: React.FC = () => {
                 </div>
             )}
 
-            {/* Navigation */}
-            <nav className="flex-1 flex flex-col w-full" role="navigation">
                 {NAV_ITEMS.map((item) => {
                     const isActive = location.pathname === item.path ||
                         (item.path === '/profile' && location.pathname.startsWith('/profile'));
@@ -168,10 +169,9 @@ const Sidebar: React.FC = () => {
                         </button>
                     </div>
                 )}
-            </nav>
 
             {/* Post Button */}
-            <div className="mt-4 mb-4 flex justify-center xl:justify-start w-full">
+            <div className="mt-1 mb-4 flex justify-center xl:justify-start w-full">
                 <button
                     aria-label="Compose new post"
                     onClick={() => dispatch(openCreatePost())}
@@ -186,6 +186,7 @@ const Sidebar: React.FC = () => {
                 </button>
             </div>
             
+            </nav>
         </div>
     );
 };
