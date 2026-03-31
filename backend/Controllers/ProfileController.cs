@@ -54,7 +54,7 @@ public class ProfileController : ControllerBase
         }
         else if (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
         {
-            // THIN-CLIENT: For remote profiles we already know, trigger a refresh to sync latest counts/metadata
+            // Federating user: trigger a refresh to sync latest network stats (followers/following/posts)
             var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did, token, currentUserIdGuid);
             if (refreshed != null) user = refreshed;
         }

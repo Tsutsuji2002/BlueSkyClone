@@ -200,7 +200,7 @@ const FeedsPage: React.FC = () => {
                             <input
                                 type="text"
                                 placeholder={t('feeds.search_feeds_placeholder', { defaultValue: 'Tìm bảng tin' })}
-                                className="w-full bg-gray-100 dark:bg-dark-surface-secondary border-none rounded-2xl py-3 pl-12 pr-4 text-[16px] focus:ring-2 focus:ring-primary-500 outline-none transition-all dark:text-dark-text placeholder-gray-500"
+                                className="w-full bg-gray-100 dark:bg-dark-surface-secondary border-none rounded-2xl py-3 pl-12 pr-4 text-[16px] focus:ring-2 focus:ring-primary-500 outline-none transition-colors dark:text-dark-text placeholder-gray-500"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
@@ -237,7 +237,7 @@ const FeedsPage: React.FC = () => {
             <div className="flex-1 min-h-[500px]">
 
 
-                {isAuthenticated && searchQuery.length < 2 && (
+                {isAuthenticated && (
                     /* My feeds section for authenticated users */
                     <div className="p-4 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/10">
                         <div className="flex items-center gap-4 mb-1">
@@ -320,7 +320,7 @@ const FeedsPage: React.FC = () => {
                             <input
                                 type="text"
                                 placeholder={t('feeds.search_feeds_placeholder', { defaultValue: 'Search feeds...' })}
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
+                                className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />

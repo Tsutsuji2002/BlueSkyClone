@@ -1086,9 +1086,9 @@ public class PostService : IPostService
 
         await _unitOfWork.Posts.AddAsync(post);
         
-        // Update User PostsCount - Only for local-only users
+        // Update User PostsCount
         author = await _unitOfWork.Users.GetByIdAsync(userId);
-        if (author != null && string.IsNullOrEmpty(author.Did))
+        if (author != null)
         {
             author.PostsCount = (author.PostsCount ?? 0) + 1;
             _unitOfWork.Users.Update(author);

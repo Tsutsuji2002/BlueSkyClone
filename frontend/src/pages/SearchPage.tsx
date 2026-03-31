@@ -88,7 +88,7 @@ const SearchPage: React.FC = () => {
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 placeholder={t('explore.search_placeholder', { defaultValue: 'Search' })}
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-2 pl-12 pr-10 rounded-full text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
+                                className="w-full bg-gray-100 dark:bg-dark-surface py-2 pl-12 pr-10 rounded-full text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
                             />
                             {inputValue && (
                                 <button

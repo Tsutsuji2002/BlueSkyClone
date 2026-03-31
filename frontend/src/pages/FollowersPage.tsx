@@ -28,9 +28,10 @@ const FollowersPage: React.FC = () => {
         dispatch(clearUsers());
         if (effectiveId) {
             if (effectiveId.includes('.')) {
-                // It's a handle
+                // It's a handle, we need the profile first to get the DID
                 dispatch(fetchUserProfile(effectiveId));
             } else {
+                // It's a DID, we can fetch profile and list in parallel
                 dispatch(fetchUserProfileById(effectiveId));
                 dispatch(fetchFollowers({ actor: effectiveId }));
             }
@@ -38,10 +39,11 @@ const FollowersPage: React.FC = () => {
     }, [dispatch, effectiveId]);
 
     useEffect(() => {
-        if (profile?.id && effectiveId?.includes('.')) {
+        // Guard: fetch list only when profile matches the handle
+        if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
             dispatch(fetchFollowers({ actor: profile.id }));
         }
-    }, [dispatch, profile?.id, effectiveId]);
+    }, [dispatch, profile?.id, profile?.handle, profile?.did, effectiveId]);
 
     // Infinite Scroll Observer
     useEffect(() => {

@@ -190,7 +190,7 @@ const ExplorePage: React.FC = () => {
                                 }}
                                 onFocus={() => setShowResults(true)}
                                 onKeyDown={handleKeyDown}
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-all dark:text-dark-text"
+                                className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
                             />
                             {searchQuery && (
                                 <button

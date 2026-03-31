@@ -156,7 +156,7 @@ const RightSidebar: React.FC = () => {
         <div className="flex flex-col gap-4 w-[330px] h-screen sticky top-0 py-[20px] pr-[2px] pb-[20px] pl-[28px] overflow-y-auto no-scrollbar">
             {/* Search Bar Container */}
             <div className="relative w-full group" ref={searchRef}>
-                <div className="flex items-center gap-3 px-3 py-2 bg-gray-100/80 dark:bg-[#19222e] rounded-full border border-transparent focus-within:border-primary-500 transition-all">
+                <div className="flex items-center gap-3 px-3 py-2 bg-gray-100/80 dark:bg-[#19222e] rounded-full border border-transparent focus-within:border-primary-500 transition-colors">
                     <FiSearch className="text-gray-400 dark:text-[#667b99] flex-shrink-0" size={18} />
                     <input
                         type="text"

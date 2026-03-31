@@ -1498,7 +1498,8 @@ public class UserService : IUserService
                 if (root.TryGetProperty("avatar", out var avatarProp)) user.AvatarUrl = avatarProp.GetString();
                 if (root.TryGetProperty("banner", out var bannerProp)) user.CoverImageUrl = bannerProp.GetString();
                 if (root.TryGetProperty("description", out var bioProp)) user.Bio = bioProp.GetString();
-                // Persist remote counts — local DB won't have follow records for remote users
+                
+                // Persist remote counts
                 if (root.TryGetProperty("followersCount", out var followersProp)) user.FollowersCount = followersProp.GetInt32();
                 if (root.TryGetProperty("followsCount", out var followsProp)) user.FollowingCount = followsProp.GetInt32();
                 if (root.TryGetProperty("postsCount", out var postsProp)) user.PostsCount = postsProp.GetInt32();
@@ -1515,45 +1516,51 @@ public class UserService : IUserService
                 // --- Follow State Sync ---
                 if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
                 {
+                    bool isFollowingRemotely = false;
+                    string? followingUri = null;
+
                     if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind == JsonValueKind.String)
                     {
-                        var followingUri = followingProp.GetString();
-                        if (!string.IsNullOrEmpty(followingUri))
+                        followingUri = followingProp.GetString();
+                        isFollowingRemotely = !string.IsNullOrEmpty(followingUri);
+                    }
+
+                    var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
+
+                    if (isFollowingRemotely && !string.IsNullOrEmpty(followingUri))
+                    {
+                        if (existingFollow == null)
                         {
-                            var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
-                            if (existingFollow == null)
+                            await _unitOfWork.Follows.AddAsync(new UserFollow
                             {
-                                await _unitOfWork.Follows.AddAsync(new UserFollow
-                                {
-                                    FollowerId = viewerId.Value,
-                                    FollowingId = user.Id,
-                                    Uri = followingUri,
-                                    CreatedAt = DateTime.UtcNow,
-                                    Tid = followingUri.Split('/').Last()
-                                });
-                            }
-                            else if (existingFollow.Uri != followingUri)
-                            {
-                                existingFollow.Uri = followingUri;
-                                existingFollow.Tid = followingUri.Split('/').Last();
-                                _unitOfWork.Follows.Update(existingFollow);
-                            }
+                                FollowerId = viewerId.Value,
+                                FollowingId = user.Id,
+                                Uri = followingUri,
+                                CreatedAt = DateTime.UtcNow,
+                                Tid = followingUri.Split('/').Last()
+                            });
+                        }
+                        else if (existingFollow.Uri != followingUri)
+                        {
+                            existingFollow.Uri = followingUri;
+                            existingFollow.Tid = followingUri.Split('/').Last();
+                            _unitOfWork.Follows.Update(existingFollow);
                         }
                     }
-                    else
+                    else if (existingFollow != null)
                     {
-                        // If Bluesky says NOT following, but we have a local record, it might be stale.
-                        // However, we should be careful about deleting local-only follows if this is a hybrid system.
-                        // For now, only ADDING/UPDATING is safer.
+                        _unitOfWork.Follows.Remove(existingFollow);
                     }
                 }
-                
+
                 await _unitOfWork.CompleteAsync();
 
-                // Re-index in search (resiliently)
+                // Re-index in search
                 try { await _searchService.IndexUserAsync(user); } catch { }
                 
                 _logger.LogInformation("[ResolveRemoteProfileAsync] Resolved {Status}DID {Did} to handle {Handle}", isNew ? "NEW " : "", did, user.Handle);
+                
+                return user;
             }
             else
             {

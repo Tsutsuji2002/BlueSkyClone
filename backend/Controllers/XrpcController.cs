@@ -768,11 +768,15 @@ namespace BSkyClone.Controllers
 
                 if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
 
-                // Phase 35: Resolve remote stub users
-                if (!string.IsNullOrEmpty(user.Did) && user.Handle == user.Did)
+                // Refresh remote profile stats if it's a non-local user
+                if (!string.IsNullOrEmpty(user.Did) && !user.Did.EndsWith(":local"))
                 {
-                    var resolved = await _userService.ResolveRemoteProfileAsync(user.Did);
-                    if (resolved != null) user = resolved;
+                    try
+                    {
+                        var resolved = await _userService.ResolveRemoteProfileAsync(user.Did);
+                        if (resolved != null) user = resolved;
+                    }
+                    catch { /* Best effort */ }
                 }
 
                 // For remote users, local DB has no follow records, so use cached values from profile sync.
