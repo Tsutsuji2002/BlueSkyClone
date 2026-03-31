@@ -55,7 +55,7 @@ const Sidebar: React.FC = () => {
                     <Dropdown
                         trigger={
                             <button aria-label="Switch accounts" className="group flex items-center justify-center xl:justify-between p-2 lg:p-3 xl:px-4 xl:w-full rounded-full hover:bg-gray-200 dark:hover:bg-[#161e27] transition-colors gap-3 outline-none">
-                                <div className="flex-shrink-0 relative z-10">
+                                <div className="flex-shrink-0 relative z-10 transform origin-left transition-transform duration-200 group-hover:scale-[0.85] group-hover:-translate-x-1">
                                     <Avatar
                                         src={user.avatarUrl || user.avatar}
                                         alt={user.displayName}
@@ -171,11 +171,11 @@ const Sidebar: React.FC = () => {
             </nav>
 
             {/* Post Button */}
-            <div className="px-1 mt-6 mb-4 xl:pl-3 flex justify-center xl:justify-start w-full">
+            <div className="px-1 mt-6 mb-4 xl:pl-0 flex justify-center xl:justify-start w-full">
                 <button
                     aria-label="Compose new post"
                     onClick={() => dispatch(openCreatePost())}
-                    className="flex items-center justify-center bg-[#0085FF] hover:bg-[#0070DF] text-white transition-colors rounded-full xl:w-[90%] xl:py-[12px] xl:px-[24px] w-[52px] h-[52px] xl:h-[auto] shadow-md gap-2"
+                    className="flex items-center justify-center bg-[#0085FF] hover:bg-[#0070DF] text-white transition-colors rounded-full xl:w-fit xl:py-[12px] xl:px-[24px] w-[52px] h-[52px] shadow-md gap-3"
                 >
                     <div className="flex items-center justify-center w-[20px] h-[20px] xl:mr-0.5">
                         <svg fill="none" width="18" viewBox="0 0 24 24" height="18" style={{color: 'rgb(255, 255, 255)'}}><path fill="#FFFFFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M17.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1 0 1.414l-9 9A1 1 0 0 1 12 16H9a1 1 0 0 1-1-1v-3a1 1 0 0 1 .293-.707l9-9ZM10 12.414V14h1.586l8-8L18 4.414l-8 8ZM3 4a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2H5v14h14v-6a1 1 0 1 1 2 0v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Z"></path></svg>
