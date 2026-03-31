@@ -85,6 +85,7 @@ public class ProfileController : ControllerBase
         bool isBlockedBy = false;
         bool isBlocking = false;
         bool isMuted = false;
+        bool isFollowedBy = false;
 
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
@@ -92,6 +93,7 @@ public class ProfileController : ControllerBase
             isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
             isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
             isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+            isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId);
         }
 
         var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 
@@ -125,6 +127,7 @@ public class ProfileController : ControllerBase
             IsBlocking = isBlocking,
             IsBlockedBy = isBlockedBy,
             IsMuted = isMuted,
+            IsFollowedBy = isFollowedBy,
             BlockingReference = block?.Uri
         };
 
@@ -133,7 +136,8 @@ public class ProfileController : ControllerBase
             isFollowing,
             isBlockedBy,
             isBlocking,
-            isMuted
+            isMuted,
+            isFollowedBy
         });
     }
 

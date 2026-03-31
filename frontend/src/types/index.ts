@@ -31,6 +31,7 @@ export interface User {
     role?: 'user' | 'admin';
     listMembershipStatus?: number; // 0: Pending, 1: Accepted, 2: Rejected, null: None
     isVerified?: boolean;
+    isFollowedBy?: boolean;
     did?: string;
     followingReference?: string; // at-uri of the follow record
     blockingReference?: string;  // at-uri of the block record

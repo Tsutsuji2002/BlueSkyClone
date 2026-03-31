@@ -46,6 +46,7 @@ interface FullProfile {
     did?: string;
     isBlocking?: boolean;
     isBlockedBy?: boolean;
+    isFollowedBy?: boolean;
 }
 
 interface UserHoverCardProps {
@@ -123,24 +124,26 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
             const headers: HeadersInit = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const res = await fetch(`${API_BASE_URL}/profile/${key}`, { headers });
+            const res = await fetch(`${API_BASE_URL}/users/profile/${key}`, { headers });
             if (res.ok) {
                 const data = await res.json();
+                const profileData = data.user;
                 const fp: FullProfile = {
-                    id: data.id || user.id,
-                    handle: data.handle || user.handle || '',
-                    displayName: data.displayName || user.displayName || '',
-                    avatar: data.avatar || data.avatarUrl || user.avatar,
-                    avatarUrl: data.avatarUrl || data.avatar || user.avatarUrl,
-                    bio: data.bio,
-                    followersCount: data.followersCount ?? 0,
-                    followingCount: data.followingCount ?? 0,
-                    isFollowing: data.isFollowing ?? false,
-                    followingReference: data.followingReference,
-                    isVerified: data.isVerified ?? false,
-                    did: data.did || user.did,
-                    isBlocking: data.isBlocking ?? false,
-                    isBlockedBy: data.isBlockedBy ?? false,
+                    id: profileData.id || user.id,
+                    handle: profileData.handle || user.handle || '',
+                    displayName: profileData.displayName || user.displayName || '',
+                    avatar: profileData.avatar || profileData.avatarUrl || user.avatar,
+                    avatarUrl: profileData.avatarUrl || profileData.avatar || user.avatarUrl,
+                    bio: profileData.bio,
+                    followersCount: profileData.followersCount ?? 0,
+                    followingCount: profileData.followingCount ?? 0,
+                    isFollowing: data.isFollowing ?? profileData.isFollowing ?? false,
+                    isFollowedBy: data.isFollowedBy ?? profileData.isFollowedBy ?? false,
+                    followingReference: profileData.followingReference,
+                    isVerified: profileData.isVerified ?? false,
+                    did: profileData.did || user.did,
+                    isBlocking: data.isBlocking ?? profileData.isBlocking ?? false,
+                    isBlockedBy: data.isBlockedBy ?? profileData.isBlockedBy ?? false,
                 };
                 profileCache.set(key, fp);
                 setProfile(fp);
@@ -241,6 +244,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
     const followersCount = profile?.followersCount ?? user.followersCount ?? 0;
     const followingCount = profile?.followingCount ?? user.followingCount ?? 0;
     const isFollowing = profile?.isFollowing ?? user.isFollowing ?? false;
+    const isFollowedBy = profile?.isFollowedBy ?? false;
     const followingReference = profile?.followingReference ?? user.followingReference;
     const isVerified = profile?.isVerified ?? user.isVerified ?? false;
     const isBlocking = profile?.isBlocking ?? user.isBlocking ?? false;
@@ -315,8 +319,15 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                                 {isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
                             </div>
                             {handle && (
-                                <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                    @{handle}
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <div className="text-[14px] text-gray-500 dark:text-dark-text-secondary">
+                                        @{handle}
+                                    </div>
+                                    {isFollowedBy && (
+                                        <span className="bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded text-[11px] font-bold">
+                                            Follows you
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </button>
