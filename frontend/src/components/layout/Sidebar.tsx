@@ -50,7 +50,7 @@ const Sidebar: React.FC = () => {
         <div className="h-screen sticky top-0 flex flex-col py-3 px-2 lg:px-4 w-[72px] xl:w-[280px] transition-all overflow-y-auto no-scrollbar border-r border-transparent">
             
             {/* Navigation wrapping everything */}
-            <nav className="flex-1 flex flex-col w-full" role="navigation">
+            <nav className="flex-1 flex flex-col w-full xl:w-[240px] xl:ml-auto" role="navigation">
             
             {/* Account Switcher - AT TOP */}
             {user ? (
@@ -65,13 +65,13 @@ const Sidebar: React.FC = () => {
                                         size="lg" // 48x48
                                     />
                                 </div>
-                                <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out -ml-4">
+                                <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out ml-0.5">
                                     <div className="font-bold text-[14px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
                                         <span className="truncate">{user.displayName}</span>
                                         {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={12} />}
                                     </div>
                                     <div className="text-[12px] text-gray-500 dark:text-dark-text-secondary truncate mt-[1px]">
-                                        @{user.handle}
+                                        @{user.handle.length > 15 ? `${user.handle.substring(0, 15)}...` : user.handle}
                                     </div>
                                 </div>
                                 <div className="hidden xl:block flex-shrink-0 text-gray-400 dark:text-gray-500 pl-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out">
