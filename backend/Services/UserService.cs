@@ -509,8 +509,10 @@ public class UserService : IUserService
         };
 
         // --- Phase 4: Repo Signing for Follows ---
-        bool isRemoteInteraction = !string.IsNullOrEmpty(follower.Did) && !string.IsNullOrEmpty(following.Did);
-        if (isRemoteInteraction)
+        bool isFollowerProxy = !string.IsNullOrEmpty(follower.Did) && !follower.Did.StartsWith("did:local:");
+        bool isFollowingProxy = !string.IsNullOrEmpty(following.Did) && !following.Did.StartsWith("did:local:");
+
+        if (isFollowerProxy && isFollowingProxy)
         {
             try
             {
@@ -561,7 +563,7 @@ public class UserService : IUserService
         }
         else
         {
-            // Local interaction fallback
+            // Local interaction fallback (saves in BSkyClone DB only)
             follow.Uri = $"at://{follower.Did ?? "local"}/app.bsky.graph.follow/{follow.Tid}";
         }
 
@@ -658,17 +660,15 @@ public class UserService : IUserService
         var follower = await _unitOfWork.Users.GetByIdAsync(followerId);
         var following = await _unitOfWork.Users.GetByIdAsync(followingId);
 
-        _unitOfWork.Follows.Remove(existing);
+        if (follower == null || following == null) return false;
 
-        if (follower != null) follower.FollowingCount--;
-        if (following != null) following.FollowersCount--;
-
-        await _unitOfWork.CompleteAsync();
+        bool isFollowerProxy = !string.IsNullOrEmpty(follower.Did) && !follower.Did.StartsWith("did:local:");
+        bool isFollowingProxy = !string.IsNullOrEmpty(following.Did) && !following.Did.StartsWith("did:local:");
 
         // --- AT Protocol: Delete follow record on unfollow ---
-        try
+        if (isFollowerProxy && isFollowingProxy && !string.IsNullOrEmpty(existing.Tid))
         {
-            if (follower != null && !string.IsNullOrEmpty(follower.Did) && !string.IsNullOrEmpty(existing.Tid))
+            try
             {
                 var token = await _cacheService.GetAsync<string>($"BlueskyToken_{followerId}");
                 if (!string.IsNullOrEmpty(token))
@@ -686,14 +686,29 @@ public class UserService : IUserService
                     {
                         var error = await bskyResponse.Content.ReadAsStringAsync();
                         Console.WriteLine($"[UnfollowUserAsync] Bluesky Unfollow Failed: {bskyResponse.StatusCode} - {error}");
+                        return false; // Remote proxy failed, abort local commit
                     }
                 }
+                else
+                {
+                     Console.WriteLine($"[UnfollowUserAsync] Bluesky token expired for user {followerId}");
+                     return false; // Token expired, cannot proxy
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnfollowUserAsync] Failed to delete AT follow record: {ex.Message}");
+                return false;
             }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[UnfollowUserAsync] Failed to delete AT follow record: {ex.Message}");
-        }
+
+        // Only commit locally if proxy succeeded or if local interaction
+        _unitOfWork.Follows.Remove(existing);
+
+        if (follower != null) follower.FollowingCount--;
+        if (following != null) following.FollowersCount--;
+
+        await _unitOfWork.CompleteAsync();
 
         return true;
     }
