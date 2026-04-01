@@ -1317,6 +1317,10 @@ public class PostService : IPostService
                                 if (!string.IsNullOrEmpty(blobCid))
                                 {
                                     vid.Cid = blobCid;
+                                    // [FIX] Update to Bluesky CDN URL
+                                    vid.Url = $"https://video.bsky.app/watch/{authorUser.Did}/{blobCid}/playlist.m3u8";
+                                    vid.ThumbnailUrl = $"https://cdn.bsky.app/img/feed_thumbnail/plain/{authorUser.Did}/{blobCid}@jpeg";
+
                                     var videoEmbed = new Dictionary<string, object>
                                     {
                                         { "$type", "app.bsky.embed.video" },
@@ -1394,6 +1398,10 @@ public class PostService : IPostService
                                     if (!string.IsNullOrEmpty(blobCid))
                                     {
                                         img.Cid = blobCid;
+                                        // [FIX] Update to Bluesky CDN URL
+                                        img.Url = $"https://cdn.bsky.app/img/feed_fullsize/plain/{authorUser.Did}/{blobCid}@jpeg";
+                                        img.ThumbnailUrl = $"https://cdn.bsky.app/img/feed_thumbnail/plain/{authorUser.Did}/{blobCid}@jpeg";
+
                                         images.Add(new Dictionary<string, object> {
                                             { "alt", img.AltText ?? "" },
                                             { "image", new Dictionary<string, object> { { "$type", "blob" }, { "ref", new Dictionary<string, object> { { "$link", blobCid } } }, { "mimeType", mimeType ?? "image/jpeg" }, { "size", imgData.Length } } }
@@ -1481,27 +1489,33 @@ public class PostService : IPostService
                     {
                         var responseBody = await bskyResponse.Content.ReadAsStringAsync();
                         var json = JsonDocument.Parse(responseBody);
-                        post.Uri = json.RootElement.GetProperty("uri").GetString();
-                        post.Cid = json.RootElement.GetProperty("cid").GetString();
-                        post.Tid = post.Uri?.Split('/').Last() ?? post.Tid;
-                        
-                        // VPS CLEANUP: Delete local media ONLY after successful network persistence
-                        foreach (var m in post.PostMedia)
-                        {
-                            if (!string.IsNullOrEmpty(m.Url))
-                            {
-                                string fPath = Path.Combine(_environment.WebRootPath, m.Url.TrimStart('/'));
-                                if (File.Exists(fPath))
-                                {
-                                    try { File.Delete(fPath); _logger.LogInformation("[PostService] Deleted local media after successful Bluesky post: {Path}", m.Url); } catch { }
-                                }
-                                if (!string.IsNullOrEmpty(m.ThumbnailUrl))
-                                {
-                                    string tPath = Path.Combine(_environment.WebRootPath, m.ThumbnailUrl.TrimStart('/'));
-                                    if (File.Exists(tPath)) try { File.Delete(tPath); } catch { }
-                                }
-                            }
-                        }
+                         post.Uri = json.RootElement.GetProperty("uri").GetString();
+                         post.Cid = json.RootElement.GetProperty("cid").GetString();
+                         post.Tid = post.Uri?.Split('/').Last() ?? post.Tid;
+
+                         // [FIX] Persist the updated Uri, Cid, and the new CDN URLs to the database
+                         await _unitOfWork.CompleteAsync();
+                         
+                         /* 
+                         // [FIX] VPS CLEANUP disabled to prevent immediate 404s and handle propagation delay
+                         // VPS CLEANUP: Delete local media ONLY after successful network persistence
+                         foreach (var m in post.PostMedia)
+                         {
+                             if (!string.IsNullOrEmpty(m.Url))
+                             {
+                                 string fPath = Path.Combine(_environment.WebRootPath, m.Url.TrimStart('/'));
+                                 if (File.Exists(fPath))
+                                 {
+                                     try { File.Delete(fPath); _logger.LogInformation("[PostService] Deleted local media after successful Bluesky post: {Path}", m.Url); } catch { }
+                                 }
+                                 if (!string.IsNullOrEmpty(m.ThumbnailUrl))
+                                 {
+                                     string tPath = Path.Combine(_environment.WebRootPath, m.ThumbnailUrl.TrimStart('/'));
+                                     if (File.Exists(tPath)) try { File.Delete(tPath); } catch { }
+                                 }
+                             }
+                         }
+                         */
 
                         string successLog = $"[CreatePostAsync] SUCCESS: {post.Uri}\n";
                         await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", successLog);
