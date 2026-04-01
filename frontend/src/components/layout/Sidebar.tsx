@@ -47,10 +47,10 @@ const Sidebar: React.FC = () => {
     };
 
     return (
-        <div className="h-screen sticky top-0 flex flex-col py-3 px-2 lg:px-4 w-[72px] xl:w-[280px] transition-all overflow-y-auto no-scrollbar border-r border-transparent">
+        <div className="h-screen sticky top-0 flex flex-col xl:items-end py-3 px-2 lg:px-4 w-[72px] xl:w-full transition-all overflow-y-auto no-scrollbar border-r border-transparent">
             
-            {/* Navigation wrapping everything */}
-            <nav className="flex-1 flex flex-col w-full xl:w-[240px] xl:ml-auto" role="navigation">
+            {/* Content Wrapper restricting to 240px max width and pushing to right margin */}
+            <div className="flex flex-col w-full xl:w-[240px]">
             
             {/* Account Switcher - AT TOP */}
             {user ? (
@@ -65,17 +65,17 @@ const Sidebar: React.FC = () => {
                                         size="lg" // 48x48
                                     />
                                 </div>
-                                <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out ml-0.5">
+                                <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out -ml-3">
                                     <div className="font-bold text-[14px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
                                         <span className="truncate">{user.displayName}</span>
-                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={12} />}
+                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
                                     </div>
                                     <div className="text-[12px] text-gray-500 dark:text-dark-text-secondary truncate mt-[1px]">
                                         @{user.handle.length > 15 ? `${user.handle.substring(0, 15)}...` : user.handle}
                                     </div>
                                 </div>
-                                <div className="hidden xl:block flex-shrink-0 text-gray-400 dark:text-gray-500 pl-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out">
-                                    <svg fill="none" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style={{color: 'currentcolor'}}><path fill="currentColor" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path></svg>
+                                <div className="hidden xl:flex flex-shrink-0 text-gray-400 dark:text-gray-500 pl-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out items-center">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style={{color: 'currentcolor'}}><path fill="currentColor" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path></svg>
                                 </div>
                             </button>
                         }
@@ -114,6 +114,8 @@ const Sidebar: React.FC = () => {
                 </div>
             )}
 
+            {/* Navigation */}
+            <nav className="flex-1 flex flex-col w-full" role="navigation">
                 {NAV_ITEMS.map((item) => {
                     const isActive = location.pathname === item.path ||
                         (item.path === '/profile' && location.pathname.startsWith('/profile'));
@@ -185,8 +187,9 @@ const Sidebar: React.FC = () => {
                     </span>
                 </button>
             </div>
-            
             </nav>
+            </div>
+            
         </div>
     );
 };
