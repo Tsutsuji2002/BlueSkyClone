@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import MainLayout from '../components/layout/MainLayout';
 import Feed from '../components/feed/Feed';
 import { FiArrowLeft, FiHash, FiTrendingUp } from 'react-icons/fi';
 import { useAppDispatch } from '../hooks/useAppDispatch';

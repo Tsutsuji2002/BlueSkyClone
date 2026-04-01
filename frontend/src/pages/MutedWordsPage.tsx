@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiPlus, FiX, FiCheck, FiTrash2, FiAlertCircle, FiEyeOff } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
@@ -38,73 +37,71 @@ const MutedWordsPage: React.FC = () => {
     };
 
     return (
-        <MainLayout>
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg relative">
-                {/* Header */}
-                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
-                        >
-                            <FiArrowLeft size={20} className="dark:text-dark-text" />
-                        </button>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                            {t('moderation.muted_words_title')}
-                        </h1>
-                    </div>
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg relative">
+            {/* Header */}
+            <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                    >
+                        <FiArrowLeft size={20} className="dark:text-dark-text" />
+                    </button>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
+                        {t('moderation.muted_words_title')}
+                    </h1>
+                </div>
+            </div>
+
+            <div className="p-4">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="font-bold text-gray-900 dark:text-dark-text text-lg">
+                        {t('moderation.your_muted_words')}
+                    </h2>
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white hover:bg-primary-600 rounded-full transition-colors font-medium text-sm"
+                    >
+                        <FiPlus size={16} />
+                        {t('moderation.add_new')}
+                    </button>
                 </div>
 
-                <div className="p-4">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="font-bold text-gray-900 dark:text-dark-text text-lg">
-                            {t('moderation.your_muted_words')}
-                        </h2>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white hover:bg-primary-600 rounded-full transition-colors font-medium text-sm"
-                        >
-                            <FiPlus size={16} />
-                            {t('moderation.add_new')}
-                        </button>
+                {isLoading && mutedWords.length === 0 ? (
+                    <div className="flex justify-center py-12">
+                        <LoadingIndicator size="lg" />
                     </div>
-
-                    {isLoading && mutedWords.length === 0 ? (
-                        <div className="flex justify-center py-12">
-                            <LoadingIndicator size="lg" />
-                        </div>
-                    ) : mutedWords.length === 0 ? (
-                        <div className="bg-gray-50 dark:bg-dark-surface/30 rounded-2xl p-12 text-center border border-dashed border-gray-200 dark:border-dark-border">
-                            <p className="text-gray-500 dark:text-dark-text-secondary italic">
-                                {t('moderation.no_muted_words')}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {mutedWords.map((item) => (
-                                <div key={item.id} className="p-4 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl flex justify-between items-center shadow-sm">
-                                    <div className="flex flex-col">
-                                        <span className="font-bold dark:text-dark-text text-lg">{item.word}</span>
-                                        <span className="text-xs text-gray-500 dark:text-dark-text-secondary flex items-center gap-1 mt-1">
-                                            {item.muteBehavior === 'hide' ? (
-                                                <><FiEyeOff size={12} /> {t('moderation.behavior_hide', 'Fully hidden')}</>
-                                            ) : (
-                                                <><FiAlertCircle size={12} /> {t('moderation.behavior_warn', 'Show warning')}</>
-                                            )}
-                                        </span>
-                                    </div>
-                                    <button
-                                        onClick={() => handleDelete(item.id)}
-                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                        title={t('common.delete')}
-                                    >
-                                        <FiTrash2 size={18} />
-                                    </button>
+                ) : mutedWords.length === 0 ? (
+                    <div className="bg-gray-50 dark:bg-dark-surface/30 rounded-2xl p-12 text-center border border-dashed border-gray-200 dark:border-dark-border">
+                        <p className="text-gray-500 dark:text-dark-text-secondary italic">
+                            {t('moderation.no_muted_words')}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {mutedWords.map((item) => (
+                            <div key={item.id} className="p-4 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl flex justify-between items-center shadow-sm">
+                                <div className="flex flex-col">
+                                    <span className="font-bold dark:text-dark-text text-lg">{item.word}</span>
+                                    <span className="text-xs text-gray-500 dark:text-dark-text-secondary flex items-center gap-1 mt-1">
+                                        {item.muteBehavior === 'hide' ? (
+                                            <><FiEyeOff size={12} /> {t('moderation.behavior_hide', 'Fully hidden')}</>
+                                        ) : (
+                                            <><FiAlertCircle size={12} /> {t('moderation.behavior_warn', 'Show warning')}</>
+                                        )}
+                                    </span>
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                                <button
+                                    onClick={() => handleDelete(item.id)}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                    title={t('common.delete')}
+                                >
+                                    <FiTrash2 size={18} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Modal Overlay */}
@@ -186,7 +183,7 @@ const MutedWordsPage: React.FC = () => {
                     </div>
                 </div>
             )}
-        </MainLayout>
+        </div>
     );
 };
 

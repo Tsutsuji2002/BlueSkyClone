@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft } from 'react-icons/fi';
-import MainLayout from '../components/layout/MainLayout';
 import InterestsEditor from '../components/feed/InterestsEditor';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 

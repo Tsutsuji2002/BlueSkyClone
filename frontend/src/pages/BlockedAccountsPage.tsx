@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiSlash, FiUserCheck } from 'react-icons/fi';
 import { useAppDispatch } from '../hooks/useAppDispatch';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { FiArrowLeft, FiPlus, FiCamera, FiUsers } from 'react-icons/fi';
 
 const ModerationListsPage: React.FC = () => {
@@ -20,42 +20,41 @@ const ModerationListsPage: React.FC = () => {
         setListDesc('');
     };
 
+    useDocumentTitle(t('moderation.mod_lists_title'));
+
     return (
-        <MainLayout title={t('moderation.mod_lists_title')}>
-            {/* Main Page Content */}
-            <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg relative">
-                {/* Header */}
-                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
-                        >
-                            <FiArrowLeft size={20} className="dark:text-dark-text" />
-                        </button>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                            {t('moderation.mod_lists_title')}
-                        </h1>
-                    </div>
+        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg relative">
+            {/* Header */}
+            <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
+                <div className="flex items-center gap-6">
                     <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-surface/80 rounded-full transition-colors font-medium text-sm text-gray-900 dark:text-dark-text"
+                        onClick={() => navigate(-1)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
                     >
-                        <FiPlus size={16} />
-                        {t('moderation.create_new')}
+                        <FiArrowLeft size={20} className="dark:text-dark-text" />
                     </button>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
+                        {t('moderation.mod_lists_title')}
+                    </h1>
+                </div>
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-surface/80 rounded-full transition-colors font-medium text-sm text-gray-900 dark:text-dark-text"
+                >
+                    <FiPlus size={16} />
+                    {t('moderation.create_new')}
+                </button>
+            </div>
+
+            <div className="p-4 flex flex-col items-center justify-center min-h-[60vh] text-center">
+                <div className="flex flex-col gap-1 items-center mb-6 text-gray-400">
+                    <div className="w-8 h-2 bg-gray-300 rounded-full mb-1"></div>
+                    <div className="w-8 h-2 bg-gray-300 rounded-full"></div>
                 </div>
 
-                <div className="p-4 flex flex-col items-center justify-center min-h-[60vh] text-center">
-                    <div className="flex flex-col gap-1 items-center mb-6 text-gray-400">
-                        <div className="w-8 h-2 bg-gray-300 rounded-full mb-1"></div>
-                        <div className="w-8 h-2 bg-gray-300 rounded-full"></div>
-                    </div>
-
-                    <p className="text-gray-500 dark:text-dark-text-secondary max-w-xs mx-auto leading-relaxed">
-                        {t('moderation.mod_lists_empty')}
-                    </p>
-                </div>
+                <p className="text-gray-500 dark:text-dark-text-secondary max-w-xs mx-auto leading-relaxed">
+                    {t('moderation.mod_lists_empty')}
+                </p>
             </div>
 
             {/* Modal Overlay */}
@@ -118,7 +117,7 @@ const ModerationListsPage: React.FC = () => {
                     </div>
                 </div>
             )}
-        </MainLayout>
+        </div>
     );
 };
 

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiPlus, FiTrash2, FiCopy, FiX, FiInfo, FiChevronRight } from 'react-icons/fi';
 import Button from '../components/common/Button';

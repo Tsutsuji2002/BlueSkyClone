@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import MainLayout from '../components/layout/MainLayout';
 import { useTranslation } from 'react-i18next';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useAppSelector } from '../hooks/useAppSelector';
