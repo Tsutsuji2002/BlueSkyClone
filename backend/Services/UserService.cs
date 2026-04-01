@@ -384,13 +384,14 @@ public class UserService : IUserService
         if (user == null) throw new Exception("User not found");
 
         if (user.UserSetting == null)
-        {
             user.UserSetting = new UserSetting { UserId = userId };
-        }
 
         var s = user.UserSetting;
         if (request.AdultContentFilter != null) s.AdultContentFilter = request.AdultContentFilter;
-        if (request.EnableAdultContent != null) s.EnableAdultContent = request.EnableAdultContent;
+        if (request.EnableAdultContent.HasValue) s.EnableAdultContent = request.EnableAdultContent;
+        if (request.SexuallyExplicitFilter != null) s.SexuallyExplicitFilter = request.SexuallyExplicitFilter;
+        if (request.GraphicMediaFilter != null) s.GraphicMediaFilter = request.GraphicMediaFilter;
+        if (request.NonSexualNudityFilter != null) s.NonSexualNudityFilter = request.NonSexualNudityFilter;
         if (request.SortReplies != null) s.SortReplies = request.SortReplies;
         if (request.RequireAltText != null) s.RequireAltText = request.RequireAltText;
         if (request.AutoplayVideoGif != null) s.AutoplayVideoGif = request.AutoplayVideoGif;
@@ -1229,9 +1230,41 @@ public class UserService : IUserService
         return true;
     }
 
-    public async Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId)
+    public async Task<bool> IsMutedAsync(Guid userId, Guid mutedUserId)
     {
-        return await _unitOfWork.Mutes.IsMutedAsync(userId, potentialMutedUserId);
+        var isDirectMuted = await _unitOfWork.Mutes.Query().AnyAsync(m => m.UserId == userId && m.MutedUserId == mutedUserId);
+        if (isDirectMuted) return true;
+
+        // Check if muted via a subscribed moderation list
+        var mutingList = await GetMutingListAsync(userId, mutedUserId);
+        return mutingList != null;
+    }
+
+    public async Task<MutedByListDto?> GetMutingListAsync(Guid viewerId, Guid targetUserId)
+    {
+        // 1. Get all lists where Purpose is 'modlist' that viewer is subscribed to
+        var subscribedModListIds = await _unitOfWork.UserListSubscriptions.Query()
+            .Where(uls => uls.UserId == viewerId)
+            .Join(_unitOfWork.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
+            .Where(x => x.Purpose == "app.bsky.graph.defs#modlist" || x.Purpose == "mod")
+            .Select(x => x.Id)
+            .ToListAsync();
+
+        if (!subscribedModListIds.Any())
+            return null;
+
+        // 2. Check if targetUserId is a member of any of those lists
+        var listMember = await _unitOfWork.ListMembers.Query()
+            .Where(lm => subscribedModListIds.Contains(lm.ListId) && lm.UserId == targetUserId && lm.Status == 1)
+            .Include(lm => lm.List)
+            .FirstOrDefaultAsync();
+
+        if (listMember != null && listMember.List != null)
+        {
+            return new MutedByListDto(listMember.List.Id, listMember.List.Name, listMember.List.Purpose);
+        }
+
+        return null;
     }
 
     public async Task<List<User>> GetMutedUsersAsync(Guid userId)

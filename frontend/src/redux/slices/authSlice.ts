@@ -39,6 +39,13 @@ function normalizeSettings(raw: any): UserSettings {
         defaultReplyRestriction: raw.defaultReplyRestriction ?? raw.DefaultReplyRestriction ?? 'anyone',
         defaultAllowQuotes: raw.defaultAllowQuotes ?? raw.DefaultAllowQuotes ?? true,
 
+        // Moderation
+        enableAdultContent: raw.enableAdultContent ?? raw.EnableAdultContent ?? false,
+        adultContentFilter: raw.adultContentFilter ?? raw.AdultContentFilter ?? 'show',
+        sexuallyExplicitFilter: raw.sexuallyExplicitFilter ?? raw.SexuallyExplicitFilter ?? 'warn',
+        graphicMediaFilter: raw.graphicMediaFilter ?? raw.GraphicMediaFilter ?? 'warn',
+        nonSexualNudityFilter: raw.nonSexualNudityFilter ?? raw.NonSexualNudityFilter ?? 'show',
+
         // Notification master toggles
         notifyLikes: raw.notifyLikes ?? raw.NotifyLikes ?? true,
         notifyReposts: raw.notifyReposts ?? raw.NotifyReposts ?? true,

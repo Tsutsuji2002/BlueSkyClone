@@ -45,10 +45,17 @@ public class ListService : IListService
         return await MapToListDto(list, userId);
     }
 
-    public async Task<IEnumerable<ListDto>> GetMyListsAsync(Guid userId)
+    public async Task<IEnumerable<ListDto>> GetMyListsAsync(Guid userId, string? purpose = null)
     {
-        var lists = await _unitOfWork.Lists.Query()
-            .Where(l => l.OwnerId == userId && l.IsDeleted != true)
+        var query = _unitOfWork.Lists.Query()
+            .Where(l => l.OwnerId == userId && l.IsDeleted != true);
+
+        if (!string.IsNullOrEmpty(purpose))
+        {
+            query = query.Where(l => l.Purpose == purpose || (purpose == "app.bsky.graph.defs#modlist" && l.Purpose == "mod"));
+        }
+
+        var lists = await query
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
 
@@ -289,12 +296,20 @@ public class ListService : IListService
         return await _unitOfWork.CompleteAsync() > 0;
     }
 
-    public async Task<IEnumerable<ListDto>> GetPinnedListsAsync(Guid userId)
+    public async Task<IEnumerable<ListDto>> GetPinnedListsAsync(Guid userId, string? purpose = null)
     {
-        var pinned = await _unitOfWork.UserListSubscriptions.Query()
+        var query = _unitOfWork.UserListSubscriptions.Query()
             .Where(uls => uls.UserId == userId)
             .Include(uls => uls.List)
             .ThenInclude(l => l.Owner)
+            .Where(uls => uls.List != null && uls.List.IsDeleted != true);
+
+        if (!string.IsNullOrEmpty(purpose))
+        {
+            query = query.Where(uls => uls.List.Purpose == purpose || (purpose == "app.bsky.graph.defs#modlist" && uls.List.Purpose == "mod"));
+        }
+
+        var pinned = await query
             .OrderBy(uls => uls.PinnedOrder)
             .ToListAsync();
 
@@ -456,6 +471,21 @@ public class ListService : IListService
             result.Add(await MapToListDto(list, userId));
         }
         return result;
+    }
+
+    public async Task<IEnumerable<Guid>> GetUserMembershipsInMyListsAsync(Guid viewerId, Guid targetUserId)
+    {
+        var myLists = await _unitOfWork.Lists.Query()
+            .Where(l => l.OwnerId == viewerId && l.IsDeleted != true)
+            .Select(l => l.Id)
+            .ToListAsync();
+
+        if (!myLists.Any()) return new List<Guid>();
+
+        return await _unitOfWork.ListMembers.Query()
+            .Where(lm => myLists.Contains(lm.ListId) && lm.UserId == targetUserId && lm.Status == 1)
+            .Select(lm => lm.ListId)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<PostDto>> GetCandidatePostsAsync(Guid listId, Guid userId, int limit = 10, int offset = 0)

@@ -40,11 +40,11 @@ public class ListsController : ControllerBase
     }
 
     [HttpGet("my")]
-    public async Task<IActionResult> GetMyLists()
+    public async Task<IActionResult> GetMyLists([FromQuery] string? purpose = null)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
-        var lists = await _listService.GetMyListsAsync(userId.Value);
+        var lists = await _listService.GetMyListsAsync(userId.Value, purpose);
         return Ok(lists);
     }
 
@@ -66,12 +66,21 @@ public class ListsController : ControllerBase
         return Ok(lists);
     }
 
-    [HttpGet("pinned")]
-    public async Task<IActionResult> GetPinnedLists()
+    [HttpGet("memberships/{targetUserId}")]
+    public async Task<IActionResult> GetUserMembershipsInMyLists(Guid targetUserId)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
-        var lists = await _listService.GetPinnedListsAsync(userId.Value);
+        var memberships = await _listService.GetUserMembershipsInMyListsAsync(userId.Value, targetUserId);
+        return Ok(memberships);
+    }
+
+    [HttpGet("pinned")]
+    public async Task<IActionResult> GetPinnedLists([FromQuery] string? purpose = null)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        var lists = await _listService.GetPinnedListsAsync(userId.Value, purpose);
         return Ok(lists);
     }
 

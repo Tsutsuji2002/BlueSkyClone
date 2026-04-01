@@ -63,7 +63,12 @@ public record UserDto(
     
     [JsonPropertyName("isFollowedBy")]
     public bool? IsFollowedBy { get; init; }
+
+    [JsonPropertyName("mutedBy")]
+    public MutedByListDto? MutedBy { get; init; }
 }
+
+public record MutedByListDto(Guid Id, string Name, string? Purpose);
  
 public record UserRelationshipStatusDto(
     bool IsFollowing,
@@ -77,6 +82,9 @@ public record UserRelationshipStatusDto(
 public record UserSettingDto(
     string? AdultContentFilter,
     bool? EnableAdultContent,
+    string? SexuallyExplicitFilter,
+    string? GraphicMediaFilter,
+    string? NonSexualNudityFilter,
     string? SortReplies,
     bool? RequireAltText,
     bool? AutoplayVideoGif,

@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../redux/store';
+import { updateNotificationSettings } from '../redux/slices/authSlice';
 import {
     FiArrowLeft,
     FiEdit,
@@ -19,12 +22,19 @@ const ModerationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
 
-    // State for content filtering
-    const [enableAdultContent, setEnableAdultContent] = useState(true);
-    const [adultContent, setAdultContent] = useState('hide');
-    const [sexuallyExplicit, setSexuallyExplicit] = useState('warn');
-    const [graphicMedia, setGraphicMedia] = useState('warn');
-    const [nonSexualNudity, setNonSexualNudity] = useState('show');
+    const dispatch = useDispatch<AppDispatch>();
+    const settings = useSelector((state: RootState) => state.auth.settings);
+
+    // Derived values from Redux state
+    const enableAdultContent = settings?.enableAdultContent ?? false;
+    const adultContent = settings?.adultContentFilter ?? 'show';
+    const sexuallyExplicit = settings?.sexuallyExplicitFilter ?? 'warn';
+    const graphicMedia = settings?.graphicMediaFilter ?? 'warn';
+    const nonSexualNudity = settings?.nonSexualNudityFilter ?? 'show';
+
+    const handleUpdate = (update: any) => {
+        dispatch(updateNotificationSettings(update));
+    };
 
     const MenuLinkItem = ({
         icon,
@@ -149,7 +159,7 @@ const ModerationSettingsPage: React.FC = () => {
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-500 font-medium">{enableAdultContent ? t('moderation.on') : ''}</span>
                             <button
-                                onClick={() => setEnableAdultContent(!enableAdultContent)}
+                                onClick={() => handleUpdate({ enableAdultContent: !enableAdultContent })}
                                 className={cn(
                                     "w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out dark:border dark:border-gray-500",
                                     enableAdultContent ? "bg-blue-500 border-blue-500" : "bg-gray-300 dark:bg-transparent"
@@ -169,25 +179,25 @@ const ModerationSettingsPage: React.FC = () => {
                             title={t('moderation.adult_content')}
                             description={t('moderation.adult_content_desc')}
                             value={adultContent}
-                            onChange={setAdultContent}
+                            onChange={(val) => handleUpdate({ adultContentFilter: val })}
                         />
                         <FilterOption
                             title={t('moderation.sexually_explicit')}
                             description={t('moderation.sexually_explicit_desc')}
                             value={sexuallyExplicit}
-                            onChange={setSexuallyExplicit}
+                            onChange={(val) => handleUpdate({ sexuallyExplicitFilter: val })}
                         />
                         <FilterOption
                             title={t('moderation.graphic_media')}
                             description={t('moderation.graphic_media_desc')}
                             value={graphicMedia}
-                            onChange={setGraphicMedia}
+                            onChange={(val) => handleUpdate({ graphicMediaFilter: val })}
                         />
                         <FilterOption
                             title={t('moderation.non_sexual_nudity')}
                             description={t('moderation.non_sexual_nudity_desc')}
                             value={nonSexualNudity}
-                            onChange={setNonSexualNudity}
+                            onChange={(val) => handleUpdate({ nonSexualNudityFilter: val })}
                         />
                     </div>
                 </section>

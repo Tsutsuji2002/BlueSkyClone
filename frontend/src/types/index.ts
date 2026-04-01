@@ -41,6 +41,11 @@ export interface User {
         blocking?: string; // URI of the block record
         following?: string; // URI of the follow record
     };
+    mutedBy?: {
+        id: string;
+        name: string;
+        purpose?: string;
+    };
 }
 
 export interface UserSettings {
@@ -481,6 +486,10 @@ export interface ModalsState {
     quote: {
         isOpen: boolean;
         post: Post | null;
+    };
+    addToList: {
+        isOpen: boolean;
+        user: User | null;
     };
 }
 

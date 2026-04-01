@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -10,6 +10,10 @@ public partial class UserSetting
     public string? AdultContentFilter { get; set; }
 
     public bool? EnableAdultContent { get; set; }
+    
+    public string? SexuallyExplicitFilter { get; set; }
+    public string? GraphicMediaFilter { get; set; }
+    public string? NonSexualNudityFilter { get; set; }
 
     public string? SortReplies { get; set; }
 

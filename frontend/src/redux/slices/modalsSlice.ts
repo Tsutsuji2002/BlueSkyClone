@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 // Modals Slice
-import { ModalsState, Post } from '../../types';
+import { ModalsState, Post, User } from '../../types';
 
 export interface DeleteConfirmState {
     isOpen: boolean;
@@ -62,6 +62,10 @@ const initialState: ExtendedModalsState = {
     },
     authWall: {
         isOpen: false,
+    },
+    addToList: {
+        isOpen: false,
+        user: null,
     },
 };
 
@@ -204,6 +208,18 @@ const modalsSlice = createSlice({
         closeAuthWall: (state) => {
             state.authWall = { isOpen: false };
         },
+        openAddToList: (state, action: PayloadAction<User>) => {
+            state.addToList = {
+                isOpen: true,
+                user: action.payload,
+            };
+        },
+        closeAddToList: (state) => {
+            state.addToList = {
+                isOpen: false,
+                user: null,
+            };
+        },
         closeAllModals: (state) => {
             state.createPost = false;
             state.editProfile = false;
@@ -277,6 +293,8 @@ export const {
     closeReport,
     openAuthWall,
     closeAuthWall,
+    openAddToList,
+    closeAddToList,
     closeAllModals,
 } = modalsSlice.actions;
 

@@ -2,22 +2,68 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { FiArrowLeft, FiPlus, FiCamera, FiUsers } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus, FiCamera, FiUsers, FiMoreHorizontal } from 'react-icons/fi';
+import { useAuth } from '../hooks/useAuth';
+import axios from 'axios';
+import { ListDto } from '../types';
 
 const ModerationListsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { API_URL } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [lists, setLists] = useState<ListDto[]>([]);
 
     // Modal State
     const [listName, setListName] = useState('');
     const [listDesc, setListDesc] = useState('');
 
-    const handleCreate = () => {
-        // Logic to create list would go here
-        setIsModalOpen(false);
-        setListName('');
-        setListDesc('');
+    const fetchLists = async () => {
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('token');
+            const [myRes, pinnedRes] = await Promise.all([
+                axios.get(`${API_URL}/Lists/my?purpose=app.bsky.graph.defs%23modlist`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }),
+                axios.get(`${API_URL}/Lists/pinned?purpose=app.bsky.graph.defs%23modlist`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ]);
+            
+            // Merge and deduplicate
+            const all = [...myRes.data, ...pinnedRes.data];
+            const unique = all.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+            setLists(unique);
+        } catch (error) {
+            console.error('Failed to fetch moderation lists:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchLists();
+    }, []);
+
+    const handleCreate = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`${API_URL}/Lists`, {
+                name: listName,
+                description: listDesc,
+                purpose: 'app.bsky.graph.defs#modlist'
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setIsModalOpen(false);
+            setListName('');
+            setListDesc('');
+            fetchLists();
+        } catch (error) {
+            console.error('Failed to create moderation list:', error);
+        }
     };
 
     useDocumentTitle(t('moderation.mod_lists_title'));
@@ -46,16 +92,49 @@ const ModerationListsPage: React.FC = () => {
                 </button>
             </div>
 
-            <div className="p-4 flex flex-col items-center justify-center min-h-[60vh] text-center">
-                <div className="flex flex-col gap-1 items-center mb-6 text-gray-400">
-                    <div className="w-8 h-2 bg-gray-300 rounded-full mb-1"></div>
-                    <div className="w-8 h-2 bg-gray-300 rounded-full"></div>
+            {loading ? (
+                <div className="p-8 flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 </div>
+            ) : lists.length > 0 ? (
+                <div className="flex flex-col">
+                    {lists.map(list => (
+                        <div 
+                            key={list.id} 
+                            onClick={() => navigate(`/lists/${list.id}`)}
+                            className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 cursor-pointer transition-colors"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center text-white shrink-0">
+                                    {list.avatarUrl ? (
+                                        <img src={list.avatarUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+                                    ) : (
+                                        <FiUsers size={24} />
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900 dark:text-dark-text">{list.name}</h3>
+                                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary line-clamp-1">
+                                        {list.description || t('lists.no_description')}
+                                    </p>
+                                </div>
+                            </div>
+                            <FiMoreHorizontal className="text-gray-400" />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="p-4 flex flex-col items-center justify-center min-h-[60vh] text-center">
+                    <div className="flex flex-col gap-1 items-center mb-6 text-gray-400">
+                        <div className="w-8 h-2 bg-gray-300 rounded-full mb-1"></div>
+                        <div className="w-8 h-2 bg-gray-300 rounded-full"></div>
+                    </div>
 
-                <p className="text-gray-500 dark:text-dark-text-secondary max-w-xs mx-auto leading-relaxed">
-                    {t('moderation.mod_lists_empty')}
-                </p>
-            </div>
+                    <p className="text-gray-500 dark:text-dark-text-secondary max-w-xs mx-auto leading-relaxed">
+                        {t('moderation.mod_lists_empty')}
+                    </p>
+                </div>
+            )}
 
             {/* Modal Overlay */}
             {isModalOpen && (

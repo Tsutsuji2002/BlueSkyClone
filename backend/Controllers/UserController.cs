@@ -129,6 +129,9 @@ public class UserController : ControllerBase
             var settingsDto = new UserSettingDto(
                 settings.AdultContentFilter,
                 settings.EnableAdultContent,
+                settings.SexuallyExplicitFilter,
+                settings.GraphicMediaFilter,
+                settings.NonSexualNudityFilter,
                 settings.SortReplies,
                 settings.RequireAltText,
                 settings.AutoplayVideoGif,

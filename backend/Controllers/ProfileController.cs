@@ -87,6 +87,7 @@ public class ProfileController : ControllerBase
         bool isMuted = false;
         bool isFollowedBy = false;
 
+        MutedByListDto? mutedBy = null;
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
             isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
@@ -94,6 +95,11 @@ public class ProfileController : ControllerBase
             isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
             isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
             isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId);
+            
+            if (isMuted)
+            {
+                mutedBy = await _userService.GetMutingListAsync(currentUserId, user.Id);
+            }
         }
 
         var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 
@@ -128,7 +134,8 @@ public class ProfileController : ControllerBase
             IsBlockedBy = isBlockedBy,
             IsMuted = isMuted,
             IsFollowedBy = isFollowedBy,
-            BlockingReference = block?.Uri
+            BlockingReference = block?.Uri,
+            MutedBy = mutedBy
         };
 
         return Ok(new { 
@@ -184,12 +191,18 @@ public class ProfileController : ControllerBase
         bool isBlocking = false;
         bool isMuted = false;
 
+        MutedByListDto? mutedById = null;
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
             isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
             isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
             isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
             isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+
+            if (isMuted)
+            {
+                mutedById = await _userService.GetMutingListAsync(currentUserId, user.Id);
+            }
         }
 
         var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 
@@ -223,7 +236,8 @@ public class ProfileController : ControllerBase
             IsBlocking = isBlocking,
             IsBlockedBy = isBlockedBy,
             IsMuted = isMuted,
-            BlockingReference = block?.Uri
+            BlockingReference = block?.Uri,
+            MutedBy = mutedById
         };
 
         return Ok(new { 

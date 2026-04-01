@@ -26,6 +26,7 @@ public interface IUserService
     Task<bool> IsBlockedByAsync(Guid userId, Guid potentialBlockerId); // Did potential block userId?
     Task<BlockedAccount?> GetBlockAsync(Guid userId, Guid blockedUserId);
     Task<bool> MuteUserAsync(Guid userId, Guid mutedUserId);
+    Task<MutedByListDto?> GetMutingListAsync(Guid viewerId, Guid targetUserId);
     Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId);
     Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId);
     Task<List<User>> GetMutedUsersAsync(Guid userId);

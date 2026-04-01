@@ -411,6 +411,9 @@ public class AuthService : IAuthService
         var settingsDto = user.UserSetting != null ? new UserSettingDto(
             user.UserSetting.AdultContentFilter,
             user.UserSetting.EnableAdultContent,
+            user.UserSetting.SexuallyExplicitFilter,
+            user.UserSetting.GraphicMediaFilter,
+            user.UserSetting.NonSexualNudityFilter,
             user.UserSetting.SortReplies,
             user.UserSetting.RequireAltText,
             user.UserSetting.AutoplayVideoGif,
@@ -460,7 +463,7 @@ public class AuthService : IAuthService
             user.UserSetting.ShowSampleSavedFeeds,
             user.UserSetting.EnabledMediaProviders
         ) : new UserSettingDto(
-            null, null, null, null, null, "en", "system",
+            null, null, null, null, null, null, null, null, "en", "system",
             true, true, true, true, true, true,  // Notify* (6)
             true, true, true, true, true, true,  // PushNotify* (6)
             true, true, true, true, true, true,  // InAppNotify* (6)

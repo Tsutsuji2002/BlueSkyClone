@@ -467,6 +467,24 @@ public class PostService : IPostService
             var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
             var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
             var blockedByUserIds = await _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync();
+            
+            // Moderation Lists Filtering: Identify lists where Purpose is 'modlist' (mute/block) that viewer is subscribed to
+            var subscribedModListIdRows = await _unitOfWork.UserListSubscriptions.Query()
+                .Where(uls => uls.UserId == viewerId)
+                .Join(_unitOfWork.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
+                .Where(x => x.Purpose == "app.bsky.graph.defs#modlist" || x.Purpose == "mod")
+                .Select(x => x.Id)
+                .ToListAsync();
+
+            var listMutedUserIds = new HashSet<Guid>();
+            if (subscribedModListIdRows.Any())
+            {
+                listMutedUserIds = (await _unitOfWork.ListMembers.Query()
+                    .Where(lm => subscribedModListIdRows.Contains(lm.ListId) && lm.Status == 1)
+                    .Select(lm => lm.UserId)
+                    .ToListAsync()).ToHashSet();
+            }
+
             var bookmarkedPostIds = await _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync();
             var blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}");
             var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
@@ -551,7 +569,8 @@ public class PostService : IPostService
                 if (post.IsDeleted || post.Author == null ||
                     mutedUserIds.Contains(post.Author.Id) || 
                     blockedUserIds.Contains(post.Author.Id) || 
-                    blockedByUserIds.Contains(post.Author.Id))
+                    blockedByUserIds.Contains(post.Author.Id) ||
+                    listMutedUserIds.Contains(post.Author.Id))
                 {
                     _logger.LogWarning("[PostService] EnrichAndFilterPostsAsync: Filtering out Post {PostId} - Deleted: {IsDeleted}, AuthorNull: {AuthorNull}, Muted: {Muted}, Blocked: {Blocked}", 
                         post.Id, post.IsDeleted, post.Author == null, 

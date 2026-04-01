@@ -4,7 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab } from '../redux/slices/userSlice';
-import { openEditProfile, openCreatePost, openReport, openAuthWall } from '../redux/slices/modalsSlice';
+import { openEditProfile, openCreatePost, openReport, openAuthWall, openAddToList } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
@@ -276,6 +276,16 @@ const ProfilePage: React.FC = () => {
         },
         ...(!isOwnProfile && isAuthenticated ? [
             {
+                id: 'add-to-lists',
+                label: t('profile.add_to_lists'),
+                icon: <FiList size={18} />,
+                onClick: () => {
+                    if (profileUser) {
+                        dispatch(openAddToList(profileUser));
+                    }
+                }
+            },
+            {
                 id: 'mute-account',
                 label: profileUser?.isMuted ? `${t('profile.unmute')} @${profileUser?.handle}` : `${t('profile.mute')} @${profileUser?.handle}`,
                 icon: <FiBellOff size={18} />,
@@ -374,6 +384,26 @@ const ProfilePage: React.FC = () => {
                         />
                     </div>
                 </div>
+
+                {/* Muted by List Indicator */}
+                {profileUser?.mutedBy && (
+                    <div className="bg-gray-50 dark:bg-dark-surface/30 px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-dark-border/50">
+                        <div className="flex items-center gap-3 text-[14px]">
+                            <FiBellOff size={18} className="text-gray-500 dark:text-dark-text-secondary" />
+                            <span className="text-gray-600 dark:text-dark-text-secondary">
+                                {t('profile.muted_by_list')} <span className="font-bold text-gray-900 dark:text-dark-text cursor-pointer hover:underline" onClick={() => navigate(`/lists/${profileUser.mutedBy!.id}`)}>{profileUser.mutedBy.name}</span>
+                            </span>
+                        </div>
+                        <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="rounded-full h-8 text-[13px] px-3 font-bold bg-gray-200 dark:bg-dark-surface hover:bg-gray-300 dark:hover:bg-dark-surface/80"
+                            onClick={() => navigate(`/lists/${profileUser.mutedBy!.id}`)}
+                        >
+                            {t('profile.view_list')}
+                        </Button>
+                    </div>
+                )}
 
                 {/* Profile Info & Actions Section */}
                 <div className="flex flex-col px-4 lg:px-6 pt-2 pb-1">
