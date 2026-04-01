@@ -3,14 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { FiArrowLeft, FiPlus, FiCamera, FiUsers, FiMoreHorizontal } from 'react-icons/fi';
-import { useAuth } from '../hooks/useAuth';
-import axios from 'axios';
+import api from '../utils/api';
 import { ListDto } from '../types';
 
 const ModerationListsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const { API_URL } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [lists, setLists] = useState<ListDto[]>([]);
@@ -22,14 +20,9 @@ const ModerationListsPage: React.FC = () => {
     const fetchLists = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
             const [myRes, pinnedRes] = await Promise.all([
-                axios.get(`${API_URL}/Lists/my?purpose=app.bsky.graph.defs%23modlist`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                }),
-                axios.get(`${API_URL}/Lists/pinned?purpose=app.bsky.graph.defs%23modlist`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                })
+                api.get<ListDto[]>('/Lists/my?purpose=app.bsky.graph.defs%23modlist'),
+                api.get<ListDto[]>('/Lists/pinned?purpose=app.bsky.graph.defs%23modlist')
             ]);
             
             // Merge and deduplicate
@@ -49,13 +42,10 @@ const ModerationListsPage: React.FC = () => {
 
     const handleCreate = async () => {
         try {
-            const token = localStorage.getItem('token');
-            await axios.post(`${API_URL}/Lists`, {
+            await api.post('/Lists', {
                 name: listName,
                 description: listDesc,
                 purpose: 'app.bsky.graph.defs#modlist'
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
             setIsModalOpen(false);
             setListName('');
