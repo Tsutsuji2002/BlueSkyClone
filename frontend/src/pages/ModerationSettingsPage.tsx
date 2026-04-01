@@ -174,62 +174,66 @@ const ModerationSettingsPage: React.FC = () => {
                     </div>
 
                     {/* Filter Options */}
-                    <div className="flex flex-col">
-                        <FilterOption
-                            title={t('moderation.adult_content')}
-                            description={t('moderation.adult_content_desc')}
-                            value={adultContent}
-                            onChange={(val) => handleUpdate({ adultContentFilter: val })}
-                        />
-                        <FilterOption
-                            title={t('moderation.sexually_explicit')}
-                            description={t('moderation.sexually_explicit_desc')}
-                            value={sexuallyExplicit}
-                            onChange={(val) => handleUpdate({ sexuallyExplicitFilter: val })}
-                        />
-                        <FilterOption
-                            title={t('moderation.graphic_media')}
-                            description={t('moderation.graphic_media_desc')}
-                            value={graphicMedia}
-                            onChange={(val) => handleUpdate({ graphicMediaFilter: val })}
-                        />
-                        <FilterOption
-                            title={t('moderation.non_sexual_nudity')}
-                            description={t('moderation.non_sexual_nudity_desc')}
-                            value={nonSexualNudity}
-                            onChange={(val) => handleUpdate({ nonSexualNudityFilter: val })}
-                        />
-                    </div>
+                    {enableAdultContent && (
+                        <div className="flex flex-col">
+                            <FilterOption
+                                title={t('moderation.adult_content')}
+                                description={t('moderation.adult_content_desc')}
+                                value={adultContent}
+                                onChange={(val) => handleUpdate({ adultContentFilter: val })}
+                            />
+                            <FilterOption
+                                title={t('moderation.sexually_explicit')}
+                                description={t('moderation.sexually_explicit_desc')}
+                                value={sexuallyExplicit}
+                                onChange={(val) => handleUpdate({ sexuallyExplicitFilter: val })}
+                            />
+                            <FilterOption
+                                title={t('moderation.graphic_media')}
+                                description={t('moderation.graphic_media_desc')}
+                                value={graphicMedia}
+                                onChange={(val) => handleUpdate({ graphicMediaFilter: val })}
+                            />
+                            <FilterOption
+                                title={t('moderation.non_sexual_nudity')}
+                                description={t('moderation.non_sexual_nudity_desc')}
+                                value={nonSexualNudity}
+                                onChange={(val) => handleUpdate({ nonSexualNudityFilter: val })}
+                            />
+                        </div>
+                    )}
                 </section>
 
                 {/* ADVANCED */}
-                <section className="mt-6 px-4">
-                    <h2 className="py-3 text-sm font-bold text-gray-900 dark:text-dark-text block">
-                        {t('moderation.advanced')}
-                    </h2>
-                    <a
-                        href="https://bsky.social/about/support/community-guidelines"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-dark-surface/30 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface/50 transition-colors"
-                    >
-                        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0">
-                            <FiShield size={20} fill="currentColor" />
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="font-bold text-gray-900 dark:text-dark-text text-[15px]">
-                                Bluesky Moderation Service
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                Official Bluesky moderation service.
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1 truncate">
-                                https://bsky.social/about/support/community-guidelines
-                            </p>
-                        </div>
-                        <FiChevronRight className="text-gray-400" />
-                    </a>
-                </section>
+                {enableAdultContent && (
+                    <section className="mt-6 px-4">
+                        <h2 className="py-3 text-sm font-bold text-gray-900 dark:text-dark-text block">
+                            {t('moderation.advanced')}
+                        </h2>
+                        <a
+                            href="https://bsky.social/about/support/community-guidelines"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-dark-surface/30 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface/50 transition-colors"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0">
+                                <FiShield size={20} fill="currentColor" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-gray-900 dark:text-dark-text text-[15px]">
+                                    Bluesky Moderation Service
+                                </h3>
+                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
+                                    Official Bluesky moderation service.
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1 truncate">
+                                    https://bsky.social/about/support/community-guidelines
+                                </p>
+                            </div>
+                            <FiChevronRight className="text-gray-400" />
+                        </a>
+                    </section>
+                )}
             </div>
         </div>
     );
