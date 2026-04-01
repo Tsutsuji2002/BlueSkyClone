@@ -496,9 +496,9 @@ public class PostService : IPostService
             var localRepliesCounts = await _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
             var localQuotesCounts = await _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIds.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
 
-            // Fetch user settings for timeline filtering
+            // Fetch user settings for moderation filtering
             UserSetting? userSettings = null;
-            if (isTimeline)
+            if (viewerId != Guid.Empty)
             {
                 try
                 {
@@ -507,8 +507,26 @@ public class PostService : IPostService
                 }
                 catch (Exception ex)
                 {
-                    System.Console.WriteLine($"[PostService] Error fetching UserSettings for {viewerId}: {ex.Message}");
+                    _logger.LogWarning(ex, "Error fetching UserSettings for {ViewerId} during enrichment", viewerId);
                 }
+            }
+
+            // Fetch labels for posts and authors to apply content filters
+            var labelUris = posts.Select(p => p.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
+            var authorDids = posts.Select(p => p.Author?.Did).Where(d => !string.IsNullOrEmpty(d)).ToList();
+            var quotePostUris = posts.Select(p => p.QuotePost?.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
+            
+            var allSubjectUris = labelUris.Concat(authorDids!).Concat(quotePostUris!).Distinct().ToList();
+            var activeLabels = new Dictionary<string, List<string>>();
+
+            if (allSubjectUris.Any())
+            {
+                var labels = await _unitOfWork.Labels.Query()
+                    .Where(l => allSubjectUris.Contains(l.Uri) && !l.Neg)
+                    .ToListAsync();
+                
+                activeLabels = labels.GroupBy(l => l.Uri)
+                    .ToDictionary(g => g.Key, g => g.Select(l => l.Val.ToLower()).ToList());
             }
 
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, IsTimeline={IsTimeline}", posts.Count, viewerId, isTimeline);
@@ -540,6 +558,55 @@ public class PostService : IPostService
         var filteredPosts = new List<PostDto>();
             foreach (var post in posts)
             {
+                // --- CONTENT FILTERING LOGIC ---
+                var postLabels = activeLabels.GetValueOrDefault(post.Uri ?? "", new List<string>());
+                var authorLabels = activeLabels.GetValueOrDefault(post.Author?.Did ?? "", new List<string>());
+                var combinedLabels = postLabels.Concat(authorLabels).Distinct().ToList();
+
+                if (combinedLabels.Any())
+                {
+                    bool shouldHide = false;
+                    string? warnReason = null;
+
+                    foreach (var label in combinedLabels)
+                    {
+                        string filter = "show"; // default
+                        string category = "";
+
+                        var isAdult = label == "porn" || label == "sexual" || label == "nudity" || label == "graphic-media";
+
+                        if (label == "porn" || label == "sexual") { 
+                            filter = userSettings?.SexuallyExplicitFilter ?? (userSettings?.EnableAdultContent == true ? "warn" : "hide"); 
+                            category = "Sexually Explicit";
+                        }
+                        else if (label == "graphic-media" || label == "gore" || label == "violence") { 
+                            filter = userSettings?.GraphicMediaFilter ?? (userSettings?.EnableAdultContent == true ? "warn" : "hide"); 
+                            category = "Graphic Media";
+                        }
+                        else if (label == "nudity") { 
+                            filter = userSettings?.NonSexualNudityFilter ?? (userSettings?.EnableAdultContent == true ? "show" : "hide"); 
+                            category = "Non-Sexual Nudity";
+                        }
+                        
+                        // Override if Adult Content is disabled globally
+                        if (userSettings?.EnableAdultContent == false && isAdult)
+                        {
+                            filter = "hide";
+                        }
+
+                        if (filter == "hide") { shouldHide = true; break; }
+                        if (filter == "warn") { warnReason = category; }
+                    }
+
+                    if (shouldHide) continue;
+                    if (warnReason != null) {
+                        post.MuteInfo.IsMuted = true;
+                        post.MuteInfo.Behavior = "warn";
+                        post.MuteInfo.Reason = warnReason;
+                    }
+                }
+                // --- END CONTENT FILTERING LOGIC ---
+
                 // Apply Timeline Filtering
                 if (isTimeline)
                 {
