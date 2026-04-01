@@ -57,20 +57,20 @@ const Sidebar: React.FC = () => {
                 <div className="w-full flex justify-center xl:justify-start">
                     <Dropdown
                         trigger={
-                            <button aria-label="Switch accounts" className="group flex items-center justify-center xl:justify-between p-3 xl:w-full rounded-full bg-transparent hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-150 gap-3 outline-none">
-                                <div className="flex-shrink-0 relative z-10 transform origin-left transition-transform duration-150 group-hover:scale-[0.80] group-hover:-translate-x-1">
+                            <button aria-label="Switch accounts" className="group flex items-center justify-center xl:justify-between py-1.5 px-2 xl:w-full rounded-full bg-transparent hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-150 gap-2.5 outline-none">
+                                <div className="flex-shrink-0 relative z-10 transform origin-left transition-transform duration-150 group-hover:scale-[0.80] group-hover:-translate-x-0.5">
                                     <Avatar
                                         src={user.avatarUrl || user.avatar}
                                         alt={user.displayName}
-                                        size="lg" // 48x48
+                                        size="md" // 40x40
                                     />
                                 </div>
-                                <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out -ml-3">
-                                    <div className="font-bold text-[14px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
+                                <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out -ml-2">
+                                    <div className="font-bold text-[13.5px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
                                         <span className="truncate">{user.displayName}</span>
-                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={12} />}
+                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
                                     </div>
-                                    <div className="text-[12px] text-gray-500 dark:text-dark-text-secondary truncate mt-[1px]">
+                                    <div className="text-[11.5px] text-gray-500 dark:text-dark-text-secondary truncate mt-[0.5px]">
                                         @{user.handle.length > 15 ? `${user.handle.substring(0, 15)}...` : user.handle}
                                     </div>
                                 </div>
