@@ -32,7 +32,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
             <div className="flex justify-center min-h-screen">
                 <div className="flex w-full max-w-[1200px] justify-center px-2 lg:px-4">
                     {/* Left Sidebar - Desktop only */}
-                    <div className={cn("hidden lg:block flex-shrink-0", isAuthenticated ? "w-20 xl:w-64" : "w-64")}>
+                    <div className={cn("hidden lg:block flex-shrink-0", isAuthenticated ? "w-20 xl:w-[280px]" : "w-64 xl:w-[280px]")}>
                         {isAuthenticated ? <Sidebar /> : <GuestSidebar />}
                     </div>
 

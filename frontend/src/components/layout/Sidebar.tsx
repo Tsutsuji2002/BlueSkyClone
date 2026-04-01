@@ -47,10 +47,10 @@ const Sidebar: React.FC = () => {
     };
 
     return (
-        <div className="h-screen sticky top-0 flex flex-col xl:items-end py-3 px-2 lg:px-4 w-[72px] xl:w-full transition-all overflow-y-auto no-scrollbar border-r border-transparent">
+        <div className="h-screen sticky top-0 flex flex-col py-3 px-2 lg:px-4 w-[72px] xl:w-full transition-all overflow-y-auto no-scrollbar border-r border-transparent">
             
-            {/* Content Wrapper restricting to 240px max width and pushing to right margin */}
-            <div className="flex flex-col w-full xl:w-[240px]">
+            {/* Content Wrapper restricting to 240px width and pushing to right boundary */}
+            <div className="flex flex-col w-full xl:w-[240px] xl:ml-auto">
             
             {/* Account Switcher - AT TOP */}
             {user ? (
@@ -68,7 +68,7 @@ const Sidebar: React.FC = () => {
                                 <div className="flex-1 min-w-0 hidden xl:flex flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out -ml-3">
                                     <div className="font-bold text-[14px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
                                         <span className="truncate">{user.displayName}</span>
-                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
+                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={12} />}
                                     </div>
                                     <div className="text-[12px] text-gray-500 dark:text-dark-text-secondary truncate mt-[1px]">
                                         @{user.handle.length > 15 ? `${user.handle.substring(0, 15)}...` : user.handle}
