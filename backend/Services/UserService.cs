@@ -1242,29 +1242,37 @@ public class UserService : IUserService
 
     public async Task<MutedByListDto?> GetMutingListAsync(Guid viewerId, Guid targetUserId)
     {
-        // 1. Get all lists where Purpose is 'modlist' that viewer is subscribed to
-        var subscribedModListIds = await _unitOfWork.UserListSubscriptions.Query()
-            .Where(uls => uls.UserId == viewerId)
-            .Join(_unitOfWork.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
-            .Where(x => x.Purpose == "app.bsky.graph.defs#modlist" || x.Purpose == "mod")
-            .Select(x => x.Id)
-            .ToListAsync();
-
-        if (!subscribedModListIds.Any())
-            return null;
-
-        // 2. Check if targetUserId is a member of any of those lists
-        var listMember = await _unitOfWork.ListMembers.Query()
-            .Where(lm => subscribedModListIds.Contains(lm.ListId) && lm.UserId == targetUserId && lm.Status == 1)
-            .Include(lm => lm.List)
-            .FirstOrDefaultAsync();
-
-        if (listMember != null && listMember.List != null)
+        try
         {
-            return new MutedByListDto(listMember.List.Id, listMember.List.Name, listMember.List.Purpose);
-        }
+            // 1. Get all lists where Purpose is 'modlist' that viewer is subscribed to
+            var subscribedModListIds = await _unitOfWork.UserListSubscriptions.Query()
+                .Where(uls => uls.UserId == viewerId)
+                .Join(_unitOfWork.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
+                .Where(x => x.Purpose == "app.bsky.graph.defs#modlist" || x.Purpose == "mod")
+                .Select(x => x.Id)
+                .ToListAsync();
 
-        return null;
+            if (!subscribedModListIds.Any())
+                return null;
+
+            // 2. Check if targetUserId is a member of any of those lists
+            var listMember = await _unitOfWork.ListMembers.Query()
+                .Where(lm => subscribedModListIds.Contains(lm.ListId) && lm.UserId == targetUserId && lm.Status == 1)
+                .Include(lm => lm.List)
+                .FirstOrDefaultAsync();
+
+            if (listMember != null && listMember.List != null)
+            {
+                return new MutedByListDto(listMember.List.Id, listMember.List.Name, listMember.List.Purpose);
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error in GetMutingListAsync for viewer {ViewerId} and target {TargetId}. This usually indicates a pending database migration.", viewerId, targetUserId);
+            return null;
+        }
     }
 
     public async Task<List<User>> GetMutedUsersAsync(Guid userId)

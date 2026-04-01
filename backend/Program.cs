@@ -523,6 +523,18 @@ using (var scope = app.Services.CreateScope())
                 BEGIN
                     ALTER TABLE UserSettings ADD InAppNotifyOthers BIT NULL DEFAULT 1;
                 END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'SexuallyExplicitFilter')
+                BEGIN
+                    ALTER TABLE UserSettings ADD SexuallyExplicitFilter NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'GraphicMediaFilter')
+                BEGIN
+                    ALTER TABLE UserSettings ADD GraphicMediaFilter NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.UserSettings') AND name = 'NonSexualNudityFilter')
+                BEGIN
+                    ALTER TABLE UserSettings ADD NonSexualNudityFilter NVARCHAR(MAX) NULL;
+                END
 ";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Verified/Applied UserSettings resilience columns.");
