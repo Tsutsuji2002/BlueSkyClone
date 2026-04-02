@@ -2566,7 +2566,7 @@ public class PostService : IPostService
         try
         {
             // AT-Protocol Sync
-            var post = await ResolvePostByAtUriAsync(postUri);
+            var post = await GetPostByUriAsync(postUri);
             if (post != null && !string.IsNullOrEmpty(post.Cid))
             {
                 await SyncProfileRecordAsync(user, post.Uri, post.Cid);

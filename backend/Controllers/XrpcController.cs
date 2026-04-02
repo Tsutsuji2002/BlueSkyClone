@@ -1087,10 +1087,10 @@ namespace BSkyClone.Controllers
             {
                 try
                 {
-                    var post = await _postService.ResolvePostByAtUriAsync(user.PinnedPostUri);
+                    var post = await _postService.GetPostByUriAsync(user.PinnedPostUri);
                     if (post != null)
                     {
-                        var enrichedPosts = await _postService.EnrichAndFilterPostsAsync(new List<Post> { post }, viewerId ?? Guid.Empty);
+                        var enrichedPosts = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { post }, viewerId ?? Guid.Empty);
                         if (enrichedPosts.Any())
                         {
                             profile.PinnedPost = enrichedPosts.First();
