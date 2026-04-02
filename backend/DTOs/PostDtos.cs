@@ -65,6 +65,7 @@ public class PostDto
     public AuthorDto? RepostedBy { get; set; }
     public PostViewerDto? Viewer { get; set; }
     public bool IsLinkPreviewPending { get; set; }
+    public List<string> Labels { get; set; } = new();
 }
 
 public class PostViewerDto
@@ -115,6 +116,7 @@ public class AuthorDto
     /// <summary>AT-URI of the follow record — needed to unfollow from post context.</summary>
     public string? FollowingReference { get; set; }
     public AuthorViewerDto? Viewer { get; set; }
+    public List<string> Labels { get; set; } = new();
 }
 
 public class AuthorViewerDto

@@ -26,7 +26,7 @@ const ModerationBanner: React.FC<ModerationBannerProps> = ({ reason, behavior, o
                 </div>
                 <div className="flex flex-col">
                     <span className="text-[14px] font-bold text-gray-900 dark:text-dark-text leading-tight">
-                        {reason}
+                        {t(`moderation.${reason}`, reason)}
                     </span>
                     <span className="text-[12px] text-gray-500 dark:text-dark-text-secondary">
                         {behavior === 'hide' 

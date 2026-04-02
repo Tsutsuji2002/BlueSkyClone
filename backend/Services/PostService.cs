@@ -269,6 +269,12 @@ public class PostService : IPostService
                 IsVerified = authorObj.TryGetProperty("viewer", out var aview) && aview.TryGetProperty("following", out var _), // Simple heuristic
             };
 
+            if (authorObj.TryGetProperty("labels", out var aLabels) && aLabels.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var lab in aLabels.EnumerateArray())
+                    if (lab.TryGetProperty("val", out var val)) authorDto.Labels.Add(val.GetString()?.ToLower() ?? "");
+            }
+
             var likeCount = postObj.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0;
             var repostCount = postObj.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0;
             var replyCount = postObj.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0;
@@ -338,6 +344,12 @@ public class PostService : IPostService
                 IsLiked = isLiked,
                 IsReposted = isReposted
             };
+
+            if (postObj.TryGetProperty("labels", out var pLabels) && pLabels.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var lab in pLabels.EnumerateArray())
+                    if (lab.TryGetProperty("val", out var val)) postDto.Labels.Add(val.GetString()?.ToLower() ?? "");
+            }
 
             if (postObj.TryGetProperty("embed", out var postEmbed))
             {
@@ -415,7 +427,8 @@ public class PostService : IPostService
             var labelUris = posts.Select(p => p.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
             var authorDids = posts.Select(p => p.Author?.Did).Where(d => !string.IsNullOrEmpty(d)).ToList();
             var quotePostUris = posts.Select(p => p.QuotePost?.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
-            var allSubjectUris = labelUris.Concat(authorDids!).Concat(quotePostUris!).Distinct().ToList();
+            var quoteAuthorDids = posts.Select(p => p.QuotePost?.Author?.Did).Where(d => !string.IsNullOrEmpty(d)).ToList();
+            var allSubjectUris = labelUris.Concat(authorDids!).Concat(quotePostUris!).Concat(quoteAuthorDids!).Distinct().ToList();
 
             if (allSubjectUris.Any())
             {
@@ -425,6 +438,22 @@ public class PostService : IPostService
                 
                 activeLabels = labels.GroupBy(l => l.Uri)
                     .ToDictionary(g => g.Key, g => g.Select(l => l.Val.ToLower()).ToList());
+            }
+
+            // [NEW] Merge labels already present in PostDtos (mapped from initial JSON)
+            foreach (var p in posts)
+            {
+                if (p.Labels.Any() && !string.IsNullOrEmpty(p.Uri))
+                    activeLabels[p.Uri] = activeLabels.ContainsKey(p.Uri) ? activeLabels[p.Uri].Concat(p.Labels).Distinct().ToList() : p.Labels;
+                
+                if (p.Author?.Labels.Any() && !string.IsNullOrEmpty(p.Author.Did))
+                    activeLabels[p.Author.Did] = activeLabels.ContainsKey(p.Author.Did) ? activeLabels[p.Author.Did].Concat(p.Author.Labels).Distinct().ToList() : p.Author.Labels;
+
+                if (p.QuotePost?.Labels.Any() && !string.IsNullOrEmpty(p.QuotePost.Uri))
+                    activeLabels[p.QuotePost.Uri] = activeLabels.ContainsKey(p.QuotePost.Uri) ? activeLabels[p.QuotePost.Uri].Concat(p.QuotePost.Labels).Distinct().ToList() : p.QuotePost.Labels;
+
+                if (p.QuotePost?.Author?.Labels.Any() && !string.IsNullOrEmpty(p.QuotePost.Author.Did))
+                    activeLabels[p.QuotePost.Author.Did] = activeLabels.ContainsKey(p.QuotePost.Author.Did) ? activeLabels[p.QuotePost.Author.Did].Concat(p.QuotePost.Author.Labels).Distinct().ToList() : p.QuotePost.Author.Labels;
             }
 
             // Batch fetch remote interactions from AppView
@@ -467,11 +496,12 @@ public class PostService : IPostService
                                         {
                                             remoteInteractionCache[uri] = rp.Clone(); // Clone to preserve it outside the JsonDocument scope
                                             
-                                            // [NEW] Extract labels from remote AppView result and add to activeLabels
-                                            if (rp.TryGetProperty("labels", out var labelsProp) && labelsProp.ValueKind == JsonValueKind.Array)
+                                            // [NEW] Extract labels from remote AppView result (Post, Author, and Media)
+                                            void AddToActiveLabels(string subject, JsonElement labProp)
                                             {
+                                                if (labProp.ValueKind != JsonValueKind.Array) return;
                                                 var labels = new List<string>();
-                                                foreach (var lab in labelsProp.EnumerateArray())
+                                                foreach (var lab in labProp.EnumerateArray())
                                                 {
                                                     if (lab.TryGetProperty("val", out var valProp))
                                                     {
@@ -480,14 +510,41 @@ public class PostService : IPostService
                                                 }
                                                 if (labels.Any())
                                                 {
-                                                    if (activeLabels.ContainsKey(uri))
+                                                    if (activeLabels.ContainsKey(subject))
                                                     {
-                                                        activeLabels[uri] = activeLabels[uri].Concat(labels).Distinct().ToList();
+                                                        activeLabels[subject] = activeLabels[subject].Concat(labels).Distinct().ToList();
                                                     }
                                                     else
                                                     {
-                                                        activeLabels[uri] = labels;
+                                                        activeLabels[subject] = labels;
                                                     }
+                                                }
+                                            }
+
+                                            if (rp.TryGetProperty("labels", out var pLabels)) AddToActiveLabels(uri, pLabels);
+                                            if (rp.TryGetProperty("author", out var authorProp) && authorProp.TryGetProperty("did", out var didProp))
+                                            {
+                                                var did = didProp.GetString();
+                                                if (did != null)
+                                                {
+                                                    if (authorProp.TryGetProperty("labels", out var aLabels)) AddToActiveLabels(did, aLabels);
+                                                }
+                                            }
+                                            
+                                            // Extract labels from media embeds
+                                            if (rp.TryGetProperty("embed", out var embedProp))
+                                            {
+                                                if (embedProp.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
+                                                {
+                                                    foreach (var img in images.EnumerateArray())
+                                                    {
+                                                        if (img.TryGetProperty("labels", out var imgLabels)) AddToActiveLabels(uri, imgLabels);
+                                                    }
+                                                }
+                                                // Handle external (link) previews labels
+                                                if (embedProp.TryGetProperty("external", out var external) && external.TryGetProperty("labels", out var extLabels))
+                                                {
+                                                    AddToActiveLabels(uri, extLabels);
                                                 }
                                             }
                                         }
@@ -588,7 +645,9 @@ public class PostService : IPostService
                 // --- CONTENT FILTERING LOGIC ---
                 var postLabels = activeLabels.GetValueOrDefault(post.Uri ?? "", new List<string>());
                 var authorLabels = activeLabels.GetValueOrDefault(post.Author?.Did ?? "", new List<string>());
-                var combinedLabels = postLabels.Concat(authorLabels).Distinct().ToList();
+                var quoteLabels = post.QuotePost != null ? activeLabels.GetValueOrDefault(post.QuotePost.Uri ?? "", new List<string>()) : new List<string>();
+                var quoteAuthorLabels = post.QuotePost?.Author?.Did != null ? activeLabels.GetValueOrDefault(post.QuotePost.Author.Did, new List<string>()) : new List<string>();
+                var combinedLabels = postLabels.Concat(authorLabels).Concat(quoteLabels).Concat(quoteAuthorLabels).Distinct().ToList();
 
                 if (combinedLabels.Any())
                 {
@@ -600,9 +659,9 @@ public class PostService : IPostService
                         string filter = "show"; // default
                         string category = "";
 
-                        var isAdult = label == "porn" || label == "sexual" || label == "nudity" || label == "graphic-media";
+                        var isAdult = label == "porn" || label == "sexual" || label == "nudity" || label == "graphic-media" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive";
 
-                        if (label == "porn" || label == "sexual") { 
+                        if (label == "porn" || label == "sexual" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive") { 
                             filter = userSettings?.SexuallyExplicitFilter ?? (userSettings?.EnableAdultContent == true ? "warn" : "hide"); 
                             category = "Sexually Explicit";
                         }
@@ -4604,11 +4663,30 @@ public class PostService : IPostService
                 }
             }
         }
+        else if (type == "app.bsky.embed.record#view" || (type == null && embed.TryGetProperty("record", out var r) && r.TryGetProperty("$type", out var rt) && rt.GetString() == "app.bsky.feed.defs#postView"))
+        {
+            if (embed.TryGetProperty("record", out var rec))
+            {
+                dto.QuotePost = MapBlueskyPost(rec);
+            }
+        }
         else if (type == "app.bsky.embed.recordWithMedia#view" || embed.TryGetProperty("media", out _))
         {
             if (embed.TryGetProperty("media", out var media))
             {
                 MapEmbedToDto(dto, media);
+            }
+            if (embed.TryGetProperty("record", out var rec))
+            {
+                // The 'record' property here is often an app.bsky.embed.record#view
+                if (rec.TryGetProperty("record", out var innerRec))
+                {
+                     dto.QuotePost = MapBlueskyPost(innerRec);
+                }
+                else
+                {
+                     dto.QuotePost = MapBlueskyPost(rec);
+                }
             }
         }
     }
