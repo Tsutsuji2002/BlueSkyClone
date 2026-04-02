@@ -65,4 +65,5 @@ public partial class Post
     public virtual ICollection<Hashtag> Hashtags { get; set; } = new List<Hashtag>();
 
     public virtual ICollection<List> Lists { get; set; } = new List<List>();
+    public string? Labels { get; set; }
 }

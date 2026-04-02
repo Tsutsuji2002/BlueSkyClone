@@ -156,6 +156,7 @@ public class CreatePostRequest
     public bool? AllowQuotes { get; set; }
     public string? Language { get; set; }
     public string? GifUrl { get; set; }
+    public List<string>? Labels { get; set; }
 }
 
 public class FeedDto

@@ -7,7 +7,7 @@ import { showToast } from '../redux/slices/toastSlice';
 
 import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
-import { FiX, FiImage, FiSmile, FiChevronRight, FiCheck } from 'react-icons/fi';
+import { FiX, FiImage, FiSmile, FiChevronRight, FiCheck, FiAlertTriangle } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { POST_CHARACTER_LIMIT, ALL_LANGUAGES } from '../constants';
 import { detectLanguage } from '../utils/languageDetector';
@@ -67,6 +67,8 @@ const CreatePostModal: React.FC = () => {
     const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null);
+    const [labels, setLabels] = useState<string[]>([]);
+    const [isLabelDropdownOpen, setIsLabelDropdownOpen] = useState(false);
 
     const { results: mentionResults, isLoading: isMentionLoading } = useUserSearch(mentionSearch);
 
@@ -128,9 +130,11 @@ const CreatePostModal: React.FC = () => {
                 setPostLanguage(postToEdit.language);
                 setIsLanguageManual(true);
             } else {
-                const detected = detectLanguage(postToEdit.content);
-                setPostLanguage(detected || '');
                 setIsLanguageManual(false);
+            }
+
+            if (postToEdit.labels) {
+                setLabels(postToEdit.labels);
             }
         }
     }, [isEditing, postToEdit, authSettings]);
@@ -301,6 +305,8 @@ const CreatePostModal: React.FC = () => {
         setAllowQuotes(authSettings?.defaultAllowQuotes ?? true);
         setPostLanguage('');
         setIsLanguageManual(false);
+        setLabels([]);
+        setIsLabelDropdownOpen(false);
     };
 
     const settings = useAppSelector((state) => state.auth.settings);
@@ -335,6 +341,7 @@ const CreatePostModal: React.FC = () => {
                     linkPreview: linkPreview || undefined,
                     gifUrl: selectedGifUrl || undefined,
                     existingMediaIdsToKeep: existingMediaIdsToKeep.length > 0 ? existingMediaIdsToKeep : undefined,
+                    labels: labels.length > 0 ? labels : undefined,
                 })).unwrap();
                 dispatch(showToast({ message: t('post.updated_success', 'Post updated successfully'), type: 'success' }));
             } else {
@@ -345,6 +352,7 @@ const CreatePostModal: React.FC = () => {
                     videoFile: videoFile || undefined,
                     linkPreview: linkPreview || undefined,
                     gifUrl: selectedGifUrl || undefined,
+                    labels: labels.length > 0 ? labels : undefined,
                 })).unwrap();
                 dispatch(showToast({ message: t('post.created_success'), type: 'success' }));
             }
@@ -676,6 +684,62 @@ const CreatePostModal: React.FC = () => {
                                 onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }}
                                 className="p-2.5 rounded-full text-[#1d9bf0] hover:bg-[#1d9bf0]/10 transition-colors"
                             ><FiSmile size={20} strokeWidth={2.5} /></button>
+                            <div className="relative">
+                                <button
+                                    onClick={() => { setIsLabelDropdownOpen(!isLabelDropdownOpen); setShowEmojiPicker(false); setShowGifPicker(false); }}
+                                    className={cn(
+                                        "p-2.5 rounded-full transition-colors flex items-center gap-1",
+                                        labels.length > 0 ? "text-[#f45d48] bg-[#f45d48]/10" : "text-[#1d9bf0] hover:bg-[#1d9bf0]/10"
+                                    )}
+                                    title={t('post.content_warning', 'Content Warning')}
+                                >
+                                    <FiAlertTriangle size={20} strokeWidth={2.5} />
+                                    {labels.length > 0 && <span className="text-[11px] font-bold">CW</span>}
+                                </button>
+                                {isLabelDropdownOpen && (
+                                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1e2028] border border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-[65]">
+                                        <div className="p-3 border-b border-gray-700">
+                                            <h3 className="text-[13px] font-bold text-gray-300 uppercase tracking-wider">{t('post.content_warning', 'Content Warning')}</h3>
+                                            <p className="text-[11px] text-gray-500 mt-1">{t('post.cw_description', 'Add a warning label to your post.')}</p>
+                                        </div>
+                                        <div className="p-1 space-y-0.5">
+                                            {[
+                                                { id: 'sexual', label: 'Suggestive', desc: 'Sexually suggestive content' },
+                                                { id: 'porn', label: 'Adult', desc: 'Explicit sexual content' },
+                                                { id: 'graphic-media', label: 'Violence', desc: 'Graphic violence or gore' },
+                                                { id: 'nudity', label: 'Nudity', desc: 'Non-sexual nudity' }
+                                            ].map(opt => (
+                                                <button
+                                                    key={opt.id}
+                                                    onClick={() => {
+                                                        setLabels(prev => prev.includes(opt.id) ? prev.filter(l => l !== opt.id) : [...prev, opt.id]);
+                                                    }}
+                                                    className={cn(
+                                                        'w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center justify-between group',
+                                                        labels.includes(opt.id) ? 'bg-[#f45d48]/20 border border-[#f45d48]/30' : 'hover:bg-gray-700/50'
+                                                    )}
+                                                >
+                                                    <div>
+                                                        <div className={cn('text-[14px] font-bold', labels.includes(opt.id) ? 'text-[#f45d48]' : 'text-gray-200')}>
+                                                            {opt.label}
+                                                        </div>
+                                                        <div className="text-[11px] text-gray-500">{opt.desc}</div>
+                                                    </div>
+                                                    {labels.includes(opt.id) && <FiCheck className="text-[#f45d48]" size={16} />}
+                                                </button>
+                                            ))}
+                                            {labels.length > 0 && (
+                                                <button
+                                                    onClick={() => { setLabels([]); setIsLabelDropdownOpen(false); }}
+                                                    className="w-full text-center py-2 text-[12px] text-gray-400 hover:text-white transition-colors"
+                                                >
+                                                    {t('common.clear_all', 'Clear all')}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-3 pr-2">

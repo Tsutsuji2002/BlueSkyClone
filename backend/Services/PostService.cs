@@ -702,10 +702,10 @@ public class PostService : IPostService
             foreach (var post in posts)
             {
                 // --- CONTENT FILTERING LOGIC ---
-                var postLabels = activeLabels.GetValueOrDefault(post.Uri ?? "", new List<string>());
-                var authorLabels = activeLabels.GetValueOrDefault(post.Author?.Did ?? "", new List<string>());
-                var quoteLabels = post.QuotePost != null ? activeLabels.GetValueOrDefault(post.QuotePost.Uri ?? "", new List<string>()) : new List<string>();
-                var quoteAuthorLabels = post.QuotePost?.Author?.Did != null ? activeLabels.GetValueOrDefault(post.QuotePost.Author.Did, new List<string>()) : new List<string>();
+                var postLabels = activeLabels.GetValueOrDefault(post.Uri ?? "", new List<string>()).Concat(post.Labels).Distinct().ToList();
+                var authorLabels = activeLabels.GetValueOrDefault(post.Author?.Did ?? "", new List<string>()).Concat(post.Author?.Labels ?? new List<string>()).Distinct().ToList();
+                var quoteLabels = post.QuotePost != null ? activeLabels.GetValueOrDefault(post.QuotePost.Uri ?? "", new List<string>()).Concat(post.QuotePost.Labels).Distinct().ToList() : new List<string>();
+                var quoteAuthorLabels = post.QuotePost?.Author?.Did != null ? activeLabels.GetValueOrDefault(post.QuotePost.Author.Did, new List<string>()).Concat(post.QuotePost.Author?.Labels ?? new List<string>()).Distinct().ToList() : new List<string>();
                 var combinedLabels = postLabels.Concat(authorLabels).Concat(quoteLabels).Concat(quoteAuthorLabels).Distinct().ToList();
 
                 if (combinedLabels.Any())
@@ -1471,6 +1471,15 @@ public class PostService : IPostService
                         { "text", post.Content ?? "" },
                         { "createdAt", post.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
                     };
+
+                    if (request.Labels != null && request.Labels.Any())
+                    {
+                        postRecord["labels"] = new Dictionary<string, object>
+                        {
+                            { "$type", "com.atproto.label.defs#selfLabels" },
+                            { "values", request.Labels.Select(l => new { val = l }).ToList() }
+                        };
+                    }
 
                     // 0. Facets (Mentions/Links)
                     if (!string.IsNullOrEmpty(post.Content))
@@ -4652,7 +4661,8 @@ public class PostService : IPostService
                 AvatarUrl = post.Author.AvatarUrl,
                 IsFollowing = false, // Default
                 IsVerified = post.Author.IsVerified,
-                Did = post.Author.Did
+                Did = post.Author.Did,
+                Labels = !string.IsNullOrEmpty(post.Author.Labels) ? post.Author.Labels.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() : new List<string>()
             },
             ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
             Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
@@ -4694,6 +4704,7 @@ public class PostService : IPostService
             QuotePost = (includeQuote && post.QuotePost != null) ? MapToDto(post.QuotePost, false, false) : null,
             ParentPost = (includeParent && post.ReplyToPost != null) ? MapToDto(post.ReplyToPost, false, false) : null,
             CanReply = true, // Default
+            Labels = !string.IsNullOrEmpty(post.Labels) ? post.Labels.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() : new List<string>(),
             // AT-Protocol URI and synthetic CID
             Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
                 ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}"

@@ -157,7 +157,7 @@ export const fetchUserPosts = createAsyncThunk(
 
 export const updatePost = createAsyncThunk(
     'posts/updatePost',
-    async ({ id, content, mediaFiles, videoFile, linkPreview, gifUrl, existingMediaIdsToKeep }: { id: string; content: string; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; existingMediaIdsToKeep?: string[] }, { rejectWithValue }) => {
+    async ({ id, content, mediaFiles, videoFile, linkPreview, gifUrl, existingMediaIdsToKeep, labels }: { id: string; content: string; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; existingMediaIdsToKeep?: string[]; labels?: string[] }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const formData = new FormData();
@@ -181,6 +181,9 @@ export const updatePost = createAsyncThunk(
             if (gifUrl) {
                 formData.append('GifUrl', gifUrl);
             }
+            if (labels && labels.length > 0) {
+                labels.forEach(l => formData.append('Labels', l));
+            }
 
             const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
                 method: 'PUT',
@@ -202,7 +205,7 @@ export const updatePost = createAsyncThunk(
 
 export const createPost = createAsyncThunk(
     'posts/createPost',
-    async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; replyToPostId?: string; rootPostId?: string }, { rejectWithValue, getState }) => {
+    async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; replyToPostId?: string; rootPostId?: string; labels?: string[] }, { rejectWithValue, getState }) => {
         try {
             const state = getState() as any;
             const user = state.auth.user;
@@ -227,6 +230,9 @@ export const createPost = createAsyncThunk(
             }
             if (postData.gifUrl) {
                 formData.append('GifUrl', postData.gifUrl);
+            }
+            if (postData.labels && postData.labels.length > 0) {
+                postData.labels.forEach(l => formData.append('Labels', l));
             }
 
             const response = await fetch(`${API_BASE_URL}/posts`, {

@@ -51,6 +51,7 @@ export interface User {
         behavior: string; /* 'warn', 'hide' */
         reason: string;
     };
+    labels?: string[];
 }
 
 export interface UserSettings {
@@ -216,6 +217,7 @@ export interface Post {
     };
     isPinned?: boolean;
     isLinkPreviewPending?: boolean;
+    labels?: string[];
 }
 
 // Comment/Reply types

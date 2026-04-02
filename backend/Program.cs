@@ -294,6 +294,14 @@ using (var scope = app.Services.CreateScope())
                     ALTER TABLE dbo.Users ADD RepoRev NVARCHAR(100) NULL;
                     PRINT 'Added RepoRev to Users';
                 END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Posts') OR object_id = OBJECT_ID('Posts')) AND name = 'Labels')
+                BEGIN
+                    ALTER TABLE dbo.Posts ADD Labels NVARCHAR(MAX) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'Labels')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD Labels NVARCHAR(MAX) NULL;
+                END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'PinnedPostUri')
                 BEGIN
                     ALTER TABLE dbo.Users ADD PinnedPostUri NVARCHAR(MAX) NULL;
