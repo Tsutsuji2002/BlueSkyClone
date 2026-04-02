@@ -1570,12 +1570,17 @@ public class UserService : IUserService
                 // Extract labels
                 if (root.TryGetProperty("labels", out var labelsProp) && labelsProp.ValueKind == JsonValueKind.Array)
                 {
+                    var extractedLabels = new List<string>();
                     foreach (var label in labelsProp.EnumerateArray())
                     {
                         if (label.TryGetProperty("val", out var valProp))
                         {
-                            user.Labels.Add(valProp.GetString() ?? "");
+                            extractedLabels.Add(valProp.GetString() ?? "");
                         }
+                    }
+                    if (extractedLabels.Any())
+                    {
+                        user.Labels = string.Join(",", extractedLabels.Distinct());
                     }
                 }
 

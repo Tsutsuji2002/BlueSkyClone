@@ -528,7 +528,7 @@ public class ProfileController : ControllerBase
 
     private async Task<PostMuteDto?> EvaluateProfileMuteInfo(User user, Guid? viewerId)
     {
-        if (user.Labels == null || !user.Labels.Any()) return null;
+        if (string.IsNullOrWhiteSpace(user.Labels)) return null;
 
         UserSetting? viewerSettings = null;
         if (viewerId.HasValue)
@@ -540,7 +540,8 @@ public class ProfileController : ControllerBase
         string? warnReason = null;
         var muteInfo = new PostMuteDto { IsMuted = false, Behavior = "none" };
 
-        foreach (var label in user.Labels)
+        var labels = (user.Labels ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var label in labels)
         {
             string filter = "show";
             string category = "";
