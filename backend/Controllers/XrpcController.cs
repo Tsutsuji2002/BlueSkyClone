@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Security.Claims;
+using BSkyClone.DTOs;
 
 namespace BSkyClone.Controllers
 {
@@ -1090,7 +1091,7 @@ namespace BSkyClone.Controllers
                     var post = await _postService.GetPostByUriAsync(user.PinnedPostUri);
                     if (post != null)
                     {
-                        var enrichedPosts = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { post }, viewerId ?? Guid.Empty);
+                        var enrichedPosts = await _postService.EnrichAndFilterPostsAsync(new List<BSkyClone.DTOs.PostDto> { post }, viewerId ?? Guid.Empty);
                         if (enrichedPosts.Any())
                         {
                             profile.PinnedPost = enrichedPosts.First();
