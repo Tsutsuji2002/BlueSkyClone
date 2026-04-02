@@ -294,6 +294,16 @@ using (var scope = app.Services.CreateScope())
                     ALTER TABLE dbo.Users ADD RepoRev NVARCHAR(100) NULL;
                     PRINT 'Added RepoRev to Users';
                 END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'PinnedPostUri')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD PinnedPostUri NVARCHAR(MAX) NULL;
+                    PRINT 'Added PinnedPostUri to Users';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Users') OR object_id = OBJECT_ID('Users')) AND name = 'Salt')
+                BEGIN
+                    ALTER TABLE dbo.Users ADD Salt NVARCHAR(MAX) NULL;
+                    PRINT 'Added Salt to Users';
+                END
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE (object_id = OBJECT_ID('dbo.Feeds') OR object_id = OBJECT_ID('Feeds')) AND name = 'IsOfficial')
                 BEGIN
                     ALTER TABLE dbo.Feeds ADD IsOfficial BIT NOT NULL DEFAULT 0;
