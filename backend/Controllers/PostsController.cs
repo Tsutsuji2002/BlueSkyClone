@@ -506,7 +506,9 @@ public class PostsController : ControllerBase
             Console.WriteLine($"[PostsController] UpdateInteractionSettings error: {ex.Message}");
             return BadRequest(new { message = ex.Message });
         }
-        [HttpPost("pin")]
+    }
+
+    [HttpPost("pin")]
     public async Task<IActionResult> PinPost([FromQuery] string uri)
     {
         try
@@ -539,5 +541,4 @@ public class PostsController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
-}
 }
