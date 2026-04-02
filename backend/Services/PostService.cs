@@ -118,7 +118,7 @@ public class PostService : IPostService
     {
         try
         {
-            var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}_{skip}_{take}";
+            var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}";
             var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
             PagedPostDto? result = null;
 
@@ -130,66 +130,39 @@ public class PostService : IPostService
             if (result == null)
             {
                 using var httpClient = new HttpClient();
-                
-                // If we have a viewer, try to attach their token for personalized views (e.g. following state)
-                if (viewerId.HasValue)
-                {
-                    var token = await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}");
-                    if (!string.IsNullOrEmpty(token))
-                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                }
-                
                 var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
-                var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit={take + skip}&filter={filter}";
+                var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit=100&filter={filter}";
                 if (!string.IsNullOrEmpty(cursor))
-                {
-                    url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit={take}&filter={filter}&cursor={Uri.EscapeDataString(cursor)}";
-                }
+                    url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
                 var response = await httpClient.GetAsync(url);
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("[GetUserPostsAsync] fetch failed: {Res}", await response.Content.ReadAsStringAsync());
-                    return new PagedPostDto();
-                }
+                if (!response.IsSuccessStatusCode) return new PagedPostDto();
 
                 var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
-                var mappedPosts = new List<PostDto>();
-                string? nextCursor = null;
-
-                if (responseBody.TryGetProperty("feed", out var feedArray))
-                {
-                    mappedPosts = MapBlueskyFeed(feedArray);
-                }
+                var mappedPosts = responseBody.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
                 
-                if (responseBody.TryGetProperty("cursor", out var cProp))
-                {
-                    nextCursor = cProp.GetString();
-                }
-
-                // FILTER: If "replies" tab is requested, only show posts that are actually replies
                 if (type == "replies")
-                {
                     mappedPosts = mappedPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
-                }
-
-                var postsToEnrich = string.IsNullOrEmpty(cursor) ? mappedPosts.Skip(skip).Take(take).ToList() : mappedPosts;
-                var enrichedPosts = viewerId.HasValue ? await EnrichAndFilterPostsAsync(postsToEnrich, viewerId.Value) : postsToEnrich;
 
                 result = new PagedPostDto 
                 { 
-                    Posts = enrichedPosts,
-                    Cursor = nextCursor 
+                    Posts = mappedPosts,
+                    Cursor = responseBody.TryGetProperty("cursor", out var c) ? c.GetString() : null 
                 };
 
-                await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(result), new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(result), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
             }
 
-            return result;
+            var paginated = result.Posts.Skip(skip).Take(take).ToList();
+            return new PagedPostDto 
+            { 
+                Posts = viewerId.HasValue ? await EnrichAndFilterPostsAsync(paginated, viewerId.Value) : paginated,
+                Cursor = result.Cursor 
+            };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[GetUserPostsAsync] Error proxying author feed for {Handle}", handleOrDid);
+            _logger.LogError(ex, "[GetUserPostsAsync] Error for {Handle}", handleOrDid);
             return new PagedPostDto();
         }
     }

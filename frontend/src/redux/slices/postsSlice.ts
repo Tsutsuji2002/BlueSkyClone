@@ -378,13 +378,13 @@ export const fetchPostById = createAsyncThunk(
             const token = localStorage.getItem('token');
             const uri = typeof args === 'string' ? args : args.uri;
             const handle = typeof args === 'object' ? args.handle : undefined;
-            
+
             // uri may be a full AT URI or just a GUID or a TID
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
-            
+
             // Check if it's a GUID
             const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
-            
+
             let endpoint: string;
             if (isGuid) {
                 endpoint = `${API_BASE_URL}/posts/${postId}`;
@@ -397,7 +397,7 @@ export const fetchPostById = createAsyncThunk(
             } else {
                 endpoint = `${API_BASE_URL}/posts/tid/${postId}`;
             }
-            
+
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -406,16 +406,16 @@ export const fetchPostById = createAsyncThunk(
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch post');
-            
+
             const data = await response.json();
 
             // Handle XRPC getPostThread response (thread structure)
             if (data && data.thread) {
                 const postsMap = new Map<string, Post>();
-                
+
                 const extractPosts = (node: any) => {
                     if (!node) return;
-                    
+
                     if (node.post) {
                         const mapped = mapAtProtoPostToPost(node.post);
                         if (mapped.uri) {
@@ -445,7 +445,7 @@ export const fetchPostById = createAsyncThunk(
                         node.replies.forEach((r: any) => extractPosts(r));
                     }
                 };
-                
+
                 extractPosts(data.thread);
                 return Array.from(postsMap.values());
             }
@@ -752,7 +752,7 @@ const postsSlice = createSlice({
             .addCase(createPost.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 const newPost = action.payload;
-                
+
                 // Override parent IDs with the URIs passed to the thunk
                 // This is critical because the backend returns local GUIDs, 
                 // but remote posts in our UI are identified by their AT URIs/TIDs.
@@ -767,7 +767,10 @@ const postsSlice = createSlice({
                 if (!state.posts.some(p => p.uri === newPost.uri)) {
                     state.posts.unshift(newPost);
                 }
-                
+
+                // Invalidate profile post cache so it refreshes on next navigation
+                state.lastUserPostsFetch = 0;
+
                 // Optimistically update the parent post's repliesCount
                 if (newPost.replyToPostId) {
                     const updateInArray = (arr: Post[]) => {
@@ -784,7 +787,7 @@ const postsSlice = createSlice({
                     updateInArray(state.discoverPosts);
                     updateInArray(state.trendingPosts);
                 }
-                
+
                 // Optimistically update parent's quotesCount if this is a quote
                 if (newPost.quotePostId) {
                     const updateInArray = (arr: Post[]) => {
@@ -902,6 +905,8 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                // Invalidate profile post cache so reposts appear/disappear on next profile visit
+                state.lastUserPostsFetch = 0;
             })
             .addCase(repostPost.rejected, (state: PostsState, action) => {
                 const { uri: actionUri } = action.meta.arg;
@@ -957,6 +962,8 @@ const postsSlice = createSlice({
                 state.discoverPosts = state.discoverPosts.filter((p: Post) => !matchesPost(p));
                 state.trendingPosts = state.trendingPosts.filter((p: Post) => !matchesPost(p));
                 state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => !matchesPost(p));
+                // Invalidate profile post cache so it re-fetches on next navigation
+                state.lastUserPostsFetch = 0;
             })
             // Fetch Post By ID
             .addCase(fetchPostById.pending, (state: PostsState) => {
@@ -968,11 +975,11 @@ const postsSlice = createSlice({
                 const fetchedPosts: Post[] = Array.isArray(action.payload) ? action.payload : [action.payload];
                 fetchedPosts.forEach(fetchedPost => {
                     // Deduplicate by URI or ID (if ID is not empty)
-                    const index = state.posts.findIndex(p => 
-                        (fetchedPost.uri && p.uri === fetchedPost.uri) || 
+                    const index = state.posts.findIndex(p =>
+                        (fetchedPost.uri && p.uri === fetchedPost.uri) ||
                         (fetchedPost.id && p.id === fetchedPost.id && fetchedPost.id !== '')
                     );
-                    
+
                     if (index !== -1) {
                         const existingPost = state.posts[index];
                         state.posts[index] = {
