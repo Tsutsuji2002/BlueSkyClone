@@ -162,7 +162,15 @@ namespace BSkyClone.Controllers
 
                 return Ok(response);
             }
-            catch (Exception ex) { _logger.LogError(ex, "Error creating session"); return StatusCode(500, new { error = "InternalError" }); }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { error = "AuthFailed", message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating session for {Identifier}", request.Identifier);
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            }
         }
 
         [Authorize]

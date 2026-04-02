@@ -120,7 +120,8 @@ public class AuthService : IAuthService
             FollowersCount = 0,
             FollowingCount = 0,
             PostsCount = 0,
-            PasswordHash = "PROXY_ACCOUNT" // No local password
+            PasswordHash = "PROXY_ACCOUNT", // No local password
+            Salt = "PROXY_ACCOUNT"
         };
 
         user.UserSetting = new UserSetting
@@ -193,7 +194,8 @@ public class AuthService : IAuthService
                 DisplayName = handle,
                 CreatedAt = DateTime.UtcNow,
                 IsBanned = false,
-                PasswordHash = "PROXY_ACCOUNT"
+                PasswordHash = "PROXY_ACCOUNT",
+                Salt = "PROXY_ACCOUNT"
             };
             user.UserSetting = new UserSetting { UserId = user.Id, AppLanguage = "en", ThemeMode = "system" };
             await _unitOfWork.Users.AddAsync(user);
