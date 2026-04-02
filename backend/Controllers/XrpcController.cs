@@ -775,6 +775,9 @@ namespace BSkyClone.Controllers
                 }
 
                 if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
+                
+                // Fetch the detailed profile
+                var profile = await MapUserToProfileViewDetailed(user, viewerId);
 
                 // Refresh remote profile stats if it's a non-local user
                 if (!string.IsNullOrEmpty(user.Did) && !user.Did.EndsWith(":local"))
@@ -806,25 +809,16 @@ namespace BSkyClone.Controllers
                     postsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
                 }
 
-                var profile = new Lexicons.App.Bsky.Actor.Defs.ProfileViewDetailed
+                // Populate the results into the profile object we created earlier
+                profile.FollowersCount = followersCount;
+                profile.FollowsCount = followsCount;
+                profile.PostsCount = postsCount;
+                profile.Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState
                 {
-                    Did = user.Did ?? "",
-                    Handle = user.Handle,
-                    DisplayName = user.DisplayName,
-                    Description = user.Bio,
-                    Avatar = user.AvatarUrl,
-                    Banner = user.CoverImageUrl,
-                    FollowersCount = followersCount,
-                    FollowsCount = followsCount,
-                    PostsCount = postsCount,
-                    IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
-                    Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState
-                    {
-                        Muted = viewerId.HasValue && await _userService.IsMutedAsync(viewerId.Value, user.Id),
-                        BlockedBy = viewerId.HasValue && await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
-                        Blocking = viewerId.HasValue ? (await _userService.IsBlockedAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.block/self" : null) : null,
-                        Following = viewerId.HasValue ? (await _userService.IsFollowingAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.follow/self" : null) : null
-                    }
+                    Muted = viewerId.HasValue && await _userService.IsMutedAsync(viewerId.Value, user.Id),
+                    BlockedBy = viewerId.HasValue && await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
+                    Blocking = viewerId.HasValue ? (await _userService.IsBlockedAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.block/self" : null) : null,
+                    Following = viewerId.HasValue ? (await _userService.IsFollowingAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.follow/self" : null) : null
                 };
 
                 return Ok(profile);
@@ -1025,7 +1019,7 @@ namespace BSkyClone.Controllers
                 
                 var response = new GetFollowersResponse
                 {
-                    Subject = MapUserToProfileViewDetailed(subjectUser),
+                    Subject = await MapUserToProfileViewDetailed(subjectUser),
                     Followers = users.Select(u => MapUserToProfileView(u)).ToList(),
                     Cursor = nextCursor
                 };
@@ -1058,7 +1052,7 @@ namespace BSkyClone.Controllers
 
                 var response = new GetFollowsResponse
                 {
-                    Subject = MapUserToProfileViewDetailed(subjectUser),
+                    Subject = await MapUserToProfileViewDetailed(subjectUser),
                     Follows = users.Select(u => MapUserToProfileView(u)).ToList(),
                     Cursor = nextCursor
                 };
@@ -1072,9 +1066,9 @@ namespace BSkyClone.Controllers
             }
         }
 
-        private ProfileViewDetailed MapUserToProfileViewDetailed(User user)
+        private async Task<ProfileViewDetailed> MapUserToProfileViewDetailed(User user, Guid? viewerId = null)
         {
-            return new ProfileViewDetailed
+            var profile = new ProfileViewDetailed
             {
                 Did = user.Did ?? "",
                 Handle = user.Handle ?? user.Did ?? "unknown",
@@ -1088,6 +1082,28 @@ namespace BSkyClone.Controllers
                 IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
                 Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
             };
+
+            if (!string.IsNullOrEmpty(user.PinnedPostUri))
+            {
+                try
+                {
+                    var post = await _postService.ResolvePostByAtUriAsync(user.PinnedPostUri);
+                    if (post != null)
+                    {
+                        var enrichedPosts = await _postService.EnrichAndFilterPostsAsync(new List<Post> { post }, viewerId ?? Guid.Empty);
+                        if (enrichedPosts.Any())
+                        {
+                            profile.PinnedPost = enrichedPosts.First();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to resolve pinned post {Uri} for user {Did}", user.PinnedPostUri, user.Did);
+                }
+            }
+
+            return profile;
         }
 
         private ProfileView MapUserToProfileView(User user)

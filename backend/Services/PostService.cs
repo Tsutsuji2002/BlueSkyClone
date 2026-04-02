@@ -2562,6 +2562,20 @@ public class PostService : IPostService
         user.PinnedPostUri = postUri;
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
+
+        try
+        {
+            // AT-Protocol Sync
+            var post = await ResolvePostByAtUriAsync(postUri);
+            if (post != null && !string.IsNullOrEmpty(post.Cid))
+            {
+                await SyncProfileRecordAsync(user, post.Uri, post.Cid);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync pinned post to ATProto for user {UserId}", userId);
+        }
     }
 
     public async Task UnpinPostAsync(Guid userId)
@@ -2572,6 +2586,16 @@ public class PostService : IPostService
         user.PinnedPostUri = null;
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
+
+        try
+        {
+            // AT-Protocol Sync
+            await SyncProfileRecordAsync(user, null, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync unpinned post to ATProto for user {UserId}", userId);
+        }
     }
 
     private async Task<Post?> IngestRemotePostAsync(string uri)
@@ -5535,6 +5559,89 @@ public class PostService : IPostService
         {
             _logger.LogError(ex, "[CompressImageForBlueskyAsync] Error compressing {Path}", fullPath);
             return await File.ReadAllBytesAsync(fullPath); // Fallback to original
+        }
+    }
+
+    private async Task SyncProfileRecordAsync(User user, string? pinnedUri, string? pinnedCid)
+    {
+        if (string.IsNullOrEmpty(user.Did)) return;
+
+        // 1. Get current profile record
+        var profile = await GetCurrentProfileRecordAsync(user);
+        if (profile == null)
+        {
+             profile = new Dictionary<string, object> 
+             { 
+                 { "$type", "app.bsky.actor.profile" },
+                 { "displayName", user.DisplayName ?? "" },
+                 { "description", user.Bio ?? "" }
+             };
+        }
+
+        // 2. Update pinnedPost
+        if (pinnedUri != null && pinnedCid != null)
+        {
+            profile["pinnedPost"] = new { uri = pinnedUri, cid = pinnedCid };
+        }
+        else
+        {
+            profile.Remove("pinnedPost");
+        }
+
+        // 3. Save
+        await SaveProfileRecordAsync(user, profile);
+    }
+
+    private async Task<Dictionary<string, object>?> GetCurrentProfileRecordAsync(User user)
+    {
+        try
+        {
+            var nsid = "com.atproto.repo.getRecord";
+            var query = new Dictionary<string, string?> {
+                { "repo", user.Did },
+                { "collection", "app.bsky.actor.profile" },
+                { "rkey", "self" }
+            };
+
+            var response = await _xrpcProxy.ProxyRequestAsync(user.Did!, nsid, query);
+            if (response.Success)
+            {
+                using var doc = JsonDocument.Parse(response.Content);
+                if (doc.RootElement.TryGetProperty("value", out var val))
+                {
+                    return JsonSerializer.Deserialize<Dictionary<string, object>>(val.GetRawText());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting profile record for {Did}", user.Did);
+        }
+        return null;
+    }
+
+    private async Task SaveProfileRecordAsync(User user, Dictionary<string, object> profile)
+    {
+        if (user.Did!.StartsWith("did:local:"))
+        {
+            // Local PDS
+            await _repoManager.CreateRecordAsync(user.Did, "app.bsky.actor.profile", profile, "self");
+        }
+        else
+        {
+            // Remote PDS (BlueSky)
+            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{user.Id}");
+            if (string.IsNullOrEmpty(token)) return;
+
+            var nsid = "com.atproto.repo.putRecord";
+            var body = new {
+                repo = user.Did,
+                collection = "app.bsky.actor.profile",
+                rkey = "self",
+                record = profile
+            };
+
+            await _xrpcProxy.ProxyRequestAsync(user.Did!, nsid, new Dictionary<string, string?>(), token, "POST", body);
         }
     }
 }

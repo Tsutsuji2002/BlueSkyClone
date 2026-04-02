@@ -46,6 +46,9 @@ namespace BSkyClone.Lexicons.App.Bsky.Actor.Defs
         [JsonPropertyName("postsCount")]
         public int PostsCount { get; set; }
 
+        [JsonPropertyName("pinnedPost")]
+        public object? PinnedPost { get; set; }
+
         [JsonPropertyName("indexedAt")]
         public string? IndexedAt { get; set; }
     }
