@@ -518,6 +518,40 @@ export const toggleBookmark = createAsyncThunk(
     }
 );
 
+export const pinPost = createAsyncThunk(
+    'posts/pin',
+    async (postUri: string, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/pin?uri=${encodeURIComponent(postUri)}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) return rejectWithValue('Failed to pin post');
+            return postUri;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const unpinPost = createAsyncThunk(
+    'posts/unpin',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/unpin`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) return rejectWithValue('Failed to unpin post');
+            return null;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const fetchBookmarkedPosts = createAsyncThunk(
     'posts/fetchBookmarks',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
@@ -1192,6 +1226,29 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
+            // Pin Post
+            .addCase(pinPost.fulfilled, (state, action) => {
+                const pinnedUri = action.payload;
+                const updatePinned = (arr: Post[]) => {
+                    arr.forEach(p => {
+                        p.isPinned = (p.uri === pinnedUri || p.id === pinnedUri || p.tid === pinnedUri);
+                    });
+                };
+                updatePinned(state.posts);
+                updatePinned(state.discoverPosts);
+                updatePinned(state.trendingPosts);
+            })
+            // Unpin Post
+            .addCase(unpinPost.fulfilled, (state) => {
+                const clearPinned = (arr: Post[]) => {
+                    arr.forEach(p => {
+                        p.isPinned = false;
+                    });
+                };
+                clearPinned(state.posts);
+                clearPinned(state.discoverPosts);
+                clearPinned(state.trendingPosts);
+            })
             // Synchronize Profile Updates
             .addMatcher(
                 (action) => action.type.endsWith('/updateProfile/fulfilled'),
@@ -1241,7 +1298,7 @@ const postsSlice = createSlice({
                     applyFollowStateToPosts(state.bookmarkedPosts, identifier, false);
                 }
             );
-    }
+    },
 });
 
 

@@ -30,6 +30,8 @@ public interface IPostService
     Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20);
     Task<PostDto?> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request);
     Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null);
+    Task PinPostAsync(Guid userId, string postUri);
+    Task UnpinPostAsync(Guid userId);
     PostDto MapToDto(Post post);
     List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray);
     PostDto? MapBlueskyPost(System.Text.Json.JsonElement postObj);

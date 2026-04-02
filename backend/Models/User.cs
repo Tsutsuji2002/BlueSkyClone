@@ -59,6 +59,7 @@ public partial class User
     public bool? IsPrivate { get; set; }
 
     public bool? IsDeleted { get; set; }
+    public string? PinnedPostUri { get; set; }
 
     public bool IsBanned { get; set; } = false;
 

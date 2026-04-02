@@ -506,5 +506,38 @@ public class PostsController : ControllerBase
             Console.WriteLine($"[PostsController] UpdateInteractionSettings error: {ex.Message}");
             return BadRequest(new { message = ex.Message });
         }
+        [HttpPost("pin")]
+    public async Task<IActionResult> PinPost([FromQuery] string uri)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            await _postService.PinPostAsync(userId, uri);
+            return Ok(new { message = "Post pinned successfully" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
+
+    [HttpPost("unpin")]
+    public async Task<IActionResult> UnpinPost()
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            await _postService.UnpinPostAsync(userId);
+            return Ok(new { message = "Post unpinned successfully" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+}
 }

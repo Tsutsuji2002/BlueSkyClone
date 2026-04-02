@@ -214,6 +214,7 @@ export interface Post {
         embeddingDisabled?: boolean;
         threadMuted?: boolean;
     };
+    isPinned?: boolean;
     isLinkPreviewPending?: boolean;
 }
 

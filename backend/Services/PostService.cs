@@ -129,34 +129,120 @@ public class PostService : IPostService
 
             if (result == null)
             {
-                using var httpClient = new HttpClient();
-                var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
-                var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit=100&filter={filter}";
-                if (!string.IsNullOrEmpty(cursor))
-                    url += $"&cursor={Uri.EscapeDataString(cursor)}";
+                // [NEW] Local User Fallback: Check if the handle/DID belongs to a local user
+                var localUser = await _unitOfWork.Users.Query()
+                    .FirstOrDefaultAsync(u => u.Handle == handleOrDid || u.Did == handleOrDid);
 
-                var response = await httpClient.GetAsync(url);
-                if (!response.IsSuccessStatusCode) return new PagedPostDto();
+                if (localUser != null && (string.IsNullOrEmpty(localUser.Did) || localUser.Did.StartsWith("did:local:")))
+                {
+                    // Fetch local posts
+                    var postsQuery = _unitOfWork.Posts.Query()
+                        .Include(p => p.Author)
+                        .Include(p => p.PostMedia)
+                        .Include(p => p.LinkPreview)
+                        .Where(p => p.AuthorId == localUser.Id && (p.IsDeleted == false || p.IsDeleted == null));
 
-                var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
-                var mappedPosts = responseBody.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
-                
-                if (type == "replies")
-                    mappedPosts = mappedPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
+                    if (type == "replies")
+                        postsQuery = postsQuery.Where(p => p.ReplyToPostId != null);
+                    else if (type == "media")
+                        postsQuery = postsQuery.Where(p => p.PostMedia.Any());
+                    else
+                        postsQuery = postsQuery.Where(p => p.ReplyToPostId == null);
 
-                result = new PagedPostDto 
-                { 
-                    Posts = mappedPosts,
-                    Cursor = responseBody.TryGetProperty("cursor", out var c) ? c.GetString() : null 
-                };
+                    var localPosts = await postsQuery
+                        .OrderByDescending(p => p.CreatedAt)
+                        .Take(100)
+                        .ToListAsync();
 
-                await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(result), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                    var mappedPosts = localPosts.Select(p => MapToDto(p)).ToList();
+
+                    // Include local reposts if not filtering for specific types
+                    if (string.IsNullOrEmpty(type))
+                    {
+                        var reposts = await _unitOfWork.Reposts.Query()
+                            .Include(r => r.Post).ThenInclude(p => p.Author)
+                            .Include(r => r.Post).ThenInclude(p => p.PostMedia)
+                            .Include(r => r.Post).ThenInclude(p => p.LinkPreview)
+                            .Where(r => r.UserId == localUser.Id)
+                            .OrderByDescending(r => r.CreatedAt)
+                            .Take(50)
+                            .ToListAsync();
+
+                        foreach (var r in reposts)
+                        {
+                            var dto = MapToDto(r.Post);
+                            dto.RepostedBy = new AuthorDto
+                            {
+                                Id = localUser.Id,
+                                Handle = localUser.Handle ?? localUser.Username,
+                                DisplayName = localUser.DisplayName,
+                                AvatarUrl = localUser.AvatarUrl,
+                                Did = localUser.Did
+                            };
+                            mappedPosts.Add(dto);
+                        }
+                        mappedPosts = mappedPosts.OrderByDescending(p => p.CreatedAt).ToList();
+                    }
+
+                    result = new PagedPostDto { Posts = mappedPosts };
+                }
+                else
+                {
+                    using var httpClient = new HttpClient();
+                    var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
+                    var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit=100&filter={filter}";
+                    if (!string.IsNullOrEmpty(cursor))
+                        url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+                    var response = await httpClient.GetAsync(url);
+                    if (!response.IsSuccessStatusCode) return new PagedPostDto();
+
+                    var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
+                    var mappedPosts = responseBody.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
+                    
+                    if (type == "replies")
+                        mappedPosts = mappedPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
+
+                    result = new PagedPostDto 
+                    { 
+                        Posts = mappedPosts,
+                        Cursor = responseBody.TryGetProperty("cursor", out var c) ? c.GetString() : null 
+                    };
+
+                    await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(result), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                }
             }
 
+            // [NEW] Pin logic for Profile Feed: Match vs the Author's pinned post instead of the Viewer's
+            var authorUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == handleOrDid || u.Did == handleOrDid);
+            var pinnedUri = authorUser?.PinnedPostUri;
+
             var paginated = result.Posts.Skip(skip).Take(take).ToList();
+
+            if (skip == 0 && !string.IsNullOrEmpty(pinnedUri))
+            {
+                var pinnedPost = result.Posts.FirstOrDefault(p => p.Uri == pinnedUri || p.Viewer?.Repost == pinnedUri);
+                if (pinnedPost != null && !paginated.Any(p => p.Uri == pinnedUri))
+                {
+                    paginated.Insert(0, pinnedPost);
+                    if (paginated.Count > take) paginated.RemoveAt(paginated.Count - 1);
+                }
+            }
+
+            var enriched = viewerId.HasValue ? await EnrichAndFilterPostsAsync(paginated, viewerId.Value, isTimeline: false, forceDropHidden: false) : paginated;
+
+            if (!string.IsNullOrEmpty(pinnedUri))
+            {
+                foreach (var p in enriched)
+                {
+                    if (p.Uri == pinnedUri || (p.Viewer?.Repost == pinnedUri))
+                        p.IsPinned = true;
+                }
+            }
+
             return new PagedPostDto 
             { 
-                Posts = viewerId.HasValue ? await EnrichAndFilterPostsAsync(paginated, viewerId.Value) : paginated,
+                Posts = enriched,
                 Cursor = result.Cursor 
             };
         }
@@ -901,6 +987,9 @@ public class PostService : IPostService
                 post.IsLiked = post.Viewer.Like != null;
                 post.IsBookmarked = post.Id != Guid.Empty && bookmarkedPostIds.Contains(post.Id);
                 post.IsReposted = post.Viewer.Repost != null;
+
+                // [REFACTORED] Pinned logic removed from generic enrichment as it's profile-context specific.
+                // It is now handled directly in GetUserPostsAsync for the profile owner.
 
                 // Calculate CanReply logic
                 if (post.Author.Id == viewerId)
@@ -2463,6 +2552,26 @@ public class PostService : IPostService
             _logger.LogError(ex, "Error resolving AT-URI: {Uri}", uri);
             return null;
         }
+    }
+
+    public async Task PinPostAsync(Guid userId, string postUri)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return;
+
+        user.PinnedPostUri = postUri;
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
+    }
+
+    public async Task UnpinPostAsync(Guid userId)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return;
+
+        user.PinnedPostUri = null;
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
     }
 
     private async Task<Post?> IngestRemotePostAsync(string uri)

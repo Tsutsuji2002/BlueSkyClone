@@ -43,9 +43,6 @@ const ProfilePage: React.FC = () => {
     const profileUser = useAppSelector((state: RootState) => state.user.profile);
     const isProfileLoading = useAppSelector((state: RootState) => state.user.isLoading);
     const profileError = useAppSelector((state: RootState) => state.user.error);
-    const reduxPosts = useAppSelector((state: RootState) => state.posts.posts);
-    const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
-    const hasMore = useAppSelector((state: RootState) => state.posts.hasMore);
     const userLists = useAppSelector((state: RootState) => state.lists.userLists);
     const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
     const actionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
@@ -54,11 +51,23 @@ const ProfilePage: React.FC = () => {
         lastUserPostsFetch,
         lastUserPostsUserId,
         lastUserPostsType,
+        posts: reduxPosts,
+        isLoading: isPostsLoading,
+        hasMore,
         cursor: postCursor
     } = useAppSelector((state: RootState) => state.posts);
+
+    const activeTab = activeProfileTab || 'posts';
+
+    const sortedPosts = React.useMemo(() => {
+        if (activeTab !== 'posts') return reduxPosts;
+        const pinned = reduxPosts.find(p => (p as any).isPinned);
+        if (!pinned) return reduxPosts;
+        return [pinned, ...reduxPosts.filter(p => (p.uri || p.id) !== (pinned.uri || pinned.id))];
+    }, [reduxPosts, activeTab]);
+
     const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
     const isUserFeedsLoading = useAppSelector((state: RootState) => state.feeds.userFeedsLoading);
-    const activeTab = activeProfileTab || 'posts';
     const observerTarget = React.useRef(null);
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -719,7 +728,7 @@ const ProfilePage: React.FC = () => {
                             )
                         ) : (
                             <FeedComponent
-                                posts={reduxPosts}
+                                posts={sortedPosts}
                                 isLoading={isPostsLoading}
                                 hasMore={hasMore}
                                 onLoadMore={() => {

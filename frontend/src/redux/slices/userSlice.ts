@@ -122,6 +122,8 @@ export const fetchUserProfile = createAsyncThunk<
                 isBlocking: data.isBlocking,
                 isBlockedBy: data.isBlockedBy,
                 isMuted: data.isMuted,
+                muteInfo: u.muteInfo,
+                mutedBy: u.mutedBy,
             } as any;
 
             return {
@@ -152,14 +154,14 @@ export const fetchFollowers = createAsyncThunk<
 
             const params = new URLSearchParams({ limit: String(limit) });
             if (cursor) params.append('cursor', cursor);
-            
+
             const response = await fetch(
                 `${API_BASE_URL}/users/${encodeURIComponent(actor)}/followers?${params.toString()}`,
                 { headers }
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch followers');
-            
+
             const followersArray = Array.isArray(data) ? data : (data.followers || []);
             const users = followersArray.map((u: any) => ({
                 id: u.id,
@@ -201,7 +203,7 @@ export const fetchFollowing = createAsyncThunk<
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch following');
-            
+
             const followingArray = Array.isArray(data) ? data : (data.following || []);
             const users = followingArray.map((u: any) => ({
                 id: u.id,

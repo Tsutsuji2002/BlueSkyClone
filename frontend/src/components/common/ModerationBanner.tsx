@@ -29,13 +29,13 @@ const ModerationBanner: React.FC<ModerationBannerProps> = ({ reason, behavior, o
                         {t(`moderation.${reason}`, reason)}
                     </span>
                     <span className="text-[12px] text-gray-500 dark:text-dark-text-secondary">
-                        {behavior === 'hide' 
+                        {behavior === 'hide'
                             ? t('moderation.content_hidden_desc', 'This content is hidden by your settings')
                             : t('moderation.content_warn_desc', 'This content may be sensitive')}
                     </span>
                 </div>
             </div>
-            {behavior === 'warn' && onShow && (
+            {onShow && (
                 <button
                     onClick={(e) => { e.stopPropagation(); onShow(); }}
                     className="px-4 py-1.5 rounded-full bg-gray-900 dark:bg-dark-text text-white dark:text-dark-bg text-sm font-bold hover:opacity-90 transition-opacity"

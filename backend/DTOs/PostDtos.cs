@@ -66,6 +66,7 @@ public class PostDto
     public PostViewerDto? Viewer { get; set; }
     public bool IsLinkPreviewPending { get; set; }
     public List<string> Labels { get; set; } = new();
+    public bool IsPinned { get; set; }
 }
 
 public class PostViewerDto

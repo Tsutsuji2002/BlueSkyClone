@@ -1,7 +1,7 @@
 import React from 'react';
 import { Post } from '../../types';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
-import { toggleLike, repostPost, toggleBookmark } from '../../redux/slices/postsSlice';
+import { toggleLike, repostPost, toggleBookmark, pinPost, unpinPost } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
 import { openReply, openEditPost, openQuote, openDeleteConfirm, openReport, openAuthWall } from '../../redux/slices/modalsSlice';
@@ -41,7 +41,8 @@ import {
     FiAlertTriangle,
     FiTrash2,
     FiHash,
-    FiX
+    FiX,
+    FiPaperclip as FiPin
 } from 'react-icons/fi';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
@@ -66,7 +67,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const isOwnPost = isOwnPostProp ?? (
-        currentUser?.id === post.author.id || 
+        currentUser?.id === post.author.id ||
         (currentUser?.did && post.author.did && currentUser.did === post.author.did) ||
         (currentUser?.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
@@ -218,10 +219,10 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                 id: 'report-post',
                 label: t('post.report_post'),
                 icon: <FiAlertTriangle />,
-                onClick: () => dispatch(openReport({ 
-                    uri: post.uri, 
-                    cid: post.cid, 
-                    type: isComment ? 'comment' : 'post' 
+                onClick: () => dispatch(openReport({
+                    uri: post.uri,
+                    cid: post.cid,
+                    type: isComment ? 'comment' : 'post'
                 })),
             },
         ] : []),
@@ -249,6 +250,21 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                 icon: <FiTrash2 />,
                 onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri! })),
                 danger: true,
+            },
+            { id: 'divider-pin', label: '', icon: null, onClick: () => { }, hasDivider: true },
+            {
+                id: 'pin',
+                label: post.isPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to profile'),
+                icon: <FiPin />,
+                onClick: () => {
+                    if (post.isPinned) {
+                        dispatch(unpinPost());
+                        dispatch(showToast({ message: t('post.unpinned_success', 'Post unpinned from profile'), type: 'success' }));
+                    } else {
+                        dispatch(pinPost(post.uri!));
+                        dispatch(showToast({ message: t('post.pinned_success', 'Post pinned to profile'), type: 'success' }));
+                    }
+                }
             }
         ] : []),
 
@@ -297,12 +313,20 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                 >
                     <FiRepeat size={14} className={post.isReposted ? "text-green-500" : "text-gray-500"} />
                     <span>
-                        {post.repostedBy 
-                            ? (post.repostedBy.id !== currentUser?.id 
+                        {post.repostedBy
+                            ? ((post.repostedBy.did !== currentUser?.did && post.repostedBy.handle !== currentUser?.handle)
                                 ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle || 'Unknown' })
                                 : t('post.reposted_by_you', 'Reposted by you'))
                             : (post.isReposted ? t('post.reposted_by_you', 'Reposted by you') : t('post.reposted', 'Reposted'))}
                     </span>
+                </div>
+            )}
+
+            {/* Pinned Banner */}
+            {post.isPinned && (
+                <div className="flex items-center gap-2 px-4 pt-3 pb-0 ml-8 text-[13px] text-gray-500 dark:text-dark-text-secondary font-semibold transition-colors">
+                    <FiPin size={14} className="text-primary-500" />
+                    <span>{t('post.pinned', 'Pinned')}</span>
                 </div>
             )}
             {/* Feed Banner */}
@@ -368,8 +392,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                             <div className="flex items-center gap-1 mb-1.5 text-gray-500 dark:text-dark-text-secondary select-none">
                                 <FiMessageCircle size={14} className="flex-shrink-0 opacity-70" />
                                 <span className="text-[14px]">{t('post.reply_to', 'Reply to')}</span>
-                                <span 
-                                    className="text-primary-500 text-[14px] font-medium hover:underline cursor-pointer" 
+                                <span
+                                    className="text-primary-500 text-[14px] font-medium hover:underline cursor-pointer"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         navigate(`/profile/${post.replyToHandle}`);
@@ -391,9 +415,10 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                             // HIDE state logic (Pic 1/3) -> Author Header + Banner only
                             if (isMuted && behavior === 'hide') {
                                 return (
-                                    <ModerationBanner 
-                                        reason={reason} 
-                                        behavior="hide" 
+                                    <ModerationBanner
+                                        reason={reason}
+                                        behavior="hide"
+                                        onShow={() => setIsUnmuted(true)}
                                     />
                                 );
                             }
@@ -421,8 +446,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
 
                                     {/* WARN state banner (Pic 2) or Media Context */}
                                     {isMuted && behavior === 'warn' ? (
-                                        <ModerationBanner 
-                                            reason={reason} 
+                                        <ModerationBanner
+                                            reason={reason}
                                             behavior="warn"
                                             onShow={() => setIsUnmuted(true)}
                                         />
@@ -432,9 +457,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                                 const hasLinkPreview = post.linkPreview || post.isLinkPreviewPending;
                                                 if (hasLinkPreview) {
                                                     return (
-                                                        <LinkPreviewCard 
-                                                            preview={post.linkPreview} 
-                                                            isLoading={post.isLinkPreviewPending} 
+                                                        <LinkPreviewCard
+                                                            preview={post.linkPreview}
+                                                            isLoading={post.isLinkPreviewPending}
                                                         />
                                                     );
                                                 }
