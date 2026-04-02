@@ -108,34 +108,6 @@ const PostDetailPage: React.FC = () => {
 
     useDocumentTitle(pageTitle);
 
-    if (isLoading && !post) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
-                <LoadingIndicator />
-                <p className="mt-4 text-gray-400 text-sm">{t('common.loading', 'Loading...')}</p>
-            </div>
-        );
-    }
-
-    if (!post) {
-        return (
-            <div className="min-h-screen flex flex-col bg-white dark:bg-dark-bg">
-                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 h-[53px] flex items-center">
-                    <IconButton icon={<FiArrowLeft size={20} />} onClick={() => navigate(-1)} />
-                    <h1 className="ml-4 font-bold text-gray-900 dark:text-dark-text">{t('post.not_found', 'Post not found')}</h1>
-                </div>
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-500">
-                    <FiFrown size={48} className="mb-4 opacity-20" />
-                    <p className="text-gray-900 dark:text-dark-text font-medium mb-1">{t('post.not_found_desc', "This post doesn't exist or is unavailable.")}</p>
-                    <p className="text-sm text-gray-400">{t('post.not_found_sub', "It might have been deleted or the link is incorrect.")}</p>
-                    <button onClick={() => navigate(-1)} className="mt-6 px-6 py-2 bg-primary-500 text-white rounded-full font-bold hover:bg-primary-600 transition-colors">
-                        {t('common.go_back', 'Go back')}
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
     // Helper to sort a list of posts by current sortOrder
     const sortPosts = React.useCallback((arr: Post[]) => {
         return [...arr].sort((a, b) => {
@@ -313,26 +285,41 @@ const PostDetailPage: React.FC = () => {
 
     // Show loading if post is absent OR is a stub (no content, no media) while still fetching or if we haven't resolved full thread yet
     const isShell = post && !post.content && !post.media?.length && (!post.imageUrls || post.imageUrls.length === 0);
-    
-    if (!post || (isShell && isLoading)) {
-        if (isLoading || isShell) {
-            return (
+
+    if (isLoading && !post) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
+                <LoadingIndicator />
+                <p className="mt-4 text-gray-400 text-sm">{t('common.loading', 'Loading...')}</p>
+            </div>
+        );
+    }
+
+    if (isShell && isLoading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
                 <LoadingIndicator text={t('post.loading', { defaultValue: 'Loading post...' })} />
-            );
-        }
-        if (!post) {
-            return (
-                <div className="p-4 text-center">
-                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('common.post_not_found')}</p>
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="mt-4 text-primary-500 hover:underline"
-                    >
-                        {t('common.go_back')}
+            </div>
+        );
+    }
+
+    if (!post) {
+        return (
+            <div className="min-h-screen flex flex-col bg-white dark:bg-dark-bg">
+                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 h-[53px] flex items-center">
+                    <IconButton icon={<FiArrowLeft size={20} />} onClick={() => navigate(-1)} />
+                    <h1 className="ml-4 font-bold text-gray-900 dark:text-dark-text">{t('post.not_found', 'Post not found')}</h1>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-500">
+                    <FiFrown size={48} className="mb-4 opacity-20" />
+                    <p className="text-gray-900 dark:text-dark-text font-medium mb-1">{t('post.not_found_desc', "This post doesn't exist or is unavailable.")}</p>
+                    <p className="text-sm text-gray-400">{t('post.not_found_sub', "It might have been deleted or the link is incorrect.")}</p>
+                    <button onClick={() => navigate(-1)} className="mt-6 px-6 py-2 bg-primary-500 text-white rounded-full font-bold hover:bg-primary-600 transition-colors">
+                        {t('common.go_back', 'Go back')}
                     </button>
                 </div>
-            );
-        }
+            </div>
+        );
     }
 
 
