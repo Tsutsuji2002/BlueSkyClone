@@ -1567,6 +1567,18 @@ public class UserService : IUserService
                 if (root.TryGetProperty("followsCount", out var followsProp)) user.FollowingCount = followsProp.GetInt32();
                 if (root.TryGetProperty("postsCount", out var postsProp)) user.PostsCount = postsProp.GetInt32();
 
+                // Extract labels
+                if (root.TryGetProperty("labels", out var labelsProp) && labelsProp.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var label in labelsProp.EnumerateArray())
+                    {
+                        if (label.TryGetProperty("val", out var valProp))
+                        {
+                            user.Labels.Add(valProp.GetString() ?? "");
+                        }
+                    }
+                }
+
                 if (isNew)
                 {
                     await _unitOfWork.Users.AddAsync(user);

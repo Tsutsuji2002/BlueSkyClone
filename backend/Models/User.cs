@@ -27,6 +27,9 @@ public partial class User
 
     public string Salt { get; set; } = null!;
 
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public List<string> Labels { get; set; } = new();
+
     public string? DisplayName { get; set; }
 
     public string? AvatarUrl { get; set; }

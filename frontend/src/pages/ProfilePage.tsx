@@ -65,6 +65,7 @@ const ProfilePage: React.FC = () => {
         type: 'mute' | 'unmute' | 'block' | 'unblock' | null;
     }>({ isOpen: false, type: null });
     const isFetchingRef = React.useRef(false);
+    const [showWarn, setShowWarn] = useState(true);
 
     useEffect(() => {
         if (!handle) return;
@@ -72,6 +73,7 @@ const ProfilePage: React.FC = () => {
         // This prevents stale profile data when navigating between profiles.
         dispatch(clearProfile());
         dispatch(clearPosts());
+        setShowWarn(true);
         dispatch(fetchUserProfile(handle));
     }, [dispatch, handle]); // Only depend on handle — NOT profileUser
 
@@ -336,6 +338,49 @@ const ProfilePage: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-2">{t('profile.user_not_found')}</h2>
                 <p className="text-gray-500 mb-6">{t('profile.user_not_found_desc')}</p>
                 <Button onClick={() => navigate('/')}>{t('common.go_home')}</Button>
+            </div>
+        );
+    }
+
+    if (profileUser?.muteInfo?.behavior === 'hide') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
+                <div className="bg-gray-100 dark:bg-dark-surface p-6 rounded-full mb-6">
+                    <FiAlertTriangle size={48} className="text-gray-400 dark:text-gray-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                    {t('profile.content_hidden', 'Content Hidden')}
+                </h2>
+                <p className="text-gray-500 dark:text-dark-text-secondary mb-6 max-w-sm">
+                    {t('profile.content_hidden_desc', 'This profile is hidden based on your content moderation settings.')}
+                </p>
+                <Button onClick={() => navigate('/settings/moderation')}>
+                    {t('settings.content_filters', 'Content Settings')}
+                </Button>
+            </div>
+        );
+    }
+
+    if (profileUser?.muteInfo?.behavior === 'warn' && showWarn) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
+                <div className="bg-gray-100 dark:bg-dark-surface p-6 rounded-full mb-6">
+                    <FiAlertTriangle size={48} className="text-gray-400 dark:text-gray-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                    {t('profile.content_warning', 'Content Warning')}
+                </h2>
+                <p className="text-gray-500 dark:text-dark-text-secondary mb-6 max-w-sm">
+                    {t('profile.content_warning_desc', 'This profile has been flagged as containing sensitive content.')}
+                </p>
+                <div className="flex justify-center gap-4">
+                    <Button onClick={() => navigate(-1)} variant="secondary">
+                        {t('common.go_back', 'Go Back')}
+                    </Button>
+                    <Button onClick={() => setShowWarn(false)} variant="primary">
+                        {t('common.show_anyway', 'Show Anyway')}
+                    </Button>
+                </div>
             </div>
         );
     }

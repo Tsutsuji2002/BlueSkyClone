@@ -135,7 +135,8 @@ public class ProfileController : ControllerBase
             IsMuted = isMuted,
             IsFollowedBy = isFollowedBy,
             BlockingReference = block?.Uri,
-            MutedBy = mutedBy
+            MutedBy = mutedBy,
+            MuteInfo = await EvaluateProfileMuteInfo(user, currentUserIdGuid)
         };
 
         return Ok(new { 
@@ -237,7 +238,8 @@ public class ProfileController : ControllerBase
             IsBlockedBy = isBlockedBy,
             IsMuted = isMuted,
             BlockingReference = block?.Uri,
-            MutedBy = mutedById
+            MutedBy = mutedById,
+            MuteInfo = await EvaluateProfileMuteInfo(user, Guid.TryParse(currentUserIdString, out var cid) ? cid : null)
         };
 
         return Ok(new { 
@@ -522,5 +524,76 @@ public class ProfileController : ControllerBase
         var success = await _userService.DeleteMutedWordAsync(currentUserId, id);
         if (!success) return NotFound();
         return Ok();
+    }
+
+    private async Task<PostMuteDto?> EvaluateProfileMuteInfo(User user, Guid? viewerId)
+    {
+        if (user.Labels == null || !user.Labels.Any()) return null;
+
+        UserSetting? viewerSettings = null;
+        if (viewerId.HasValue)
+        {
+            viewerSettings = await _db.UserSettings.FirstOrDefaultAsync(s => s.UserId == viewerId.Value);
+        }
+
+        bool shouldHide = false;
+        string? warnReason = null;
+        var muteInfo = new PostMuteDto { IsMuted = false, Behavior = "none" };
+
+        foreach (var label in user.Labels)
+        {
+            string filter = "show";
+            string category = "";
+            var isAdult = label == "porn" || label == "sexual" || label == "nudity" || label == "graphic-media" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive";
+
+            if (label == "porn" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive") { 
+                filter = viewerSettings?.SexuallyExplicitFilter ?? ((viewerSettings?.EnableAdultContent == true) ? "warn" : "hide"); 
+                category = "adult_content";
+            }
+            else if (label == "graphic-media" || label == "gore" || label == "violence") { 
+                filter = viewerSettings?.GraphicMediaFilter ?? ((viewerSettings?.EnableAdultContent == true) ? "warn" : "hide"); 
+                category = "graphic_media";
+            }
+            else if (label == "nudity") { 
+                filter = viewerSettings?.NonSexualNudityFilter ?? ((viewerSettings?.EnableAdultContent == true) ? "show" : "hide"); 
+                category = "non_sexual_nudity";
+            }
+            else if (label == "!hide") {
+                filter = "hide";
+                category = "Sensitive Content";
+            }
+            else if (label == "!warn") {
+                filter = "warn";
+                category = "Sensitive Content";
+            }
+
+            if (viewerSettings?.EnableAdultContent == false && isAdult)
+            {
+                filter = "hide";
+            }
+
+            if (filter == "hide") 
+            { 
+                shouldHide = true;
+                warnReason = category; 
+                muteInfo.Behavior = "hide"; 
+                break;
+            }
+            else if (filter == "warn" && muteInfo.Behavior != "hide") 
+            { 
+                warnReason = category; 
+                muteInfo.Behavior = "warn";
+            }
+        }
+
+        if (shouldHide || warnReason != null) {
+            muteInfo.IsMuted = true;
+            if (string.IsNullOrEmpty(muteInfo.Behavior) || muteInfo.Behavior == "none")
+                muteInfo.Behavior = "warn"; 
+            muteInfo.Reason = warnReason;
+            return muteInfo;
+        }
+
+        return null;
     }
 }

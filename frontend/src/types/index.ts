@@ -46,6 +46,11 @@ export interface User {
         name: string;
         purpose?: string;
     };
+    muteInfo?: {
+        isMuted: boolean;
+        behavior: string; /* 'warn', 'hide' */
+        reason: string;
+    };
 }
 
 export interface UserSettings {
