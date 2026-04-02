@@ -213,7 +213,10 @@
         "details_placeholder": "Tell us more about the issue...",
         "submit_report": "Submit Report",
         "report_success": "Report submitted. Thank you!",
-        "muted_by_list": "Muted by list:"
+        "muted_by_list": "Muted by list:",
+        "content_hidden_desc": "This content is hidden by your settings",
+        "content_warn_desc": "This content may be sensitive",
+        "sensitive_content": "Sensitive Content"
     },
     "privacy": {
         "title": "Privacy and Security",
@@ -730,7 +733,10 @@
         "trending_gifs": "Trending GIFs",
         "no_gifs_found": "No GIFs found",
         "giphy_key_missing": "GIPHY API Key is missing. Please set REACT_APP_GIPHY_API_KEY in your .env file.",
-        "giphy_key_invalid": "Invalid GIPHY API Key. Please check your REACT_APP_GIPHY_API_KEY."
+        "giphy_key_invalid": "Invalid GIPHY API Key. Please check your REACT_APP_GIPHY_API_KEY.",
+        "not_found": "Post not found",
+        "not_found_desc": "This post doesn't exist or is unavailable.",
+        "not_found_sub": "It might have been deleted or the link is incorrect."
     },
     "sidebar": {
         "trending": "Trending Topics",

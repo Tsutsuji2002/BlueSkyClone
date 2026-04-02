@@ -33,7 +33,7 @@ public interface IPostService
     PostDto MapToDto(Post post);
     List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray);
     PostDto? MapBlueskyPost(System.Text.Json.JsonElement postObj);
-    Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false);
+    Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false, bool forceDropHidden = true);
     Task<(string path, string cid, string? thumbnail)> SaveBlobAsync(Stream stream, string contentType, string folder);
     public string GenerateTid();
     /// <summary>

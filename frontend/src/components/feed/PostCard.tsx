@@ -12,6 +12,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import Avatar from '../common/Avatar';
 import Dropdown, { DropdownItem } from '../common/Dropdown';
+import ModerationBanner from '../common/ModerationBanner';
 import UserHoverCard from '../common/UserHoverCard';
 import { cn } from '../../utils/classNames';
 import { useNavigate, Link } from 'react-router-dom';
@@ -253,27 +254,6 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
 
     ];
 
-    if (post.muteInfo?.isMuted && post.muteInfo?.behavior === 'warn' && !isUnmuted) {
-        return (
-            <div
-                className="border-b border-gray-200 dark:border-dark-border p-6 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-dark-surface/30 group cursor-pointer"
-                onClick={(e) => { e.stopPropagation(); setIsUnmuted(true); }}
-            >
-                <div className="flex items-center gap-3 text-gray-500 dark:text-dark-text-secondary mb-3">
-                    <FiEyeOff size={24} className="group-hover:text-primary-500 transition-colors" />
-                    <span className="font-medium">
-                        {t('post.muted_by_word', 'Post hidden by your muted word')}: <span className="font-bold text-gray-700 dark:text-dark-text">{post.muteInfo.reason}</span>
-                    </span>
-                </div>
-                <button
-                    className="px-6 py-2 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-full text-sm font-bold shadow-sm hover:bg-gray-100 dark:hover:bg-dark-bg transition-all"
-                    onClick={(e) => { e.stopPropagation(); setIsUnmuted(true); }}
-                >
-                    {t('post.show_anyway', 'Show anyway')}
-                </button>
-            </div>
-        );
-    }
 
     if (post.isDeleted) {
         return (
@@ -402,11 +382,27 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
 
                         {/* Curated List Caption - Removed to avoid duplication as requested */}
 
-                        {/* Post Content */}
+                        {/* Post Content & Moderation UI */}
                         {(() => {
+                            const isMuted = post.muteInfo?.isMuted && !isUnmuted;
+                            const behavior = post.muteInfo?.behavior;
+                            const reason = post.muteInfo?.reason || t('moderation.sensitive_content', 'Sensitive Content');
+
+                            // HIDE state logic (Pic 1/3) -> Author Header + Banner only
+                            if (isMuted && behavior === 'hide') {
+                                return (
+                                    <ModerationBanner 
+                                        reason={reason} 
+                                        behavior="hide" 
+                                    />
+                                );
+                            }
+
+                            // Normal/Warn content rendering
                             const isLongContent = post.content && (post.content.length > 400 || post.content.split('\n').length > 6);
                             return (
                                 <>
+                                    {/* Text Content always shown in WARN mode (Pic 2) */}
                                     <div className={cn(
                                         "text-[15px] text-gray-900 dark:text-dark-text whitespace-pre-wrap break-words break-all leading-normal",
                                         !isExpanded && isLongContent ? "line-clamp-6" : "",
@@ -422,42 +418,53 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                             {isExpanded ? t('post.show_less', 'Show less') : t('post.show_more', 'Show more')}
                                         </button>
                                     )}
+
+                                    {/* WARN state banner (Pic 2) or Media Context */}
+                                    {isMuted && behavior === 'warn' ? (
+                                        <ModerationBanner 
+                                            reason={reason} 
+                                            behavior="warn"
+                                            onShow={() => setIsUnmuted(true)}
+                                        />
+                                    ) : (
+                                        <>
+                                            {(() => {
+                                                const hasLinkPreview = post.linkPreview || post.isLinkPreviewPending;
+                                                if (hasLinkPreview) {
+                                                    return (
+                                                        <LinkPreviewCard 
+                                                            preview={post.linkPreview} 
+                                                            isLoading={post.isLinkPreviewPending} 
+                                                        />
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+
+                                            {post.quotePost && (
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    <QuotedPost post={post.quotePost} />
+                                                </div>
+                                            )}
+
+                                            {/* Media */}
+                                            <div className="mb-3">
+                                                <MediaGrid
+                                                    images={post.images}
+                                                    imageUrls={post.imageUrls}
+                                                    media={post.media}
+                                                    video={post.video}
+                                                    videoUrl={post.videoUrl}
+                                                    onImageClick={(index: number) => {
+                                                        navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/media/${index}`);
+                                                    }}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             );
                         })()}
-
-                        {(() => {
-                            const hasLinkPreview = post.linkPreview || post.isLinkPreviewPending;
-                            if (hasLinkPreview) {
-                                return (
-                                    <LinkPreviewCard 
-                                        preview={post.linkPreview} 
-                                        isLoading={post.isLinkPreviewPending} 
-                                    />
-                                );
-                            }
-                            return null;
-                        })()}
-
-                        {post.quotePost && (
-                            <div onClick={(e) => e.stopPropagation()}>
-                                <QuotedPost post={post.quotePost} />
-                            </div>
-                        )}
-
-                        {/* Media */}
-                        <div className="mb-3">
-                            <MediaGrid
-                                images={post.images}
-                                imageUrls={post.imageUrls}
-                                media={post.media}
-                                video={post.video}
-                                videoUrl={post.videoUrl}
-                                onImageClick={(index: number) => {
-                                    navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/media/${index}`);
-                                }}
-                            />
-                        </div>
 
                         {/* Interaction Status */}
 

@@ -103,8 +103,9 @@ public class PostService : IPostService
                     new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
                     { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
             }
-
-            return mappedPosts.Skip(skip).Take(take);
+            
+            var paginated = mappedPosts.Skip(skip).Take(take).ToList();
+            return userId != Guid.Empty ? await EnrichAndFilterPostsAsync(paginated, userId, isTimeline: true) : paginated;
         }
         catch (Exception ex)
         {
@@ -172,9 +173,12 @@ public class PostService : IPostService
                     mappedPosts = mappedPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
                 }
 
+                var postsToEnrich = string.IsNullOrEmpty(cursor) ? mappedPosts.Skip(skip).Take(take).ToList() : mappedPosts;
+                var enrichedPosts = viewerId.HasValue ? await EnrichAndFilterPostsAsync(postsToEnrich, viewerId.Value) : postsToEnrich;
+
                 result = new PagedPostDto 
                 { 
-                    Posts = string.IsNullOrEmpty(cursor) ? mappedPosts.Skip(skip).Take(take) : mappedPosts,
+                    Posts = enrichedPosts,
                     Cursor = nextCursor 
                 };
 
@@ -395,7 +399,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false)
+    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false, bool forceDropHidden = true)
     {
         try
         {
@@ -405,6 +409,23 @@ public class PostService : IPostService
             }
 
             var postIds = posts.Select(p => p.Id).ToList();
+
+            // [NEW] Fetch labels for posts and authors from local DB first
+            var activeLabels = new Dictionary<string, List<string>>();
+            var labelUris = posts.Select(p => p.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
+            var authorDids = posts.Select(p => p.Author?.Did).Where(d => !string.IsNullOrEmpty(d)).ToList();
+            var quotePostUris = posts.Select(p => p.QuotePost?.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
+            var allSubjectUris = labelUris.Concat(authorDids!).Concat(quotePostUris!).Distinct().ToList();
+
+            if (allSubjectUris.Any())
+            {
+                var labels = await _unitOfWork.Labels.Query()
+                    .Where(l => allSubjectUris.Contains(l.Uri) && !l.Neg)
+                    .ToListAsync();
+                
+                activeLabels = labels.GroupBy(l => l.Uri)
+                    .ToDictionary(g => g.Key, g => g.Select(l => l.Val.ToLower()).ToList());
+            }
 
             // Batch fetch remote interactions from AppView
             var remoteUris = new HashSet<string>();
@@ -445,6 +466,30 @@ public class PostService : IPostService
                                         if (uri != null)
                                         {
                                             remoteInteractionCache[uri] = rp.Clone(); // Clone to preserve it outside the JsonDocument scope
+                                            
+                                            // [NEW] Extract labels from remote AppView result and add to activeLabels
+                                            if (rp.TryGetProperty("labels", out var labelsProp) && labelsProp.ValueKind == JsonValueKind.Array)
+                                            {
+                                                var labels = new List<string>();
+                                                foreach (var lab in labelsProp.EnumerateArray())
+                                                {
+                                                    if (lab.TryGetProperty("val", out var valProp))
+                                                    {
+                                                        labels.Add(valProp.GetString()?.ToLower() ?? "");
+                                                    }
+                                                }
+                                                if (labels.Any())
+                                                {
+                                                    if (activeLabels.ContainsKey(uri))
+                                                    {
+                                                        activeLabels[uri] = activeLabels[uri].Concat(labels).Distinct().ToList();
+                                                    }
+                                                    else
+                                                    {
+                                                        activeLabels[uri] = labels;
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -509,24 +554,6 @@ public class PostService : IPostService
                 {
                     _logger.LogWarning(ex, "Error fetching UserSettings for {ViewerId} during enrichment", viewerId);
                 }
-            }
-
-            // Fetch labels for posts and authors to apply content filters
-            var labelUris = posts.Select(p => p.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
-            var authorDids = posts.Select(p => p.Author?.Did).Where(d => !string.IsNullOrEmpty(d)).ToList();
-            var quotePostUris = posts.Select(p => p.QuotePost?.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
-            
-            var allSubjectUris = labelUris.Concat(authorDids!).Concat(quotePostUris!).Distinct().ToList();
-            var activeLabels = new Dictionary<string, List<string>>();
-
-            if (allSubjectUris.Any())
-            {
-                var labels = await _unitOfWork.Labels.Query()
-                    .Where(l => allSubjectUris.Contains(l.Uri) && !l.Neg)
-                    .ToListAsync();
-                
-                activeLabels = labels.GroupBy(l => l.Uri)
-                    .ToDictionary(g => g.Key, g => g.Select(l => l.Val.ToLower()).ToList());
             }
 
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, IsTimeline={IsTimeline}", posts.Count, viewerId, isTimeline);
@@ -594,14 +621,29 @@ public class PostService : IPostService
                             filter = "hide";
                         }
 
-                        if (filter == "hide") { shouldHide = true; break; }
-                        if (filter == "warn") { warnReason = category; }
+                        if (filter == "hide") 
+                        { 
+                            if (forceDropHidden) { shouldHide = true; break; }
+                            else { 
+                                warnReason = category; 
+                                post.MuteInfo.Behavior = "hide"; 
+                                shouldHide = false;
+                                break; // 'hide' priority
+                            }
+                        }
+                        if (filter == "warn" && post.MuteInfo.Behavior != "hide") 
+                        { 
+                            warnReason = category; 
+                            post.MuteInfo.Behavior = "warn";
+                        }
                     }
 
                     if (shouldHide) continue;
                     if (warnReason != null) {
                         post.MuteInfo.IsMuted = true;
-                        post.MuteInfo.Behavior = "warn";
+                        // Behavior is already set inside the loop for hide/warn priority
+                        if (string.IsNullOrEmpty(post.MuteInfo.Behavior) || post.MuteInfo.Behavior == "none")
+                            post.MuteInfo.Behavior = "warn"; 
                         post.MuteInfo.Reason = warnReason;
                     }
                 }
@@ -2241,7 +2283,7 @@ public class PostService : IPostService
 
         if (viewerId.HasValue)
         {
-            var results = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId.Value);
+            var results = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId.Value, forceDropHidden: false);
             return results.FirstOrDefault();
         }
 
@@ -2289,7 +2331,7 @@ public class PostService : IPostService
 
         if (viewerId.HasValue && resultsList.Any())
         {
-            return await EnrichAndFilterPostsAsync(resultsList, viewerId.Value);
+            return await EnrichAndFilterPostsAsync(resultsList, viewerId.Value, forceDropHidden: false);
         }
 
         return resultsList;
@@ -2671,7 +2713,7 @@ public class PostService : IPostService
                     }
 
                     var postDto = MapToDto(post);
-                    var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty);
+                    var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty, forceDropHidden: false);
                     postDto = enriched.First();
 
                     // Build thread structure from local data
@@ -4179,7 +4221,7 @@ public class PostService : IPostService
 
         if (viewerId.HasValue)
         {
-            replyDtos = await EnrichAndFilterPostsAsync(replyDtos, viewerId.Value);
+            replyDtos = (await EnrichAndFilterPostsAsync(replyDtos, viewerId.Value, forceDropHidden: false));
         }
 
         return replyDtos;
@@ -4338,8 +4380,8 @@ public class PostService : IPostService
 
             // Shuffle to mix up accounts, then paginate
             var rng = new Random();
-            var shuffled = allPosts.OrderBy(_ => rng.Next()).ToList();
-            return shuffled.Skip(skip).Take(take);
+            var shuffled = allPosts.OrderBy(_ => rng.Next()).Skip(skip).Take(take).ToList();
+            return await EnrichAndFilterPostsAsync(shuffled, Guid.Empty);
         }
         catch (Exception ex)
         {

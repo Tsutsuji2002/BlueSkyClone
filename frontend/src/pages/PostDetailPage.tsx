@@ -10,6 +10,7 @@ import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
 import IconButton from '../components/common/IconButton';
 import PostCard from '../components/feed/PostCard';
+import ModerationBanner from '../components/common/ModerationBanner';
 import MediaGrid from '../components/feed/MediaGrid';
 import QuotedPost from '../components/feed/QuotedPost';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
@@ -107,6 +108,34 @@ const PostDetailPage: React.FC = () => {
 
     useDocumentTitle(pageTitle);
 
+    if (isLoading && !post) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
+                <LoadingIndicator />
+                <p className="mt-4 text-gray-400 text-sm">{t('common.loading', 'Loading...')}</p>
+            </div>
+        );
+    }
+
+    if (!post) {
+        return (
+            <div className="min-h-screen flex flex-col bg-white dark:bg-dark-bg">
+                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 h-[53px] flex items-center">
+                    <IconButton icon={<FiArrowLeft size={20} />} onClick={() => navigate(-1)} />
+                    <h1 className="ml-4 font-bold text-gray-900 dark:text-dark-text">{t('post.not_found', 'Post not found')}</h1>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-500">
+                    <FiFrown size={48} className="mb-4 opacity-20" />
+                    <p className="text-gray-900 dark:text-dark-text font-medium mb-1">{t('post.not_found_desc', "This post doesn't exist or is unavailable.")}</p>
+                    <p className="text-sm text-gray-400">{t('post.not_found_sub', "It might have been deleted or the link is incorrect.")}</p>
+                    <button onClick={() => navigate(-1)} className="mt-6 px-6 py-2 bg-primary-500 text-white rounded-full font-bold hover:bg-primary-600 transition-colors">
+                        {t('common.go_back', 'Go back')}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     // Helper to sort a list of posts by current sortOrder
     const sortPosts = React.useCallback((arr: Post[]) => {
         return [...arr].sort((a, b) => {
@@ -181,6 +210,7 @@ const PostDetailPage: React.FC = () => {
 
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
     const [isInteractionModalOpen, setIsInteractionModalOpen] = React.useState(false);
+    const [isUnmuted, setIsUnmuted] = React.useState(false);
     const isOwnPost = post && currentUser && (
         currentUser.id === post.author.id || 
         (currentUser.did && post.author.did && currentUser.did === post.author.did) ||
@@ -414,13 +444,13 @@ const PostDetailPage: React.FC = () => {
             id: 'translate',
             label: t('post.translate', 'Translate'),
             icon: <FiType />,
-            onClick: () => handleTranslate(post.content),
+            onClick: () => post && handleTranslate(post.content),
         },
         {
             id: 'copy-text',
             label: t('post.copy_text', 'Copy post text'),
             icon: <FiClipboard />,
-            onClick: () => handleCopyText(post.content),
+            onClick: () => post && handleCopyText(post.content),
         },
         {
             id: 'toggle-view-shortcut',
@@ -454,7 +484,7 @@ const PostDetailPage: React.FC = () => {
             icon: <FiFlag />,
             danger: true,
             onClick: () => {
-                if (post.uri && post.cid) {
+                if (post?.uri && post?.cid) {
                     dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
                 }
             },
@@ -465,7 +495,7 @@ const PostDetailPage: React.FC = () => {
                 id: 'edit',
                 label: t('common.edit_post', 'Edit Post'),
                 icon: <FiType />,
-                onClick: () => dispatch(openEditPost(post)),
+                onClick: () => post && dispatch(openEditPost(post)),
             },
             {
                 id: 'delete',
@@ -555,77 +585,138 @@ const PostDetailPage: React.FC = () => {
                     </div>
                 ))}
 
-                {/* Main Post */}
                 <div ref={mainPostRef} className="p-4 border-b border-gray-200 dark:border-dark-border relative bg-white dark:bg-dark-bg">
-                    <div className="flex justify-between items-start">
-                        <div className="flex gap-3 mb-4">
-                            <div className="flex-shrink-0 relative flex flex-col items-center">
-                                {/* Connection line to parent if this post is a reply */}
-                                {parentPost && (
-                                    <div className="absolute top-[-16px] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border z-0" />
-                                )}
-                                <div className="z-10 bg-white dark:bg-dark-bg rounded-full" style={{ cursor: 'pointer' }}>
-                                    <UserHoverCard user={post.author}>
-                                        <div onClick={() => navigate(`/profile/${post.author.handle}`)}>
-                                            <Avatar
-                                                src={post.author.avatarUrl || post.author.avatar}
-                                                alt={post.author.displayName}
-                                                size="md"
+                    {/* Post Content & Moderation UI logic */}
+                    {(() => {
+                        const isMuted = post.muteInfo?.isMuted && !isUnmuted;
+                        const behavior = post.muteInfo?.behavior;
+                        const reason = post.muteInfo?.reason || t('moderation.sensitive_content', 'Sensitive Content');
+
+                        if (isMuted && behavior === 'hide') {
+                            return (
+                                <>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex gap-3">
+                                            <div className="flex-shrink-0 relative flex flex-col items-center">
+                                                {/* Connection line to parent if this post is a reply */}
+                                                {parentPost && (
+                                                    <div className="absolute top-[-16px] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border z-0" />
+                                                )}
+                                                <div className="z-10 bg-white dark:bg-dark-bg rounded-full" style={{ cursor: 'pointer' }}>
+                                                    <UserHoverCard user={post.author}>
+                                                        <div onClick={() => navigate(`/profile/${post.author.handle}`)}>
+                                                            <Avatar
+                                                                src={post.author.avatarUrl || post.author.avatar}
+                                                                alt={post.author.displayName}
+                                                                size="md"
+                                                            />
+                                                        </div>
+                                                    </UserHoverCard>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <UserHoverCard user={post.author}>
+                                                    <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
+                                                        {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
+                                                    </span>
+                                                </UserHoverCard>
+                                                <span className="text-gray-500 dark:text-dark-text-secondary">
+                                                    {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <ModerationBanner reason={reason} behavior="hide" isDetailView={true} className="mb-6" />
+                                </>
+                            );
+                        }
+
+                        return (
+                            <>
+                                <div className="flex justify-between items-start">
+                                    <div className="flex gap-3 mb-4">
+                                        <div className="flex-shrink-0 relative flex flex-col items-center">
+                                            {/* Connection line to parent if this post is a reply */}
+                                            {parentPost && (
+                                                <div className="absolute top-[-16px] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border z-0" />
+                                            )}
+                                            <div className="z-10 bg-white dark:bg-dark-bg rounded-full" style={{ cursor: 'pointer' }}>
+                                                <UserHoverCard user={post.author}>
+                                                    <div onClick={() => navigate(`/profile/${post.author.handle}`)}>
+                                                        <Avatar
+                                                            src={post.author.avatarUrl || post.author.avatar}
+                                                            alt={post.author.displayName}
+                                                            size="md"
+                                                        />
+                                                    </div>
+                                                </UserHoverCard>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <UserHoverCard user={post.author}>
+                                                <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
+                                                    {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
+                                                </span>
+                                            </UserHoverCard>
+                                            <span className="text-gray-500 dark:text-dark-text-secondary">
+                                                {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Content */}
+                                <RichText
+                                    content={post.content}
+                                    facets={post.facets}
+                                    className="text-lg text-gray-900 dark:text-dark-text mb-4 whitespace-pre-wrap"
+                                />
+
+                                {isMuted && behavior === 'warn' ? (
+                                    <ModerationBanner 
+                                        reason={reason} 
+                                        behavior="warn" 
+                                        onShow={() => setIsUnmuted(true)}
+                                        isDetailView={true}
+                                        className="mb-4"
+                                    />
+                                ) : (
+                                    <>
+                                        {/* Media */}
+                                        <div className="mb-4">
+                                            <MediaGrid
+                                                images={post.images}
+                                                imageUrls={post.imageUrls}
+                                                media={post.media}
+                                                video={post.video}
+                                                videoUrl={post.videoUrl}
+                                                isDetailView={true}
+                                                onImageClick={(index: number) => {
+                                                    const currentPostId = post.tid || post.id;
+                                                    navigate(`/profile/${post.author.handle}/post/${currentPostId}/media/${index}`);
+                                                }}
                                             />
                                         </div>
-                                    </UserHoverCard>
-                                </div>
-                            </div>
-                            <div className="flex flex-col">
-                                <UserHoverCard user={post.author}>
-                                    <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
-                                        {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
-                                    </span>
-                                </UserHoverCard>
-                                <span className="text-gray-500 dark:text-dark-text-secondary">
-                                    {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Content */}
-                    <RichText
-                        content={post.content}
-                        facets={post.facets}
-                        className="text-lg text-gray-900 dark:text-dark-text mb-4 whitespace-pre-wrap"
-                    />
+                                        {/* Link Preview */}
+                                        {(post.linkPreview || post.isLinkPreviewPending) && (
+                                            <LinkPreviewCard 
+                                                preview={post.linkPreview} 
+                                                isLoading={post.isLinkPreviewPending} 
+                                            />
+                                        )}
 
-                    {/* Media */}
-                    <div className="mb-4">
-                        <MediaGrid
-                            images={post.images}
-                            imageUrls={post.imageUrls}
-                            media={post.media}
-                            video={post.video}
-                            videoUrl={post.videoUrl}
-                            isDetailView={true}
-                            onImageClick={(index: number) => {
-                                const currentPostId = post.tid || post.id;
-                                navigate(`/profile/${post.author.handle}/post/${currentPostId}/media/${index}`);
-                            }}
-                        />
-                    </div>
-
-                    {/* Link Preview */}
-                    {(post.linkPreview || post.isLinkPreviewPending) && (
-                        <LinkPreviewCard 
-                            preview={post.linkPreview} 
-                            isLoading={post.isLinkPreviewPending} 
-                        />
-                    )}
-
-                    {/* Quoted Post */}
-                    {post.quotePost && (
-                        <div className="mb-4">
-                            <QuotedPost post={post.quotePost} isCard={true} />
-                        </div>
-                    )}
+                                        {/* Quoted Post */}
+                                        {post.quotePost && (
+                                            <div className="mb-4">
+                                                <QuotedPost post={post.quotePost} isCard={true} />
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </>
+                        );
+                    })()}
 
                     {/* Interaction Status & Details */}
 

@@ -1211,7 +1211,8 @@ public class FeedService : IFeedService
                     if (posts.Count > 0)
                     {
                         _logger.LogInformation("[FeedService] getFeed returned {Count} posts from {Host} for {Uri}", posts.Count, host, uri);
-                        return posts.Skip(skip).Take(take);
+                        var paginatedPosts = posts.Skip(skip).Take(take).ToList();
+                        return await _postService.EnrichAndFilterPostsAsync(paginatedPosts, userId ?? Guid.Empty);
                     }
                 }
                 catch (Exception ex)
@@ -1221,7 +1222,8 @@ public class FeedService : IFeedService
             }
 
             _logger.LogInformation("[FeedService] getFeed returned no posts for {Uri} (both app views).", uri);
-            return (fallback ?? new List<PostDto>()).Skip(skip).Take(take);
+            var fallbackPaginated = (fallback ?? new List<PostDto>()).Skip(skip).Take(take).ToList();
+            return await _postService.EnrichAndFilterPostsAsync(fallbackPaginated, userId ?? Guid.Empty);
         }
         catch (Exception ex)
         {
