@@ -446,13 +446,13 @@ public class PostService : IPostService
                 if (p.Labels.Any() && !string.IsNullOrEmpty(p.Uri))
                     activeLabels[p.Uri] = activeLabels.ContainsKey(p.Uri) ? activeLabels[p.Uri].Concat(p.Labels).Distinct().ToList() : p.Labels;
                 
-                if (p.Author?.Labels.Any() && !string.IsNullOrEmpty(p.Author.Did))
+                if (p.Author != null && p.Author.Labels.Any() && !string.IsNullOrEmpty(p.Author.Did))
                     activeLabels[p.Author.Did] = activeLabels.ContainsKey(p.Author.Did) ? activeLabels[p.Author.Did].Concat(p.Author.Labels).Distinct().ToList() : p.Author.Labels;
 
-                if (p.QuotePost?.Labels.Any() && !string.IsNullOrEmpty(p.QuotePost.Uri))
+                if (p.QuotePost != null && p.QuotePost.Labels.Any() && !string.IsNullOrEmpty(p.QuotePost.Uri))
                     activeLabels[p.QuotePost.Uri] = activeLabels.ContainsKey(p.QuotePost.Uri) ? activeLabels[p.QuotePost.Uri].Concat(p.QuotePost.Labels).Distinct().ToList() : p.QuotePost.Labels;
 
-                if (p.QuotePost?.Author?.Labels.Any() && !string.IsNullOrEmpty(p.QuotePost.Author.Did))
+                if (p.QuotePost?.Author != null && p.QuotePost.Author.Labels.Any() && !string.IsNullOrEmpty(p.QuotePost.Author.Did))
                     activeLabels[p.QuotePost.Author.Did] = activeLabels.ContainsKey(p.QuotePost.Author.Did) ? activeLabels[p.QuotePost.Author.Did].Concat(p.QuotePost.Author.Labels).Distinct().ToList() : p.QuotePost.Author.Labels;
             }
 
@@ -661,17 +661,25 @@ public class PostService : IPostService
 
                         var isAdult = label == "porn" || label == "sexual" || label == "nudity" || label == "graphic-media" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive";
 
-                        if (label == "porn" || label == "sexual" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive") { 
+                        if (label == "porn" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive") { 
                             filter = userSettings?.SexuallyExplicitFilter ?? (userSettings?.EnableAdultContent == true ? "warn" : "hide"); 
-                            category = "Sexually Explicit";
+                            category = "adult_content";
                         }
                         else if (label == "graphic-media" || label == "gore" || label == "violence") { 
                             filter = userSettings?.GraphicMediaFilter ?? (userSettings?.EnableAdultContent == true ? "warn" : "hide"); 
-                            category = "Graphic Media";
+                            category = "graphic_media";
                         }
                         else if (label == "nudity") { 
                             filter = userSettings?.NonSexualNudityFilter ?? (userSettings?.EnableAdultContent == true ? "show" : "hide"); 
-                            category = "Non-Sexual Nudity";
+                            category = "non_sexual_nudity";
+                        }
+                        else if (label == "!hide") {
+                            filter = "hide";
+                            category = "Sensitive Content";
+                        }
+                        else if (label == "!warn") {
+                            filter = "warn";
+                            category = "Sensitive Content";
                         }
                         
                         // Override if Adult Content is disabled globally
