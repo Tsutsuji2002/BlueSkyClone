@@ -1087,21 +1087,9 @@ const PostDetailPage: React.FC = () => {
                     isOpen={isInteractionModalOpen}
                     onClose={() => setIsInteractionModalOpen(false)}
                     replyRestriction={post.replyRestriction || 'anyone'}
-                    setReplyRestriction={(val) => {
-                        dispatch(updateInteractionSettings({
-                            postUri: post.uri!,
-                            replyRestriction: val,
-                            allowQuotes: post.allowQuotes !== false
-                        }));
-                    }}
+                    setReplyRestriction={() => { }}
                     allowQuotes={post.allowQuotes !== false}
-                    setAllowQuotes={(val) => {
-                        dispatch(updateInteractionSettings({
-                            postUri: post.uri!,
-                            replyRestriction: post.replyRestriction || 'anyone',
-                            allowQuotes: val
-                        }));
-                    }}
+                    setAllowQuotes={() => { }}
                     postUri={post.uri!}
                 />
             )}

@@ -45,6 +45,7 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
     const [localReply, setLocalReply] = useState(replyRestriction);
     const [localQuotes, setLocalQuotes] = useState(allowQuotes);
     const [saveForNextTime, setSaveForNextTime] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
     const [isListsOpen, setIsListsOpen] = useState(false);
     const [myLists, setMyLists] = useState<List[]>([]);
     const [selectedLists, setSelectedLists] = useState<string[]>([]);
@@ -64,6 +65,7 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
             }
             setLocalQuotes(allowQuotes);
             setSaveForNextTime(false);
+            setIsUpdating(false);
             fetchLists();
         }
     }, [isOpen, replyRestriction, allowQuotes]);
@@ -89,25 +91,34 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
             finalRestriction = parts.join(',') || 'anyone';
         }
 
-        if (postUri) {
-            dispatch(updateInteractionSettings({
-                postUri,
-                replyRestriction: finalRestriction,
-                allowQuotes: localQuotes
-            }));
+        setIsUpdating(true);
+
+        try {
+            if (postUri) {
+                await dispatch(updateInteractionSettings({
+                    postUri,
+                    replyRestriction: finalRestriction,
+                    allowQuotes: localQuotes
+                })).unwrap();
+            }
+
+            setReplyRestriction(finalRestriction);
+            setAllowQuotes(localQuotes);
+
+            if (saveForNextTime) {
+                await dispatch(updateNotificationSettings({
+                    defaultReplyRestriction: finalRestriction,
+                    defaultAllowQuotes: localQuotes
+                }));
+            }
+
+            dispatch(showToast({ message: t('post.interaction_settings_updated', 'Settings updated'), type: 'success' }));
+            onClose();
+        } catch (error: any) {
+            dispatch(showToast({ message: error.message || t('post.failed_to_update_interaction', 'Failed to update settings'), type: 'error' }));
+        } finally {
+            setIsUpdating(false);
         }
-
-        setReplyRestriction(finalRestriction);
-        setAllowQuotes(localQuotes);
-
-        if (saveForNextTime) {
-            await dispatch(updateNotificationSettings({
-                defaultReplyRestriction: finalRestriction,
-                defaultAllowQuotes: localQuotes
-            }));
-        }
-
-        onClose();
     };
 
     const toggleCustomRestriction = (key: string) => {
@@ -321,10 +332,11 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                         <Button
                             variant="primary"
                             fullWidth
+                            loading={isUpdating}
                             onClick={handleSave}
                             className="bg-[#0085FF] hover:bg-[#0077E6] text-white rounded-full font-bold py-4 text-[17px] shadow-lg shadow-[#0085FF]/20 active:scale-[0.98] transition-all"
                         >
-                            {t('common.save', 'Save')}
+                            {isUpdating ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
                         </Button>
                     </div>
                 </div>
