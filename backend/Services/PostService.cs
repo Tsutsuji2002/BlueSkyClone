@@ -1812,30 +1812,55 @@ public class PostService : IPostService
 
                          // [FIX] Persist the updated Uri, Cid, and the new CDN URLs to the database
                          await _unitOfWork.CompleteAsync();
-                         
-                         /* 
-                         // [FIX] VPS CLEANUP disabled to prevent immediate 404s and handle propagation delay
-                         // VPS CLEANUP: Delete local media ONLY after successful network persistence
-                         foreach (var m in post.PostMedia)
+
+                         // Synchronize Interaction Settings to ATProto (Threadgates & Postgates)
+                         if (replyRestriction != "anyone" && replyRestriction != "anybody" && !string.IsNullOrEmpty(replyRestriction))
                          {
-                             if (!string.IsNullOrEmpty(m.Url))
+                             var threadgateRules = new List<object>();
+                             if (replyRestriction == "mentioned") threadgateRules.Add(new Dictionary<string, object> { { "$type", "app.bsky.feed.threadgate#mentionRule" } });
+                             else if (replyRestriction == "followed" || replyRestriction == "following") threadgateRules.Add(new Dictionary<string, object> { { "$type", "app.bsky.feed.threadgate#followingRule" } });
+                             // If "no_one" or "nobody", rules remain empty list
+
+                             var threadgateRecord = new Dictionary<string, object>
                              {
-                                 string fPath = Path.Combine(_environment.WebRootPath, m.Url.TrimStart('/'));
-                                 if (File.Exists(fPath))
-                                 {
-                                     try { File.Delete(fPath); _logger.LogInformation("[PostService] Deleted local media after successful Bluesky post: {Path}", m.Url); } catch { }
-                                 }
-                                 if (!string.IsNullOrEmpty(m.ThumbnailUrl))
-                                 {
-                                     string tPath = Path.Combine(_environment.WebRootPath, m.ThumbnailUrl.TrimStart('/'));
-                                     if (File.Exists(tPath)) try { File.Delete(tPath); } catch { }
-                                 }
+                                 { "$type", "app.bsky.feed.threadgate" },
+                                 { "post", post.Uri },
+                                 { "createdAt", DateTime.UtcNow.ToString("O") },
+                                 { "allow", threadgateRules }
+                             };
+
+                             var tgResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.putRecord",
+                                 new StringContent(JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid, record = threadgateRecord }), Encoding.UTF8, "application/json"));
+                                 
+                             if (!tgResponse.IsSuccessStatusCode)
+                             {
+                                 var err = await tgResponse.Content.ReadAsStringAsync();
+                                 _logger.LogWarning("[CreatePostAsync] Failed to create threadgate: {Status} {Error}", tgResponse.StatusCode, err);
                              }
                          }
-                         */
 
-                        string successLog = $"[CreatePostAsync] SUCCESS: {post.Uri}\n";
-                        await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", successLog);
+                         if (!allowQuotes)
+                         {
+                             var postgateRecord = new Dictionary<string, object>
+                             {
+                                 { "$type", "app.bsky.feed.postgate" },
+                                 { "post", post.Uri },
+                                 { "createdAt", DateTime.UtcNow.ToString("O") },
+                                 { "embeddingRules", new List<object> { new Dictionary<string, object> { { "$type", "app.bsky.feed.postgate#disableRule" } } } }
+                             };
+
+                             var pgResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.putRecord",
+                                 new StringContent(JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid, record = postgateRecord }), Encoding.UTF8, "application/json"));
+                                 
+                             if (!pgResponse.IsSuccessStatusCode)
+                             {
+                                 var err = await pgResponse.Content.ReadAsStringAsync();
+                                 _logger.LogWarning("[CreatePostAsync] Failed to create postgate: {Status} {Error}", pgResponse.StatusCode, err);
+                             }
+                         }
+                         
+                         string successLog = $"[CreatePostAsync] SUCCESS: {post.Uri}\n";
+                         await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", successLog);
                         Console.WriteLine(successLog);
                     }
                     else
@@ -5214,6 +5239,72 @@ public class PostService : IPostService
 
         _unitOfWork.Posts.Update(post);
         await _unitOfWork.CompleteAsync();
+
+        // --- Synchronize Interaction Settings to ATProto ---
+        try
+        {
+            if (post.Author != null && !string.IsNullOrEmpty(post.Author.Did) && !string.IsNullOrEmpty(post.Uri))
+            {
+                var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                    if (request.ReplyRestriction != null)
+                    {
+                        var threadgateRules = new List<object>();
+                        if (request.ReplyRestriction == "mentioned") threadgateRules.Add(new Dictionary<string, object> { { "$type", "app.bsky.feed.threadgate#mentionRule" } });
+                        else if (request.ReplyRestriction == "followed" || request.ReplyRestriction == "following") threadgateRules.Add(new Dictionary<string, object> { { "$type", "app.bsky.feed.threadgate#followingRule" } });
+
+                        if (request.ReplyRestriction != "anyone" && request.ReplyRestriction != "anybody" && !string.IsNullOrEmpty(request.ReplyRestriction))
+                        {
+                            var threadgateRecord = new Dictionary<string, object>
+                            {
+                                { "$type", "app.bsky.feed.threadgate" },
+                                { "post", post.Uri },
+                                { "createdAt", DateTime.UtcNow.ToString("O") },
+                                { "allow", threadgateRules }
+                            };
+
+                            await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.putRecord",
+                                new StringContent(JsonSerializer.Serialize(new { repo = post.Author.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid, record = threadgateRecord }), System.Text.Encoding.UTF8, "application/json"));
+                        }
+                        else
+                        {
+                            await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord",
+                                new StringContent(JsonSerializer.Serialize(new { repo = post.Author.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid }), System.Text.Encoding.UTF8, "application/json"));
+                        }
+                    }
+
+                    if (request.AllowQuotes != null)
+                    {
+                        if (!request.AllowQuotes.Value)
+                        {
+                            var postgateRecord = new Dictionary<string, object>
+                            {
+                                { "$type", "app.bsky.feed.postgate" },
+                                { "post", post.Uri },
+                                { "createdAt", DateTime.UtcNow.ToString("O") },
+                                { "embeddingRules", new List<object> { new Dictionary<string, object> { { "$type", "app.bsky.feed.postgate#disableRule" } } } }
+                            };
+
+                            await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.putRecord",
+                                new StringContent(JsonSerializer.Serialize(new { repo = post.Author.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid, record = postgateRecord }), System.Text.Encoding.UTF8, "application/json"));
+                        }
+                        else
+                        {
+                            await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord",
+                                new StringContent(JsonSerializer.Serialize(new { repo = post.Author.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid }), System.Text.Encoding.UTF8, "application/json"));
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[UpdateInteractionSettingsAsync] Failed to sync settings to ATProto");
+        }
 
         var dto = MapToDto(post);
         var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { dto }, userId);
