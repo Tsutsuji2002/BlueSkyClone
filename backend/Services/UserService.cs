@@ -14,6 +14,7 @@ using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Distributed;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
@@ -33,8 +34,10 @@ public class UserService : IUserService
     private readonly IHubContext<PostHub> _postHubContext;
     private readonly ILogger<UserService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IXrpcProxyService _xrpcProxy;
+    private readonly IDistributedCache _cache;
 
-    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager, IHttpClientFactory httpClientFactory, IDidResolver didResolver, ILogger<UserService> logger, IConfiguration configuration)
+    public UserService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ICacheService cacheService, ISearchService searchService, IFileService fileService, IRepoManager repoManager, IHttpClientFactory httpClientFactory, IDidResolver didResolver, ILogger<UserService> logger, IConfiguration configuration, IXrpcProxyService xrpcProxy, IDistributedCache cache)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -48,6 +51,8 @@ public class UserService : IUserService
         _didResolver = didResolver;
         _logger = logger;
         _configuration = configuration;
+        _xrpcProxy = xrpcProxy;
+        _cache = cache;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
@@ -1310,18 +1315,26 @@ public class UserService : IUserService
             .ToListAsync();
     }
 
-    public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior)
+    public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content")
     {
         var mutedWord = new MutedWord
         {
             UserId = userId,
             Word = word.Trim().ToLower(),
             MuteBehavior = behavior,
+            Targets = targets,
             CreatedAt = DateTime.UtcNow
         };
 
         await _unitOfWork.MutedWords.AddAsync(mutedWord);
         await _unitOfWork.CompleteAsync();
+
+        // Push to ATProto
+        _ = Task.Run(async () => {
+            try { await PushMutedWordsToAtProtoAsync(userId); }
+            catch (Exception ex) { _logger.LogError(ex, "[UserService] AddMutedWordAsync: Failed to push to ATProto"); }
+        });
+
         return mutedWord;
     }
 
@@ -1334,7 +1347,125 @@ public class UserService : IUserService
 
         _unitOfWork.MutedWords.Remove(word);
         await _unitOfWork.CompleteAsync();
+
+        // Push to ATProto
+        _ = Task.Run(async () => {
+            try { await PushMutedWordsToAtProtoAsync(userId); }
+            catch (Exception ex) { _logger.LogError(ex, "[UserService] DeleteMutedWordAsync: Failed to push to ATProto"); }
+        });
+
         return true;
+    }
+
+
+
+    private async Task PushMutedWordsToAtProtoAsync(Guid userId)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null || string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:")) return;
+
+        var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+        if (string.IsNullOrEmpty(token)) return;
+
+        // 1. Get all current muted words
+        var mutedWords = await GetMutedWordsAsync(userId);
+        
+        // 2. Fetch current preferences to preserve other items
+        var getResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", new Dictionary<string, string?>(), token);
+        if (!getResponse.Success) return;
+
+        using var doc = JsonDocument.Parse(getResponse.Content);
+        var preferences = doc.RootElement.GetProperty("preferences").EnumerateArray().ToList();
+        
+        // 3. Construct the new mutedWordsPref
+        var mutedWordsItems = mutedWords.Select(w => new {
+            value = w.Word,
+            targets = w.Targets.Split(',').Select(t => t.Trim()).ToList(),
+            actorTarget = "all"
+        }).ToList();
+
+        var newPref = new {
+            @type = "app.bsky.actor.defs#mutedWordsPref",
+            items = mutedWordsItems
+        };
+
+        // 4. Update the preferences list (replace existing mutedWordsPref or add if not found)
+        var updatedPreferences = new List<object>();
+        bool found = false;
+        foreach (var pref in preferences)
+        {
+            if (pref.TryGetProperty("$type", out var typeProp) && typeProp.GetString() == "app.bsky.actor.defs#mutedWordsPref")
+            {
+                updatedPreferences.Add(newPref);
+                found = true;
+            }
+            else
+            {
+                updatedPreferences.Add(pref);
+            }
+        }
+        if (!found) updatedPreferences.Add(newPref);
+
+        // 5. Put preferences
+        var putBody = new { preferences = updatedPreferences };
+        await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.putPreferences", new Dictionary<string, string?>(), token, "POST", putBody);
+        _logger.LogInformation("[UserService] PushMutedWordsToAtProtoAsync: Synchronized {Count} words for {Did}", mutedWords.Count, user.Did);
+    }
+
+    public async Task SyncMutedWordsWithAtProtoAsync(Guid userId)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null || string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:")) return;
+
+        var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+        if (string.IsNullOrEmpty(token)) return;
+
+        // 1. Get preferences from ATProto
+        var getResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", new Dictionary<string, string?>(), token);
+        if (!getResponse.Success) return;
+
+        using var doc = JsonDocument.Parse(getResponse.Content);
+        if (!doc.RootElement.TryGetProperty("preferences", out var prefsProp)) return;
+
+        var mutedWordsPref = prefsProp.EnumerateArray()
+            .FirstOrDefault(p => p.TryGetProperty("$type", out var type) && type.GetString() == "app.bsky.actor.defs#mutedWordsPref");
+
+        if (mutedWordsPref.ValueKind == JsonValueKind.Undefined) return;
+
+        if (mutedWordsPref.TryGetProperty("items", out var itemsProp))
+        {
+            var existingMutes = await GetMutedWordsAsync(userId);
+            var existingWords = existingMutes.Select(m => m.Word.ToLower()).ToHashSet();
+
+            foreach (var item in itemsProp.EnumerateArray())
+            {
+                var word = item.GetProperty("value").GetString()?.ToLower();
+                if (string.IsNullOrEmpty(word) || existingWords.Contains(word)) continue;
+
+                var targetsList = new List<string>();
+                if (item.TryGetProperty("targets", out var targetsProp))
+                {
+                    targetsList = targetsProp.EnumerateArray().Select(t => t.GetString() ?? "content").ToList();
+                }
+                else
+                {
+                    targetsList.Add("content");
+                }
+
+                var behavior = "hide"; // Default if not specified in lexicon? actually the lexicon doesn't specify behavior here, it's just a list
+
+                await _unitOfWork.MutedWords.AddAsync(new MutedWord
+                {
+                    UserId = userId,
+                    Word = word,
+                    MuteBehavior = behavior,
+                    Targets = string.Join(",", targetsList),
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await _unitOfWork.CompleteAsync();
+        }
     }
 
     public async Task<List<string>> GetSelectedInterestsAsync(Guid userId)

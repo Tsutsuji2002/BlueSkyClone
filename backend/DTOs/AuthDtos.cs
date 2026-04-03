@@ -149,6 +149,6 @@ public record MutedWordDto(
     int Id,
     string Word,
     string MuteBehavior,
-    DateTime? CreatedAt
+    DateTime? CreatedAt,
+    string? Targets = null
 );
-

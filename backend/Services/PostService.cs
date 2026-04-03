@@ -847,6 +847,54 @@ public class PostService : IPostService
                     }
                 }
                 // --- END CONTENT FILTERING LOGIC ---
+                
+                // Muted Words & Tags Filtering
+                if (mutedWords.Any())
+                {
+                    bool isMutedByWord = false;
+                    foreach (var mw in mutedWords)
+                    {
+                        var targets = (mw.Targets ?? "content").Split(',').Select(t => t.Trim().ToLower()).ToList();
+                        
+                        // Check Content
+                        if (targets.Contains("content") && !string.IsNullOrEmpty(post.Content))
+                        {
+                            if (post.Content.ToLower().Contains(mw.Word.ToLower()))
+                            {
+                                isMutedByWord = true;
+                            }
+                        }
+
+                        // Check Tags
+                        if (!isMutedByWord && targets.Contains("tag") && post.Tags != null && post.Tags.Any())
+                        {
+                            if (post.Tags.Any(t => t.ToLower() == mw.Word.ToLower().Replace("#", "")))
+                            {
+                                isMutedByWord = true;
+                            }
+                        }
+
+                        if (isMutedByWord)
+                        {
+                            if (mw.MuteBehavior == "hide" && forceDropHidden)
+                            {
+                                break; // Will continue outer loop
+                            }
+                            else
+                            {
+                                post.MuteInfo.IsMuted = true;
+                                post.MuteInfo.Behavior = mw.MuteBehavior == "hide" ? "hide" : "warn";
+                                post.MuteInfo.Reason = "muted_word";
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isMutedByWord && post.MuteInfo.Behavior == "hide" && forceDropHidden)
+                    {
+                        continue;
+                    }
+                }
 
                 // Apply Timeline Filtering
                 if (isTimeline)

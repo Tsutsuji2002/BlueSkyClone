@@ -34,7 +34,7 @@ public interface IUserService
     Task<List<User>> SearchUsersAsync(string query, int limit = 10);
     Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20);
     Task<List<MutedWord>> GetMutedWordsAsync(Guid userId);
-    Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior);
+    Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content");
     Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId);
     Task<List<string>> GetSelectedInterestsAsync(Guid userId);
     Task SaveSelectedInterestsAsync(Guid userId, List<string> interests);
@@ -44,4 +44,5 @@ public interface IUserService
     Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds);
     Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true);
     Task<List<User>> GetSuggestedUsersAsync(int limit = 10);
+    Task SyncMutedWordsWithAtProtoAsync(Guid userId);
 }

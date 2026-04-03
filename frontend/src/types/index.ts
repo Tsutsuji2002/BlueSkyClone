@@ -259,6 +259,7 @@ export interface MutedWord {
     id: number;
     word: string;
     muteBehavior: string;
+    targets?: string;
     createdAt?: string;
 }
 

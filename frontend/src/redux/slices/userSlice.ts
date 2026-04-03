@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
-import { UserState, User } from '../../types';
+import { UserState, User, MutedWord } from '../../types';
 import { API_BASE_URL } from '../../constants';
 
 const initialState: UserState = {
@@ -365,12 +365,12 @@ export const fetchBlockedAccounts = createAsyncThunk<User[], void, { rejectValue
 );
 
 // Muted Words Thunks — backed by REST API
-export const fetchMutedWords = createAsyncThunk<any[], void, { rejectValue: string }>(
+export const fetchMutedWords = createAsyncThunk<MutedWord[], void, { rejectValue: string }>(
     'user/fetchMutedWords',
     async (_, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
+            const response = await fetch(`${API_BASE_URL}/Profile/muted-words`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
@@ -382,12 +382,12 @@ export const fetchMutedWords = createAsyncThunk<any[], void, { rejectValue: stri
     }
 );
 
-export const addMutedWordAsync = createAsyncThunk<any, { word: string, muteBehavior: string }, { rejectValue: string }>(
+export const addMutedWordAsync = createAsyncThunk<MutedWord, { word: string, muteBehavior: string, targets: string }, { rejectValue: string }>(
     'user/addMutedWord',
     async (data, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
+            const response = await fetch(`${API_BASE_URL}/Profile/muted-words`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -395,6 +395,27 @@ export const addMutedWordAsync = createAsyncThunk<any, { word: string, muteBehav
             const result = await response.json();
             if (!response.ok) return rejectWithValue(result.message || 'Failed to add muted word');
             return result;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const syncMutedWords = createAsyncThunk<void, void, { rejectValue: string }>(
+    'user/syncMutedWords',
+    async (_, { rejectWithValue, dispatch }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/Profile/muted-words/sync`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to sync muted words');
+            }
+            // Refresh the list after sync
+            await dispatch(fetchMutedWords());
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -787,11 +808,21 @@ const userSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            .addCase(addMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<any>) => {
+            .addCase(addMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<MutedWord>) => {
                 state.mutedWords.push(action.payload);
             })
             .addCase(deleteMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<number>) => {
                 state.mutedWords = state.mutedWords.filter(w => w.id !== action.payload);
+            })
+            .addCase(syncMutedWords.pending, (state: UserState) => {
+                state.isLoading = true;
+            })
+            .addCase(syncMutedWords.fulfilled, (state: UserState) => {
+                state.isLoading = false;
+            })
+            .addCase(syncMutedWords.rejected, (state: UserState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
             });
     }
 });
