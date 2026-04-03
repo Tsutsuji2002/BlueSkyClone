@@ -610,6 +610,10 @@ const postsSlice = createSlice({
         clearPosts: (state: PostsState) => {
             state.posts = [];
             state.hasMore = true;
+            state.lastUserPostsFetch = 0;
+            state.lastUserPostsUserId = null;
+            state.lastUserPostsType = null;
+            state.cursor = null;
         },
         updatePostStats: (state, action: PayloadAction<{ uri: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
             const { uri: actionUri, timestamp, ...stats } = action.payload;

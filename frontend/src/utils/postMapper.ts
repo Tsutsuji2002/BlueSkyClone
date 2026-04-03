@@ -113,6 +113,8 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         rootPostId: record.reply?.root?.uri?.split('/').pop(),
         muteInfo: atPost.muteInfo,
         labels: atPost.labels,
+        replyRestriction: atPost.replyRestriction,
+        allowQuotes: atPost.allowQuotes,
     };
 
     return post;

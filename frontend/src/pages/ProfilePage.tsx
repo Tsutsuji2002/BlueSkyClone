@@ -78,11 +78,21 @@ const ProfilePage: React.FC = () => {
 
     useEffect(() => {
         if (!handle) return;
-        // Always clear and re-fetch when the handle in the URL changes.
-        // This prevents stale profile data when navigating between profiles.
-        dispatch(clearProfile());
-        dispatch(clearPosts());
-        setShowWarn(true);
+
+        // Only clear if we are switching to a DIFFERENT profile.
+        // This preserves scroll position and content when navigating back.
+        const isSameProfile = profileUser && (
+            handle === profileUser.handle ||
+            handle === profileUser.did ||
+            handle === profileUser.id
+        );
+
+        if (!isSameProfile) {
+            dispatch(clearProfile());
+            dispatch(clearPosts());
+            setShowWarn(true);
+        }
+
         dispatch(fetchUserProfile(handle));
     }, [dispatch, handle]); // Only depend on handle — NOT profileUser
 
