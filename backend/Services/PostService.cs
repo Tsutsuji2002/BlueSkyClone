@@ -673,34 +673,101 @@ public class PostService : IPostService
             }
 
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, IsTimeline={IsTimeline}", posts.Count, viewerId, isTimeline);
-        // Pre-resolve all stub authors in parallel to avoid N+1 network/DB calls inside the loop
-        var stubs = new HashSet<string>();
+        // Pre-resolve all stub authors and posts in parallel to avoid N+1 network/DB calls inside the loop
+        var stubAuthors = new HashSet<string>();
+        var stubPosts = new HashSet<string>();
         foreach (var p in posts)
         {
-            if (p.Author != null && (p.Author.Id == Guid.Empty || p.Author.Did == p.Author.Handle)) stubs.Add(p.Author.Did!);
-            if (p.ParentPost?.Author != null && (p.ParentPost.Author.Id == Guid.Empty || p.ParentPost.Author.Did == p.ParentPost.Author.Handle)) stubs.Add(p.ParentPost.Author.Did!);
-            if (p.QuotePost?.Author != null && (p.QuotePost.Author.Id == Guid.Empty || p.QuotePost.Author.Did == p.QuotePost.Author.Handle)) stubs.Add(p.QuotePost.Author.Did!);
+            bool isAuthorStub = p.Author != null && (p.Author.Id == Guid.Empty || string.IsNullOrEmpty(p.Author.Handle) || p.Author.Did == p.Author.Handle);
+            bool isPostStub = string.IsNullOrEmpty(p.Content) && !string.IsNullOrEmpty(p.Uri) && p.Uri.StartsWith("at://");
+
+            if (isAuthorStub && !string.IsNullOrEmpty(p.Author?.Did)) stubAuthors.Add(p.Author.Did);
+            if (isPostStub && !string.IsNullOrEmpty(p.Uri)) stubPosts.Add(p.Uri);
+
+            // Also check quoted/parent posts
+            if (p.ParentPost?.Author != null && (p.ParentPost.Author.Id == Guid.Empty || string.IsNullOrEmpty(p.ParentPost.Author.Handle) || p.ParentPost.Author.Did == p.ParentPost.Author.Handle)) 
+                stubAuthors.Add(p.ParentPost.Author.Did!);
+            if (p.QuotePost?.Author != null && (p.QuotePost.Author.Id == Guid.Empty || string.IsNullOrEmpty(p.QuotePost.Author.Handle) || p.QuotePost.Author.Did == p.QuotePost.Author.Handle)) 
+                stubAuthors.Add(p.QuotePost.Author.Did!);
         }
 
-        var resolvedAuthors = new Dictionary<string, User>();
-        if (stubs.Any())
+        var resolvedAuthors = new System.Collections.Concurrent.ConcurrentDictionary<string, User>();
+        var resolvedPosts = new System.Collections.Concurrent.ConcurrentDictionary<string, PostDto>();
+        
+        var resolveTasks = new List<Task>();
+
+        // 1. Resolve Authors
+        foreach (var did in stubAuthors)
         {
-            var resolveTasks = stubs.Select(async did => 
-            {
-                try { 
-                    using var scope = _scopeFactory.CreateScope(); 
-                    var user = await scope.ServiceProvider.GetRequiredService<IUserService>().ResolveRemoteProfileAsync(did); 
-                    if (user != null) return (did, user);
+            resolveTasks.Add(Task.Run(async () => {
+                try {
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    var user = await userService.ResolveRemoteProfileAsync(did);
+                    if (user != null) resolvedAuthors[did] = user;
                 } catch { }
-                return (did, null as User);
-            });
-            var results = await Task.WhenAll(resolveTasks);
-            foreach (var r in results) if (r.Item2 != null) resolvedAuthors[r.Item1] = r.Item2;
+            }));
+        }
+
+        // 2. Resolve Posts (which will also resolve their authors)
+        foreach (var uri in stubPosts)
+        {
+            resolveTasks.Add(Task.Run(async () => {
+                try {
+                    using var scope = _scopeFactory.CreateScope();
+                    var postService = scope.ServiceProvider.GetRequiredService<IPostService>();
+                    var post = await postService.GetPostByUriAsync(uri);
+                    if (post != null) resolvedPosts[uri] = post;
+                } catch { }
+            }));
+        }
+
+        if (resolveTasks.Any())
+        {
+            await Task.WhenAll(resolveTasks);
         }
 
         var filteredPosts = new List<PostDto>();
             foreach (var post in posts)
             {
+                // Apply resolved posts FIRST (because it provides content and author)
+                if (resolvedPosts.TryGetValue(post.Uri ?? "", out var rp))
+                {
+                    post.Content = rp.Content;
+                    post.Author = rp.Author;
+                    post.PostMedia = rp.PostMedia;
+                    post.ImageUrls = rp.ImageUrls;
+                    post.VideoUrl = rp.VideoUrl;
+                    post.LinkPreview = rp.LinkPreview;
+                    post.LikesCount = rp.LikesCount;
+                    post.RepostsCount = rp.RepostsCount;
+                    post.RepliesCount = rp.RepliesCount;
+                    post.Labels = rp.Labels;
+                }
+
+                // Apply resolved authors (to current post and attachments)
+                if (post.Author != null && resolvedAuthors.TryGetValue(post.Author.Did ?? "", out var ra))
+                {
+                    post.Author.Id = ra.Id;
+                    post.Author.Handle = ra.Handle;
+                    post.Author.DisplayName = ra.DisplayName;
+                    post.Author.AvatarUrl = ra.AvatarUrl;
+                }
+                if (post.ParentPost?.Author != null && resolvedAuthors.TryGetValue(post.ParentPost.Author.Did ?? "", out var rpa))
+                {
+                    post.ParentPost.Author.Id = rpa.Id;
+                    post.ParentPost.Author.Handle = rpa.Handle;
+                    post.ParentPost.Author.DisplayName = rpa.DisplayName;
+                    post.ParentPost.Author.AvatarUrl = rpa.AvatarUrl;
+                }
+                if (post.QuotePost?.Author != null && resolvedAuthors.TryGetValue(post.QuotePost.Author.Did ?? "", out var rqa))
+                {
+                    post.QuotePost.Author.Id = rqa.Id;
+                    post.QuotePost.Author.Handle = rqa.Handle;
+                    post.QuotePost.Author.DisplayName = rqa.DisplayName;
+                    post.QuotePost.Author.AvatarUrl = rqa.AvatarUrl;
+                }
+
                 // --- CONTENT FILTERING LOGIC ---
                 var postLabels = activeLabels.GetValueOrDefault(post.Uri ?? "", new List<string>()).Concat(post.Labels).Distinct().ToList();
                 var authorLabels = activeLabels.GetValueOrDefault(post.Author?.Did ?? "", new List<string>()).Concat(post.Author?.Labels ?? new List<string>()).Distinct().ToList();
@@ -818,28 +885,6 @@ public class PostService : IPostService
                     continue;
                 }
 
-                // Apply resolved authors
-                if (post.Author != null && resolvedAuthors.TryGetValue(post.Author.Did ?? "", out var ra))
-                {
-                    post.Author.Id = ra.Id;
-                    post.Author.Handle = ra.Handle;
-                    post.Author.DisplayName = ra.DisplayName;
-                    post.Author.AvatarUrl = ra.AvatarUrl;
-                }
-                if (post.ParentPost?.Author != null && resolvedAuthors.TryGetValue(post.ParentPost.Author.Did ?? "", out var rpa))
-                {
-                    post.ParentPost.Author.Id = rpa.Id;
-                    post.ParentPost.Author.Handle = rpa.Handle;
-                    post.ParentPost.Author.DisplayName = rpa.DisplayName;
-                    post.ParentPost.Author.AvatarUrl = rpa.AvatarUrl;
-                }
-                if (post.QuotePost?.Author != null && resolvedAuthors.TryGetValue(post.QuotePost.Author.Did ?? "", out var rqa))
-                {
-                    post.QuotePost.Author.Id = rqa.Id;
-                    post.QuotePost.Author.Handle = rqa.Handle;
-                    post.QuotePost.Author.DisplayName = rqa.DisplayName;
-                    post.QuotePost.Author.AvatarUrl = rqa.AvatarUrl;
-                }
 
                 if (post.Author != null)
                 {

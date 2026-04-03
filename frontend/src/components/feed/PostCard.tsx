@@ -373,7 +373,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                     className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline flex items-center gap-0.5"
                                     onClick={handleAvatarClick}
                                 >
-                                    {post.author.displayName || (post.author.handle?.startsWith('did:') ? t('common.loading', 'Loading...') : post.author.handle) || 'Unknown'}
+                                    {post.author.displayName || post.author.handle || 'Unknown'}
                                     {post.author.isVerified && (
                                         <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
                                     )}
