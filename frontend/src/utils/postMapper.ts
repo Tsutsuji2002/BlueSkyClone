@@ -14,7 +14,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
 
     const record = atPost.record || {};
     const authorFollowingReference = atPost.author?.viewer?.following || atPost.author?.followingReference;
-    
+
     // Map author
     const author: Partial<User> & { id: string; username: string; handle: string; displayName: string; avatarUrl?: string } = {
         id: atPost.author?.did || '',
@@ -28,6 +28,8 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         isMuted: atPost.author?.viewer?.muted || atPost.author?.isMuted,
         isBlockedBy: atPost.author?.viewer?.blockedBy || atPost.author?.isBlockedBy,
         isBlocking: Boolean(atPost.author?.viewer?.blocking) || atPost.author?.isBlocking,
+        labels: atPost.author?.labels,
+        muteInfo: atPost.author?.muteInfo,
     };
 
     const embed = atPost.embed || {};
@@ -109,6 +111,8 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         tid: atPost.uri?.split('/').pop(),
         replyToPostId: record.reply?.parent?.uri?.split('/').pop(),
         rootPostId: record.reply?.root?.uri?.split('/').pop(),
+        muteInfo: atPost.muteInfo,
+        labels: atPost.labels,
     };
 
     return post;

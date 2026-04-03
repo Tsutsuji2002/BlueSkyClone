@@ -547,8 +547,12 @@ public class ProfileController : ControllerBase
             string category = "";
             var isAdult = label == "porn" || label == "sexual" || label == "nudity" || label == "graphic-media" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive";
 
-            if (label == "porn" || label == "nsfw" || label == "adult" || label == "sexual-explicit" || label == "sexual-suggestive") { 
+            if (label == "porn" || label == "sexual-explicit" || label == "sexual") { 
                 filter = viewerSettings?.SexuallyExplicitFilter ?? ((viewerSettings?.EnableAdultContent == true) ? "warn" : "hide"); 
+                category = "explicit_content";
+            }
+            else if (label == "nsfw" || label == "adult" || label == "sexual-suggestive") { 
+                filter = viewerSettings?.AdultContentFilter ?? ((viewerSettings?.EnableAdultContent == true) ? "warn" : "hide"); 
                 category = "adult_content";
             }
             else if (label == "graphic-media" || label == "gore" || label == "violence") { 
