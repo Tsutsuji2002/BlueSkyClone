@@ -703,7 +703,7 @@ public class PostService : IPostService
                 try {
                     using var scope = _scopeFactory.CreateScope();
                     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                    var user = await userService.ResolveRemoteProfileAsync(did, viewerId);
+                    var user = await userService.ResolveRemoteProfileAsync(did, viewerId: viewerId);
                     if (user != null) resolvedAuthors[did] = user;
                 } catch { }
             }));
