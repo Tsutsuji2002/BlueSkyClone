@@ -4,7 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
-import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings, fetchPostReplies, createPost } from '../redux/slices/postsSlice';
+import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings, fetchPostReplies, createPost, clearThreadPosts } from '../redux/slices/postsSlice';
 import { openReply, openMobileMenu, openEditPost, openReport, openQuote, openAuthWall } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
@@ -92,7 +92,7 @@ const PostDetailPage: React.FC = () => {
     const { t, i18n } = useTranslation();
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
-    const posts = useAppSelector((state: RootState) => state.posts.posts);
+    const posts = useAppSelector((state: RootState) => state.posts.threadPosts);
     const isLoading = useAppSelector((state: RootState) => state.posts.isLoading);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
     const userActionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
@@ -232,10 +232,13 @@ const PostDetailPage: React.FC = () => {
 
     React.useEffect(() => {
         if (postId) {
-            dispatch(fetchPostById({ uri: postId, handle }));
-            // Replies are now usually included in fetchPostById (getPostThread)
+            dispatch(clearThreadPosts());
+            dispatch(fetchPostById({ handle: handle!, uri: postId! }));
         }
-    }, [dispatch, postId, handle]);
+        return () => {
+            dispatch(clearThreadPosts());
+        };
+    }, [dispatch, handle, postId]);
 
     // Re-fetch the thread immediately after the user posts a reply, so the new reply is visible
     const lastPostsLength = React.useRef(0);

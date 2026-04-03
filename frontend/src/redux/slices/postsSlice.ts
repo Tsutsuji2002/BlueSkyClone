@@ -5,6 +5,7 @@ import { mapAtProtoPostToPost } from '../../utils/postMapper';
 
 const initialState: PostsState = {
     posts: [],
+    threadPosts: [], // Dedicated array for thread views to prevent pollution
     discoverPosts: [],
     trendingPosts: [],
     bookmarkedPosts: [],
@@ -670,6 +671,9 @@ const postsSlice = createSlice({
                 state.posts = [newPost, ...state.posts];
             }
         },
+        clearThreadPosts: (state) => {
+            state.threadPosts = [];
+        },
         /*
 468:         receiveGlobalPost: (state, action: PayloadAction<Post>) => {
 469:             const newPost = action.payload;
@@ -905,6 +909,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
                 state.error = action.payload as string;
             })
             .addCase(repostPost.pending, (state: PostsState, action) => {
@@ -945,6 +950,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
                 // Invalidate profile post cache so reposts appear/disappear on next profile visit
                 state.lastUserPostsFetch = 0;
             })
@@ -983,6 +989,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
                 state.lastUpdated = new Date().toISOString();
             })
             .addCase(updatePost.rejected, (state, action) => {
@@ -1002,6 +1009,7 @@ const postsSlice = createSlice({
                 state.discoverPosts = state.discoverPosts.filter((p: Post) => !matchesPost(p));
                 state.trendingPosts = state.trendingPosts.filter((p: Post) => !matchesPost(p));
                 state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => !matchesPost(p));
+                state.threadPosts = state.threadPosts.filter((p: Post) => !matchesPost(p));
                 // Invalidate profile post cache so it re-fetches on next navigation
                 state.lastUserPostsFetch = 0;
             })
@@ -1015,21 +1023,21 @@ const postsSlice = createSlice({
                 const fetchedPosts: Post[] = Array.isArray(action.payload) ? action.payload : [action.payload];
                 fetchedPosts.forEach(fetchedPost => {
                     // Deduplicate by URI or ID (if ID is not empty)
-                    const index = state.posts.findIndex(p =>
+                    const index = state.threadPosts.findIndex(p =>
                         (fetchedPost.uri && p.uri === fetchedPost.uri) ||
                         (fetchedPost.id && p.id === fetchedPost.id && fetchedPost.id !== '')
                     );
 
                     if (index !== -1) {
-                        const existingPost = state.posts[index];
-                        state.posts[index] = {
+                        const existingPost = state.threadPosts[index];
+                        state.threadPosts[index] = {
                             ...existingPost,
                             ...fetchedPost,
                             author: mergeUserSnapshot(existingPost.author, fetchedPost.author),
                             repostedBy: mergeUserSnapshot(existingPost.repostedBy, fetchedPost.repostedBy),
                         };
                     } else {
-                        state.posts.push(fetchedPost);
+                        state.threadPosts.push(fetchedPost);
                     }
                 });
             })
@@ -1071,6 +1079,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
 
                 // If unbookmarked, remove from bookmarkedPosts array
                 if (!action.payload.isBookmarked) {
@@ -1227,6 +1236,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.threadPosts);
             })
             .addCase(updateInteractionSettings.fulfilled, (state: PostsState, action: PayloadAction<{ postUri: string, replyRestriction: string, allowQuotes: boolean }>) => {
                 state.isLoading = false;
@@ -1241,6 +1251,7 @@ const postsSlice = createSlice({
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
+                updateInArray(state.threadPosts);
             })
             .addCase(updateInteractionSettings.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -1324,7 +1335,7 @@ const postsSlice = createSlice({
 });
 
 
-export const { clearPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost } = postsSlice.actions;
+export const { clearPosts, clearThreadPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost } = postsSlice.actions;
 
 
 export default postsSlice.reducer;

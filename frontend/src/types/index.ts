@@ -403,6 +403,7 @@ export interface ThemeState {
 
 export interface PostsState {
     posts: Post[];
+    threadPosts: Post[]; // Separate array for post threads to avoid pollution
     discoverPosts: Post[];
     trendingPosts: Post[];
     bookmarkedPosts: Post[];
