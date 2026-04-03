@@ -410,7 +410,10 @@ export const fetchPostById = createAsyncThunk(
 
             const response = await fetch(
                 endpoint,
-                { headers }
+                {
+                    headers,
+                    cache: 'no-store'
+                }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch post');
 

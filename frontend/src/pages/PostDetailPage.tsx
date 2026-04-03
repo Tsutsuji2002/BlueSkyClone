@@ -718,7 +718,7 @@ const PostDetailPage: React.FC = () => {
                     <span>·</span>
                     <div
                         className={cn(
-                            "flex items-center gap-1 cursor-default",
+                            "flex items-center gap-1.5 cursor-default",
                             isOwnPost && "text-[#0085FF] cursor-pointer hover:underline"
                         )}
                         onClick={() => {
@@ -727,7 +727,11 @@ const PostDetailPage: React.FC = () => {
                             }
                         }}
                     >
-                        <FiMessageSquare size={14} />
+                        {actionLoading[post.uri!] ? (
+                            <div className="animate-spin rounded-full h-3 w-3 border-2 border-primary-500 border-t-transparent" />
+                        ) : (
+                            <FiMessageSquare size={14} />
+                        )}
                         <span>{
                             post.replyRestriction === 'nobody'
                                 ? t('post.reply_nobody', 'Replies disabled')
