@@ -735,7 +735,7 @@ public class PostService : IPostService
                 {
                     post.Content = rp.Content;
                     post.Author = rp.Author;
-                    post.PostMedia = rp.PostMedia;
+                    post.Media = rp.Media;
                     post.ImageUrls = rp.ImageUrls;
                     post.VideoUrl = rp.VideoUrl;
                     post.LinkPreview = rp.LinkPreview;
