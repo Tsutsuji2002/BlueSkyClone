@@ -85,6 +85,31 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
 
     extractMedia(embed);
 
+    // Parse Threadgate/Postgate for restrictions
+    let replyRestriction = atPost.replyRestriction;
+    if (!replyRestriction && atPost.threadgate?.record) {
+        const allow = atPost.threadgate.record.allow || [];
+        if (allow.length === 0) {
+            replyRestriction = 'nobody';
+        } else {
+            const rules = allow.map((r: any) => r.$type);
+            if (rules.includes('app.bsky.feed.threadgate#followingRule')) {
+                replyRestriction = 'following';
+            } else if (rules.includes('app.bsky.feed.threadgate#mentionRule')) {
+                replyRestriction = 'mentioned';
+            } else if (rules.includes('app.bsky.feed.threadgate#listRule')) {
+                replyRestriction = 'custom';
+            }
+        }
+    }
+
+    let allowQuotes = atPost.allowQuotes;
+    if (allowQuotes === undefined && atPost.postgate?.record) {
+        const rules = atPost.postgate.record.embeddingRules || [];
+        const isDisabled = rules.some((r: any) => r.$type === 'app.bsky.feed.postgate#disableRule');
+        allowQuotes = !isDisabled;
+    }
+
     // Map the post
     const post: Post = {
         id: atPost.cid || atPost.uri?.split('/').pop() || '',
@@ -113,8 +138,8 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         rootPostId: record.reply?.root?.uri?.split('/').pop(),
         muteInfo: atPost.muteInfo,
         labels: atPost.labels,
-        replyRestriction: atPost.replyRestriction,
-        allowQuotes: atPost.allowQuotes,
+        replyRestriction,
+        allowQuotes,
     };
 
     return post;
