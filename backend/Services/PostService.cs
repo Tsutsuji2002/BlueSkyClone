@@ -140,7 +140,7 @@ public class PostService : IPostService
                         .Include(p => p.Author)
                         .Include(p => p.PostMedia)
                         .Include(p => p.LinkPreview)
-                        .Where(p => p.AuthorId == localUser.Id && (p.IsDeleted == false || p.IsDeleted == null));
+                        .Where(p => p.AuthorId == localUser.Id && (p.IsDeleted == false || p.IsDeleted == null) && !string.IsNullOrEmpty(p.Content));
 
                     if (type == "replies")
                         postsQuery = postsQuery.Where(p => p.ReplyToPostId != null);
@@ -4504,7 +4504,7 @@ public class PostService : IPostService
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                     .Include(p => p.Interests)
                     .Include(p => p.Hashtags)
-                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null && p.CreatedAt >= threeDaysAgo)
+                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null && p.CreatedAt >= threeDaysAgo && !string.IsNullOrEmpty(p.Content))
                     .OrderByDescending(p => (double)(p.LikesCount ?? 0) + (double)(p.RepostsCount ?? 0) + (double)(p.RepliesCount ?? 0))
                     .Take(1000)
                     .ToListAsync();
@@ -5123,6 +5123,7 @@ public class PostService : IPostService
         {
             postPool = await _unitOfWork.Posts.Query()
                 .Where(p => p.CreatedAt >= poolCutoff && (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null)
+                .Where(p => !string.IsNullOrEmpty(p.Content)) // Only serve posts with actual content
                 .Where(p => p.AuthorId != userId) // EXCLUDE USER'S OWN POSTS FROM DISCOVER
                 .Where(p =>
                     !mutedUserIds.Contains(p.AuthorId) &&

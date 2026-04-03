@@ -32,7 +32,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Include(p => p.Reposts).ThenInclude(r => r.User)
             .Where(p => (followedUserIds.Contains(p.AuthorId) || p.Reposts.Any(r => followedUserIds.Contains(r.UserId)))
-                && (p.IsDeleted == false || p.IsDeleted == null)) // Allow replies in timeline
+                && (p.IsDeleted == false || p.IsDeleted == null) && !string.IsNullOrEmpty(p.Content)) // Allow replies in timeline
            .OrderByDescending(p => p.CreatedAt)
             .Take(limit)
             .ToListAsync();
@@ -51,7 +51,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Include(p => p.Reposts)
-            .Where(p => (p.IsDeleted == false || p.IsDeleted == null));
+            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && !string.IsNullOrEmpty(p.Content));
 
         if (type == "replies")
         {
@@ -115,7 +115,8 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
                         && p.ReplyToPostId == null
-                        && p.CreatedAt >= window)
+                        && p.CreatedAt >= window
+                        && !string.IsNullOrEmpty(p.Content))
            .OrderByDescending(p => (p.LikesCount ?? 0) + (p.RepostsCount ?? 0))
             .ThenByDescending(p => p.CreatedAt)
             .Skip(offset)
@@ -135,6 +136,7 @@ public class PostRepository : Repository<Post>, IPostRepository
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
             .Where(p => (p.IsDeleted == false || p.IsDeleted == null) 
                         && p.ReplyToPostId == null
+                        && !string.IsNullOrEmpty(p.Content)
                         && p.Hashtags.Any(h => h.Slug == tag.ToLower() || h.Name.ToLower() == tag.ToLower()))
             .OrderByDescending(p => p.CreatedAt)
             .ThenByDescending(p => p.Id)
