@@ -355,6 +355,10 @@ using (var scope = app.Services.CreateScope())
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'CreatedAt')
                 BEGIN
                     ALTER TABLE MutedWords ADD CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE();
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.MutedWords') AND name = 'Targets')
+                BEGIN
+                    ALTER TABLE MutedWords ADD Targets NVARCHAR(MAX) NOT NULL DEFAULT 'content';
                 END";
             context.Database.ExecuteSqlRaw(sql);
             logger.LogInformation("Applied manual schema updates for MutedWords.");
