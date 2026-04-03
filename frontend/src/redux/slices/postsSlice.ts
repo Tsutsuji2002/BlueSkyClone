@@ -1210,9 +1210,23 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Update Interaction Settings
-            .addCase(updateInteractionSettings.pending, (state: PostsState) => {
+            .addCase(updateInteractionSettings.pending, (state: PostsState, action) => {
                 state.isLoading = true;
                 state.error = null;
+
+                // Optimistic Update
+                const { postUri, replyRestriction, allowQuotes } = action.meta.arg;
+                const updateInArray = (arr: Post[]) => {
+                    const post = arr.find(p => p.uri === postUri);
+                    if (post) {
+                        // Store original values for potential rollback if needed (optional)
+                        post.replyRestriction = replyRestriction;
+                        post.allowQuotes = allowQuotes;
+                    }
+                };
+                updateInArray(state.posts);
+                updateInArray(state.discoverPosts);
+                updateInArray(state.trendingPosts);
             })
             .addCase(updateInteractionSettings.fulfilled, (state: PostsState, action: PayloadAction<{ postUri: string, replyRestriction: string, allowQuotes: boolean }>) => {
                 state.isLoading = false;
@@ -1231,6 +1245,8 @@ const postsSlice = createSlice({
             .addCase(updateInteractionSettings.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+                // Note: Rollback logic could be added here if we stored previous state,
+                // but for interaction settings, showing an error toast is usually sufficient.
             })
             // Pin Post
             .addCase(pinPost.fulfilled, (state, action) => {

@@ -90,11 +90,11 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
         }
 
         if (postUri) {
-            await dispatch(updateInteractionSettings({
+            dispatch(updateInteractionSettings({
                 postUri,
                 replyRestriction: finalRestriction,
                 allowQuotes: localQuotes
-            })).unwrap();
+            }));
         }
 
         setReplyRestriction(finalRestriction);
