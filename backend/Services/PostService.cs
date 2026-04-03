@@ -229,7 +229,7 @@ public class PostService : IPostService
                 }
             }
 
-            var enriched = viewerId.HasValue ? await EnrichAndFilterPostsAsync(paginated, viewerId.Value, isTimeline: false, forceDropHidden: false) : paginated;
+            var enriched = await EnrichAndFilterPostsAsync(paginated, viewerId ?? Guid.Empty, isTimeline: false, forceDropHidden: false);
 
             if (!string.IsNullOrEmpty(pinnedUri))
             {
@@ -703,7 +703,7 @@ public class PostService : IPostService
                 try {
                     using var scope = _scopeFactory.CreateScope();
                     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                    var user = await userService.ResolveRemoteProfileAsync(did);
+                    var user = await userService.ResolveRemoteProfileAsync(did, viewerId);
                     if (user != null) resolvedAuthors[did] = user;
                 } catch { }
             }));
@@ -2470,13 +2470,7 @@ public class PostService : IPostService
             await _cacheService.SetAsync(cacheKey, postDto, TimeSpan.FromMinutes(30));
         }
 
-        if (viewerId.HasValue)
-        {
-            var results = await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId.Value, forceDropHidden: false);
-            return results.FirstOrDefault();
-        }
-
-        return postDto;
+        return (await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty, forceDropHidden: false)).FirstOrDefault() ?? postDto;
     }
 
     public async Task<IEnumerable<PostDto>> GetPostsByIdsAsync(IEnumerable<Guid> postIds, Guid? viewerId = null)
@@ -2518,9 +2512,9 @@ public class PostService : IPostService
 
         var resultsList = ids.Where(id => resultsMap.ContainsKey(id)).Select(id => resultsMap[id]).ToList();
 
-        if (viewerId.HasValue && resultsList.Any())
+        if (resultsList.Any())
         {
-            return await EnrichAndFilterPostsAsync(resultsList, viewerId.Value, forceDropHidden: false);
+            return await EnrichAndFilterPostsAsync(resultsList, viewerId ?? Guid.Empty, forceDropHidden: false);
         }
 
         return resultsList;
@@ -4474,10 +4468,7 @@ public class PostService : IPostService
 
         var replyDtos = replies.Select(MapToDto).ToList();
 
-        if (viewerId.HasValue)
-        {
-            replyDtos = (await EnrichAndFilterPostsAsync(replyDtos, viewerId.Value, forceDropHidden: false));
-        }
+        replyDtos = await EnrichAndFilterPostsAsync(replyDtos, viewerId ?? Guid.Empty, forceDropHidden: false);
 
         return replyDtos;
     }
@@ -4560,9 +4551,9 @@ public class PostService : IPostService
 
         var resultDtos = resultPool.Skip(skip).Take(take).ToList();
 
-        if (viewerId.HasValue && resultDtos.Any())
+        if (resultDtos.Any())
         {
-            resultDtos = await EnrichAndFilterPostsAsync(resultDtos, viewerId.Value);
+            resultDtos = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty);
         }
 
         return resultDtos;
@@ -4574,10 +4565,7 @@ public class PostService : IPostService
             var posts = await _unitOfWork.Posts.GetTrendingPosts24hAsync(limit, skip);
             var postDtos = posts.Select(MapToDto).ToList();
 
-            if (viewerId.HasValue)
-            {
-                postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
-            }
+            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty);
 
             return postDtos;
         }
@@ -4689,11 +4677,7 @@ public class PostService : IPostService
             .ToListAsync();
 
         var postDtos = posts.Select(MapToDto).ToList();
-        if (viewerId.HasValue)
-        {
-            return await EnrichAndFilterPostsAsync(postDtos, viewerId.Value);
-        }
-        return postDtos;
+        return await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty);
     }
 
     public PostDto MapToDto(Post post)
@@ -5073,7 +5057,7 @@ public class PostService : IPostService
             .ToListAsync();
 
         var dtos = posts.Select(p => MapToDto(p)).ToList();
-        return viewerId.HasValue ? await EnrichAndFilterPostsAsync(dtos, viewerId.Value) : dtos;
+        return await EnrichAndFilterPostsAsync(dtos, viewerId ?? Guid.Empty);
     }
 
     public async Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0)
