@@ -714,10 +714,12 @@ public class PostService : IPostService
         {
             resolveTasks.Add(Task.Run(async () => {
                 try {
-                    using var scope = _scopeFactory.CreateScope();
-                    var postService = scope.ServiceProvider.GetRequiredService<IPostService>();
-                    var post = await postService.GetPostByUriAsync(uri);
-                    if (post != null) resolvedPosts[uri] = post;
+                    var ingestedPost = await IngestRemotePostAsync(uri);
+                    if (ingestedPost != null)
+                    {
+                        var ingestedDto = MapToDto(ingestedPost);
+                        resolvedPosts[uri] = ingestedDto;
+                    }
                 } catch { }
             }));
         }
@@ -2734,7 +2736,20 @@ public class PostService : IPostService
 
             // Check if already exists (race condition)
             var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
-            if (existing != null) return existing;
+            if (existing != null)
+            {
+                // If the post exists but has no content, update it with fetched data
+                if (string.IsNullOrEmpty(existing.Content))
+                {
+                    existing.Content = record.GetProperty("text").GetString();
+                    existing.LikesCount = postData.TryGetProperty("likeCount", out var ulc) ? ulc.GetInt32() : existing.LikesCount;
+                    existing.RepostsCount = postData.TryGetProperty("repostCount", out var urc) ? urc.GetInt32() : existing.RepostsCount;
+                    existing.RepliesCount = postData.TryGetProperty("replyCount", out var urpc) ? urpc.GetInt32() : existing.RepliesCount;
+                    _unitOfWork.Posts.Update(existing);
+                    await _unitOfWork.CompleteAsync();
+                }
+                return existing;
+            }
 
             var newPost = new Post
             {
@@ -2814,7 +2829,16 @@ public class PostService : IPostService
             var cid = data.RootElement.TryGetProperty("cid", out var c) ? c.GetString() : null;
 
             var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || (cid != null && p.Cid == cid));
-            if (existing != null) return existing;
+            if (existing != null)
+            {
+                if (string.IsNullOrEmpty(existing.Content))
+                {
+                    existing.Content = record.GetProperty("text").GetString();
+                    _unitOfWork.Posts.Update(existing);
+                    await _unitOfWork.CompleteAsync();
+                }
+                return existing;
+            }
 
             var newPost = new Post
             {
