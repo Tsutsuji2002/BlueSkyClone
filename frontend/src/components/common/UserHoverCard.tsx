@@ -8,6 +8,7 @@ import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { showToast } from '../../redux/slices/toastSlice';
 import Avatar from './Avatar';
+import RichText from './RichText';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { FiUserCheck, FiUserPlus } from 'react-icons/fi';
 import { cn } from '../../utils/classNames';
@@ -341,9 +342,10 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                         </div>
                     ) : bio ? (
                         <div className="px-4 pb-3">
-                            <p className="text-[14px] text-gray-800 dark:text-dark-text line-clamp-3 leading-snug">
-                                {bio}
-                            </p>
+                            <RichText
+                                content={bio}
+                                className="text-[14px] text-gray-800 dark:text-dark-text leading-snug"
+                            />
                         </div>
                     ) : null}
 
