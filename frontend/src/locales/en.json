@@ -216,7 +216,8 @@
         "muted_by_list": "Muted by list:",
         "content_hidden_desc": "This content is hidden by your settings",
         "content_warn_desc": "This content may be sensitive",
-        "sensitive_content": "Sensitive Content"
+        "sensitive_content": "Sensitive Content",
+        "muted_word": "Muted Word"
     },
     "privacy": {
         "title": "Privacy and Security",

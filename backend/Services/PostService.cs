@@ -876,15 +876,16 @@ public class PostService : IPostService
 
                         if (isMutedByWord)
                         {
+                            post.MuteInfo.IsMuted = true;
+                            post.MuteInfo.Behavior = mw.MuteBehavior == "hide" ? "hide" : "warn";
+                            post.MuteInfo.Reason = "muted_word";
+
                             if (mw.MuteBehavior == "hide" && forceDropHidden)
                             {
-                                break; // Will continue outer loop
+                                break; 
                             }
                             else
                             {
-                                post.MuteInfo.IsMuted = true;
-                                post.MuteInfo.Behavior = mw.MuteBehavior == "hide" ? "hide" : "warn";
-                                post.MuteInfo.Reason = "muted_word";
                                 break;
                             }
                         }

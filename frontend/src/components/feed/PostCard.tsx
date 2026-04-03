@@ -412,22 +412,22 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                             const behavior = post.muteInfo?.behavior;
                             const reason = post.muteInfo?.reason || t('moderation.sensitive_content', 'Sensitive Content');
 
-                            // HIDE state logic (Pic 1/3) -> Author Header + Banner only
-                            if (isMuted && behavior === 'hide') {
+                            // If hidden, show only banner (already handled by returning early in some layouts, 
+                            // but here we ensure complete suppression for both 'hide' and 'warn')
+                            if (isMuted && (behavior === 'hide' || behavior === 'warn')) {
                                 return (
                                     <ModerationBanner
                                         reason={reason}
-                                        behavior="hide"
+                                        behavior={behavior as 'hide' | 'warn'}
                                         onShow={() => setIsUnmuted(true)}
                                     />
                                 );
                             }
 
-                            // Normal/Warn content rendering
+                            // Normal content rendering
                             const isLongContent = post.content && (post.content.length > 400 || post.content.split('\n').length > 6);
                             return (
                                 <>
-                                    {/* Text Content always shown in WARN mode (Pic 2) */}
                                     <div className={cn(
                                         "text-[15px] text-gray-900 dark:text-dark-text whitespace-pre-wrap break-words break-all leading-normal",
                                         !isExpanded && isLongContent ? "line-clamp-6" : "",
@@ -444,49 +444,38 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                         </button>
                                     )}
 
-                                    {/* WARN state banner (Pic 2) or Media Context */}
-                                    {isMuted && behavior === 'warn' ? (
-                                        <ModerationBanner
-                                            reason={reason}
-                                            behavior="warn"
-                                            onShow={() => setIsUnmuted(true)}
-                                        />
-                                    ) : (
-                                        <>
-                                            {(() => {
-                                                const hasLinkPreview = post.linkPreview || post.isLinkPreviewPending;
-                                                if (hasLinkPreview) {
-                                                    return (
-                                                        <LinkPreviewCard
-                                                            preview={post.linkPreview}
-                                                            isLoading={post.isLinkPreviewPending}
-                                                        />
-                                                    );
-                                                }
-                                                return null;
-                                            })()}
-
-                                            {post.quotePost && (
-                                                <div onClick={(e) => e.stopPropagation()}>
-                                                    <QuotedPost post={post.quotePost} />
-                                                </div>
-                                            )}
-
-                                            {/* Media */}
-                                            <div className="mb-3">
-                                                <MediaGrid
-                                                    images={post.images}
-                                                    imageUrls={post.imageUrls}
-                                                    media={post.media}
-                                                    video={post.video}
-                                                    videoUrl={post.videoUrl}
-                                                    onImageClick={(index: number) => {
-                                                        navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/media/${index}`);
-                                                    }}
+                                    {(() => {
+                                        const hasLinkPreview = post.linkPreview || post.isLinkPreviewPending;
+                                        if (hasLinkPreview) {
+                                            return (
+                                                <LinkPreviewCard
+                                                    preview={post.linkPreview}
+                                                    isLoading={post.isLinkPreviewPending}
                                                 />
-                                            </div>
-                                        </>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+
+                                    {post.quotePost && (
+                                        <div onClick={(e) => e.stopPropagation()}>
+                                            <QuotedPost post={post.quotePost} />
+                                        </div>
                                     )}
+
+                                    {/* Media */}
+                                    <div className="mb-3">
+                                        <MediaGrid
+                                            images={post.images}
+                                            imageUrls={post.imageUrls}
+                                            media={post.media}
+                                            video={post.video}
+                                            videoUrl={post.videoUrl}
+                                            onImageClick={(index: number) => {
+                                                navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/media/${index}`);
+                                            }}
+                                        />
+                                    </div>
                                 </>
                             );
                         })()}

@@ -171,7 +171,8 @@
         "graphic_media_desc": "Phương tiện phản cảm hoặc có khả năng phản cảm.",
         "non_sexual_nudity": "Khỏa thân không khiêu dâm",
         "non_sexual_nudity_desc": "vd: khóa thân nghệ thuật.",
-        "advanced": "Nâng cao"
+        "advanced": "Nâng cao",
+        "muted_word": "Từ bị ẩn"
     },
     "privacy": {
         "title": "Quyền riêng tư và bảo mật",
