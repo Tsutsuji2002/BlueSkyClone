@@ -370,7 +370,7 @@ export const fetchMutedWords = createAsyncThunk<MutedWord[], void, { rejectValue
     async (_, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/Profile/muted-words`, {
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
@@ -387,7 +387,7 @@ export const addMutedWordAsync = createAsyncThunk<MutedWord, { word: string, mut
     async (data, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/Profile/muted-words`, {
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -406,7 +406,7 @@ export const syncMutedWords = createAsyncThunk<void, void, { rejectValue: string
     async (_, { rejectWithValue, dispatch }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/Profile/muted-words/sync`, {
+            const response = await fetch(`${API_BASE_URL}/users/muted-words/sync`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
