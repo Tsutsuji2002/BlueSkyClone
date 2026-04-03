@@ -1081,6 +1081,12 @@ public class PostService : IPostService
                     }
                 }
 
+                if (post.Viewer != null)
+                {
+                    post.Viewer.ReplyDisabled = !post.CanReply;
+                    post.Viewer.EmbeddingDisabled = (post.AllowQuotes == false);
+                }
+
                 if (mutedWords.Any())
                 {
                     var content = post.Content?.ToLower() ?? "";

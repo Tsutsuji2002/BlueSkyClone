@@ -75,7 +75,7 @@ public class PostViewerDto
     public string? Like { get; set; } // URI of the like record
     public bool ThreadMuted { get; set; }
     public bool ReplyDisabled { get; set; }
-    public string? EmbeddingDisabled { get; set; }
+    public bool EmbeddingDisabled { get; set; }
 }
 
 public class MediaDto
