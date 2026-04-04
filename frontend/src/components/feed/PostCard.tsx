@@ -1,5 +1,5 @@
 import React from 'react';
-import { Post } from '../../types';
+import { Post, MutedWord } from '../../types';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { toggleLike, repostPost, toggleBookmark, pinPost, unpinPost } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
@@ -74,6 +74,30 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
     const [isUnmuted, setIsUnmuted] = React.useState(false);
     const [isExpanded, setIsExpanded] = React.useState(false);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
+    const mutedWords = useAppSelector((state: RootState) => (state.user as any).mutedWords as MutedWord[] ?? []);
+
+    // Client-side muted word check — runs even if backend didn't set muteInfo
+    const effectiveMuteInfo = React.useMemo(() => {
+        if (post.muteInfo?.isMuted) return post.muteInfo; // backend already flagged it
+        if (!mutedWords.length || isOwnPost) return post.muteInfo; // no muted words or own post
+        const content = (post.content || '').toLowerCase();
+        const tags = (post.tags || []).map((t: string) => t.toLowerCase());
+        for (const mw of mutedWords) {
+            const word = (mw.word || '').toLowerCase().replace(/^#/, '');
+            if (!word) continue;
+            const targets = (mw.targets || 'content').split(',').map((t: string) => t.trim()).filter(Boolean);
+            const matchContent = targets.includes('content') && content.includes(word);
+            const matchTag = targets.includes('tag') && tags.includes(word);
+            if (matchContent || matchTag) {
+                return {
+                    isMuted: true,
+                    behavior: mw.muteBehavior === 'hide' ? 'hide' as const : 'warn' as const,
+                    reason: 'muted_word',
+                };
+            }
+        }
+        return post.muteInfo;
+    }, [post.muteInfo, post.content, post.tags, mutedWords, isOwnPost]);
 
     const handleCardClick = () => {
         navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}`);
@@ -408,9 +432,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
 
                         {/* Post Content & Moderation UI */}
                         {(() => {
-                            const isMuted = post.muteInfo?.isMuted && !isUnmuted;
-                            const behavior = post.muteInfo?.behavior;
-                            const reason = post.muteInfo?.reason || t('moderation.sensitive_content', 'Sensitive Content');
+                            const isMuted = effectiveMuteInfo?.isMuted && !isUnmuted;
+                            const behavior = effectiveMuteInfo?.behavior;
+                            const reason = effectiveMuteInfo?.reason || t('moderation.sensitive_content', 'Sensitive Content');
 
                             // If hidden, show only banner (already handled by returning early in some layouts, 
                             // but here we ensure complete suppression for both 'hide' and 'warn')

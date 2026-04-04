@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import LoadingIndicator from '../common/LoadingIndicator';
 import Sidebar from './Sidebar';
@@ -10,8 +10,10 @@ import MobileCreateButton from './MobileCreateButton';
 import MobileMenu from './MobileMenu';
 import { cn } from '../../utils/classNames';
 import { useAppSelector } from '../../hooks/useAppSelector';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { fetchMutedWords } from '../../redux/slices/userSlice';
 
 interface MainLayoutProps {
     children?: React.ReactNode;
@@ -22,7 +24,15 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, hideBottomNav = false, title }) => {
     useDocumentTitle(title || '');
+    const dispatch = useAppDispatch();
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
+
+    // Load muted words on startup so client-side PostCard filtering works everywhere
+    useEffect(() => {
+        if (isAuthenticated) {
+            dispatch(fetchMutedWords());
+        }
+    }, [isAuthenticated, dispatch]);
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">
