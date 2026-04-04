@@ -718,14 +718,18 @@ public class UserService : IUserService
             .Where(f => f.FollowerId == viewerId && targetIdList.Contains(f.FollowingId))
             .ToListAsync();
 
-        var followsMap = follows.ToDictionary(f => f.FollowingId);
+        var followsMap = follows
+        .GroupBy(f => f.FollowingId)
+        .ToDictionary(g => g.Key, g => g.First());
 
         // 2. Fetch Blocks (viewer blocks target)
         var blocking = await _unitOfWork.Blocks.Query()
             .Where(b => b.UserId == viewerId && targetIdList.Contains(b.BlockedUserId))
             .ToListAsync();
             
-        var blockingMap = blocking.ToDictionary(b => b.BlockedUserId);
+        var blockingMap = blocking
+        .GroupBy(b => b.BlockedUserId)
+        .ToDictionary(g => g.Key, g => g.First());
 
         // 3. Fetch BlockedBy (target blocks viewer)
         var blockedBy = await _unitOfWork.Blocks.Query()
@@ -770,7 +774,7 @@ public class UserService : IUserService
         }
 
         var localDomain = _configuration["DomainName"] ?? "bskyclone.site";
-        bool isRemote = !string.IsNullOrEmpty(user.Did) && (user.Did.StartsWith("did:") && !user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase));
+        bool isRemote = !string.IsNullOrEmpty(user.Did) && (user.Did.StartsWith("did:") && (user.Handle == null || !user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase)));
         
         if (isRemote)
         {
@@ -806,7 +810,7 @@ public class UserService : IUserService
         }
 
         var localDomain = _configuration["DomainName"] ?? "bskyclone.site";
-        bool isRemote = !string.IsNullOrEmpty(user.Did) && (user.Did.StartsWith("did:") && !user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase));
+        bool isRemote = !string.IsNullOrEmpty(user.Did) && (user.Did.StartsWith("did:") && (user.Handle == null || !user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase)));
         
         if (isRemote)
         {
@@ -979,6 +983,7 @@ public class UserService : IUserService
                 Id = Guid.NewGuid(),
                 Did = did,
                 Username = $"remote_{did.Replace(":", "_")}",
+                Handle = did,
                 Email = $"{did.Replace(":", "_")}@remote.atproto",
                 PasswordHash = "REMOTE_USER",
                 Salt = "REMOTE_USER",
