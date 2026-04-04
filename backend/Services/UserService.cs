@@ -764,6 +764,8 @@ public class UserService : IUserService
         User? user = null;
         if (Guid.TryParse(actor, out var userId))
             user = await GetUserByIdAsync(userId);
+        else if (actor.StartsWith("did:"))
+            user = await GetUserByDidAsync(actor);
         else
             user = await GetUserByHandleAsync(actor);
 
@@ -774,7 +776,11 @@ public class UserService : IUserService
         }
 
         var localDomain = _configuration["DomainName"] ?? "bskyclone.site";
-        bool isRemote = !string.IsNullOrEmpty(user.Did) && (user.Did.StartsWith("did:") && (user.Handle == null || !user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase)));
+        // A user is remote only if their DID is non-local AND their handle doesn't belong to the local domain.
+        // Using && ensures local users (did:local: prefix OR bskyclone.site handle) are always fetched from local DB.
+        bool isLocalDid = string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:");
+        bool isLocalHandle = !string.IsNullOrEmpty(user.Handle) && user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase);
+        bool isRemote = !isLocalDid && !isLocalHandle;
         
         if (isRemote)
         {
@@ -809,7 +815,11 @@ public class UserService : IUserService
         }
 
         var localDomain = _configuration["DomainName"] ?? "bskyclone.site";
-        bool isRemote = !string.IsNullOrEmpty(user.Did) && (user.Did.StartsWith("did:") && (user.Handle == null || !user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase)));
+        // A user is remote only if their DID is non-local AND their handle doesn't belong to the local domain.
+        // Using && ensures local users (did:local: prefix OR bskyclone.site handle) are always fetched from local DB.
+        bool isLocalDid = string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:");
+        bool isLocalHandle = !string.IsNullOrEmpty(user.Handle) && user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase);
+        bool isRemote = !isLocalDid && !isLocalHandle;
         
         if (isRemote)
         {
