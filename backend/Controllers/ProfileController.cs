@@ -282,7 +282,7 @@ public class ProfileController : ControllerBase
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
         var currentUserId = Guid.Parse(userIdStr);
 
-        var targetUser = await ResolveUserAsync(userIdOrDid);
+        var targetUser = await ResolveUserAsync(userIdOrDid, currentUserId);
         if (targetUser == null) return NotFound(new { message = "User not found or could not be resolved" });
 
         var followUri = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
@@ -297,7 +297,7 @@ public class ProfileController : ControllerBase
         });
     }
 
-    private async Task<User?> ResolveUserAsync(string identifier)
+    private async Task<User?> ResolveUserAsync(string identifier, Guid? viewerId = null)
     {
         if (Guid.TryParse(identifier, out var guid))
         {
@@ -305,7 +305,7 @@ public class ProfileController : ControllerBase
         }
         
         // Try remote resolution or handle lookup
-        return await _userService.ResolveRemoteProfileAsync(identifier);
+        return await _userService.ResolveRemoteProfileAsync(identifier, viewerId: viewerId);
     }
 
     [HttpPost("unfollow/{userIdOrDid}")]
@@ -315,7 +315,7 @@ public class ProfileController : ControllerBase
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
         var currentUserId = Guid.Parse(userIdStr);
 
-        var targetUser = await ResolveUserAsync(userIdOrDid);
+        var targetUser = await ResolveUserAsync(userIdOrDid, currentUserId);
         if (targetUser == null) return NotFound(new { message = "User not found" });
 
         await _userService.UnfollowUserAsync(currentUserId, targetUser.Id);

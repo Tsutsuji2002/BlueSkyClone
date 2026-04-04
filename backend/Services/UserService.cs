@@ -499,7 +499,10 @@ public class UserService : IUserService
         try
         {
             var existing = await _unitOfWork.Follows.GetAsync(followerId, followingId);
-        if (existing != null) return existing.Uri;
+        if (existing != null && !string.IsNullOrEmpty(existing.Uri) && !existing.Uri.StartsWith("at://local/")) 
+        {
+            return existing.Uri;
+        }
 
         var follower = await _unitOfWork.Users.GetByIdAsync(followerId);
         var following = await _unitOfWork.Users.GetByIdAsync(followingId);
@@ -881,7 +884,7 @@ public class UserService : IUserService
                 _logger.LogInformation("[GetRemoteFollowersAsync] Found {Count} followers", followersArray.Count);
 
                 var dids = followersArray
-                    .Select(f => f.TryGetProperty("did", out var d) ? d.GetString() : null)
+                    .Select(a => a.TryGetProperty("did", out var d) ? d.GetString()?.ToLowerInvariant() : null)
                     .Where(d => d != null)
                     .Cast<string>()
                     .Distinct()
@@ -891,7 +894,7 @@ public class UserService : IUserService
                     .Where(u => dids.Contains(u.Did))
                     .ToListAsync())
                     .GroupBy(u => u.Did)
-                    .ToDictionary(g => g.Key, g => g.First());
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
                 _logger.LogInformation("[GetRemoteFollowersAsync] {ExistingCount} found in local DB", existingUsers.Count);
 
@@ -993,7 +996,7 @@ public class UserService : IUserService
                 _logger.LogInformation("[GetRemoteFollowingAsync] ATProto returned {Count} follows for {Did}", followsArray.Count, did);
 
                 var dids = followsArray
-                    .Select(f => f.TryGetProperty("did", out var d) ? d.GetString() : null)
+                    .Select(f => f.TryGetProperty("did", out var d) ? d.GetString()?.ToLowerInvariant() : null)
                     .Where(d => d != null)
                     .Cast<string>()
                     .Distinct()
@@ -1004,7 +1007,7 @@ public class UserService : IUserService
                     .Where(u => dids.Contains(u.Did))
                     .ToListAsync())
                     .GroupBy(u => u.Did)
-                    .ToDictionary(g => g.Key, g => g.First());
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
                 foreach (var item in followsArray)
                 {
@@ -1069,27 +1072,37 @@ public class UserService : IUserService
         if (!profileElement.TryGetProperty("did", out var didProp)) return null;
         var did = didProp.GetString()!;
 
+        // Normalize DID for and lookup
+        if (!string.IsNullOrEmpty(did)) did = did.ToLowerInvariant();
+
+        // Check cache/existing batch
         existingUsers.TryGetValue(did, out var user);
+
         bool isNew = false;
         bool hasChanged = false;
 
         if (user == null)
         {
+            isNew = true;
             user = new User
             {
                 Id = Guid.NewGuid(),
                 Did = did,
-                Username = $"remote_{did.Replace(":", "_")}",
-                Handle = did,
-                Email = $"{did.Replace(":", "_")}@remote.atproto",
-                PasswordHash = "REMOTE_USER",
-                Salt = "REMOTE_USER",
+                Handle = profileElement.TryGetProperty("handle", out var h) ? h.GetString() : null,
                 CreatedAt = DateTime.UtcNow,
-                IsVerified = true
+                IsOnline = false,
+                IsDeleted = false
             };
-            isNew = true;
+            
+            // Basic fields from stub
+            if (profileElement.TryGetProperty("displayName", out var dn)) user.DisplayName = dn.GetString();
+            if (profileElement.TryGetProperty("avatar", out var av)) user.AvatarUrl = av.GetString();
+            
+            await _unitOfWork.Users.AddAsync(user);
+            existingUsers[did] = user; // Track for potential duplicates in the same batch
         }
 
+        // Update fields if they exist in the element
         if (profileElement.TryGetProperty("handle", out var handleProp)) 
         {
             var newHandle = handleProp.GetString();
@@ -1170,15 +1183,19 @@ public class UserService : IUserService
             }
             else
             {
-                // If viewer is NOT following, we could potentially remove the local follow record
-                // But it's safer to just let it be or handle it via a dedicated sync.
-                // For now, we prioritize adding found follows.
+                // ATProto says we are NOT following. Check if we have a stale local record.
+                var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
+                if (existingFollow != null)
+                {
+                    _logger.LogInformation("[ResolveStubRemoteProfileAsync] Deleting stale follow record for Viewer {Viewer} -> User {Target}", viewerId, user.Id);
+                    _unitOfWork.Follows.Remove(existingFollow);
+                }
             }
         }
 
         if (isNew)
         {
-            await _unitOfWork.Users.AddAsync(user);
+            // Already added to context above
             existingUsers[did] = user; // Track for potential duplicates in the same batch
         }
         else if (hasChanged)
@@ -1899,6 +1916,8 @@ public class UserService : IUserService
             did = resolved.Did;
         }
 
+        did = did.ToLowerInvariant();
+
         var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
         bool isNew = false;
         
@@ -2078,7 +2097,7 @@ public class UserService : IUserService
             {
                 var actorsArray = actorsProp.EnumerateArray().ToList();
                 var dids = actorsArray
-                    .Select(a => a.TryGetProperty("did", out var d) ? d.GetString() : null)
+                    .Select(a => a.TryGetProperty("did", out var d) ? d.GetString()?.ToLowerInvariant() : null)
                     .Where(d => d != null)
                     .Cast<string>()
                     .Distinct()
@@ -2088,7 +2107,7 @@ public class UserService : IUserService
                     .Where(u => dids.Contains(u.Did))
                     .ToListAsync())
                     .GroupBy(u => u.Did)
-                    .ToDictionary(g => g.Key, g => g.First());
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
                 foreach (var item in actorsArray)
                 {
