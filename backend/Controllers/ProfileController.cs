@@ -392,9 +392,10 @@ public class ProfileController : ControllerBase
     {
         try
         {
-            var (users, nextCursor) = await _userService.GetFollowersAsync(userId, limit, cursor);
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+            var (users, nextCursor) = await _userService.GetFollowersAsync(userId, limit, cursor, currentUserId);
 
             Dictionary<Guid, UserRelationshipStatusDto> interactionStatuses;
             try
@@ -429,9 +430,10 @@ public class ProfileController : ControllerBase
     {
         try
         {
-            var (users, nextCursor) = await _userService.GetFollowingAsync(userId, limit, cursor);
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+            var (users, nextCursor) = await _userService.GetFollowingAsync(userId, limit, cursor, currentUserId);
 
             Dictionary<Guid, UserRelationshipStatusDto> interactionStatuses;
             try

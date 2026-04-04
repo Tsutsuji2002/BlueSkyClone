@@ -519,7 +519,7 @@ public class UserService : IUserService
         follow.Uri = $"at://{follower.Did ?? $"local/{followerId}"}/app.bsky.graph.follow/{follow.Tid}";
 
         // Only attempt AT Protocol proxy if follower has an active Bluesky session token
-        var bskyToken = await _cacheService.GetAsync<string>($"BlueskyToken_{followerId}");
+        var bskyToken = await GetOrRefreshBlueskyTokenAsync(followerId);
         bool isFollowerRemote = !string.IsNullOrEmpty(follower.Did) && !follower.Did.StartsWith("did:local:");
         bool isFollowingRemote = !string.IsNullOrEmpty(following.Did) && !following.Did.StartsWith("did:local:");
 
@@ -674,7 +674,7 @@ public class UserService : IUserService
         {
             try
             {
-                var token = await _cacheService.GetAsync<string>($"BlueskyToken_{followerId}");
+                var token = await GetOrRefreshBlueskyTokenAsync(followerId);
                 if (!string.IsNullOrEmpty(token))
                 {
                     var getResponse = await _xrpcProxy.ProxyRequestAsync(follower.Did, "com.atproto.repo.deleteRecord", new Dictionary<string, string?>(), token, "POST", new { repo = follower.Did, collection = "app.bsky.graph.follow", rkey = existing.Tid });
@@ -759,11 +759,11 @@ public class UserService : IUserService
         return result;
     }
 
-    public async Task<(List<User> Users, string? Cursor)> GetFollowersAsync(string actor, int limit = 50, string? cursor = null)
+    public async Task<(List<User> Users, string? Cursor)> GetFollowersAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
     {
         User? user = null;
-        if (Guid.TryParse(actor, out var userId))
-            user = await GetUserByIdAsync(userId);
+        if (Guid.TryParse(actor, out var targetUserId))
+            user = await GetUserByIdAsync(targetUserId);
         else if (actor.StartsWith("did:"))
             user = await GetUserByDidAsync(actor);
         else
@@ -784,7 +784,7 @@ public class UserService : IUserService
         
         if (isRemote)
         {
-            return await GetRemoteFollowersAsync(user, limit, cursor);
+            return await GetRemoteFollowersAsync(user, limit, cursor, viewerId);
         }
 
         // Local followers
@@ -798,11 +798,11 @@ public class UserService : IUserService
         return (users, nextCursor);
     }
 
-    public async Task<(List<User> Users, string? Cursor)> GetFollowingAsync(string actor, int limit = 50, string? cursor = null)
+    public async Task<(List<User> Users, string? Cursor)> GetFollowingAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
     {
         User? user = null;
-        if (Guid.TryParse(actor, out var userId))
-            user = await GetUserByIdAsync(userId);
+        if (Guid.TryParse(actor, out var targetUserId))
+            user = await GetUserByIdAsync(targetUserId);
         else if (actor.StartsWith("did:"))
             user = await GetUserByDidAsync(actor);
         else
@@ -824,7 +824,7 @@ public class UserService : IUserService
         if (isRemote)
         {
             _logger.LogInformation("[GetFollowingAsync] Triggering remote fetch for {Actor}", actor);
-            return await GetRemoteFollowingAsync(user.Did, limit, cursor);
+            return await GetRemoteFollowingAsync(user.Did, limit, cursor, viewerId);
         }
 
         // Local following
@@ -838,7 +838,7 @@ public class UserService : IUserService
         return (users, nextCursor);
     }
 
-    private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowersAsync(User targetUser, int limit, string? cursor)
+    private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowersAsync(User targetUser, int limit, string? cursor, Guid? viewerId = null)
     {
         var users = new List<User>();
         string? nextCursor = null;
@@ -847,6 +847,15 @@ public class UserService : IUserService
         {
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+
+            if (viewerId.HasValue)
+            {
+                var token = await GetOrRefreshBlueskyTokenAsync(viewerId.Value);
+                if (!string.IsNullOrEmpty(token))
+                {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+            }
             var url = $"https://api.bsky.app/xrpc/app.bsky.graph.getFollowers?actor={targetUser.Did}&limit={limit}";
             if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
 
@@ -888,7 +897,7 @@ public class UserService : IUserService
 
                 foreach (var item in followersArray)
                 {
-                    var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
+                    var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false, viewerId);
                     if (u != null)
                         users.Add(u);
                     else
@@ -944,7 +953,7 @@ public class UserService : IUserService
         return (users, nextCursor);
     }
 
-    private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowingAsync(string did, int limit, string? cursor)
+    private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowingAsync(string did, int limit, string? cursor, Guid? viewerId = null)
     {
         var users = new List<User>();
         string? nextCursor = null;
@@ -953,6 +962,15 @@ public class UserService : IUserService
         {
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+
+            if (viewerId.HasValue)
+            {
+                var token = await GetOrRefreshBlueskyTokenAsync(viewerId.Value);
+                if (!string.IsNullOrEmpty(token))
+                {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+            }
             var url = $"https://api.bsky.app/xrpc/app.bsky.graph.getFollows?actor={did}&limit={limit}";
             if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
 
@@ -990,7 +1008,7 @@ public class UserService : IUserService
 
                 foreach (var item in followsArray)
                 {
-                    var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
+                    var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false, viewerId);
                     if (u != null)
                         users.Add(u);
                     else
@@ -1046,7 +1064,7 @@ public class UserService : IUserService
         return (users, nextCursor);
     }
 
-    public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true)
+    public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null)
     {
         if (!profileElement.TryGetProperty("did", out var didProp)) return null;
         var did = didProp.GetString()!;
@@ -1128,6 +1146,33 @@ public class UserService : IUserService
             {
                 var newUri = uriProp.GetString();
                 if (user.PinnedPostUri != newUri) { user.PinnedPostUri = newUri; hasChanged = true; }
+            }
+        }
+
+        // --- Sync Viewer Follow State ---
+        if (viewerId.HasValue && profileElement.TryGetProperty("viewer", out var viewerProp))
+        {
+            if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind != JsonValueKind.Null)
+            {
+                var followUri = followingProp.GetString();
+                // Persist the follow relationship to local DB for consistency
+                if (!string.IsNullOrEmpty(followUri))
+                {
+                    await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
+                    {
+                        FollowerId = viewerId.Value,
+                        FollowingId = user.Id,
+                        Uri = followUri,
+                        Tid = followUri.Split('/').Last(),
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+            else
+            {
+                // If viewer is NOT following, we could potentially remove the local follow record
+                // But it's safer to just let it be or handle it via a dedicated sync.
+                // For now, we prioritize adding found follows.
             }
         }
 
@@ -1874,18 +1919,20 @@ public class UserService : IUserService
             isNew = true;
         }
 
+        // 2. Fetch actor profile from ATProto
         try
         {
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            using var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+
             string? bskyToken = null;
             if (viewerId.HasValue)
             {
-                bskyToken = await _cacheService.GetAsync<string>($"BlueskyToken_{viewerId.Value}");
-            }
-            if (!string.IsNullOrEmpty(bskyToken))
-            {
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bskyToken);
+                bskyToken = await GetOrRefreshBlueskyTokenAsync(viewerId.Value);
+                if (!string.IsNullOrEmpty(bskyToken))
+                {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bskyToken);
+                }
             }
 
             var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={did}");
@@ -2009,7 +2056,7 @@ public class UserService : IUserService
         return user;
     }
 
-    public async Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20)
+    public async Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20, Guid? viewerId = null)
     {
         try
         {
@@ -2045,7 +2092,7 @@ public class UserService : IUserService
 
                 foreach (var item in actorsArray)
                 {
-                    var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
+                    var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false, viewerId);
                     if (u != null) users.Add(u);
                 }
                 
@@ -2069,5 +2116,53 @@ public class UserService : IUserService
             .OrderByDescending(u => u.FollowersCount ?? 0)
             .Take(limit)
             .ToListAsync();
+    }
+
+    private async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId)
+    {
+        var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+        if (!string.IsNullOrEmpty(token)) return token;
+
+        var refreshToken = await _cacheService.GetAsync<string>($"BlueskyRefreshToken_{userId}");
+        if (string.IsNullOrEmpty(refreshToken)) return null;
+
+        try
+        {
+            _logger.LogInformation("[GetOrRefreshBlueskyTokenAsync] Refreshing Bluesky token for user {UserId}", userId);
+            using var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", refreshToken);
+            var refreshResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.server.refreshSession", null);
+
+            if (refreshResponse.IsSuccessStatusCode)
+            {
+                var refreshData = await refreshResponse.Content.ReadAsStringAsync();
+                using var refreshDoc = JsonDocument.Parse(refreshData);
+                var accessJwt = refreshDoc.RootElement.GetProperty("accessJwt").GetString();
+                var refreshJwt = refreshDoc.RootElement.GetProperty("refreshJwt").GetString();
+
+                if (!string.IsNullOrEmpty(accessJwt))
+                {
+                    // Update cache for long-lived session resilience
+                    await _cacheService.SetAsync($"BlueskyToken_{userId}", accessJwt, TimeSpan.FromHours(2));
+                    if (!string.IsNullOrEmpty(refreshJwt))
+                    {
+                        await _cacheService.SetAsync($"BlueskyRefreshToken_{userId}", refreshJwt, TimeSpan.FromDays(30));
+                    }
+                    _logger.LogInformation("[GetOrRefreshBlueskyTokenAsync] Successfully refreshed token for user {UserId}", userId);
+                    return accessJwt;
+                }
+            }
+            else
+            {
+                var error = await refreshResponse.Content.ReadAsStringAsync();
+                _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Auto-refresh failed for user {UserId}: {Error}", userId, error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[GetOrRefreshBlueskyTokenAsync] Exception during auto-refresh for user {UserId}", userId);
+        }
+
+        return null;
     }
 }

@@ -17,8 +17,8 @@ public interface IUserService
     Task<bool> UnfollowUserAsync(Guid followerId, Guid followingId);
     Task<bool> IsFollowingAsync(Guid followerId, Guid followingId);
     Task<UserFollow?> GetFollowAsync(Guid followerId, Guid followingId);
-    Task<(List<User> Users, string? Cursor)> GetFollowersAsync(string actor, int limit = 50, string? cursor = null);
-    Task<(List<User> Users, string? Cursor)> GetFollowingAsync(string actor, int limit = 50, string? cursor = null);
+    Task<(List<User> Users, string? Cursor)> GetFollowersAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
+    Task<(List<User> Users, string? Cursor)> GetFollowingAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
 
     Task<bool> BlockUserAsync(Guid userId, Guid blockedUserId);
     Task<bool> UnblockUserAsync(Guid userId, Guid blockedUserId);
@@ -32,7 +32,7 @@ public interface IUserService
     Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit = 50, string? cursor = null);
     Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit = 50, string? cursor = null);
     Task<List<User>> SearchUsersAsync(string query, int limit = 10);
-    Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20);
+    Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20, Guid? viewerId = null);
     Task<List<MutedWord>> GetMutedWordsAsync(Guid userId);
     Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content");
     Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId);
@@ -42,7 +42,7 @@ public interface IUserService
     Task<bool> UpdateHandleAsync(Guid userId, string newHandle);
     Task<User?> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null);
     Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds);
-    Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true);
+    Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null);
     Task<List<User>> GetSuggestedUsersAsync(int limit = 10);
     Task SyncMutedWordsWithAtProtoAsync(Guid userId);
 }

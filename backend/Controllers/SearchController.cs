@@ -95,7 +95,7 @@ public class SearchController : ControllerBase
             var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
             if (!string.IsNullOrEmpty(bskyToken))
             {
-                var remoteUsers = await _userService.SearchActorsRemoteAsync(q, bskyToken, skip, take);
+                var remoteUsers = await _userService.SearchActorsRemoteAsync(q, bskyToken, skip, take, userId.Value);
                 if (remoteUsers.Any())
                 {
                     return Ok(remoteUsers.Select(user => new
