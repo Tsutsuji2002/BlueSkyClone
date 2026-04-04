@@ -787,7 +787,7 @@ public class UserService : IUserService
         if (int.TryParse(cursor, out var skipVal)) skip = skipVal;
         
         var follows = await _unitOfWork.Follows.GetFollowersAsync(user.Id, skip, limit);
-        var users = follows.Select(f => f.Follower).ToList();
+        var users = follows.Select(f => f.Follower).Where(u => u != null).ToList();
         var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
         
         return (users, nextCursor);
@@ -823,7 +823,7 @@ public class UserService : IUserService
         if (int.TryParse(cursor, out var skipVal)) skip = skipVal;
         
         var follows = await _unitOfWork.Follows.GetFollowingAsync(user.Id, skip, limit);
-        var users = follows.Select(f => f.Following).ToList();
+        var users = follows.Select(f => f.Following).Where(u => u != null).ToList();
         var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
         
         return (users, nextCursor);

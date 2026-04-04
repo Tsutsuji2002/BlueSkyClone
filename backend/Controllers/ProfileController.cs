@@ -402,7 +402,7 @@ public class ProfileController : ControllerBase
         foreach (var user in users)
         {
             if (user == null) continue;
-            interactionStatuses.TryGetValue(user.Id, out var status);
+            var status = interactionStatuses.GetValueOrDefault(user.Id);
             dtos.Add(MapUserToDtoWithPreFetchedStatus(user, currentUserId, status));
         }
         return Ok(new { followers = dtos, cursor = nextCursor });
