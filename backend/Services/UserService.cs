@@ -840,6 +840,9 @@ public class UserService : IUserService
 
     private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowersAsync(User targetUser, int limit, string? cursor)
     {
+        var users = new List<User>();
+        string? nextCursor = null;
+
         try
         {
             var client = _httpClientFactory.CreateClient();
@@ -849,24 +852,25 @@ public class UserService : IUserService
 
             _logger.LogInformation("[GetRemoteFollowersAsync] Fetching from: {Url}", url);
             var response = await client.GetAsync(url);
-            if (!response.IsSuccessStatusCode) 
+            if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("[GetRemoteFollowersAsync] Failed: {StatusCode}", response.StatusCode);
-                return (new List<User>(), null);
+                return (users, null);
             }
 
             var content = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("[GetRemoteFollowersAsync] Received response: {Length} characters", content.Length);
-            
+
             using var doc = JsonDocument.Parse(content);
             var root = doc.RootElement;
 
-            var users = new List<User>();
+            nextCursor = root.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
+
             if (root.TryGetProperty("followers", out var followersProp))
             {
                 var followersArray = followersProp.EnumerateArray().ToList();
-                _logger.LogInformation("[GetRemoteFollowersAsync] Found {Count} followers in response", followersArray.Count);
-                
+                _logger.LogInformation("[GetRemoteFollowersAsync] Found {Count} followers", followersArray.Count);
+
                 var dids = followersArray
                     .Select(f => f.TryGetProperty("did", out var d) ? d.GetString() : null)
                     .Where(d => d != null)
@@ -874,68 +878,81 @@ public class UserService : IUserService
                     .Distinct()
                     .ToList();
 
-                _logger.LogInformation("[GetRemoteFollowersAsync] Extracted {DidsCount} unique DIDs", dids.Count);
-
-                // Batch lookup existing users
                 var existingUsers = (await _unitOfWork.Users.Query()
                     .Where(u => dids.Contains(u.Did))
                     .ToListAsync())
                     .GroupBy(u => u.Did)
                     .ToDictionary(g => g.Key, g => g.First());
 
-                _logger.LogInformation("[GetRemoteFollowersAsync] Found {ExistingCount} existing users in local DB", existingUsers.Count);
+                _logger.LogInformation("[GetRemoteFollowersAsync] {ExistingCount} found in local DB", existingUsers.Count);
 
                 foreach (var item in followersArray)
                 {
                     var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
-                    if (u != null) 
-                    {
+                    if (u != null)
                         users.Add(u);
-                    }
                     else
-                    {
-                        _logger.LogWarning("[GetRemoteFollowersAsync] Failed to resolve stub for item: {Item}", item.ToString());
-                    }
+                        _logger.LogWarning("[GetRemoteFollowersAsync] Failed to resolve stub for: {Item}", item.ToString());
                 }
-                
+
                 _logger.LogInformation("[GetRemoteFollowersAsync] Resolved {Count} users", users.Count);
-                await _unitOfWork.CompleteAsync(); // Complete once for all stubs
-                
-                // Add follow records (persisting the relationship)
+
+                // Persist stubs — best effort; never discard resolved list on failure
+                try
+                {
+                    await _unitOfWork.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogWarning(dbEx, "[GetRemoteFollowersAsync] DB save for stubs failed (non-fatal)");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("[GetRemoteFollowersAsync] 'followers' property missing in response");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[GetRemoteFollowersAsync] Error fetching/resolving remote followers for {Did}", targetUser.Did);
+        }
+
+        // Persist follow-graph records (best-effort background task)
+        var targetUserId = targetUser.Id;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
                 foreach (var u in users)
                 {
                     await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
                     {
                         FollowerId = u.Id,
-                        FollowingId = targetUser.Id,
+                        FollowingId = targetUserId,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
-                await _unitOfWork.CompleteAsync();
+                if (users.Count > 0) await _unitOfWork.CompleteAsync();
 
-                // Re-index in search (resiliently)
-                foreach(var u in users)
+                foreach (var u in users)
                 {
                     try { await _searchService.IndexUserAsync(u); } catch { }
                 }
             }
-            else
+            catch (Exception bgEx)
             {
-                 _logger.LogWarning("[GetRemoteFollowersAsync] 'followers' property missing in response");
+                _logger.LogWarning(bgEx, "[GetRemoteFollowersAsync] Background follow-record persistence failed (non-fatal)");
             }
+        });
 
-            string? nextCursor = root.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
-            return (users, nextCursor);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[GetRemoteFollowersAsync] Error");
-            return (new List<User>(), null);
-        }
+        return (users, nextCursor);
     }
 
     private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowingAsync(string did, int limit, string? cursor)
     {
+        var users = new List<User>();
+        string? nextCursor = null;
+
         try
         {
             var client = _httpClientFactory.CreateClient();
@@ -944,16 +961,23 @@ public class UserService : IUserService
             if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
 
             var response = await client.GetAsync(url);
-            if (!response.IsSuccessStatusCode) return (new List<User>(), null);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("[GetRemoteFollowingAsync] ATProto API returned {StatusCode}", response.StatusCode);
+                return (users, null);
+            }
 
             var content = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(content);
             var root = doc.RootElement;
 
-            var users = new List<User>();
+            nextCursor = root.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
+
             if (root.TryGetProperty("follows", out var followsProp))
             {
                 var followsArray = followsProp.EnumerateArray().ToList();
+                _logger.LogInformation("[GetRemoteFollowingAsync] ATProto returned {Count} follows for {Did}", followsArray.Count, did);
+
                 var dids = followsArray
                     .Select(f => f.TryGetProperty("did", out var d) ? d.GetString() : null)
                     .Where(d => d != null)
@@ -971,25 +995,37 @@ public class UserService : IUserService
                 foreach (var item in followsArray)
                 {
                     var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
-                    if (u != null) 
-                    {
+                    if (u != null)
                         users.Add(u);
-                    }
                     else
-                    {
-                        _logger.LogWarning("[GetRemoteFollowingAsync] Failed to resolve stub for item: {Item}", item.ToString());
-                    }
+                        _logger.LogWarning("[GetRemoteFollowingAsync] Failed to resolve stub for: {Item}", item.ToString());
                 }
-                
-                _logger.LogInformation("[GetRemoteFollowingAsync] Resolved {Count} users", users.Count);
-                await _unitOfWork.CompleteAsync(); // Complete once for all stubs
-                
-                // Add follow records (persisting the relationship)
-                var actor = await GetUserByDidAsync(did);
-                if (actor == null) actor = await GetUserByHandleAsync(did);
-                if (actor == null) actor = await ResolveRemoteProfileAsync(did);
 
-                if (actor != null)
+                _logger.LogInformation("[GetRemoteFollowingAsync] Resolved {Count} users", users.Count);
+
+                // Persist stub users — best effort, do NOT discard resolved list on failure
+                try
+                {
+                    await _unitOfWork.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogWarning(dbEx, "[GetRemoteFollowingAsync] DB save for stubs failed (non-fatal)");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[GetRemoteFollowingAsync] Error fetching/resolving remote follows for {Did}", did);
+        }
+
+        // Persist follow-graph records (best-effort, runs AFTER returning users to avoid blocking)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var actor = await GetUserByDidAsync(did) ?? await GetUserByHandleAsync(did);
+                if (actor != null && users.Count > 0)
                 {
                     foreach (var u in users)
                     {
@@ -1002,22 +1038,19 @@ public class UserService : IUserService
                     }
                     await _unitOfWork.CompleteAsync();
                 }
-                
-                // Re-index in search (resiliently)
-                foreach(var u in users)
+
+                foreach (var u in users)
                 {
-                    try { await _searchService.IndexUserAsync(u); } catch { /* Ignore search errors in background */ }
+                    try { await _searchService.IndexUserAsync(u); } catch { }
                 }
             }
+            catch (Exception bgEx)
+            {
+                _logger.LogWarning(bgEx, "[GetRemoteFollowingAsync] Background follow-record persistence failed (non-fatal)");
+            }
+        });
 
-            string? nextCursor = root.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
-            return (users, nextCursor);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[GetRemoteFollowingAsync] Error");
-            return (new List<User>(), null);
-        }
+        return (users, nextCursor);
     }
 
     public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true)
