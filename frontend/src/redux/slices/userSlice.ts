@@ -667,14 +667,24 @@ const userSlice = createSlice({
             .addCase(followUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg;
                 state.actionLoading[userId] = false;
-                const profile = state.profile;
-                if (profile && profileMatchesIdentifier(profile, userId)) {
-                    profile.isFollowing = true;
-                    profile.followingReference = action.payload.uri || profile.followingReference;
+
+                const updateState = (u: User) => {
+                    if (profileMatchesIdentifier(u, userId)) {
+                        u.isFollowing = true;
+                    }
+                };
+
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
+                    state.profile.isFollowing = true;
+                    state.profile.followingReference = action.payload.uri || state.profile.followingReference;
                     if (action.payload.followersCount > 0) {
-                        profile.followersCount = action.payload.followersCount;
+                        state.profile.followersCount = action.payload.followersCount;
                     }
                 }
+
+                state.users.forEach(updateState);
+                state.followers.forEach(updateState);
+                state.followingUsers.forEach(updateState);
             })
             .addCase(followUserAsync.rejected, (state: UserState, action) => {
                 const userId = action.meta.arg;
@@ -703,14 +713,24 @@ const userSlice = createSlice({
             .addCase(unfollowUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
                 state.actionLoading[userId] = false;
-                const profile = state.profile;
-                if (profile && profileMatchesIdentifier(profile, userId)) {
-                    profile.isFollowing = false;
-                    profile.followingReference = undefined;
+
+                const updateState = (u: User) => {
+                    if (profileMatchesIdentifier(u, userId)) {
+                        u.isFollowing = false;
+                    }
+                };
+
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
+                    state.profile.isFollowing = false;
+                    state.profile.followingReference = undefined;
                     if (action.payload.followersCount > 0) {
-                        profile.followersCount = action.payload.followersCount;
+                        state.profile.followersCount = action.payload.followersCount;
                     }
                 }
+
+                state.users.forEach(updateState);
+                state.followers.forEach(updateState);
+                state.followingUsers.forEach(updateState);
             })
             .addCase(unfollowUserAsync.rejected, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
@@ -881,41 +901,6 @@ const userSlice = createSlice({
             .addCase(fetchFollowing.rejected, (state: UserState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
-            })
-            // Follow/Unfollow user UI mutations
-            .addCase('user/follow/fulfilled' as any, (state: UserState, action: any) => {
-                const targetMatch = action.meta.arg;
-                const updateFollowingState = (u: User) => {
-                    if (u.id === targetMatch || u.did === targetMatch || u.handle === targetMatch) {
-                        u.isFollowing = true;
-                    }
-                };
-                if (state.profile) {
-                    updateFollowingState(state.profile);
-                    if (state.profile.id === targetMatch || state.profile.did === targetMatch || state.profile.handle === targetMatch) {
-                        state.profile.followersCount = action.payload.followersCount;
-                    }
-                }
-                state.users.forEach(updateFollowingState);
-                state.followers.forEach(updateFollowingState);
-                state.followingUsers.forEach(updateFollowingState);
-            })
-            .addCase('user/unfollow/fulfilled' as any, (state: UserState, action: any) => {
-                const targetMatch = action.meta.arg.userId;
-                const updateUnfollowingState = (u: User) => {
-                    if (u.id === targetMatch || u.did === targetMatch || u.handle === targetMatch) {
-                        u.isFollowing = false;
-                    }
-                };
-                if (state.profile) {
-                    updateUnfollowingState(state.profile);
-                    if (state.profile.id === targetMatch || state.profile.did === targetMatch || state.profile.handle === targetMatch) {
-                        state.profile.followersCount = action.payload.followersCount;
-                    }
-                }
-                state.users.forEach(updateUnfollowingState);
-                state.followers.forEach(updateUnfollowingState);
-                state.followingUsers.forEach(updateUnfollowingState);
             })
             // Muted Words
 
