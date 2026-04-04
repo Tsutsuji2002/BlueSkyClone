@@ -151,7 +151,9 @@ public class ProfileController : ControllerBase
                     var enriched = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
                     if (enriched.Any())
                     {
-                        userDto.PinnedPost = enriched.First();
+                        var pinned = enriched.First();
+                        pinned.IsPinned = true;
+                        userDto.PinnedPost = pinned;
                     }
                 }
             }

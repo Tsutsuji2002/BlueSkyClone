@@ -1026,6 +1026,14 @@ public class UserService : IUserService
         if (profileElement.TryGetProperty("followersCount", out var followersProp)) user.FollowersCount = followersProp.GetInt32();
         if (profileElement.TryGetProperty("followsCount", out var followsCountProp)) user.FollowingCount = followsCountProp.GetInt32();
         if (profileElement.TryGetProperty("postsCount", out var postsCountProp)) user.PostsCount = postsCountProp.GetInt32();
+        
+        if (profileElement.TryGetProperty("pinnedPost", out var pinnedProp) && pinnedProp.ValueKind == JsonValueKind.Object)
+        {
+            if (pinnedProp.TryGetProperty("uri", out var uriProp))
+            {
+                user.PinnedPostUri = uriProp.GetString();
+            }
+        }
 
         if (isNew)
         {
@@ -1697,6 +1705,18 @@ public class UserService : IUserService
                 if (root.TryGetProperty("followersCount", out var followersProp)) user.FollowersCount = followersProp.GetInt32();
                 if (root.TryGetProperty("followsCount", out var followsProp)) user.FollowingCount = followsProp.GetInt32();
                 if (root.TryGetProperty("postsCount", out var postsProp)) user.PostsCount = postsProp.GetInt32();
+
+                if (root.TryGetProperty("pinnedPost", out var pinnedProp) && pinnedProp.ValueKind == JsonValueKind.Object)
+                {
+                    if (pinnedProp.TryGetProperty("uri", out var uriProp))
+                    {
+                        user.PinnedPostUri = uriProp.GetString();
+                    }
+                }
+                else
+                {
+                    user.PinnedPostUri = null; // Sync removal
+                }
 
                 // Extract labels
                 if (root.TryGetProperty("labels", out var labelsProp) && labelsProp.ValueKind == JsonValueKind.Array)
