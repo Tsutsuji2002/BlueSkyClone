@@ -883,7 +883,7 @@ const userSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Follow/Unfollow user UI mutations
-            .addCase(followUserAsync.fulfilled, (state: UserState, action) => {
+            .addCase('user/follow/fulfilled' as any, (state: UserState, action: any) => {
                 const targetMatch = action.meta.arg;
                 const updateFollowingState = (u: User) => {
                     if (u.id === targetMatch || u.did === targetMatch || u.handle === targetMatch) {
@@ -900,7 +900,7 @@ const userSlice = createSlice({
                 state.followers.forEach(updateFollowingState);
                 state.followingUsers.forEach(updateFollowingState);
             })
-            .addCase(unfollowUserAsync.fulfilled, (state: UserState, action) => {
+            .addCase('user/unfollow/fulfilled' as any, (state: UserState, action: any) => {
                 const targetMatch = action.meta.arg.userId;
                 const updateUnfollowingState = (u: User) => {
                     if (u.id === targetMatch || u.did === targetMatch || u.handle === targetMatch) {
