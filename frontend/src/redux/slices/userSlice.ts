@@ -882,7 +882,43 @@ const userSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
+            // Follow/Unfollow user UI mutations
+            .addCase(followUserAsync.fulfilled, (state: UserState, action) => {
+                const targetMatch = action.meta.arg;
+                const updateFollowingState = (u: User) => {
+                    if (u.id === targetMatch || u.did === targetMatch || u.handle === targetMatch) {
+                        u.isFollowing = true;
+                    }
+                };
+                if (state.profile) {
+                    updateFollowingState(state.profile);
+                    if (state.profile.id === targetMatch || state.profile.did === targetMatch || state.profile.handle === targetMatch) {
+                        state.profile.followersCount = action.payload.followersCount;
+                    }
+                }
+                state.users.forEach(updateFollowingState);
+                state.followers.forEach(updateFollowingState);
+                state.followingUsers.forEach(updateFollowingState);
+            })
+            .addCase(unfollowUserAsync.fulfilled, (state: UserState, action) => {
+                const targetMatch = action.meta.arg.userId;
+                const updateUnfollowingState = (u: User) => {
+                    if (u.id === targetMatch || u.did === targetMatch || u.handle === targetMatch) {
+                        u.isFollowing = false;
+                    }
+                };
+                if (state.profile) {
+                    updateUnfollowingState(state.profile);
+                    if (state.profile.id === targetMatch || state.profile.did === targetMatch || state.profile.handle === targetMatch) {
+                        state.profile.followersCount = action.payload.followersCount;
+                    }
+                }
+                state.users.forEach(updateUnfollowingState);
+                state.followers.forEach(updateUnfollowingState);
+                state.followingUsers.forEach(updateUnfollowingState);
+            })
             // Muted Words
+
             .addCase(fetchMutedWords.pending, (state: UserState) => {
                 state.isLoading = true;
             })
