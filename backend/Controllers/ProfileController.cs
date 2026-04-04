@@ -437,13 +437,13 @@ public class ProfileController : ControllerBase
     }
 
     [HttpGet("muted")]
-    public async Task<IActionResult> GetMutedAccounts()
+    public async Task<IActionResult> GetMutedAccounts([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        var users = await _userService.GetMutedUsersAsync(currentUserId);
+        var (users, nextCursor) = await _userService.GetMutedUsersAsync(currentUserId, limit, cursor);
         
         var dtos = new List<UserDto>();
         foreach (var user in users)
@@ -453,17 +453,16 @@ public class ProfileController : ControllerBase
             dto = dto with { IsMuted = true };
             dtos.Add(dto);
         }
-        return Ok(dtos);
+        return Ok(new { mutes = dtos, cursor = nextCursor });
     }
 
-    [HttpGet("blocked")]
-    public async Task<IActionResult> GetBlockedAccounts()
+    public async Task<IActionResult> GetBlockedAccounts([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        var users = await _userService.GetBlockedUsersAsync(currentUserId);
+        var (users, nextCursor) = await _userService.GetBlockedUsersAsync(currentUserId, limit, cursor);
         
         var dtos = new List<UserDto>();
         foreach (var user in users)
@@ -473,7 +472,7 @@ public class ProfileController : ControllerBase
             dto = dto with { IsBlocking = true };
             dtos.Add(dto);
         }
-        return Ok(dtos);
+        return Ok(new { blocks = dtos, cursor = nextCursor });
     }
 
     private UserDto MapUserToDtoWithPreFetchedStatus(User user, Guid? viewerId, UserRelationshipStatusDto? status)

@@ -314,50 +314,68 @@ export const unblockUserAsync = createAsyncThunk<
     }
 );
 
-export const fetchMutedAccounts = createAsyncThunk<User[], void, { rejectValue: string }>(
+export const fetchMutedAccounts = createAsyncThunk<{ users: User[], cursor: string | null }, { limit?: number, cursor?: string } | void, { rejectValue: string }>(
     'user/fetchMutes',
-    async (_, { rejectWithValue }) => {
+    async (params, { rejectWithValue }) => {
         try {
+            const limit = params && 'limit' in params ? params.limit : 50;
+            const cursor = params && 'cursor' in params ? params.cursor : '';
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/users/muted`, {
+            const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.graph.getMutes`);
+            url.searchParams.append('limit', String(limit));
+            if (cursor) url.searchParams.append('cursor', cursor);
+
+            const response = await fetch(url.toString(), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted accounts');
-            return data.map((u: any) => ({
-                id: u.id,
+
+            const users = data.mutes.map((u: any) => ({
+                id: u.did, // Use DID as ID for remote users
                 did: u.did,
                 handle: u.handle,
-                username: u.username || u.handle,
+                username: u.handle.split('.')[0],
                 displayName: u.displayName || '',
                 avatarUrl: u.avatar || u.avatarUrl,
                 isMuted: true,
             } as User));
+
+            return { users, cursor: data.cursor || null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
     }
 );
 
-export const fetchBlockedAccounts = createAsyncThunk<User[], void, { rejectValue: string }>(
+export const fetchBlockedAccounts = createAsyncThunk<{ users: User[], cursor: string | null }, { limit?: number, cursor?: string } | void, { rejectValue: string }>(
     'user/fetchBlocks',
-    async (_, { rejectWithValue }) => {
+    async (params, { rejectWithValue }) => {
         try {
+            const limit = params && 'limit' in params ? params.limit : 50;
+            const cursor = params && 'cursor' in params ? params.cursor : '';
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/users/blocked`, {
+            const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.graph.getBlocks`);
+            url.searchParams.append('limit', String(limit));
+            if (cursor) url.searchParams.append('cursor', cursor);
+
+            const response = await fetch(url.toString(), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch blocked accounts');
-            return data.map((u: any) => ({
-                id: u.id,
+
+            const users = data.blocks.map((u: any) => ({
+                id: u.did,
                 did: u.did,
                 handle: u.handle,
-                username: u.username || u.handle,
+                username: u.handle.split('.')[0],
                 displayName: u.displayName || '',
                 avatarUrl: u.avatar || u.avatarUrl,
                 isBlocking: true,
             } as User));
+
+            return { users, cursor: data.cursor || null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -727,20 +745,50 @@ const userSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Fetch Muted Accounts
-            .addCase(fetchMutedAccounts.pending, (state: UserState) => { state.isLoading = true; })
+            .addCase(fetchMutedAccounts.pending, (state: UserState, action) => {
+                state.isLoading = true;
+                state.error = null;
+                if (action.meta.arg && !action.meta.arg.cursor) {
+                    state.users = [];
+                }
+            })
             .addCase(fetchMutedAccounts.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
-                state.users = action.payload;
+                const { users, cursor } = action.payload;
+                if (action.meta.arg && !action.meta.arg.cursor) {
+                    state.users = users;
+                } else {
+                    const existingIds = new Set(state.users.map(u => u.id));
+                    const newUsers = users.filter(u => !existingIds.has(u.id));
+                    state.users = [...state.users, ...newUsers];
+                }
+                state.cursor = cursor;
+                state.hasMore = users.length > 0 && !!cursor;
             })
             .addCase(fetchMutedAccounts.rejected, (state: UserState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
             // Fetch Blocked Accounts
-            .addCase(fetchBlockedAccounts.pending, (state: UserState) => { state.isLoading = true; })
+            .addCase(fetchBlockedAccounts.pending, (state: UserState, action) => {
+                state.isLoading = true;
+                state.error = null;
+                if (action.meta.arg && !action.meta.arg.cursor) {
+                    state.users = [];
+                }
+            })
             .addCase(fetchBlockedAccounts.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
-                state.users = action.payload;
+                const { users, cursor } = action.payload;
+                if (action.meta.arg && !action.meta.arg.cursor) {
+                    state.users = users;
+                } else {
+                    const existingIds = new Set(state.users.map(u => u.id));
+                    const newUsers = users.filter(u => !existingIds.has(u.id));
+                    state.users = [...state.users, ...newUsers];
+                }
+                state.cursor = cursor;
+                state.hasMore = users.length > 0 && !!cursor;
             })
             .addCase(fetchBlockedAccounts.rejected, (state: UserState, action) => {
                 state.isLoading = false;

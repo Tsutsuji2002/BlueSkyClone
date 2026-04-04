@@ -1288,16 +1288,52 @@ public class UserService : IUserService
         }
     }
 
-    public async Task<List<User>> GetMutedUsersAsync(Guid userId)
+    public async Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {
-        var mutes = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);
-        return mutes.Select(m => m.MutedUser).ToList();
+        int skip = 0;
+        if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var parsedSkip))
+        {
+            skip = parsedSkip;
+        }
+
+        var mutesQuery = _unitOfWork.Mutes.Query()
+            .Where(m => m.UserId == userId)
+            .OrderByDescending(m => m.CreatedAt)
+            .Include(m => m.MutedUser);
+
+        var mutes = await mutesQuery
+            .Skip(skip)
+            .Take(limit)
+            .ToListAsync();
+
+        var users = mutes.Select(m => m.MutedUser).ToList();
+        var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
+
+        return (users, nextCursor);
     }
 
-    public async Task<List<User>> GetBlockedUsersAsync(Guid userId)
+    public async Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {
-        var blocks = await _unitOfWork.Blocks.GetBlockedAccountsAsync(userId);
-        return blocks.Select(b => b.BlockedUser).ToList();
+        int skip = 0;
+        if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var parsedSkip))
+        {
+            skip = parsedSkip;
+        }
+
+        var blocksQuery = _unitOfWork.Blocks.Query()
+            .Where(b => b.UserId == userId)
+            .OrderByDescending(b => b.CreatedAt)
+            .Include(b => b.BlockedUser);
+
+        var blocks = await blocksQuery
+            .Skip(skip)
+            .Take(limit)
+            .ToListAsync();
+
+        var users = blocks.Select(b => b.BlockedUser).ToList();
+        var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
+
+        return (users, nextCursor);
     }
 
     public async Task<List<User>> SearchUsersAsync(string query, int limit = 10)

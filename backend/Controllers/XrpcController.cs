@@ -1067,6 +1067,60 @@ namespace BSkyClone.Controllers
             }
         }
 
+        [Authorize]
+        [HttpGet("app.bsky.graph.getMutes")]
+        public async Task<IActionResult> GetMutesXRPC([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                var (users, nextCursor) = await _userService.GetMutedUsersAsync(userId, limit, cursor);
+                
+                var response = new GetMutesResponse
+                {
+                    Mutes = users.Select(u => MapUserToProfileView(u)).ToList(),
+                    Cursor = nextCursor
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetMutes error");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [Authorize]
+        [HttpGet("app.bsky.graph.getBlocks")]
+        public async Task<IActionResult> GetBlocksXRPC([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                var (users, nextCursor) = await _userService.GetBlockedUsersAsync(userId, limit, cursor);
+                
+                var response = new GetBlocksResponse
+                {
+                    Blocks = users.Select(u => MapUserToProfileView(u)).ToList(),
+                    Cursor = nextCursor
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetBlocks error");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
         private async Task<ProfileViewDetailed> MapUserToProfileViewDetailed(User user, Guid? viewerId = null)
         {
             var profile = new ProfileViewDetailed
@@ -1127,5 +1181,17 @@ namespace BSkyClone.Controllers
             _logger.LogWarning("Unhandled XRPC GET: {Lexicon}", lexicon);
             return BadRequest(new { error = "MethodNotImplemented", message = $"Lexicon {lexicon} is not yet implemented" });
         }
+    }
+
+    public class GetMutesResponse
+    {
+        public List<ProfileView> Mutes { get; set; } = new();
+        public string? Cursor { get; set; }
+    }
+
+    public class GetBlocksResponse
+    {
+        public List<ProfileView> Blocks { get; set; } = new();
+        public string? Cursor { get; set; }
     }
 }

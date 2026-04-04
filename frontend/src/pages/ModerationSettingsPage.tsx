@@ -14,8 +14,10 @@ import {
     FiCheckCircle,
     FiChevronRight,
     FiShield,
-    FiInfo
+    FiInfo,
+    FiLock
 } from 'react-icons/fi';
+import api from '../utils/api';
 import { cn } from '../utils/classNames';
 
 const ModerationSettingsPage: React.FC = () => {
@@ -32,28 +34,78 @@ const ModerationSettingsPage: React.FC = () => {
     const graphicMedia = settings?.graphicMediaFilter ?? 'warn';
     const nonSexualNudity = settings?.nonSexualNudityFilter ?? 'show';
 
+    const [counts, setCounts] = React.useState({
+        mutes: 0,
+        blocks: 0,
+        lists: 0,
+        mutedWords: 0
+    });
+    const [loadingCounts, setLoadingCounts] = React.useState(true);
+
     const handleUpdate = (update: any) => {
         dispatch(updateNotificationSettings(update));
     };
 
+    const fetchCounts = async () => {
+        try {
+            setLoadingCounts(true);
+            const [mutesRes, blocksRes, listsRes, wordsRes] = await Promise.all([
+                api.get('/xrpc/app.bsky.graph.getMutes?limit=1'),
+                api.get('/xrpc/app.bsky.graph.getBlocks?limit=1'),
+                api.get('/Lists/my?purpose=app.bsky.graph.defs%23modlist'),
+                api.get('/users/muted-words')
+            ]);
+
+            // Note: Since we don't have a simple count endpoint, we approximate or 
+            // if the API returns a total count (not in standard BSky yet), we use it.
+            // For now, we'll just show the visibility of items if they exist or 
+            // I'll assume our backend might provide a count in a future update.
+            // For this implementation, I'll fetch the full lists for words and mod-lists as they are usually small.
+
+            setCounts({
+                mutes: (mutesRes.data as any).mutes?.length || 0,
+                blocks: (blocksRes.data as any).blocks?.length || 0,
+                lists: (listsRes.data as any).length || 0,
+                mutedWords: (wordsRes.data as any).length || 0
+            });
+        } catch (error) {
+            console.error('Failed to fetch moderation counts:', error);
+        } finally {
+            setLoadingCounts(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchCounts();
+    }, []);
+
     const MenuLinkItem = ({
         icon,
         label,
+        count,
         onClick
     }: {
         icon: React.ReactNode;
         label: string;
+        count?: number | string;
         onClick?: () => void;
     }) => (
         <button
             onClick={onClick}
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-50 dark:border-dark-border/50"
+            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-all duration-200 border-b border-gray-50 dark:border-dark-border/50 group"
         >
             <div className="flex items-center gap-4 text-gray-900 dark:text-dark-text">
-                <span className="text-gray-500 dark:text-dark-text-secondary">{icon}</span>
+                <span className="text-gray-500 dark:text-dark-text-secondary group-hover:text-blue-500 transition-colors">{icon}</span>
                 <span className="font-medium text-[15px]">{label}</span>
             </div>
-            <FiChevronRight className="text-gray-400 dark:text-dark-text-secondary" />
+            <div className="flex items-center gap-2">
+                {count !== undefined && !loadingCounts && (
+                    <span className="text-sm font-medium text-gray-400 dark:text-dark-text-secondary bg-gray-100 dark:bg-dark-bg px-2 py-0.5 rounded-md">
+                        {count}
+                    </span>
+                )}
+                <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary group-hover:translate-x-0.5 transition-transform" />
+            </div>
         </button>
     );
 
@@ -122,21 +174,25 @@ const ModerationSettingsPage: React.FC = () => {
                         <MenuLinkItem
                             icon={<FiFilter size={20} />}
                             label={t('moderation.muted_words_tags')}
+                            count={counts.mutedWords > 0 ? counts.mutedWords : undefined}
                             onClick={() => navigate('/settings/moderation/muted-words')}
                         />
                         <MenuLinkItem
                             icon={<FiUsers size={20} />}
                             label={t('moderation.moderation_lists')}
+                            count={counts.lists > 0 ? counts.lists : undefined}
                             onClick={() => navigate('/settings/moderation/lists')}
                         />
                         <MenuLinkItem
                             icon={<FiUserX size={20} />}
                             label={t('moderation.muted_accounts')}
+                            count={counts.mutes > 0 ? `${counts.mutes}+` : undefined}
                             onClick={() => navigate('/settings/moderation/muted-accounts')}
                         />
                         <MenuLinkItem
                             icon={<FiSlash size={20} />}
                             label={t('moderation.blocked_accounts')}
+                            count={counts.blocks > 0 ? `${counts.blocks}+` : undefined}
                             onClick={() => navigate('/settings/moderation/blocked-accounts')}
                         />
                         <MenuLinkItem

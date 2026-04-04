@@ -29,8 +29,8 @@ public interface IUserService
     Task<MutedByListDto?> GetMutingListAsync(Guid viewerId, Guid targetUserId);
     Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId);
     Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId);
-    Task<List<User>> GetMutedUsersAsync(Guid userId);
-    Task<List<User>> GetBlockedUsersAsync(Guid userId);
+    Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit = 50, string? cursor = null);
+    Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit = 50, string? cursor = null);
     Task<List<User>> SearchUsersAsync(string query, int limit = 10);
     Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20);
     Task<List<MutedWord>> GetMutedWordsAsync(Guid userId);
