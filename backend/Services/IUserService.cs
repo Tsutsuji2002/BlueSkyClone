@@ -46,4 +46,5 @@ public interface IUserService
     Task<List<User>> GetSuggestedUsersAsync(int limit = 10);
     Task SyncMutedWordsWithAtProtoAsync(Guid userId);
     Task<bool> MergeDuplicateUsersAsync(string did);
+    Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids);
 }

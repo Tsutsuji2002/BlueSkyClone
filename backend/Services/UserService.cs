@@ -890,6 +890,9 @@ public class UserService : IUserService
                     .Distinct()
                     .ToList();
 
+                // Data Healing: Merge all duplicates in this batch before resolving profiles
+                await MergeDuplicateUsersBatchAsync(dids);
+
                 var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(dids);
                 var existingUsers = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
                 foreach (var u in usersFromDb)
@@ -901,7 +904,7 @@ public class UserService : IUserService
                 }
 
 
-                _logger.LogInformation("[GetRemoteFollowersAsync] {ExistingCount} found in local DB", existingUsers.Count);
+                _logger.LogInformation("[GetRemoteFollowersAsync] {ExistingCount} unique primary users found in local DB", existingUsers.Count);
 
                 foreach (var item in followersArray)
                 {
@@ -1008,6 +1011,9 @@ public class UserService : IUserService
                     .ToList();
 
                 // Batch lookup existing users
+                // Data Healing: Merge all duplicates in this batch before resolving profiles
+                await MergeDuplicateUsersBatchAsync(dids);
+
                 var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(dids);
                 var existingUsers = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
                 foreach (var u in usersFromDb)
@@ -1084,9 +1090,6 @@ public class UserService : IUserService
 
         if (string.IsNullOrEmpty(did)) return null;
         did = did.ToLowerInvariant();
-
-        // Data Healing: Merge duplicates before proceeding
-        await MergeDuplicateUsersAsync(did);
 
         // Check cache/existing batch
         existingUsers.TryGetValue(did, out var user);
@@ -1400,6 +1403,20 @@ public class UserService : IUserService
 
         return true;
     }
+
+    public async Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids)
+    {
+        var normalizedDids = dids.Select(d => d.ToLowerInvariant()).Distinct().ToList();
+        bool anyMerged = false;
+
+        foreach (var did in normalizedDids)
+        {
+            if (await MergeDuplicateUsersAsync(did)) anyMerged = true;
+        }
+
+        return anyMerged;
+    }
+
 
     public async Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId)
     {
@@ -1938,9 +1955,6 @@ public class UserService : IUserService
 
         did = did.ToLowerInvariant();
 
-        // Data Healing: Merge duplicates before proceeding
-        await MergeDuplicateUsersAsync(did);
-
         var user = await _unitOfWork.Users.GetByDidAsync(did);
         bool isNew = false;
         
@@ -2130,11 +2144,15 @@ public class UserService : IUserService
                     .Distinct()
                     .ToList();
 
-                var existingUsers = (await _unitOfWork.Users.Query()
-                    .Where(u => dids.Contains(u.Did))
-                    .ToListAsync())
-                    .GroupBy(u => u.Did)
-                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(dids);
+                var existingUsers = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+                foreach (var u in usersFromDb)
+                {
+                    if (!string.IsNullOrEmpty(u.Did) && !existingUsers.ContainsKey(u.Did))
+                    {
+                        existingUsers[u.Did] = u;
+                    }
+                }
 
                 foreach (var item in actorsArray)
                 {
@@ -2211,13 +2229,14 @@ public class UserService : IUserService
 
         return null;
     }
+
     public async Task<bool> MergeDuplicateUsersAsync(string did)
     {
         if (string.IsNullOrEmpty(did)) return false;
         var normalizedDid = did.ToLowerInvariant();
 
+        // Get all users with this DID (case-insensitive)
         var users = await _unitOfWork.Users.Query()
-            .AsNoTracking()
             .Where(u => u.Did.ToLower() == normalizedDid)
             .OrderBy(u => u.CreatedAt) // Oldest is primary
             .ToListAsync();
@@ -2225,46 +2244,54 @@ public class UserService : IUserService
         if (users.Count <= 1) return false;
 
         var primary = users[0];
-        _logger.LogWarning("[MergeDuplicateUsersAsync] Found {Count} duplicates for DID {Did}. Merging into primary {PrimaryId}", users.Count, normalizedDid, primary.Id);
+        _logger.LogWarning("[MergeDuplicateUsersAsync] Merging {Count} duplicates for {Did} into Primary {PrimaryId}", users.Count, normalizedDid, primary.Id);
 
         for (int i = 1; i < users.Count; i++)
         {
             var secondary = users[i];
             
             // 1. Move Follows (Incoming and Outgoing)
-            var outgoingFollows = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == secondary.Id).ToListAsync();
+            var outgoingFollows = await _unitOfWork.Follows.Query()
+                .Where(f => f.FollowerId == secondary.Id)
+                .ToListAsync();
             foreach (var f in outgoingFollows) {
                 var exists = await _unitOfWork.Follows.GetAsync(primary.Id, f.FollowingId);
                 if (exists == null) { f.FollowerId = primary.Id; _unitOfWork.Follows.Update(f); }
                 else _unitOfWork.Follows.Remove(f);
             }
 
-            var incomingFollows = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == secondary.Id).ToListAsync();
+            var incomingFollows = await _unitOfWork.Follows.Query()
+                .Where(f => f.FollowingId == secondary.Id)
+                .ToListAsync();
             foreach (var f in incomingFollows) {
                 var exists = await _unitOfWork.Follows.GetAsync(f.FollowerId, primary.Id);
                 if (exists == null) { f.FollowingId = primary.Id; _unitOfWork.Follows.Update(f); }
                 else _unitOfWork.Follows.Remove(f);
             }
 
-            // 2. Move Blocks (Outgoing)
+            // 2. Move Blocks and Mutes
             var blocks = await _unitOfWork.Blocks.Query().Where(b => b.UserId == secondary.Id).ToListAsync();
             foreach (var b in blocks) { b.UserId = primary.Id; _unitOfWork.Blocks.Update(b); }
 
-            // 3. Move Mutes (Outgoing)
             var mutes = await _unitOfWork.Mutes.Query().Where(m => m.UserId == secondary.Id).ToListAsync();
             foreach (var m in mutes) { m.UserId = primary.Id; _unitOfWork.Mutes.Update(m); }
 
-            // 4. Move Posts
+            // 3. Move Content (Posts, Likes, Reposts)
             var posts = await _unitOfWork.Posts.Query().Where(p => p.AuthorId == secondary.Id).ToListAsync();
             foreach (var p in posts) { p.AuthorId = primary.Id; _unitOfWork.Posts.Update(p); }
 
-            // 5. Delete secondary user
+            var likes = await _unitOfWork.Likes.Query().Where(l => l.UserId == secondary.Id).ToListAsync();
+            foreach (var l in likes) { l.UserId = primary.Id; _unitOfWork.Likes.Update(l); }
+
+            var reposts = await _unitOfWork.Reposts.Query().Where(r => r.UserId == secondary.Id).ToListAsync();
+            foreach (var r in reposts) { r.UserId = primary.Id; _unitOfWork.Reposts.Update(r); }
+
+            // 4. Delete Secondary User
             var userToDelete = await _unitOfWork.Users.GetByIdAsync(secondary.Id);
             if (userToDelete != null) _unitOfWork.Users.Remove(userToDelete);
         }
 
         await _unitOfWork.CompleteAsync();
-        _logger.LogInformation("[MergeDuplicateUsersAsync] Successfully merged duplicates for {Did}", normalizedDid);
         return true;
     }
 }
