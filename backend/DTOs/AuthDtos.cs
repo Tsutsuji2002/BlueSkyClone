@@ -69,6 +69,9 @@ public record UserDto(
 
     [JsonPropertyName("muteInfo")]
     public PostMuteDto? MuteInfo { get; set; }
+
+    [JsonPropertyName("pinnedPost")]
+    public PostDto? PinnedPost { get; set; }
 }
 
 public record MutedByListDto(Guid Id, string Name, string? Purpose);

@@ -52,6 +52,7 @@ export interface User {
         reason: string;
     };
     labels?: string[];
+    pinnedPost?: Post;
 }
 
 export interface UserSettings {

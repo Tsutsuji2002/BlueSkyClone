@@ -61,10 +61,10 @@ const ProfilePage: React.FC = () => {
 
     const sortedPosts = React.useMemo(() => {
         if (activeTab !== 'posts') return reduxPosts;
-        const pinned = reduxPosts.find(p => (p as any).isPinned);
+        const pinned = profileUser?.pinnedPost || reduxPosts.find(p => p.isPinned);
         if (!pinned) return reduxPosts;
         return [pinned, ...reduxPosts.filter(p => (p.uri || p.id) !== (pinned.uri || pinned.id))];
-    }, [reduxPosts, activeTab]);
+    }, [reduxPosts, activeTab, profileUser?.pinnedPost]);
 
     const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
     const isUserFeedsLoading = useAppSelector((state: RootState) => state.feeds.userFeedsLoading);
@@ -327,7 +327,13 @@ const ProfilePage: React.FC = () => {
 
     useDocumentTitle(profileUser?.displayName || profileUser?.handle || '');
 
-    if (isProfileLoading && !profileUser) {
+    const isStale = profileUser && handle &&
+        profileUser.handle !== handle &&
+        profileUser.did !== handle &&
+        profileUser.id !== handle &&
+        (!handle.startsWith('did:') || handle !== profileUser.did);
+
+    if ((isProfileLoading && !profileUser) || isStale) {
         return <ProfileSkeleton />;
     }
 

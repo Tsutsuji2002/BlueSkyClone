@@ -14,11 +14,13 @@ namespace BSkyClone.Controllers;
 public class ProfileController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IPostService _postService;
     private readonly BSkyClone.Models.BSkyDbContext _db;
 
-    public ProfileController(IUserService userService, BSkyClone.Models.BSkyDbContext db)
+    public ProfileController(IUserService userService, IPostService postService, BSkyClone.Models.BSkyDbContext db)
     {
         _userService = userService;
+        _postService = postService;
         _db = db;
     }
 
@@ -138,6 +140,26 @@ public class ProfileController : ControllerBase
             MutedBy = mutedBy,
             MuteInfo = await EvaluateProfileMuteInfo(user, currentUserIdGuid)
         };
+
+        if (!string.IsNullOrEmpty(user.PinnedPostUri))
+        {
+            try
+            {
+                var pinnedPost = await _postService.GetPostByUriAsync(user.PinnedPostUri);
+                if (pinnedPost != null)
+                {
+                    var enriched = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
+                    if (enriched.Any())
+                    {
+                        userDto.PinnedPost = enriched.First();
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore pinned post errors
+            }
+        }
 
         return Ok(new { 
             user = userDto,
