@@ -846,6 +846,7 @@ public class UserService : IUserService
             }
 
             var content = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("[GetRemoteFollowersAsync] Received response: {Length} characters", content.Length);
             
             using var doc = JsonDocument.Parse(content);
             var root = doc.RootElement;
@@ -854,6 +855,7 @@ public class UserService : IUserService
             if (root.TryGetProperty("followers", out var followersProp))
             {
                 var followersArray = followersProp.EnumerateArray().ToList();
+                _logger.LogInformation("[GetRemoteFollowersAsync] Found {Count} followers in response", followersArray.Count);
                 
                 var dids = followersArray
                     .Select(f => f.TryGetProperty("did", out var d) ? d.GetString() : null)
@@ -880,8 +882,13 @@ public class UserService : IUserService
                     {
                         users.Add(u);
                     }
+                    else
+                    {
+                        _logger.LogWarning("[GetRemoteFollowersAsync] Failed to resolve stub for item: {Item}", item.ToString());
+                    }
                 }
                 
+                _logger.LogInformation("[GetRemoteFollowersAsync] Resolved {Count} users", users.Count);
                 await _unitOfWork.CompleteAsync(); // Complete once for all stubs
                 
                 // Add follow records (persisting the relationship)
@@ -954,9 +961,17 @@ public class UserService : IUserService
                 foreach (var item in followsArray)
                 {
                     var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
-                    if (u != null) users.Add(u);
+                    if (u != null) 
+                    {
+                        users.Add(u);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[GetRemoteFollowingAsync] Failed to resolve stub for item: {Item}", item.ToString());
+                    }
                 }
                 
+                _logger.LogInformation("[GetRemoteFollowingAsync] Resolved {Count} users", users.Count);
                 await _unitOfWork.CompleteAsync(); // Complete once for all stubs
                 
                 // Add follow records (persisting the relationship)
