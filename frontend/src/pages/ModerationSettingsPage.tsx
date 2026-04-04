@@ -56,12 +56,6 @@ const ModerationSettingsPage: React.FC = () => {
                 api.get('/users/muted-words')
             ]);
 
-            // Note: Since we don't have a simple count endpoint, we approximate or 
-            // if the API returns a total count (not in standard BSky yet), we use it.
-            // For now, we'll just show the visibility of items if they exist or 
-            // I'll assume our backend might provide a count in a future update.
-            // For this implementation, I'll fetch the full lists for words and mod-lists as they are usually small.
-
             setCounts({
                 mutes: (mutesRes.data as any).mutes?.length || 0,
                 blocks: (blocksRes.data as any).blocks?.length || 0,

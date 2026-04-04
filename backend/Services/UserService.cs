@@ -534,27 +534,21 @@ public class UserService : IUserService
                     { "createdAt", follow.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
                 };
 
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bskyToken);
-                var bskyResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord",
-                    new StringContent(JsonSerializer.Serialize(new { repo = follower.Did, collection = "app.bsky.graph.follow", record = followRecord }), Encoding.UTF8, "application/json"));
+                var getResponse = await _xrpcProxy.ProxyRequestAsync(follower.Did, "com.atproto.repo.createRecord", new Dictionary<string, string?>(), bskyToken, "POST", new { repo = follower.Did, collection = "app.bsky.graph.follow", record = followRecord });
 
-                if (bskyResponse.IsSuccessStatusCode)
-                {
-                    var responseBody = await bskyResponse.Content.ReadAsStringAsync();
-                    var json = JsonDocument.Parse(responseBody);
-                    follow.Uri = json.RootElement.GetProperty("uri").GetString() ?? follow.Uri;
-                    follow.Cid = json.RootElement.GetProperty("cid").GetString();
-                    follow.Tid = follow.Uri?.Split('/').Last() ?? follow.Tid;
-                    Console.WriteLine($"[FollowUserAsync] Proxied follow to Bluesky for User {followerId}");
-                }
-                else
-                {
-                    var error = await bskyResponse.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[FollowUserAsync] Bluesky proxy failed (non-fatal, local saved): {bskyResponse.StatusCode} - {error}");
-                    // Do NOT return null — we still save locally
-                }
+            if (getResponse.Success && !string.IsNullOrEmpty(getResponse.Content))
+            {
+                var json = JsonDocument.Parse(getResponse.Content);
+                follow.Uri = json.RootElement.GetProperty("uri").GetString() ?? follow.Uri;
+                follow.Cid = json.RootElement.GetProperty("cid").GetString();
+                follow.Tid = follow.Uri?.Split('/').Last() ?? follow.Tid;
+                Console.WriteLine($"[FollowUserAsync] Proxied follow to Bluesky for User {followerId}");
             }
+            else
+            {
+                Console.WriteLine($"[FollowUserAsync] Bluesky proxy failed (non-fatal, local saved): {getResponse.StatusCode} - {getResponse.Content}");
+                // Do NOT return null — we still save locally
+            }    }
             catch (Exception ex)
             {
                 Console.WriteLine($"[FollowUserAsync] Bluesky proxy error (non-fatal): {ex.Message}");
@@ -682,18 +676,12 @@ public class UserService : IUserService
                 var token = await _cacheService.GetAsync<string>($"BlueskyToken_{followerId}");
                 if (!string.IsNullOrEmpty(token))
                 {
-                    using var client = new HttpClient();
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                    var bskyResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord",
-                        new StringContent(JsonSerializer.Serialize(new { repo = follower.Did, collection = "app.bsky.graph.follow", rkey = existing.Tid }), Encoding.UTF8, "application/json"));
+                    var getResponse = await _xrpcProxy.ProxyRequestAsync(follower.Did, "com.atproto.repo.deleteRecord", new Dictionary<string, string?>(), token, "POST", new { repo = follower.Did, collection = "app.bsky.graph.follow", rkey = existing.Tid });
 
-                    if (bskyResponse.IsSuccessStatusCode)
-                        Console.WriteLine($"[UnfollowUserAsync] Proxied unfollow to Bluesky for User {followerId}");
-                    else
-                    {
-                        var error = await bskyResponse.Content.ReadAsStringAsync();
-                        Console.WriteLine($"[UnfollowUserAsync] Bluesky proxy failed (non-fatal, local removed): {bskyResponse.StatusCode} - {error}");
-                    }
+                if (getResponse.Success)
+                    Console.WriteLine($"[UnfollowUserAsync] Proxied unfollow to Bluesky for User {followerId}");
+                else
+                    Console.WriteLine($"[UnfollowUserAsync] Bluesky proxy failed (non-fatal, local removed): {getResponse.StatusCode} - {getResponse.Content}");    }
                 }
                 else
                 {
@@ -1102,23 +1090,38 @@ public class UserService : IUserService
         try
         {
             if (!string.IsNullOrEmpty(blocker.Did) && !string.IsNullOrEmpty(blocked.Did))
+        {
+            var tid = ProtocolUtils.GenerateTid();
+            var blockRecord = new Dictionary<string, object>
             {
-                var tid = ProtocolUtils.GenerateTid();
-                var blockRecord = new Dictionary<string, object>
-                {
-                    { "$type", "app.bsky.graph.block" },
-                    { "subject", blocked.Did },
-                    { "createdAt", block.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
-                };
+                { "$type", "app.bsky.graph.block" },
+                { "subject", blocked.Did },
+                { "createdAt", block.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
+            };
 
+            var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token) && !blocker.Did.StartsWith("did:local:"))
+            {
+                var getResponse = await _xrpcProxy.ProxyRequestAsync(blocker.Did, "com.atproto.repo.createRecord", new Dictionary<string, string?>(), token, "POST", new { repo = blocker.Did, collection = "app.bsky.graph.block", record = blockRecord });
+                if (getResponse.Success && !string.IsNullOrEmpty(getResponse.Content))
+                {
+                    var json = JsonDocument.Parse(getResponse.Content);
+                    block.Uri = json.RootElement.GetProperty("uri").GetString() ?? block.Uri;
+                    block.Cid = json.RootElement.GetProperty("cid").GetString();
+                    block.Tid = block.Uri?.Split('/').Last() ?? tid;
+                }
+            }
+            else
+            {
                 var cid = await _repoManager.CreateRecordAsync(blocker.Did, "app.bsky.graph.block", blockRecord);
                 block.Uri = $"at://{blocker.Did}/app.bsky.graph.block/{tid}";
             }
         }
-        catch (Exception ex)
-        {
-             Console.WriteLine($"[BlockUserAsync] Repo Signing Error: {ex.Message}");
-        }
+    }
+    catch (Exception ex)
+    {
+         Console.WriteLine($"[BlockUserAsync] Repo Signing Error: {ex.Message}");
+    }    }
 
         await _unitOfWork.Blocks.AddAsync(block);
         
@@ -1154,10 +1157,7 @@ public class UserService : IUserService
                 var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
                 if (!string.IsNullOrEmpty(token))
                 {
-                    using var client = new HttpClient();
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                    await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord",
-                        new StringContent(JsonSerializer.Serialize(new { repo = blocker.Did, collection = "app.bsky.graph.block", rkey }), Encoding.UTF8, "application/json"));
+                    var getResponse = await _xrpcProxy.ProxyRequestAsync(blocker.Did, "com.atproto.repo.deleteRecord", new Dictionary<string, string?>(), token, "POST", new { repo = blocker.Did, collection = "app.bsky.graph.block", rkey });
                 }
             }
         }
@@ -1196,20 +1196,17 @@ public class UserService : IUserService
         try
         {
             var muter = await _unitOfWork.Users.GetByIdAsync(userId);
-            var muted = await _unitOfWork.Users.GetByIdAsync(mutedUserId);
-            if (muter != null && muted != null && !string.IsNullOrEmpty(muted.Did))
+        var muted = await _unitOfWork.Users.GetByIdAsync(mutedUserId);
+        if (muter != null && !string.IsNullOrEmpty(muter.Did) && !muter.Did.StartsWith("did:local:") && muted != null && !string.IsNullOrEmpty(muted.Did))
+        {
+            var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token))
             {
-                var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
-                if (!string.IsNullOrEmpty(token))
-                {
-                    using var client = new HttpClient();
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                    await client.PostAsync("https://bsky.social/xrpc/app.bsky.graph.muteActor",
-                        new StringContent(JsonSerializer.Serialize(new { actor = muted.Did }), Encoding.UTF8, "application/json"));
-                }
+                await _xrpcProxy.ProxyRequestAsync(muter.Did, "app.bsky.graph.muteActor", new Dictionary<string, string?>(), token, "POST", new { actor = muted.Did });
             }
         }
-        catch (Exception ex) { Console.WriteLine($"[MuteUserAsync] ATProto sync error: {ex.Message}"); }
+    }
+    catch (Exception ex) { Console.WriteLine($"[MuteUserAsync] ATProto sync error: {ex.Message}"); }
 
         return true;
     }
@@ -1291,49 +1288,109 @@ public class UserService : IUserService
     public async Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {
         int skip = 0;
-        if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var parsedSkip))
-        {
-            skip = parsedSkip;
-        }
+        if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var parsedSkip)) { skip = parsedSkip; }
 
         var mutesQuery = _unitOfWork.Mutes.Query()
             .Where(m => m.UserId == userId)
             .OrderByDescending(m => m.CreatedAt)
             .Include(m => m.MutedUser);
-
-        var mutes = await mutesQuery
-            .Skip(skip)
-            .Take(limit)
-            .ToListAsync();
-
-        var users = mutes.Select(m => m.MutedUser).ToList();
-        var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
-
-        return (users, nextCursor);
+        var mutes = await mutesQuery.Skip(skip).Take(limit).ToListAsync();
+        var localUsers = mutes.Select(m => m.MutedUser).ToList();
+        
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user != null && !string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
+        {
+            var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token))
+            {
+                var queryParams = new Dictionary<string, string?> { { "limit", limit.ToString() }, { "cursor", cursor } };
+                if (cursor != null && !int.TryParse(cursor, out _))
+                {
+                    localUsers.Clear(); // Skip local users if cursor is a remote cursor hash
+                }
+                var getResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.graph.getMutes", queryParams, token);
+                if (getResponse.Success && !string.IsNullOrEmpty(getResponse.Content))
+                {
+                    try
+                    {
+                        var doc = JsonDocument.Parse(getResponse.Content);
+                        var remoteUsers = new List<User>();
+                        if (doc.RootElement.TryGetProperty("mutes", out var mutesElement) && mutesElement.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var mute in mutesElement.EnumerateArray())
+                            {
+                                var did = mute.GetProperty("did").GetString();
+                                var handle = mute.GetProperty("handle").GetString();
+                                if (string.IsNullOrEmpty(did) || localUsers.Any(u => u.Did == did)) continue;
+                                var displayName = mute.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
+                                var avatar = mute.TryGetProperty("avatar", out var av) ? av.GetString() : null;
+                                remoteUsers.Add(new User { Id = Guid.NewGuid(), Did = did, Handle = handle ?? "", Username = handle?.Split('.')[0] ?? "", DisplayName = displayName, AvatarUrl = avatar });
+                            }
+                        }
+                        string? nextCursor = doc.RootElement.TryGetProperty("cursor", out var cursorElement) && cursorElement.ValueKind == JsonValueKind.String ? cursorElement.GetString() : null;
+                        localUsers.AddRange(remoteUsers);
+                        return (localUsers, nextCursor);
+                    }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to parse remote mutes"); }
+                }
+            }
+        }
+        var nextCursorLocal = localUsers.Count == limit ? (skip + limit).ToString() : null;
+        return (localUsers, nextCursorLocal);
     }
 
     public async Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {
         int skip = 0;
-        if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var parsedSkip))
-        {
-            skip = parsedSkip;
-        }
+        if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var parsedSkip)) { skip = parsedSkip; }
 
         var blocksQuery = _unitOfWork.Blocks.Query()
             .Where(b => b.UserId == userId)
             .OrderByDescending(b => b.CreatedAt)
             .Include(b => b.BlockedUser);
-
-        var blocks = await blocksQuery
-            .Skip(skip)
-            .Take(limit)
-            .ToListAsync();
-
-        var users = blocks.Select(b => b.BlockedUser).ToList();
-        var nextCursor = users.Count == limit ? (skip + limit).ToString() : null;
-
-        return (users, nextCursor);
+        var blocks = await blocksQuery.Skip(skip).Take(limit).ToListAsync();
+        var localUsers = blocks.Select(b => b.BlockedUser).ToList();
+        
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user != null && !string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
+        {
+            var token = await _cacheService.GetAsync<string>($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token))
+            {
+                var queryParams = new Dictionary<string, string?> { { "limit", limit.ToString() }, { "cursor", cursor } };
+                if (cursor != null && !int.TryParse(cursor, out _))
+                {
+                    localUsers.Clear(); // Skip local users if cursor is a remote cursor hash
+                }
+                var getResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.graph.getBlocks", queryParams, token);
+                if (getResponse.Success && !string.IsNullOrEmpty(getResponse.Content))
+                {
+                    try
+                    {
+                        var doc = JsonDocument.Parse(getResponse.Content);
+                        var remoteUsers = new List<User>();
+                        if (doc.RootElement.TryGetProperty("blocks", out var blocksElement) && blocksElement.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var block in blocksElement.EnumerateArray())
+                            {
+                                var did = block.GetProperty("did").GetString();
+                                var handle = block.GetProperty("handle").GetString();
+                                if (string.IsNullOrEmpty(did) || localUsers.Any(u => u.Did == did)) continue;
+                                var displayName = block.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
+                                var avatar = block.TryGetProperty("avatar", out var av) ? av.GetString() : null;
+                                remoteUsers.Add(new User { Id = Guid.NewGuid(), Did = did, Handle = handle ?? "", Username = handle?.Split('.')[0] ?? "", DisplayName = displayName, AvatarUrl = avatar });
+                            }
+                        }
+                        string? nextCursor = doc.RootElement.TryGetProperty("cursor", out var cursorElement) && cursorElement.ValueKind == JsonValueKind.String ? cursorElement.GetString() : null;
+                        localUsers.AddRange(remoteUsers);
+                        return (localUsers, nextCursor);
+                    }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to parse remote blocks"); }
+                }
+            }
+        }
+        var nextCursorLocal = localUsers.Count == limit ? (skip + limit).ToString() : null;
+        return (localUsers, nextCursorLocal);
     }
 
     public async Task<List<User>> SearchUsersAsync(string query, int limit = 10)

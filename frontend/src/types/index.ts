@@ -429,11 +429,13 @@ export interface PostsState {
 
 export interface UserState {
     profile: User | null; // Current viewing profile
-    users: User[]; // All sample users
+    users: User[]; // General purpose users list
     suggestedUsers: User[]; // Suggested users to follow
     mutedWords: MutedWord[];
-    mutedUsers: string[]; // User IDs
-    blockedUsers: string[]; // User IDs
+    mutedUsers: User[]; // Muted accounts list
+    blockedUsers: User[]; // Blocked accounts list
+    followers: User[]; // Followers of active profile
+    followingUsers: User[]; // Following of active profile
     selectedInterests: string[];
     searchResults: User[];
     activeProfileTab?: string;
@@ -444,6 +446,14 @@ export interface UserState {
     actionLoading: Record<string, boolean>;
     cursor: string | null;
     hasMore: boolean;
+    mutedCursor: string | null;
+    mutedHasMore: boolean;
+    blockedCursor: string | null;
+    blockedHasMore: boolean;
+    followersCursor: string | null;
+    followersHasMore: boolean;
+    followingCursor: string | null;
+    followingHasMore: boolean;
 }
 
 export interface NotificationsState {

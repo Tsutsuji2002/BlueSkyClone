@@ -9,7 +9,7 @@ import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearUsers, clearProfile } from '../redux/slices/userSlice';
+import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowing, clearProfile } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
 
@@ -19,7 +19,7 @@ const FollowingPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { profile, users, isLoading, cursor, hasMore } = useAppSelector((state: RootState) => state.user);
+    const { profile, followingUsers: users, isLoading, followingCursor: cursor, followingHasMore: hasMore } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const observerTarget = React.useRef<HTMLDivElement>(null);
 
@@ -27,7 +27,7 @@ const FollowingPage: React.FC = () => {
 
     useEffect(() => {
         dispatch(clearProfile());
-        dispatch(clearUsers());
+        dispatch(clearFollowing());
 
         let profilePromise: any;
         let listPromise: any;
@@ -97,7 +97,7 @@ const FollowingPage: React.FC = () => {
         return (
             <div className="flex flex-col min-h-screen">
                 <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border px-4 py-3 h-[73px]">
-                   {/* Ghost Header */}
+                    {/* Ghost Header */}
                 </div>
                 <UserSkeleton count={8} />
             </div>
@@ -129,104 +129,104 @@ const FollowingPage: React.FC = () => {
 
     return (
         <div className="flex flex-col min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
-                {/* Header */}
-                <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border px-4 py-3">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors text-gray-700 dark:text-dark-text"
-                        >
-                            <FiArrowLeft size={20} />
-                        </button>
-                        <div>
-                            <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                                {profileUser.displayName}
-                            </h1>
-                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                {formatCount(profileUser.followingCount)} {t('profile.following')}
-                            </p>
-                        </div>
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border px-4 py-3">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors text-gray-700 dark:text-dark-text"
+                    >
+                        <FiArrowLeft size={20} />
+                    </button>
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
+                            {profileUser.displayName}
+                        </h1>
+                        <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
+                            {formatCount(profileUser.followingCount)} {t('profile.following')}
+                        </p>
                     </div>
                 </div>
+            </div>
 
-                {/* Following List */}
-                <div className="flex-1">
-                    {following.length > 0 ? (
-                        <>
-                            {following.map((user: User) => (
-                                <div
-                                    key={user.id}
-                                    className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <UserHoverCard user={user}>
-                                            <button onClick={() => navigate(`/profile/${user.handle || 'user/' + user.id}`)}>
-                                                <Avatar
-                                                    src={user.avatarUrl || user.avatar}
-                                                    alt={user.displayName}
-                                                    size="md"
-                                                />
-                                            </button>
-                                        </UserHoverCard>
-                                        <div className="flex-1 min-w-0">
-                                            <button
-                                                onClick={() => navigate(`/profile/${user.handle || 'user/' + user.id}`)}
-                                                className="block text-left"
-                                            >
-                                                <UserHoverCard user={user}>
-                                                    <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">
-                                                        {user.displayName}
-                                                    </h3>
-                                                </UserHoverCard>
-                                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                                    {user.handle}
-                                                </p>
-                                            </button>
-                                            {user.bio && (
-                                                <p className="mt-1 text-sm text-gray-700 dark:text-dark-text line-clamp-2">
-                                                    {user.bio}
-                                                </p>
-                                            )}
-                                        </div>
-                                        {currentUser?.id !== user.id && currentUser?.did !== user.did && (
-                                            <Button
-                                                variant={user.isFollowing ? 'secondary' : 'primary'}
-                                                size="sm"
-                                                className="rounded-full font-bold px-4 shrink-0"
-                                                onClick={() => handleFollowToggle(user)}
-                                            >
-                                                {user.isFollowing ? (
-                                                    <>
-                                                        <FiCheck size={16} />
-                                                        {t('profile.following_btn')}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <FiPlus size={16} />
-                                                        {t('profile.follow')}
-                                                    </>
-                                                )}
-                                            </Button>
+            {/* Following List */}
+            <div className="flex-1">
+                {following.length > 0 ? (
+                    <>
+                        {following.map((user: User) => (
+                            <div
+                                key={user.id}
+                                className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <UserHoverCard user={user}>
+                                        <button onClick={() => navigate(`/profile/${user.handle || 'user/' + user.id}`)}>
+                                            <Avatar
+                                                src={user.avatarUrl || user.avatar}
+                                                alt={user.displayName}
+                                                size="md"
+                                            />
+                                        </button>
+                                    </UserHoverCard>
+                                    <div className="flex-1 min-w-0">
+                                        <button
+                                            onClick={() => navigate(`/profile/${user.handle || 'user/' + user.id}`)}
+                                            className="block text-left"
+                                        >
+                                            <UserHoverCard user={user}>
+                                                <h3 className="font-bold text-gray-900 dark:text-dark-text hover:underline">
+                                                    {user.displayName}
+                                                </h3>
+                                            </UserHoverCard>
+                                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
+                                                {user.handle}
+                                            </p>
+                                        </button>
+                                        {user.bio && (
+                                            <p className="mt-1 text-sm text-gray-700 dark:text-dark-text line-clamp-2">
+                                                {user.bio}
+                                            </p>
                                         )}
                                     </div>
+                                    {currentUser?.id !== user.id && currentUser?.did !== user.did && (
+                                        <Button
+                                            variant={user.isFollowing ? 'secondary' : 'primary'}
+                                            size="sm"
+                                            className="rounded-full font-bold px-4 shrink-0"
+                                            onClick={() => handleFollowToggle(user)}
+                                        >
+                                            {user.isFollowing ? (
+                                                <>
+                                                    <FiCheck size={16} />
+                                                    {t('profile.following_btn')}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FiPlus size={16} />
+                                                    {t('profile.follow')}
+                                                </>
+                                            )}
+                                        </Button>
+                                    )}
                                 </div>
-                            ))}
-                            {/* Infinite Scroll Trigger */}
-                            <div ref={observerTarget} className="h-20 flex items-center justify-center">
-                                {isLoading && <UserSkeleton count={2} />}
                             </div>
-                        </>
-                    ) : isLoading ? (
-                        <UserSkeleton count={6} />
-                    ) : (
-                        <div className="py-20 text-center">
-                            <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
-                                Not following anyone yet
-                            </p>
+                        ))}
+                        {/* Infinite Scroll Trigger */}
+                        <div ref={observerTarget} className="h-20 flex items-center justify-center">
+                            {isLoading && <UserSkeleton count={2} />}
                         </div>
-                    )}
-                </div>
+                    </>
+                ) : isLoading ? (
+                    <UserSkeleton count={6} />
+                ) : (
+                    <div className="py-20 text-center">
+                        <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
+                            Not following anyone yet
+                        </p>
+                    </div>
+                )}
             </div>
+        </div>
     );
 };
 

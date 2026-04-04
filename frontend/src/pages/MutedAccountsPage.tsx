@@ -14,7 +14,7 @@ const MutedAccountsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { users, isLoading } = useAppSelector(state => state.user);
+    const { mutedUsers: users, isLoading } = useAppSelector(state => state.user);
 
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;

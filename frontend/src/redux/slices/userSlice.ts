@@ -8,7 +8,17 @@ const initialState: UserState = {
     suggestedUsers: [],
     mutedWords: [],
     mutedUsers: [],
+    mutedCursor: null,
+    mutedHasMore: true,
     blockedUsers: [],
+    blockedCursor: null,
+    blockedHasMore: true,
+    followers: [],
+    followersCursor: null,
+    followersHasMore: true,
+    followingUsers: [],
+    followingCursor: null,
+    followingHasMore: true,
     selectedInterests: [],
     searchResults: [],
     isLoading: false,
@@ -330,6 +340,11 @@ export const fetchMutedAccounts = createAsyncThunk<{ users: User[], cursor: stri
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted accounts');
+            // - [ ] Fix Moderation List Data Integrity (Data Leakage)
+            // - [/] Isolate Redux state keys in `userSlice.ts` (`mutedUsers`, `blockedUsers`, etc.)
+            // - [ ] Update `MutedAccountsPage`, `BlockedAccountsPage`, and Follower lists to use isolated keys
+            // - [ ] Verify moderation lists stay clean after navigation
+            // - [x] Verification and Polish
 
             const users = data.mutes.map((u: any) => ({
                 id: u.did, // Use DID as ID for remote users
@@ -570,12 +585,31 @@ const userSlice = createSlice({
                 state.profile = { ...state.profile, ...action.payload };
             }
         },
-        clearUsers: (state) => {
+        clearUsers: (state: UserState) => {
             state.users = [];
             state.cursor = null;
             state.hasMore = true;
-            state.isLoading = false;
-        }
+        },
+        clearMutedUsers: (state: UserState) => {
+            state.mutedUsers = [];
+            state.mutedCursor = null;
+            state.mutedHasMore = true;
+        },
+        clearBlockedUsers: (state: UserState) => {
+            state.blockedUsers = [];
+            state.blockedCursor = null;
+            state.blockedHasMore = true;
+        },
+        clearFollowers: (state: UserState) => {
+            state.followers = [];
+            state.followersCursor = null;
+            state.followersHasMore = true;
+        },
+        clearFollowing: (state: UserState) => {
+            state.followingUsers = [];
+            state.followingCursor = null;
+            state.followingHasMore = true;
+        },
     },
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
         builder
@@ -749,21 +783,22 @@ const userSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
                 if (action.meta.arg && !action.meta.arg.cursor) {
-                    state.users = [];
+                    state.mutedUsers = [];
+                    state.mutedCursor = null;
                 }
             })
             .addCase(fetchMutedAccounts.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
                 if (action.meta.arg && !action.meta.arg.cursor) {
-                    state.users = users;
+                    state.mutedUsers = users;
                 } else {
-                    const existingIds = new Set(state.users.map(u => u.id));
+                    const existingIds = new Set(state.mutedUsers.map(u => u.id));
                     const newUsers = users.filter(u => !existingIds.has(u.id));
-                    state.users = [...state.users, ...newUsers];
+                    state.mutedUsers = [...state.mutedUsers, ...newUsers];
                 }
-                state.cursor = cursor;
-                state.hasMore = users.length > 0 && !!cursor;
+                state.mutedCursor = cursor;
+                state.mutedHasMore = users.length > 0 && !!cursor;
             })
             .addCase(fetchMutedAccounts.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -774,21 +809,22 @@ const userSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
                 if (action.meta.arg && !action.meta.arg.cursor) {
-                    state.users = [];
+                    state.blockedUsers = [];
+                    state.blockedCursor = null;
                 }
             })
             .addCase(fetchBlockedAccounts.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
                 if (action.meta.arg && !action.meta.arg.cursor) {
-                    state.users = users;
+                    state.blockedUsers = users;
                 } else {
-                    const existingIds = new Set(state.users.map(u => u.id));
+                    const existingIds = new Set(state.blockedUsers.map(u => u.id));
                     const newUsers = users.filter(u => !existingIds.has(u.id));
-                    state.users = [...state.users, ...newUsers];
+                    state.blockedUsers = [...state.blockedUsers, ...newUsers];
                 }
-                state.cursor = cursor;
-                state.hasMore = users.length > 0 && !!cursor;
+                state.blockedCursor = cursor;
+                state.blockedHasMore = users.length > 0 && !!cursor;
             })
             .addCase(fetchBlockedAccounts.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -799,21 +835,22 @@ const userSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
                 if (!action.meta.arg.cursor) {
-                    state.users = [];
+                    state.followers = [];
+                    state.followersCursor = null;
                 }
             })
             .addCase(fetchFollowers.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
                 if (!action.meta.arg.cursor) {
-                    state.users = users;
+                    state.followers = users;
                 } else {
-                    const existingIds = new Set(state.users.map(u => u.id));
+                    const existingIds = new Set(state.followers.map(u => u.id));
                     const newUsers = users.filter(u => !existingIds.has(u.id));
-                    state.users = [...state.users, ...newUsers];
+                    state.followers = [...state.followers, ...newUsers];
                 }
-                state.cursor = cursor;
-                state.hasMore = users.length > 0 && !!cursor;
+                state.followersCursor = cursor;
+                state.followersHasMore = users.length > 0 && !!cursor;
             })
             .addCase(fetchFollowers.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -824,21 +861,22 @@ const userSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
                 if (!action.meta.arg.cursor) {
-                    state.users = [];
+                    state.followingUsers = [];
+                    state.followingCursor = null;
                 }
             })
             .addCase(fetchFollowing.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
                 if (!action.meta.arg.cursor) {
-                    state.users = users;
+                    state.followingUsers = users;
                 } else {
-                    const existingIds = new Set(state.users.map(u => u.id));
+                    const existingIds = new Set(state.followingUsers.map(u => u.id));
                     const newUsers = users.filter(u => !existingIds.has(u.id));
-                    state.users = [...state.users, ...newUsers];
+                    state.followingUsers = [...state.followingUsers, ...newUsers];
                 }
-                state.cursor = cursor;
-                state.hasMore = users.length > 0 && !!cursor;
+                state.followingCursor = cursor;
+                state.followingHasMore = users.length > 0 && !!cursor;
             })
             .addCase(fetchFollowing.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -875,5 +913,14 @@ const userSlice = createSlice({
     }
 });
 
-export const { clearProfile, updateProfileLocal, setActiveProfileTab, clearUsers } = userSlice.actions;
+export const {
+    clearProfile,
+    updateProfileLocal,
+    setActiveProfileTab,
+    clearUsers,
+    clearMutedUsers,
+    clearBlockedUsers,
+    clearFollowers,
+    clearFollowing
+} = userSlice.actions;
 export default userSlice.reducer;
