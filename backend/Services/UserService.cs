@@ -1115,122 +1115,26 @@ public class UserService : IUserService
             if (profileElement.TryGetProperty("avatar", out var av)) user.AvatarUrl = av.GetString();
             
             await _unitOfWork.Users.AddAsync(user);
-            existingUsers[did] = user; // Track for potential duplicates in the same batch
+            existingUsers[did] = user; 
         }
-
-        // Update fields if they exist in the element
-        if (profileElement.TryGetProperty("handle", out var handleProp)) 
+        else
         {
-            var newHandle = handleProp.GetString();
-            if (newHandle != null && user.Handle != newHandle) { user.Handle = newHandle; hasChanged = true; }
-        }
-        
-        // Populate metadata ONLY if not already present or if the new data is 'better' (longer bio, etc.)
-        if (profileElement.TryGetProperty("displayName", out var nameProp)) 
-        {
-            var newName = nameProp.GetString();
-            if (!string.IsNullOrEmpty(newName) && (string.IsNullOrEmpty(user.DisplayName) || user.DisplayName == user.Handle))
+            // Update basic info from stub if needed
+            bool changed = false;
+            if (profileElement.TryGetProperty("handle", out var h) && h.GetString() != user.Handle) { user.Handle = h.GetString(); changed = true; }
+            if (profileElement.TryGetProperty("displayName", out var dn) && dn.GetString() != user.DisplayName) { user.DisplayName = dn.GetString(); changed = true; }
+            if (profileElement.TryGetProperty("avatar", out var av) && av.GetString() != user.AvatarUrl) { user.AvatarUrl = av.GetString(); changed = true; }
+            
+            if (changed) 
             {
-                if (user.DisplayName != newName) { user.DisplayName = newName; hasChanged = true; }
-            }
-        }
-        
-        if (profileElement.TryGetProperty("avatar", out var avatarProp)) 
-        {
-            var newAvatar = avatarProp.GetString();
-            if (!string.IsNullOrEmpty(newAvatar) && string.IsNullOrEmpty(user.AvatarUrl))
-            {
-                if (user.AvatarUrl != newAvatar) { user.AvatarUrl = newAvatar; hasChanged = true; }
-            }
-        }
-        
-        if (profileElement.TryGetProperty("description", out var bioProp)) 
-        {
-            var newBio = bioProp.GetString();
-            if (!string.IsNullOrEmpty(newBio) && (string.IsNullOrEmpty(user.Bio) || newBio.Length > (user.Bio?.Length ?? 0)))
-            {
-                if (user.Bio != newBio) { user.Bio = newBio; hasChanged = true; }
-            }
-        }
-        
-        if (profileElement.TryGetProperty("followersCount", out var followersProp)) 
-        {
-            var newCount = followersProp.GetInt32();
-            if (user.FollowersCount != newCount) { user.FollowersCount = newCount; hasChanged = true; }
-        }
-        if (profileElement.TryGetProperty("followsCount", out var followsCountProp)) 
-        {
-            var newCount = followsCountProp.GetInt32();
-            if (user.FollowingCount != newCount) { user.FollowingCount = newCount; hasChanged = true; }
-        }
-        if (profileElement.TryGetProperty("postsCount", out var postsCountProp)) 
-        {
-            var newCount = postsCountProp.GetInt32();
-            if (user.PostsCount != newCount) { user.PostsCount = newCount; hasChanged = true; }
-        }
-        
-        if (profileElement.TryGetProperty("pinnedPost", out var pinnedProp) && pinnedProp.ValueKind == JsonValueKind.Object)
-        {
-            if (pinnedProp.TryGetProperty("uri", out var uriProp))
-            {
-                var newUri = uriProp.GetString();
-                if (user.PinnedPostUri != newUri) { user.PinnedPostUri = newUri; hasChanged = true; }
+                _unitOfWork.Users.Update(user);
             }
         }
 
-        // --- Sync Viewer Follow State ---
-        // If viewerId is provided, we sync the relationship from the ATProto "viewer" object.
-        // CRITICAL: We only delete local records if the "viewer" object is present (proving an authenticated context)
-        // AND it explicitly says we are NOT following. If "viewer" is missing, it means the proxy call was 
-        // unauthenticated or failed; in that case, we MUST fallback to the local state and NOT delete anything.
+        // MANDATORY SYNC: Always sync follow status if viewer data is provided by ATProto
         if (viewerId.HasValue && profileElement.TryGetProperty("viewer", out var viewerProp))
         {
-            if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind != JsonValueKind.Null)
-            {
-                var followUri = followingProp.GetString();
-                if (!string.IsNullOrEmpty(followUri))
-                {
-                    await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
-                    {
-                        FollowerId = viewerId.Value,
-                        FollowingId = user.Id,
-                        Uri = followUri,
-                        Tid = followUri.Split('/').Last(),
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
-            }
-            else
-            {
-                // ATProto explicitly confirms we are NOT following.
-                var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
-                if (existingFollow != null)
-                {
-                    _logger.LogInformation("[ResolveStubRemoteProfileAsync] Deleting confirmed stale follow record for Viewer {Viewer} -> User {Target}", viewerId, user.Id);
-                    _unitOfWork.Follows.Remove(existingFollow);
-                }
-            }
-        }
-        else if (viewerId.HasValue)
-        {
-            _logger.LogDebug("[ResolveStubRemoteProfileAsync] Viewer context missing in ATProto response for {Did}. Preserving local follow state.", did);
-        }
-
-        if (isNew)
-        {
-            // Already added to context above
-            existingUsers[did] = user; // Track for potential duplicates in the same batch
-        }
-        else if (hasChanged)
-        {
-            _unitOfWork.Users.Update(user);
-        }
-        
-        if (complete)
-        {
-            await _unitOfWork.CompleteAsync();
-            // Re-index in search (resiliently)
-            try { await _searchService.IndexUserAsync(user); } catch { }
+            await SyncFollowStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
         }
 
         return user;
@@ -1417,7 +1321,51 @@ public class UserService : IUserService
         return anyMerged;
     }
 
-
+    private async Task SyncFollowStatusWithAtProtoAsync(Guid viewerId, User targetUser, JsonElement viewerProp)
+    {
+        try
+        {
+            if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind == JsonValueKind.String)
+            {
+                var followingUri = followingProp.GetString();
+                if (!string.IsNullOrEmpty(followingUri))
+                {
+                    var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
+                    if (existingFollow == null)
+                    {
+                        await _unitOfWork.Follows.AddAsync(new UserFollow
+                        {
+                            FollowerId = viewerId,
+                            FollowingId = targetUser.Id,
+                            Uri = followingUri,
+                            CreatedAt = DateTime.UtcNow,
+                            Tid = followingUri.Split('/').Last()
+                        });
+                    }
+                    else if (existingFollow.Uri != followingUri)
+                    {
+                        existingFollow.Uri = followingUri;
+                        existingFollow.Tid = followingUri.Split('/').Last();
+                        _unitOfWork.Follows.Update(existingFollow);
+                    }
+                }
+            }
+            else
+            {
+                // Explicitly confirmed as NOT following by ATProto
+                var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
+                if (existingFollow != null)
+                {
+                    _logger.LogInformation("[SyncFollowStatusWithAtProtoAsync] Deleting confirmed stale follow record for Viewer {Viewer} -> User {Target}", viewerId, targetUser.Id);
+                    _unitOfWork.Follows.Remove(existingFollow);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SyncFollowStatusWithAtProtoAsync] Error syncing follow state for {Did}", targetUser.Did);
+        }
+    }
     public async Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId)
     {
         var mute = await _unitOfWork.Mutes.GetAsync(userId, mutedUserId);
@@ -2049,47 +1997,9 @@ public class UserService : IUserService
                 }
 
                 // --- Follow State Sync ---
-                if (viewerId.HasValue && !string.IsNullOrEmpty(bskyToken) && root.TryGetProperty("viewer", out var viewerProp))
+                if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
                 {
-                    if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind == JsonValueKind.String)
-                    {
-                        var followingUri = followingProp.GetString();
-                        if (!string.IsNullOrEmpty(followingUri))
-                        {
-                            var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
-                            if (existingFollow == null)
-                            {
-                                await _unitOfWork.Follows.AddAsync(new UserFollow
-                                {
-                                    FollowerId = viewerId.Value,
-                                    FollowingId = user.Id,
-                                    Uri = followingUri,
-                                    CreatedAt = DateTime.UtcNow,
-                                    Tid = followingUri.Split('/').Last()
-                                });
-                            }
-                            else if (existingFollow.Uri != followingUri)
-                            {
-                                existingFollow.Uri = followingUri;
-                                existingFollow.Tid = followingUri.Split('/').Last();
-                                _unitOfWork.Follows.Update(existingFollow);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Explicitly confirmed as NOT following by ATProto
-                        var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
-                        if (existingFollow != null)
-                        {
-                            _logger.LogInformation("[ResolveRemoteProfileAsync] Deleting confirmed stale follow record for Viewer {Viewer} -> User {Target}", viewerId, user.Id);
-                            _unitOfWork.Follows.Remove(existingFollow);
-                        }
-                    }
-                }
-                else if (viewerId.HasValue && !string.IsNullOrEmpty(bskyToken))
-                {
-                     _logger.LogDebug("[ResolveRemoteProfileAsync] Viewer context missing in ATProto response for {Did}. Preserving local follow state.", did);
+                    await SyncFollowStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
                 }
 
                 await _unitOfWork.CompleteAsync();
