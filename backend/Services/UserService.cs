@@ -890,11 +890,16 @@ public class UserService : IUserService
                     .Distinct()
                     .ToList();
 
-                var existingUsers = (await _unitOfWork.Users.Query()
-                    .Where(u => dids.Contains(u.Did))
-                    .ToListAsync())
-                    .GroupBy(u => u.Did)
-                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(dids);
+                var existingUsers = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+                foreach (var u in usersFromDb)
+                {
+                    if (!string.IsNullOrEmpty(u.Did) && !existingUsers.ContainsKey(u.Did))
+                    {
+                        existingUsers[u.Did] = u;
+                    }
+                }
+
 
                 _logger.LogInformation("[GetRemoteFollowersAsync] {ExistingCount} found in local DB", existingUsers.Count);
 
@@ -1003,11 +1008,16 @@ public class UserService : IUserService
                     .ToList();
 
                 // Batch lookup existing users
-                var existingUsers = (await _unitOfWork.Users.Query()
-                    .Where(u => dids.Contains(u.Did))
-                    .ToListAsync())
-                    .GroupBy(u => u.Did)
-                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(dids);
+                var existingUsers = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+                foreach (var u in usersFromDb)
+                {
+                    if (!string.IsNullOrEmpty(u.Did) && !existingUsers.ContainsKey(u.Did))
+                    {
+                        existingUsers[u.Did] = u;
+                    }
+                }
+
 
                 foreach (var item in followsArray)
                 {

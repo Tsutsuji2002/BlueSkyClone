@@ -8,4 +8,5 @@ public interface IUserRepository : IRepository<User>
     Task<User?> GetByHandleAsync(string handle);
     Task<User?> GetByUsernameAsync(string username);
     Task<User?> GetByDidAsync(string did);
+    Task<IEnumerable<User>> GetByDidsAsync(IEnumerable<string> dids);
 }

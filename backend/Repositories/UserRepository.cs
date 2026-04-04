@@ -9,6 +9,15 @@ public class UserRepository : Repository<User>, IUserRepository
     {
     }
 
+    public async Task<IEnumerable<User>> GetByDidsAsync(IEnumerable<string> dids)
+    {
+        var normalizedDids = dids.Select(d => d.ToLowerInvariant()).Distinct().ToList();
+        return await _dbSet
+            .Include(u => u.UserSetting)
+            .Where(u => normalizedDids.Contains(u.Did.ToLower()))
+            .ToListAsync();
+    }
+
     public async Task<User?> GetByEmailAsync(string email)
     {
         return await _dbSet
@@ -22,7 +31,7 @@ public class UserRepository : Repository<User>, IUserRepository
         var normalized = handle.ToLowerInvariant();
         return await _dbSet
             .Include(u => u.UserSetting)
-            .FirstOrDefaultAsync(u => u.Handle.ToLower() == normalized);
+            .FirstOrDefaultAsync(u => u.Handle.ToLower() == normalized || u.Username.ToLower() == normalized);
     }
 
     public async Task<User?> GetByUsernameAsync(string username)
