@@ -45,4 +45,5 @@ public interface IUserService
     Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null);
     Task<List<User>> GetSuggestedUsersAsync(int limit = 10);
     Task SyncMutedWordsWithAtProtoAsync(Guid userId);
+    Task<bool> MergeDuplicateUsersAsync(string did);
 }

@@ -1072,9 +1072,11 @@ public class UserService : IUserService
         if (!profileElement.TryGetProperty("did", out var didProp)) return null;
         var did = didProp.GetString();
 
-        // Absolute DID normalization
         if (string.IsNullOrEmpty(did)) return null;
         did = did.ToLowerInvariant();
+
+        // Data Healing: Merge duplicates before proceeding
+        await MergeDuplicateUsersAsync(did);
 
         // Check cache/existing batch
         existingUsers.TryGetValue(did, out var user);
@@ -1926,6 +1928,9 @@ public class UserService : IUserService
 
         did = did.ToLowerInvariant();
 
+        // Data Healing: Merge duplicates before proceeding
+        await MergeDuplicateUsersAsync(did);
+
         var user = await _unitOfWork.Users.GetByDidAsync(did);
         bool isNew = false;
         
@@ -2195,5 +2200,61 @@ public class UserService : IUserService
         }
 
         return null;
+    }
+    public async Task<bool> MergeDuplicateUsersAsync(string did)
+    {
+        if (string.IsNullOrEmpty(did)) return false;
+        var normalizedDid = did.ToLowerInvariant();
+
+        var users = await _unitOfWork.Users.Query()
+            .AsNoTracking()
+            .Where(u => u.Did.ToLower() == normalizedDid)
+            .OrderBy(u => u.CreatedAt) // Oldest is primary
+            .ToListAsync();
+
+        if (users.Count <= 1) return false;
+
+        var primary = users[0];
+        _logger.LogWarning("[MergeDuplicateUsersAsync] Found {Count} duplicates for DID {Did}. Merging into primary {PrimaryId}", users.Count, normalizedDid, primary.Id);
+
+        for (int i = 1; i < users.Count; i++)
+        {
+            var secondary = users[i];
+            
+            // 1. Move Follows (Incoming and Outgoing)
+            var outgoingFollows = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == secondary.Id).ToListAsync();
+            foreach (var f in outgoingFollows) {
+                var exists = await _unitOfWork.Follows.GetAsync(primary.Id, f.FollowingId);
+                if (exists == null) { f.FollowerId = primary.Id; _unitOfWork.Follows.Update(f); }
+                else _unitOfWork.Follows.Remove(f);
+            }
+
+            var incomingFollows = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == secondary.Id).ToListAsync();
+            foreach (var f in incomingFollows) {
+                var exists = await _unitOfWork.Follows.GetAsync(f.FollowerId, primary.Id);
+                if (exists == null) { f.FollowingId = primary.Id; _unitOfWork.Follows.Update(f); }
+                else _unitOfWork.Follows.Remove(f);
+            }
+
+            // 2. Move Blocks (Outgoing)
+            var blocks = await _unitOfWork.Blocks.Query().Where(b => b.UserId == secondary.Id).ToListAsync();
+            foreach (var b in blocks) { b.UserId = primary.Id; _unitOfWork.Blocks.Update(b); }
+
+            // 3. Move Mutes (Outgoing)
+            var mutes = await _unitOfWork.Mutes.Query().Where(m => m.UserId == secondary.Id).ToListAsync();
+            foreach (var m in mutes) { m.UserId = primary.Id; _unitOfWork.Mutes.Update(m); }
+
+            // 4. Move Posts
+            var posts = await _unitOfWork.Posts.Query().Where(p => p.AuthorId == secondary.Id).ToListAsync();
+            foreach (var p in posts) { p.AuthorId = primary.Id; _unitOfWork.Posts.Update(p); }
+
+            // 5. Delete secondary user
+            var userToDelete = await _unitOfWork.Users.GetByIdAsync(secondary.Id);
+            if (userToDelete != null) _unitOfWork.Users.Remove(userToDelete);
+        }
+
+        await _unitOfWork.CompleteAsync();
+        _logger.LogInformation("[MergeDuplicateUsersAsync] Successfully merged duplicates for {Did}", normalizedDid);
+        return true;
     }
 }
