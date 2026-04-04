@@ -76,10 +76,59 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
     const mutedWords = useAppSelector((state: RootState) => (state.user as any).mutedWords as MutedWord[] ?? []);
 
-    // Client-side muted word check — runs even if backend didn't set muteInfo
+    const moderationSettings = useAppSelector((state: RootState) => state.auth.settings);
+
+    // Client-side muted word + label content moderation — mirrors backend EnrichAndFilterPostsAsync
     const effectiveMuteInfo = React.useMemo(() => {
-        if (post.muteInfo?.isMuted) return post.muteInfo; // backend already flagged it
-        if (!mutedWords.length || isOwnPost) return post.muteInfo; // no muted words or own post
+        if (isOwnPost) return post.muteInfo; // never filter own posts
+
+        // --- 1. Check post labels against moderation settings ---
+        const labels = (post.labels || []).map((l: string) => l.toLowerCase());
+        if (labels.length > 0 && moderationSettings) {
+            const { enableAdultContent, adultContentFilter, sexuallyExplicitFilter, graphicMediaFilter, nonSexualNudityFilter } = moderationSettings;
+            let worstBehavior: 'hide' | 'warn' | null = null;
+            let worstReason = '';
+
+            for (const label of labels) {
+                let filter: 'show' | 'warn' | 'hide' = 'show';
+                let reason = '';
+                const isAdult = ['porn', 'sexual', 'nudity', 'graphic-media', 'nsfw', 'adult', 'sexual-explicit', 'sexual-suggestive'].includes(label);
+
+                if (['porn', 'sexual-explicit', 'sexual'].includes(label)) {
+                    filter = sexuallyExplicitFilter ?? (enableAdultContent ? 'warn' : 'hide');
+                    reason = 'moderation.sexually_explicit';
+                } else if (['nsfw', 'adult', 'sexual-suggestive'].includes(label)) {
+                    filter = adultContentFilter ?? (enableAdultContent ? 'warn' : 'hide');
+                    reason = 'moderation.adult_content';
+                } else if (['graphic-media', 'gore', 'violence'].includes(label)) {
+                    filter = graphicMediaFilter ?? (enableAdultContent ? 'warn' : 'hide');
+                    reason = 'moderation.graphic_media';
+                } else if (label === 'nudity') {
+                    filter = nonSexualNudityFilter ?? (enableAdultContent ? 'show' : 'hide');
+                    reason = 'moderation.non_sexual_nudity';
+                } else if (label === '!hide') {
+                    filter = 'hide'; reason = 'moderation.sensitive_content';
+                } else if (label === '!warn') {
+                    filter = 'warn'; reason = 'moderation.sensitive_content';
+                }
+
+                // Global adult content disable overrides individual settings
+                if (!enableAdultContent && isAdult) { filter = 'hide'; }
+
+                if (filter === 'hide') { worstBehavior = 'hide'; worstReason = reason; break; }
+                if (filter === 'warn' && worstBehavior == null) { worstBehavior = 'warn'; worstReason = reason; }
+            }
+
+            if (worstBehavior) {
+                return { isMuted: true, behavior: worstBehavior, reason: worstReason };
+            }
+        }
+
+        // --- 2. Backend already flagged it (don't double-check muted words) ---
+        if (post.muteInfo?.isMuted) return post.muteInfo;
+
+        // --- 3. Client-side muted word matching ---
+        if (!mutedWords.length) return post.muteInfo;
         const content = (post.content || '').toLowerCase();
         const tags = (post.tags || []).map((t: string) => t.toLowerCase());
         for (const mw of mutedWords) {
@@ -97,7 +146,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
             }
         }
         return post.muteInfo;
-    }, [post.muteInfo, post.content, post.tags, mutedWords, isOwnPost]);
+    }, [post.muteInfo, post.content, post.tags, post.labels, mutedWords, isOwnPost, moderationSettings]);
+
 
     const handleCardClick = () => {
         navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}`);
