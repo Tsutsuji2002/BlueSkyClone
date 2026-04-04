@@ -42,4 +42,32 @@ public class FollowRepository : Repository<UserFollow>, IFollowRepository
         return await _dbSet
             .AnyAsync(f => f.FollowerId == followerId && f.FollowingId == followingId);
     }
+
+    public async Task<Dictionary<Guid, bool>> GetFollowingStatesAsync(Guid followerId, List<Guid> followingIds)
+    {
+        var followedIds = await _dbSet
+            .Where(f => f.FollowerId == followerId && followingIds.Contains(f.FollowingId))
+            .Select(f => f.FollowingId)
+            .ToListAsync();
+
+        return followingIds.ToDictionary(id => id, id => followedIds.Contains(id));
+    }
+
+    public async Task AddOrUpdateAsync(UserFollow follow)
+    {
+        var existing = await _dbSet
+            .FirstOrDefaultAsync(f => f.FollowerId == follow.FollowerId && f.FollowingId == follow.FollowingId);
+
+        if (existing == null)
+        {
+            await _dbSet.AddAsync(follow);
+        }
+        else
+        {
+            existing.Uri = follow.Uri;
+            existing.CreatedAt = follow.CreatedAt;
+            existing.Tid = follow.Tid;
+            _dbSet.Update(existing);
+        }
+    }
 }

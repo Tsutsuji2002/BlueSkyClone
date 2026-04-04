@@ -9,4 +9,6 @@ public interface IFollowRepository : IRepository<UserFollow>
     Task<List<UserFollow>> GetFollowersAsync(Guid userId, int skip = 0, int take = 50);
     Task<List<UserFollow>> GetFollowingAsync(Guid userId, int skip = 0, int take = 50);
     Task<bool> IsFollowingAsync(Guid followerId, Guid followingId);
+    Task<Dictionary<Guid, bool>> GetFollowingStatesAsync(Guid followerId, List<Guid> followingIds);
+    Task AddOrUpdateAsync(UserFollow follow);
 }

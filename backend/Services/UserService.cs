@@ -879,19 +879,24 @@ public class UserService : IUserService
                     var u = await ResolveStubRemoteProfileAsync(item, existingUsers, false);
                     if (u != null) 
                     {
-                        // Resiliently ensure we don't have stubs for users we actually know
-                        if (string.IsNullOrEmpty(u.DisplayName) || u.DisplayName == u.Handle)
-                        {
-                             // If Bio/DisplayName missing, it might be a very basic stub.
-                             // We could trigger a full resolution here, but let's avoid blocking too much.
-                             // ResolveStubRemoteProfileAsync already extracts what's in 'item'.
-                        }
                         users.Add(u);
                     }
                 }
                 
                 await _unitOfWork.CompleteAsync(); // Complete once for all stubs
                 
+                // Add follow records (persisting the relationship)
+                foreach (var u in users)
+                {
+                    await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
+                    {
+                        FollowerId = u.Id,
+                        FollowingId = user.Id,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                await _unitOfWork.CompleteAsync();
+
                 // Re-index in search (resiliently)
                 foreach(var u in users)
                 {
@@ -955,6 +960,23 @@ public class UserService : IUserService
                 
                 await _unitOfWork.CompleteAsync(); // Complete once for all stubs
                 
+                // Add follow records (persisting the relationship)
+                var actorIdString = _logger.BeginScope("GetRemoteFollowingAsync") != null ? did : did; // Just a placeholder to get 'did'
+                var actor = await ResolveUserAsync(did);
+                if (actor != null)
+                {
+                    foreach (var u in users)
+                    {
+                        await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
+                        {
+                            FollowerId = actor.Id,
+                            FollowingId = u.Id,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                    await _unitOfWork.CompleteAsync();
+                }
+                
                 // Re-index in search (resiliently)
                 foreach(var u in users)
                 {
@@ -979,6 +1001,7 @@ public class UserService : IUserService
 
         existingUsers.TryGetValue(did, out var user);
         bool isNew = false;
+        bool hasChanged = false;
 
         if (user == null)
         {
@@ -997,39 +1020,62 @@ public class UserService : IUserService
             isNew = true;
         }
 
-        if (profileElement.TryGetProperty("handle", out var handleProp)) user.Handle = handleProp.GetString() ?? user.Handle;
+        if (profileElement.TryGetProperty("handle", out var handleProp)) 
+        {
+            var newHandle = handleProp.GetString();
+            if (newHandle != null && user.Handle != newHandle) { user.Handle = newHandle; hasChanged = true; }
+        }
         
         // Populate metadata ONLY if not already present or if the new data is 'better' (longer bio, etc.)
         if (profileElement.TryGetProperty("displayName", out var nameProp)) 
         {
             var newName = nameProp.GetString();
             if (!string.IsNullOrEmpty(newName) && (string.IsNullOrEmpty(user.DisplayName) || user.DisplayName == user.Handle))
-                user.DisplayName = newName;
+            {
+                if (user.DisplayName != newName) { user.DisplayName = newName; hasChanged = true; }
+            }
         }
         
         if (profileElement.TryGetProperty("avatar", out var avatarProp)) 
         {
             var newAvatar = avatarProp.GetString();
             if (!string.IsNullOrEmpty(newAvatar) && string.IsNullOrEmpty(user.AvatarUrl))
-                user.AvatarUrl = newAvatar;
+            {
+                if (user.AvatarUrl != newAvatar) { user.AvatarUrl = newAvatar; hasChanged = true; }
+            }
         }
         
         if (profileElement.TryGetProperty("description", out var bioProp)) 
         {
             var newBio = bioProp.GetString();
             if (!string.IsNullOrEmpty(newBio) && (string.IsNullOrEmpty(user.Bio) || newBio.Length > (user.Bio?.Length ?? 0)))
-                user.Bio = newBio;
+            {
+                if (user.Bio != newBio) { user.Bio = newBio; hasChanged = true; }
+            }
         }
         
-        if (profileElement.TryGetProperty("followersCount", out var followersProp)) user.FollowersCount = followersProp.GetInt32();
-        if (profileElement.TryGetProperty("followsCount", out var followsCountProp)) user.FollowingCount = followsCountProp.GetInt32();
-        if (profileElement.TryGetProperty("postsCount", out var postsCountProp)) user.PostsCount = postsCountProp.GetInt32();
+        if (profileElement.TryGetProperty("followersCount", out var followersProp)) 
+        {
+            var newCount = followersProp.GetInt32();
+            if (user.FollowersCount != newCount) { user.FollowersCount = newCount; hasChanged = true; }
+        }
+        if (profileElement.TryGetProperty("followsCount", out var followsCountProp)) 
+        {
+            var newCount = followsCountProp.GetInt32();
+            if (user.FollowingCount != newCount) { user.FollowingCount = newCount; hasChanged = true; }
+        }
+        if (profileElement.TryGetProperty("postsCount", out var postsCountProp)) 
+        {
+            var newCount = postsCountProp.GetInt32();
+            if (user.PostsCount != newCount) { user.PostsCount = newCount; hasChanged = true; }
+        }
         
         if (profileElement.TryGetProperty("pinnedPost", out var pinnedProp) && pinnedProp.ValueKind == JsonValueKind.Object)
         {
             if (pinnedProp.TryGetProperty("uri", out var uriProp))
             {
-                user.PinnedPostUri = uriProp.GetString();
+                var newUri = uriProp.GetString();
+                if (user.PinnedPostUri != newUri) { user.PinnedPostUri = newUri; hasChanged = true; }
             }
         }
 
@@ -1038,7 +1084,7 @@ public class UserService : IUserService
             await _unitOfWork.Users.AddAsync(user);
             existingUsers[did] = user; // Track for potential duplicates in the same batch
         }
-        else
+        else if (hasChanged)
         {
             _unitOfWork.Users.Update(user);
         }
