@@ -685,6 +685,10 @@ const userSlice = createSlice({
                 state.users.forEach(updateState);
                 state.followers.forEach(updateState);
                 state.followingUsers.forEach(updateState);
+                state.searchResults.forEach(updateState);
+                state.suggestedUsers.forEach(updateState);
+                state.blockedUsers.forEach(updateState);
+                state.mutedUsers.forEach(updateState);
             })
             .addCase(followUserAsync.rejected, (state: UserState, action) => {
                 const userId = action.meta.arg;
@@ -731,6 +735,10 @@ const userSlice = createSlice({
                 state.users.forEach(updateState);
                 state.followers.forEach(updateState);
                 state.followingUsers.forEach(updateState);
+                state.searchResults.forEach(updateState);
+                state.suggestedUsers.forEach(updateState);
+                state.blockedUsers.forEach(updateState);
+                state.mutedUsers.forEach(updateState);
             })
             .addCase(unfollowUserAsync.rejected, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;

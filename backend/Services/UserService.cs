@@ -1070,10 +1070,11 @@ public class UserService : IUserService
     public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null)
     {
         if (!profileElement.TryGetProperty("did", out var didProp)) return null;
-        var did = didProp.GetString()!;
+        var did = didProp.GetString();
 
-        // Normalize DID for and lookup
-        if (!string.IsNullOrEmpty(did)) did = did.ToLowerInvariant();
+        // Absolute DID normalization
+        if (string.IsNullOrEmpty(did)) return null;
+        did = did.ToLowerInvariant();
 
         // Check cache/existing batch
         existingUsers.TryGetValue(did, out var user);
@@ -1163,12 +1164,15 @@ public class UserService : IUserService
         }
 
         // --- Sync Viewer Follow State ---
+        // If viewerId is provided, we sync the relationship from the ATProto "viewer" object.
+        // CRITICAL: We only delete local records if the "viewer" object is present (proving an authenticated context)
+        // AND it explicitly says we are NOT following. If "viewer" is missing, it means the proxy call was 
+        // unauthenticated or failed; in that case, we MUST fallback to the local state and NOT delete anything.
         if (viewerId.HasValue && profileElement.TryGetProperty("viewer", out var viewerProp))
         {
             if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind != JsonValueKind.Null)
             {
                 var followUri = followingProp.GetString();
-                // Persist the follow relationship to local DB for consistency
                 if (!string.IsNullOrEmpty(followUri))
                 {
                     await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
@@ -1183,14 +1187,18 @@ public class UserService : IUserService
             }
             else
             {
-                // ATProto says we are NOT following. Check if we have a stale local record.
+                // ATProto explicitly confirms we are NOT following.
                 var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
                 if (existingFollow != null)
                 {
-                    _logger.LogInformation("[ResolveStubRemoteProfileAsync] Deleting stale follow record for Viewer {Viewer} -> User {Target}", viewerId, user.Id);
+                    _logger.LogInformation("[ResolveStubRemoteProfileAsync] Deleting confirmed stale follow record for Viewer {Viewer} -> User {Target}", viewerId, user.Id);
                     _unitOfWork.Follows.Remove(existingFollow);
                 }
             }
+        }
+        else if (viewerId.HasValue)
+        {
+            _logger.LogDebug("[ResolveStubRemoteProfileAsync] Viewer context missing in ATProto response for {Did}. Preserving local follow state.", did);
         }
 
         if (isNew)
@@ -1918,7 +1926,7 @@ public class UserService : IUserService
 
         did = did.ToLowerInvariant();
 
-        var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+        var user = await _unitOfWork.Users.GetByDidAsync(did);
         bool isNew = false;
         
         if (user == null)
@@ -2014,41 +2022,45 @@ public class UserService : IUserService
                 // --- Follow State Sync ---
                 if (viewerId.HasValue && !string.IsNullOrEmpty(bskyToken) && root.TryGetProperty("viewer", out var viewerProp))
                 {
-                    bool isFollowingRemotely = false;
-                    string? followingUri = null;
-
                     if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind == JsonValueKind.String)
                     {
-                        followingUri = followingProp.GetString();
-                        isFollowingRemotely = !string.IsNullOrEmpty(followingUri);
-                    }
-
-                    var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
-
-                    if (isFollowingRemotely && !string.IsNullOrEmpty(followingUri))
-                    {
-                        if (existingFollow == null)
+                        var followingUri = followingProp.GetString();
+                        if (!string.IsNullOrEmpty(followingUri))
                         {
-                            await _unitOfWork.Follows.AddAsync(new UserFollow
+                            var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
+                            if (existingFollow == null)
                             {
-                                FollowerId = viewerId.Value,
-                                FollowingId = user.Id,
-                                Uri = followingUri,
-                                CreatedAt = DateTime.UtcNow,
-                                Tid = followingUri.Split('/').Last()
-                            });
-                        }
-                        else if (existingFollow.Uri != followingUri)
-                        {
-                            existingFollow.Uri = followingUri;
-                            existingFollow.Tid = followingUri.Split('/').Last();
-                            _unitOfWork.Follows.Update(existingFollow);
+                                await _unitOfWork.Follows.AddAsync(new UserFollow
+                                {
+                                    FollowerId = viewerId.Value,
+                                    FollowingId = user.Id,
+                                    Uri = followingUri,
+                                    CreatedAt = DateTime.UtcNow,
+                                    Tid = followingUri.Split('/').Last()
+                                });
+                            }
+                            else if (existingFollow.Uri != followingUri)
+                            {
+                                existingFollow.Uri = followingUri;
+                                existingFollow.Tid = followingUri.Split('/').Last();
+                                _unitOfWork.Follows.Update(existingFollow);
+                            }
                         }
                     }
-                    else if (existingFollow != null)
+                    else
                     {
-                        _unitOfWork.Follows.Remove(existingFollow);
+                        // Explicitly confirmed as NOT following by ATProto
+                        var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, user.Id);
+                        if (existingFollow != null)
+                        {
+                            _logger.LogInformation("[ResolveRemoteProfileAsync] Deleting confirmed stale follow record for Viewer {Viewer} -> User {Target}", viewerId, user.Id);
+                            _unitOfWork.Follows.Remove(existingFollow);
+                        }
                     }
+                }
+                else if (viewerId.HasValue && !string.IsNullOrEmpty(bskyToken))
+                {
+                     _logger.LogDebug("[ResolveRemoteProfileAsync] Viewer context missing in ATProto response for {Did}. Preserving local follow state.", did);
                 }
 
                 await _unitOfWork.CompleteAsync();
