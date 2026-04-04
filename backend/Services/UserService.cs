@@ -778,8 +778,7 @@ public class UserService : IUserService
         
         if (isRemote)
         {
-            _logger.LogInformation("[GetFollowersAsync] Triggering remote fetch for {Actor}", actor);
-            return await GetRemoteFollowersAsync(user.Did, limit, cursor);
+            return await GetRemoteFollowersAsync(user, limit, cursor);
         }
 
         // Local followers
@@ -829,7 +828,7 @@ public class UserService : IUserService
         return (users, nextCursor);
     }
 
-    private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowersAsync(string did, int limit, string? cursor)
+    private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowersAsync(User targetUser, int limit, string? cursor)
     {
         try
         {
@@ -891,7 +890,7 @@ public class UserService : IUserService
                     await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
                     {
                         FollowerId = u.Id,
-                        FollowingId = user.Id,
+                        FollowingId = targetUser.Id,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
@@ -961,8 +960,10 @@ public class UserService : IUserService
                 await _unitOfWork.CompleteAsync(); // Complete once for all stubs
                 
                 // Add follow records (persisting the relationship)
-                var actorIdString = _logger.BeginScope("GetRemoteFollowingAsync") != null ? did : did; // Just a placeholder to get 'did'
-                var actor = await ResolveUserAsync(did);
+                var actor = await GetUserByDidAsync(did);
+                if (actor == null) actor = await GetUserByHandleAsync(did);
+                if (actor == null) actor = await ResolveRemoteProfileAsync(did);
+
                 if (actor != null)
                 {
                     foreach (var u in users)
