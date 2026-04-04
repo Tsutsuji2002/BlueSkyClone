@@ -866,9 +866,11 @@ public class UserService : IUserService
                 _logger.LogInformation("[GetRemoteFollowersAsync] Extracted {DidsCount} unique DIDs", dids.Count);
 
                 // Batch lookup existing users
-                var existingUsers = await _unitOfWork.Users.Query()
+                var existingUsers = (await _unitOfWork.Users.Query()
                     .Where(u => dids.Contains(u.Did))
-                    .ToDictionaryAsync(u => u.Did);
+                    .ToListAsync())
+                    .GroupBy(u => u.Did)
+                    .ToDictionary(g => g.Key, g => g.First());
 
                 _logger.LogInformation("[GetRemoteFollowersAsync] Found {ExistingCount} existing users in local DB", existingUsers.Count);
 
@@ -939,9 +941,11 @@ public class UserService : IUserService
                     .ToList();
 
                 // Batch lookup existing users
-                var existingUsers = await _unitOfWork.Users.Query()
+                var existingUsers = (await _unitOfWork.Users.Query()
                     .Where(u => dids.Contains(u.Did))
-                    .ToDictionaryAsync(u => u.Did);
+                    .ToListAsync())
+                    .GroupBy(u => u.Did)
+                    .ToDictionary(g => g.Key, g => g.First());
 
                 foreach (var item in followsArray)
                 {
@@ -1935,9 +1939,11 @@ public class UserService : IUserService
                     .Distinct()
                     .ToList();
 
-                var existingUsers = await _unitOfWork.Users.Query()
+                var existingUsers = (await _unitOfWork.Users.Query()
                     .Where(u => dids.Contains(u.Did))
-                    .ToDictionaryAsync(u => u.Did);
+                    .ToListAsync())
+                    .GroupBy(u => u.Did)
+                    .ToDictionary(g => g.Key, g => g.First());
 
                 foreach (var item in actorsArray)
                 {
