@@ -834,7 +834,7 @@ public class UserService : IUserService
         {
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-            var url = $"https://api.bsky.app/xrpc/app.bsky.graph.getFollowers?actor={did}&limit={limit}";
+            var url = $"https://api.bsky.app/xrpc/app.bsky.graph.getFollowers?actor={targetUser.Did}&limit={limit}";
             if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
 
             _logger.LogInformation("[GetRemoteFollowersAsync] Fetching from: {Url}", url);
