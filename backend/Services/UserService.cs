@@ -917,33 +917,29 @@ public class UserService : IUserService
             _logger.LogError(ex, "[GetRemoteFollowersAsync] Error fetching/resolving remote followers for {Did}", targetUser.Did);
         }
 
-        // Persist follow-graph records (best-effort background task)
-        var targetUserId = targetUser.Id;
-        _ = Task.Run(async () =>
+        // Persist follow-graph records — best effort, inline (Task.Run would capture disposed scoped DbContext)
+        try
         {
-            try
+            foreach (var u in users)
             {
-                foreach (var u in users)
+                await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
                 {
-                    await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
-                    {
-                        FollowerId = u.Id,
-                        FollowingId = targetUserId,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
-                if (users.Count > 0) await _unitOfWork.CompleteAsync();
+                    FollowerId = u.Id,
+                    FollowingId = targetUser.Id,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            if (users.Count > 0) await _unitOfWork.CompleteAsync();
 
-                foreach (var u in users)
-                {
-                    try { await _searchService.IndexUserAsync(u); } catch { }
-                }
-            }
-            catch (Exception bgEx)
+            foreach (var u in users)
             {
-                _logger.LogWarning(bgEx, "[GetRemoteFollowersAsync] Background follow-record persistence failed (non-fatal)");
+                try { await _searchService.IndexUserAsync(u); } catch { }
             }
-        });
+        }
+        catch (Exception persistEx)
+        {
+            _logger.LogWarning(persistEx, "[GetRemoteFollowersAsync] Follow-record persistence failed (non-fatal)");
+        }
 
         return (users, nextCursor);
     }
@@ -1019,36 +1015,33 @@ public class UserService : IUserService
             _logger.LogError(ex, "[GetRemoteFollowingAsync] Error fetching/resolving remote follows for {Did}", did);
         }
 
-        // Persist follow-graph records (best-effort, runs AFTER returning users to avoid blocking)
-        _ = Task.Run(async () =>
+        // Persist follow-graph records — best effort, inline (Task.Run would capture disposed scoped DbContext)
+        try
         {
-            try
+            var actor = await GetUserByDidAsync(did) ?? await GetUserByHandleAsync(did);
+            if (actor != null && users.Count > 0)
             {
-                var actor = await GetUserByDidAsync(did) ?? await GetUserByHandleAsync(did);
-                if (actor != null && users.Count > 0)
-                {
-                    foreach (var u in users)
-                    {
-                        await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
-                        {
-                            FollowerId = actor.Id,
-                            FollowingId = u.Id,
-                            CreatedAt = DateTime.UtcNow
-                        });
-                    }
-                    await _unitOfWork.CompleteAsync();
-                }
-
                 foreach (var u in users)
                 {
-                    try { await _searchService.IndexUserAsync(u); } catch { }
+                    await _unitOfWork.Follows.AddOrUpdateAsync(new UserFollow
+                    {
+                        FollowerId = actor.Id,
+                        FollowingId = u.Id,
+                        CreatedAt = DateTime.UtcNow
+                    });
                 }
+                await _unitOfWork.CompleteAsync();
             }
-            catch (Exception bgEx)
+
+            foreach (var u in users)
             {
-                _logger.LogWarning(bgEx, "[GetRemoteFollowingAsync] Background follow-record persistence failed (non-fatal)");
+                try { await _searchService.IndexUserAsync(u); } catch { }
             }
-        });
+        }
+        catch (Exception persistEx)
+        {
+            _logger.LogWarning(persistEx, "[GetRemoteFollowingAsync] Follow-record persistence failed (non-fatal)");
+        }
 
         return (users, nextCursor);
     }
