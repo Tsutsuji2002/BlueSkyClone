@@ -624,6 +624,7 @@ public class PostService : IPostService
             var repostPostUris = await _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).ToDictionaryAsync(r => r.PostId, r => r.Uri ?? "");
             var followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
             var mutedWords = await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync();
+            _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: MutedWords count={Count} for ViewerId={ViewerId}", mutedWords.Count, viewerId);
             var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId);
             var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
             var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
@@ -849,12 +850,15 @@ public class PostService : IPostService
                 // --- END CONTENT FILTERING LOGIC ---
                 
                 // Muted Words & Tags Filtering
+                post.MuteInfo ??= new PostMuteDto(); // ensure never null
                 if (mutedWords.Any())
                 {
                     bool isMutedByWord = false;
                     foreach (var mw in mutedWords)
                     {
-                        var targets = (mw.Targets ?? "content").Split(',').Select(t => t.Trim().ToLower()).ToList();
+                        var targetsRaw = mw.Targets;
+                        var targets = (string.IsNullOrWhiteSpace(targetsRaw) ? "content" : targetsRaw).Split(',').Select(t => t.Trim().ToLower()).Where(t => !string.IsNullOrEmpty(t)).ToList();
+                        if (!targets.Any()) targets.Add("content");
                         
                         // Check Content
                         if (targets.Contains("content") && !string.IsNullOrEmpty(post.Content))
@@ -876,18 +880,13 @@ public class PostService : IPostService
 
                         if (isMutedByWord)
                         {
+                            post.MuteInfo ??= new PostMuteDto();
                             post.MuteInfo.IsMuted = true;
                             post.MuteInfo.Behavior = mw.MuteBehavior == "hide" ? "hide" : "warn";
                             post.MuteInfo.Reason = "muted_word";
-
-                            if (mw.MuteBehavior == "hide" && forceDropHidden)
-                            {
-                                break; 
-                            }
-                            else
-                            {
-                                break;
-                            }
+                            _logger.LogInformation("[PostService] MutedWord hit: word='{Word}' behavior='{Behavior}' postUri='{Uri}' content='{ContentSnippet}'",
+                                mw.Word, mw.MuteBehavior, post.Uri, post.Content?.Substring(0, Math.Min(50, post.Content?.Length ?? 0)));
+                            break;
                         }
                     }
 
@@ -5268,7 +5267,6 @@ public class PostService : IPostService
             .ToList();
 
         var enriched = await EnrichAndFilterPostsAsync(result, userId);
-        await _cacheService.SetAsync(cacheKey, enriched, TimeSpan.FromMinutes(5));
         return enriched;
     }
 
