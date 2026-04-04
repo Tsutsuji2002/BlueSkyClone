@@ -10,6 +10,8 @@ public partial class BlockedAccount
     public Guid BlockedUserId { get; set; }
 
     public DateTime? CreatedAt { get; set; }
+    public string? Tid { get; set; }
+    public string? Cid { get; set; }
     public string? Uri { get; set; }
 
     public virtual User BlockedUser { get; set; } = null!;

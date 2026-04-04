@@ -546,9 +546,10 @@ public class UserService : IUserService
             }
             else
             {
-                Console.WriteLine($"[FollowUserAsync] Bluesky proxy failed (non-fatal, local saved): {getResponse.StatusCode} - {getResponse.Content}");
-                // Do NOT return null — we still save locally
-            }    }
+                    Console.WriteLine($"[FollowUserAsync] Bluesky proxy failed (non-fatal, local saved): {getResponse.StatusCode} - {getResponse.Content}");
+                    // Do NOT return null — we still save locally
+                }
+            }
             catch (Exception ex)
             {
                 Console.WriteLine($"[FollowUserAsync] Bluesky proxy error (non-fatal): {ex.Message}");
@@ -678,10 +679,10 @@ public class UserService : IUserService
                 {
                     var getResponse = await _xrpcProxy.ProxyRequestAsync(follower.Did, "com.atproto.repo.deleteRecord", new Dictionary<string, string?>(), token, "POST", new { repo = follower.Did, collection = "app.bsky.graph.follow", rkey = existing.Tid });
 
-                if (getResponse.Success)
-                    Console.WriteLine($"[UnfollowUserAsync] Proxied unfollow to Bluesky for User {followerId}");
-                else
-                    Console.WriteLine($"[UnfollowUserAsync] Bluesky proxy failed (non-fatal, local removed): {getResponse.StatusCode} - {getResponse.Content}");    }
+                    if (getResponse.Success)
+                        Console.WriteLine($"[UnfollowUserAsync] Proxied unfollow to Bluesky for User {followerId}");
+                    else
+                        Console.WriteLine($"[UnfollowUserAsync] Bluesky proxy failed (non-fatal, local removed): {getResponse.StatusCode} - {getResponse.Content}");
                 }
                 else
                 {
@@ -1116,12 +1117,12 @@ public class UserService : IUserService
                 var cid = await _repoManager.CreateRecordAsync(blocker.Did, "app.bsky.graph.block", blockRecord);
                 block.Uri = $"at://{blocker.Did}/app.bsky.graph.block/{tid}";
             }
+            }
         }
-    }
-    catch (Exception ex)
-    {
-         Console.WriteLine($"[BlockUserAsync] Repo Signing Error: {ex.Message}");
-    }    }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"[BlockUserAsync] Repo Signing Error: {ex.Message}");
+        }
 
         await _unitOfWork.Blocks.AddAsync(block);
         
