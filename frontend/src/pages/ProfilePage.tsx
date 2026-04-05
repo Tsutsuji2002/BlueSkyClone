@@ -190,12 +190,12 @@ const ProfilePage: React.FC = () => {
                         dispatch(showToast({ message: 'Missing follow reference', type: 'error' }));
                         return;
                     }
-                    await dispatch(unfollowUserAsync({
+                    dispatch(unfollowUserAsync({
                         userId: profileUser.id,
                         followUri: profileUser.followingReference
-                    })).unwrap();
+                    }));
                 } else {
-                    await dispatch(followUserAsync(profileUser.id)).unwrap();
+                    dispatch(followUserAsync(profileUser.id));
                 }
             } catch (error: any) {
                 dispatch(showToast({ message: error || 'Failed to update follow status', type: 'error' }));

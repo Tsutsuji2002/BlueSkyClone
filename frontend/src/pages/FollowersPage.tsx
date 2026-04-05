@@ -42,7 +42,11 @@ const FollowersPage: React.FC = () => {
             } else {
                 // It's a DID, we can fetch profile and list in parallel
                 profilePromise = dispatch(fetchUserProfileById(effectiveId));
-                listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: 30 }));
+
+                // If we don't have followers loaded or if we just switched profiles
+                if (users.length === 0 && hasMore) {
+                    listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: 30 }));
+                }
             }
         }
 
@@ -50,13 +54,15 @@ const FollowersPage: React.FC = () => {
             if (profilePromise) profilePromise.abort();
             if (listPromise) listPromise.abort();
         };
-    }, [dispatch, effectiveId]);
+    }, [dispatch, effectiveId]); // users and hasMore intentionally omitted to act as mount-time check
 
     useEffect(() => {
         let listPromise: any;
         // Guard: fetch list only when profile matches the handle
         if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
-            listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: 30 }));
+            if (users.length === 0 && hasMore) {
+                listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: 30 }));
+            }
         }
 
         return () => {
@@ -121,9 +127,9 @@ const FollowersPage: React.FC = () => {
     const handleFollowToggle = async (user: User) => {
         try {
             if (user.isFollowing) {
-                await dispatch(unfollowUserAsync({ userId: user.id, followUri: (user as any).followingReference || '' })).unwrap();
+                dispatch(unfollowUserAsync({ userId: user.id, followUri: (user as any).followingReference || '' }));
             } else {
-                await dispatch(followUserAsync(user.id)).unwrap();
+                dispatch(followUserAsync(user.id));
             }
         } catch (error) {
             console.error('Failed to toggle follow:', error);

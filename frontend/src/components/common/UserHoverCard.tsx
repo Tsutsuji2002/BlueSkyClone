@@ -207,19 +207,19 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                     dispatch(showToast({ message: 'Missing follow reference', type: 'error' }));
                     return;
                 }
-                await dispatch(unfollowUserAsync({
+                dispatch(unfollowUserAsync({
                     userId: user.id,
                     followUri: displayProfile.followingReference
-                })).unwrap();
+                }));
                 // Update local cache
                 const updated = { ...displayProfile, isFollowing: false, followingReference: undefined, followersCount: Math.max(0, displayProfile.followersCount - 1) };
                 setProfile(updated);
                 const key = user.handle || user.did || user.id;
                 if (key) profileCache.set(key, updated);
             } else {
-                const result = await dispatch(followUserAsync(user.id)).unwrap();
+                dispatch(followUserAsync(user.id));
                 if (displayProfile) {
-                    const updated = { ...displayProfile, isFollowing: true, followingReference: result.uri, followersCount: displayProfile.followersCount + 1 };
+                    const updated = { ...displayProfile, isFollowing: true, followersCount: displayProfile.followersCount + 1 };
                     setProfile(updated);
                     const key = user.handle || user.did || user.id;
                     if (key) profileCache.set(key, updated);

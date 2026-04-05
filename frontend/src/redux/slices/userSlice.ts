@@ -959,12 +959,11 @@ const userSlice = createSlice({
             })
             // Fetch Followers
             .addCase(fetchFollowers.pending, (state: UserState, action) => {
+                // If it's a cursor fetch from infinite scroll, just set isLoading
+                // We no longer clear followers here because component navigation handles
+                // clearFollowers() on profile change manually.
                 state.isLoading = true;
                 state.error = null;
-                if (!action.meta.arg.cursor) {
-                    state.followers = [];
-                    state.followersCursor = null;
-                }
             })
             .addCase(fetchFollowers.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
@@ -1003,10 +1002,6 @@ const userSlice = createSlice({
             .addCase(fetchFollowing.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
-                if (!action.meta.arg.cursor) {
-                    state.followingUsers = [];
-                    state.followingCursor = null;
-                }
             })
             .addCase(fetchFollowing.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
