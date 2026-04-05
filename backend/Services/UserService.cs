@@ -848,15 +848,24 @@ public class UserService : IUserService
         if (cached != null)
         {
             _logger.LogInformation("[GetRemoteFollowersAsync] Cache HIT for {Did}", targetUser.Did);
+            
+            // Re-merge duplicates on HIT to be safe
+            await MergeDuplicateUsersBatchAsync(cached.Dids);
+
             var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
-            var usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+            // Reorder and pick primary (oldest) if duplicates exist
+            var usersMap = usersFromDb
+                .GroupBy(u => u.Did.ToLower())
+                .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
 
             if (viewerId.HasValue)
             {
                 await SyncInteractionsBatchAsync(viewerId.Value, cached.Dids);
-                // Re-fetch users from DB after sync to get updated isFollowing status
+                // Re-fetch/Re-map after sync
                 usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
-                usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+                usersMap = usersFromDb
+                    .GroupBy(u => u.Did.ToLower())
+                    .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
             }
 
             var orderedUsers = cached.Dids
@@ -1001,14 +1010,22 @@ public class UserService : IUserService
         if (cached != null)
         {
             _logger.LogInformation("[GetRemoteFollowingAsync] Cache HIT for {Did}", did);
+            
+            // Re-merge duplicates on HIT to be safe
+            await MergeDuplicateUsersBatchAsync(cached.Dids);
+
             var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
-            var usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+            var usersMap = usersFromDb
+                .GroupBy(u => u.Did.ToLower())
+                .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
 
             if (viewerId.HasValue)
             {
                 await SyncInteractionsBatchAsync(viewerId.Value, cached.Dids);
                 usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
-                usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+                usersMap = usersFromDb
+                    .GroupBy(u => u.Did.ToLower())
+                    .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
             }
 
             var orderedUsers = cached.Dids
@@ -1421,8 +1438,13 @@ public class UserService : IUserService
                     using var doc = JsonDocument.Parse(content);
                     if (doc.RootElement.TryGetProperty("profiles", out var profilesProp))
                     {
+                        // Merge before fetching to ensure only primary ones are fetched
+                        await MergeDuplicateUsersBatchAsync(batch);
+
                         var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(batch);
-                        var usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+                        var usersMap = usersFromDb
+                            .GroupBy(u => u.Did.ToLower())
+                            .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
 
                         foreach (var profile in profilesProp.EnumerateArray())
                         {

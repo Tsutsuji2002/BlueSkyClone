@@ -903,15 +903,28 @@ const userSlice = createSlice({
             .addCase(fetchFollowers.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
+                const incomingUsers = users || [];
+
                 if (!action.meta.arg.cursor) {
-                    state.followers = users;
+                    state.followers = incomingUsers;
                 } else {
-                    const existingIds = new Set(state.followers.map(u => u.id));
-                    const newUsers = users.filter(u => !existingIds.has(u.id));
-                    state.followers = [...state.followers, ...newUsers];
+                    // Update existing users and append new ones
+                    const updatedUsers = [...state.followers];
+                    const newUsers: User[] = [];
+
+                    incomingUsers.forEach((newUser: User) => {
+                        const index = updatedUsers.findIndex(u => u.id === newUser.id);
+                        if (index !== -1) {
+                            updatedUsers[index] = { ...updatedUsers[index], ...newUser };
+                        } else {
+                            newUsers.push(newUser);
+                        }
+                    });
+
+                    state.followers = [...updatedUsers, ...newUsers];
                 }
                 state.followersCursor = cursor;
-                state.followersHasMore = users.length > 0 && !!cursor;
+                state.followersHasMore = incomingUsers.length > 0 && !!cursor;
             })
             .addCase(fetchFollowers.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -929,15 +942,28 @@ const userSlice = createSlice({
             .addCase(fetchFollowing.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
+                const incomingUsers = users || [];
+
                 if (!action.meta.arg.cursor) {
-                    state.followingUsers = users;
+                    state.followingUsers = incomingUsers;
                 } else {
-                    const existingIds = new Set(state.followingUsers.map(u => u.id));
-                    const newUsers = users.filter(u => !existingIds.has(u.id));
-                    state.followingUsers = [...state.followingUsers, ...newUsers];
+                    // Update existing users and append new ones
+                    const updatedUsers = [...state.followingUsers];
+                    const newUsers: User[] = [];
+
+                    incomingUsers.forEach((newUser: User) => {
+                        const index = updatedUsers.findIndex(u => u.id === newUser.id);
+                        if (index !== -1) {
+                            updatedUsers[index] = { ...updatedUsers[index], ...newUser };
+                        } else {
+                            newUsers.push(newUser);
+                        }
+                    });
+
+                    state.followingUsers = [...updatedUsers, ...newUsers];
                 }
                 state.followingCursor = cursor;
-                state.followingHasMore = users.length > 0 && !!cursor;
+                state.followingHasMore = incomingUsers.length > 0 && !!cursor;
             })
             .addCase(fetchFollowing.rejected, (state: UserState, action) => {
                 state.isLoading = false;
