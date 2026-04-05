@@ -9,53 +9,12 @@ using System.Text;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Http; // For QueryCollection
+using BSkyClone.UnitOfWork;
+
 
 namespace BSkyClone.Services;
 
-public interface IUserService
-{
-    Task<User?> GetUserByIdAsync(Guid id);
-    Task<User?> GetUserByUsernameAsync(string username);
-    Task<User?> GetUserByHandleAsync(string handle);
-    Task<User?> GetUserByEmailAsync(string email);
-    Task<User> CreateUserAsync(RegisterRequest request);
-    Task<User?> AuthenticateAsync(string identifier, string password);
-    Task<IEnumerable<User>> SearchUsersAsync(string query, int limit);
-    Task<User> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
-    Task<User> UpdateAccountAsync(Guid userId, UpdateAccountRequest request);
-    Task<UserSetting> UpdateSettingsAsync(Guid userId, UserSettingDto request);
-    Task<UserSetting> GetSettingsAsync(Guid userId);
-    Task<bool> VerifyDomainAsync(Guid userId, string handle);
-    Task<List<string>> GetSelectedInterestsAsync(Guid userId);
-    Task SaveSelectedInterestsAsync(Guid userId, List<string> interests);
-    
-    // Remote Identity
-    Task<User?> ResolveRemoteProfileAsync(string actor, bool forceRefresh = false, Guid? viewerId = null);
-    Task<User?> GetProfileByDidAsync(string did);
-    
-    // Interactions
-    Task<bool> IsFollowingAsync(Guid followerId, Guid followingId);
-    Task<bool> IsBlockedAsync(Guid userId, Guid targetUserId);
-    Task<bool> IsBlockedByAsync(Guid userId, Guid targetUserId);
-    Task<bool> IsMutedAsync(Guid userId, Guid targetUserId);
-    Task<(List<User> Users, string? Cursor)> GetFollowingAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
-    Task<(List<User> Users, string? Cursor)> GetFollowersAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
-    Task<bool> FollowUserAsync(Guid followerId, Guid followingId);
-    Task<bool> UnfollowUserAsync(Guid followerId, Guid followingId);
-    Task<bool> BlockUserAsync(Guid userId, Guid targetUserId);
-    Task<bool> UnblockUserAsync(Guid userId, Guid targetUserId);
-    Task<bool> MuteUserAsync(Guid userId, Guid targetUserId);
-    Task<bool> UnmuteUserAsync(Guid userId, Guid targetUserId);
-    Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit, string? cursor);
-    Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit, string? cursor);
-    
-    // Batching
-    Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds);
-    Task SyncInteractionsBatchAsync(Guid viewerId, IEnumerable<string> dids);
-    Task<User?> ResolveStubRemoteProfileAsync(JsonElement actorData, Dictionary<string, User> cache);
-    Task<bool> MergeDuplicateUsersAsync(string did);
-    Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids);
-}
+
 
 public class UserService : IUserService
 {
@@ -92,6 +51,8 @@ public class UserService : IUserService
     public async Task<User?> GetUserByUsernameAsync(string username) => await _unitOfWork.Users.GetByUsernameAsync(username);
     public async Task<User?> GetUserByHandleAsync(string handle) => await _unitOfWork.Users.GetByHandleAsync(handle);
     public async Task<User?> GetUserByEmailAsync(string email) => await _unitOfWork.Users.GetByEmailAsync(email);
+    public async Task<IEnumerable<User>> GetUsersByIdsAsync(IEnumerable<Guid> userIds) => await _unitOfWork.Users.Query().Where(u => userIds.Contains(u.Id)).ToListAsync();
+    public async Task<User?> GetUserByDidAsync(string did) => await _unitOfWork.Users.GetByDidAsync(did);
 
     public async Task<User> CreateUserAsync(RegisterRequest request)
     {
@@ -101,7 +62,7 @@ public class UserService : IUserService
         {
             Id = Guid.NewGuid(),
             Username = request.Username,
-            Handle = $"{request.Handle}.{_config["DomainName"]}",
+            Handle = $"{request.Username.ToLower()}.{_config["DomainName"]}",
             Email = request.Email,
             DisplayName = request.DisplayName,
             PasswordHash = Convert.ToBase64String(passwordHash),
@@ -139,9 +100,12 @@ public class UserService : IUserService
         return user;
     }
 
-    public async Task<IEnumerable<User>> SearchUsersAsync(string query, int limit)
+    public async Task<List<User>> SearchUsersAsync(string query, int limit = 10)
     {
-        return await _unitOfWork.Users.SearchAsync(query, limit);
+        return await _unitOfWork.Users.Query()
+            .Where(u => u.Username.Contains(query) || (u.DisplayName != null && u.DisplayName.Contains(query)) || u.Handle.Contains(query))
+            .Take(limit)
+            .ToListAsync();
     }
 
     public async Task<User> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
@@ -168,9 +132,11 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) throw new Exception("User not found");
 
-        if (request.Handle != null) user.Handle = $"{request.Handle}.{_config["DomainName"]}";
         if (request.Email != null) user.Email = request.Email;
-        if (request.Username != null) user.Username = request.Username;
+        if (request.Username != null) {
+            user.Username = request.Username;
+            user.Handle = $"{request.Username.ToLower()}.{_config["DomainName"]}";
+        }
 
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
@@ -179,7 +145,7 @@ public class UserService : IUserService
 
     public async Task<UserSetting> UpdateSettingsAsync(Guid userId, UserSettingDto request)
     {
-        var settings = await _unitOfWork.UserSettings.GetByUserIdAsync(userId);
+        var settings = await _unitOfWork.UserSettings.Query().FirstOrDefaultAsync(s => s.UserId == userId);
         if (settings == null)
         {
             settings = new UserSetting { UserId = userId };
@@ -248,7 +214,7 @@ public class UserService : IUserService
 
     public async Task<UserSetting> GetSettingsAsync(Guid userId)
     {
-        var settings = await _unitOfWork.UserSettings.GetByUserIdAsync(userId);
+        var settings = await _unitOfWork.UserSettings.Query().FirstOrDefaultAsync(s => s.UserId == userId);
         if (settings == null)
         {
             settings = new UserSetting { UserId = userId };
@@ -258,7 +224,7 @@ public class UserService : IUserService
         return settings;
     }
 
-    public async Task<bool> VerifyDomainAsync(Guid userId, string handle)
+    public async Task<bool> VerifyDomainAsync(Guid userId, string? handle = null)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return false;
@@ -273,42 +239,46 @@ public class UserService : IUserService
 
     public async Task<List<string>> GetSelectedInterestsAsync(Guid userId)
     {
-        var interests = await _unitOfWork.UserInterests.GetByUserIdAsync(userId);
-        return interests.Select(i => i.InterestName).ToList();
+        var user = await _unitOfWork.Users.Query().Include(u => u.Interests).FirstOrDefaultAsync(u => u.Id == userId);
+        return user?.Interests.Select(i => i.Name).ToList() ?? new List<string>();
     }
 
     public async Task SaveSelectedInterestsAsync(Guid userId, List<string> interests)
     {
-        var existing = await _unitOfWork.UserInterests.GetByUserIdAsync(userId);
-        foreach (var item in existing) _unitOfWork.UserInterests.Remove(item);
-
-        foreach (var name in interests)
+        var user = await _unitOfWork.Users.Query().Include(u => u.Interests).FirstOrDefaultAsync(u => u.Id == userId);
+        if (user != null)
         {
-            await _unitOfWork.UserInterests.AddAsync(new UserInterest { UserId = userId, InterestName = name });
+            user.Interests.Clear();
+            var allInterests = await _unitOfWork.Interests.Query().ToListAsync();
+            foreach (var name in interests)
+            {
+                var interest = allInterests.FirstOrDefault(i => i.Name == name);
+                if (interest != null) user.Interests.Add(interest);
+            }
+            await _unitOfWork.CompleteAsync();
         }
-        await _unitOfWork.CompleteAsync();
     }
 
-    public async Task<User?> ResolveRemoteProfileAsync(string actor, bool forceRefresh = false, Guid? viewerId = null)
+    public async Task<User?> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null)
     {
-        var cacheKey = $"remote_profile:{actor}";
-        if (!forceRefresh)
-        {
-            var cached = await _cacheService.GetAsync<User>(cacheKey);
-            if (cached != null) return cached;
-        }
+        var cacheKey = $"remote_profile:{identifier}";
+        var cached = await _cacheService.GetAsync<User>(cacheKey);
+        if (cached != null) return cached;
+
 
         try
         {
             string baseApiUrl = "https://api.bsky.app";
-            var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
+            if (string.IsNullOrEmpty(token)) {
+                token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
+            }
             
             // Use public API for unauthenticated requests
             if (string.IsNullOrEmpty(token)) {
                 baseApiUrl = "https://public.api.bsky.app";
             }
 
-            var url = $"{baseApiUrl}/xrpc/app.bsky.actor.getProfile?actor={Uri.EscapeDataString(actor)}";
+            var url = $"{baseApiUrl}/xrpc/app.bsky.actor.getProfile?actor={Uri.EscapeDataString(identifier)}";
             using var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
             if (!string.IsNullOrEmpty(token))
@@ -319,8 +289,8 @@ public class UserService : IUserService
             var response = await client.GetAsync(url);
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && !string.IsNullOrEmpty(token))
             {
-                 // Try one more time with public if private failed
-                 return await ResolveRemoteProfileAsync(actor, forceRefresh, null);
+                  // Try one more time with public if private failed
+                  return await ResolveRemoteProfileAsync(identifier, null, null);
             }
             
             if (response.IsSuccessStatusCode)
@@ -376,7 +346,7 @@ public class UserService : IUserService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resolving remote profile for {Actor}", actor);
+            _logger.LogError(ex, "Error resolving remote profile for {Actor}", identifier);
         }
 
         return null;
@@ -388,9 +358,9 @@ public class UserService : IUserService
     }
 
     // --- Interaction Implementation ---
-    public async Task<bool> IsFollowingAsync(Guid followerId, Guid followingId) => await _unitOfWork.Follows.ExistsAsync(followerId, followingId);
-    public async Task<bool> IsBlockedAsync(Guid userId, Guid targetUserId) => await _unitOfWork.Blocks.IsBlockingAsync(userId, targetUserId);
-    public async Task<bool> IsBlockedByAsync(Guid userId, Guid targetUserId) => await _unitOfWork.Blocks.IsBlockingAsync(targetUserId, userId);
+    public async Task<bool> IsFollowingAsync(Guid followerId, Guid followingId) => await _unitOfWork.Follows.IsFollowingAsync(followerId, followingId);
+    public async Task<bool> IsBlockedAsync(Guid userId, Guid targetUserId) => await _unitOfWork.Blocks.IsBlockedAsync(userId, targetUserId);
+    public async Task<bool> IsBlockedByAsync(Guid userId, Guid targetUserId) => await _unitOfWork.Blocks.IsBlockedAsync(targetUserId, userId);
     public async Task<bool> IsMutedAsync(Guid userId, Guid targetUserId) => await _unitOfWork.Mutes.IsMutedAsync(userId, targetUserId);
 
     public async Task<(List<User> Users, string? Cursor)> GetFollowingAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
@@ -552,7 +522,7 @@ public class UserService : IUserService
         return (new List<User>(), null);
     }
 
-    public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement actorData, Dictionary<string, User> cache)
+    public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement actorData, Dictionary<string, User> cache, bool complete = true, Guid? viewerId = null)
     {
         var did = actorData.GetProperty("did").GetString();
         if (string.IsNullOrEmpty(did)) return null;
@@ -585,13 +555,47 @@ public class UserService : IUserService
         return user;
     }
 
-    public async Task<bool> FollowUserAsync(Guid followerId, Guid followingId)
+    public async Task<UserFollow?> GetFollowAsync(Guid followerId, Guid followingId) => await _unitOfWork.Follows.GetAsync(followerId, followingId);
+    public async Task<BlockedAccount?> GetBlockAsync(Guid userId, Guid blockedUserId) => await _unitOfWork.Blocks.Query().FirstOrDefaultAsync(b => b.UserId == userId && b.BlockedUserId == blockedUserId);
+    public async Task<MutedByListDto?> GetMutingListAsync(Guid viewerId, Guid targetUserId) => null; // Placeholder
+    public async Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20, Guid? viewerId = null) => new List<User>();
+    public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId) => await _unitOfWork.MutedWords.Query().Where(m => m.UserId == userId).ToListAsync();
+    
+    public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content") {
+        var mw = new MutedWord { UserId = userId, Word = word, MuteBehavior = behavior, Targets = targets, CreatedAt = DateTime.UtcNow };
+        await _unitOfWork.MutedWords.AddAsync(mw);
+        await _unitOfWork.CompleteAsync();
+        return mw;
+    }
+    
+    public async Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId) {
+        var mw = await _unitOfWork.MutedWords.Query().FirstOrDefaultAsync(m => m.Id == mutedWordId && m.UserId == userId);
+        if (mw == null) return false;
+        _unitOfWork.MutedWords.Remove(mw);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
+    
+    public async Task<bool> UpdateHandleAsync(Guid userId, string newHandle) {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return false;
+        user.Handle = newHandle;
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
+    
+    public async Task<List<User>> GetSuggestedUsersAsync(int limit = 10) => await _unitOfWork.Users.Query().Take(limit).ToListAsync();
+    public async Task SyncMutedWordsWithAtProtoAsync(Guid userId) { }
+
+
+    public async Task<string?> FollowUserAsync(Guid followerId, Guid followingId)
     {
         var targetUser = await _unitOfWork.Users.GetByIdAsync(followingId);
-        if (targetUser == null) return false;
+        if (targetUser == null) return null;
 
         var existing = await _unitOfWork.Follows.GetAsync(followerId, followingId);
-        if (existing != null) return true;
+        if (existing != null) return existing.Uri;
 
         var follow = new UserFollow
         {
@@ -606,7 +610,7 @@ public class UserService : IUserService
             try {
                 var token = await GetOrRefreshBlueskyTokenAsync(followerId);
                 if (!string.IsNullOrEmpty(token)) {
-                    var result = await _xrpcProxy.ProxyRequestWithTokenAsync(followerId, "app.bsky.graph.follow", new { subject = targetUser.Did }, token);
+                    var result = await _xrpcProxy.ProxyRequestAsync(targetUser.Did, "app.bsky.graph.follow", new Dictionary<string, string?>(), token, "POST", new { subject = targetUser.Did });
                     if (result.Success) {
                         using var doc = JsonDocument.Parse(result.Content);
                         follow.Uri = doc.RootElement.GetProperty("uri").GetString();
@@ -624,7 +628,7 @@ public class UserService : IUserService
         targetUser.FollowersCount = (targetUser.FollowersCount ?? 0) + 1;
 
         await _unitOfWork.CompleteAsync();
-        return true;
+        return follow.Uri;
     }
 
     public async Task<bool> UnfollowUserAsync(Guid followerId, Guid followingId)
@@ -638,7 +642,7 @@ public class UserService : IUserService
             try {
                 var token = await GetOrRefreshBlueskyTokenAsync(followerId);
                 if (!string.IsNullOrEmpty(token)) {
-                    await _xrpcProxy.ProxyRequestWithTokenAsync(followerId, "com.atproto.repo.deleteRecord", new { repo = followerId, collection = "app.bsky.graph.follow", rkey = follow.Tid }, token);
+                    await _xrpcProxy.ProxyRequestAsync(followerId.ToString(), "com.atproto.repo.deleteRecord", new Dictionary<string, string?>(), token, "POST", new { repo = followerId, collection = "app.bsky.graph.follow", rkey = follow.Tid });
                 }
             } catch { }
         }
@@ -655,10 +659,10 @@ public class UserService : IUserService
 
     public async Task<bool> BlockUserAsync(Guid userId, Guid targetUserId)
     {
-        var existing = await _unitOfWork.Blocks.IsBlockingAsync(userId, targetUserId);
+        var existing = await _unitOfWork.Blocks.IsBlockedAsync(userId, targetUserId);
         if (existing) return true;
 
-        var block = new UserBlock { UserId = userId, BlockedUserId = targetUserId, CreatedAt = DateTime.UtcNow };
+        var block = new BlockedAccount { UserId = userId, BlockedUserId = targetUserId, CreatedAt = DateTime.UtcNow };
         await _unitOfWork.Blocks.AddAsync(block);
         await _unitOfWork.CompleteAsync();
         return true;
@@ -678,7 +682,7 @@ public class UserService : IUserService
         var existing = await _unitOfWork.Mutes.IsMutedAsync(userId, targetUserId);
         if (existing) return true;
 
-        var mute = new UserMute { UserId = userId, MutedUserId = targetUserId, CreatedAt = DateTime.UtcNow };
+        var mute = new MutedAccount { UserId = userId, MutedUserId = targetUserId, CreatedAt = DateTime.UtcNow };
         await _unitOfWork.Mutes.AddAsync(mute);
         await _unitOfWork.CompleteAsync();
         return true;
@@ -693,7 +697,7 @@ public class UserService : IUserService
         return true;
     }
 
-    public async Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit, string? cursor)
+    public async Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {
         var mutes = await _unitOfWork.Mutes.Query()
             .Include(m => m.MutedUser)
@@ -703,7 +707,7 @@ public class UserService : IUserService
         return (mutes.Select(m => m.MutedUser).ToList(), null);
     }
 
-    public async Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit, string? cursor)
+    public async Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {
         var blocks = await _unitOfWork.Blocks.Query()
             .Include(b => b.BlockedUser)
@@ -906,7 +910,7 @@ public class UserService : IUserService
             var followers = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == dup.Id).ToListAsync();
             foreach (var f in followers)
             {
-                if (!await _unitOfWork.Follows.ExistsAsync(f.FollowerId, primary.Id))
+                if (!await _unitOfWork.Follows.IsFollowingAsync(f.FollowerId, primary.Id))
                 {
                     f.FollowingId = primary.Id;
                     _unitOfWork.Follows.Update(f);
@@ -918,7 +922,7 @@ public class UserService : IUserService
             var following = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == dup.Id).ToListAsync();
             foreach (var f in following)
             {
-                if (!await _unitOfWork.Follows.ExistsAsync(primary.Id, f.FollowingId))
+                if (!await _unitOfWork.Follows.IsFollowingAsync(primary.Id, f.FollowingId))
                 {
                     f.FollowerId = primary.Id;
                     _unitOfWork.Follows.Update(f);
