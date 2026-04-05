@@ -35,7 +35,8 @@ const FollowersPage: React.FC = () => {
     } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const observerTarget = React.useRef<HTMLDivElement>(null);
-    const activeOwnerKey = normalizeIdentifier(profile?.id || effectiveId || '');
+    const resolvedListActor = profile?.did || profile?.handle || profile?.id || effectiveId || '';
+    const activeOwnerKey = normalizeIdentifier(resolvedListActor);
     const hasInitializedCurrentList = !!activeOwnerKey && followersInitializedOwnerId === activeOwnerKey;
 
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.followers'));
@@ -48,52 +49,41 @@ const FollowersPage: React.FC = () => {
         }
 
         let profilePromise: any;
-        let listPromise: any;
 
         if (effectiveId) {
-            if (effectiveId.includes('.')) {
-                // It's a handle, we need the profile first to get the DID
-                profilePromise = dispatch(fetchUserProfile(effectiveId));
-            } else {
-                // It's a DID, we can fetch profile and list in parallel
-                profilePromise = dispatch(fetchUserProfileById(effectiveId));
-                const targetActor = effectiveId.toLowerCase();
-                // If it's a completely different user's list, fetch unconditionally. Otherwise, fetch if empty and there's more.
-                if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                    listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: PAGE_SIZE }));
-                }
-            }
+            profilePromise = effectiveId.includes('.')
+                ? dispatch(fetchUserProfile(effectiveId))
+                : dispatch(fetchUserProfileById(effectiveId));
         }
 
         return () => {
             if (profilePromise) profilePromise.abort();
-            if (listPromise) listPromise.abort();
         };
-    }, [dispatch, effectiveId, followersOwnerId, users.length, hasMore]);
+    }, [dispatch, effectiveId]);
 
     useEffect(() => {
         let listPromise: any;
-        // Guard: fetch list only when profile matches the handle
-        if (profile?.id && (profile.handle === effectiveId || profile.did === effectiveId || profile.id === effectiveId)) {
-            const targetActor = profile.id.toLowerCase();
+
+        if (effectiveId && profileMatchesIdentifier(profile, effectiveId) && resolvedListActor) {
+            const targetActor = normalizeIdentifier(resolvedListActor);
             if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: PAGE_SIZE }));
+                listPromise = dispatch(fetchFollowers({ actor: resolvedListActor, limit: PAGE_SIZE }));
             }
         }
 
         return () => {
             if (listPromise) listPromise.abort();
         };
-    }, [dispatch, profile, effectiveId, followersOwnerId, users.length, hasMore]);
+    }, [dispatch, effectiveId, profile, resolvedListActor, followersOwnerId, users.length, hasMore]);
 
     // Infinite Scroll Observer
     useEffect(() => {
-        if (!hasMore || followersLoading || !profile?.id) return;
+        if (!hasMore || followersLoading || !resolvedListActor || !profileMatchesIdentifier(profile, effectiveId || '')) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowers({ actor: profile.id, cursor: cursor || undefined, limit: PAGE_SIZE }));
+                    dispatch(fetchFollowers({ actor: resolvedListActor, cursor: cursor || undefined, limit: PAGE_SIZE }));
                 }
             },
             { rootMargin: '300px 0px', threshold: 0 }
@@ -104,7 +94,7 @@ const FollowersPage: React.FC = () => {
         }
 
         return () => observer.disconnect();
-    }, [dispatch, hasMore, followersLoading, profile?.id, cursor]);
+    }, [dispatch, hasMore, followersLoading, resolvedListActor, cursor, profile, effectiveId]);
 
     const profileUser = profile;
     const followers = users;
@@ -243,13 +233,13 @@ const FollowersPage: React.FC = () => {
                             {followersLoading && <UserSkeleton count={2} />}
                         </div>
                     </>
-                ) : (isInitialListLoading || !profile || followersOwnerId !== normalizeIdentifier(profile.id)) ? (
+                ) : (isInitialListLoading || !profile || followersOwnerId !== activeOwnerKey) ? (
                     <UserSkeleton count={8} />
                 ) : error ? (
                     <div className="py-20 px-4 text-center">
                         <div className="text-red-500 mb-4 font-bold">Error: Failed to load followers</div>
                         <button
-                            onClick={() => dispatch(fetchFollowers({ actor: profile?.id || effectiveId!, limit: PAGE_SIZE }))}
+                            onClick={() => dispatch(fetchFollowers({ actor: resolvedListActor || effectiveId!, limit: PAGE_SIZE }))}
                             className="text-blue-500 hover:underline font-medium"
                         >
                             Try again

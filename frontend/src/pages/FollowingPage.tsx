@@ -35,7 +35,8 @@ const FollowingPage: React.FC = () => {
     } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const observerTarget = React.useRef<HTMLDivElement>(null);
-    const activeOwnerKey = normalizeIdentifier(profile?.id || effectiveId || '');
+    const resolvedListActor = profile?.did || profile?.handle || profile?.id || effectiveId || '';
+    const activeOwnerKey = normalizeIdentifier(resolvedListActor);
     const hasInitializedCurrentList = !!activeOwnerKey && followingInitializedOwnerId === activeOwnerKey;
 
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.following'));
@@ -48,52 +49,41 @@ const FollowingPage: React.FC = () => {
         }
 
         let profilePromise: any;
-        let listPromise: any;
 
         if (effectiveId) {
-            if (effectiveId.includes('.')) {
-                // It's a handle, we need the profile first to get the DID
-                profilePromise = dispatch(fetchUserProfile(effectiveId));
-            } else {
-                // It's a DID, we can fetch profile and list in parallel
-                profilePromise = dispatch(fetchUserProfileById(effectiveId));
-                const targetActor = effectiveId.toLowerCase();
-                // If it's a completely different user's list, fetch unconditionally. Otherwise, fetch if empty and there's more.
-                if (followingOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                    listPromise = dispatch(fetchFollowing({ actor: effectiveId, limit: PAGE_SIZE }));
-                }
-            }
+            profilePromise = effectiveId.includes('.')
+                ? dispatch(fetchUserProfile(effectiveId))
+                : dispatch(fetchUserProfileById(effectiveId));
         }
 
         return () => {
             if (profilePromise) profilePromise.abort();
-            if (listPromise) listPromise.abort();
         };
-    }, [dispatch, effectiveId, followingOwnerId, users.length, hasMore]); // Check ownership check to prevent flickering
+    }, [dispatch, effectiveId]);
 
     useEffect(() => {
         let listPromise: any;
-        // Guard: fetch list only when profile matches the handle
-        if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
-            const targetActor = profile.id.toLowerCase();
+
+        if (effectiveId && profileMatchesIdentifier(profile, effectiveId) && resolvedListActor) {
+            const targetActor = normalizeIdentifier(resolvedListActor);
             if (followingOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                listPromise = dispatch(fetchFollowing({ actor: profile.id, limit: PAGE_SIZE }));
+                listPromise = dispatch(fetchFollowing({ actor: resolvedListActor, limit: PAGE_SIZE }));
             }
         }
 
         return () => {
             if (listPromise) listPromise.abort();
         };
-    }, [dispatch, profile?.id, profile?.handle, profile?.did, effectiveId, followingOwnerId, users.length, hasMore]);
+    }, [dispatch, effectiveId, profile, resolvedListActor, followingOwnerId, users.length, hasMore]);
 
     // Infinite Scroll Observer
     useEffect(() => {
-        if (!hasMore || followingLoading || !profile?.id) return;
+        if (!hasMore || followingLoading || !resolvedListActor || !profileMatchesIdentifier(profile, effectiveId || '')) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowing({ actor: profile.id, cursor: cursor || undefined, limit: PAGE_SIZE }));
+                    dispatch(fetchFollowing({ actor: resolvedListActor, cursor: cursor || undefined, limit: PAGE_SIZE }));
                 }
             },
             { rootMargin: '300px 0px', threshold: 0 }
@@ -104,7 +94,7 @@ const FollowingPage: React.FC = () => {
         }
 
         return () => observer.disconnect();
-    }, [dispatch, hasMore, followingLoading, profile?.id, cursor]);
+    }, [dispatch, hasMore, followingLoading, resolvedListActor, cursor, profile, effectiveId]);
 
     const profileUser = profile;
     const following = users;
@@ -243,13 +233,13 @@ const FollowingPage: React.FC = () => {
                             {(followingLoading || hasMore) && <UserSkeleton count={2} />}
                         </div>
                     </>
-                ) : (isInitialListLoading || !profile || followingOwnerId !== normalizeIdentifier(profile.id)) ? (
+                ) : (isInitialListLoading || !profile || followingOwnerId !== activeOwnerKey) ? (
                     <UserSkeleton count={8} />
                 ) : error ? (
                     <div className="py-20 px-4 text-center">
                         <div className="text-red-500 mb-4 font-bold">500 Error: Failed to load list</div>
                         <button
-                            onClick={() => dispatch(fetchFollowing({ actor: profile?.id || effectiveId!, limit: PAGE_SIZE }))}
+                            onClick={() => dispatch(fetchFollowing({ actor: resolvedListActor || effectiveId!, limit: PAGE_SIZE }))}
                             className="text-blue-500 hover:underline font-medium"
                         >
                             Try again

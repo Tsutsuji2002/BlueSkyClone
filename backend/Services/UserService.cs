@@ -263,8 +263,6 @@ public class UserService : IUserService
     {
         var cacheKey = $"remote_profile:{identifier}";
         var cached = await _cacheService.GetAsync<User>(cacheKey);
-        if (cached != null) return cached;
-
 
         try
         {
@@ -328,9 +326,9 @@ public class UserService : IUserService
                 user.AvatarUrl = root.TryGetProperty("avatar", out var av) ? av.GetString() : null;
                 user.CoverImageUrl = root.TryGetProperty("banner", out var bn) ? bn.GetString() : null;
                 user.Bio = root.TryGetProperty("description", out var ds) ? ds.GetString() : null;
-                user.FollowersCount = root.TryGetProperty("followersCount", out var fc) ? fc.GetInt32() : 0;
-                user.FollowingCount = root.TryGetProperty("followingCount", out var fgc) ? fgc.GetInt32() : 0;
-                user.PostsCount = root.TryGetProperty("postsCount", out var pc) ? pc.GetInt32() : 0;
+                user.FollowersCount = root.TryGetProperty("followersCount", out var fc) && fc.TryGetInt32(out var followersCount) ? followersCount : (user.FollowersCount ?? 0);
+                user.FollowingCount = root.TryGetProperty("followingCount", out var fgc) && fgc.TryGetInt32(out var followingCount) ? followingCount : (user.FollowingCount ?? 0);
+                user.PostsCount = root.TryGetProperty("postsCount", out var pc) && pc.TryGetInt32(out var postsCount) ? postsCount : (user.PostsCount ?? 0);
                 user.IsVerified = true;
 
                 _unitOfWork.Users.Update(user);
@@ -351,7 +349,7 @@ public class UserService : IUserService
             _logger.LogError(ex, "Error resolving remote profile for {Actor}", identifier);
         }
 
-        return null;
+        return cached;
     }
 
     public async Task<User?> GetProfileByDidAsync(string did)
@@ -658,6 +656,22 @@ public class UserService : IUserService
         user.DisplayName = displayName;
         user.AvatarUrl = avatar;
         user.Bio = description;
+        if (actorData.TryGetProperty("followersCount", out var followersCountProp) && followersCountProp.TryGetInt32(out var followersCount))
+        {
+            user.FollowersCount = followersCount;
+        }
+        if (actorData.TryGetProperty("followsCount", out var followsCountProp) && followsCountProp.TryGetInt32(out var followingCount))
+        {
+            user.FollowingCount = followingCount;
+        }
+        else if (actorData.TryGetProperty("followingCount", out var followingCountProp) && followingCountProp.TryGetInt32(out followingCount))
+        {
+            user.FollowingCount = followingCount;
+        }
+        if (actorData.TryGetProperty("postsCount", out var postsCountProp) && postsCountProp.TryGetInt32(out var postsCount))
+        {
+            user.PostsCount = postsCount;
+        }
         user.IsVerified = true;
 
         _unitOfWork.Users.Update(user);
