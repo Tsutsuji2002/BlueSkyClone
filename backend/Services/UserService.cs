@@ -327,7 +327,12 @@ public class UserService : IUserService
                 user.CoverImageUrl = root.TryGetProperty("banner", out var bn) ? bn.GetString() : null;
                 user.Bio = root.TryGetProperty("description", out var ds) ? ds.GetString() : null;
                 user.FollowersCount = root.TryGetProperty("followersCount", out var fc) && fc.TryGetInt32(out var followersCount) ? followersCount : (user.FollowersCount ?? 0);
-                user.FollowingCount = root.TryGetProperty("followingCount", out var fgc) && fgc.TryGetInt32(out var followingCount) ? followingCount : (user.FollowingCount ?? 0);
+                user.FollowingCount =
+                    root.TryGetProperty("followsCount", out var followsCountProp) && followsCountProp.TryGetInt32(out var followsCount)
+                        ? followsCount
+                        : (root.TryGetProperty("followingCount", out var fgc) && fgc.TryGetInt32(out var followingCount)
+                            ? followingCount
+                            : (user.FollowingCount ?? 0));
                 user.PostsCount = root.TryGetProperty("postsCount", out var pc) && pc.TryGetInt32(out var postsCount) ? postsCount : (user.PostsCount ?? 0);
                 user.IsVerified = true;
 

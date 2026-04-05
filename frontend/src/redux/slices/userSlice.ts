@@ -1045,6 +1045,11 @@ const userSlice = createSlice({
                         if (restored.initialized) {
                             state.followersInitializedOwnerId = ownerId;
                         }
+                    } else {
+                        state.followers = [];
+                        state.followersCursor = null;
+                        state.followersHasMore = true;
+                        state.followersInitializedOwnerId = null;
                     }
                 }
             })
@@ -1108,6 +1113,11 @@ const userSlice = createSlice({
                         if (restored.initialized) {
                             state.followingInitializedOwnerId = ownerId;
                         }
+                    } else {
+                        state.followingUsers = [];
+                        state.followingCursor = null;
+                        state.followingHasMore = true;
+                        state.followingInitializedOwnerId = null;
                     }
                 }
             })
