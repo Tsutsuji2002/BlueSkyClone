@@ -158,7 +158,7 @@ export const fetchFollowers = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/fetchFollowers',
-    async ({ actor, cursor, limit = 20 }, { rejectWithValue }) => {
+    async ({ actor, cursor, limit = 10 }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
@@ -200,7 +200,7 @@ export const fetchFollowing = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/fetchFollowing',
-    async ({ actor, cursor, limit = 20 }, { rejectWithValue }) => {
+    async ({ actor, cursor, limit = 10 }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
@@ -881,10 +881,6 @@ const userSlice = createSlice({
             .addCase(fetchMutedAccounts.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
-                if (action.meta.arg && !action.meta.arg.cursor) {
-                    state.mutedUsers = [];
-                    state.mutedCursor = null;
-                }
             })
             .addCase(fetchMutedAccounts.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
@@ -923,10 +919,6 @@ const userSlice = createSlice({
             .addCase(fetchBlockedAccounts.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
-                if (action.meta.arg && !action.meta.arg.cursor) {
-                    state.blockedUsers = [];
-                    state.blockedCursor = null;
-                }
             })
             .addCase(fetchBlockedAccounts.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
@@ -963,14 +955,7 @@ const userSlice = createSlice({
             })
             // Fetch Followers
             .addCase(fetchFollowers.pending, (state: UserState, action) => {
-                const targetActor = action.meta.arg.actor.toLowerCase();
-                // If it's a completely different user's list, or a fresh fetch, reset the data
-                if (state.followersOwnerId !== targetActor && !action.meta.arg.cursor) {
-                    state.followers = [];
-                    state.followersCursor = null;
-                    state.followersHasMore = true;
-                }
-                state.followersOwnerId = targetActor;
+                state.followersOwnerId = action.meta.arg.actor.toLowerCase();
                 state.isLoading = true;
                 state.error = null;
             })
@@ -1009,14 +994,7 @@ const userSlice = createSlice({
             })
             // Fetch Following
             .addCase(fetchFollowing.pending, (state: UserState, action) => {
-                const targetActor = action.meta.arg.actor.toLowerCase();
-                // If it's a completely different user's list, or a fresh fetch, reset the data
-                if (state.followingOwnerId !== targetActor && !action.meta.arg.cursor) {
-                    state.followingUsers = [];
-                    state.followingCursor = null;
-                    state.followingHasMore = true;
-                }
-                state.followingOwnerId = targetActor;
+                state.followingOwnerId = action.meta.arg.actor.toLowerCase();
                 state.isLoading = true;
                 state.error = null;
             })

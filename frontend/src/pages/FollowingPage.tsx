@@ -19,7 +19,7 @@ const FollowingPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { profile, followingUsers: users, followingOwnerId, isLoading, followingCursor: cursor, followingHasMore: hasMore } = useAppSelector((state: RootState) => state.user);
+    const { profile, followingUsers: users, followingOwnerId, isLoading, followingCursor: cursor, followingHasMore: hasMore, error } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const observerTarget = React.useRef<HTMLDivElement>(null);
 
@@ -45,7 +45,7 @@ const FollowingPage: React.FC = () => {
                 const targetActor = effectiveId.toLowerCase();
                 // If it's a completely different user's list, fetch unconditionally. Otherwise, fetch if empty and there's more.
                 if (followingOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                    listPromise = dispatch(fetchFollowing({ actor: effectiveId, limit: 30 }));
+                    listPromise = dispatch(fetchFollowing({ actor: effectiveId, limit: 10 }));
                 }
             }
         }
@@ -62,7 +62,7 @@ const FollowingPage: React.FC = () => {
         if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
             const targetActor = profile.id.toLowerCase();
             if (followingOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                listPromise = dispatch(fetchFollowing({ actor: profile.id, limit: 30 }));
+                listPromise = dispatch(fetchFollowing({ actor: profile.id, limit: 10 }));
             }
         }
 
@@ -78,7 +78,7 @@ const FollowingPage: React.FC = () => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowing({ actor: profile.id, cursor: cursor || undefined, limit: 30 }));
+                    dispatch(fetchFollowing({ actor: profile.id, cursor: cursor || undefined, limit: 10 }));
                 }
             },
             { threshold: 1.0 }
@@ -223,11 +223,21 @@ const FollowingPage: React.FC = () => {
                         ))}
                         {/* Infinite Scroll Trigger */}
                         <div ref={observerTarget} className="h-20 flex items-center justify-center">
-                            {isLoading && <UserSkeleton count={2} />}
+                            {(isLoading || hasMore) && <UserSkeleton count={2} />}
                         </div>
                     </>
-                ) : isLoading ? (
-                    <UserSkeleton count={6} />
+                ) : (isLoading || !profile || followingOwnerId !== profile.id.toLowerCase() || (hasMore && following.length === 0)) ? (
+                    <UserSkeleton count={8} />
+                ) : error ? (
+                    <div className="py-20 px-4 text-center">
+                        <div className="text-red-500 mb-4 font-bold">500 Error: Failed to load list</div>
+                        <button
+                            onClick={() => dispatch(fetchFollowing({ actor: profile?.id || effectiveId!, limit: 10 }))}
+                            className="text-blue-500 hover:underline font-medium"
+                        >
+                            Try again
+                        </button>
+                    </div>
                 ) : (
                     <div className="py-20 px-8 text-center flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-gray-100 dark:bg-dark-surface rounded-full flex items-center justify-center mb-4">

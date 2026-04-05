@@ -19,7 +19,7 @@ const FollowersPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { profile, followers: users, followersOwnerId, isLoading, followersCursor: cursor, followersHasMore: hasMore } = useAppSelector((state: RootState) => state.user);
+    const { profile, followers: users, followersOwnerId, isLoading, followersCursor: cursor, followersHasMore: hasMore, error } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const observerTarget = React.useRef<HTMLDivElement>(null);
 
@@ -45,7 +45,7 @@ const FollowersPage: React.FC = () => {
                 const targetActor = effectiveId.toLowerCase();
                 // If it's a completely different user's list, fetch unconditionally. Otherwise, fetch if empty and there's more.
                 if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                    listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: 30 }));
+                    listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: 10 }));
                 }
             }
         }
@@ -54,22 +54,22 @@ const FollowersPage: React.FC = () => {
             if (profilePromise) profilePromise.abort();
             if (listPromise) listPromise.abort();
         };
-    }, [dispatch, effectiveId, followersOwnerId, users.length, hasMore]); // Check ownership check to prevent flickering
+    }, [dispatch, effectiveId, followersOwnerId, users.length, hasMore]);
 
     useEffect(() => {
         let listPromise: any;
         // Guard: fetch list only when profile matches the handle
-        if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
+        if (profile?.id && (profile.handle === effectiveId || profile.did === effectiveId || profile.id === effectiveId)) {
             const targetActor = profile.id.toLowerCase();
             if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: 30 }));
+                listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: 10 }));
             }
         }
 
         return () => {
             if (listPromise) listPromise.abort();
         };
-    }, [dispatch, profile?.id, profile?.handle, profile?.did, effectiveId, followersOwnerId, users.length, hasMore]);
+    }, [dispatch, profile, effectiveId, followersOwnerId, users.length, hasMore]);
 
     // Infinite Scroll Observer
     useEffect(() => {
@@ -78,7 +78,7 @@ const FollowersPage: React.FC = () => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowers({ actor: profile.id, cursor: cursor || undefined, limit: 30 }));
+                    dispatch(fetchFollowers({ actor: profile.id, cursor: cursor || undefined, limit: 10 }));
                 }
             },
             { threshold: 1.0 }
@@ -226,8 +226,18 @@ const FollowersPage: React.FC = () => {
                             {isLoading && <UserSkeleton count={2} />}
                         </div>
                     </>
-                ) : isLoading ? (
-                    <UserSkeleton count={6} />
+                ) : (isLoading || !profile || followersOwnerId !== profile.id.toLowerCase() || (hasMore && followers.length === 0)) ? (
+                    <UserSkeleton count={8} />
+                ) : error ? (
+                    <div className="py-20 px-4 text-center">
+                        <div className="text-red-500 mb-4 font-bold">Error: Failed to load followers</div>
+                        <button
+                            onClick={() => dispatch(fetchFollowers({ actor: profile?.id || effectiveId!, limit: 10 }))}
+                            className="text-blue-500 hover:underline font-medium"
+                        >
+                            Try again
+                        </button>
+                    </div>
                 ) : (
                     <div className="py-20 px-8 text-center flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-gray-100 dark:bg-dark-surface rounded-full flex items-center justify-center mb-4">

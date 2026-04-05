@@ -14,7 +14,7 @@ public class UserRepository : Repository<User>, IUserRepository
         var normalizedDids = dids.Select(d => d.ToLowerInvariant()).Distinct().ToList();
         return await _dbSet
             .Include(u => u.UserSetting)
-            .Where(u => normalizedDids.Contains(u.Did.ToLower()))
+            .Where(u => !string.IsNullOrEmpty(u.Did) && normalizedDids.Contains(u.Did))
             .ToListAsync();
     }
 
