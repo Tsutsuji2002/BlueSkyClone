@@ -19,7 +19,7 @@ const FollowingPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { profile, followingUsers: users, isLoading, followingCursor: cursor, followingHasMore: hasMore } = useAppSelector((state: RootState) => state.user);
+    const { profile, followingUsers: users, followingOwnerId, isLoading, followingCursor: cursor, followingHasMore: hasMore } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const observerTarget = React.useRef<HTMLDivElement>(null);
 
@@ -42,7 +42,8 @@ const FollowingPage: React.FC = () => {
             } else {
                 // It's a DID, we can fetch profile and list in parallel
                 profilePromise = dispatch(fetchUserProfileById(effectiveId));
-                if (users.length === 0 && hasMore) {
+                const targetActor = effectiveId.toLowerCase();
+                if (hasMore && (followingOwnerId !== targetActor || users.length === 0)) {
                     listPromise = dispatch(fetchFollowing({ actor: effectiveId, limit: 30 }));
                 }
             }
@@ -52,13 +53,14 @@ const FollowingPage: React.FC = () => {
             if (profilePromise) profilePromise.abort();
             if (listPromise) listPromise.abort();
         };
-    }, [dispatch, effectiveId]); // users and hasMore intentionally omitted to act as mount-time check
+    }, [dispatch, effectiveId, followingOwnerId, users.length, hasMore]); // Check ownership check to prevent flickering
 
     useEffect(() => {
         let listPromise: any;
         // Guard: fetch list only when profile matches the handle
         if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
-            if (users.length === 0 && hasMore) {
+            const targetActor = profile.id.toLowerCase();
+            if (hasMore && (followingOwnerId !== targetActor || users.length === 0)) {
                 listPromise = dispatch(fetchFollowing({ actor: profile.id, limit: 30 }));
             }
         }
@@ -66,7 +68,7 @@ const FollowingPage: React.FC = () => {
         return () => {
             if (listPromise) listPromise.abort();
         };
-    }, [dispatch, profile?.id, profile?.handle, profile?.did, effectiveId]);
+    }, [dispatch, profile?.id, profile?.handle, profile?.did, effectiveId, followingOwnerId, users.length, hasMore]);
 
     // Infinite Scroll Observer
     useEffect(() => {

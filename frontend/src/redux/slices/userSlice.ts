@@ -13,9 +13,11 @@ const initialState: UserState = {
     blockedUsers: [],
     blockedCursor: null,
     blockedHasMore: true,
+    followersOwnerId: null,
     followers: [],
     followersCursor: null,
     followersHasMore: true,
+    followingOwnerId: null,
     followingUsers: [],
     followingCursor: null,
     followingHasMore: true,
@@ -604,11 +606,13 @@ const userSlice = createSlice({
             state.followers = [];
             state.followersCursor = null;
             state.followersHasMore = true;
+            state.followersOwnerId = null;
         },
         clearFollowing: (state: UserState) => {
             state.followingUsers = [];
             state.followingCursor = null;
             state.followingHasMore = true;
+            state.followingOwnerId = null;
         },
     },
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
@@ -959,9 +963,14 @@ const userSlice = createSlice({
             })
             // Fetch Followers
             .addCase(fetchFollowers.pending, (state: UserState, action) => {
-                // If it's a cursor fetch from infinite scroll, just set isLoading
-                // We no longer clear followers here because component navigation handles
-                // clearFollowers() on profile change manually.
+                const targetActor = action.meta.arg.actor.toLowerCase();
+                // If it's a completely different user's list, or a fresh fetch, reset the data
+                if (state.followersOwnerId !== targetActor && !action.meta.arg.cursor) {
+                    state.followers = [];
+                    state.followersCursor = null;
+                    state.followersHasMore = true;
+                }
+                state.followersOwnerId = targetActor;
                 state.isLoading = true;
                 state.error = null;
             })
@@ -1000,6 +1009,14 @@ const userSlice = createSlice({
             })
             // Fetch Following
             .addCase(fetchFollowing.pending, (state: UserState, action) => {
+                const targetActor = action.meta.arg.actor.toLowerCase();
+                // If it's a completely different user's list, or a fresh fetch, reset the data
+                if (state.followingOwnerId !== targetActor && !action.meta.arg.cursor) {
+                    state.followingUsers = [];
+                    state.followingCursor = null;
+                    state.followingHasMore = true;
+                }
+                state.followingOwnerId = targetActor;
                 state.isLoading = true;
                 state.error = null;
             })

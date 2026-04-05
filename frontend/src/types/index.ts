@@ -434,7 +434,9 @@ export interface UserState {
     mutedWords: MutedWord[];
     mutedUsers: User[]; // Muted accounts list
     blockedUsers: User[]; // Blocked accounts list
+    followersOwnerId: string | null;
     followers: User[]; // Followers of active profile
+    followingOwnerId: string | null;
     followingUsers: User[]; // Following of active profile
     selectedInterests: string[];
     searchResults: User[];
