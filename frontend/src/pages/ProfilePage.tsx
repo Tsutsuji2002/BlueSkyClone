@@ -499,8 +499,11 @@ const ProfilePage: React.FC = () => {
                                             variant={profileUser?.isFollowing ? 'outline' : 'primary'}
                                             size="sm"
                                             onClick={handleFollowToggle}
-                                            loading={profileUser ? (!!actionLoading[profileUser.did || profileUser.handle || profileUser.id] || !!actionLoading[profileUser.id]) : false}
-                                            className="rounded-full text-[15px] font-bold px-5 py-2 min-w-[100px]"
+                                            disabled={profileUser ? (!!actionLoading[profileUser.did || profileUser.handle || profileUser.id] || !!actionLoading[profileUser.id]) : false}
+                                            className={cn(
+                                                "rounded-full text-[15px] font-bold px-5 py-2 min-w-[100px]",
+                                                profileUser && (!!actionLoading[profileUser.did || profileUser.handle || profileUser.id] || !!actionLoading[profileUser.id]) && "opacity-80 animate-pulse"
+                                            )}
                                         >
                                             {profileUser?.isFollowing ? t('profile.following_btn') : t('profile.follow')}
                                         </Button>

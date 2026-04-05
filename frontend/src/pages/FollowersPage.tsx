@@ -6,6 +6,7 @@ import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
 import UserSkeleton from '../components/common/UserSkeleton';
 import Button from '../components/common/Button';
+import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -199,6 +200,7 @@ const FollowersPage: React.FC = () => {
                                     const isFollowing = resolveIsFollowing(follower);
                                     const needsVerifiedStatus = !!currentUser && currentUser.id !== follower.id && currentUser.did !== follower.did && !hasVerifiedStatus(follower);
                                     const isStatusLoading = isVerifying(follower) || needsVerifiedStatus;
+                                    const isFollowBusy = !!actionLoading[followActor] || !!actionLoading[follower.id] || isStatusLoading;
 
                                     return (
                                 <div className="flex items-start gap-3">
@@ -235,8 +237,11 @@ const FollowersPage: React.FC = () => {
                                         <Button
                                             variant={isFollowing ? 'secondary' : 'primary'}
                                             size="sm"
-                                            className="rounded-full font-bold px-4 shrink-0"
-                                            loading={!!actionLoading[followActor] || !!actionLoading[follower.id] || isStatusLoading}
+                                            className={cn(
+                                                "rounded-full font-bold px-4 shrink-0 min-w-[110px]",
+                                                isFollowBusy && "opacity-80 animate-pulse"
+                                            )}
+                                            disabled={isFollowBusy}
                                             onClick={() => handleFollowToggle(follower)}
                                         >
                                             {isFollowing ? (
