@@ -15,8 +15,8 @@ import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync
 import { RootState } from '../redux/store';
 import { User } from '../types';
 
-const INITIAL_PAGE_SIZE = 12;
-const NEXT_PAGE_SIZE = 18;
+const INITIAL_PAGE_SIZE = 10;
+const NEXT_PAGE_SIZE = 5;
 const LOAD_AHEAD_MARGIN = '800px 0px';
 
 const FollowingPage: React.FC = () => {
@@ -109,7 +109,7 @@ const FollowingPage: React.FC = () => {
 
     const profileUser = profile;
     const following = users;
-    const isInitialListLoading = !hasInitializedCurrentList && followingLoading;
+    const isInitialListLoading = (!hasInitializedCurrentList && followingLoading) || (followingLoading && following.length === 0);
 
     const formatCount = (count: number): string => {
         if (count >= 1000000) {
@@ -264,7 +264,7 @@ const FollowingPage: React.FC = () => {
                         ))}
                         {/* Infinite Scroll Trigger */}
                         <div ref={observerTarget} className="h-20 flex items-center justify-center">
-                            {(followingLoading || hasMore) && <UserSkeleton count={2} />}
+                            {followingLoading && following.length > 0 && <UserSkeleton count={2} />}
                         </div>
                     </>
                 ) : (isInitialListLoading || !profile || followingOwnerId !== activeOwnerKey) ? (
