@@ -843,6 +843,23 @@ public class UserService : IUserService
 
     private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowersAsync(User targetUser, int limit, string? cursor, Guid? viewerId = null)
     {
+        var cacheKey = $"remote_followers:{targetUser.Did}:{limit}:{cursor ?? "none"}";
+        var cached = await _cacheService.GetAsync<CachedRemoteList>(cacheKey);
+        if (cached != null)
+        {
+            _logger.LogInformation("[GetRemoteFollowersAsync] Cache HIT for {Did}", targetUser.Did);
+            var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
+            // Reorder to match cached order
+            var usersMap = usersFromDb.ToDictionary(u => u.Did, u => u, StringComparer.OrdinalIgnoreCase);
+            var orderedUsers = cached.Dids
+                .Select(did => usersMap.GetValueOrDefault(did))
+                .Where(u => u != null)
+                .Cast<User>()
+                .ToList();
+            
+            return (orderedUsers, cached.Cursor);
+        }
+
         var users = new List<User>();
         string? nextCursor = null;
 
@@ -961,11 +978,31 @@ public class UserService : IUserService
             _logger.LogWarning(persistEx, "[GetRemoteFollowersAsync] Follow-record persistence failed (non-fatal)");
         }
 
+        if (users.Count > 0)
+        {
+            await _cacheService.SetAsync(cacheKey, new CachedRemoteList(users.Select(u => u.Did).ToList(), nextCursor), TimeSpan.FromMinutes(5));
+        }
+
         return (users, nextCursor);
     }
 
     private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowingAsync(string did, int limit, string? cursor, Guid? viewerId = null)
     {
+        var cacheKey = $"remote_following:{did}:{limit}:{cursor ?? "none"}";
+        var cached = await _cacheService.GetAsync<CachedRemoteList>(cacheKey);
+        if (cached != null)
+        {
+            _logger.LogInformation("[GetRemoteFollowingAsync] Cache HIT for {Did}", did);
+            var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
+            var usersMap = usersFromDb.ToDictionary(u => u.Did, u => u, StringComparer.OrdinalIgnoreCase);
+            var orderedUsers = cached.Dids
+                .Select(d => usersMap.GetValueOrDefault(d))
+                .Where(u => u != null)
+                .Cast<User>()
+                .ToList();
+            return (orderedUsers, cached.Cursor);
+        }
+
         var users = new List<User>();
         string? nextCursor = null;
 
@@ -1078,6 +1115,11 @@ public class UserService : IUserService
         catch (Exception persistEx)
         {
             _logger.LogWarning(persistEx, "[GetRemoteFollowingAsync] Follow-record persistence failed (non-fatal)");
+        }
+
+        if (users.Count > 0)
+        {
+            await _cacheService.SetAsync(cacheKey, new CachedRemoteList(users.Select(u => u.Did).ToList(), nextCursor), TimeSpan.FromMinutes(5));
         }
 
         return (users, nextCursor);
@@ -2205,3 +2247,5 @@ public class UserService : IUserService
         return true;
     }
 }
+
+public record CachedRemoteList(List<string> Dids, string? Cursor);

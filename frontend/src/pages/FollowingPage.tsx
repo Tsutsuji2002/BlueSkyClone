@@ -9,7 +9,7 @@ import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowing, clearProfile } from '../redux/slices/userSlice';
+import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowing, clearProfile, profileMatchesIdentifier } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
 
@@ -26,8 +26,11 @@ const FollowingPage: React.FC = () => {
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.following'));
 
     useEffect(() => {
-        dispatch(clearProfile());
-        dispatch(clearFollowing());
+        // Only clear if switching to a DIFFERENT profile
+        if (profile && !profileMatchesIdentifier(profile, effectiveId || '')) {
+            dispatch(clearProfile());
+            dispatch(clearFollowing());
+        }
 
         let profilePromise: any;
         let listPromise: any;
@@ -39,7 +42,7 @@ const FollowingPage: React.FC = () => {
             } else {
                 // It's a DID, we can fetch profile and list in parallel
                 profilePromise = dispatch(fetchUserProfileById(effectiveId));
-                listPromise = dispatch(fetchFollowing({ actor: effectiveId }));
+                listPromise = dispatch(fetchFollowing({ actor: effectiveId, limit: 30 }));
             }
         }
 
@@ -53,7 +56,7 @@ const FollowingPage: React.FC = () => {
         let listPromise: any;
         // Guard: fetch list only when profile matches the handle
         if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
-            listPromise = dispatch(fetchFollowing({ actor: profile.id }));
+            listPromise = dispatch(fetchFollowing({ actor: profile.id, limit: 30 }));
         }
 
         return () => {
@@ -68,7 +71,7 @@ const FollowingPage: React.FC = () => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowing({ actor: profile.id, cursor: cursor || undefined }));
+                    dispatch(fetchFollowing({ actor: profile.id, cursor: cursor || undefined, limit: 30 }));
                 }
             },
             { threshold: 1.0 }
@@ -219,9 +222,15 @@ const FollowingPage: React.FC = () => {
                 ) : isLoading ? (
                     <UserSkeleton count={6} />
                 ) : (
-                    <div className="py-20 text-center">
-                        <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
-                            Not following anyone yet
+                    <div className="py-20 px-8 text-center flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-dark-surface rounded-full flex items-center justify-center mb-4">
+                            <FiPlus className="text-gray-400" size={32} />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                            {t('profile.no_following_title', 'Not following anyone yet')}
+                        </h2>
+                        <p className="text-gray-500 dark:text-dark-text-secondary text-sm max-w-xs">
+                            {t('profile.no_following_desc', 'When they follow someone, their posts will show up here.')}
                         </p>
                     </div>
                 )}
@@ -231,4 +240,3 @@ const FollowingPage: React.FC = () => {
 };
 
 export default FollowingPage;
-

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiCheck, FiPlus } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiPlus, FiUsers } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
 import UserSkeleton from '../components/common/UserSkeleton';
@@ -9,7 +9,7 @@ import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFollowers, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowers, clearProfile } from '../redux/slices/userSlice';
+import { fetchFollowers, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowers, clearProfile, profileMatchesIdentifier } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
 
@@ -26,8 +26,11 @@ const FollowersPage: React.FC = () => {
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.followers'));
 
     useEffect(() => {
-        dispatch(clearProfile());
-        dispatch(clearFollowers());
+        // Only clear if switching to a DIFFERENT profile
+        if (profile && !profileMatchesIdentifier(profile, effectiveId || '')) {
+            dispatch(clearProfile());
+            dispatch(clearFollowers());
+        }
 
         let profilePromise: any;
         let listPromise: any;
@@ -39,7 +42,7 @@ const FollowersPage: React.FC = () => {
             } else {
                 // It's a DID, we can fetch profile and list in parallel
                 profilePromise = dispatch(fetchUserProfileById(effectiveId));
-                listPromise = dispatch(fetchFollowers({ actor: effectiveId }));
+                listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: 30 }));
             }
         }
 
@@ -53,7 +56,7 @@ const FollowersPage: React.FC = () => {
         let listPromise: any;
         // Guard: fetch list only when profile matches the handle
         if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
-            listPromise = dispatch(fetchFollowers({ actor: profile.id }));
+            listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: 30 }));
         }
 
         return () => {
@@ -68,7 +71,7 @@ const FollowersPage: React.FC = () => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowers({ actor: profile.id, cursor: cursor || undefined }));
+                    dispatch(fetchFollowers({ actor: profile.id, cursor: cursor || undefined, limit: 30 }));
                 }
             },
             { threshold: 1.0 }
@@ -83,9 +86,8 @@ const FollowersPage: React.FC = () => {
 
     const profileUser = profile;
     const followers = users;
-    // ... same formatCount ...
+
     const formatCount = (count: number): string => {
-        if (!count) return "0";
         if (count >= 1000000) {
             return `${(count / 1000000).toFixed(1)} M`;
         } else if (count >= 1000) {
@@ -220,9 +222,15 @@ const FollowersPage: React.FC = () => {
                 ) : isLoading ? (
                     <UserSkeleton count={6} />
                 ) : (
-                    <div className="py-20 text-center">
-                        <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
-                            No followers yet
+                    <div className="py-20 px-8 text-center flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-dark-surface rounded-full flex items-center justify-center mb-4">
+                            <FiUsers className="text-gray-400" size={32} />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                            {t('profile.no_followers_title', 'No followers yet')}
+                        </h2>
+                        <p className="text-gray-500 dark:text-dark-text-secondary text-sm max-w-xs">
+                            {t('profile.no_followers_desc', 'When someone follows this user, they will show up here.')}
                         </p>
                     </div>
                 )}
@@ -232,4 +240,3 @@ const FollowersPage: React.FC = () => {
 };
 
 export default FollowersPage;
-

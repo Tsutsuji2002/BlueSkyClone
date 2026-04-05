@@ -30,12 +30,12 @@ const initialState: UserState = {
     hasMore: true,
 };
 
-const normalizeIdentifier = (value?: string | null): string => {
+export const normalizeIdentifier = (value?: string | null): string => {
     if (!value) return '';
     return value.trim().replace(/^@/, '').toLowerCase();
 };
 
-const profileMatchesIdentifier = (profile: User | null, identifier: string): boolean => {
+export const profileMatchesIdentifier = (profile: User | null, identifier: string): boolean => {
     if (!profile) return false;
     const normalizedIdentifier = normalizeIdentifier(identifier);
     if (!normalizedIdentifier) return false;
@@ -641,8 +641,9 @@ const userSlice = createSlice({
             .addCase(fetchUserProfile.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
-                // Only clear if we're switching to a DIFFERENT profile
-                if (state.profile && state.profile.handle !== action.meta.arg) {
+                // Only clear if we're switching to a DIFFERENT profile (check handle, id, and did)
+                const newIdentifier = normalizeIdentifier(action.meta.arg);
+                if (state.profile && !profileMatchesIdentifier(state.profile, newIdentifier)) {
                     state.profile = null;
                 }
             })
@@ -658,11 +659,27 @@ const userSlice = createSlice({
             .addCase(followUserAsync.pending, (state: UserState, action) => {
                 const userId = action.meta.arg;
                 state.actionLoading[userId] = true;
-                // Optimistic update
+
+                // Optimistic update function
+                const updateState = (u: User) => {
+                    if (profileMatchesIdentifier(u, userId)) {
+                        u.isFollowing = true;
+                    }
+                };
+
+                // Update various lists optimistically
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isFollowing = true;
                     if (state.profile.followersCount != null) state.profile.followersCount += 1;
                 }
+
+                state.users.forEach(updateState);
+                state.followers.forEach(updateState);
+                state.followingUsers.forEach(updateState);
+                state.searchResults.forEach(updateState);
+                state.suggestedUsers.forEach(updateState);
+                state.blockedUsers.forEach(updateState);
+                state.mutedUsers.forEach(updateState);
             })
             .addCase(followUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg;
@@ -705,7 +722,15 @@ const userSlice = createSlice({
             .addCase(unfollowUserAsync.pending, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
                 state.actionLoading[userId] = true;
-                // Optimistic update
+
+                // Optimistic update function
+                const updateState = (u: User) => {
+                    if (profileMatchesIdentifier(u, userId)) {
+                        u.isFollowing = false;
+                    }
+                };
+
+                // Update various lists optimistically
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isFollowing = false;
                     state.profile.followingReference = undefined;
@@ -713,6 +738,14 @@ const userSlice = createSlice({
                         state.profile.followersCount -= 1;
                     }
                 }
+
+                state.users.forEach(updateState);
+                state.followers.forEach(updateState);
+                state.followingUsers.forEach(updateState);
+                state.searchResults.forEach(updateState);
+                state.suggestedUsers.forEach(updateState);
+                state.blockedUsers.forEach(updateState);
+                state.mutedUsers.forEach(updateState);
             })
             .addCase(unfollowUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
