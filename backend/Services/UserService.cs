@@ -849,10 +849,18 @@ public class UserService : IUserService
         {
             _logger.LogInformation("[GetRemoteFollowersAsync] Cache HIT for {Did}", targetUser.Did);
             var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
-            // Reorder to match cached order
-            var usersMap = usersFromDb.ToDictionary(u => u.Did, u => u, StringComparer.OrdinalIgnoreCase);
+            var usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+
+            if (viewerId.HasValue)
+            {
+                await SyncInteractionsBatchAsync(viewerId.Value, cached.Dids);
+                // Re-fetch users from DB after sync to get updated isFollowing status
+                usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
+                usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+            }
+
             var orderedUsers = cached.Dids
-                .Select(did => usersMap.GetValueOrDefault(did))
+                .Select(did => usersMap.GetValueOrDefault(did.ToLower()))
                 .Where(u => u != null)
                 .Cast<User>()
                 .ToList();
@@ -994,9 +1002,17 @@ public class UserService : IUserService
         {
             _logger.LogInformation("[GetRemoteFollowingAsync] Cache HIT for {Did}", did);
             var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
-            var usersMap = usersFromDb.ToDictionary(u => u.Did, u => u, StringComparer.OrdinalIgnoreCase);
+            var usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+
+            if (viewerId.HasValue)
+            {
+                await SyncInteractionsBatchAsync(viewerId.Value, cached.Dids);
+                usersFromDb = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
+                usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+            }
+
             var orderedUsers = cached.Dids
-                .Select(d => usersMap.GetValueOrDefault(d))
+                .Select(d => usersMap.GetValueOrDefault(d.ToLower()))
                 .Where(u => u != null)
                 .Cast<User>()
                 .ToList();
@@ -1353,14 +1369,83 @@ public class UserService : IUserService
     public async Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids)
     {
         var normalizedDids = dids.Select(d => d.ToLowerInvariant()).Distinct().ToList();
+        if (!normalizedDids.Any()) return false;
+
+        var allUsers = await _unitOfWork.Users.Query()
+            .Where(u => normalizedDids.Contains(u.Did.ToLower()))
+            .ToListAsync();
+
+        var groups = allUsers.GroupBy(u => u.Did.ToLower());
         bool anyMerged = false;
 
-        foreach (var did in normalizedDids)
+        foreach (var group in groups.Where(g => g.Count() > 1))
         {
+            var did = group.Key;
             if (await MergeDuplicateUsersAsync(did)) anyMerged = true;
         }
 
         return anyMerged;
+    }
+
+    public async Task SyncInteractionsBatchAsync(Guid viewerId, IEnumerable<string> dids)
+    {
+        if (dids == null || !dids.Any()) return;
+        
+        var normalizedDids = dids.Select(d => d.ToLowerInvariant()).Distinct().ToList();
+        
+        // Use a per-viewer-list cache to avoid syncing too often (TTL 2 mins)
+        var syncCacheKey = $"viewer_sync_batch:{viewerId}:{string.Join(",", normalizedDids.OrderBy(d => d)).GetHashCode()}";
+        if (await _cacheService.GetAsync<bool>(syncCacheKey)) return;
+
+        _logger.LogInformation("[SyncInteractionsBatchAsync] Refreshing statuses for {Count} users for viewer {ViewerId}", normalizedDids.Count, viewerId);
+
+        try
+        {
+            var token = await GetOrRefreshBlueskyTokenAsync(viewerId);
+            if (string.IsNullOrEmpty(token)) return;
+
+            using var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // getProfiles takes up to 25 actors
+            for (int i = 0; i < normalizedDids.Count; i += 25)
+            {
+                var batch = normalizedDids.Skip(i).Take(25).ToList();
+                var url = "https://api.bsky.app/xrpc/app.bsky.actor.getProfiles?" + string.Join("&", batch.Select(d => $"actors={d}"));
+
+                var response = await client.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("profiles", out var profilesProp))
+                    {
+                        var usersFromDb = await _unitOfWork.Users.GetByDidsAsync(batch);
+                        var usersMap = usersFromDb.ToDictionary(u => u.Did.ToLower(), u => u);
+
+                        foreach (var profile in profilesProp.EnumerateArray())
+                        {
+                            if (profile.TryGetProperty("did", out var didProp) && 
+                                usersMap.TryGetValue(didProp.GetString()?.ToLowerInvariant() ?? "", out var user))
+                            {
+                                if (profile.TryGetProperty("viewer", out var viewerProp))
+                                {
+                                    await SyncFollowStatusWithAtProtoAsync(viewerId, user, viewerProp);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            await _unitOfWork.CompleteAsync();
+            await _cacheService.SetAsync(syncCacheKey, true, TimeSpan.FromMinutes(2));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SyncInteractionsBatchAsync] Error during batch sync");
+        }
     }
 
     private async Task SyncFollowStatusWithAtProtoAsync(Guid viewerId, User targetUser, JsonElement viewerProp)
