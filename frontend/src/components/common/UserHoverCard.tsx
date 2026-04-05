@@ -193,7 +193,8 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
     }, []);
 
     // Sync isFollowing from redux actionLoading changes back to local profile
-    const followIsLoading = actionLoading[user.id];
+    const followActor = user.did || user.handle || user.id;
+    const followIsPending = !!actionLoading[followActor] || !!actionLoading[user.id];
 
     const handleFollowToggle = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -208,7 +209,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                     return;
                 }
                 dispatch(unfollowUserAsync({
-                    userId: user.id,
+                    userId: followActor,
                     followUri: displayProfile.followingReference
                 }));
                 // Update local cache
@@ -217,7 +218,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                 const key = user.handle || user.did || user.id;
                 if (key) profileCache.set(key, updated);
             } else {
-                dispatch(followUserAsync(user.id));
+                dispatch(followUserAsync(followActor));
                 if (displayProfile) {
                     const updated = { ...displayProfile, isFollowing: true, followersCount: displayProfile.followersCount + 1 };
                     setProfile(updated);
@@ -287,7 +288,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                         {!isOwnProfile && currentUser && !isBlocking && !isBlockedBy && (
                             <button
                                 onClick={handleFollowToggle}
-                                disabled={!!followIsLoading}
+                                disabled={followIsPending}
                                 className={cn(
                                     'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold transition-all mt-1',
                                     'disabled:opacity-60 disabled:cursor-not-allowed',

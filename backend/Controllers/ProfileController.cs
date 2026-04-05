@@ -318,7 +318,8 @@ public class ProfileController : ControllerBase
         var targetUser = await ResolveUserAsync(userIdOrDid, currentUserId);
         if (targetUser == null) return NotFound(new { message = "User not found" });
 
-        await _userService.UnfollowUserAsync(currentUserId, targetUser.Id);
+        var success = await _userService.UnfollowUserAsync(currentUserId, targetUser.Id);
+        if (!success) return BadRequest(new { message = "Could not unfollow user. Your Bluesky session may have expired. Please log out and log back in." });
 
         targetUser = await _userService.GetUserByIdAsync(targetUser.Id);
         return Ok(new { 

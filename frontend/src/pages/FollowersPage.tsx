@@ -143,6 +143,7 @@ const FollowersPage: React.FC = () => {
 
     const handleFollowToggle = async (user: User) => {
         try {
+            const followActor = user.did || user.handle || user.id;
             const isFollowing = resolveIsFollowing(user);
             const followingReference = resolveFollowingReference(user);
 
@@ -152,10 +153,10 @@ const FollowersPage: React.FC = () => {
                 }
 
                 updateVerifiedStatus(user, { isFollowing: false, followingReference: undefined });
-                dispatch(unfollowUserAsync({ userId: user.id, followUri: followingReference }));
+                dispatch(unfollowUserAsync({ userId: followActor, followUri: followingReference }));
             } else {
                 updateVerifiedStatus(user, { isFollowing: true, followingReference });
-                dispatch(followUserAsync(user.id));
+                dispatch(followUserAsync(followActor));
             }
         } catch (error) {
             console.error('Failed to toggle follow:', error);
@@ -194,6 +195,7 @@ const FollowersPage: React.FC = () => {
                                 className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
                             >
                                 {(() => {
+                                    const followActor = follower.did || follower.handle || follower.id;
                                     const isFollowing = resolveIsFollowing(follower);
                                     const needsVerifiedStatus = !!currentUser && currentUser.id !== follower.id && currentUser.did !== follower.did && !hasVerifiedStatus(follower);
                                     const isStatusLoading = isVerifying(follower) || needsVerifiedStatus;
@@ -234,7 +236,7 @@ const FollowersPage: React.FC = () => {
                                             variant={isFollowing ? 'secondary' : 'primary'}
                                             size="sm"
                                             className="rounded-full font-bold px-4 shrink-0"
-                                            loading={!!actionLoading[follower.id] || isStatusLoading}
+                                            loading={!!actionLoading[followActor] || !!actionLoading[follower.id] || isStatusLoading}
                                             onClick={() => handleFollowToggle(follower)}
                                         >
                                             {isFollowing ? (

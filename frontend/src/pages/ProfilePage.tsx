@@ -188,17 +188,18 @@ const ProfilePage: React.FC = () => {
         ensureAuth(async () => {
             if (!profileUser) return;
             try {
+                const followActor = profileUser.did || profileUser.handle || profileUser.id;
                 if (profileUser.isFollowing) {
                     if (!profileUser.followingReference) {
                         dispatch(showToast({ message: 'Missing follow reference', type: 'error' }));
                         return;
                     }
                     dispatch(unfollowUserAsync({
-                        userId: profileUser.id,
+                        userId: followActor,
                         followUri: profileUser.followingReference
                     }));
                 } else {
-                    dispatch(followUserAsync(profileUser.id));
+                    dispatch(followUserAsync(followActor));
                 }
             } catch (error: any) {
                 dispatch(showToast({ message: error || 'Failed to update follow status', type: 'error' }));
@@ -498,7 +499,7 @@ const ProfilePage: React.FC = () => {
                                             variant={profileUser?.isFollowing ? 'outline' : 'primary'}
                                             size="sm"
                                             onClick={handleFollowToggle}
-                                            loading={profileUser ? !!actionLoading[profileUser.id] : false}
+                                            loading={profileUser ? (!!actionLoading[profileUser.did || profileUser.handle || profileUser.id] || !!actionLoading[profileUser.id]) : false}
                                             className="rounded-full text-[15px] font-bold px-5 py-2 min-w-[100px]"
                                         >
                                             {profileUser?.isFollowing ? t('profile.following_btn') : t('profile.follow')}

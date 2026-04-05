@@ -730,44 +730,112 @@ public class UserService : IUserService
 
     public async Task<string?> FollowUserAsync(Guid followerId, Guid followingId)
     {
+        var followerUser = await _unitOfWork.Users.GetByIdAsync(followerId);
         var targetUser = await _unitOfWork.Users.GetByIdAsync(followingId);
-        if (targetUser == null) return null;
+        if (followerUser == null || targetUser == null) return null;
 
         var existing = await _unitOfWork.Follows.GetAsync(followerId, followingId);
-        if (existing != null) return existing.Uri;
+        if (existing != null)
+        {
+            if (string.IsNullOrWhiteSpace(existing.Tid))
+            {
+                existing.Tid = existing.Uri?.Split('/').Last() ?? GenerateTid();
+                _unitOfWork.Follows.Update(existing);
+                await _unitOfWork.CompleteAsync();
+            }
+
+            if (string.IsNullOrWhiteSpace(existing.Uri) && !string.IsNullOrWhiteSpace(followerUser.Did))
+            {
+                existing.Uri = $"at://{followerUser.Did}/app.bsky.graph.follow/{existing.Tid}";
+                _unitOfWork.Follows.Update(existing);
+                await _unitOfWork.CompleteAsync();
+            }
+
+            return existing.Uri;
+        }
 
         var follow = new UserFollow
         {
             FollowerId = followerId,
             FollowingId = followingId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Tid = GenerateTid()
         };
 
-        // If target is remote, trigger remote follow
-        if (!string.IsNullOrEmpty(targetUser.Did) && !(targetUser.Handle?.EndsWith($".{_config["DomainName"]}") ?? false))
+        var shouldSyncToAtProto =
+            !string.IsNullOrWhiteSpace(followerUser.Did) &&
+            !followerUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(targetUser.Did) &&
+            !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (shouldSyncToAtProto)
         {
-            try {
+            try
+            {
                 var token = await GetOrRefreshBlueskyTokenAsync(followerId);
-                if (!string.IsNullOrEmpty(token)) {
-                    var result = await _xrpcProxy.ProxyRequestAsync(targetUser.Did, "app.bsky.graph.follow", new Dictionary<string, string?>(), token, "POST", new { subject = targetUser.Did });
-                    if (result.Success) {
-                        using var doc = JsonDocument.Parse(result.Content);
-                        follow.Uri = doc.RootElement.GetProperty("uri").GetString();
-                        follow.Tid = follow.Uri?.Split('/').Last();
-                    }
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    _logger.LogWarning("[FollowUserAsync] Missing Bluesky token for follower {FollowerId}", followerId);
+                    return null;
                 }
-            } catch { /* log error */ }
+
+                var requestBody = new Dictionary<string, object?>
+                {
+                    ["repo"] = followerUser.Did,
+                    ["collection"] = "app.bsky.graph.follow",
+                    ["record"] = new Dictionary<string, object?>
+                    {
+                        ["$type"] = "app.bsky.graph.follow",
+                        ["subject"] = targetUser.Did,
+                        ["createdAt"] = follow.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O")
+                    }
+                };
+
+                var result = await _xrpcProxy.ProxyRequestAsync(
+                    followerUser.Did,
+                    "com.atproto.repo.createRecord",
+                    new Dictionary<string, string?>(),
+                    token,
+                    "POST",
+                    requestBody
+                );
+
+                if (!result.Success)
+                {
+                    _logger.LogWarning(
+                        "[FollowUserAsync] Bluesky follow createRecord failed for follower {FollowerDid} -> target {TargetDid}. Status: {Status}, Body: {Body}",
+                        followerUser.Did,
+                        targetUser.Did,
+                        result.StatusCode,
+                        result.Content
+                    );
+                    return null;
+                }
+
+                using var doc = JsonDocument.Parse(result.Content);
+                follow.Uri = doc.RootElement.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() : null;
+                follow.Cid = doc.RootElement.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null;
+                follow.Tid = follow.Uri?.Split('/').Last() ?? follow.Tid;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[FollowUserAsync] Error creating Bluesky follow for follower {FollowerId} and target {TargetId}", followerId, followingId);
+                return null;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(followerUser.Did))
+        {
+            follow.Uri = $"at://{followerUser.Did}/app.bsky.graph.follow/{follow.Tid}";
         }
 
-        await _unitOfWork.Follows.AddAsync(follow);
+        await _unitOfWork.Follows.AddOrUpdateAsync(follow);
         
         // Update counts
-        var follower = await _unitOfWork.Users.GetByIdAsync(followerId);
-        if (follower != null) follower.FollowingCount = (follower.FollowingCount ?? 0) + 1;
+        followerUser.FollowingCount = (followerUser.FollowingCount ?? 0) + 1;
         targetUser.FollowersCount = (targetUser.FollowersCount ?? 0) + 1;
 
         await _unitOfWork.CompleteAsync();
-        return follow.Uri;
+        return follow.Uri ?? (!string.IsNullOrWhiteSpace(followerUser.Did) ? $"at://{followerUser.Did}/app.bsky.graph.follow/{follow.Tid}" : null);
     }
 
     public async Task<bool> UnfollowUserAsync(Guid followerId, Guid followingId)
@@ -775,21 +843,75 @@ public class UserService : IUserService
         var follow = await _unitOfWork.Follows.GetAsync(followerId, followingId);
         if (follow == null) return true;
 
+        var followerUser = await _unitOfWork.Users.GetByIdAsync(followerId);
         var targetUser = await _unitOfWork.Users.GetByIdAsync(followingId);
-        if (targetUser != null && !string.IsNullOrEmpty(targetUser.Did) && !string.IsNullOrEmpty(follow.Uri))
+        var shouldSyncToAtProto =
+            followerUser != null &&
+            !string.IsNullOrWhiteSpace(followerUser.Did) &&
+            !followerUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase) &&
+            targetUser != null &&
+            !string.IsNullOrWhiteSpace(targetUser.Did) &&
+            !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (shouldSyncToAtProto)
         {
-            try {
+            try
+            {
                 var token = await GetOrRefreshBlueskyTokenAsync(followerId);
-                if (!string.IsNullOrEmpty(token)) {
-                    await _xrpcProxy.ProxyRequestAsync(followerId.ToString(), "com.atproto.repo.deleteRecord", new Dictionary<string, string?>(), token, "POST", new { repo = followerId, collection = "app.bsky.graph.follow", rkey = follow.Tid });
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    _logger.LogWarning("[UnfollowUserAsync] Missing Bluesky token for follower {FollowerId}", followerId);
+                    return false;
                 }
-            } catch { }
+
+                var followTid = follow.Tid;
+                if (string.IsNullOrWhiteSpace(followTid) && !string.IsNullOrWhiteSpace(follow.Uri))
+                {
+                    followTid = follow.Uri.Split('/').Last();
+                }
+
+                if (string.IsNullOrWhiteSpace(followTid))
+                {
+                    _logger.LogWarning("[UnfollowUserAsync] Missing follow record key for follower {FollowerId} and target {TargetId}", followerId, followingId);
+                    return false;
+                }
+
+                var result = await _xrpcProxy.ProxyRequestAsync(
+                    followerUser!.Did,
+                    "com.atproto.repo.deleteRecord",
+                    new Dictionary<string, string?>(),
+                    token,
+                    "POST",
+                    new Dictionary<string, object?>
+                    {
+                        ["repo"] = followerUser.Did,
+                        ["collection"] = "app.bsky.graph.follow",
+                        ["rkey"] = followTid
+                    }
+                );
+
+                if (!result.Success)
+                {
+                    _logger.LogWarning(
+                        "[UnfollowUserAsync] Bluesky follow deleteRecord failed for follower {FollowerDid} -> target {TargetDid}. Status: {Status}, Body: {Body}",
+                        followerUser.Did,
+                        targetUser!.Did,
+                        result.StatusCode,
+                        result.Content
+                    );
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[UnfollowUserAsync] Error deleting Bluesky follow for follower {FollowerId} and target {TargetId}", followerId, followingId);
+                return false;
+            }
         }
 
         _unitOfWork.Follows.Remove(follow);
         
-        var follower = await _unitOfWork.Users.GetByIdAsync(followerId);
-        if (follower != null) follower.FollowingCount = Math.Max(0, (follower.FollowingCount ?? 0) - 1);
+        if (followerUser != null) followerUser.FollowingCount = Math.Max(0, (followerUser.FollowingCount ?? 0) - 1);
         if (targetUser != null) targetUser.FollowersCount = Math.Max(0, (targetUser.FollowersCount ?? 0) - 1);
 
         await _unitOfWork.CompleteAsync();
