@@ -32,6 +32,9 @@ import { fetchUserFeeds } from '../redux/slices/feedsSlice';
 
 import { Post, ListDto, Feed } from '../types';
 
+const INITIAL_PROFILE_POSTS_TAKE = 10;
+const NEXT_PROFILE_POSTS_TAKE = 14;
+
 const ProfilePage: React.FC = () => {
     const { handle } = useParams<{ handle: string }>();
     const navigate = useNavigate();
@@ -132,7 +135,7 @@ const ProfilePage: React.FC = () => {
                         userId: dispatchUserId,
                         type: activeTab,
                         skip: 0,
-                        take: 20
+                        take: INITIAL_PROFILE_POSTS_TAKE
                     })).finally(() => {
                         isFetchingRef.current = false;
                     });
@@ -753,7 +756,7 @@ const ProfilePage: React.FC = () => {
                                             userId: profileUser!.handle || profileUser!.did || profileUser!.id,
                                             type: activeTab,
                                             skip: reduxPosts.length,
-                                            take: 20,
+                                            take: NEXT_PROFILE_POSTS_TAKE,
                                             cursor: postCursor || undefined
                                         }));
                                     }

@@ -13,7 +13,9 @@ import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync
 import { RootState } from '../redux/store';
 import { User } from '../types';
 
-const PAGE_SIZE = 25;
+const INITIAL_PAGE_SIZE = 12;
+const NEXT_PAGE_SIZE = 18;
+const LOAD_AHEAD_MARGIN = '800px 0px';
 
 const FollowingPage: React.FC = () => {
     const { userId, handle } = useParams<{ userId?: string; handle?: string }>();
@@ -67,7 +69,7 @@ const FollowingPage: React.FC = () => {
         if (effectiveId && profileMatchesIdentifier(profile, effectiveId) && resolvedListActor) {
             const targetActor = normalizeIdentifier(resolvedListActor);
             if (followingOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                listPromise = dispatch(fetchFollowing({ actor: resolvedListActor, limit: PAGE_SIZE }));
+                listPromise = dispatch(fetchFollowing({ actor: resolvedListActor, limit: INITIAL_PAGE_SIZE }));
             }
         }
 
@@ -83,10 +85,10 @@ const FollowingPage: React.FC = () => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowing({ actor: resolvedListActor, cursor: cursor || undefined, limit: PAGE_SIZE }));
+                    dispatch(fetchFollowing({ actor: resolvedListActor, cursor: cursor || undefined, limit: NEXT_PAGE_SIZE }));
                 }
             },
-            { rootMargin: '300px 0px', threshold: 0 }
+            { rootMargin: LOAD_AHEAD_MARGIN, threshold: 0 }
         );
 
         if (observerTarget.current) {
@@ -239,7 +241,7 @@ const FollowingPage: React.FC = () => {
                     <div className="py-20 px-4 text-center">
                         <div className="text-red-500 mb-4 font-bold">500 Error: Failed to load list</div>
                         <button
-                            onClick={() => dispatch(fetchFollowing({ actor: resolvedListActor || effectiveId!, limit: PAGE_SIZE }))}
+                            onClick={() => dispatch(fetchFollowing({ actor: resolvedListActor || effectiveId!, limit: INITIAL_PAGE_SIZE }))}
                             className="text-blue-500 hover:underline font-medium"
                         >
                             Try again
