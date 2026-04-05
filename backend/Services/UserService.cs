@@ -502,11 +502,12 @@ public class UserService : IUserService
                     return (cached.Users.Where(u => !string.IsNullOrWhiteSpace(u.Did)).ToList(), cached.Cursor);
                 }
 
+                await MergeDuplicateUsersBatchAsync(cachedDids);
                 var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cachedDids);
                 var refreshedMap = refreshedUsers
                     .Where(u => !string.IsNullOrEmpty(u.Did))
                     .GroupBy(u => u.Did.ToLowerInvariant())
-                    .ToDictionary(g => g.Key, g => g.First());
+                    .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
                 var orderedUsers = cachedDids
                     .Where(d => !string.IsNullOrEmpty(d))
                     .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
@@ -593,11 +594,12 @@ public class UserService : IUserService
                     return (cached.Users.Where(u => !string.IsNullOrWhiteSpace(u.Did)).ToList(), cached.Cursor);
                 }
 
+                await MergeDuplicateUsersBatchAsync(cachedDids);
                 var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cachedDids);
                 var refreshedMap = refreshedUsers
                     .Where(u => !string.IsNullOrEmpty(u.Did))
                     .GroupBy(u => u.Did.ToLowerInvariant())
-                    .ToDictionary(g => g.Key, g => g.First());
+                    .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
                 var orderedUsers = cachedDids
                     .Where(d => !string.IsNullOrEmpty(d))
                     .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
@@ -624,7 +626,11 @@ public class UserService : IUserService
 
         if (cache.TryGetValue(did, out var cached)) return cached;
 
-        var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+        await MergeDuplicateUsersAsync(did);
+        var user = await _unitOfWork.Users.Query()
+            .Where(u => u.Did == did)
+            .OrderBy(u => u.CreatedAt)
+            .FirstOrDefaultAsync();
         var handle = actorData.TryGetProperty("handle", out var handleProp) ? handleProp.GetString() : null;
         var displayName = actorData.TryGetProperty("displayName", out var displayNameProp) ? displayNameProp.GetString() : null;
         var avatar = actorData.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null;
