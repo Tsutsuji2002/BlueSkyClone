@@ -624,13 +624,29 @@ const userSlice = createSlice({
             })
             .addCase(searchUsers.fulfilled, (state: UserState, action: any) => {
                 state.searchLoading = false;
+                const incomingUsers = (action.payload || []) as User[];
                 const { skip } = action.meta.arg;
+
                 if (skip === 0) {
-                    state.searchResults = action.payload;
+                    state.searchResults = incomingUsers;
                 } else {
-                    const existingIds = new Set(state.searchResults.map((u: User) => u.id));
-                    const newUsers = action.payload.filter((u: User) => !existingIds.has(u.id));
-                    state.searchResults = [...state.searchResults, ...newUsers];
+                    // Stable identity upsert: prefers DID, falls back to ID
+                    const updatedUsers = [...state.searchResults];
+                    const newUsers: User[] = [];
+
+                    incomingUsers.forEach((newUser: User) => {
+                        const index = updatedUsers.findIndex(u =>
+                            (newUser.did && u.did && newUser.did === u.did) ||
+                            (u.id === newUser.id)
+                        );
+                        if (index !== -1) {
+                            updatedUsers[index] = { ...updatedUsers[index], ...newUser };
+                        } else {
+                            newUsers.push(newUser);
+                        }
+                    });
+
+                    state.searchResults = [...updatedUsers, ...newUsers];
                 }
             })
             .addCase(searchUsers.rejected, (state: UserState, action) => {
@@ -649,7 +665,25 @@ const userSlice = createSlice({
             })
             .addCase(fetchUserProfile.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
-                state.profile = action.payload.user;
+                const user = action.payload.user;
+                state.profile = user;
+
+                // Propagate updated status to all other lists
+                const updateAllLists = (u: User) => {
+                    if (u.did === user.did || u.id === user.id) {
+                        u.isFollowing = user.isFollowing;
+                        u.isMuted = user.isMuted;
+                        u.isBlocking = user.isBlocking;
+                        u.isBlockedBy = user.isBlockedBy;
+                        u.followingReference = user.followingReference;
+                    }
+                };
+
+                state.followers.forEach(updateAllLists);
+                state.followingUsers.forEach(updateAllLists);
+                state.searchResults.forEach(updateAllLists);
+                state.suggestedUsers.forEach(updateAllLists);
+                state.users.forEach(updateAllLists);
             })
             .addCase(fetchUserProfile.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -851,15 +885,31 @@ const userSlice = createSlice({
             .addCase(fetchMutedAccounts.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
+                const incomingUsers = (users || []) as User[];
+
                 if (action.meta.arg && !action.meta.arg.cursor) {
-                    state.mutedUsers = users;
+                    state.mutedUsers = incomingUsers;
                 } else {
-                    const existingIds = new Set(state.mutedUsers.map(u => u.id));
-                    const newUsers = users.filter(u => !existingIds.has(u.id));
-                    state.mutedUsers = [...state.mutedUsers, ...newUsers];
+                    // Stable identity upsert: prefers DID, falls back to ID
+                    const updatedUsers = [...state.mutedUsers];
+                    const newUsers: User[] = [];
+
+                    incomingUsers.forEach((newUser: User) => {
+                        const index = updatedUsers.findIndex(u =>
+                            (newUser.did && u.did && newUser.did === u.did) ||
+                            (u.id === newUser.id)
+                        );
+                        if (index !== -1) {
+                            updatedUsers[index] = { ...updatedUsers[index], ...newUser };
+                        } else {
+                            newUsers.push(newUser);
+                        }
+                    });
+
+                    state.mutedUsers = [...updatedUsers, ...newUsers];
                 }
                 state.mutedCursor = cursor;
-                state.mutedHasMore = users.length > 0 && !!cursor;
+                state.mutedHasMore = incomingUsers.length > 0 && !!cursor;
             })
             .addCase(fetchMutedAccounts.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -877,15 +927,31 @@ const userSlice = createSlice({
             .addCase(fetchBlockedAccounts.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
+                const incomingUsers = (users || []) as User[];
+
                 if (action.meta.arg && !action.meta.arg.cursor) {
-                    state.blockedUsers = users;
+                    state.blockedUsers = incomingUsers;
                 } else {
-                    const existingIds = new Set(state.blockedUsers.map(u => u.id));
-                    const newUsers = users.filter(u => !existingIds.has(u.id));
-                    state.blockedUsers = [...state.blockedUsers, ...newUsers];
+                    // Stable identity upsert: prefers DID, falls back to ID
+                    const updatedUsers = [...state.blockedUsers];
+                    const newUsers: User[] = [];
+
+                    incomingUsers.forEach((newUser: User) => {
+                        const index = updatedUsers.findIndex(u =>
+                            (newUser.did && u.did && newUser.did === u.did) ||
+                            (u.id === newUser.id)
+                        );
+                        if (index !== -1) {
+                            updatedUsers[index] = { ...updatedUsers[index], ...newUser };
+                        } else {
+                            newUsers.push(newUser);
+                        }
+                    });
+
+                    state.blockedUsers = [...updatedUsers, ...newUsers];
                 }
                 state.blockedCursor = cursor;
-                state.blockedHasMore = users.length > 0 && !!cursor;
+                state.blockedHasMore = incomingUsers.length > 0 && !!cursor;
             })
             .addCase(fetchBlockedAccounts.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -903,17 +969,20 @@ const userSlice = createSlice({
             .addCase(fetchFollowers.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
-                const incomingUsers = users || [];
+                const incomingUsers = (users || []) as User[];
 
                 if (!action.meta.arg.cursor) {
                     state.followers = incomingUsers;
                 } else {
-                    // Update existing users and append new ones
+                    // Stable identity upsert: prefers DID, falls back to ID
                     const updatedUsers = [...state.followers];
                     const newUsers: User[] = [];
 
                     incomingUsers.forEach((newUser: User) => {
-                        const index = updatedUsers.findIndex(u => u.id === newUser.id);
+                        const index = updatedUsers.findIndex(u =>
+                            (newUser.did && u.did && newUser.did === u.did) ||
+                            (u.id === newUser.id)
+                        );
                         if (index !== -1) {
                             updatedUsers[index] = { ...updatedUsers[index], ...newUser };
                         } else {
@@ -942,17 +1011,20 @@ const userSlice = createSlice({
             .addCase(fetchFollowing.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
                 const { users, cursor } = action.payload;
-                const incomingUsers = users || [];
+                const incomingUsers = (users || []) as User[];
 
                 if (!action.meta.arg.cursor) {
                     state.followingUsers = incomingUsers;
                 } else {
-                    // Update existing users and append new ones
+                    // Stable identity upsert: prefers DID, falls back to ID
                     const updatedUsers = [...state.followingUsers];
                     const newUsers: User[] = [];
 
                     incomingUsers.forEach((newUser: User) => {
-                        const index = updatedUsers.findIndex(u => u.id === newUser.id);
+                        const index = updatedUsers.findIndex(u =>
+                            (newUser.did && u.did && newUser.did === u.did) ||
+                            (u.id === newUser.id)
+                        );
                         if (index !== -1) {
                             updatedUsers[index] = { ...updatedUsers[index], ...newUser };
                         } else {
