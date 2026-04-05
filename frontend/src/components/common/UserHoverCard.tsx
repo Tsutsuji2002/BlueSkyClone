@@ -244,7 +244,10 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
     const bio = profile?.bio;
     const followersCount = profile?.followersCount ?? user.followersCount ?? 0;
     const followingCount = profile?.followingCount ?? user.followingCount ?? 0;
-    const isFollowing = profile?.isFollowing ?? user.isFollowing ?? false;
+
+    // Prefer parent's passed isFollowing state if explicitly populated, as it represents fresh real-time list interactions
+    const isFollowing = user.isFollowing !== undefined ? user.isFollowing : (profile?.isFollowing ?? false);
+
     const isFollowedBy = profile?.isFollowedBy ?? false;
     const followingReference = profile?.followingReference ?? user.followingReference;
     const isVerified = profile?.isVerified ?? user.isVerified ?? false;

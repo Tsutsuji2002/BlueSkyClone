@@ -779,13 +779,11 @@ public class UserService : IUserService
         }
 
         var localDomain = _configuration["DomainName"] ?? "bskyclone.site";
-        // A user is remote only if their DID is non-local AND their handle doesn't belong to the local domain.
-        // Using && ensures local users (did:local: prefix OR bskyclone.site handle) are always fetched from local DB.
         bool isLocalDid = string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:");
         bool isLocalHandle = !string.IsNullOrEmpty(user.Handle) && user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase);
-        bool isRemote = !isLocalDid && !isLocalHandle;
+        bool isRemoteATProto = !isLocalDid && !isLocalHandle;
         
-        if (isRemote)
+        if (isRemoteATProto)
         {
             return await GetRemoteFollowersAsync(user, limit, cursor, viewerId);
         }
@@ -818,13 +816,11 @@ public class UserService : IUserService
         }
 
         var localDomain = _configuration["DomainName"] ?? "bskyclone.site";
-        // A user is remote only if their DID is non-local AND their handle doesn't belong to the local domain.
-        // Using && ensures local users (did:local: prefix OR bskyclone.site handle) are always fetched from local DB.
         bool isLocalDid = string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:");
         bool isLocalHandle = !string.IsNullOrEmpty(user.Handle) && user.Handle.EndsWith(localDomain, StringComparison.OrdinalIgnoreCase);
-        bool isRemote = !isLocalDid && !isLocalHandle;
+        bool isRemoteATProto = !isLocalDid && !isLocalHandle;
         
-        if (isRemote)
+        if (isRemoteATProto)
         {
             _logger.LogInformation("[GetFollowingAsync] Triggering remote fetch for {Actor}", actor);
             return await GetRemoteFollowingAsync(user.Did, limit, cursor, viewerId);
@@ -885,15 +881,17 @@ public class UserService : IUserService
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
 
+            var baseApiUrl = "https://public.api.bsky.app";
             if (viewerId.HasValue)
             {
                 var token = await GetOrRefreshBlueskyTokenAsync(viewerId.Value);
                 if (!string.IsNullOrEmpty(token))
                 {
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    baseApiUrl = "https://api.bsky.app";
                 }
             }
-            var url = $"https://api.bsky.app/xrpc/app.bsky.graph.getFollowers?actor={targetUser.Did}&limit={limit}";
+            var url = $"{baseApiUrl}/xrpc/app.bsky.graph.getFollowers?actor={targetUser.Did}&limit={limit}";
             if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
 
             _logger.LogInformation("[GetRemoteFollowersAsync] Fetching from: {Url}", url);
@@ -1044,15 +1042,17 @@ public class UserService : IUserService
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
 
+            var baseApiUrl = "https://public.api.bsky.app";
             if (viewerId.HasValue)
             {
                 var token = await GetOrRefreshBlueskyTokenAsync(viewerId.Value);
                 if (!string.IsNullOrEmpty(token))
                 {
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    baseApiUrl = "https://api.bsky.app";
                 }
             }
-            var url = $"https://api.bsky.app/xrpc/app.bsky.graph.getFollows?actor={did}&limit={limit}";
+            var url = $"{baseApiUrl}/xrpc/app.bsky.graph.getFollows?actor={did}&limit={limit}";
             if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
 
             var response = await client.GetAsync(url);
@@ -1389,7 +1389,7 @@ public class UserService : IUserService
         if (!normalizedDids.Any()) return false;
 
         var allUsers = await _unitOfWork.Users.Query()
-            .Where(u => normalizedDids.Contains(u.Did.ToLower()))
+            .Where(u => !string.IsNullOrEmpty(u.Did) && normalizedDids.Contains(u.Did))
             .ToListAsync();
 
         var groups = allUsers.GroupBy(u => u.Did.ToLower());

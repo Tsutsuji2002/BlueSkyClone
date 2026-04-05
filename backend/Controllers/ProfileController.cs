@@ -428,47 +428,39 @@ public class ProfileController : ControllerBase
     [HttpGet("{userId}/following")]
     public async Task<IActionResult> GetFollowing(string userId, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
     {
-        try
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        User? targetUser = await ResolveUserAsync(userId, currentUserId);
+        bool isOwnProfile = targetUser != null && currentUserId.HasValue && targetUser.Id == currentUserId.Value;
+
+        var (users, nextCursor) = await _userService.GetFollowingAsync(userId, limit, cursor, currentUserId);
+
+        Dictionary<Guid, UserRelationshipStatusDto> interactionStatuses;
+        if (currentUserId.HasValue)
         {
-            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
-
-            User? targetUser = await ResolveUserAsync(userId, currentUserId);
-            bool isOwnProfile = targetUser != null && currentUserId.HasValue && targetUser.Id == currentUserId.Value;
-
-            var (users, nextCursor) = await _userService.GetFollowingAsync(userId, limit, cursor, currentUserId);
-
-            Dictionary<Guid, UserRelationshipStatusDto> interactionStatuses;
-            try
-            {
-                interactionStatuses = currentUserId.HasValue
-                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id))
-                    : new Dictionary<Guid, UserRelationshipStatusDto>();
-            }
-            catch (Exception)
-            {
-                interactionStatuses = new Dictionary<Guid, UserRelationshipStatusDto>();
-            }
-
-            var dtos = new List<UserDto>();
-            foreach (var user in users)
-            {
-                if (user == null) continue;
-                interactionStatuses.TryGetValue(user.Id, out var status);
-                var dto = MapUserToDtoWithPreFetchedStatus(user, currentUserId, status);
-                // If viewing own following, they are all followed by definition
-                if (isOwnProfile)
-                {
-                    dto = dto with { IsFollowing = true };
-                }
-                dtos.Add(dto);
-            }
-            return Ok(new { following = dtos, cursor = nextCursor });
+            interactionStatuses = await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id));
         }
-        catch (Exception ex)
+        else
         {
-            return Ok(new { following = new List<object>(), cursor = (string?)null });
+            interactionStatuses = new Dictionary<Guid, UserRelationshipStatusDto>();
         }
+
+        var dtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            if (user == null) continue;
+            interactionStatuses.TryGetValue(user.Id, out var status);
+            var dto = MapUserToDtoWithPreFetchedStatus(user, currentUserId, status);
+            // If viewing own following, they are all followed by definition
+            if (isOwnProfile)
+            {
+                dto = dto with { IsFollowing = true };
+            }
+            dtos.Add(dto);
+        }
+
+        return Ok(new { following = dtos, cursor = nextCursor });
     }
 
     [HttpGet("muted")]
