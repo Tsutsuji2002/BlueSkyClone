@@ -378,7 +378,7 @@ public class UserService : IUserService
         if (user == null) return (new List<User>(), null);
 
         // Identify if this is a remote ATProto user (Bluesky) vs a local-only user
-        bool isRemoteATProto = !string.IsNullOrEmpty(user.Did) && !user.Handle.EndsWith($".{_config["DomainName"]}");
+        bool isRemoteATProto = !string.IsNullOrEmpty(user.Did) && !(user.Handle?.EndsWith($".{_config["DomainName"]}") ?? false);
         
         if (isRemoteATProto)
         {
@@ -404,7 +404,7 @@ public class UserService : IUserService
 
         if (user == null) return (new List<User>(), null);
 
-        bool isRemoteATProto = !string.IsNullOrEmpty(user.Did) && !user.Handle.EndsWith($".{_config["DomainName"]}");
+        bool isRemoteATProto = !string.IsNullOrEmpty(user.Did) && !(user.Handle?.EndsWith($".{_config["DomainName"]}") ?? false);
         
         if (isRemoteATProto)
         {
@@ -605,7 +605,7 @@ public class UserService : IUserService
         };
 
         // If target is remote, trigger remote follow
-        if (!string.IsNullOrEmpty(targetUser.Did) && !targetUser.Handle.EndsWith($".{_config["DomainName"]}"))
+        if (!string.IsNullOrEmpty(targetUser.Did) && !(targetUser.Handle?.EndsWith($".{_config["DomainName"]}") ?? false))
         {
             try {
                 var token = await GetOrRefreshBlueskyTokenAsync(followerId);
