@@ -457,13 +457,30 @@ public class UserService : IUserService
                 var stubCache = new Dictionary<string, User>();
                 foreach (var actor in follows.EnumerateArray())
                 {
-                    var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId);
-                    if (u != null) users.Add(u);
+                    try
+                    {
+                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId);
+                        if (u != null) users.Add(u);
+                    }
+                    catch (Exception ex)
+                    {
+                        var actorDid = actor.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+                        _logger.LogWarning(ex, "Skipping remote following actor {Did} while loading follows for {TargetDid}", actorDid, did);
+                    }
                 }
 
                 await _unitOfWork.CompleteAsync();
 
-                cached = new RemoteFollowsResult { Users = users, Cursor = nextCursor, Dids = users.Select(u => u.Did).ToList() };
+                cached = new RemoteFollowsResult
+                {
+                    Users = users,
+                    Cursor = nextCursor,
+                    Dids = users
+                        .Select(u => u.Did)
+                        .Where(d => !string.IsNullOrWhiteSpace(d))
+                        .Cast<string>()
+                        .ToList()
+                };
                 await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
             }
         }
@@ -472,17 +489,28 @@ public class UserService : IUserService
         {
             if (viewerId.HasValue)
             {
-                await SyncInteractionsBatchAsync(viewerId.Value, cached.Dids);
-                var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
+                var cachedDids = cached.Dids
+                    .Where(d => !string.IsNullOrWhiteSpace(d))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (!cachedDids.Any())
+                {
+                    return (cached.Users.Where(u => !string.IsNullOrWhiteSpace(u.Did)).ToList(), cached.Cursor);
+                }
+
+                await SyncInteractionsBatchAsync(viewerId.Value, cachedDids);
+                var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cachedDids);
                 var refreshedMap = refreshedUsers
                     .Where(u => !string.IsNullOrEmpty(u.Did))
                     .GroupBy(u => u.Did.ToLowerInvariant())
                     .ToDictionary(g => g.Key, g => g.First());
-                var orderedUsers = cached.Dids
+                var orderedUsers = cachedDids
                     .Where(d => !string.IsNullOrEmpty(d))
                     .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
                     .Where(u => u != null)
-                    .ToList()!;
+                    .Cast<User>()
+                    .ToList();
                 return (orderedUsers, cached.Cursor);
             }
             return (cached.Users, cached.Cursor);
@@ -521,13 +549,30 @@ public class UserService : IUserService
                 var stubCache = new Dictionary<string, User>();
                 foreach (var actor in followers.EnumerateArray())
                 {
-                    var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId);
-                    if (u != null) users.Add(u);
+                    try
+                    {
+                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId);
+                        if (u != null) users.Add(u);
+                    }
+                    catch (Exception ex)
+                    {
+                        var actorDid = actor.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+                        _logger.LogWarning(ex, "Skipping remote follower actor {Did} while loading followers for {TargetDid}", actorDid, did);
+                    }
                 }
 
                 await _unitOfWork.CompleteAsync();
 
-                cached = new RemoteFollowsResult { Users = users, Cursor = nextCursor, Dids = users.Select(u => u.Did).ToList() };
+                cached = new RemoteFollowsResult
+                {
+                    Users = users,
+                    Cursor = nextCursor,
+                    Dids = users
+                        .Select(u => u.Did)
+                        .Where(d => !string.IsNullOrWhiteSpace(d))
+                        .Cast<string>()
+                        .ToList()
+                };
                 await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
             }
         }
@@ -536,17 +581,28 @@ public class UserService : IUserService
         {
             if (viewerId.HasValue)
             {
-                await SyncInteractionsBatchAsync(viewerId.Value, cached.Dids);
-                var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
+                var cachedDids = cached.Dids
+                    .Where(d => !string.IsNullOrWhiteSpace(d))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (!cachedDids.Any())
+                {
+                    return (cached.Users.Where(u => !string.IsNullOrWhiteSpace(u.Did)).ToList(), cached.Cursor);
+                }
+
+                await SyncInteractionsBatchAsync(viewerId.Value, cachedDids);
+                var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cachedDids);
                 var refreshedMap = refreshedUsers
                     .Where(u => !string.IsNullOrEmpty(u.Did))
                     .GroupBy(u => u.Did.ToLowerInvariant())
                     .ToDictionary(g => g.Key, g => g.First());
-                var orderedUsers = cached.Dids
+                var orderedUsers = cachedDids
                     .Where(d => !string.IsNullOrEmpty(d))
                     .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
                     .Where(u => u != null)
-                    .ToList()!;
+                    .Cast<User>()
+                    .ToList();
                 return (orderedUsers, cached.Cursor);
             }
             return (cached.Users, cached.Cursor);
@@ -557,15 +613,24 @@ public class UserService : IUserService
 
     public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement actorData, Dictionary<string, User> cache, bool complete = true, Guid? viewerId = null)
     {
-        var did = actorData.GetProperty("did").GetString();
+        if (!actorData.TryGetProperty("did", out var didProp))
+        {
+            return null;
+        }
+
+        var did = didProp.GetString();
         if (string.IsNullOrEmpty(did)) return null;
 
         if (cache.TryGetValue(did, out var cached)) return cached;
 
         var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+        var handle = actorData.TryGetProperty("handle", out var handleProp) ? handleProp.GetString() : null;
+        var displayName = actorData.TryGetProperty("displayName", out var displayNameProp) ? displayNameProp.GetString() : null;
+        var avatar = actorData.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null;
+        var description = actorData.TryGetProperty("description", out var descriptionProp) ? descriptionProp.GetString() : null;
+
         if (user == null)
         {
-            var handle = actorData.TryGetProperty("handle", out var h) ? h.GetString() : null;
             var username = handle?.Split('.')[0] ?? did;
             user = new User
             {
@@ -580,10 +645,19 @@ public class UserService : IUserService
             await _unitOfWork.Users.AddAsync(user);
         }
 
-        user.Handle = actorData.GetProperty("handle").GetString();
-        user.DisplayName = actorData.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
-        user.AvatarUrl = actorData.TryGetProperty("avatar", out var av) ? av.GetString() : null;
-        user.Bio = actorData.TryGetProperty("description", out var ds) ? ds.GetString() : null;
+        if (!string.IsNullOrWhiteSpace(handle))
+        {
+            user.Handle = handle;
+        }
+
+        if (string.IsNullOrWhiteSpace(user.Username))
+        {
+            user.Username = handle?.Split('.')[0] ?? did;
+        }
+
+        user.DisplayName = displayName;
+        user.AvatarUrl = avatar;
+        user.Bio = description;
         user.IsVerified = true;
 
         _unitOfWork.Users.Update(user);
@@ -812,9 +886,14 @@ public class UserService : IUserService
 
     public async Task SyncInteractionsBatchAsync(Guid viewerId, IEnumerable<string> dids)
     {
-        if (dids == null || !dids.Any()) return;
-        
-        var normalizedDids = dids.Select(d => d.ToLowerInvariant()).Distinct().ToList();
+        if (dids == null) return;
+
+        var normalizedDids = dids
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Select(d => d.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+        if (!normalizedDids.Any()) return;
         
         // Keep this short so external Bluesky follow changes appear quickly after navigation.
         var syncCacheKey = $"viewer_sync_batch:{viewerId}:{string.Join(",", normalizedDids.OrderBy(d => d)).GetHashCode()}";
