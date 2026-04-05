@@ -43,8 +43,8 @@ const FollowersPage: React.FC = () => {
                 // It's a DID, we can fetch profile and list in parallel
                 profilePromise = dispatch(fetchUserProfileById(effectiveId));
                 const targetActor = effectiveId.toLowerCase();
-                // If we don't have followers loaded or if we just switched profiles
-                if (hasMore && (followersOwnerId !== targetActor || users.length === 0)) {
+                // If it's a completely different user's list, fetch unconditionally. Otherwise, fetch if empty and there's more.
+                if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
                     listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: 30 }));
                 }
             }
@@ -61,7 +61,7 @@ const FollowersPage: React.FC = () => {
         // Guard: fetch list only when profile matches the handle
         if (profile?.id && effectiveId?.includes('.') && (profile.handle === effectiveId || profile.did === effectiveId)) {
             const targetActor = profile.id.toLowerCase();
-            if (hasMore && (followersOwnerId !== targetActor || users.length === 0)) {
+            if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
                 listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: 30 }));
             }
         }
