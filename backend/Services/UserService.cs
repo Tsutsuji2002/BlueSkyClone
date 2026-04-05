@@ -309,10 +309,12 @@ public class UserService : IUserService
                 var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
                 if (user == null)
                 {
+                    var username = profileHandle?.Split('.')[0] ?? did;
                     user = new User
                     {
                         Id = Guid.NewGuid(),
                         Did = did,
+                        Username = username,
                         CreatedAt = DateTime.UtcNow,
                         PasswordHash = "REMOTE_USER",
                         Salt = "REMOTE_USER",
@@ -532,10 +534,13 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
         if (user == null)
         {
+            var handle = actorData.TryGetProperty("handle", out var h) ? h.GetString() : null;
+            var username = handle?.Split('.')[0] ?? did;
             user = new User
             {
                 Id = Guid.NewGuid(),
                 Did = did,
+                Username = username,
                 CreatedAt = DateTime.UtcNow,
                 PasswordHash = "REMOTE_USER",
                 Salt = "REMOTE_USER",
