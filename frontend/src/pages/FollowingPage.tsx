@@ -9,6 +9,7 @@ import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useVerifiedFollowStatuses } from '../hooks/useVerifiedFollowStatuses';
 import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowing, clearProfile, normalizeIdentifier, profileMatchesIdentifier } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
@@ -40,6 +41,13 @@ const FollowingPage: React.FC = () => {
     const resolvedListActor = profile?.did || profile?.handle || profile?.id || effectiveId || '';
     const activeOwnerKey = normalizeIdentifier(resolvedListActor);
     const hasInitializedCurrentList = !!activeOwnerKey && followingInitializedOwnerId === activeOwnerKey;
+    const {
+        resolveIsFollowing,
+        resolveFollowingReference,
+        isVerifying,
+        updateVerifiedStatus,
+        hasVerifiedStatus,
+    } = useVerifiedFollowStatuses(users, activeOwnerKey);
 
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.following'));
 
@@ -135,9 +143,18 @@ const FollowingPage: React.FC = () => {
 
     const handleFollowToggle = async (user: User) => {
         try {
-            if (user.isFollowing) {
-                dispatch(unfollowUserAsync({ userId: user.id, followUri: (user as any).followingReference || '' }));
+            const isFollowing = resolveIsFollowing(user);
+            const followingReference = resolveFollowingReference(user);
+
+            if (isFollowing) {
+                if (!followingReference) {
+                    return;
+                }
+
+                updateVerifiedStatus(user, { isFollowing: false, followingReference: undefined });
+                dispatch(unfollowUserAsync({ userId: user.id, followUri: followingReference }));
             } else {
+                updateVerifiedStatus(user, { isFollowing: true, followingReference });
                 dispatch(followUserAsync(user.id));
             }
         } catch (error) {
@@ -176,6 +193,12 @@ const FollowingPage: React.FC = () => {
                                 key={user.id}
                                 className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
                             >
+                                {(() => {
+                                    const isFollowing = resolveIsFollowing(user);
+                                    const needsVerifiedStatus = !!currentUser && currentUser.id !== user.id && currentUser.did !== user.did && !hasVerifiedStatus(user);
+                                    const isStatusLoading = isVerifying(user) || needsVerifiedStatus;
+
+                                    return (
                                 <div className="flex items-start gap-3">
                                     <UserHoverCard user={user}>
                                         <button onClick={() => navigate(`/profile/${user.handle || 'user/' + user.id}`)}>
@@ -208,13 +231,13 @@ const FollowingPage: React.FC = () => {
                                     </div>
                                     {currentUser?.id !== user.id && currentUser?.did !== user.did && (
                                         <Button
-                                            variant={user.isFollowing ? 'secondary' : 'primary'}
+                                            variant={isFollowing ? 'secondary' : 'primary'}
                                             size="sm"
                                             className="rounded-full font-bold px-4 shrink-0"
-                                            loading={!!actionLoading[user.id]}
+                                            loading={!!actionLoading[user.id] || isStatusLoading}
                                             onClick={() => handleFollowToggle(user)}
                                         >
-                                            {user.isFollowing ? (
+                                            {isFollowing ? (
                                                 <>
                                                     <FiCheck size={16} />
                                                     {t('profile.following_btn')}
@@ -228,6 +251,8 @@ const FollowingPage: React.FC = () => {
                                         </Button>
                                     )}
                                 </div>
+                                    );
+                                })()}
                             </div>
                         ))}
                         {/* Infinite Scroll Trigger */}
