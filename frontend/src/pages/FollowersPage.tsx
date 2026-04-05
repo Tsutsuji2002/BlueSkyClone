@@ -9,9 +9,11 @@ import Button from '../components/common/Button';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFollowers, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowers, clearProfile, profileMatchesIdentifier } from '../redux/slices/userSlice';
+import { fetchFollowers, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowers, clearProfile, normalizeIdentifier, profileMatchesIdentifier } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
+
+const PAGE_SIZE = 25;
 
 const FollowersPage: React.FC = () => {
     const { userId, handle } = useParams<{ userId?: string; handle?: string }>();
@@ -19,9 +21,22 @@ const FollowersPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { profile, followers: users, followersOwnerId, isLoading, followersCursor: cursor, followersHasMore: hasMore, error } = useAppSelector((state: RootState) => state.user);
+    const {
+        profile,
+        followers: users,
+        followersOwnerId,
+        followersInitializedOwnerId,
+        followersLoading,
+        isLoading,
+        followersCursor: cursor,
+        followersHasMore: hasMore,
+        error,
+        actionLoading,
+    } = useAppSelector((state: RootState) => state.user);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const observerTarget = React.useRef<HTMLDivElement>(null);
+    const activeOwnerKey = normalizeIdentifier(profile?.id || effectiveId || '');
+    const hasInitializedCurrentList = !!activeOwnerKey && followersInitializedOwnerId === activeOwnerKey;
 
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.followers'));
 
@@ -45,7 +60,7 @@ const FollowersPage: React.FC = () => {
                 const targetActor = effectiveId.toLowerCase();
                 // If it's a completely different user's list, fetch unconditionally. Otherwise, fetch if empty and there's more.
                 if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                    listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: 10 }));
+                    listPromise = dispatch(fetchFollowers({ actor: effectiveId, limit: PAGE_SIZE }));
                 }
             }
         }
@@ -62,7 +77,7 @@ const FollowersPage: React.FC = () => {
         if (profile?.id && (profile.handle === effectiveId || profile.did === effectiveId || profile.id === effectiveId)) {
             const targetActor = profile.id.toLowerCase();
             if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
-                listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: 10 }));
+                listPromise = dispatch(fetchFollowers({ actor: profile.id, limit: PAGE_SIZE }));
             }
         }
 
@@ -73,15 +88,15 @@ const FollowersPage: React.FC = () => {
 
     // Infinite Scroll Observer
     useEffect(() => {
-        if (!hasMore || isLoading || !profile?.id) return;
+        if (!hasMore || followersLoading || !profile?.id) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowers({ actor: profile.id, cursor: cursor || undefined, limit: 10 }));
+                    dispatch(fetchFollowers({ actor: profile.id, cursor: cursor || undefined, limit: PAGE_SIZE }));
                 }
             },
-            { threshold: 1.0 }
+            { rootMargin: '300px 0px', threshold: 0 }
         );
 
         if (observerTarget.current) {
@@ -89,10 +104,11 @@ const FollowersPage: React.FC = () => {
         }
 
         return () => observer.disconnect();
-    }, [dispatch, hasMore, isLoading, profile?.id, cursor]);
+    }, [dispatch, hasMore, followersLoading, profile?.id, cursor]);
 
     const profileUser = profile;
     const followers = users;
+    const isInitialListLoading = !hasInitializedCurrentList && followersLoading;
 
     const formatCount = (count: number): string => {
         if (count >= 1000000) {
@@ -203,6 +219,7 @@ const FollowersPage: React.FC = () => {
                                             variant={follower.isFollowing ? 'secondary' : 'primary'}
                                             size="sm"
                                             className="rounded-full font-bold px-4 shrink-0"
+                                            loading={!!actionLoading[follower.id]}
                                             onClick={() => handleFollowToggle(follower)}
                                         >
                                             {follower.isFollowing ? (
@@ -223,16 +240,16 @@ const FollowersPage: React.FC = () => {
                         ))}
                         {/* Infinite Scroll Trigger */}
                         <div ref={observerTarget} className="h-20 flex items-center justify-center">
-                            {isLoading && <UserSkeleton count={2} />}
+                            {followersLoading && <UserSkeleton count={2} />}
                         </div>
                     </>
-                ) : (isLoading || !profile || followersOwnerId !== profile.id.toLowerCase() || (hasMore && followers.length === 0)) ? (
+                ) : (isInitialListLoading || !profile || followersOwnerId !== normalizeIdentifier(profile.id)) ? (
                     <UserSkeleton count={8} />
                 ) : error ? (
                     <div className="py-20 px-4 text-center">
                         <div className="text-red-500 mb-4 font-bold">Error: Failed to load followers</div>
                         <button
-                            onClick={() => dispatch(fetchFollowers({ actor: profile?.id || effectiveId!, limit: 10 }))}
+                            onClick={() => dispatch(fetchFollowers({ actor: profile?.id || effectiveId!, limit: PAGE_SIZE }))}
                             className="text-blue-500 hover:underline font-medium"
                         >
                             Try again

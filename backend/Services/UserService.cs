@@ -388,8 +388,13 @@ public class UserService : IUserService
             return await GetRemoteFollowingAsync(user.Did, limit, cursor, viewerId);
         }
 
-        var follows = await _unitOfWork.Follows.GetFollowingAsync(user.Id, 0, limit); // Note: Simplified skipping for now
-        return (follows.Select(f => f.Following).ToList(), null);
+        var skip = int.TryParse(cursor, out var parsedSkip) ? Math.Max(parsedSkip, 0) : 0;
+        var follows = await _unitOfWork.Follows.GetFollowingAsync(user.Id, skip, limit + 1);
+        var hasMore = follows.Count > limit;
+        var page = hasMore ? follows.Take(limit).ToList() : follows;
+        var nextCursor = hasMore ? (skip + limit).ToString() : null;
+
+        return (page.Select(f => f.Following).ToList(), nextCursor);
     }
 
     public async Task<(List<User> Users, string? Cursor)> GetFollowersAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
@@ -413,8 +418,13 @@ public class UserService : IUserService
             return await GetRemoteFollowersAsync(user.Did, limit, cursor, viewerId);
         }
 
-        var follows = await _unitOfWork.Follows.GetFollowersAsync(user.Id, 0, limit);
-        return (follows.Select(f => f.Follower).ToList(), null);
+        var skip = int.TryParse(cursor, out var parsedSkip) ? Math.Max(parsedSkip, 0) : 0;
+        var follows = await _unitOfWork.Follows.GetFollowersAsync(user.Id, skip, limit + 1);
+        var hasMore = follows.Count > limit;
+        var page = hasMore ? follows.Take(limit).ToList() : follows;
+        var nextCursor = hasMore ? (skip + limit).ToString() : null;
+
+        return (page.Select(f => f.Follower).ToList(), nextCursor);
     }
 
     private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowingAsync(string did, int limit, string? cursor, Guid? viewerId = null)
@@ -447,9 +457,11 @@ public class UserService : IUserService
                 var stubCache = new Dictionary<string, User>();
                 foreach (var actor in follows.EnumerateArray())
                 {
-                    var u = await ResolveStubRemoteProfileAsync(actor, stubCache);
+                    var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId);
                     if (u != null) users.Add(u);
                 }
+
+                await _unitOfWork.CompleteAsync();
 
                 cached = new RemoteFollowsResult { Users = users, Cursor = nextCursor, Dids = users.Select(u => u.Did).ToList() };
                 await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
@@ -461,9 +473,17 @@ public class UserService : IUserService
             if (viewerId.HasValue)
             {
                 await SyncInteractionsBatchAsync(viewerId.Value, cached.Dids);
-                // Re-fetch users from DB to get updated interaction properties if any
                 var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
-                return (refreshedUsers.ToList(), cached.Cursor);
+                var refreshedMap = refreshedUsers
+                    .Where(u => !string.IsNullOrEmpty(u.Did))
+                    .GroupBy(u => u.Did.ToLowerInvariant())
+                    .ToDictionary(g => g.Key, g => g.First());
+                var orderedUsers = cached.Dids
+                    .Where(d => !string.IsNullOrEmpty(d))
+                    .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
+                    .Where(u => u != null)
+                    .ToList()!;
+                return (orderedUsers, cached.Cursor);
             }
             return (cached.Users, cached.Cursor);
         }
@@ -501,9 +521,11 @@ public class UserService : IUserService
                 var stubCache = new Dictionary<string, User>();
                 foreach (var actor in followers.EnumerateArray())
                 {
-                    var u = await ResolveStubRemoteProfileAsync(actor, stubCache);
+                    var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId);
                     if (u != null) users.Add(u);
                 }
+
+                await _unitOfWork.CompleteAsync();
 
                 cached = new RemoteFollowsResult { Users = users, Cursor = nextCursor, Dids = users.Select(u => u.Did).ToList() };
                 await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
@@ -516,7 +538,16 @@ public class UserService : IUserService
             {
                 await SyncInteractionsBatchAsync(viewerId.Value, cached.Dids);
                 var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cached.Dids);
-                return (refreshedUsers.ToList(), cached.Cursor);
+                var refreshedMap = refreshedUsers
+                    .Where(u => !string.IsNullOrEmpty(u.Did))
+                    .GroupBy(u => u.Did.ToLowerInvariant())
+                    .ToDictionary(g => g.Key, g => g.First());
+                var orderedUsers = cached.Dids
+                    .Where(d => !string.IsNullOrEmpty(d))
+                    .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
+                    .Where(u => u != null)
+                    .ToList()!;
+                return (orderedUsers, cached.Cursor);
             }
             return (cached.Users, cached.Cursor);
         }
@@ -556,6 +587,12 @@ public class UserService : IUserService
         user.IsVerified = true;
 
         _unitOfWork.Users.Update(user);
+
+        if (viewerId.HasValue && actorData.TryGetProperty("viewer", out var viewerProp))
+        {
+            await SyncFollowStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
+        }
+
         cache[did] = user;
         return user;
     }
@@ -779,7 +816,7 @@ public class UserService : IUserService
         
         var normalizedDids = dids.Select(d => d.ToLowerInvariant()).Distinct().ToList();
         
-        // Use a per-viewer-list cache to avoid syncing too often (TTL 2 mins)
+        // Keep this short so external Bluesky follow changes appear quickly after navigation.
         var syncCacheKey = $"viewer_sync_batch:{viewerId}:{string.Join(",", normalizedDids.OrderBy(d => d)).GetHashCode()}";
         if (await _cacheService.GetAsync<bool>(syncCacheKey)) return;
 
@@ -832,7 +869,7 @@ public class UserService : IUserService
             }
 
             await _unitOfWork.CompleteAsync();
-            await _cacheService.SetAsync(syncCacheKey, true, TimeSpan.FromMinutes(2));
+            await _cacheService.SetAsync(syncCacheKey, true, TimeSpan.FromSeconds(30));
         }
         catch (Exception ex)
         {
@@ -972,12 +1009,46 @@ public class UserService : IUserService
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (!string.IsNullOrEmpty(token)) return token;
 
-        var user = await _unitOfWork.Users.GetByIdAsync(userId);
-        if (user == null || string.IsNullOrEmpty(user.Did)) return null;
+        var refreshToken = await _distributedCache.GetStringAsync($"BlueskyRefreshToken_{userId}");
+        if (string.IsNullOrEmpty(refreshToken)) return null;
 
-        // Try getting from cache if we have a refresh token
-        // Implemented in Auth Service normally, but here we can try resolving session
-        return null; // Placeholder
+        try
+        {
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
+
+            var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.refreshSession", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Failed to refresh Bluesky token for {UserId}. Status: {Status}. Body: {Body}", userId, response.StatusCode, errorBody);
+                return null;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            var session = await JsonSerializer.DeserializeAsync<JsonElement>(stream);
+            var nextAccessJwt = session.GetProperty("accessJwt").GetString();
+            var nextRefreshJwt = session.GetProperty("refreshJwt").GetString();
+
+            if (string.IsNullOrEmpty(nextAccessJwt) || string.IsNullOrEmpty(nextRefreshJwt))
+            {
+                return null;
+            }
+
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+            };
+
+            await _distributedCache.SetStringAsync($"BlueskyToken_{userId}", nextAccessJwt, cacheOptions);
+            await _distributedCache.SetStringAsync($"BlueskyRefreshToken_{userId}", nextRefreshJwt, cacheOptions);
+            return nextAccessJwt;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[GetOrRefreshBlueskyTokenAsync] Error refreshing Bluesky token for {UserId}", userId);
+            return null;
+        }
     }
 
     private void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)

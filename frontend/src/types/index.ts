@@ -55,6 +55,13 @@ export interface User {
     pinnedPost?: Post;
 }
 
+export interface UserListCacheEntry {
+    users: User[];
+    cursor: string | null;
+    hasMore: boolean;
+    initialized: boolean;
+}
+
 export interface UserSettings {
     userId: string;
     // Accessibility
@@ -438,6 +445,12 @@ export interface UserState {
     followers: User[]; // Followers of active profile
     followingOwnerId: string | null;
     followingUsers: User[]; // Following of active profile
+    followersInitializedOwnerId: string | null;
+    followingInitializedOwnerId: string | null;
+    followersLoading: boolean;
+    followingLoading: boolean;
+    followersCache: Record<string, UserListCacheEntry>;
+    followingCache: Record<string, UserListCacheEntry>;
     selectedInterests: string[];
     searchResults: User[];
     activeProfileTab?: string;

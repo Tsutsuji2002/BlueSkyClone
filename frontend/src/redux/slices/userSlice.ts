@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
-import { UserState, User, MutedWord } from '../../types';
+import { UserState, User, MutedWord, UserListCacheEntry } from '../../types';
 import { API_BASE_URL } from '../../constants';
 
 const initialState: UserState = {
@@ -21,6 +21,12 @@ const initialState: UserState = {
     followingUsers: [],
     followingCursor: null,
     followingHasMore: true,
+    followersInitializedOwnerId: null,
+    followingInitializedOwnerId: null,
+    followersLoading: false,
+    followingLoading: false,
+    followersCache: {},
+    followingCache: {},
     selectedInterests: [],
     searchResults: [],
     isLoading: false,
@@ -48,6 +54,31 @@ export const profileMatchesIdentifier = (profile: User | null, identifier: strin
         normalizeIdentifier(profile.handle),
         normalizeIdentifier(profile.username),
     ].includes(normalizedIdentifier);
+};
+
+const cloneUsers = (users: User[]): User[] => users.map((user) => ({ ...user }));
+
+const cloneUserListCacheEntry = (entry: UserListCacheEntry): UserListCacheEntry => ({
+    users: cloneUsers(entry.users),
+    cursor: entry.cursor,
+    hasMore: entry.hasMore,
+    initialized: entry.initialized,
+});
+
+const updateUsersByIdentifier = (users: User[], identifier: string, updater: (user: User) => void) => {
+    users.forEach((user) => {
+        if (profileMatchesIdentifier(user, identifier)) {
+            updater(user);
+        }
+    });
+};
+
+const updateCachedUsersByIdentifier = (
+    cache: Record<string, UserListCacheEntry>,
+    identifier: string,
+    updater: (user: User) => void
+) => {
+    Object.values(cache).forEach((entry) => updateUsersByIdentifier(entry.users, identifier, updater));
 };
 export const searchUsers = createAsyncThunk<
     User[],
@@ -158,7 +189,7 @@ export const fetchFollowers = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/fetchFollowers',
-    async ({ actor, cursor, limit = 10 }, { rejectWithValue }) => {
+    async ({ actor, cursor, limit = 25 }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
@@ -183,6 +214,10 @@ export const fetchFollowers = createAsyncThunk<
                 displayName: u.displayName || '',
                 avatarUrl: u.avatar || u.avatarUrl,
                 bio: u.bio,
+                followersCount: u.followersCount || 0,
+                followingCount: u.followingCount || 0,
+                postsCount: u.postsCount || 0,
+                isFollowedBy: u.isFollowedBy,
                 isFollowing: u.isFollowing,
                 followingReference: u.followingReference,
             } as User));
@@ -200,7 +235,7 @@ export const fetchFollowing = createAsyncThunk<
     { rejectValue: string }
 >(
     'user/fetchFollowing',
-    async ({ actor, cursor, limit = 10 }, { rejectWithValue }) => {
+    async ({ actor, cursor, limit = 25 }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
@@ -225,6 +260,10 @@ export const fetchFollowing = createAsyncThunk<
                 displayName: u.displayName || '',
                 avatarUrl: u.avatar || u.avatarUrl,
                 bio: u.bio,
+                followersCount: u.followersCount || 0,
+                followingCount: u.followingCount || 0,
+                postsCount: u.postsCount || 0,
+                isFollowedBy: u.isFollowedBy,
                 isFollowing: u.isFollowing,
                 followingReference: u.followingReference,
             } as User));
@@ -607,12 +646,16 @@ const userSlice = createSlice({
             state.followersCursor = null;
             state.followersHasMore = true;
             state.followersOwnerId = null;
+            state.followersInitializedOwnerId = null;
+            state.followersLoading = false;
         },
         clearFollowing: (state: UserState) => {
             state.followingUsers = [];
             state.followingCursor = null;
             state.followingHasMore = true;
             state.followingOwnerId = null;
+            state.followingInitializedOwnerId = null;
+            state.followingLoading = false;
         },
     },
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
@@ -688,6 +731,16 @@ const userSlice = createSlice({
                 state.searchResults.forEach(updateAllLists);
                 state.suggestedUsers.forEach(updateAllLists);
                 state.users.forEach(updateAllLists);
+                updateCachedUsersByIdentifier(state.followersCache, user.id, updateAllLists);
+                updateCachedUsersByIdentifier(state.followingCache, user.id, updateAllLists);
+                if (user.did) {
+                    updateCachedUsersByIdentifier(state.followersCache, user.did, updateAllLists);
+                    updateCachedUsersByIdentifier(state.followingCache, user.did, updateAllLists);
+                }
+                if (user.handle) {
+                    updateCachedUsersByIdentifier(state.followersCache, user.handle, updateAllLists);
+                    updateCachedUsersByIdentifier(state.followingCache, user.handle, updateAllLists);
+                }
             })
             .addCase(fetchUserProfile.rejected, (state: UserState, action) => {
                 state.isLoading = false;
@@ -698,35 +751,33 @@ const userSlice = createSlice({
                 const userId = action.meta.arg;
                 state.actionLoading[userId] = true;
 
-                // Optimistic update function
                 const updateState = (u: User) => {
-                    if (profileMatchesIdentifier(u, userId)) {
-                        u.isFollowing = true;
-                    }
+                    u.isFollowing = true;
                 };
 
-                // Update various lists optimistically
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isFollowing = true;
                     if (state.profile.followersCount != null) state.profile.followersCount += 1;
                 }
 
-                state.users.forEach(updateState);
-                state.followers.forEach(updateState);
-                state.followingUsers.forEach(updateState);
-                state.searchResults.forEach(updateState);
-                state.suggestedUsers.forEach(updateState);
-                state.blockedUsers.forEach(updateState);
-                state.mutedUsers.forEach(updateState);
+                updateUsersByIdentifier(state.users, userId, updateState);
+                updateUsersByIdentifier(state.followers, userId, updateState);
+                updateUsersByIdentifier(state.followingUsers, userId, updateState);
+                updateUsersByIdentifier(state.searchResults, userId, updateState);
+                updateUsersByIdentifier(state.suggestedUsers, userId, updateState);
+                updateUsersByIdentifier(state.blockedUsers, userId, updateState);
+                updateUsersByIdentifier(state.mutedUsers, userId, updateState);
+                updateCachedUsersByIdentifier(state.followersCache, userId, updateState);
+                updateCachedUsersByIdentifier(state.followingCache, userId, updateState);
             })
             .addCase(followUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg;
                 state.actionLoading[userId] = false;
+                const followUri = action.payload.uri || undefined;
 
                 const updateState = (u: User) => {
-                    if (profileMatchesIdentifier(u, userId)) {
-                        u.isFollowing = true;
-                    }
+                    u.isFollowing = true;
+                    u.followingReference = followUri;
                 };
 
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
@@ -737,38 +788,48 @@ const userSlice = createSlice({
                     }
                 }
 
-                state.users.forEach(updateState);
-                state.followers.forEach(updateState);
-                state.followingUsers.forEach(updateState);
-                state.searchResults.forEach(updateState);
-                state.suggestedUsers.forEach(updateState);
-                state.blockedUsers.forEach(updateState);
-                state.mutedUsers.forEach(updateState);
+                updateUsersByIdentifier(state.users, userId, updateState);
+                updateUsersByIdentifier(state.followers, userId, updateState);
+                updateUsersByIdentifier(state.followingUsers, userId, updateState);
+                updateUsersByIdentifier(state.searchResults, userId, updateState);
+                updateUsersByIdentifier(state.suggestedUsers, userId, updateState);
+                updateUsersByIdentifier(state.blockedUsers, userId, updateState);
+                updateUsersByIdentifier(state.mutedUsers, userId, updateState);
+                updateCachedUsersByIdentifier(state.followersCache, userId, updateState);
+                updateCachedUsersByIdentifier(state.followingCache, userId, updateState);
             })
             .addCase(followUserAsync.rejected, (state: UserState, action) => {
                 const userId = action.meta.arg;
                 state.actionLoading[userId] = false;
-                // Revert optimistic update on failure
+                const revertState = (u: User) => {
+                    u.isFollowing = false;
+                };
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isFollowing = false;
                     if (state.profile.followersCount != null && state.profile.followersCount > 0) {
                         state.profile.followersCount -= 1;
                     }
                 }
+                updateUsersByIdentifier(state.users, userId, revertState);
+                updateUsersByIdentifier(state.followers, userId, revertState);
+                updateUsersByIdentifier(state.followingUsers, userId, revertState);
+                updateUsersByIdentifier(state.searchResults, userId, revertState);
+                updateUsersByIdentifier(state.suggestedUsers, userId, revertState);
+                updateUsersByIdentifier(state.blockedUsers, userId, revertState);
+                updateUsersByIdentifier(state.mutedUsers, userId, revertState);
+                updateCachedUsersByIdentifier(state.followersCache, userId, revertState);
+                updateCachedUsersByIdentifier(state.followingCache, userId, revertState);
             })
             // Unfollow User
             .addCase(unfollowUserAsync.pending, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
                 state.actionLoading[userId] = true;
 
-                // Optimistic update function
                 const updateState = (u: User) => {
-                    if (profileMatchesIdentifier(u, userId)) {
-                        u.isFollowing = false;
-                    }
+                    u.isFollowing = false;
+                    u.followingReference = undefined;
                 };
 
-                // Update various lists optimistically
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isFollowing = false;
                     state.profile.followingReference = undefined;
@@ -777,22 +838,23 @@ const userSlice = createSlice({
                     }
                 }
 
-                state.users.forEach(updateState);
-                state.followers.forEach(updateState);
-                state.followingUsers.forEach(updateState);
-                state.searchResults.forEach(updateState);
-                state.suggestedUsers.forEach(updateState);
-                state.blockedUsers.forEach(updateState);
-                state.mutedUsers.forEach(updateState);
+                updateUsersByIdentifier(state.users, userId, updateState);
+                updateUsersByIdentifier(state.followers, userId, updateState);
+                updateUsersByIdentifier(state.followingUsers, userId, updateState);
+                updateUsersByIdentifier(state.searchResults, userId, updateState);
+                updateUsersByIdentifier(state.suggestedUsers, userId, updateState);
+                updateUsersByIdentifier(state.blockedUsers, userId, updateState);
+                updateUsersByIdentifier(state.mutedUsers, userId, updateState);
+                updateCachedUsersByIdentifier(state.followersCache, userId, updateState);
+                updateCachedUsersByIdentifier(state.followingCache, userId, updateState);
             })
             .addCase(unfollowUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
                 state.actionLoading[userId] = false;
 
                 const updateState = (u: User) => {
-                    if (profileMatchesIdentifier(u, userId)) {
-                        u.isFollowing = false;
-                    }
+                    u.isFollowing = false;
+                    u.followingReference = undefined;
                 };
 
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
@@ -803,22 +865,35 @@ const userSlice = createSlice({
                     }
                 }
 
-                state.users.forEach(updateState);
-                state.followers.forEach(updateState);
-                state.followingUsers.forEach(updateState);
-                state.searchResults.forEach(updateState);
-                state.suggestedUsers.forEach(updateState);
-                state.blockedUsers.forEach(updateState);
-                state.mutedUsers.forEach(updateState);
+                updateUsersByIdentifier(state.users, userId, updateState);
+                updateUsersByIdentifier(state.followers, userId, updateState);
+                updateUsersByIdentifier(state.followingUsers, userId, updateState);
+                updateUsersByIdentifier(state.searchResults, userId, updateState);
+                updateUsersByIdentifier(state.suggestedUsers, userId, updateState);
+                updateUsersByIdentifier(state.blockedUsers, userId, updateState);
+                updateUsersByIdentifier(state.mutedUsers, userId, updateState);
+                updateCachedUsersByIdentifier(state.followersCache, userId, updateState);
+                updateCachedUsersByIdentifier(state.followingCache, userId, updateState);
             })
             .addCase(unfollowUserAsync.rejected, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
                 state.actionLoading[userId] = false;
-                // Revert optimistic update on failure
+                const revertState = (u: User) => {
+                    u.isFollowing = true;
+                };
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isFollowing = true;
                     if (state.profile.followersCount != null) state.profile.followersCount += 1;
                 }
+                updateUsersByIdentifier(state.users, userId, revertState);
+                updateUsersByIdentifier(state.followers, userId, revertState);
+                updateUsersByIdentifier(state.followingUsers, userId, revertState);
+                updateUsersByIdentifier(state.searchResults, userId, revertState);
+                updateUsersByIdentifier(state.suggestedUsers, userId, revertState);
+                updateUsersByIdentifier(state.blockedUsers, userId, revertState);
+                updateUsersByIdentifier(state.mutedUsers, userId, revertState);
+                updateCachedUsersByIdentifier(state.followersCache, userId, revertState);
+                updateCachedUsersByIdentifier(state.followingCache, userId, revertState);
             })
             // Block User
             .addCase(blockUserAsync.fulfilled, (state: UserState, action) => {
@@ -955,17 +1030,32 @@ const userSlice = createSlice({
             })
             // Fetch Followers
             .addCase(fetchFollowers.pending, (state: UserState, action) => {
-                state.followersOwnerId = action.meta.arg.actor.toLowerCase();
-                state.isLoading = true;
+                const ownerId = normalizeIdentifier(action.meta.arg.actor);
+                state.followersOwnerId = ownerId;
+                state.followersLoading = true;
                 state.error = null;
-            })
-            .addCase(fetchFollowers.fulfilled, (state: UserState, action) => {
-                state.isLoading = false;
-                const { users, cursor } = action.payload;
-                const incomingUsers = (users || []) as User[];
 
                 if (!action.meta.arg.cursor) {
-                    state.followers = incomingUsers;
+                    const cached = state.followersCache[ownerId];
+                    if (cached) {
+                        const restored = cloneUserListCacheEntry(cached);
+                        state.followers = restored.users;
+                        state.followersCursor = restored.cursor;
+                        state.followersHasMore = restored.hasMore;
+                        if (restored.initialized) {
+                            state.followersInitializedOwnerId = ownerId;
+                        }
+                    }
+                }
+            })
+            .addCase(fetchFollowers.fulfilled, (state: UserState, action) => {
+                state.followersLoading = false;
+                const { users, cursor } = action.payload;
+                const incomingUsers = (users || []) as User[];
+                const ownerId = normalizeIdentifier(action.meta.arg.actor);
+
+                if (!action.meta.arg.cursor) {
+                    state.followers = cloneUsers(incomingUsers);
                 } else {
                     // Stable identity upsert: prefers DID, falls back to ID
                     const updatedUsers = [...state.followers];
@@ -987,24 +1077,48 @@ const userSlice = createSlice({
                 }
                 state.followersCursor = cursor;
                 state.followersHasMore = incomingUsers.length > 0 && !!cursor;
+                state.followersOwnerId = ownerId;
+                state.followersInitializedOwnerId = ownerId;
+                state.followersCache[ownerId] = {
+                    users: cloneUsers(state.followers),
+                    cursor: state.followersCursor,
+                    hasMore: state.followersHasMore,
+                    initialized: true,
+                };
             })
             .addCase(fetchFollowers.rejected, (state: UserState, action) => {
-                state.isLoading = false;
+                state.followersLoading = false;
                 state.error = action.payload as string;
+                state.followersInitializedOwnerId = normalizeIdentifier(action.meta.arg.actor);
             })
             // Fetch Following
             .addCase(fetchFollowing.pending, (state: UserState, action) => {
-                state.followingOwnerId = action.meta.arg.actor.toLowerCase();
-                state.isLoading = true;
+                const ownerId = normalizeIdentifier(action.meta.arg.actor);
+                state.followingOwnerId = ownerId;
+                state.followingLoading = true;
                 state.error = null;
-            })
-            .addCase(fetchFollowing.fulfilled, (state: UserState, action) => {
-                state.isLoading = false;
-                const { users, cursor } = action.payload;
-                const incomingUsers = (users || []) as User[];
 
                 if (!action.meta.arg.cursor) {
-                    state.followingUsers = incomingUsers;
+                    const cached = state.followingCache[ownerId];
+                    if (cached) {
+                        const restored = cloneUserListCacheEntry(cached);
+                        state.followingUsers = restored.users;
+                        state.followingCursor = restored.cursor;
+                        state.followingHasMore = restored.hasMore;
+                        if (restored.initialized) {
+                            state.followingInitializedOwnerId = ownerId;
+                        }
+                    }
+                }
+            })
+            .addCase(fetchFollowing.fulfilled, (state: UserState, action) => {
+                state.followingLoading = false;
+                const { users, cursor } = action.payload;
+                const incomingUsers = (users || []) as User[];
+                const ownerId = normalizeIdentifier(action.meta.arg.actor);
+
+                if (!action.meta.arg.cursor) {
+                    state.followingUsers = cloneUsers(incomingUsers);
                 } else {
                     // Stable identity upsert: prefers DID, falls back to ID
                     const updatedUsers = [...state.followingUsers];
@@ -1026,10 +1140,19 @@ const userSlice = createSlice({
                 }
                 state.followingCursor = cursor;
                 state.followingHasMore = incomingUsers.length > 0 && !!cursor;
+                state.followingOwnerId = ownerId;
+                state.followingInitializedOwnerId = ownerId;
+                state.followingCache[ownerId] = {
+                    users: cloneUsers(state.followingUsers),
+                    cursor: state.followingCursor,
+                    hasMore: state.followingHasMore,
+                    initialized: true,
+                };
             })
             .addCase(fetchFollowing.rejected, (state: UserState, action) => {
-                state.isLoading = false;
+                state.followingLoading = false;
                 state.error = action.payload as string;
+                state.followingInitializedOwnerId = normalizeIdentifier(action.meta.arg.actor);
             })
             // Muted Words
 

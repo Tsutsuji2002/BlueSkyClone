@@ -245,8 +245,8 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
     const followersCount = profile?.followersCount ?? user.followersCount ?? 0;
     const followingCount = profile?.followingCount ?? user.followingCount ?? 0;
 
-    // Prefer parent's passed isFollowing state if explicitly populated, as it represents fresh real-time list interactions
-    const isFollowing = user.isFollowing !== undefined ? user.isFollowing : (profile?.isFollowing ?? false);
+    // Prefer fetched profile state when available because it carries the freshest ATProto viewer relationship.
+    const isFollowing = profile?.isFollowing ?? user.isFollowing ?? false;
 
     const isFollowedBy = profile?.isFollowedBy ?? false;
     const followingReference = profile?.followingReference ?? user.followingReference;

@@ -1314,6 +1314,19 @@ const postsSlice = createSlice({
                 }
             )
             .addMatcher(
+                (action) => action.type === 'user/follow/pending',
+                (state: PostsState, action: any) => {
+                    const identifier = action.meta?.arg as string;
+                    if (!identifier) return;
+
+                    applyFollowStateToPosts(state.posts, identifier, true);
+                    applyFollowStateToPosts(state.threadPosts, identifier, true);
+                    applyFollowStateToPosts(state.discoverPosts, identifier, true);
+                    applyFollowStateToPosts(state.trendingPosts, identifier, true);
+                    applyFollowStateToPosts(state.bookmarkedPosts, identifier, true);
+                }
+            )
+            .addMatcher(
                 (action) => action.type === 'user/follow/fulfilled',
                 (state: PostsState, action: any) => {
                     const identifier = action.meta?.arg as string;
@@ -1321,9 +1334,36 @@ const postsSlice = createSlice({
                     if (!identifier) return;
 
                     applyFollowStateToPosts(state.posts, identifier, true, followUri);
+                    applyFollowStateToPosts(state.threadPosts, identifier, true, followUri);
                     applyFollowStateToPosts(state.discoverPosts, identifier, true, followUri);
                     applyFollowStateToPosts(state.trendingPosts, identifier, true, followUri);
                     applyFollowStateToPosts(state.bookmarkedPosts, identifier, true, followUri);
+                }
+            )
+            .addMatcher(
+                (action) => action.type === 'user/follow/rejected',
+                (state: PostsState, action: any) => {
+                    const identifier = action.meta?.arg as string;
+                    if (!identifier) return;
+
+                    applyFollowStateToPosts(state.posts, identifier, false);
+                    applyFollowStateToPosts(state.threadPosts, identifier, false);
+                    applyFollowStateToPosts(state.discoverPosts, identifier, false);
+                    applyFollowStateToPosts(state.trendingPosts, identifier, false);
+                    applyFollowStateToPosts(state.bookmarkedPosts, identifier, false);
+                }
+            )
+            .addMatcher(
+                (action) => action.type === 'user/unfollow/pending',
+                (state: PostsState, action: any) => {
+                    const identifier = action.meta?.arg?.userId as string;
+                    if (!identifier) return;
+
+                    applyFollowStateToPosts(state.posts, identifier, false);
+                    applyFollowStateToPosts(state.threadPosts, identifier, false);
+                    applyFollowStateToPosts(state.discoverPosts, identifier, false);
+                    applyFollowStateToPosts(state.trendingPosts, identifier, false);
+                    applyFollowStateToPosts(state.bookmarkedPosts, identifier, false);
                 }
             )
             .addMatcher(
@@ -1333,9 +1373,23 @@ const postsSlice = createSlice({
                     if (!identifier) return;
 
                     applyFollowStateToPosts(state.posts, identifier, false);
+                    applyFollowStateToPosts(state.threadPosts, identifier, false);
                     applyFollowStateToPosts(state.discoverPosts, identifier, false);
                     applyFollowStateToPosts(state.trendingPosts, identifier, false);
                     applyFollowStateToPosts(state.bookmarkedPosts, identifier, false);
+                }
+            )
+            .addMatcher(
+                (action) => action.type === 'user/unfollow/rejected',
+                (state: PostsState, action: any) => {
+                    const identifier = action.meta?.arg?.userId as string;
+                    if (!identifier) return;
+
+                    applyFollowStateToPosts(state.posts, identifier, true);
+                    applyFollowStateToPosts(state.threadPosts, identifier, true);
+                    applyFollowStateToPosts(state.discoverPosts, identifier, true);
+                    applyFollowStateToPosts(state.trendingPosts, identifier, true);
+                    applyFollowStateToPosts(state.bookmarkedPosts, identifier, true);
                 }
             );
     },
@@ -1346,4 +1400,3 @@ export const { clearPosts, clearThreadPosts, updatePostStats, updateUserPostStat
 
 
 export default postsSlice.reducer;
-
