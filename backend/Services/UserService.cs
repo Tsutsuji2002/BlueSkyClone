@@ -502,7 +502,6 @@ public class UserService : IUserService
                     return (cached.Users.Where(u => !string.IsNullOrWhiteSpace(u.Did)).ToList(), cached.Cursor);
                 }
 
-                await SyncInteractionsBatchAsync(viewerId.Value, cachedDids);
                 var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cachedDids);
                 var refreshedMap = refreshedUsers
                     .Where(u => !string.IsNullOrEmpty(u.Did))
@@ -594,7 +593,6 @@ public class UserService : IUserService
                     return (cached.Users.Where(u => !string.IsNullOrWhiteSpace(u.Did)).ToList(), cached.Cursor);
                 }
 
-                await SyncInteractionsBatchAsync(viewerId.Value, cachedDids);
                 var refreshedUsers = await _unitOfWork.Users.GetByDidsAsync(cachedDids);
                 var refreshedMap = refreshedUsers
                     .Where(u => !string.IsNullOrEmpty(u.Did))
@@ -857,6 +855,18 @@ public class UserService : IUserService
         var targetIdList = targetIds.Distinct().ToList();
         if (!targetIdList.Any()) return new Dictionary<Guid, UserRelationshipStatusDto>();
 
+        var targetUsers = await _unitOfWork.Users.Query()
+            .Where(u => targetIdList.Contains(u.Id))
+            .Select(u => new User
+            {
+                Id = u.Id,
+                Did = u.Did,
+                Handle = u.Handle
+            })
+            .ToListAsync();
+
+        var remoteStatusMap = await FetchRemoteInteractionStatusesAsync(viewerId, targetUsers);
+
         // 1. Fetch Follows (viewer follows target)
         var follows = await _unitOfWork.Follows.Query()
             .Where(f => f.FollowerId == viewerId && targetIdList.Contains(f.FollowingId))
@@ -890,7 +900,7 @@ public class UserService : IUserService
         var result = new Dictionary<Guid, UserRelationshipStatusDto>();
         foreach (var id in targetIdList)
         {
-            result[id] = new UserRelationshipStatusDto(
+            var dbStatus = new UserRelationshipStatusDto(
                 IsFollowing: followsMap.ContainsKey(id),
                 IsBlocking: blockingMap.ContainsKey(id),
                 IsBlockedBy: blockedBy.Contains(id),
@@ -898,9 +908,140 @@ public class UserService : IUserService
                 FollowingReference: followsMap.TryGetValue(id, out var f) ? f.Uri : null,
                 BlockingReference: blockingMap.TryGetValue(id, out var b) ? b.Uri : null
             );
+
+            result[id] = remoteStatusMap.TryGetValue(id, out var remoteStatus)
+                ? remoteStatus
+                : dbStatus;
         }
 
         return result;
+    }
+
+    private async Task<Dictionary<Guid, UserRelationshipStatusDto>> FetchRemoteInteractionStatusesAsync(Guid viewerId, IEnumerable<User> targetUsers)
+    {
+        var remoteTargets = targetUsers
+            .Where(u =>
+                u.Id != viewerId &&
+                !string.IsNullOrWhiteSpace(u.Did) &&
+                !(u.Handle?.EndsWith($".{_config["DomainName"]}", StringComparison.OrdinalIgnoreCase) ?? false))
+            .GroupBy(u => u.Did!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        if (!remoteTargets.Any())
+        {
+            return new Dictionary<Guid, UserRelationshipStatusDto>();
+        }
+
+        var token = await GetOrRefreshBlueskyTokenAsync(viewerId);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return new Dictionary<Guid, UserRelationshipStatusDto>();
+        }
+
+        using var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var result = new Dictionary<Guid, UserRelationshipStatusDto>();
+
+        foreach (var batch in remoteTargets.Keys.Chunk(25))
+        {
+            var url = "https://api.bsky.app/xrpc/app.bsky.actor.getProfiles?" + string.Join("&", batch.Select(d => $"actors={Uri.EscapeDataString(d)}"));
+            try
+            {
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                if (!doc.RootElement.TryGetProperty("profiles", out var profilesProp))
+                {
+                    continue;
+                }
+
+                foreach (var profile in profilesProp.EnumerateArray())
+                {
+                    if (!profile.TryGetProperty("did", out var didProp))
+                    {
+                        continue;
+                    }
+
+                    var did = didProp.GetString();
+                    if (string.IsNullOrWhiteSpace(did) || !remoteTargets.TryGetValue(did, out var targetUser))
+                    {
+                        continue;
+                    }
+
+                    if (!profile.TryGetProperty("viewer", out var viewerProp))
+                    {
+                        result[targetUser.Id] = new UserRelationshipStatusDto(false, false, false, false, null, null);
+                        continue;
+                    }
+
+                    var remoteStatus = BuildInteractionStatusFromViewer(viewerProp);
+                    result[targetUser.Id] = remoteStatus;
+                    await SyncFollowStatusWithAtProtoAsync(viewerId, targetUser, viewerProp);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[FetchRemoteInteractionStatusesAsync] Failed to refresh remote viewer statuses for viewer {ViewerId}", viewerId);
+            }
+        }
+
+        if (result.Count > 0)
+        {
+            await _unitOfWork.CompleteAsync();
+        }
+
+        return result;
+    }
+
+    private static UserRelationshipStatusDto BuildInteractionStatusFromViewer(JsonElement viewerProp)
+    {
+        string? followingReference = null;
+        string? blockingReference = null;
+        var isFollowing = false;
+        var isBlocking = false;
+        var isBlockedBy = false;
+        var isMuted = false;
+
+        if (viewerProp.ValueKind == JsonValueKind.Object)
+        {
+            if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind == JsonValueKind.String)
+            {
+                followingReference = followingProp.GetString();
+                isFollowing = !string.IsNullOrWhiteSpace(followingReference);
+            }
+
+            if (viewerProp.TryGetProperty("blocking", out var blockingProp) && blockingProp.ValueKind == JsonValueKind.String)
+            {
+                blockingReference = blockingProp.GetString();
+                isBlocking = !string.IsNullOrWhiteSpace(blockingReference);
+            }
+
+            if (viewerProp.TryGetProperty("blockedBy", out var blockedByProp) && blockedByProp.ValueKind == JsonValueKind.True)
+            {
+                isBlockedBy = true;
+            }
+
+            if (viewerProp.TryGetProperty("muted", out var mutedProp) && mutedProp.ValueKind == JsonValueKind.True)
+            {
+                isMuted = true;
+            }
+        }
+
+        return new UserRelationshipStatusDto(
+            IsFollowing: isFollowing,
+            IsBlocking: isBlocking,
+            IsBlockedBy: isBlockedBy,
+            IsMuted: isMuted,
+            FollowingReference: followingReference,
+            BlockingReference: blockingReference
+        );
     }
 
     public async Task SyncInteractionsBatchAsync(Guid viewerId, IEnumerable<string> dids)
