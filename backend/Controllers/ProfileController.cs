@@ -433,6 +433,9 @@ public class ProfileController : ControllerBase
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
+            User? targetUser = await ResolveUserAsync(userId, currentUserId);
+            bool isOwnProfile = targetUser != null && currentUserId.HasValue && targetUser.Id == currentUserId.Value;
+
             var (users, nextCursor) = await _userService.GetFollowingAsync(userId, limit, cursor, currentUserId);
 
             Dictionary<Guid, UserRelationshipStatusDto> interactionStatuses;
@@ -454,7 +457,7 @@ public class ProfileController : ControllerBase
                 interactionStatuses.TryGetValue(user.Id, out var status);
                 var dto = MapUserToDtoWithPreFetchedStatus(user, currentUserId, status);
                 // If viewing own following, they are all followed by definition
-                if (userId == currentUserIdString && currentUserId.HasValue)
+                if (isOwnProfile)
                 {
                     dto = dto with { IsFollowing = true };
                 }
