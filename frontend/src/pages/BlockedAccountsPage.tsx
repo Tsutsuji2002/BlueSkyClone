@@ -86,9 +86,9 @@ const BlockedAccountsPage: React.FC = () => {
                                     </div>
                                     <button
                                         onClick={() => handleUnblockClick(user)}
-                                        className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors"
+                                        className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-gray-200 dark:border-dark-border text-sm font-bold text-gray-700 dark:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
                                     >
-                                        <FiUserCheck />
+                                        <FiSlash className="text-blue-500" />
                                         {t('moderation.unblock')}
                                     </button>
                                 </div>

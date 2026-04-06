@@ -86,19 +86,19 @@ const ModerationSettingsPage: React.FC = () => {
     }) => (
         <button
             onClick={onClick}
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-all duration-200 border-b border-gray-50 dark:border-dark-border/50 group"
+            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-all duration-200 border-b border-gray-50 dark:border-dark-border/30 group"
         >
             <div className="flex items-center gap-4 text-gray-900 dark:text-dark-text">
-                <span className="text-gray-500 dark:text-dark-text-secondary group-hover:text-blue-500 transition-colors">{icon}</span>
-                <span className="font-medium text-[15px]">{label}</span>
+                <span className="flex items-center justify-center w-6 h-6">{icon}</span>
+                <span className="font-semibold text-[16px]">{label}</span>
             </div>
             <div className="flex items-center gap-2">
                 {count !== undefined && !loadingCounts && (
-                    <span className="text-sm font-medium text-gray-400 dark:text-dark-text-secondary bg-gray-100 dark:bg-dark-bg px-2 py-0.5 rounded-md">
+                    <span className="text-[15px] font-medium text-gray-500 dark:text-dark-text-secondary mr-1">
                         {count}
                     </span>
                 )}
-                <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary group-hover:translate-x-0.5 transition-transform" />
+                <FiChevronRight className="text-gray-300 dark:text-dark-border group-hover:text-gray-400 dark:group-hover:text-dark-text-secondary transition-colors" size={20} />
             </div>
         </button>
     );
@@ -156,41 +156,41 @@ const ModerationSettingsPage: React.FC = () => {
             <div className="pb-20">
                 {/* MODERATION TOOLS */}
                 <section>
-                    <h2 className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-dark-text mt-2 block">
+                    <h2 className="px-4 py-3 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary mt-2 block uppercase tracking-wider">
                         {t('moderation.title')}
                     </h2>
                     <div className="flex flex-col">
                         <MenuLinkItem
-                            icon={<FiEdit size={20} />}
+                            icon={<FiEdit size={22} className="text-blue-500" />}
                             label={t('moderation.interaction_settings')}
                             onClick={() => navigate('/settings/moderation/interaction')}
                         />
                         <MenuLinkItem
-                            icon={<FiFilter size={20} />}
+                            icon={<FiFilter size={22} className="text-blue-500" />}
                             label={t('moderation.muted_words_tags')}
                             count={counts.mutedWords > 0 ? counts.mutedWords : undefined}
                             onClick={() => navigate('/settings/moderation/muted-words')}
                         />
                         <MenuLinkItem
-                            icon={<FiUsers size={20} />}
+                            icon={<FiUsers size={22} className="text-blue-500" />}
                             label={t('moderation.moderation_lists')}
                             count={counts.lists > 0 ? counts.lists : undefined}
                             onClick={() => navigate('/settings/moderation/lists')}
                         />
                         <MenuLinkItem
-                            icon={<FiUserX size={20} />}
+                            icon={<FiUserX size={22} className="text-blue-500" />}
                             label={t('moderation.muted_accounts')}
-                            count={counts.mutes > 0 ? `${counts.mutes}+` : undefined}
+                            count={counts.mutes > 0 ? `${counts.mutes}` : undefined}
                             onClick={() => navigate('/settings/moderation/muted-accounts')}
                         />
                         <MenuLinkItem
-                            icon={<FiSlash size={20} />}
+                            icon={<FiSlash size={22} className="text-blue-500" />}
                             label={t('moderation.blocked_accounts')}
-                            count={counts.blocks > 0 ? `${counts.blocks}+` : undefined}
+                            count={counts.blocks > 0 ? `${counts.blocks}` : undefined}
                             onClick={() => navigate('/settings/moderation/blocked-accounts')}
                         />
                         <MenuLinkItem
-                            icon={<FiCheckCircle size={20} />}
+                            icon={<FiCheckCircle size={22} className="text-blue-500" />}
                             label={t('moderation.verification_settings')}
                             onClick={() => navigate('/settings/moderation/verification')}
                         />

@@ -714,7 +714,7 @@ public class UserService : IUserService
 
         if (viewerId.HasValue && actorData.TryGetProperty("viewer", out var viewerProp))
         {
-            await SyncFollowStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
+            await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
         }
 
         cache[did] = user;
@@ -947,10 +947,83 @@ public class UserService : IUserService
 
     public async Task<bool> BlockUserAsync(Guid userId, Guid targetUserId)
     {
-        var existing = await _unitOfWork.Blocks.IsBlockedAsync(userId, targetUserId);
-        if (existing) return true;
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var target = await _unitOfWork.Users.GetByIdAsync(targetUserId);
 
-        var block = new BlockedAccount { UserId = userId, BlockedUserId = targetUserId, CreatedAt = DateTime.UtcNow };
+        if (user == null || target == null) return false;
+
+        var existing = await _unitOfWork.Blocks.Query()
+            .FirstOrDefaultAsync(b => b.UserId == userId && b.BlockedUserId == targetUserId);
+        
+        if (existing != null) return true;
+
+        var block = new BlockedAccount 
+        { 
+            UserId = userId, 
+            BlockedUserId = targetUserId, 
+            CreatedAt = DateTime.UtcNow,
+            Tid = GenerateTid()
+        };
+
+        var shouldSyncToAtProto =
+            !string.IsNullOrWhiteSpace(user.Did) &&
+            !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(target.Did) &&
+            !target.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (shouldSyncToAtProto)
+        {
+            try
+            {
+                var token = await GetOrRefreshBlueskyTokenAsync(userId);
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    var requestBody = new Dictionary<string, object?>
+                    {
+                        ["repo"] = user.Did,
+                        ["collection"] = "app.bsky.graph.block",
+                        ["record"] = new Dictionary<string, object?>
+                        {
+                            ["$type"] = "app.bsky.graph.block",
+                            ["subject"] = target.Did,
+                            ["createdAt"] = block.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O")
+                        }
+                    };
+
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "com.atproto.repo.createRecord",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        requestBody
+                    );
+
+                    if (result.Success)
+                    {
+                        using var doc = JsonDocument.Parse(result.Content);
+                        block.Uri = doc.RootElement.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() : null;
+                        block.Cid = doc.RootElement.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null;
+                        block.Tid = block.Uri?.Split('/').Last() ?? block.Tid;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[BlockUserAsync] ATProto block failed: {Status}, {Body}", result.StatusCode, result.Content);
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[BlockUserAsync] Error syncing block for user {UserId} -> {TargetId}", userId, targetUserId);
+                return false;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(user.Did))
+        {
+            block.Uri = $"at://{user.Did}/app.bsky.graph.block/{block.Tid}";
+        }
+
         await _unitOfWork.Blocks.AddAsync(block);
         await _unitOfWork.CompleteAsync();
         return true;
@@ -958,17 +1031,108 @@ public class UserService : IUserService
 
     public async Task<bool> UnblockUserAsync(Guid userId, Guid targetUserId)
     {
-        var block = await _unitOfWork.Blocks.Query().FirstOrDefaultAsync(b => b.UserId == userId && b.BlockedUserId == targetUserId);
+        var block = await _unitOfWork.Blocks.Query()
+            .FirstOrDefaultAsync(b => b.UserId == userId && b.BlockedUserId == targetUserId);
+        
         if (block == null) return true;
+
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var target = await _unitOfWork.Users.GetByIdAsync(targetUserId);
+
+        var shouldSyncToAtProto =
+            user != null && !string.IsNullOrWhiteSpace(user.Did) &&
+            !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase) &&
+            target != null && !string.IsNullOrWhiteSpace(target.Did) &&
+            !target.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (shouldSyncToAtProto)
+        {
+            try
+            {
+                var token = await GetOrRefreshBlueskyTokenAsync(userId);
+                var rkey = block.Tid ?? block.Uri?.Split('/').Last();
+
+                if (!string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(rkey))
+                {
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user!.Did,
+                        "com.atproto.repo.deleteRecord",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        new Dictionary<string, object?>
+                        {
+                            ["repo"] = user.Did,
+                            ["collection"] = "app.bsky.graph.block",
+                            ["rkey"] = rkey
+                        }
+                    );
+
+                    if (!result.Success)
+                    {
+                        _logger.LogWarning("[UnblockUserAsync] ATProto unblock failed: {Status}, {Body}", result.StatusCode, result.Content);
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[UnblockUserAsync] Error syncing unblock for user {UserId} -> {TargetId}", userId, targetUserId);
+                return false;
+            }
+        }
+
         _unitOfWork.Blocks.Remove(block);
         await _unitOfWork.CompleteAsync();
         return true;
     }
 
+
     public async Task<bool> MuteUserAsync(Guid userId, Guid targetUserId)
     {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var target = await _unitOfWork.Users.GetByIdAsync(targetUserId);
+
+        if (user == null || target == null) return false;
+
         var existing = await _unitOfWork.Mutes.IsMutedAsync(userId, targetUserId);
         if (existing) return true;
+
+        var shouldSyncToAtProto =
+            !string.IsNullOrWhiteSpace(user.Did) &&
+            !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(target.Did) &&
+            !target.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (shouldSyncToAtProto)
+        {
+            try
+            {
+                var token = await GetOrRefreshBlueskyTokenAsync(userId);
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "app.bsky.graph.muteActor",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        new Dictionary<string, object?> { ["actor"] = target.Did }
+                    );
+
+                    if (!result.Success)
+                    {
+                        _logger.LogWarning("[MuteUserAsync] ATProto mute failed: {Status}, {Body}", result.StatusCode, result.Content);
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[MuteUserAsync] Error syncing mute for user {UserId} -> {TargetId}", userId, targetUserId);
+                return false;
+            }
+        }
 
         var mute = new MutedAccount { UserId = userId, MutedUserId = targetUserId, CreatedAt = DateTime.UtcNow };
         await _unitOfWork.Mutes.AddAsync(mute);
@@ -978,32 +1142,158 @@ public class UserService : IUserService
 
     public async Task<bool> UnmuteUserAsync(Guid userId, Guid targetUserId)
     {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var target = await _unitOfWork.Users.GetByIdAsync(targetUserId);
+
+        if (user == null || target == null) return false;
+
         var mute = await _unitOfWork.Mutes.Query().FirstOrDefaultAsync(m => m.UserId == userId && m.MutedUserId == targetUserId);
         if (mute == null) return true;
+
+        var shouldSyncToAtProto =
+            !string.IsNullOrWhiteSpace(user.Did) &&
+            !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(target.Did) &&
+            !target.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (shouldSyncToAtProto)
+        {
+            try
+            {
+                var token = await GetOrRefreshBlueskyTokenAsync(userId);
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "app.bsky.graph.unmuteActor",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        new Dictionary<string, object?> { ["actor"] = target.Did }
+                    );
+
+                    if (!result.Success)
+                    {
+                        _logger.LogWarning("[UnmuteUserAsync] ATProto unmute failed: {Status}, {Body}", result.StatusCode, result.Content);
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[UnmuteUserAsync] Error syncing unmute for user {UserId} -> {TargetId}", userId, targetUserId);
+                return false;
+            }
+        }
+
         _unitOfWork.Mutes.Remove(mute);
         await _unitOfWork.CompleteAsync();
         return true;
     }
 
+
     public async Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {
-        var mutes = await _unitOfWork.Mutes.Query()
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user != null && !string.IsNullOrWhiteSpace(user.Did) && !user.Did.StartsWith("did:local:"))
+        {
+            try
+            {
+                var token = await GetOrRefreshBlueskyTokenAsync(userId);
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    var url = $"https://api.bsky.app/xrpc/app.bsky.graph.getMutes?limit={limit}";
+                    if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
+
+                    using var client = _httpClientFactory.CreateClient();
+                    client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                    var response = await client.GetAsync(url);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = await response.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(content);
+                        var mutes = doc.RootElement.GetProperty("mutes");
+                        var nextCursor = doc.RootElement.TryGetProperty("cursor", out var cp) ? cp.GetString() : null;
+
+                        var users = new List<User>();
+                        var stubCache = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var actor in mutes.EnumerateArray())
+                        {
+                            var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: userId);
+                            if (u != null) users.Add(u);
+                        }
+                        await _unitOfWork.CompleteAsync();
+                        return (users, nextCursor);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetMutedUsersAsync] Error fetching remote mutes for user {UserId}", userId);
+            }
+        }
+
+        var localMutes = await _unitOfWork.Mutes.Query()
             .Include(m => m.MutedUser)
             .Where(m => m.UserId == userId)
             .Take(limit)
             .ToListAsync();
-        return (mutes.Select(m => m.MutedUser).ToList(), null);
+        return (localMutes.Select(m => m.MutedUser).ToList(), null);
     }
 
     public async Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {
-        var blocks = await _unitOfWork.Blocks.Query()
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user != null && !string.IsNullOrWhiteSpace(user.Did) && !user.Did.StartsWith("did:local:"))
+        {
+            try
+            {
+                var token = await GetOrRefreshBlueskyTokenAsync(userId);
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    var url = $"https://api.bsky.app/xrpc/app.bsky.graph.getBlocks?limit={limit}";
+                    if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
+
+                    using var client = _httpClientFactory.CreateClient();
+                    client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                    var response = await client.GetAsync(url);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = await response.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(content);
+                        var blocks = doc.RootElement.GetProperty("blocks");
+                        var nextCursor = doc.RootElement.TryGetProperty("cursor", out var cp) ? cp.GetString() : null;
+
+                        var users = new List<User>();
+                        var stubCache = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var actor in blocks.EnumerateArray())
+                        {
+                            var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: userId);
+                            if (u != null) users.Add(u);
+                        }
+                        await _unitOfWork.CompleteAsync();
+                        return (users, nextCursor);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetBlockedUsersAsync] Error fetching remote blocks for user {UserId}", userId);
+            }
+        }
+
+        var localBlocks = await _unitOfWork.Blocks.Query()
             .Include(b => b.BlockedUser)
             .Where(b => b.UserId == userId)
             .Take(limit)
             .ToListAsync();
-        return (blocks.Select(b => b.BlockedUser).ToList(), null);
+        return (localBlocks.Select(b => b.BlockedUser).ToList(), null);
     }
+
 
     public async Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds, bool refreshRemote = true)
     {
@@ -1273,10 +1563,11 @@ public class UserService : IUserService
         }
     }
 
-    private async Task SyncFollowStatusWithAtProtoAsync(Guid viewerId, User targetUser, JsonElement viewerProp)
+    private async Task SyncRelationshipStatusWithAtProtoAsync(Guid viewerId, User targetUser, JsonElement viewerProp)
     {
         try
         {
+            // 1. Sync Follow Status
             if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind == JsonValueKind.String)
             {
                 var followingUri = followingProp.GetString();
@@ -1303,27 +1594,75 @@ public class UserService : IUserService
                 }
                 else
                 {
-                    // If confirmed negative, remove local follow if exists
                     var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
-                    if (existingFollow != null && !string.IsNullOrEmpty(existingFollow.Uri) && existingFollow.Uri.Contains(".bsky."))
+                    if (existingFollow != null && !string.IsNullOrEmpty(existingFollow.Uri) && (existingFollow.Uri.Contains(".bsky.") || existingFollow.Uri.Contains("at://")))
                     {
                         _unitOfWork.Follows.Remove(existingFollow);
                     }
                 }
             }
+
+            // 2. Sync Mute Status
+            if (viewerProp.TryGetProperty("muted", out var mutedProp) && mutedProp.ValueKind == JsonValueKind.True)
+            {
+                if (!await _unitOfWork.Mutes.IsMutedAsync(viewerId, targetUser.Id))
+                {
+                    await _unitOfWork.Mutes.AddAsync(new MutedAccount
+                    {
+                        UserId = viewerId,
+                        MutedUserId = targetUser.Id,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
             else
             {
-                // confirming no following on ATProto
-                var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
-                if (existingFollow != null && !string.IsNullOrEmpty(existingFollow.Uri) && existingFollow.Uri.Contains(".bsky."))
+                var existingMute = await _unitOfWork.Mutes.Query()
+                    .FirstOrDefaultAsync(m => m.UserId == viewerId && m.MutedUserId == targetUser.Id);
+                if (existingMute != null)
                 {
-                    _unitOfWork.Follows.Remove(existingFollow);
+                    _unitOfWork.Mutes.Remove(existingMute);
+                }
+            }
+
+            // 3. Sync Block Status
+            if (viewerProp.TryGetProperty("blocking", out var blockingProp) && blockingProp.ValueKind == JsonValueKind.String)
+            {
+                var blockingUri = blockingProp.GetString();
+                if (!string.IsNullOrEmpty(blockingUri))
+                {
+                    var existingBlock = await _unitOfWork.Blocks.Query()
+                        .FirstOrDefaultAsync(b => b.UserId == viewerId && b.BlockedUserId == targetUser.Id);
+                    if (existingBlock == null)
+                    {
+                        await _unitOfWork.Blocks.AddAsync(new BlockedAccount
+                        {
+                            UserId = viewerId,
+                            BlockedUserId = targetUser.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            Uri = blockingUri
+                        });
+                    }
+                    else if (existingBlock.Uri != blockingUri)
+                    {
+                        existingBlock.Uri = blockingUri;
+                        _unitOfWork.Blocks.Update(existingBlock);
+                    }
+                }
+            }
+            else
+            {
+                var existingBlock = await _unitOfWork.Blocks.Query()
+                    .FirstOrDefaultAsync(b => b.UserId == viewerId && b.BlockedUserId == targetUser.Id);
+                if (existingBlock != null)
+                {
+                    _unitOfWork.Blocks.Remove(existingBlock);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[SyncFollowStatusWithAtProtoAsync] Error syncing follow for {Did}", targetUser.Did);
+            _logger.LogWarning(ex, "[SyncRelationshipStatusWithAtProtoAsync] Error syncing relationship for {Did}", targetUser.Did);
         }
     }
 
