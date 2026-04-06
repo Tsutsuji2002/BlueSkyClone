@@ -341,7 +341,7 @@ public class UserService : IUserService
                 // Interactions (Mute/Block/Follow)
                 if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
                 {
-                    await SyncFollowStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
+                    await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
                 }
 
                 await _unitOfWork.CompleteAsync();
@@ -1430,7 +1430,7 @@ public class UserService : IUserService
 
                     var remoteStatus = BuildInteractionStatusFromViewer(viewerProp);
                     result[targetUser.Id] = remoteStatus;
-                    await SyncFollowStatusWithAtProtoAsync(viewerId, targetUser, viewerProp);
+                    await SyncRelationshipStatusWithAtProtoAsync(viewerId, targetUser, viewerProp);
                 }
             }
             catch (Exception ex)
@@ -1546,7 +1546,7 @@ public class UserService : IUserService
                             {
                                 if (profile.TryGetProperty("viewer", out var viewerProp))
                                 {
-                                    await SyncFollowStatusWithAtProtoAsync(viewerId, user, viewerProp);
+                                    await SyncRelationshipStatusWithAtProtoAsync(viewerId, user, viewerProp);
                                 }
                             }
                         }

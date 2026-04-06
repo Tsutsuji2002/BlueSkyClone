@@ -49,8 +49,6 @@ namespace BSkyClone.Lexicons.App.Bsky.Actor.Defs
         [JsonPropertyName("pinnedPost")]
         public object? PinnedPost { get; set; }
 
-        [JsonPropertyName("indexedAt")]
-        public string? IndexedAt { get; set; }
     }
 
     public class ViewerState
