@@ -162,9 +162,26 @@ const HomePage: React.FC = () => {
         });
     }, [subscribedFeeds]);
 
+    const visibleHomeFeeds = useMemo(() => {
+        if (pinnedHomeFeeds.length > 0) {
+            return pinnedHomeFeeds;
+        }
+
+        if (isAuthenticated) {
+            return [
+                { id: 'following', handle: 'following', name: t('nav.following') } as FeedType,
+                { id: 'discover', handle: 'discover', name: t('nav.discover') } as FeedType,
+            ];
+        }
+
+        return [
+            { id: 'discover', handle: 'discover', name: t('nav.discover') } as FeedType,
+        ];
+    }, [isAuthenticated, pinnedHomeFeeds, t]);
+
     // Display tabs based on current pinned order from Feed settings.
     const tabs = useMemo(() => {
-        if (!isAuthenticated && subscribedFeeds.length === 0) {
+        if (!isAuthenticated && subscribedFeeds.length === 0 && pinnedLists.length === 0) {
             return [
                 { id: 'discover', label: t('nav.discover') },
                 { id: 'feeds-discovery', label: t('nav.feeds_discovery', { defaultValue: 'Feeds ✨' }) },
@@ -172,7 +189,7 @@ const HomePage: React.FC = () => {
         }
 
         return [
-            ...pinnedHomeFeeds.map((f: FeedType) => {
+            ...visibleHomeFeeds.map((f: FeedType) => {
                 const key = feedActionKey(f);
                 return {
                     id: key,
@@ -188,7 +205,7 @@ const HomePage: React.FC = () => {
                 label: l.name
             }))
         ];
-    }, [pinnedHomeFeeds, pinnedLists, t, isAuthenticated, subscribedFeeds.length]);
+    }, [visibleHomeFeeds, pinnedLists, t, isAuthenticated, subscribedFeeds.length]);
 
     // Ensure a valid tab is always selected
     useEffect(() => {
@@ -289,7 +306,7 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
-                {[...pinnedHomeFeeds, ...(!isAuthenticated && subscribedFeeds.length === 0 ? [{ id: 'discover' }] : [])].map((feed: any) => {
+                {visibleHomeFeeds.map((feed: any) => {
                     const tabId = feedActionKey(feed) || feed.id;
                     const isDiscover = tabId === 'discover';
                     const isFollowing = tabId === 'following';
