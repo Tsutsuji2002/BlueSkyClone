@@ -21,7 +21,8 @@ namespace BSkyClone.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            if (context.Request.Path.StartsWithSegments("/xrpc") && context.Request.Headers.ContainsKey("Authorization"))
+            if ((context.Request.Path.StartsWithSegments("/xrpc") || context.Request.Path.StartsWithSegments("/api/xrpc")) && 
+                context.Request.Headers.ContainsKey("Authorization"))
             {
                 var authHeader = context.Request.Headers["Authorization"].ToString();
                 if (authHeader.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))

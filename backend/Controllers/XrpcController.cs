@@ -17,6 +17,7 @@ using BSkyClone.DTOs;
 namespace BSkyClone.Controllers
 {
     [ApiController]
+    [Route("api/xrpc")]
     [Route("xrpc")]
     public class XrpcController : ControllerBase
     {

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 namespace BSkyClone.Controllers
 {
     [ApiController]
+    [Route("api/xrpc")]
     [Route("xrpc")]
     public class XrpcAuthController : ControllerBase
     {
