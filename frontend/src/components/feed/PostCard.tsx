@@ -60,6 +60,23 @@ interface PostCardProps {
     indentFactor?: number;
 }
 
+const normalizeLowercaseStrings = (values: unknown[]): string[] => {
+    return values
+        .map((value) => {
+            if (typeof value === 'string') return value;
+            if (value && typeof value === 'object') {
+                const record = value as Record<string, unknown>;
+                if (typeof record.val === 'string') return record.val;
+                if (typeof record.label === 'string') return record.label;
+                if (typeof record.name === 'string') return record.name;
+            }
+
+            return null;
+        })
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        .map((value) => value.toLowerCase());
+};
+
 const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList, hasTopLine, hasBottomLine, hideBorder, indentFactor }) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
@@ -83,7 +100,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
         if (isOwnPost) return post.muteInfo; // never filter own posts
 
         // --- 1. Check post labels against moderation settings ---
-        const labels = (post.labels || []).map((l: string) => l.toLowerCase());
+        const labels = normalizeLowercaseStrings(post.labels || []);
         if (labels.length > 0 && moderationSettings) {
             const { enableAdultContent, adultContentFilter, sexuallyExplicitFilter, graphicMediaFilter, nonSexualNudityFilter } = moderationSettings;
             let worstBehavior: 'hide' | 'warn' | null = null;
@@ -129,8 +146,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
 
         // --- 3. Client-side muted word matching ---
         if (!mutedWords.length) return post.muteInfo;
-        const content = (post.content || '').toLowerCase();
-        const tags = (post.tags || []).map((t: string) => t.toLowerCase());
+        const content = typeof post.content === 'string' ? post.content.toLowerCase() : String(post.content ?? '').toLowerCase();
+        const tags = normalizeLowercaseStrings(post.tags || []);
         for (const mw of mutedWords) {
             const word = (mw.word || '').toLowerCase().replace(/^#/, '');
             if (!word) continue;

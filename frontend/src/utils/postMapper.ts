@@ -1,5 +1,21 @@
 import { Post, User, PostImage, PostVideo, LinkPreview } from '../types';
 
+const normalizeLabelValues = (labels: any): string[] => {
+    if (!Array.isArray(labels)) return [];
+
+    return labels
+        .map((label) => {
+            if (typeof label === 'string') return label;
+            if (label && typeof label === 'object') {
+                if (typeof label.val === 'string') return label.val;
+                if (typeof label.label === 'string') return label.label;
+            }
+
+            return null;
+        })
+        .filter((label): label is string => typeof label === 'string' && label.trim().length > 0);
+};
+
 /**
  * Maps a standard AT Protocol postView object (from getPostThread or similar)
  * to our internal Post interface.
@@ -28,7 +44,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         isMuted: atPost.author?.viewer?.muted || atPost.author?.isMuted,
         isBlockedBy: atPost.author?.viewer?.blockedBy || atPost.author?.isBlockedBy,
         isBlocking: Boolean(atPost.author?.viewer?.blocking) || atPost.author?.isBlocking,
-        labels: atPost.author?.labels,
+        labels: normalizeLabelValues(atPost.author?.labels),
         muteInfo: atPost.author?.muteInfo,
     };
 
@@ -137,7 +153,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         replyToPostId: record.reply?.parent?.uri?.split('/').pop(),
         rootPostId: record.reply?.root?.uri?.split('/').pop(),
         muteInfo: atPost.muteInfo,
-        labels: atPost.labels,
+        labels: normalizeLabelValues(atPost.labels),
         replyRestriction,
         allowQuotes,
     };
