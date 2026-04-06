@@ -10,7 +10,6 @@ import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { useVerifiedFollowStatuses } from '../hooks/useVerifiedFollowStatuses';
 import { fetchFollowers, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowers, clearProfile, normalizeIdentifier, profileMatchesIdentifier } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
@@ -42,14 +41,6 @@ const FollowersPage: React.FC = () => {
     const resolvedListActor = profile?.did || profile?.handle || profile?.id || effectiveId || '';
     const activeOwnerKey = normalizeIdentifier(resolvedListActor);
     const hasInitializedCurrentList = !!activeOwnerKey && followersInitializedOwnerId === activeOwnerKey;
-    const {
-        resolveIsFollowing,
-        resolveFollowingReference,
-        isVerifying,
-        updateVerifiedStatus,
-        hasVerifiedStatus,
-    } = useVerifiedFollowStatuses(users, activeOwnerKey);
-
     useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.followers'));
 
     useEffect(() => {
@@ -145,18 +136,16 @@ const FollowersPage: React.FC = () => {
     const handleFollowToggle = async (user: User) => {
         try {
             const followActor = user.did || user.handle || user.id;
-            const isFollowing = resolveIsFollowing(user);
-            const followingReference = resolveFollowingReference(user);
+            const isFollowing = !!user.isFollowing;
+            const followingReference = user.followingReference;
 
             if (isFollowing) {
                 if (!followingReference) {
                     return;
                 }
 
-                updateVerifiedStatus(user, { isFollowing: false, followingReference: undefined });
                 dispatch(unfollowUserAsync({ userId: followActor, followUri: followingReference }));
             } else {
-                updateVerifiedStatus(user, { isFollowing: true, followingReference });
                 dispatch(followUserAsync(followActor));
             }
         } catch (error) {
@@ -197,10 +186,8 @@ const FollowersPage: React.FC = () => {
                             >
                                 {(() => {
                                     const followActor = follower.did || follower.handle || follower.id;
-                                    const isFollowing = resolveIsFollowing(follower);
-                                    const needsVerifiedStatus = !!currentUser && currentUser.id !== follower.id && currentUser.did !== follower.did && !hasVerifiedStatus(follower);
-                                    const isStatusLoading = isVerifying(follower) || needsVerifiedStatus;
-                                    const isFollowBusy = !!actionLoading[followActor] || !!actionLoading[follower.id] || isStatusLoading;
+                                    const isFollowing = !!follower.isFollowing;
+                                    const isFollowBusy = !!actionLoading[followActor] || !!actionLoading[follower.id];
 
                                     return (
                                 <div className="flex items-start gap-3">

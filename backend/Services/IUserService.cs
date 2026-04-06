@@ -41,8 +41,8 @@ public interface IUserService
     Task<bool> VerifyDomainAsync(Guid userId, string? handle = null);
     Task<bool> UpdateHandleAsync(Guid userId, string newHandle);
     Task<User?> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null);
-    Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds);
-    Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null);
+    Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds, bool refreshRemote = true);
+    Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null, bool mergeDuplicates = true);
     Task<List<User>> GetSuggestedUsersAsync(int limit = 10);
     Task SyncMutedWordsWithAtProtoAsync(Guid userId);
     Task<bool> MergeDuplicateUsersAsync(string did);

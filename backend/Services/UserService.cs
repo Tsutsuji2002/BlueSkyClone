@@ -456,13 +456,25 @@ public class UserService : IUserService
                 var follows = doc.RootElement.GetProperty("follows");
                 var nextCursor = doc.RootElement.TryGetProperty("cursor", out var cp) ? cp.GetString() : null;
 
+                var actorEntries = follows.EnumerateArray().ToList();
+                var actorDids = actorEntries
+                    .Where(actor => actor.TryGetProperty("did", out var didProp) && !string.IsNullOrWhiteSpace(didProp.GetString()))
+                    .Select(actor => actor.GetProperty("did").GetString()!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (actorDids.Count > 0)
+                {
+                    await MergeDuplicateUsersBatchAsync(actorDids);
+                }
+
                 var users = new List<User>();
-                var stubCache = new Dictionary<string, User>();
-                foreach (var actor in follows.EnumerateArray())
+                var stubCache = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+                foreach (var actor in actorEntries)
                 {
                     try
                     {
-                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId);
+                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId, mergeDuplicates: false);
                         if (u != null) users.Add(u);
                     }
                     catch (Exception ex)
@@ -548,13 +560,25 @@ public class UserService : IUserService
                 var followers = doc.RootElement.GetProperty("followers");
                 var nextCursor = doc.RootElement.TryGetProperty("cursor", out var cp) ? cp.GetString() : null;
 
+                var actorEntries = followers.EnumerateArray().ToList();
+                var actorDids = actorEntries
+                    .Where(actor => actor.TryGetProperty("did", out var didProp) && !string.IsNullOrWhiteSpace(didProp.GetString()))
+                    .Select(actor => actor.GetProperty("did").GetString()!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (actorDids.Count > 0)
+                {
+                    await MergeDuplicateUsersBatchAsync(actorDids);
+                }
+
                 var users = new List<User>();
-                var stubCache = new Dictionary<string, User>();
-                foreach (var actor in followers.EnumerateArray())
+                var stubCache = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+                foreach (var actor in actorEntries)
                 {
                     try
                     {
-                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId);
+                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId, mergeDuplicates: false);
                         if (u != null) users.Add(u);
                     }
                     catch (Exception ex)
@@ -614,7 +638,7 @@ public class UserService : IUserService
         return (new List<User>(), null);
     }
 
-    public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement actorData, Dictionary<string, User> cache, bool complete = true, Guid? viewerId = null)
+    public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement actorData, Dictionary<string, User> cache, bool complete = true, Guid? viewerId = null, bool mergeDuplicates = true)
     {
         if (!actorData.TryGetProperty("did", out var didProp))
         {
@@ -626,7 +650,10 @@ public class UserService : IUserService
 
         if (cache.TryGetValue(did, out var cached)) return cached;
 
-        await MergeDuplicateUsersAsync(did);
+        if (mergeDuplicates)
+        {
+            await MergeDuplicateUsersAsync(did);
+        }
         var user = await _unitOfWork.Users.Query()
             .Where(u => u.Did == did)
             .OrderBy(u => u.CreatedAt)
@@ -978,7 +1005,7 @@ public class UserService : IUserService
         return (blocks.Select(b => b.BlockedUser).ToList(), null);
     }
 
-    public async Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds)
+    public async Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds, bool refreshRemote = true)
     {
         var targetIdList = targetIds.Distinct().ToList();
         if (!targetIdList.Any()) return new Dictionary<Guid, UserRelationshipStatusDto>();
@@ -993,7 +1020,9 @@ public class UserService : IUserService
             })
             .ToListAsync();
 
-        var remoteStatusMap = await FetchRemoteInteractionStatusesAsync(viewerId, targetUsers);
+        var remoteStatusMap = refreshRemote
+            ? await FetchRemoteInteractionStatusesAsync(viewerId, targetUsers)
+            : new Dictionary<Guid, UserRelationshipStatusDto>();
 
         // 1. Fetch Follows (viewer follows target)
         var follows = await _unitOfWork.Follows.Query()

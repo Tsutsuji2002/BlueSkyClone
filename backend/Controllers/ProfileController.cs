@@ -402,7 +402,7 @@ public class ProfileController : ControllerBase
             try
             {
                 interactionStatuses = currentUserId.HasValue
-                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id))
+                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: false)
                     : new Dictionary<Guid, UserRelationshipStatusDto>();
             }
             catch (Exception)
@@ -443,7 +443,7 @@ public class ProfileController : ControllerBase
             try
             {
                 interactionStatuses = currentUserId.HasValue
-                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id))
+                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: false)
                     : new Dictionary<Guid, UserRelationshipStatusDto>();
             }
             catch (Exception)
