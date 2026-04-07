@@ -193,7 +193,7 @@ const SignUpPage: React.FC = () => {
                             icon={<FiCheckCircle />}
                             required
                             className="text-center text-2xl tracking-[1em] font-mono"
-                            max={6}
+                            maxLength={6}
                         />
                         <button
                             type="button"
@@ -279,7 +279,7 @@ const SignUpPage: React.FC = () => {
                                     size="lg"
                                     fullWidth
                                     onClick={handleNext}
-                                    isLoading={isLoading}
+                                    loading={isLoading}
                                     className="h-14 font-bold text-lg rounded-2xl shadow-lg shadow-primary-500/20"
                                 >
                                     <span>Continue</span>
@@ -291,7 +291,7 @@ const SignUpPage: React.FC = () => {
                                     size="lg"
                                     fullWidth
                                     type="submit"
-                                    isLoading={isLoading}
+                                    loading={isLoading}
                                     className="h-14 font-bold text-lg rounded-2xl shadow-lg bg-green-600 hover:bg-green-700 shadow-green-500/20"
                                 >
                                     Complete Signup

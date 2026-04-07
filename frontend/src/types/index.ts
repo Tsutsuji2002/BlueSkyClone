@@ -544,16 +544,19 @@ export interface ButtonProps {
 
 export interface InputProps {
     type?: string;
+    name?: string;
     placeholder?: string;
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     label?: string;
     error?: string;
     disabled?: boolean;
+    required?: boolean;
     className?: string;
     icon?: React.ReactNode;
-    max?: string;
-    min?: string;
+    max?: string | number;
+    min?: string | number;
+    maxLength?: number;
 }
 
 export interface AvatarProps {

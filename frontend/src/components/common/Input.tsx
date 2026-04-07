@@ -4,16 +4,19 @@ import { cn } from '../../utils/classNames';
 
 const Input: React.FC<InputProps> = ({
     type = 'text',
+    name,
     placeholder,
     value,
     onChange,
     label,
     error,
     disabled = false,
+    required = false,
     className,
     icon,
     max,
     min,
+    maxLength,
 }) => {
     return (
         <div className="w-full">
@@ -30,12 +33,15 @@ const Input: React.FC<InputProps> = ({
                 )}
                 <input
                     type={type}
+                    name={name}
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
                     disabled={disabled}
+                    required={required}
                     max={max}
                     min={min}
+                    maxLength={maxLength}
                     className={cn(
                         'w-full px-4 py-3 rounded-lg border transition-colors duration-200',
                         'bg-white dark:bg-dark-surface',
