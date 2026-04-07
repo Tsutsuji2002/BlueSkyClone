@@ -26,6 +26,7 @@ interface PostInteractionSettingsModalProps {
     allowQuotes: boolean;
     setAllowQuotes: (val: boolean) => void;
     postUri?: string; // Optional: if provided, will update the post on the backend
+    loading?: boolean;
 }
 
 const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> = ({
@@ -35,7 +36,8 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
     setReplyRestriction,
     allowQuotes,
     setAllowQuotes,
-    postUri
+    postUri,
+    loading
 }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
@@ -332,11 +334,11 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                         <Button
                             variant="primary"
                             fullWidth
-                            loading={isUpdating}
+                            loading={isUpdating || loading}
                             onClick={handleSave}
                             className="bg-[#0085FF] hover:bg-[#0077E6] text-white rounded-full font-bold py-4 text-[17px] shadow-lg shadow-[#0085FF]/20 active:scale-[0.98] transition-all"
                         >
-                            {isUpdating ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
+                            {(isUpdating || loading) ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
                         </Button>
                     </div>
                 </div>
