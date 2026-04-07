@@ -24,6 +24,7 @@ public interface IAuthService
     Task<AuthResponse?> LoginAsync(LoginRequest request);
     Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
     Task<AuthResponse?> GetUserProfileAsync(Guid userId);
+    Task<AuthResponse?> ExchangeOAuthCodeAsync(string code, string verifier, string pdsUrl);
     Task LogoutAsync(string refreshToken);
 }
 
