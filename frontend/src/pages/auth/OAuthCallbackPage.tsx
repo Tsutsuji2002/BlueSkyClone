@@ -26,15 +26,22 @@ const OAuthCallbackPage: React.FC = () => {
         }
 
         if (code) {
-            const verifier = sessionStorage.getItem('oauth_verifier');
-            const pdsUrl = sessionStorage.getItem('oauth_pds_url') || 'https://bsky.social';
+            const verifier = localStorage.getItem('oauth_verifier');
+            const pdsUrl = localStorage.getItem('oauth_pds_url') || 'https://bsky.social';
 
-            console.log('Session State:', { verifier: !!verifier, pdsUrl });
+            console.log('Session State:', { verifier: verifier?.length, pdsUrl });
+
+            if (!verifier || verifier.length < 43) {
+                toast.error('OAuth session expired. Please try signing in again.');
+                setTimeout(() => navigate('/login'), 1500);
+                return;
+            }
+
             console.log('Exchanging OAuth code:', code);
 
             dispatch(exchangeOAuthCode({
                 code,
-                verifier: verifier || '',
+                verifier,
                 pdsUrl,
                 redirectUri: window.location.origin + '/oauth-callback'
             }))
@@ -51,7 +58,8 @@ const OAuthCallbackPage: React.FC = () => {
                 });
 
             // Clear verification data
-            sessionStorage.removeItem('oauth_verifier');
+            localStorage.removeItem('oauth_verifier');
+            localStorage.removeItem('oauth_pds_url');
         }
     }, [searchParams, dispatch, navigate]);
 

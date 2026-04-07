@@ -8,9 +8,10 @@ export const initiateOAuth = async (pdsUrl: string = 'https://bsky.social') => {
         const verifier = generateCodeVerifier();
         const challenge = await generateCodeChallenge(verifier);
 
-        // Save state for callback
-        sessionStorage.setItem('oauth_verifier', verifier);
-        sessionStorage.setItem('oauth_pds_url', pdsUrl);
+        // Save state for callback — use localStorage (not sessionStorage) so it
+        // survives the cross-origin redirect to bsky.social and back
+        localStorage.setItem('oauth_verifier', verifier);
+        localStorage.setItem('oauth_pds_url', pdsUrl);
 
         const params = new URLSearchParams({
             client_id: CLIENT_ID,
