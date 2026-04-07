@@ -6,7 +6,6 @@ import LoadingScreen from '../../components/common/LoadingScreen';
 import { toast } from 'react-hot-toast';
 
 const OAuthCallbackPage: React.FC = () => {
-    console.log('OAuthCallbackPage component initialized');
     const [searchParams] = useSearchParams();
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
@@ -18,7 +17,6 @@ const OAuthCallbackPage: React.FC = () => {
         const errorDescription = searchParams.get('error_description');
 
         console.log('OAuth Callback Params:', { code, state, error, errorDescription });
-        alert(`OAuth Callback mounted! code=${!!code}, error=${error}`);
 
         if (error) {
             console.error('OAuth Error:', error, errorDescription);
