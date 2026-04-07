@@ -16,7 +16,10 @@ const OAuthCallbackPage: React.FC = () => {
         const error = searchParams.get('error');
         const errorDescription = searchParams.get('error_description');
 
+        console.log('OAuth Callback Params:', { code, state, error, errorDescription });
+
         if (error) {
+            console.error('OAuth Error:', error, errorDescription);
             toast.error(errorDescription || 'OAuth failed');
             navigate('/login');
             return;
@@ -26,12 +29,14 @@ const OAuthCallbackPage: React.FC = () => {
             const verifier = sessionStorage.getItem('oauth_verifier');
             const pdsUrl = sessionStorage.getItem('oauth_pds_url') || 'https://bsky.social';
 
+            console.log('Session State:', { verifier: !!verifier, pdsUrl });
             console.log('Exchanging OAuth code:', code);
 
             dispatch(exchangeOAuthCode({
                 code,
                 verifier: verifier || '',
-                pdsUrl
+                pdsUrl,
+                redirectUri: window.location.origin + '/oauth-callback'
             }))
                 .unwrap()
                 .then(() => {

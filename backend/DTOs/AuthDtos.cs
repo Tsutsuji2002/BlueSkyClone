@@ -159,5 +159,6 @@ public record MutedWordDto(
 public record OAuthExchangeRequest(
     string Code,
     string Verifier,
-    string PdsUrl
+    string PdsUrl,
+    string? RedirectUri = null
 );

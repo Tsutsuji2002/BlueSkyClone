@@ -22,11 +22,9 @@ export const initiateOAuth = async (pdsUrl: string = 'https://bsky.social') => {
             state: Math.random().toString(36).substring(7)
         });
 
-        // Add additional scope if needed
-        // scope: 'atproto transition:generic transition:chat.bsky',
-
-        console.log('Initiating OAuth redirect to:', pdsUrl);
-        window.location.href = `${pdsUrl}/oauth/authorize?${params.toString()}`;
+        const finalUrl = `${pdsUrl.replace(/\/$/, '')}/oauth/authorize?${params.toString()}`;
+        console.log('Redirecting to Bluesky OAuth:', finalUrl);
+        window.location.href = finalUrl;
     } catch (error) {
         console.error('Failed to initiate OAuth:', error);
         throw error;

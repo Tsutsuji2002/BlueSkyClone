@@ -105,7 +105,7 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var response = await _authService.ExchangeOAuthCodeAsync(request.Code, request.Verifier, request.PdsUrl);
+            var response = await _authService.ExchangeOAuthCodeAsync(request.Code, request.Verifier, request.PdsUrl, request.RedirectUri);
             if (response == null) return Unauthorized(new { message = "OAuth exchange failed" });
             return Ok(response);
         }

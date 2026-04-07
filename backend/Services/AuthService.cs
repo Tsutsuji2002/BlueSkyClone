@@ -24,7 +24,7 @@ public interface IAuthService
     Task<AuthResponse?> LoginAsync(LoginRequest request);
     Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
     Task<AuthResponse?> GetUserProfileAsync(Guid userId);
-    Task<AuthResponse?> ExchangeOAuthCodeAsync(string code, string verifier, string pdsUrl);
+    Task<AuthResponse?> ExchangeOAuthCodeAsync(string code, string verifier, string pdsUrl, string? redirectUri = null);
     Task LogoutAsync(string refreshToken);
 }
 
@@ -157,17 +157,20 @@ public class AuthService : IAuthService
         return MapToAuthResponse(user, token, refreshToken);
     }
 
-    public async Task<AuthResponse?> ExchangeOAuthCodeAsync(string code, string verifier, string pdsUrl)
+    public async Task<AuthResponse?> ExchangeOAuthCodeAsync(string code, string verifier, string pdsUrl, string? redirectUri = null)
     {
         using var httpClient = new HttpClient();
         var clientMetadataUrl = "https://bskyclone.site/client-metadata.json";
         
+        // Use the redirectUri provided by the frontend if available, fallback to production default
+        var finalRedirectUri = redirectUri ?? "https://bskyclone.site/oauth-callback";
+
         var values = new Dictionary<string, string>
         {
             { "grant_type", "authorization_code" },
             { "code", code },
             { "client_id", clientMetadataUrl },
-            { "redirect_uri", "https://bskyclone.site/oauth-callback" },
+            { "redirect_uri", finalRedirectUri },
             { "code_verifier", verifier }
         };
 

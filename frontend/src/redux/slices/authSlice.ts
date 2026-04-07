@@ -163,12 +163,12 @@ export const signUp = createAsyncThunk(
 
 export const exchangeOAuthCode = createAsyncThunk(
     'auth/exchangeOAuthCode',
-    async ({ code, verifier, pdsUrl }: { code: string, verifier: string, pdsUrl: string }, { rejectWithValue }) => {
+    async ({ code, verifier, pdsUrl, redirectUri }: { code: string, verifier: string, pdsUrl: string, redirectUri: string }, { rejectWithValue }) => {
         try {
             const response = await fetch(`${API_URL}/auth/oauth-token`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code, verifier, pdsUrl }),
+                body: JSON.stringify({ code, verifier, pdsUrl, redirectUri }),
             });
             const data = await response.json();
             if (!response.ok) {
