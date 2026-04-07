@@ -44,8 +44,10 @@ const OAuthCallbackPage: React.FC = () => {
                     navigate('/');
                 })
                 .catch((err) => {
-                    toast.error(err || 'Failed to exchange login code');
-                    navigate('/login');
+                    console.error('OAuth exchange error:', err);
+                    toast.error(`Login failed: ${err || 'Unknown error'}`);
+                    // Only navigate away after a short delay so the user can see the error
+                    setTimeout(() => navigate('/login'), 2000);
                 });
 
             // Clear verification data

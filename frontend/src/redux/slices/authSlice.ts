@@ -3,7 +3,7 @@ import { AuthState, User, UserSettings, LoginFormData, SignUpFormData } from '..
 import { isTokenExpired } from '../../utils/authUtils';
 import agent from '../../services/atpAgent';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
 /**
  * Normalizes settings from the backend (PascalCase / different field names)
