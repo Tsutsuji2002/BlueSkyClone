@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
@@ -18,6 +18,9 @@ const SignUpPage: React.FC = () => {
     useDocumentTitle(t('auth.signup.title', 'Sign Up'));
 
     const [hostingProvider, setHostingProvider] = useState('https://bsky.social');
+    const [waitingForSignup, setWaitingForSignup] = useState(false);
+    const popupRef = useRef<Window | null>(null);
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const handleOAuthSignUp = async () => {
         try {
@@ -27,9 +30,44 @@ const SignUpPage: React.FC = () => {
         }
     };
 
+    const handleCreateAccount = () => {
+        // Open bsky.app signup in a popup — avoids the COEP/hCaptcha issue in OAuth redirect
+        const width = 480;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+
+        const popup = window.open(
+            'https://bsky.app',
+            'bsky_signup',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+        );
+
+        if (!popup) {
+            // Popup was blocked by browser
+            toast.error('Popup blocked. Please allow popups for this site and try again.');
+            return;
+        }
+
+        popupRef.current = popup;
+        setWaitingForSignup(true);
+        toast('Complete your signup in the popup window, then come back here.', { icon: '👋', duration: 6000 });
+
+        // Poll for popup close, then auto-trigger OAuth
+        pollRef.current = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(pollRef.current!);
+                setWaitingForSignup(false);
+                toast.success('Welcome back! Connecting your account...');
+                // Small delay to let the user read the toast
+                setTimeout(() => handleOAuthSignUp(), 1500);
+            }
+        }, 800);
+    };
+
     const renderOptions = () => {
         return (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="text-center mb-2">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-primary-500 mb-5 shadow-sm border border-blue-100 dark:border-blue-800/30">
                         <svg width="32" height="32" viewBox="0 0 320 286" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -37,38 +75,45 @@ const SignUpPage: React.FC = () => {
                             <path d="M80 192c-17.673 0-32 14.327-32 32 0 35.817 35.817 64 80 64h64c44.183 0 80-28.183 80-64 0-17.673-14.327-32-32-32H80Z" />
                         </svg>
                     </div>
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-dark-text tracking-tight">Sign in with Bluesky</h3>
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-dark-text tracking-tight">Get started with Bluesky</h3>
                     <p className="text-gray-500 dark:text-dark-text-secondary mt-2 text-sm leading-relaxed">
-                        You'll be redirected to Bluesky to securely authorize this app.
+                        Your identity lives on the open Bluesky network.
                     </p>
                 </div>
 
+                {/* New account */}
                 <Button
                     variant="primary"
                     size="lg"
                     fullWidth
-                    onClick={handleOAuthSignUp}
-                    loading={isLoading}
+                    onClick={handleCreateAccount}
+                    loading={waitingForSignup}
                     className="h-14 font-black text-lg rounded-2xl shadow-xl shadow-primary-500/20 group overflow-hidden relative"
                 >
                     <div className="relative z-10 flex items-center gap-3">
-                        <span>Continue with Bluesky</span>
-                        <FiExternalLink className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" />
+                        <span>{waitingForSignup ? 'Waiting for signup...' : 'Create new account'}</span>
+                        {!waitingForSignup && <FiExternalLink className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" />}
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </Button>
 
-                <p className="text-center text-xs text-gray-400 dark:text-dark-text-secondary">
-                    Don't have a Bluesky account?{' '}
-                    <a
-                        href="https://bsky.app"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-500 hover:underline font-semibold"
-                    >
-                        Create one free ↗
-                    </a>
-                </p>
+                <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">or</span>
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
+                </div>
+
+                {/* Existing account */}
+                <Button
+                    variant="outline"
+                    size="lg"
+                    fullWidth
+                    onClick={handleOAuthSignUp}
+                    loading={isLoading}
+                    className="h-12 font-bold text-base rounded-2xl"
+                >
+                    Sign in with existing account
+                </Button>
             </div>
         );
     };
