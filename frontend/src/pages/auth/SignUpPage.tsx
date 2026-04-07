@@ -27,61 +27,69 @@ const SignUpPage: React.FC = () => {
         }
     };
 
-    const renderOAuthInfo = () => {
+    const renderOptions = () => {
         return (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="text-center mb-4">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-blue-50 dark:bg-blue-900/20 text-primary-500 mb-6 shadow-sm border border-blue-100 dark:border-blue-800/30">
-                        <FiCheckCircle size={40} className="animate-pulse" />
-                    </div>
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-dark-text tracking-tight">Create your account</h3>
-                    <p className="text-gray-500 dark:text-dark-text-secondary mt-3 leading-relaxed">
-                        We'll redirect you to **Bluesky** to securely create your account and verify your phone number.
+            <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="text-center mb-2">
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-dark-text tracking-tight">Join Bluesky</h3>
+                    <p className="text-gray-500 dark:text-dark-text-secondary mt-2 text-sm">
+                        Your account lives securely on the Bluesky network.
                     </p>
                 </div>
 
-                <div className="bg-blue-50/50 dark:bg-dark-surface p-6 rounded-2xl border border-blue-100/50 dark:border-dark-border space-y-4">
-                    <div className="flex items-start gap-4">
-                        <div className="mt-1 p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-primary-600 dark:text-primary-400">
-                            <FiCheckCircle size={16} />
-                        </div>
+                {/* Option 1: New Users */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 rounded-2xl p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-9 h-9 rounded-xl bg-primary-500 flex items-center justify-center text-white font-black text-sm flex-shrink-0">1</div>
                         <div>
-                            <h4 className="font-bold text-gray-900 dark:text-dark-text text-sm uppercase tracking-wider">Secure Hosting</h4>
-                            <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-1">Your password and phone data stay with Bluesky.</p>
+                            <h4 className="font-bold text-gray-900 dark:text-dark-text">New to Bluesky?</h4>
+                            <p className="text-xs text-gray-500 dark:text-dark-text-secondary">Create your free account first</p>
                         </div>
                     </div>
-                    <div className="flex items-start gap-4">
-                        <div className="mt-1 p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-primary-600 dark:text-primary-400">
-                            <FiExternalLink size={16} />
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-gray-900 dark:text-dark-text text-sm uppercase tracking-wider">Official Verification</h4>
-                            <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-1">Handle SMS challenges directly on the official platform.</p>
-                        </div>
-                    </div>
+                    <a
+                        href="https://bsky.app"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full h-11 rounded-xl border-2 border-primary-500 text-primary-600 dark:text-primary-400 font-bold text-sm hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                    >
+                        Create account on Bluesky
+                        <FiExternalLink size={14} />
+                    </a>
+                    <p className="text-xs text-gray-400 dark:text-dark-text-secondary mt-2 text-center">
+                        Opens bsky.app — then come back here to sign in
+                    </p>
                 </div>
 
-                <div className="pt-4">
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Then</span>
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
+                </div>
+
+                {/* Option 2: Already have account */}
+                <div className="space-y-3">
+                    <div className="flex items-center gap-3 mb-1">
+                        <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-dark-surface flex items-center justify-center text-gray-600 dark:text-dark-text font-black text-sm flex-shrink-0">2</div>
+                        <div>
+                            <h4 className="font-bold text-gray-900 dark:text-dark-text">Link your account</h4>
+                            <p className="text-xs text-gray-500 dark:text-dark-text-secondary">Securely sign in with Bluesky OAuth</p>
+                        </div>
+                    </div>
                     <Button
                         variant="primary"
                         size="lg"
                         fullWidth
                         onClick={handleOAuthSignUp}
                         loading={isLoading}
-                        className="h-16 font-black text-xl rounded-2xl shadow-xl shadow-primary-500/20 group overflow-hidden relative"
+                        className="h-14 font-black text-lg rounded-2xl shadow-lg shadow-primary-500/20 group overflow-hidden relative"
                     >
                         <div className="relative z-10 flex items-center gap-3">
-                            <span>Continue to Bluesky</span>
-                            <FiExternalLink className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" />
+                            <FiCheckCircle size={18} />
+                            <span>Sign In with Bluesky</span>
                         </div>
                         <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </Button>
-                </div>
-
-                <div className="flex items-center gap-3 py-2">
-                    <div className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Powered by ATProto</span>
-                    <div className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
                 </div>
             </div>
         );
@@ -130,7 +138,7 @@ const SignUpPage: React.FC = () => {
                     </div>
 
                     <div className="space-y-8">
-                        {renderOAuthInfo()}
+                        {renderOptions()}
 
                         <p className="text-center text-sm text-gray-500 dark:text-dark-text-secondary mt-10">
                             Already have an account?{' '}
