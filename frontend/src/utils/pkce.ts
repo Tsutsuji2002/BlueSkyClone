@@ -4,9 +4,14 @@
  */
 
 export const generateCodeVerifier = (): string => {
-    const array = new Uint32Array(56);
+    // Generate 96 random bytes, base64url-encode them → ~128 char verifier
+    // PKCE spec requires 43-128 chars of URL-safe characters
+    const array = new Uint8Array(96);
     window.crypto.getRandomValues(array);
-    return Array.from(array, (dec) => ('0' + dec.toString(16)).substr(-2)).join('');
+    return btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
 };
 
 export const generateCodeChallenge = async (verifier: string): Promise<string> => {
