@@ -176,8 +176,25 @@ public class AuthService : IAuthService
 
         var content = new FormUrlEncodedContent(values);
         var tokenEndpoint = $"{pdsUrl.TrimEnd('/')}/oauth/token";
-        
-        var response = await httpClient.PostAsync(tokenEndpoint, content);
+
+        // ATProto mandates DPoP on all token requests.
+        // Generate an ephemeral EC key pair for this exchange.
+        using var ecKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var response = await SendWithDPoP(httpClient, tokenEndpoint, content, ecKey, nonce: null);
+
+        // If the server returns a DPoP-Nonce, retry once with it (RFC 9449 §4.3)
+        if (!response.IsSuccessStatusCode)
+        {
+            var firstErrorBody = await response.Content.ReadAsStringAsync();
+            if (firstErrorBody.Contains("use_dpop_nonce") &&
+                response.Headers.TryGetValues("DPoP-Nonce", out var nonceValues))
+            {
+                var nonce = nonceValues.First();
+                response = await SendWithDPoP(httpClient, tokenEndpoint,
+                    new FormUrlEncodedContent(values), ecKey, nonce);
+            }
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync();
@@ -464,6 +481,53 @@ public class AuthService : IAuthService
     {
         await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
     }
+
+    private static async Task<HttpResponseMessage> SendWithDPoP(
+        HttpClient httpClient, string url, FormUrlEncodedContent body,
+        ECDsa ecKey, string? nonce)
+    {
+        // Export the public key as a JWK for the DPoP proof header
+        var ecParams = ecKey.ExportParameters(includePrivateParameters: false);
+        string x = Base64UrlEncode(ecParams.Q.X!);
+        string y = Base64UrlEncode(ecParams.Q.Y!);
+
+        var jwk = new { kty = "EC", crv = "P-256", x, y };
+
+        // Build DPoP JWT header and payload (RFC 9449)
+        var header = new
+        {
+            typ = "dpop+jwt",
+            alg = "ES256",
+            jwk
+        };
+        var payload = new Dictionary<string, object>
+        {
+            { "jti", Guid.NewGuid().ToString() },
+            { "htm", "POST" },
+            { "htu", url },
+            { "iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds() }
+        };
+        if (nonce != null) payload["nonce"] = nonce;
+
+        string headerJson = JsonSerializer.Serialize(header);
+        string payloadJson = JsonSerializer.Serialize(payload);
+
+        string headerB64 = Base64UrlEncode(Encoding.UTF8.GetBytes(headerJson));
+        string payloadB64 = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
+        string signingInput = $"{headerB64}.{payloadB64}";
+
+        byte[] sigBytes = ecKey.SignData(Encoding.UTF8.GetBytes(signingInput), HashAlgorithmName.SHA256);
+        string signature = Base64UrlEncode(sigBytes);
+
+        string dpopToken = $"{headerB64}.{payloadB64}.{signature}";
+
+        var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = body };
+        request.Headers.Add("DPoP", dpopToken);
+        return await httpClient.SendAsync(request);
+    }
+
+    private static string Base64UrlEncode(byte[] input) =>
+        Convert.ToBase64String(input).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     private async Task<string> GenerateAndSaveRefreshToken(Guid userId, bool rememberMe = false)
     {
