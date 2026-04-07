@@ -8,7 +8,7 @@ export const generateCodeVerifier = (): string => {
     // PKCE spec requires 43-128 chars of URL-safe characters
     const array = new Uint8Array(96);
     window.crypto.getRandomValues(array);
-    return btoa(String.fromCharCode(...array))
+    return btoa(Array.from(array, (byte) => String.fromCharCode(byte)).join(''))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=/g, '');
