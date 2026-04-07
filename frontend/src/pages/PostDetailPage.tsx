@@ -793,7 +793,6 @@ const PostDetailPage: React.FC = () => {
                             <IconButton
                                 icon={<FiRepeat size={22} className={post.isReposted ? 'text-green-500' : ''} />}
                                 variant="default"
-                                loading={actionLoading[post.uri!]}
                             />
                         }
                         items={[
@@ -816,13 +815,11 @@ const PostDetailPage: React.FC = () => {
                         icon={<FiHeart size={22} className={post.isLiked ? 'fill-red-500 text-red-500' : ''} />}
                         onClick={handleLike}
                         variant="default"
-                        loading={actionLoading[post.uri!]}
                     />
                     <IconButton
                         icon={<FiBookmark size={22} className={post.isBookmarked ? 'fill-primary-500 text-primary-500' : ''} />}
                         onClick={handleBookmark}
                         variant="default"
-                        loading={actionLoading[post.uri!]}
                     />
                     <Dropdown
                         trigger={
