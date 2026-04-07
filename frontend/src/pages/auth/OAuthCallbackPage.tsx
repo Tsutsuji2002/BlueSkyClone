@@ -1,0 +1,54 @@
+import React, { useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { exchangeOAuthCode } from '../../redux/slices/authSlice';
+import LoadingScreen from '../../components/common/LoadingScreen';
+import { toast } from 'react-hot-toast';
+
+const OAuthCallbackPage: React.FC = () => {
+    const [searchParams] = useSearchParams();
+    const dispatch = useAppDispatch();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const code = searchParams.get('code');
+        const state = searchParams.get('state');
+        const error = searchParams.get('error');
+        const errorDescription = searchParams.get('error_description');
+
+        if (error) {
+            toast.error(errorDescription || 'OAuth failed');
+            navigate('/login');
+            return;
+        }
+
+        if (code) {
+            const verifier = sessionStorage.getItem('oauth_verifier');
+            const pdsUrl = sessionStorage.getItem('oauth_pds_url') || 'https://bsky.social';
+
+            console.log('Exchanging OAuth code:', code);
+
+            dispatch(exchangeOAuthCode({
+                code,
+                verifier: verifier || '',
+                pdsUrl
+            }))
+                .unwrap()
+                .then(() => {
+                    toast.success('Successfully signed in!');
+                    navigate('/');
+                })
+                .catch((err) => {
+                    toast.error(err || 'Failed to exchange login code');
+                    navigate('/login');
+                });
+
+            // Clear verification data
+            sessionStorage.removeItem('oauth_verifier');
+        }
+    }, [searchParams, dispatch, navigate]);
+
+    return <LoadingScreen message="Syncing with Bluesky..." />;
+};
+
+export default OAuthCallbackPage;

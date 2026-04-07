@@ -155,3 +155,9 @@ public record MutedWordDto(
     DateTime? CreatedAt,
     string? Targets = null
 );
+
+public record OAuthExchangeRequest(
+    string Code,
+    string Verifier,
+    string PdsUrl
+);

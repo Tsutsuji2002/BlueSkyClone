@@ -100,6 +100,21 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("oauth-token")]
+    public async Task<IActionResult> OAuthToken([FromBody] OAuthExchangeRequest request)
+    {
+        try
+        {
+            var response = await _authService.ExchangeOAuthCodeAsync(request.Code, request.Verifier, request.PdsUrl);
+            if (response == null) return Unauthorized(new { message = "OAuth exchange failed" });
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] string refreshToken)
     {

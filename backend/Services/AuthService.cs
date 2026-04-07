@@ -156,6 +156,97 @@ public class AuthService : IAuthService
         return MapToAuthResponse(user, token, refreshToken);
     }
 
+    public async Task<AuthResponse?> ExchangeOAuthCodeAsync(string code, string verifier, string pdsUrl)
+    {
+        using var httpClient = new HttpClient();
+        var clientMetadataUrl = "https://bskyclone.site/client-metadata.json";
+        
+        var values = new Dictionary<string, string>
+        {
+            { "grant_type", "authorization_code" },
+            { "code", code },
+            { "client_id", clientMetadataUrl },
+            { "redirect_uri", "https://bskyclone.site/oauth-callback" },
+            { "code_verifier", verifier }
+        };
+
+        var content = new FormUrlEncodedContent(values);
+        var tokenEndpoint = $"{pdsUrl.TrimEnd('/')}/oauth/token";
+        
+        var response = await httpClient.PostAsync(tokenEndpoint, content);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw new Exception($"OAuth Token Exchange Failed: {errorBody}");
+        }
+
+        var oauthResponse = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
+        
+        string did = oauthResponse.GetProperty("sub").GetString()!;
+        string accessJwt = oauthResponse.GetProperty("access_token").GetString()!;
+        string refreshJwt = oauthResponse.TryGetProperty("refresh_token", out var rt) ? rt.GetString()! : "";
+
+        // Get user profile details to ensure we have handle/metadata
+        var profileResponse = await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getProfile", new Dictionary<string, string?> { { "actor", did } }, accessJwt);
+        if (!profileResponse.Success)
+        {
+             throw new Exception($"Failed to retrieve profile for DID {did}: {profileResponse.Content}");
+        }
+
+        using var profileDoc = JsonDocument.Parse(profileResponse.Content);
+        var profileRoot = profileDoc.RootElement;
+        string handle = profileRoot.GetProperty("handle").GetString()!;
+        string email = profileRoot.TryGetProperty("email", out var emailProp) ? emailProp.GetString()! : $"{handle}@bluesky.local";
+
+        var user = await _unitOfWork.Users.GetByDidAsync(did) ?? await _unitOfWork.Users.GetByHandleAsync(handle);
+        
+        if (user == null)
+        {
+            user = new User
+            {
+                Id = Guid.NewGuid(),
+                Did = did,
+                Handle = handle,
+                Email = email,
+                Username = handle.Contains(".") ? handle.Split('.')[0] : handle,
+                DisplayName = profileRoot.TryGetProperty("displayName", out var dnTry) ? dnTry.GetString() : handle,
+                CreatedAt = DateTime.UtcNow,
+                IsBanned = false,
+                PasswordHash = "OAUTH_ACCOUNT",
+                Salt = "OAUTH_ACCOUNT",
+                AvatarUrl = profileRoot.TryGetProperty("avatar", out var avTry) ? avTry.GetString() : null,
+                CoverImageUrl = profileRoot.TryGetProperty("banner", out var banTry) ? banTry.GetString() : null,
+                Bio = profileRoot.TryGetProperty("description", out var descTry) ? descTry.GetString() : null
+            };
+            user.UserSetting = new UserSetting { UserId = user.Id, AppLanguage = "en", ThemeMode = "system" };
+            await _unitOfWork.Users.AddAsync(user);
+        }
+        else
+        {
+            if (user.IsBanned) throw new UnauthorizedAccessException("Your account has been banned locally.");
+            user.Handle = handle;
+            if (profileRoot.TryGetProperty("displayName", out var dnUpdate)) user.DisplayName = dnUpdate.GetString();
+            if (profileRoot.TryGetProperty("avatar", out var avUpdate)) user.AvatarUrl = avUpdate.GetString();
+            _unitOfWork.Users.Update(user);
+        }
+
+        await _unitOfWork.CompleteAsync();
+
+        // Broadcast update
+        var userDto = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);
+        await _postHubContext.Clients.All.SendAsync("UserUpdated", userDto);
+
+        var token = GenerateJwtToken(user, true); // OAuth usually implies persistent session or handled by refresh
+        var refreshToken = await GenerateAndSaveRefreshToken(user.Id, true);
+
+        // Cache Bluesky tokens
+        var bskyCacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) };
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
+        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
+
+        return MapToAuthResponse(user, token, refreshToken);
+    }
+
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
         // Proxy to Bluesky createSession

@@ -161,6 +161,26 @@ export const signUp = createAsyncThunk(
     }
 );
 
+export const exchangeOAuthCode = createAsyncThunk(
+    'auth/exchangeOAuthCode',
+    async ({ code, verifier, pdsUrl }: { code: string, verifier: string, pdsUrl: string }, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/auth/oauth-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code, verifier, pdsUrl }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return rejectWithValue(data.message || 'Token exchange failed');
+            }
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
 export const getMe = createAsyncThunk(
     'auth/getMe',
     async (_, { rejectWithValue }) => {
@@ -391,6 +411,28 @@ const authSlice = createSlice({
                 }
             })
             .addCase(signUp.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // OAuth Exchange
+            .addCase(exchangeOAuthCode.pending, (state) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(exchangeOAuthCode.fulfilled, (state, action: PayloadAction<{ user: User; settings: UserSettings; token?: string; refreshToken?: string }>) => {
+                state.isLoading = false;
+                state.isAuthenticated = true;
+                state.user = action.payload.user;
+                state.settings = normalizeSettings(action.payload.settings);
+                state.error = null;
+                if (action.payload.token) {
+                    localStorage.setItem('token', action.payload.token);
+                }
+                if (action.payload.refreshToken) {
+                    localStorage.setItem('refreshToken', action.payload.refreshToken);
+                }
+            })
+            .addCase(exchangeOAuthCode.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
