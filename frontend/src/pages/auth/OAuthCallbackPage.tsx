@@ -17,6 +17,7 @@ const OAuthCallbackPage: React.FC = () => {
         const errorDescription = searchParams.get('error_description');
 
         console.log('OAuth Callback Params:', { code, state, error, errorDescription });
+        // alert(`OAuth Callback: code=${code}, error=${error}`);
 
         if (error) {
             console.error('OAuth Error:', error, errorDescription);

@@ -84,6 +84,7 @@ const AppRoutes: React.FC = () => {
     return (
         <LazyErrorBoundary>
             <Routes>
+                <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
                 <Route path="/" element={<MainLayout hideTopBar={true} />}>
                     <Route index element={<HomePage />} />
                     <Route path="profile/:handle" element={<ProfilePage />} />
@@ -263,7 +264,6 @@ const AppRoutes: React.FC = () => {
                 <Route path="/welcome" element={<WelcomePage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignUpPage />} />
-                <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
 
                 {/* Chat Page - No Bottom Nav on mobile */}
                 <Route path="/messages/:conversationId" element={
