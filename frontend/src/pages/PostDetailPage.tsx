@@ -728,11 +728,7 @@ const PostDetailPage: React.FC = () => {
                             }
                         }}
                     >
-                        {actionLoading[post.uri!] ? (
-                            <div className="animate-spin rounded-full h-3 w-3 border-2 border-primary-500 border-t-transparent" />
-                        ) : (
-                            <FiMessageSquare size={14} />
-                        )}
+                        <FiMessageSquare size={14} />
                         <span>{
                             post.replyRestriction === 'nobody'
                                 ? t('post.reply_nobody', 'Replies disabled')
@@ -797,6 +793,7 @@ const PostDetailPage: React.FC = () => {
                             <IconButton
                                 icon={<FiRepeat size={22} className={post.isReposted ? 'text-green-500' : ''} />}
                                 variant="default"
+                                loading={actionLoading[post.uri!]}
                             />
                         }
                         items={[
@@ -819,11 +816,13 @@ const PostDetailPage: React.FC = () => {
                         icon={<FiHeart size={22} className={post.isLiked ? 'fill-red-500 text-red-500' : ''} />}
                         onClick={handleLike}
                         variant="default"
+                        loading={actionLoading[post.uri!]}
                     />
                     <IconButton
                         icon={<FiBookmark size={22} className={post.isBookmarked ? 'fill-primary-500 text-primary-500' : ''} />}
                         onClick={handleBookmark}
                         variant="default"
+                        loading={actionLoading[post.uri!]}
                     />
                     <Dropdown
                         trigger={
@@ -1096,6 +1095,7 @@ const PostDetailPage: React.FC = () => {
                     allowQuotes={post.allowQuotes !== false}
                     setAllowQuotes={() => { }}
                     postUri={post.uri!}
+                    loading={actionLoading[post.uri!]}
                 />
             )}
         </div>

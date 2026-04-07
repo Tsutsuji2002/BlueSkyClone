@@ -8,6 +8,7 @@ interface IconButtonProps {
     size?: 'sm' | 'md' | 'lg';
     variant?: 'default' | 'primary' | 'danger';
     disabled?: boolean;
+    loading?: boolean;
     tooltip?: string;
 }
 
@@ -18,6 +19,7 @@ const IconButton: React.FC<IconButtonProps> = ({
     size = 'md',
     variant = 'default',
     disabled = false,
+    loading = false,
     tooltip,
 }) => {
     const sizeStyles = {
@@ -34,18 +36,22 @@ const IconButton: React.FC<IconButtonProps> = ({
 
     return (
         <button
-            onClick={onClick}
-            disabled={disabled}
+            onClick={loading ? undefined : onClick}
+            disabled={disabled || loading}
             title={tooltip}
             className={cn(
-                'rounded-full flex items-center justify-center transition-colors duration-200',
+                'rounded-full flex items-center justify-center transition-colors duration-200 relative',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 sizeStyles[size],
                 variantStyles[variant],
                 className
             )}
         >
-            {icon}
+            {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+            ) : (
+                icon
+            )}
         </button>
     );
 };
