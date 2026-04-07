@@ -207,14 +207,16 @@ public class AuthService : IAuthService
         string accessJwt = oauthResponse.GetProperty("access_token").GetString()!;
         string refreshJwt = oauthResponse.TryGetProperty("refresh_token", out var rt) ? rt.GetString()! : "";
 
-        // Get user profile details to ensure we have handle/metadata
-        var profileResponse = await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getProfile", new Dictionary<string, string?> { { "actor", did } }, accessJwt);
-        if (!profileResponse.Success)
+        // Fetch profile via the public AppView — no auth needed and avoids DPoP-bound token issues
+        var publicProfileUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={Uri.EscapeDataString(did)}";
+        var profileResp = await httpClient.GetAsync(publicProfileUrl);
+        if (!profileResp.IsSuccessStatusCode)
         {
-             throw new Exception($"Failed to retrieve profile for DID {did}: {profileResponse.Content}");
+            var profileErr = await profileResp.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to retrieve profile for DID {did}: {profileErr}");
         }
 
-        using var profileDoc = JsonDocument.Parse(profileResponse.Content);
+        using var profileDoc = JsonDocument.Parse(await profileResp.Content.ReadAsStringAsync());
         var profileRoot = profileDoc.RootElement;
         string handle = profileRoot.GetProperty("handle").GetString()!;
         string email = profileRoot.TryGetProperty("email", out var emailProp) ? emailProp.GetString()! : $"{handle}@bluesky.local";
