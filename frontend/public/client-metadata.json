@@ -4,8 +4,7 @@
     "client_uri": "https://bskyclone.site",
     "logo_uri": "https://bskyclone.site/logo512.png",
     "redirect_uris": [
-        "https://bskyclone.site/oauth-callback",
-        "http://localhost:3000/oauth-callback"
+        "https://bskyclone.site/oauth-callback"
     ],
     "scope": "atproto transition:generic transition:chat.bsky",
     "grant_types": [
