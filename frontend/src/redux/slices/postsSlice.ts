@@ -877,6 +877,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
             })
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isLiked: boolean, likeUri?: string, likesCount?: number }>) => {
                 const actionUri = action.payload.uri;
@@ -898,6 +899,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
             })
             .addCase(toggleLike.rejected, (state: PostsState, action) => {
                 const { uri: actionUri } = action.meta.arg;
@@ -936,6 +938,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
             })
             .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isReposted: boolean, repostUri?: string, repostsCount?: number }>) => {
                 const actionUri = action.payload.uri;
@@ -978,6 +981,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
             })
             // Update Post
             .addCase(updatePost.pending, (state) => {
@@ -1070,6 +1074,7 @@ const postsSlice = createSlice({
                 updateInArray(state.discoverPosts);
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
+                updateInArray(state.threadPosts);
             })
             .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, bookmarksCount?: number }>) => {
                 const actionUri = action.payload.uri;
