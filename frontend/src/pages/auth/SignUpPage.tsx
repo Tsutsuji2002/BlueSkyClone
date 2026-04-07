@@ -86,15 +86,15 @@ const SignUpPage: React.FC = () => {
                     </p>
                     <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"><FiCheckCircle size={18} /></div>
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm">✓</div>
                             <span>Own your own data and identity</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"><FiCheckCircle size={18} /></div>
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm">✓</div>
                             <span>Customizable algorithms and feeds</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"><FiCheckCircle size={18} /></div>
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm">✓</div>
                             <span>Connect across different platforms</span>
                         </div>
                     </div>
