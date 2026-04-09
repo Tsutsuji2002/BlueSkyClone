@@ -441,14 +441,31 @@ public class UserService : IUserService
             var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
             if (string.IsNullOrEmpty(token)) baseApiUrl = "https://public.api.bsky.app";
 
-            var url = $"{baseApiUrl}/xrpc/app.bsky.graph.getFollows?actor={did}&limit={limit}";
-            if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
-
             using var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-            if (!string.IsNullOrEmpty(token)) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            HttpResponseMessage? response = null;
 
-            var response = await client.GetAsync(url);
+            async Task<HttpResponseMessage> SendGetFollowsRequestAsync(string requestBaseUrl, string? requestToken)
+            {
+                client.DefaultRequestHeaders.Authorization = null;
+                if (!string.IsNullOrEmpty(requestToken))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", requestToken);
+                }
+
+                var requestUrl = $"{requestBaseUrl}/xrpc/app.bsky.graph.getFollows?actor={did}&limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) requestUrl += $"&cursor={cursor}";
+                return await client.GetAsync(requestUrl);
+            }
+
+            response = await SendGetFollowsRequestAsync(baseApiUrl, token);
+            if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+            {
+                _logger.LogWarning("[GetRemoteFollowingAsync] Authenticated getFollows failed for {Did} with {Status}. Retrying public API.", did, response.StatusCode);
+                response.Dispose();
+                response = await SendGetFollowsRequestAsync("https://public.api.bsky.app", null);
+            }
+
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
@@ -498,12 +515,19 @@ public class UserService : IUserService
                 };
                 await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
             }
+            else
+            {
+                _logger.LogWarning("[GetRemoteFollowingAsync] Failed to load follows for {Did}. Status: {Status}", did, response.StatusCode);
+            }
         }
 
         if (cached != null)
         {
             if (viewerId.HasValue)
             {
+                var cachedUsers = cached.Users
+                    .Where(u => !string.IsNullOrWhiteSpace(u.Did))
+                    .ToList();
                 var cachedDids = cached.Dids
                     .Where(d => !string.IsNullOrWhiteSpace(d))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -511,7 +535,7 @@ public class UserService : IUserService
 
                 if (!cachedDids.Any())
                 {
-                    return (cached.Users.Where(u => !string.IsNullOrWhiteSpace(u.Did)).ToList(), cached.Cursor);
+                    return (cachedUsers, cached.Cursor);
                 }
 
                 await MergeDuplicateUsersBatchAsync(cachedDids);
@@ -520,12 +544,17 @@ public class UserService : IUserService
                     .Where(u => !string.IsNullOrEmpty(u.Did))
                     .GroupBy(u => u.Did.ToLowerInvariant())
                     .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
-                var orderedUsers = cachedDids
-                    .Where(d => !string.IsNullOrEmpty(d))
-                    .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
-                    .Where(u => u != null)
-                    .Cast<User>()
+                var orderedUsers = cachedUsers
+                    .Select(u => refreshedMap.GetValueOrDefault(u.Did!.ToLowerInvariant()) ?? u)
+                    .GroupBy(u => u.Did!, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
                     .ToList();
+
+                if (!orderedUsers.Any())
+                {
+                    return (cachedUsers, cached.Cursor);
+                }
+
                 return (orderedUsers, cached.Cursor);
             }
             return (cached.Users, cached.Cursor);
@@ -545,14 +574,31 @@ public class UserService : IUserService
             var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
             if (string.IsNullOrEmpty(token)) baseApiUrl = "https://public.api.bsky.app";
 
-            var url = $"{baseApiUrl}/xrpc/app.bsky.graph.getFollowers?actor={did}&limit={limit}";
-            if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
-
             using var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-            if (!string.IsNullOrEmpty(token)) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            HttpResponseMessage? response = null;
 
-            var response = await client.GetAsync(url);
+            async Task<HttpResponseMessage> SendGetFollowersRequestAsync(string requestBaseUrl, string? requestToken)
+            {
+                client.DefaultRequestHeaders.Authorization = null;
+                if (!string.IsNullOrEmpty(requestToken))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", requestToken);
+                }
+
+                var requestUrl = $"{requestBaseUrl}/xrpc/app.bsky.graph.getFollowers?actor={did}&limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) requestUrl += $"&cursor={cursor}";
+                return await client.GetAsync(requestUrl);
+            }
+
+            response = await SendGetFollowersRequestAsync(baseApiUrl, token);
+            if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+            {
+                _logger.LogWarning("[GetRemoteFollowersAsync] Authenticated getFollowers failed for {Did} with {Status}. Retrying public API.", did, response.StatusCode);
+                response.Dispose();
+                response = await SendGetFollowersRequestAsync("https://public.api.bsky.app", null);
+            }
+
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
@@ -602,12 +648,19 @@ public class UserService : IUserService
                 };
                 await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
             }
+            else
+            {
+                _logger.LogWarning("[GetRemoteFollowersAsync] Failed to load followers for {Did}. Status: {Status}", did, response.StatusCode);
+            }
         }
 
         if (cached != null)
         {
             if (viewerId.HasValue)
             {
+                var cachedUsers = cached.Users
+                    .Where(u => !string.IsNullOrWhiteSpace(u.Did))
+                    .ToList();
                 var cachedDids = cached.Dids
                     .Where(d => !string.IsNullOrWhiteSpace(d))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -615,7 +668,7 @@ public class UserService : IUserService
 
                 if (!cachedDids.Any())
                 {
-                    return (cached.Users.Where(u => !string.IsNullOrWhiteSpace(u.Did)).ToList(), cached.Cursor);
+                    return (cachedUsers, cached.Cursor);
                 }
 
                 await MergeDuplicateUsersBatchAsync(cachedDids);
@@ -624,12 +677,17 @@ public class UserService : IUserService
                     .Where(u => !string.IsNullOrEmpty(u.Did))
                     .GroupBy(u => u.Did.ToLowerInvariant())
                     .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
-                var orderedUsers = cachedDids
-                    .Where(d => !string.IsNullOrEmpty(d))
-                    .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
-                    .Where(u => u != null)
-                    .Cast<User>()
+                var orderedUsers = cachedUsers
+                    .Select(u => refreshedMap.GetValueOrDefault(u.Did!.ToLowerInvariant()) ?? u)
+                    .GroupBy(u => u.Did!, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
                     .ToList();
+
+                if (!orderedUsers.Any())
+                {
+                    return (cachedUsers, cached.Cursor);
+                }
+
                 return (orderedUsers, cached.Cursor);
             }
             return (cached.Users, cached.Cursor);
