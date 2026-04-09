@@ -85,18 +85,19 @@ namespace BSkyClone.Services
 
                 // 2. Construct the remote URL
                 var baseUrl = service.ServiceEndpoint.TrimEnd('/');
-                var url = $"{baseUrl}/xrpc/{nsid}";
+                var htu = $"{baseUrl}/xrpc/{nsid}";
+                var finalUrl = htu;
 
                 if (queryParams != null && queryParams.Any())
                 {
                     var queryString = string.Join("&", queryParams.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value.ToString())}"));
-                    url += $"?{queryString}";
+                    finalUrl += $"?{queryString}";
                 }
 
-                _logger.LogInformation($"Proxying {method} request to: {url}");
+                _logger.LogInformation($"Proxying {method} request to: {finalUrl}");
 
                 // 3. Prepare the request
-                var request = new HttpRequestMessage(new HttpMethod(method), url);
+                var request = new HttpRequestMessage(new HttpMethod(method), finalUrl);
                 
                 if (!string.IsNullOrEmpty(token))
                 {
@@ -105,10 +106,10 @@ namespace BSkyClone.Services
 
                     if (!string.IsNullOrEmpty(dpopKey))
                     {
-                        var proof = CreateDPoPProof(method, url, dpopKey);
+                        var proof = CreateDPoPProof(method, htu, dpopKey);
                         request.Headers.Add("DPoP", proof);
                         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("DPoP", token);
-                        _logger.LogInformation("[XrpcProxy] Using DPoP for request to {Url}", url);
+                        _logger.LogInformation("[XrpcProxy] Using DPoP for request to {Url}", finalUrl);
                     }
                     else
                     {
@@ -131,7 +132,7 @@ namespace BSkyClone.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("[XrpcProxy] Remote error {Status} for {Url}: {Content}", response.StatusCode, url, content);
+                    _logger.LogWarning("[XrpcProxy] Remote error {Status} for {Url}: {Content}", response.StatusCode, finalUrl, content);
                     
                     // Handle DPoP Nonce Error
                     if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && content.Contains("use_dpop_nonce"))
@@ -173,17 +174,19 @@ namespace BSkyClone.Services
                     return new ProxyResponse { Success = false, StatusCode = 404, Content = "PDS endpoint not found" };
                 }
 
-                var url = $"{baseUrl.TrimEnd('/')}/xrpc/{nsid}";
+                var baseUrlFormatted = baseUrl.TrimEnd('/');
+                var htu = $"{baseUrlFormatted}/xrpc/{nsid}";
+                var finalUrl = htu;
 
                 if (queryParams != null && queryParams.Any())
                 {
                     var queryString = string.Join("&", queryParams.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value?.ToString() ?? "")}"));
-                    url += $"?{queryString}";
+                    finalUrl += $"?{queryString}";
                 }
 
-                _logger.LogInformation($"Proxying {method} request to: {url}");
+                _logger.LogInformation($"Proxying {method} request to: {finalUrl}");
 
-                var request = new HttpRequestMessage(new HttpMethod(method), url);
+                var request = new HttpRequestMessage(new HttpMethod(method), finalUrl);
                 
                 if (!string.IsNullOrEmpty(token))
                 {
@@ -191,7 +194,7 @@ namespace BSkyClone.Services
 
                     if (!string.IsNullOrEmpty(dpopKey))
                     {
-                        var proof = CreateDPoPProof(method, url, dpopKey);
+                        var proof = CreateDPoPProof(method, htu, dpopKey);
                         request.Headers.Add("DPoP", proof);
                         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("DPoP", token);
                     }
@@ -213,7 +216,7 @@ namespace BSkyClone.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("[XrpcProxy] Remote error {Status} for {Url}: {Content}", response.StatusCode, url, content);
+                    _logger.LogWarning("[XrpcProxy] Remote error {Status} for {Url}: {Content}", response.StatusCode, finalUrl, content);
                 }
 
                 return new ProxyResponse
