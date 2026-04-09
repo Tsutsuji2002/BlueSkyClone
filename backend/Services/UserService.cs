@@ -430,40 +430,70 @@ public class UserService : IUserService
         return (page.Select(f => f.Follower).ToList(), nextCursor);
     }
 
+    public async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowersDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
+    {
+        var did = await ResolveRemoteActorDidAsync(actor, viewerId);
+        if (string.IsNullOrWhiteSpace(did))
+        {
+            return (new List<UserDto>(), null);
+        }
+
+        return await GetRemoteFollowDtosCoreAsync(
+            did,
+            "app.bsky.graph.getFollowers",
+            "followers",
+            limit,
+            cursor,
+            viewerId
+        );
+    }
+
+    public async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowingDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
+    {
+        var did = await ResolveRemoteActorDidAsync(actor, viewerId);
+        if (string.IsNullOrWhiteSpace(did))
+        {
+            return (new List<UserDto>(), null);
+        }
+
+        return await GetRemoteFollowDtosCoreAsync(
+            did,
+            "app.bsky.graph.getFollows",
+            "follows",
+            limit,
+            cursor,
+            viewerId
+        );
+    }
+
     private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowingAsync(string did, int limit, string? cursor, Guid? viewerId = null)
     {
         var cacheKey = $"remote_follows:{did}:{limit}:{cursor}";
         var cached = await _cacheService.GetAsync<RemoteFollowsResult>(cacheKey);
+        if (cached != null && (cached.Users == null || cached.Users.Count == 0) && string.IsNullOrEmpty(cached.Cursor))
+        {
+            cached = null;
+        }
         
         if (cached == null)
         {
-            string baseApiUrl = "https://api.bsky.app";
-            var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-            if (string.IsNullOrEmpty(token)) baseApiUrl = "https://public.api.bsky.app";
-
             using var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
             HttpResponseMessage? response = null;
 
-            async Task<HttpResponseMessage> SendGetFollowsRequestAsync(string requestBaseUrl, string? requestToken)
+            async Task<HttpResponseMessage> SendGetFollowsRequestAsync(string requestBaseUrl)
             {
-                client.DefaultRequestHeaders.Authorization = null;
-                if (!string.IsNullOrEmpty(requestToken))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", requestToken);
-                }
-
                 var requestUrl = $"{requestBaseUrl}/xrpc/app.bsky.graph.getFollows?actor={did}&limit={limit}";
                 if (!string.IsNullOrEmpty(cursor)) requestUrl += $"&cursor={cursor}";
                 return await client.GetAsync(requestUrl);
             }
 
-            response = await SendGetFollowsRequestAsync(baseApiUrl, token);
-            if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+            response = await SendGetFollowsRequestAsync("https://public.api.bsky.app");
+            if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("[GetRemoteFollowingAsync] Authenticated getFollows failed for {Did} with {Status}. Retrying public API.", did, response.StatusCode);
+                _logger.LogWarning("[GetRemoteFollowingAsync] Public getFollows failed for {Did} with {Status}. Retrying api.bsky.app.", did, response.StatusCode);
                 response.Dispose();
-                response = await SendGetFollowsRequestAsync("https://public.api.bsky.app", null);
+                response = await SendGetFollowsRequestAsync("https://api.bsky.app");
             }
 
             if (response.IsSuccessStatusCode)
@@ -513,7 +543,10 @@ public class UserService : IUserService
                         .Cast<string>()
                         .ToList()
                 };
-                await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
+                if (users.Count > 0 || !string.IsNullOrEmpty(nextCursor))
+                {
+                    await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
+                }
             }
             else
             {
@@ -567,36 +600,30 @@ public class UserService : IUserService
     {
         var cacheKey = $"remote_followers:{did}:{limit}:{cursor}";
         var cached = await _cacheService.GetAsync<RemoteFollowsResult>(cacheKey);
+        if (cached != null && (cached.Users == null || cached.Users.Count == 0) && string.IsNullOrEmpty(cached.Cursor))
+        {
+            cached = null;
+        }
 
         if (cached == null)
         {
-            string baseApiUrl = "https://api.bsky.app";
-            var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-            if (string.IsNullOrEmpty(token)) baseApiUrl = "https://public.api.bsky.app";
-
             using var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
             HttpResponseMessage? response = null;
 
-            async Task<HttpResponseMessage> SendGetFollowersRequestAsync(string requestBaseUrl, string? requestToken)
+            async Task<HttpResponseMessage> SendGetFollowersRequestAsync(string requestBaseUrl)
             {
-                client.DefaultRequestHeaders.Authorization = null;
-                if (!string.IsNullOrEmpty(requestToken))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", requestToken);
-                }
-
                 var requestUrl = $"{requestBaseUrl}/xrpc/app.bsky.graph.getFollowers?actor={did}&limit={limit}";
                 if (!string.IsNullOrEmpty(cursor)) requestUrl += $"&cursor={cursor}";
                 return await client.GetAsync(requestUrl);
             }
 
-            response = await SendGetFollowersRequestAsync(baseApiUrl, token);
-            if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+            response = await SendGetFollowersRequestAsync("https://public.api.bsky.app");
+            if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("[GetRemoteFollowersAsync] Authenticated getFollowers failed for {Did} with {Status}. Retrying public API.", did, response.StatusCode);
+                _logger.LogWarning("[GetRemoteFollowersAsync] Public getFollowers failed for {Did} with {Status}. Retrying api.bsky.app.", did, response.StatusCode);
                 response.Dispose();
-                response = await SendGetFollowersRequestAsync("https://public.api.bsky.app", null);
+                response = await SendGetFollowersRequestAsync("https://api.bsky.app");
             }
 
             if (response.IsSuccessStatusCode)
@@ -646,7 +673,10 @@ public class UserService : IUserService
                         .Cast<string>()
                         .ToList()
                 };
-                await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
+                if (users.Count > 0 || !string.IsNullOrEmpty(nextCursor))
+                {
+                    await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
+                }
             }
             else
             {
@@ -694,6 +724,255 @@ public class UserService : IUserService
         }
 
         return (new List<User>(), null);
+    }
+
+    private async Task<string?> ResolveRemoteActorDidAsync(string actor, Guid? viewerId)
+    {
+        if (string.IsNullOrWhiteSpace(actor))
+        {
+            return null;
+        }
+
+        if (actor.StartsWith("did:", StringComparison.OrdinalIgnoreCase))
+        {
+            return actor;
+        }
+
+        var localUser = await GetUserByHandleAsync(actor);
+        if (!string.IsNullOrWhiteSpace(localUser?.Did))
+        {
+            return localUser.Did;
+        }
+
+        var resolved = await ResolveRemoteProfileAsync(actor, viewerId: viewerId);
+        return resolved?.Did;
+    }
+
+    private async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowDtosCoreAsync(
+        string did,
+        string endpoint,
+        string collectionProperty,
+        int limit,
+        string? cursor,
+        Guid? viewerId)
+    {
+        using var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+
+        async Task<HttpResponseMessage> SendAsync(string baseUrl)
+        {
+            var requestUrl = $"{baseUrl}/xrpc/{endpoint}?actor={Uri.EscapeDataString(did)}&limit={limit}";
+            if (!string.IsNullOrWhiteSpace(cursor))
+            {
+                requestUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+            }
+
+            return await client.GetAsync(requestUrl);
+        }
+
+        HttpResponseMessage response = await SendAsync("https://public.api.bsky.app");
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("[GetRemoteFollowDtosCoreAsync] Public request to {Endpoint} failed for {Did} with {Status}. Retrying api.bsky.app.", endpoint, did, response.StatusCode);
+            response.Dispose();
+            response = await SendAsync("https://api.bsky.app");
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("[GetRemoteFollowDtosCoreAsync] Failed to load {Endpoint} for {Did}. Status: {Status}", endpoint, did, response.StatusCode);
+            return (new List<UserDto>(), null);
+        }
+
+        var content = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(content);
+        if (!doc.RootElement.TryGetProperty(collectionProperty, out var collection) || collection.ValueKind != JsonValueKind.Array)
+        {
+            return (new List<UserDto>(), null);
+        }
+
+        var actorEntries = collection.EnumerateArray().ToList();
+        var nextCursor = doc.RootElement.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
+        var dids = actorEntries
+            .Where(actorElement => actorElement.TryGetProperty("did", out var didProp) && !string.IsNullOrWhiteSpace(didProp.GetString()))
+            .Select(actorElement => actorElement.GetProperty("did").GetString()!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        Dictionary<string, User> existingUsersByDid = new(StringComparer.OrdinalIgnoreCase);
+        if (dids.Count > 0)
+        {
+            var existingUsers = await _unitOfWork.Users.GetByDidsAsync(dids);
+            existingUsersByDid = existingUsers
+                .Where(user => !string.IsNullOrWhiteSpace(user.Did))
+                .GroupBy(user => user.Did!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.OrderBy(user => user.CreatedAt).First(), StringComparer.OrdinalIgnoreCase);
+        }
+
+        var statusesByDid = viewerId.HasValue
+            ? await FetchRemoteInteractionStatusesByDidAsync(viewerId.Value, dids)
+            : new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
+
+        var users = new List<UserDto>(actorEntries.Count);
+        foreach (var actorElement in actorEntries)
+        {
+            if (!actorElement.TryGetProperty("did", out var actorDidProp))
+            {
+                continue;
+            }
+
+            var actorDid = actorDidProp.GetString();
+            if (string.IsNullOrWhiteSpace(actorDid))
+            {
+                continue;
+            }
+
+            existingUsersByDid.TryGetValue(actorDid, out var existingUser);
+            UserRelationshipStatusDto? status = null;
+
+            if (actorElement.TryGetProperty("viewer", out var viewerProp))
+            {
+                status = BuildInteractionStatusFromViewer(viewerProp);
+            }
+            else if (!statusesByDid.TryGetValue(actorDid, out status))
+            {
+                status = null;
+            }
+
+            var handle = actorElement.TryGetProperty("handle", out var handleProp) ? handleProp.GetString() : existingUser?.Handle;
+            var dto = new UserDto(
+                existingUser?.Id ?? CreateStableGuidFromString(actorDid),
+                existingUser?.Username ?? ExtractRemoteUsername(handle, actorDid),
+                handle ?? actorDid,
+                existingUser?.Email ?? $"{actorDid}@remote.bsky.social",
+                actorElement.TryGetProperty("displayName", out var displayNameProp) ? displayNameProp.GetString() : existingUser?.DisplayName,
+                actorElement.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : existingUser?.AvatarUrl,
+                actorElement.TryGetProperty("banner", out var bannerProp) ? bannerProp.GetString() : existingUser?.CoverImageUrl,
+                actorElement.TryGetProperty("description", out var descriptionProp) ? descriptionProp.GetString() : existingUser?.Bio,
+                existingUser?.Location,
+                existingUser?.Website,
+                existingUser?.DateOfBirth,
+                TryGetInt(actorElement, "followersCount") ?? existingUser?.FollowersCount,
+                TryGetInt(actorElement, "followsCount") ?? TryGetInt(actorElement, "followingCount") ?? existingUser?.FollowingCount,
+                TryGetInt(actorElement, "postsCount") ?? existingUser?.PostsCount,
+                existingUser?.Role ?? "user",
+                null,
+                existingUser?.IsVerified ?? true,
+                actorDid,
+                status?.FollowingReference
+            )
+            {
+                IsFollowing = status?.IsFollowing,
+                IsBlocking = status?.IsBlocking,
+                IsBlockedBy = status?.IsBlockedBy,
+                IsMuted = status?.IsMuted,
+                BlockingReference = status?.BlockingReference
+            };
+
+            users.Add(dto);
+        }
+
+        return (users, nextCursor);
+    }
+
+    private async Task<Dictionary<string, UserRelationshipStatusDto>> FetchRemoteInteractionStatusesByDidAsync(Guid viewerId, IEnumerable<string> targetDids)
+    {
+        var didList = targetDids
+            .Where(did => !string.IsNullOrWhiteSpace(did))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!didList.Any())
+        {
+            return new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var token = await GetOrRefreshBlueskyTokenAsync(viewerId);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        using var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var result = new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var batch in didList.Chunk(25))
+        {
+            var url = "https://api.bsky.app/xrpc/app.bsky.actor.getProfiles?" +
+                string.Join("&", batch.Select(remoteDid => $"actors={Uri.EscapeDataString(remoteDid)}"));
+
+            try
+            {
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("[FetchRemoteInteractionStatusesByDidAsync] getProfiles failed with {Status} for batch size {Count}", response.StatusCode, batch.Length);
+                    continue;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                if (!doc.RootElement.TryGetProperty("profiles", out var profiles) || profiles.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var profile in profiles.EnumerateArray())
+                {
+                    if (!profile.TryGetProperty("did", out var didProp))
+                    {
+                        continue;
+                    }
+
+                    var remoteDid = didProp.GetString();
+                    if (string.IsNullOrWhiteSpace(remoteDid))
+                    {
+                        continue;
+                    }
+
+                    if (!profile.TryGetProperty("viewer", out var viewerProp))
+                    {
+                        result[remoteDid] = new UserRelationshipStatusDto(false, false, false, false, null, null);
+                        continue;
+                    }
+
+                    result[remoteDid] = BuildInteractionStatusFromViewer(viewerProp);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[FetchRemoteInteractionStatusesByDidAsync] Failed to load viewer statuses for batch size {Count}", batch.Length);
+            }
+        }
+
+        return result;
+    }
+
+    private static int? TryGetInt(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.TryGetInt32(out var value)
+            ? value
+            : null;
+    }
+
+    private static string ExtractRemoteUsername(string? handle, string fallbackDid)
+    {
+        if (!string.IsNullOrWhiteSpace(handle))
+        {
+            var separatorIndex = handle.IndexOf('.');
+            return separatorIndex > 0 ? handle[..separatorIndex] : handle;
+        }
+
+        return fallbackDid;
+    }
+
+    private static Guid CreateStableGuidFromString(string value)
+    {
+        var bytes = MD5.HashData(Encoding.UTF8.GetBytes(value));
+        return new Guid(bytes);
     }
 
     public async Task<User?> ResolveStubRemoteProfileAsync(JsonElement actorData, Dictionary<string, User> cache, bool complete = true, Guid? viewerId = null, bool mergeDuplicates = true)

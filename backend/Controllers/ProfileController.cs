@@ -395,6 +395,20 @@ public class ProfileController : ControllerBase
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+            var targetUser = await ResolveUserAsync(userId, currentUserId);
+            if (targetUser == null)
+            {
+                return NotFound("User not found");
+            }
+
+            var isRemoteAtProto = !string.IsNullOrWhiteSpace(targetUser.Did) &&
+                !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+            if (isRemoteAtProto)
+            {
+                var (remoteUsers, remoteCursor) = await _userService.GetRemoteFollowersDtosAsync(targetUser.Did!, limit, cursor, currentUserId);
+                return Ok(new { followers = remoteUsers, cursor = remoteCursor });
+            }
 
             var (users, nextCursor) = await _userService.GetFollowersAsync(userId, limit, cursor, currentUserId);
 
@@ -402,7 +416,7 @@ public class ProfileController : ControllerBase
             try
             {
                 interactionStatuses = currentUserId.HasValue
-                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: false)
+                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: true)
                     : new Dictionary<Guid, UserRelationshipStatusDto>();
             }
             catch (Exception)
@@ -419,7 +433,7 @@ public class ProfileController : ControllerBase
             }
             return Ok(new { followers = dtos, cursor = nextCursor });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return Ok(new { followers = new List<object>(), cursor = (string?)null });
         }
@@ -435,7 +449,27 @@ public class ProfileController : ControllerBase
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
             User? targetUser = await ResolveUserAsync(userId, currentUserId);
+            if (targetUser == null)
+            {
+                return NotFound("User not found");
+            }
+
             bool isOwnProfile = targetUser != null && currentUserId.HasValue && targetUser.Id == currentUserId.Value;
+            var isRemoteAtProto = !string.IsNullOrWhiteSpace(targetUser.Did) &&
+                !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+            if (isRemoteAtProto)
+            {
+                var (remoteUsers, remoteCursor) = await _userService.GetRemoteFollowingDtosAsync(targetUser.Did!, limit, cursor, currentUserId);
+                if (isOwnProfile)
+                {
+                    remoteUsers = remoteUsers
+                        .Select(dto => dto with { IsFollowing = true })
+                        .ToList();
+                }
+
+                return Ok(new { following = remoteUsers, cursor = remoteCursor });
+            }
 
             var (users, nextCursor) = await _userService.GetFollowingAsync(userId, limit, cursor, currentUserId);
 
@@ -443,7 +477,7 @@ public class ProfileController : ControllerBase
             try
             {
                 interactionStatuses = currentUserId.HasValue
-                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: false)
+                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: true)
                     : new Dictionary<Guid, UserRelationshipStatusDto>();
             }
             catch (Exception)
