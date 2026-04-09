@@ -3,15 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiX, FiUser } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
-import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
-import { fetchFollowing } from '../../redux/slices/userSlice';
 import Button from '../common/Button';
 import agent from '../../services/atpAgent';
 
 const OnboardingCard: React.FC = () => {
     const navigate = useNavigate();
-    const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const { user } = useAppSelector((state: RootState) => state.auth);
     const [avatars, setAvatars] = useState<string[]>([]);
@@ -28,16 +25,16 @@ const OnboardingCard: React.FC = () => {
                 
                 // Concurrently fetch following and suggestions for speed and reliability
                 const [followingResult, suggestionsResult] = await Promise.allSettled([
-                    dispatch(fetchFollowing({ actor, limit: 10 })).unwrap(),
+                    agent.app.bsky.graph.getFollows({ actor, limit: 10 }),
                     agent.app.bsky.actor.getSuggestions({ limit: 15 })
                 ]);
 
                 let followedAvatars: string[] = [];
-                if (followingResult.status === 'fulfilled') {
-                    followedAvatars = followingResult.value.users
-                        .map(u => u.avatarUrl || u.avatar)
+                if (followingResult.status === 'fulfilled' && followingResult.value.success) {
+                    followedAvatars = (followingResult.value.data.follows || [])
+                        .map((u: any) => u.avatar)
                         .filter(Boolean) as string[];
-                } else {
+                } else if (followingResult.status === 'rejected') {
                     console.warn('Failed to fetch following for onboarding card:', followingResult.reason);
                 }
 
@@ -62,7 +59,7 @@ const OnboardingCard: React.FC = () => {
         if (user && user.followingCount < 10 && !isHidden) {
             loadAvatars();
         }
-    }, [user, isHidden, dispatch]);
+    }, [user, isHidden]);
 
     // Only show if user follows 9 or less people
     if (isHidden || !user || user.followingCount >= 10) {
