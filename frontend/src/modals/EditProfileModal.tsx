@@ -6,16 +6,29 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { closeEditProfile } from '../redux/slices/modalsSlice';
 import { updateUserProfile } from '../redux/slices/authSlice';
 import { updateProfileLocal } from '../redux/slices/userSlice';
+import { showToast } from '../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
 import Dropdown from '../components/common/Dropdown';
+import ImageEditorModal from '../components/common/ImageEditorModal';
 import { API_BASE_URL, AVATAR_PLACEHOLDER, COVER_PLACEHOLDER } from '../constants';
 import { RootState } from '../redux/store';
+import { readFileAsDataUrl } from '../utils/imageCrop';
+
+type CropTarget = 'cover' | 'avatar';
+
+interface PendingCrop {
+    target: CropTarget;
+    src: string;
+    fileName: string;
+    mimeType: string;
+}
 
 const EditProfileModal: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const { editProfile } = useAppSelector((state: RootState) => state.modals);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const isSaving = useAppSelector((state: RootState) => state.auth.isLoading);
 
     const [displayName, setDisplayName] = useState('');
     const [description, setDescription] = useState('');
@@ -25,6 +38,8 @@ const EditProfileModal: React.FC = () => {
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [removeCover, setRemoveCover] = useState(false);
     const [removeAvatar, setRemoveAvatar] = useState(false);
+    const [pendingCrop, setPendingCrop] = useState<PendingCrop | null>(null);
+    const objectUrlsRef = useRef<{ cover: string | null; avatar: string | null }>({ cover: null, avatar: null });
 
     useEffect(() => {
         if (editProfile && currentUser) {
@@ -36,38 +51,95 @@ const EditProfileModal: React.FC = () => {
             setRemoveAvatar(false);
             setCoverFile(null);
             setAvatarFile(null);
+            setPendingCrop(null);
         }
     }, [currentUser, editProfile]);
+
+    useEffect(() => {
+        const objectUrls = objectUrlsRef.current;
+        return () => {
+            Object.values(objectUrls).forEach((url) => {
+                if (url?.startsWith('blob:')) {
+                    URL.revokeObjectURL(url);
+                }
+            });
+        };
+    }, []);
 
     const coverInputRef = useRef<HTMLInputElement>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'cover' | 'avatar') => {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, type: CropTarget) => {
         const file = event.target.files?.[0];
         if (file) {
-            if (type === 'cover') setCoverFile(file);
-            if (type === 'avatar') setAvatarFile(file);
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                if (type === 'cover') setCoverImage(reader.result as string);
-                if (type === 'avatar') setAvatarImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            try {
+                const src = await readFileAsDataUrl(file);
+                setPendingCrop({
+                    target: type,
+                    src,
+                    fileName: file.name,
+                    mimeType: file.type || 'image/jpeg',
+                });
+            } catch (error) {
+                dispatch(showToast({ message: 'Failed to open the selected image.', type: 'error' }));
+            }
         }
+
+        event.target.value = '';
     };
 
     const handleRemoveCover = () => {
+        revokePreviewUrl('cover');
         setCoverImage('');
         setCoverFile(null);
         setRemoveCover(true);
     };
 
     const handleRemoveAvatar = () => {
+        revokePreviewUrl('avatar');
         setAvatarImage('');
         setAvatarFile(null);
         setRemoveAvatar(true);
     };
+
+    const revokePreviewUrl = (target: CropTarget) => {
+        const currentUrl = objectUrlsRef.current[target];
+        if (currentUrl?.startsWith('blob:')) {
+            URL.revokeObjectURL(currentUrl);
+        }
+        objectUrlsRef.current[target] = null;
+    };
+
+    const handleCropSave = async (file: File, previewUrl: string) => {
+        if (!pendingCrop) {
+            return;
+        }
+
+        revokePreviewUrl(pendingCrop.target);
+        objectUrlsRef.current[pendingCrop.target] = previewUrl;
+
+        if (pendingCrop.target === 'cover') {
+            setCoverFile(file);
+            setCoverImage(previewUrl);
+            setRemoveCover(false);
+        } else {
+            setAvatarFile(file);
+            setAvatarImage(previewUrl);
+            setRemoveAvatar(false);
+        }
+
+        setPendingCrop(null);
+    };
+
+    useEffect(() => {
+        if (editProfile) {
+            return;
+        }
+
+        revokePreviewUrl('cover');
+        revokePreviewUrl('avatar');
+        setPendingCrop(null);
+    }, [editProfile]);
 
     const handleSave = async () => {
         const formData = new FormData();
@@ -88,11 +160,12 @@ const EditProfileModal: React.FC = () => {
 
         try {
             const updatedUser = await dispatch(updateUserProfile(formData)).unwrap();
-            // Also update the viewing profile if it's the same user
             dispatch(updateProfileLocal(updatedUser));
+            dispatch(showToast({ message: 'Profile updated.', type: 'success' }));
             dispatch(closeEditProfile());
         } catch (error) {
             console.error('Failed to update profile:', error);
+            dispatch(showToast({ message: String(error) || 'Failed to update profile.', type: 'error' }));
         }
     };
 
@@ -101,7 +174,7 @@ const EditProfileModal: React.FC = () => {
     const getFullUrl = (url: string, placeholder: string) => {
         const target = url || placeholder;
         if (!target) return '';
-        if (target.startsWith('data:') || target.startsWith('http')) return target;
+        if (target.startsWith('data:') || target.startsWith('http') || target.startsWith('blob:')) return target;
         const base = API_BASE_URL.replace('/api', '');
         return `${base}${target.startsWith('/') ? '' : '/'}${target}`;
     };
@@ -135,14 +208,11 @@ const EditProfileModal: React.FC = () => {
                         {t('profile.edit_profile_title')}
                     </h2>
                     <button
-                        // The provided snippet for `tabs.map` is syntactically incorrect for a button prop.
-                        // Assuming the intent was to keep the original onClick and the `tabs.map` was a misplaced
-                        // attempt to add type information or was intended for a different part of the code.
-                        // Reverting to the original `onClick` to maintain functionality and valid syntax.
                         onClick={() => {
                             void handleSave();
                         }}
-                        className="bg-primary-500 text-white rounded-full px-4 py-1.5 font-bold hover:bg-primary-600 transition-colors"
+                        disabled={isSaving}
+                        className="bg-primary-500 text-white rounded-full px-4 py-1.5 font-bold hover:bg-primary-600 transition-colors disabled:opacity-60"
                     >
                         {t('settings.save')}
                     </button>
@@ -166,7 +236,7 @@ const EditProfileModal: React.FC = () => {
                                     { id: 'upload_cover', label: t('profile.upload_from_files'), icon: <FiCamera size={18} />, onClick: () => coverInputRef.current?.click(), hasDivider: true },
                                     { id: 'remove_cover', label: t('profile.remove_cover'), icon: <FiX size={18} />, onClick: handleRemoveCover, danger: true },
                                 ]}
-                                align="center" // Changed to center alignment if supported or fallback to right/left
+                                align="center"
                                 className="z-50"
                             />
                         </div>
@@ -227,6 +297,19 @@ const EditProfileModal: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <ImageEditorModal
+                isOpen={!!pendingCrop}
+                imageSrc={pendingCrop?.src || ''}
+                title={pendingCrop?.target === 'avatar' ? 'Edit image' : 'Edit image'}
+                aspect={pendingCrop?.target === 'avatar' ? 1 : 3}
+                cropShape={pendingCrop?.target === 'avatar' ? 'round' : 'rect'}
+                fileName={pendingCrop?.fileName || 'profile-image.jpg'}
+                mimeType={pendingCrop?.mimeType || 'image/jpeg'}
+                outputWidth={pendingCrop?.target === 'avatar' ? 1000 : 1500}
+                outputHeight={pendingCrop?.target === 'avatar' ? 1000 : 500}
+                onCancel={() => setPendingCrop(null)}
+                onSave={handleCropSave}
+            />
         </div>,
         document.body
     );
