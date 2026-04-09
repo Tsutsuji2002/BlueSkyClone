@@ -29,6 +29,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import FeedComponent from '../components/feed/Feed';
 import RichText from '../components/common/RichText';
 import { fetchUserFeeds } from '../redux/slices/feedsSlice';
+import { truncateIdentityText, formatHandleText } from '../utils/identity';
 
 import { Post, ListDto, Feed } from '../types';
 
@@ -524,15 +525,23 @@ const ProfilePage: React.FC = () => {
                     </div>
 
                     {/* Identity Section */}
-                    <div className="mt-4 lg:mt-6 mb-1">
-                        <h1 className="text-[24px] lg:text-[28px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight flex items-center gap-1.5">
-                            {profileUser?.displayName || profileUser?.handle}
+                    <div className="mt-4 lg:mt-6 mb-1 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <h1
+                                className="min-w-0 max-w-full truncate text-[24px] lg:text-[28px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight"
+                                title={profileUser?.displayName || profileUser?.handle || ''}
+                            >
+                                {truncateIdentityText(profileUser?.displayName || profileUser?.handle, 28)}
+                            </h1>
                             {profileUser?.isVerified && (
                                 <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={20} />
                             )}
-                        </h1>
-                        <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary">
-                            @{profileUser?.handle}
+                        </div>
+                        <p
+                            className="mt-0.5 max-w-full truncate text-[15px] text-gray-500 dark:text-dark-text-secondary"
+                            title={profileUser?.handle || ''}
+                        >
+                            {formatHandleText(profileUser?.handle, 30)}
                         </p>
                     </div>
 

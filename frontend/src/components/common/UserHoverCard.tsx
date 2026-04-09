@@ -14,6 +14,7 @@ import { FiUserCheck, FiUserPlus } from 'react-icons/fi';
 import { cn } from '../../utils/classNames';
 import { formatCount } from '../../utils/formatNumber';
 import { API_BASE_URL } from '../../constants';
+import { truncateIdentityText, formatHandleText } from '../../utils/identity';
 
 interface HoverCardUser {
     id: string;
@@ -317,16 +318,22 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                     {/* Name + handle */}
                     <div className="px-4 pb-2">
                         <button onClick={handleNavigate} className="text-left w-full">
-                            <div className="flex items-center gap-1 flex-wrap">
-                                <span className="font-bold text-[15px] text-gray-900 dark:text-dark-text hover:underline leading-tight">
-                                    {displayName}
+                            <div className="flex items-center gap-1 min-w-0">
+                                <span
+                                    className="min-w-0 truncate font-bold text-[15px] text-gray-900 dark:text-dark-text hover:underline leading-tight"
+                                    title={displayName}
+                                >
+                                    {truncateIdentityText(displayName, 24)}
                                 </span>
                                 {isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
                             </div>
                             {handle && (
-                                <div className="flex items-center gap-2 mt-0.5">
-                                    <div className="text-[14px] text-gray-500 dark:text-dark-text-secondary">
-                                        @{handle}
+                                <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                                    <div
+                                        className="min-w-0 truncate text-[14px] text-gray-500 dark:text-dark-text-secondary"
+                                        title={handle}
+                                    >
+                                        {formatHandleText(handle, 24)}
                                     </div>
                                     {isFollowedBy && (
                                         <span className="bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded text-[11px] font-bold">

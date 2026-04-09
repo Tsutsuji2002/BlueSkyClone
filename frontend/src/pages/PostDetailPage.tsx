@@ -56,6 +56,7 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import PostInteractionSettingsModal from '../modals/PostInteractionSettingsModal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { truncateIdentityText, formatHandleText } from '../utils/identity';
 
 import {
     FiAnchor,
@@ -605,14 +606,21 @@ const PostDetailPage: React.FC = () => {
                                                 </UserHoverCard>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col">
+                                        <div className="flex flex-col min-w-0">
                                             <UserHoverCard user={post.author}>
-                                                <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
-                                                    {post.author.displayName || post.author.handle || 'Unknown'}
+                                                <span
+                                                    className="block truncate font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer"
+                                                    onClick={() => navigate(`/profile/${post.author.handle}`)}
+                                                    title={post.author.displayName || post.author.handle || 'Unknown'}
+                                                >
+                                                    {truncateIdentityText(post.author.displayName || post.author.handle || 'Unknown', 24)}
                                                 </span>
                                             </UserHoverCard>
-                                            <span className="text-gray-500 dark:text-dark-text-secondary">
-                                                {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
+                                            <span
+                                                className="truncate text-gray-500 dark:text-dark-text-secondary"
+                                                title={post.author.handle || ''}
+                                            >
+                                                {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle, 24)}
                                             </span>
                                         </div>
                                     </div>
@@ -625,7 +633,7 @@ const PostDetailPage: React.FC = () => {
                     return (
                         <>
                             <div className="flex justify-between items-start">
-                                <div className="flex gap-3 mb-4">
+                                <div className="flex gap-3 mb-4 min-w-0">
                                     <div className="flex-shrink-0 relative flex flex-col items-center">
                                         {/* Connection line to parent if this post is a reply */}
                                         {parentPost && (
@@ -643,14 +651,21 @@ const PostDetailPage: React.FC = () => {
                                             </UserHoverCard>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col">
+                                    <div className="flex flex-col min-w-0">
                                         <UserHoverCard user={post.author}>
-                                            <span className="font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer" onClick={() => navigate(`/profile/${post.author.handle}`)}>
-                                                {post.author.displayName || post.author.handle || 'Unknown'}
+                                            <span
+                                                className="block truncate font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer"
+                                                onClick={() => navigate(`/profile/${post.author.handle}`)}
+                                                title={post.author.displayName || post.author.handle || 'Unknown'}
+                                            >
+                                                {truncateIdentityText(post.author.displayName || post.author.handle || 'Unknown', 28)}
                                             </span>
                                         </UserHoverCard>
-                                        <span className="text-gray-500 dark:text-dark-text-secondary">
-                                            {post.author.handle?.startsWith('did:') ? '' : `@${post.author.handle}`}
+                                        <span
+                                            className="truncate text-gray-500 dark:text-dark-text-secondary"
+                                            title={post.author.handle || ''}
+                                        >
+                                            {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle, 28)}
                                         </span>
                                     </div>
                                 </div>
