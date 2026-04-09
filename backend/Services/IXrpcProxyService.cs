@@ -17,6 +17,8 @@ namespace BSkyClone.Services
         /// <returns>The response content as a string or byte array.</returns>
         Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null);
         Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, Dictionary<string, string?> queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null);
+        Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, Dictionary<string, string?> queryParams, string? token, string method, System.IO.Stream bodyStream, Guid? userId, string mimeType);
+        Task<string?> ResolvePdsUrlAsync(string didOrHandle);
     }
 
     public class ProxyResponse

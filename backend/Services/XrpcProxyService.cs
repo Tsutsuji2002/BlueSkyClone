@@ -10,6 +10,8 @@ using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using System.IO;
 
 namespace BSkyClone.Services
 {
@@ -158,6 +160,117 @@ namespace BSkyClone.Services
         {
             var collection = new QueryCollection(queryParams.ToDictionary(p => p.Key, p => new Microsoft.Extensions.Primitives.StringValues(p.Value)));
             return await ProxyRequestAsync(did, nsid, collection, token, method, body, userId);
+        }
+
+        public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, Dictionary<string, string?> queryParams, string? token, string method, System.IO.Stream bodyStream, Guid? userId, string mimeType)
+        {
+            string did = didOrHandle;
+            try
+            {
+                var baseUrl = await ResolvePdsUrlAsync(didOrHandle);
+                if (string.IsNullOrEmpty(baseUrl))
+                {
+                    return new ProxyResponse { Success = false, StatusCode = 404, Content = "PDS endpoint not found" };
+                }
+
+                var url = $"{baseUrl.TrimEnd('/')}/xrpc/{nsid}";
+
+                if (queryParams != null && queryParams.Any())
+                {
+                    var queryString = string.Join("&", queryParams.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value?.ToString() ?? "")}"));
+                    url += $"?{queryString}";
+                }
+
+                _logger.LogInformation($"Proxying {method} request to: {url}");
+
+                var request = new HttpRequestMessage(new HttpMethod(method), url);
+                
+                if (!string.IsNullOrEmpty(token))
+                {
+                    string? dpopKey = userId.HasValue ? await _cache.GetStringAsync($"BlueskyDPoPKey_{userId}") : null;
+
+                    if (!string.IsNullOrEmpty(dpopKey))
+                    {
+                        var proof = CreateDPoPProof(method, url, dpopKey);
+                        request.Headers.Add("DPoP", proof);
+                        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("DPoP", token);
+                    }
+                    else
+                    {
+                        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    }
+                }
+
+                var streamContent = new StreamContent(bodyStream);
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mimeType);
+                request.Content = streamContent;
+
+                var clientReq = _httpClientFactory.CreateClient();
+                clientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                
+                var response = await clientReq.SendAsync(request);
+                var content = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("[XrpcProxy] Remote error {Status} for {Url}: {Content}", response.StatusCode, url, content);
+                }
+
+                return new ProxyResponse
+                {
+                    Success = response.IsSuccessStatusCode,
+                    Content = content,
+                    StatusCode = (int)response.StatusCode,
+                    ContentType = response.Content.Headers.ContentType?.MediaType ?? "application/json"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error proxying {method} XRPC stream request {nsid} for {did}");
+                return new ProxyResponse { Success = false, StatusCode = 500, Content = ex.Message };
+            }
+        }
+
+        public async Task<string?> ResolvePdsUrlAsync(string didOrHandle)
+        {
+            try
+            {
+                string did = didOrHandle;
+                if (!didOrHandle.StartsWith("did:"))
+                {
+                    try
+                    {
+                        var client = _httpClientFactory.CreateClient();
+                        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                        
+                        var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
+                        if (idResponse.IsSuccessStatusCode)
+                        {
+                            var data = await idResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                            if (data != null && data.TryGetValue("did", out var resolvedDid))
+                            {
+                                did = resolvedDid;
+                            }
+                        }
+                    }
+                    catch { /* Fallback to using it as-is */ }
+                }
+
+                var doc = await _didResolver.ResolveToDocumentAsync(did);
+                if (doc == null || doc.Service == null || !doc.Service.Any()) return null;
+
+                var service = doc.Service.FirstOrDefault(s => s.Type == "AtprotoPds") 
+                             ?? doc.Service.FirstOrDefault();
+
+                if (service == null || string.IsNullOrEmpty(service.ServiceEndpoint)) return null;
+
+                return service.ServiceEndpoint;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to resolve PDS URL for {DidOrHandle}", didOrHandle);
+                return null;
+            }
         }
 
         private string CreateDPoPProof(string method, string url, string privateKeyBase64, string? nonce = null)
