@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AuthState, User, UserSettings, LoginFormData, SignUpFormData } from '../../types';
-import { isTokenExpired } from '../../utils/authUtils';
 import agent from '../../services/atpAgent';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
@@ -174,26 +173,6 @@ export const signUp = createAsyncThunk(
             const data = await response.json();
             if (!response.ok) {
                 return rejectWithValue(data.message || 'Registration failed');
-            }
-            return data;
-        } catch (error: any) {
-            return rejectWithValue(error.message || 'Something went wrong');
-        }
-    }
-);
-
-export const exchangeOAuthCode = createAsyncThunk(
-    'auth/exchangeOAuthCode',
-    async ({ code, verifier, pdsUrl, redirectUri }: { code: string, verifier: string, pdsUrl: string, redirectUri: string }, { rejectWithValue }) => {
-        try {
-            const response = await fetch(`${API_URL}/auth/oauth-token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code, verifier, pdsUrl, redirectUri }),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                return rejectWithValue(data.message || 'Token exchange failed');
             }
             return data;
         } catch (error: any) {
@@ -434,29 +413,6 @@ const authSlice = createSlice({
                 hydrateAtpSession(action.payload.user, action.payload.token, action.payload.refreshToken);
             })
             .addCase(signUp.rejected, (state, action) => {
-                state.isLoading = false;
-                state.error = action.payload as string;
-            })
-            // OAuth Exchange
-            .addCase(exchangeOAuthCode.pending, (state) => {
-                state.isLoading = true;
-                state.error = null;
-            })
-            .addCase(exchangeOAuthCode.fulfilled, (state, action: PayloadAction<{ user: User; settings: UserSettings; token?: string; refreshToken?: string }>) => {
-                state.isLoading = false;
-                state.isAuthenticated = true;
-                state.user = action.payload.user;
-                state.settings = normalizeSettings(action.payload.settings);
-                state.error = null;
-                if (action.payload.token) {
-                    localStorage.setItem('token', action.payload.token);
-                }
-                if (action.payload.refreshToken) {
-                    localStorage.setItem('refreshToken', action.payload.refreshToken);
-                }
-                hydrateAtpSession(action.payload.user, action.payload.token, action.payload.refreshToken);
-            })
-            .addCase(exchangeOAuthCode.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             })

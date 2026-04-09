@@ -24,7 +24,6 @@ public interface IAuthService
     Task<AuthResponse?> LoginAsync(LoginRequest request);
     Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
     Task<AuthResponse?> GetUserProfileAsync(Guid userId);
-    Task<AuthResponse?> ExchangeOAuthCodeAsync(string code, string verifier, string pdsUrl, string? redirectUri = null);
     Task LogoutAsync(string refreshToken);
 }
 
@@ -33,18 +32,16 @@ public class AuthService : IAuthService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
     private readonly IDistributedCache _cache;
-    private readonly ICryptoService _crypto;
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly IFeedService _feedService;
     private readonly IHubContext<PostHub> _postHubContext;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, ICryptoService crypto, IXrpcProxyService xrpcProxy, IFeedService feedService, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, IXrpcProxyService xrpcProxy, IFeedService feedService, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _cache = cache;
-        _crypto = crypto;
         _xrpcProxy = xrpcProxy;
         _feedService = feedService;
         _postHubContext = postHubContext;
@@ -157,122 +154,6 @@ public class AuthService : IAuthService
         return MapToAuthResponse(user, token, refreshToken);
     }
 
-    public async Task<AuthResponse?> ExchangeOAuthCodeAsync(string code, string verifier, string pdsUrl, string? redirectUri = null)
-    {
-        using var httpClient = new HttpClient();
-        var clientMetadataUrl = "https://bskyclone.site/client-metadata.json";
-        
-        // Use the redirectUri provided by the frontend if available, fallback to production default
-        var finalRedirectUri = redirectUri ?? "https://bskyclone.site/oauth-callback";
-
-        var values = new Dictionary<string, string>
-        {
-            { "grant_type", "authorization_code" },
-            { "code", code },
-            { "client_id", clientMetadataUrl },
-            { "redirect_uri", finalRedirectUri },
-            { "code_verifier", verifier }
-        };
-
-        var content = new FormUrlEncodedContent(values);
-        var tokenEndpoint = $"{pdsUrl.TrimEnd('/')}/oauth/token";
-
-        // ATProto mandates DPoP on all token requests.
-        // Generate an ephemeral EC key pair for this exchange.
-        using var ecKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var response = await SendWithDPoP(httpClient, tokenEndpoint, content, ecKey, nonce: null);
-
-        // If the server returns a DPoP-Nonce, retry once with it (RFC 9449 §4.3)
-        if (!response.IsSuccessStatusCode)
-        {
-            var firstErrorBody = await response.Content.ReadAsStringAsync();
-            if (firstErrorBody.Contains("use_dpop_nonce") &&
-                response.Headers.TryGetValues("DPoP-Nonce", out var nonceValues))
-            {
-                var nonce = nonceValues.First();
-                response = await SendWithDPoP(httpClient, tokenEndpoint,
-                    new FormUrlEncodedContent(values), ecKey, nonce);
-            }
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorBody = await response.Content.ReadAsStringAsync();
-            throw new Exception($"OAuth Token Exchange Failed: {errorBody}");
-        }
-
-        var oauthResponse = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
-        
-        string did = oauthResponse.GetProperty("sub").GetString()!;
-        string accessJwt = oauthResponse.GetProperty("access_token").GetString()!;
-        string refreshJwt = oauthResponse.TryGetProperty("refresh_token", out var rt) ? rt.GetString()! : "";
-
-        // Fetch profile via the public AppView — no auth needed and avoids DPoP-bound token issues
-        var publicProfileUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={Uri.EscapeDataString(did)}";
-        var profileResp = await httpClient.GetAsync(publicProfileUrl);
-        if (!profileResp.IsSuccessStatusCode)
-        {
-            var profileErr = await profileResp.Content.ReadAsStringAsync();
-            throw new Exception($"Failed to retrieve profile for DID {did}: {profileErr}");
-        }
-
-        using var profileDoc = JsonDocument.Parse(await profileResp.Content.ReadAsStringAsync());
-        var profileRoot = profileDoc.RootElement;
-        string handle = profileRoot.GetProperty("handle").GetString()!;
-        string email = profileRoot.TryGetProperty("email", out var emailProp) ? emailProp.GetString()! : $"{handle}@bluesky.local";
-
-        var user = await _unitOfWork.Users.GetByDidAsync(did) ?? await _unitOfWork.Users.GetByHandleAsync(handle);
-        
-        if (user == null)
-        {
-            user = new User
-            {
-                Id = Guid.NewGuid(),
-                Did = did,
-                Handle = handle,
-                Email = email,
-                Username = handle.Contains(".") ? handle.Split('.')[0] : handle,
-                DisplayName = profileRoot.TryGetProperty("displayName", out var dnTry) ? dnTry.GetString() : handle,
-                CreatedAt = DateTime.UtcNow,
-                IsBanned = false,
-                PasswordHash = "OAUTH_ACCOUNT",
-                Salt = "OAUTH_ACCOUNT",
-                AvatarUrl = profileRoot.TryGetProperty("avatar", out var avTry) ? avTry.GetString() : null,
-                CoverImageUrl = profileRoot.TryGetProperty("banner", out var banTry) ? banTry.GetString() : null,
-                Bio = profileRoot.TryGetProperty("description", out var descTry) ? descTry.GetString() : null
-            };
-            user.UserSetting = new UserSetting { UserId = user.Id, AppLanguage = "en", ThemeMode = "system" };
-            await _unitOfWork.Users.AddAsync(user);
-        }
-        else
-        {
-            if (user.IsBanned) throw new UnauthorizedAccessException("Your account has been banned locally.");
-            user.Handle = handle;
-            if (profileRoot.TryGetProperty("displayName", out var dnUpdate)) user.DisplayName = dnUpdate.GetString();
-            if (profileRoot.TryGetProperty("avatar", out var avUpdate)) user.AvatarUrl = avUpdate.GetString();
-            _unitOfWork.Users.Update(user);
-        }
-
-        await _unitOfWork.CompleteAsync();
-
-        // Broadcast update
-        var userDto = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);
-        await _postHubContext.Clients.All.SendAsync("UserUpdated", userDto);
-
-        var token = GenerateJwtToken(user, true); // OAuth usually implies persistent session or handled by refresh
-        var refreshToken = await GenerateAndSaveRefreshToken(user.Id, true);
-
-        // Cache Bluesky tokens
-        var bskyCacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) };
-        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
-        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
-
-        // Store DPoP private key securely in cache (it's ephemeral for the session)
-        var privateKeyBase64 = Convert.ToBase64String(ecKey.ExportPkcs8PrivateKey());
-        await _cache.SetStringAsync($"BlueskyDPoPKey_{user.Id}", privateKeyBase64, bskyCacheOptions);
-
-        return MapToAuthResponse(user, token, refreshToken);
-    }
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
@@ -387,40 +268,30 @@ public class AuthService : IAuthService
             {
                 try 
                 {
-                    var dpopKeyBase64 = await _cache.GetStringAsync($"BlueskyDPoPKey_{user.Id}");
-                    if (!string.IsNullOrEmpty(dpopKeyBase64))
+                    var refreshResult = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did, 
+                        "com.atproto.server.refreshSession", 
+                        new Dictionary<string, string?>(), 
+                        bskyRefreshToken, 
+                        "POST"
+                    );
+                    
+                    if (refreshResult.Success)
                     {
-                        // OAuth DPoP Refresh
-                        await RefreshOAuthSessionAsync(user, bskyRefreshToken, dpopKeyBase64, rememberMe);
+                        var bskySession = JsonSerializer.Deserialize<JsonElement>(refreshResult.Content);
+                        string nextAccessJwt = bskySession.GetProperty("accessJwt").GetString()!;
+                        string nextRefreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
+
+                        var bskyCacheOptions = new DistributedCacheEntryOptions { 
+                            AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+                        };
+                        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
+                        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
+                        _logger.LogInformation("Successfully refreshed Bluesky session for user {UserId}", user.Id);
                     }
                     else
                     {
-                        // Traditional ATProto Refresh
-                        var refreshResult = await _xrpcProxy.ProxyRequestAsync(
-                            user.Did, 
-                            "com.atproto.server.refreshSession", 
-                            new Dictionary<string, string?>(), 
-                            bskyRefreshToken, 
-                            "POST"
-                        );
-                        
-                        if (refreshResult.Success)
-                        {
-                            var bskySession = JsonSerializer.Deserialize<JsonElement>(refreshResult.Content);
-                            string nextAccessJwt = bskySession.GetProperty("accessJwt").GetString()!;
-                            string nextRefreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
-
-                            var bskyCacheOptions = new DistributedCacheEntryOptions { 
-                                AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
-                            };
-                            await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
-                            await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
-                            _logger.LogInformation("Successfully refreshed Bluesky session for user {UserId}", user.Id);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Failed to refresh Bluesky session for user {UserId}. Status: {Status}, Body: {Body}", user.Id, refreshResult.StatusCode, refreshResult.Content);
-                        }
+                        _logger.LogWarning("Failed to refresh Bluesky session for user {UserId}. Status: {Status}, Body: {Body}", user.Id, refreshResult.StatusCode, refreshResult.Content);
                     }
                 }
                 catch (Exception ex)
@@ -500,53 +371,6 @@ public class AuthService : IAuthService
     {
         await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
     }
-
-    private static async Task<HttpResponseMessage> SendWithDPoP(
-        HttpClient httpClient, string url, FormUrlEncodedContent body,
-        ECDsa ecKey, string? nonce)
-    {
-        // Export the public key as a JWK for the DPoP proof header
-        var ecParams = ecKey.ExportParameters(includePrivateParameters: false);
-        string x = Base64UrlEncode(ecParams.Q.X!);
-        string y = Base64UrlEncode(ecParams.Q.Y!);
-
-        var jwk = new { kty = "EC", crv = "P-256", x, y };
-
-        // Build DPoP JWT header and payload (RFC 9449)
-        var header = new
-        {
-            typ = "dpop+jwt",
-            alg = "ES256",
-            jwk
-        };
-        var payload = new Dictionary<string, object>
-        {
-            { "jti", Guid.NewGuid().ToString() },
-            { "htm", "POST" },
-            { "htu", url },
-            { "iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds() }
-        };
-        if (nonce != null) payload["nonce"] = nonce;
-
-        string headerJson = JsonSerializer.Serialize(header);
-        string payloadJson = JsonSerializer.Serialize(payload);
-
-        string headerB64 = Base64UrlEncode(Encoding.UTF8.GetBytes(headerJson));
-        string payloadB64 = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
-        string signingInput = $"{headerB64}.{payloadB64}";
-
-        byte[] sigBytes = ecKey.SignData(Encoding.UTF8.GetBytes(signingInput), HashAlgorithmName.SHA256);
-        string signature = Base64UrlEncode(sigBytes);
-
-        string dpopToken = $"{headerB64}.{payloadB64}.{signature}";
-
-        var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = body };
-        request.Headers.Add("DPoP", dpopToken);
-        return await httpClient.SendAsync(request);
-    }
-
-    private static string Base64UrlEncode(byte[] input) =>
-        Convert.ToBase64String(input).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     private async Task<string> GenerateAndSaveRefreshToken(Guid userId, bool rememberMe = false)
     {
@@ -689,57 +513,6 @@ public class AuthService : IAuthService
         return tokenHandler.WriteToken(token);
     }
 
-    private async Task RefreshOAuthSessionAsync(User user, string refreshToken, string dpopKeyBase64, bool rememberMe)
-    {
-        var pdsUrl = await _xrpcProxy.ResolvePdsUrlAsync(user.Did!);
-        if (string.IsNullOrEmpty(pdsUrl)) throw new Exception("Could not resolve PDS for refresh.");
-
-        using var ecKey = ECDsa.Create();
-        ecKey.ImportPkcs8PrivateKey(Convert.FromBase64String(dpopKeyBase64), out _);
-
-        var tokenEndpoint = $"{pdsUrl.TrimEnd('/')}/oauth/token";
-        var clientMetadataUrl = "https://bskyclone.site/client-metadata.json";
-
-        var values = new Dictionary<string, string>
-        {
-            { "grant_type", "refresh_token" },
-            { "refresh_token", refreshToken },
-            { "client_id", clientMetadataUrl }
-        };
-
-        using var httpClient = new HttpClient();
-        var response = await SendWithDPoP(httpClient, tokenEndpoint, new FormUrlEncodedContent(values), ecKey, nonce: null);
-
-        // Handle use_dpop_nonce
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorBody = await response.Content.ReadAsStringAsync();
-            if (errorBody.Contains("use_dpop_nonce") && response.Headers.TryGetValues("DPoP-Nonce", out var nonceValues))
-            {
-                response = await SendWithDPoP(httpClient, tokenEndpoint, new FormUrlEncodedContent(values), ecKey, nonceValues.First());
-            }
-        }
-
-        if (response.IsSuccessStatusCode)
-        {
-            var oauthResponse = await JsonSerializer.DeserializeAsync<JsonElement>(await response.Content.ReadAsStreamAsync());
-            string nextAccessJwt = oauthResponse.GetProperty("access_token").GetString()!;
-            string nextRefreshJwt = oauthResponse.TryGetProperty("refresh_token", out var rt) ? rt.GetString()! : refreshToken;
-
-            var bskyCacheOptions = new DistributedCacheEntryOptions { 
-                AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
-            };
-            await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
-            await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
-            _logger.LogInformation("Successfully refreshed Bluesky OAuth session for user {UserId}", user.Id);
-        }
-        else
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            _logger.LogWarning("Failed to refresh Bluesky OAuth session for user {UserId}. Status: {Status}, Error: {Error}", user.Id, response.StatusCode, error);
-            throw new Exception($"OAuth Refresh Failed: {error}");
-        }
-    }
 }
 
 

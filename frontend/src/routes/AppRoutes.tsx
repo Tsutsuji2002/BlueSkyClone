@@ -14,7 +14,6 @@ import HomePage from '../pages/HomePage';
 const WelcomePage = React.lazy(() => import('../pages/auth/WelcomePage'));
 const LoginPage = React.lazy(() => import('../pages/auth/LoginPage'));
 const SignUpPage = React.lazy(() => import('../pages/auth/SignUpPage'));
-const OAuthCallbackPage = React.lazy(() => import('../pages/auth/OAuthCallbackPage'));
 
 const ProfilePage = React.lazy(() => import('../pages/ProfilePage'));
 const FollowersPage = React.lazy(() => import('../pages/FollowersPage'));
@@ -84,7 +83,6 @@ const AppRoutes: React.FC = () => {
     return (
         <LazyErrorBoundary>
             <Routes>
-                <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
                 <Route path="/" element={<MainLayout hideTopBar={true} />}>
                     <Route index element={<HomePage />} />
                     <Route path="profile/:handle" element={<ProfilePage />} />

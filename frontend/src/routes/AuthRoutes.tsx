@@ -7,7 +7,6 @@ import LazyErrorBoundary from '../components/common/LazyErrorBoundary';
 const WelcomePage = React.lazy(() => import('../pages/auth/WelcomePage'));
 const LoginPage = React.lazy(() => import('../pages/auth/LoginPage'));
 const SignUpPage = React.lazy(() => import('../pages/auth/SignUpPage'));
-const OAuthCallbackPage = React.lazy(() => import('../pages/auth/OAuthCallbackPage'));
 
 const AuthRoutes: React.FC = () => {
     const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated);
@@ -28,7 +27,6 @@ const AuthRoutes: React.FC = () => {
                     <Route path="/welcome" element={<WelcomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/signup" element={<SignUpPage />} />
-                    <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
                     <Route path="*" element={<Navigate to="/welcome" replace />} />
                 </Routes>
             </Suspense>
