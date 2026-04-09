@@ -65,6 +65,48 @@ const cloneUserListCacheEntry = (entry: UserListCacheEntry): UserListCacheEntry 
     initialized: entry.initialized,
 });
 
+const getUserIdentifiers = (user: Partial<User>): string[] => (
+    [user.id, user.did, user.handle, user.username]
+        .map((value) => normalizeIdentifier(value))
+        .filter((value, index, array) => !!value && array.indexOf(value) === index)
+);
+
+const findMatchingUser = (users: User[], target: User): User | undefined => {
+    const targetIdentifiers = getUserIdentifiers(target);
+    if (targetIdentifiers.length === 0) return undefined;
+
+    return users.find((user) => {
+        const userIdentifiers = getUserIdentifiers(user);
+        return userIdentifiers.some((identifier) => targetIdentifiers.includes(identifier));
+    });
+};
+
+const mergeRelationshipState = (
+    incomingUsers: User[],
+    existingUsers: User[],
+    actionLoading: Record<string, boolean>
+): User[] => incomingUsers.map((incomingUser) => {
+    const existingUser = findMatchingUser(existingUsers, incomingUser);
+    if (!existingUser) {
+        return incomingUser;
+    }
+
+    const mergedUser = { ...existingUser, ...incomingUser };
+    const identifiers = getUserIdentifiers(existingUser);
+    const hasPendingRelationshipAction = identifiers.some((identifier) => !!actionLoading[identifier]);
+
+    if (
+        hasPendingRelationshipAction ||
+        existingUser.followingReference ||
+        existingUser.isFollowing !== incomingUser.isFollowing
+    ) {
+        mergedUser.isFollowing = existingUser.isFollowing;
+        mergedUser.followingReference = existingUser.followingReference;
+    }
+
+    return mergedUser;
+});
+
 const updateUsersByIdentifier = (users: User[], identifier: string, updater: (user: User) => void) => {
     users.forEach((user) => {
         if (profileMatchesIdentifier(user, identifier)) {
@@ -1058,15 +1100,16 @@ const userSlice = createSlice({
                 const { users, cursor } = action.payload;
                 const incomingUsers = (users || []) as User[];
                 const ownerId = normalizeIdentifier(action.meta.arg.actor);
+                const mergedIncomingUsers = mergeRelationshipState(incomingUsers, state.followers, state.actionLoading);
 
                 if (!action.meta.arg.cursor) {
-                    state.followers = cloneUsers(incomingUsers);
+                    state.followers = cloneUsers(mergedIncomingUsers);
                 } else {
                     // Stable identity upsert: prefers DID, falls back to ID
                     const updatedUsers = [...state.followers];
                     const newUsers: User[] = [];
 
-                    incomingUsers.forEach((newUser: User) => {
+                    mergedIncomingUsers.forEach((newUser: User) => {
                         const index = updatedUsers.findIndex(u =>
                             (newUser.did && u.did && newUser.did === u.did) ||
                             (u.id === newUser.id)
@@ -1081,7 +1124,7 @@ const userSlice = createSlice({
                     state.followers = [...updatedUsers, ...newUsers];
                 }
                 state.followersCursor = cursor;
-                state.followersHasMore = incomingUsers.length > 0 && !!cursor;
+                state.followersHasMore = mergedIncomingUsers.length > 0 && !!cursor;
                 state.followersOwnerId = ownerId;
                 state.followersInitializedOwnerId = ownerId;
                 state.followersCache[ownerId] = {
@@ -1126,15 +1169,16 @@ const userSlice = createSlice({
                 const { users, cursor } = action.payload;
                 const incomingUsers = (users || []) as User[];
                 const ownerId = normalizeIdentifier(action.meta.arg.actor);
+                const mergedIncomingUsers = mergeRelationshipState(incomingUsers, state.followingUsers, state.actionLoading);
 
                 if (!action.meta.arg.cursor) {
-                    state.followingUsers = cloneUsers(incomingUsers);
+                    state.followingUsers = cloneUsers(mergedIncomingUsers);
                 } else {
                     // Stable identity upsert: prefers DID, falls back to ID
                     const updatedUsers = [...state.followingUsers];
                     const newUsers: User[] = [];
 
-                    incomingUsers.forEach((newUser: User) => {
+                    mergedIncomingUsers.forEach((newUser: User) => {
                         const index = updatedUsers.findIndex(u =>
                             (newUser.did && u.did && newUser.did === u.did) ||
                             (u.id === newUser.id)
@@ -1149,7 +1193,7 @@ const userSlice = createSlice({
                     state.followingUsers = [...updatedUsers, ...newUsers];
                 }
                 state.followingCursor = cursor;
-                state.followingHasMore = incomingUsers.length > 0 && !!cursor;
+                state.followingHasMore = mergedIncomingUsers.length > 0 && !!cursor;
                 state.followingOwnerId = ownerId;
                 state.followingInitializedOwnerId = ownerId;
                 state.followingCache[ownerId] = {

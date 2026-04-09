@@ -68,7 +68,9 @@ const FollowersPage: React.FC = () => {
 
         if (effectiveId && profileMatchesIdentifier(profile, effectiveId) && resolvedListActor) {
             const targetActor = normalizeIdentifier(resolvedListActor);
-            if (followersOwnerId !== targetActor || (users.length === 0 && hasMore)) {
+            const needsInitialFetch = followersInitializedOwnerId !== targetActor;
+
+            if (needsInitialFetch && !followersLoading) {
                 listPromise = dispatch(fetchFollowers({ actor: resolvedListActor, limit: INITIAL_PAGE_SIZE }));
             }
         }
@@ -76,16 +78,16 @@ const FollowersPage: React.FC = () => {
         return () => {
             if (listPromise) listPromise.abort();
         };
-    }, [dispatch, effectiveId, profile, resolvedListActor, followersOwnerId, users.length, hasMore]);
+    }, [dispatch, effectiveId, profile, resolvedListActor, followersInitializedOwnerId, followersLoading]);
 
     // Infinite Scroll Observer
     useEffect(() => {
-        if (!hasMore || followersLoading || !resolvedListActor || !profileMatchesIdentifier(profile, effectiveId || '')) return;
+        if (!hasMore || followersLoading || !cursor || !resolvedListActor || !profileMatchesIdentifier(profile, effectiveId || '')) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchFollowers({ actor: resolvedListActor, cursor: cursor || undefined, limit: NEXT_PAGE_SIZE }));
+                    dispatch(fetchFollowers({ actor: resolvedListActor, cursor, limit: NEXT_PAGE_SIZE }));
                 }
             },
             { rootMargin: LOAD_AHEAD_MARGIN, threshold: 0 }
