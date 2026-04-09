@@ -65,6 +65,7 @@ public class PostService : IPostService
             var cacheKey = $"BlueskyTimeline_{userId}";
             var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
             List<PostDto>? mappedPosts = null;
+            User? user = null;
 
             if (!string.IsNullOrEmpty(cachedJson))
             {
@@ -73,7 +74,7 @@ public class PostService : IPostService
 
             if (mappedPosts == null)
             {
-                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                user = await _unitOfWork.Users.GetByIdAsync(userId);
                 if (user == null || string.IsNullOrEmpty(user.Did))
                 {
                     _logger.LogWarning("[GetTimelineAsync] User or DID not found for {UserId}.", userId);
@@ -84,29 +85,39 @@ public class PostService : IPostService
                 if (string.IsNullOrEmpty(token))
                 {
                     _logger.LogWarning("[GetTimelineAsync] No proxy token for user {UserId}.", userId);
-                    return new List<PostDto>();
+                    mappedPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
                 }
-
-                var result = await _xrpcProxy.ProxyRequestAsync(
-                    user.Did,
-                    "app.bsky.feed.getTimeline",
-                    new Dictionary<string, string?> { { "limit", "100" } },
-                    token,
-                    "GET",
-                    null,
-                    userId
-                );
-
-                if (!result.Success)
+                else
                 {
-                    _logger.LogError("[GetTimelineAsync] Bluesky proxy failed: {Res}", result.Content);
-                    return new List<PostDto>();
-                }
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "app.bsky.feed.getTimeline",
+                        new Dictionary<string, string?> { { "limit", "100" } },
+                        token,
+                        "GET",
+                        null,
+                        userId
+                    );
 
-                mappedPosts = new List<PostDto>();
-                using var doc = JsonDocument.Parse(result.Content);
-                if (doc.RootElement.TryGetProperty("feed", out var feedArray))
-                    mappedPosts = MapBlueskyFeed(feedArray);
+                    if (!result.Success)
+                    {
+                        _logger.LogError("[GetTimelineAsync] Bluesky proxy failed: {Res}", result.Content);
+                        mappedPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                    }
+                    else
+                    {
+                        mappedPosts = new List<PostDto>();
+                        using var doc = JsonDocument.Parse(result.Content);
+                        if (doc.RootElement.TryGetProperty("feed", out var feedArray))
+                            mappedPosts = MapBlueskyFeed(feedArray);
+
+                        if (mappedPosts.Count == 0)
+                        {
+                            _logger.LogInformation("[GetTimelineAsync] Proxy timeline returned no posts for {UserId}; trying fallback feed reconstruction.", userId);
+                            mappedPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                        }
+                    }
+                }
 
                 // Only cache non-empty results to avoid serving stale empty responses
                 if (mappedPosts.Count > 0)
@@ -124,6 +135,114 @@ public class PostService : IPostService
         catch (Exception ex)
         {
             _logger.LogError(ex, "[GetTimelineAsync] Critical Error for user {UserId}", userId);
+            return new List<PostDto>();
+        }
+    }
+
+    private async Task<List<PostDto>> BuildTimelineFallbackFromFollowingAsync(User user, int skip, int take)
+    {
+        try
+        {
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+
+            var followedActors = new List<string>();
+            string? cursor = null;
+            var desiredActors = 18;
+            var pageCount = 0;
+
+            while (followedActors.Count < desiredActors && pageCount < 2)
+            {
+                var url = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getFollows?actor={Uri.EscapeDataString(user.Did)}&limit=25";
+                if (!string.IsNullOrWhiteSpace(cursor))
+                {
+                    url += $"&cursor={Uri.EscapeDataString(cursor)}";
+                }
+
+                var response = await httpClient.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("[BuildTimelineFallbackFromFollowingAsync] Failed to load follows for {Did}: {StatusCode}", user.Did, response.StatusCode);
+                    break;
+                }
+
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                if (doc.RootElement.TryGetProperty("follows", out var follows) && follows.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var follow in follows.EnumerateArray())
+                    {
+                        var actor = follow.TryGetProperty("handle", out var handleProp) && !string.IsNullOrWhiteSpace(handleProp.GetString())
+                            ? handleProp.GetString()
+                            : follow.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+
+                        if (!string.IsNullOrWhiteSpace(actor))
+                        {
+                            followedActors.Add(actor);
+                        }
+                    }
+                }
+
+                cursor = doc.RootElement.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
+                if (string.IsNullOrWhiteSpace(cursor))
+                {
+                    break;
+                }
+
+                pageCount++;
+            }
+
+            var distinctActors = followedActors
+                .Where(actor => !string.IsNullOrWhiteSpace(actor))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(desiredActors)
+                .ToList();
+
+            if (distinctActors.Count == 0)
+            {
+                return new List<PostDto>();
+            }
+
+            var desiredPosts = Math.Clamp(skip + Math.Max(take, 1) * 3, 20, 80);
+            var perActor = Math.Clamp((int)Math.Ceiling((double)desiredPosts / distinctActors.Count), 1, 4);
+
+            var authorFeedTasks = distinctActors.Select(async actor =>
+            {
+                try
+                {
+                    var actorFeedUrl = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={Uri.EscapeDataString(actor)}&limit={perActor}&filter=posts_no_replies";
+                    var actorResponse = await httpClient.GetAsync(actorFeedUrl);
+                    if (!actorResponse.IsSuccessStatusCode)
+                    {
+                        return new List<PostDto>();
+                    }
+
+                    using var actorDoc = JsonDocument.Parse(await actorResponse.Content.ReadAsStringAsync());
+                    if (!actorDoc.RootElement.TryGetProperty("feed", out var actorFeed) || actorFeed.ValueKind != JsonValueKind.Array)
+                    {
+                        return new List<PostDto>();
+                    }
+
+                    return MapBlueskyFeed(actorFeed);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "[BuildTimelineFallbackFromFollowingAsync] Failed to load author feed for {Actor}", actor);
+                    return new List<PostDto>();
+                }
+            });
+
+            var feedChunks = await Task.WhenAll(authorFeedTasks);
+            return feedChunks
+                .SelectMany(posts => posts)
+                .GroupBy(post => post.Uri ?? post.Id.ToString())
+                .Select(group => group.First())
+                .OrderByDescending(post => post.CreatedAt ?? DateTime.MinValue)
+                .Take(desiredPosts)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BuildTimelineFallbackFromFollowingAsync] Failed for user {UserId}", user.Id);
             return new List<PostDto>();
         }
     }

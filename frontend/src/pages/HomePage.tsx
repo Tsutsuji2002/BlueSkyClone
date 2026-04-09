@@ -28,7 +28,7 @@ const HomePage: React.FC = () => {
     const lastTab = React.useRef<string>('');
     const hasRestoredScroll = React.useRef<Record<string, boolean>>({});
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
-    const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
+    const { isAuthenticated, user } = useAppSelector((state: RootState) => state.auth);
 
     
     // Lists state
@@ -179,6 +179,14 @@ const HomePage: React.FC = () => {
         ];
     }, [isAuthenticated, pinnedHomeFeeds, t]);
 
+    const followingEmptyMessage = useMemo(() => {
+        if ((user?.followingCount ?? 0) > 0) {
+            return t('feeds.following_empty_recent', { defaultValue: 'No recent posts from people you follow right now.' });
+        }
+
+        return t('feeds.follow_more_cta', 'Follow more accounts to see more content.');
+    }, [t, user?.followingCount]);
+
     // Display tabs based on current pinned order from Feed settings.
     const tabs = useMemo(() => {
         if (!isAuthenticated && subscribedFeeds.length === 0 && pinnedLists.length === 0) {
@@ -323,7 +331,7 @@ const HomePage: React.FC = () => {
                                 emptyMessage={isDiscover
                                     ? t('feeds.discover_empty', { defaultValue: 'Nothing new to discover yet.' })
                                     : isFollowing
-                                        ? t('feeds.follow_more_cta', 'Follow more accounts to see more content.')
+                                        ? followingEmptyMessage
                                         : t('feeds.end', 'End of feed')}
                             />
                         </div>
