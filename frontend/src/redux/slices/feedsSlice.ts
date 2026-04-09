@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder }
 import { Feed, Post } from '../../types';
 import { API_BASE_URL } from '../../constants';
 import { feedActionKey } from '../../utils/feedKeys';
+import { mapAtProtoPostToPost } from '../../utils/postMapper';
 
 const REMOTE_METADATA_FALLBACK_DESCRIPTION = 'Remote feed metadata is temporarily unavailable.';
 
@@ -15,6 +16,77 @@ const applyVisualMetadata = (target: Feed, source: Feed) => {
     target.avatarUrl = source.avatarUrl || source.avatar || target.avatarUrl;
     target.avatar = source.avatar || source.avatarUrl || target.avatar;
     target.uri = source.uri || target.uri;
+};
+
+const getPostIdentityKey = (post?: Partial<Post> | null): string => {
+    if (!post) return '';
+    if (post.uri) return `uri:${post.uri}`;
+    if (post.tid) return `tid:${post.tid}`;
+    if (post.id) return `id:${post.id}`;
+    if (post.cid) return `cid:${post.cid}`;
+    return '';
+};
+
+const mergeUserSnapshot = (existingUser: any, incomingUser: any) => {
+    if (!existingUser) return incomingUser;
+    if (!incomingUser) return existingUser;
+
+    return {
+        ...existingUser,
+        ...incomingUser,
+        isFollowing: incomingUser.isFollowing ?? existingUser.isFollowing,
+        isFollowedBy: incomingUser.isFollowedBy ?? existingUser.isFollowedBy,
+        followingReference: incomingUser.followingReference ?? existingUser.followingReference,
+    };
+};
+
+const mergePostSnapshot = (existingPost: Post, incomingPost: Post): Post => ({
+    ...existingPost,
+    ...incomingPost,
+    author: incomingPost.author ? mergeUserSnapshot(existingPost.author, incomingPost.author) : existingPost.author,
+    repostedBy: incomingPost.repostedBy ? mergeUserSnapshot(existingPost.repostedBy, incomingPost.repostedBy) : existingPost.repostedBy,
+    quotePost: incomingPost.quotePost
+        ? existingPost.quotePost
+            ? mergePostSnapshot(existingPost.quotePost, incomingPost.quotePost)
+            : incomingPost.quotePost
+        : existingPost.quotePost,
+    parentPost: incomingPost.parentPost
+        ? existingPost.parentPost
+            ? mergePostSnapshot(existingPost.parentPost, incomingPost.parentPost)
+            : incomingPost.parentPost
+        : existingPost.parentPost,
+    images: incomingPost.images?.length ? incomingPost.images : existingPost.images,
+    imageUrls: incomingPost.imageUrls?.length ? incomingPost.imageUrls : existingPost.imageUrls,
+    media: incomingPost.media?.length ? incomingPost.media : existingPost.media,
+    video: incomingPost.video ?? existingPost.video,
+    videoUrl: incomingPost.videoUrl ?? existingPost.videoUrl,
+    linkPreview: incomingPost.linkPreview ?? existingPost.linkPreview,
+    likesCount: incomingPost.likesCount ?? existingPost.likesCount,
+    repostsCount: incomingPost.repostsCount ?? existingPost.repostsCount,
+    repliesCount: incomingPost.repliesCount ?? existingPost.repliesCount,
+    quotesCount: incomingPost.quotesCount ?? existingPost.quotesCount,
+    bookmarksCount: incomingPost.bookmarksCount ?? existingPost.bookmarksCount,
+    isLiked: incomingPost.isLiked ?? existingPost.isLiked,
+    isReposted: incomingPost.isReposted ?? existingPost.isReposted,
+    isBookmarked: incomingPost.isBookmarked ?? existingPost.isBookmarked,
+});
+
+const normalizeFeedPosts = (incoming: any[], existing: Post[] = []): Post[] => {
+    const byKey = new Map<string, Post>();
+
+    existing.forEach((post) => {
+        const key = getPostIdentityKey(post);
+        if (key) byKey.set(key, post);
+    });
+
+    incoming.map(mapAtProtoPostToPost).forEach((post) => {
+        const key = getPostIdentityKey(post);
+        if (!key) return;
+        const existingPost = byKey.get(key);
+        byKey.set(key, existingPost ? mergePostSnapshot(existingPost, post) : post);
+    });
+
+    return Array.from(byKey.values());
 };
 
 interface FeedsState {
@@ -387,7 +459,12 @@ export const fetchFeedPosts = createAsyncThunk<
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
-            return { feedId: data.feedId, posts: data.posts, isMore: data.hasMore };
+            const rawPosts = Array.isArray(data) ? data : (data.posts || []);
+            return {
+                feedId,
+                posts: rawPosts,
+                isMore: Array.isArray(data) ? rawPosts.length >= take : (data.hasMore ?? rawPosts.length >= take),
+            };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -654,11 +731,12 @@ const feedsSlice = createSlice({
                 const { feedId, posts, isMore } = action.payload;
                 state.isLoading = false;
                 state.feedLoading[feedId] = false;
+                const existingPosts = state.feedPosts[feedId] || [];
                 if (!state.feedPosts[feedId] || action.meta.arg.skip === 0) {
-                    state.feedPosts[feedId] = posts;
+                    state.feedPosts[feedId] = normalizeFeedPosts(posts || [], []);
                     state.feedLastFetch[feedId] = Date.now();
                 } else {
-                    state.feedPosts[feedId] = [...state.feedPosts[feedId], ...posts];
+                    state.feedPosts[feedId] = normalizeFeedPosts(posts || [], existingPosts);
                 }
                 state.feedHasMore[feedId] = isMore !== undefined ? isMore : posts.length > 0;
             })
@@ -715,6 +793,9 @@ const feedsSlice = createSlice({
                             if (payload.isLiked !== undefined) post.isLiked = payload.isLiked;
                             if (payload.isReposted !== undefined) post.isReposted = payload.isReposted;
                             if (payload.isBookmarked !== undefined) post.isBookmarked = payload.isBookmarked;
+                            if (payload.likesCount !== undefined) post.likesCount = payload.likesCount;
+                            if (payload.repostsCount !== undefined) post.repostsCount = payload.repostsCount;
+                            if (payload.bookmarksCount !== undefined) post.bookmarksCount = payload.bookmarksCount;
                             if (payload.likeUri !== undefined) {
                                 if (!post.viewer) post.viewer = {};
                                 post.viewer.like = payload.likeUri;
@@ -786,24 +867,32 @@ const feedsSlice = createSlice({
                         const posts = state.feedPosts[feedId];
                         const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                         if (post) {
-                            const isRemote = post.uri && !post.uri.includes('localhost') && !post.uri.includes('staging') && post.uri.includes('at://');
-                            if (likesCount !== undefined) {
-                                post.likesCount = isRemote ? Math.max(post.likesCount, likesCount) : likesCount;
-                            }
-                            if (repostsCount !== undefined) {
-                                post.repostsCount = isRemote ? Math.max(post.repostsCount, repostsCount) : repostsCount;
-                            }
-                            if (bookmarksCount !== undefined) {
-                                post.bookmarksCount = isRemote ? Math.max(post.bookmarksCount, bookmarksCount) : bookmarksCount;
-                            }
-                            if (repliesCount !== undefined) {
-                                post.repliesCount = isRemote ? Math.max(post.repliesCount, repliesCount) : repliesCount;
-                            }
-                            if (quotesCount !== undefined) {
-                                post.quotesCount = isRemote ? Math.max(post.quotesCount, quotesCount) : quotesCount;
-                            }
+                            if (likesCount !== undefined) post.likesCount = likesCount;
+                            if (repostsCount !== undefined) post.repostsCount = repostsCount;
+                            if (bookmarksCount !== undefined) post.bookmarksCount = bookmarksCount;
+                            if (repliesCount !== undefined) post.repliesCount = repliesCount;
+                            if (quotesCount !== undefined) post.quotesCount = quotesCount;
                             post.lastUpdated = timestamp || new Date().toISOString();
                         }
+                    });
+                }
+            )
+            .addMatcher(
+                (action) => action.type === 'posts/fetchPostById/fulfilled',
+                (state: FeedsState, action: any) => {
+                    const detailedPost = action.payload;
+                    if (!detailedPost) return;
+
+                    const normalizedPost = mapAtProtoPostToPost(detailedPost);
+                    const detailKey = getPostIdentityKey(normalizedPost);
+                    if (!detailKey) return;
+
+                    Object.keys(state.feedPosts).forEach(feedId => {
+                        state.feedPosts[feedId] = state.feedPosts[feedId].map((post) => {
+                            const key = getPostIdentityKey(post);
+                            if (key !== detailKey) return post;
+                            return mergePostSnapshot(post, normalizedPost);
+                        });
                     });
                 }
             )
@@ -847,5 +936,4 @@ const feedsSlice = createSlice({
 
 export const { setActiveFeed, setActiveTab, setPinnedFeedIds } = feedsSlice.actions;
 export default feedsSlice.reducer;
-
 

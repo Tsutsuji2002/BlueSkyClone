@@ -184,6 +184,7 @@ const FollowersPage: React.FC = () => {
                                 {(() => {
                                     const followActor = follower.did || follower.handle || follower.id;
                                     const isFollowing = !!follower.isFollowing;
+                                    const isFollowedBy = !!follower.isFollowedBy;
                                     const isFollowBusy = !!actionLoading[followActor] || !!actionLoading[follower.id];
 
                                     return (
@@ -236,7 +237,7 @@ const FollowersPage: React.FC = () => {
                                             ) : (
                                                 <>
                                                     <FiPlus size={16} />
-                                                    {t('profile.follow')}
+                                                    {isFollowedBy ? t('profile.follow_back', 'Follow back') : t('profile.follow')}
                                                 </>
                                             )}
                                         </Button>

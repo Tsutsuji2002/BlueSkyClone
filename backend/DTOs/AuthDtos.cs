@@ -78,6 +78,7 @@ public record MutedByListDto(Guid Id, string Name, string? Purpose);
  
 public record UserRelationshipStatusDto(
     bool IsFollowing,
+    bool IsFollowedBy,
     bool IsBlocking,
     bool IsBlockedBy,
     bool IsMuted,

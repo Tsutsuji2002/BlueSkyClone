@@ -25,7 +25,19 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
 
     // If it's already mapped (has content and createdAt at top level), return it
     if (atPost.content && atPost.createdAt && atPost.author?.id) {
-        return atPost as Post;
+        return {
+            ...atPost,
+            author: atPost.author
+                ? {
+                    ...atPost.author,
+                    isFollowedBy: atPost.author.isFollowedBy ?? false,
+                    labels: normalizeLabelValues(atPost.author.labels),
+                }
+                : atPost.author,
+            quotePost: atPost.quotePost ? mapAtProtoPostToPost(atPost.quotePost) : atPost.quotePost,
+            parentPost: atPost.parentPost ? mapAtProtoPostToPost(atPost.parentPost) : atPost.parentPost,
+            labels: normalizeLabelValues(atPost.labels),
+        } as Post;
     }
 
     const record = atPost.record || {};
@@ -40,6 +52,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         avatarUrl: atPost.author?.avatar,
         avatar: atPost.author?.avatar,
         isFollowing: Boolean(authorFollowingReference) || atPost.author?.isFollowing === true,
+        isFollowedBy: atPost.author?.viewer?.followedBy === true || !!atPost.author?.viewer?.followedBy || atPost.author?.isFollowedBy === true,
         followingReference: authorFollowingReference || undefined,
         isMuted: atPost.author?.viewer?.muted || atPost.author?.isMuted,
         isBlockedBy: atPost.author?.viewer?.blockedBy || atPost.author?.isBlockedBy,
@@ -54,6 +67,29 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
     let videoUrl: string | undefined = undefined;
     let video: PostVideo | undefined = undefined;
     let linkPreview: LinkPreview | undefined = undefined;
+    let quotePost: Post | undefined = undefined;
+
+    const extractQuotedPost = (value: any): Post | undefined => {
+        if (!value) return undefined;
+
+        if (value.$type === 'app.bsky.embed.recordWithMedia#view' && value.record) {
+            return extractQuotedPost(value.record);
+        }
+
+        if (value.$type === 'app.bsky.embed.record#view' && value.record) {
+            return extractQuotedPost(value.record);
+        }
+
+        if (value.record && !value.author && !value.uri) {
+            return extractQuotedPost(value.record);
+        }
+
+        if (value.author && value.uri) {
+            return mapAtProtoPostToPost(value);
+        }
+
+        return undefined;
+    };
 
     // Helper to extract media from an embed object
     const extractMedia = (e: any) => {
@@ -96,10 +132,15 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
             }
         } else if (type === 'app.bsky.embed.recordWithMedia#view' || e.media) {
             extractMedia(e.media);
+            quotePost = extractQuotedPost(e.record) || quotePost;
+        } else if (type === 'app.bsky.embed.record#view' || e.record) {
+            quotePost = extractQuotedPost(e.record) || quotePost;
         }
     };
 
     extractMedia(embed);
+    const quotePostRecord = quotePost as Post | undefined;
+    const quotePostId = quotePostRecord ? (quotePostRecord.uri || quotePostRecord.tid || quotePostRecord.id) : undefined;
 
     // Parse Threadgate/Postgate for restrictions
     let replyRestriction = atPost.replyRestriction;
@@ -148,6 +189,9 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         videoUrl,
         video,
         linkPreview,
+        quotePost,
+        quotePostId,
+        parentPost: atPost.parent ? mapAtProtoPostToPost(atPost.parent) : undefined,
         viewer: atPost.viewer,
         tid: atPost.uri?.split('/').pop(),
         replyToPostId: record.reply?.parent?.uri?.split('/').pop(),

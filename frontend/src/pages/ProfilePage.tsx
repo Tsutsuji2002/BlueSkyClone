@@ -506,7 +506,11 @@ const ProfilePage: React.FC = () => {
                                                 profileUser && (!!actionLoading[profileUser.did || profileUser.handle || profileUser.id] || !!actionLoading[profileUser.id]) && "opacity-80 animate-pulse"
                                             )}
                                         >
-                                            {profileUser?.isFollowing ? t('profile.following_btn') : t('profile.follow')}
+                                            {profileUser?.isFollowing
+                                                ? t('profile.following_btn')
+                                                : profileUser?.isFollowedBy
+                                                    ? t('profile.follow_back', 'Follow back')
+                                                    : t('profile.follow')}
                                         </Button>
                                     </>
                                 )}

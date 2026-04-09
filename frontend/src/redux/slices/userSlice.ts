@@ -161,7 +161,7 @@ export const searchUsers = createAsyncThunk<
 );
 
 export const fetchUserProfile = createAsyncThunk<
-    { user: User, isFollowing: boolean, isBlockedBy: boolean, isBlocking: boolean, isMuted: boolean },
+    { user: User, isFollowing: boolean, isFollowedBy: boolean, isBlockedBy: boolean, isBlocking: boolean, isMuted: boolean },
     string,
     { rejectValue: string }
 >(
@@ -203,6 +203,7 @@ export const fetchUserProfile = createAsyncThunk<
                 followingCount: u.followingCount || 0,
                 postsCount: u.postsCount || 0,
                 isFollowing: data.isFollowing,
+                isFollowedBy: data.isFollowedBy ?? u.isFollowedBy ?? false,
                 followingReference: u.followingReference,
                 isBlocking: data.isBlocking,
                 isBlockedBy: data.isBlockedBy,
@@ -214,6 +215,7 @@ export const fetchUserProfile = createAsyncThunk<
             return {
                 user,
                 isFollowing: data.isFollowing,
+                isFollowedBy: data.isFollowedBy ?? u.isFollowedBy ?? false,
                 isBlockedBy: data.isBlockedBy,
                 isBlocking: data.isBlocking,
                 isMuted: data.isMuted,
@@ -761,6 +763,7 @@ const userSlice = createSlice({
                 const updateAllLists = (u: User) => {
                     if (u.did === user.did || u.id === user.id) {
                         u.isFollowing = user.isFollowing;
+                        u.isFollowedBy = user.isFollowedBy;
                         u.isMuted = user.isMuted;
                         u.isBlocking = user.isBlocking;
                         u.isBlockedBy = user.isBlockedBy;
@@ -825,7 +828,7 @@ const userSlice = createSlice({
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isFollowing = true;
                     state.profile.followingReference = action.payload.uri || state.profile.followingReference;
-                    if (action.payload.followersCount > 0) {
+                    if (action.payload.followersCount !== undefined) {
                         state.profile.followersCount = action.payload.followersCount;
                     }
                 }
@@ -902,7 +905,7 @@ const userSlice = createSlice({
                 if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isFollowing = false;
                     state.profile.followingReference = undefined;
-                    if (action.payload.followersCount > 0) {
+                    if (action.payload.followersCount !== undefined) {
                         state.profile.followersCount = action.payload.followersCount;
                     }
                 }

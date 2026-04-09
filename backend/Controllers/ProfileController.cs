@@ -84,19 +84,19 @@ public class ProfileController : ControllerBase
         }
 
         bool isFollowing = false;
+        bool isFollowedBy = false;
         bool isBlockedBy = false;
         bool isBlocking = false;
         bool isMuted = false;
-        bool isFollowedBy = false;
 
         MutedByListDto? mutedBy = null;
         if (Guid.TryParse(currentUserIdString, out var currentUserId))
         {
             isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
             isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
+            isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId);
             isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
             isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
-            isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId);
             
             if (isMuted)
             {
@@ -212,6 +212,7 @@ public class ProfileController : ControllerBase
         }
 
         bool isFollowing = false;
+        bool isFollowedBy = false;
         bool isBlockedBy = false;
         bool isBlocking = false;
         bool isMuted = false;
@@ -221,6 +222,7 @@ public class ProfileController : ControllerBase
         {
             isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
             isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
+            isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId);
             isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
             isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
 
@@ -258,6 +260,7 @@ public class ProfileController : ControllerBase
         )
         {
             IsFollowing = isFollowing,
+            IsFollowedBy = isFollowedBy,
             IsBlocking = isBlocking,
             IsBlockedBy = isBlockedBy,
             IsMuted = isMuted,
@@ -269,6 +272,7 @@ public class ProfileController : ControllerBase
         return Ok(new { 
             user = userDto,
             isFollowing,
+            isFollowedBy,
             isBlockedBy,
             isBlocking,
             isMuted
@@ -396,18 +400,15 @@ public class ProfileController : ControllerBase
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
             var targetUser = await ResolveUserAsync(userId, currentUserId);
-            if (targetUser == null)
-            {
-                return NotFound("User not found");
-            }
-
-            var isRemoteAtProto = !string.IsNullOrWhiteSpace(targetUser.Did) &&
-                !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+            var isRemoteAtProto = targetUser != null &&
+                                  !string.IsNullOrWhiteSpace(targetUser.Did) &&
+                                  !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
 
             if (isRemoteAtProto)
             {
-                var (remoteUsers, remoteCursor) = await _userService.GetRemoteFollowersDtosAsync(targetUser.Did!, limit, cursor, currentUserId);
-                return Ok(new { followers = remoteUsers, cursor = remoteCursor });
+                var remoteActor = targetUser.Did ?? targetUser.Handle ?? userId;
+                var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowersDtosAsync(remoteActor, limit, cursor, currentUserId);
+                return Ok(new { followers = remoteDtos, cursor = remoteNextCursor });
             }
 
             var (users, nextCursor) = await _userService.GetFollowersAsync(userId, limit, cursor, currentUserId);
@@ -416,7 +417,7 @@ public class ProfileController : ControllerBase
             try
             {
                 interactionStatuses = currentUserId.HasValue
-                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: true)
+                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: false)
                     : new Dictionary<Guid, UserRelationshipStatusDto>();
             }
             catch (Exception)
@@ -433,7 +434,7 @@ public class ProfileController : ControllerBase
             }
             return Ok(new { followers = dtos, cursor = nextCursor });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             return Ok(new { followers = new List<object>(), cursor = (string?)null });
         }
@@ -449,26 +450,20 @@ public class ProfileController : ControllerBase
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
             User? targetUser = await ResolveUserAsync(userId, currentUserId);
-            if (targetUser == null)
-            {
-                return NotFound("User not found");
-            }
-
             bool isOwnProfile = targetUser != null && currentUserId.HasValue && targetUser.Id == currentUserId.Value;
-            var isRemoteAtProto = !string.IsNullOrWhiteSpace(targetUser.Did) &&
-                !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+            var isRemoteAtProto = targetUser != null &&
+                                  !string.IsNullOrWhiteSpace(targetUser.Did) &&
+                                  !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
 
             if (isRemoteAtProto)
             {
-                var (remoteUsers, remoteCursor) = await _userService.GetRemoteFollowingDtosAsync(targetUser.Did!, limit, cursor, currentUserId);
+                var remoteActor = targetUser.Did ?? targetUser.Handle ?? userId;
+                var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowingDtosAsync(remoteActor, limit, cursor, currentUserId);
                 if (isOwnProfile)
                 {
-                    remoteUsers = remoteUsers
-                        .Select(dto => dto with { IsFollowing = true })
-                        .ToList();
+                    remoteDtos = remoteDtos.Select(dto => dto with { IsFollowing = true }).ToList();
                 }
-
-                return Ok(new { following = remoteUsers, cursor = remoteCursor });
+                return Ok(new { following = remoteDtos, cursor = remoteNextCursor });
             }
 
             var (users, nextCursor) = await _userService.GetFollowingAsync(userId, limit, cursor, currentUserId);
@@ -477,7 +472,7 @@ public class ProfileController : ControllerBase
             try
             {
                 interactionStatuses = currentUserId.HasValue
-                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: true)
+                    ? await _userService.GetInteractionStatusesAsync(currentUserId.Value, users.Where(u => u != null).Select(u => u.Id), refreshRemote: false)
                     : new Dictionary<Guid, UserRelationshipStatusDto>();
             }
             catch (Exception)
@@ -501,7 +496,7 @@ public class ProfileController : ControllerBase
 
             return Ok(new { following = dtos, cursor = nextCursor });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             return Ok(new { following = new List<object>(), cursor = (string?)null });
         }
@@ -574,6 +569,7 @@ public class ProfileController : ControllerBase
             return dto with
             {
                 IsFollowing = status.IsFollowing,
+                IsFollowedBy = status.IsFollowedBy,
                 IsBlocking = status.IsBlocking,
                 IsBlockedBy = status.IsBlockedBy,
                 IsMuted = status.IsMuted,

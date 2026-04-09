@@ -641,14 +641,12 @@ public class UserService : IUserService
 
     public async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowingDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
     {
-        var (users, nextCursor) = await GetFollowingAsync(actor, limit, cursor, viewerId);
-        return (await MapUsersToDtosAsync(users, viewerId), nextCursor);
+        return await GetRemoteGraphDtosAsync(actor, limit, cursor, viewerId, "app.bsky.graph.getFollows", "follows");
     }
 
     public async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowersDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
     {
-        var (users, nextCursor) = await GetFollowersAsync(actor, limit, cursor, viewerId);
-        return (await MapUsersToDtosAsync(users, viewerId), nextCursor);
+        return await GetRemoteGraphDtosAsync(actor, limit, cursor, viewerId, "app.bsky.graph.getFollowers", "followers");
     }
 
     private async Task<List<UserDto>> MapUsersToDtosAsync(List<User> users, Guid? viewerId)
@@ -684,12 +682,171 @@ public class UserService : IUserService
             )
             {
                 IsFollowing = status?.IsFollowing,
+                IsFollowedBy = status?.IsFollowedBy,
                 IsBlocking = status?.IsBlocking,
                 IsBlockedBy = status?.IsBlockedBy,
                 BlockingReference = status?.BlockingReference,
                 IsMuted = status?.IsMuted,
             };
         }).ToList();
+    }
+
+    private async Task<(List<UserDto> Users, string? Cursor)> GetRemoteGraphDtosAsync(
+        string actor,
+        int limit,
+        string? cursor,
+        Guid? viewerId,
+        string endpoint,
+        string arrayProperty)
+    {
+        var targetUser = await ResolveRemoteProfileAsync(actor, viewerId: viewerId)
+            ?? await GetUserByHandleAsync(actor)
+            ?? await GetUserByDidAsync(actor);
+
+        var targetDid = targetUser?.Did ?? actor;
+        if (string.IsNullOrWhiteSpace(targetDid))
+        {
+            return (new List<UserDto>(), null);
+        }
+
+        async Task<HttpResponseMessage?> SendRequestAsync(string baseApiUrl, string? token)
+        {
+            var url = $"{baseApiUrl}/xrpc/{endpoint}?actor={Uri.EscapeDataString(targetDid)}&limit={limit}";
+            if (!string.IsNullOrWhiteSpace(cursor))
+            {
+                url += $"&cursor={Uri.EscapeDataString(cursor)}";
+            }
+
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+
+            return await client.GetAsync(url);
+        }
+
+        var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
+        var response = await SendRequestAsync("https://api.bsky.app", token);
+
+        if ((response == null || !response.IsSuccessStatusCode) && !string.IsNullOrWhiteSpace(token))
+        {
+            response = await SendRequestAsync("https://public.api.bsky.app", null);
+        }
+
+        if (response == null || !response.IsSuccessStatusCode)
+        {
+            return (new List<UserDto>(), null);
+        }
+
+        var content = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(content);
+        if (!doc.RootElement.TryGetProperty(arrayProperty, out var actorsProp) || actorsProp.ValueKind != JsonValueKind.Array)
+        {
+            return (new List<UserDto>(), null);
+        }
+
+        var nextCursor = doc.RootElement.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
+        var actorEntries = actorsProp.EnumerateArray().ToList();
+        var actorDids = actorEntries
+            .Where(actorEntry => actorEntry.TryGetProperty("did", out var didProp) && !string.IsNullOrWhiteSpace(didProp.GetString()))
+            .Select(actorEntry => actorEntry.GetProperty("did").GetString()!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (actorDids.Count > 0)
+        {
+            await MergeDuplicateUsersBatchAsync(actorDids);
+        }
+
+        var users = new List<User>();
+        var statuses = new Dictionary<Guid, UserRelationshipStatusDto>();
+        var stubCache = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var actorEntry in actorEntries)
+        {
+            try
+            {
+                var user = await ResolveStubRemoteProfileAsync(actorEntry, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                if (user == null)
+                {
+                    continue;
+                }
+
+                users.Add(user);
+
+                if (actorEntry.TryGetProperty("viewer", out var viewerProp) && viewerProp.ValueKind == JsonValueKind.Object)
+                {
+                    statuses[user.Id] = BuildInteractionStatusFromViewer(viewerProp);
+                }
+            }
+            catch (Exception ex)
+            {
+                var actorDid = actorEntry.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+                _logger.LogWarning(ex, "Skipping remote graph actor {Did} while loading {Endpoint} for {TargetDid}", actorDid, endpoint, targetDid);
+            }
+        }
+
+        if (viewerId.HasValue)
+        {
+            var remoteStatuses = await FetchRemoteInteractionStatusesAsync(viewerId.Value, users);
+            foreach (var entry in remoteStatuses)
+            {
+                statuses[entry.Key] = entry.Value;
+            }
+
+            var missingIds = users
+                .Where(user => !statuses.ContainsKey(user.Id))
+                .Select(user => user.Id)
+                .Distinct()
+                .ToList();
+
+            if (missingIds.Count > 0)
+            {
+                var fallbackStatuses = await GetInteractionStatusesAsync(viewerId.Value, missingIds, refreshRemote: false);
+                foreach (var entry in fallbackStatuses)
+                {
+                    statuses[entry.Key] = entry.Value;
+                }
+            }
+        }
+
+        await _unitOfWork.CompleteAsync();
+
+        return (users.Select(user =>
+        {
+            statuses.TryGetValue(user.Id, out var status);
+            return new UserDto(
+                user.Id,
+                user.Username,
+                user.Handle,
+                user.Email,
+                user.DisplayName,
+                user.AvatarUrl,
+                user.CoverImageUrl,
+                user.Bio,
+                user.Location,
+                user.Website,
+                user.DateOfBirth,
+                user.FollowersCount,
+                user.FollowingCount,
+                user.PostsCount,
+                user.Role,
+                null,
+                user.IsVerified,
+                user.Did,
+                status?.FollowingReference
+            )
+            {
+                IsFollowing = status?.IsFollowing,
+                IsFollowedBy = status?.IsFollowedBy,
+                IsBlocking = status?.IsBlocking,
+                IsBlockedBy = status?.IsBlockedBy,
+                IsMuted = status?.IsMuted,
+                BlockingReference = status?.BlockingReference,
+            };
+        }).ToList(), nextCursor);
     }
 
     private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowingAsync(string did, int limit, string? cursor, Guid? viewerId = null)
@@ -1604,7 +1761,13 @@ public class UserService : IUserService
             .Select(b => b.UserId)
             .ToListAsync();
 
-        // 4. Fetch Mutes (viewer mutes target)
+        // 4. Fetch FollowedBy (target follows viewer)
+        var followedBy = await _unitOfWork.Follows.Query()
+            .Where(f => f.FollowingId == viewerId && targetIdList.Contains(f.FollowerId))
+            .Select(f => f.FollowerId)
+            .ToListAsync();
+
+        // 5. Fetch Mutes (viewer mutes target)
         var mutes = await _unitOfWork.Mutes.Query()
             .Where(m => m.UserId == viewerId && targetIdList.Contains(m.MutedUserId))
             .Select(m => m.MutedUserId)
@@ -1615,6 +1778,7 @@ public class UserService : IUserService
         {
             var dbStatus = new UserRelationshipStatusDto(
                 IsFollowing: followsMap.ContainsKey(id),
+                IsFollowedBy: followedBy.Contains(id),
                 IsBlocking: blockingMap.ContainsKey(id),
                 IsBlockedBy: blockedBy.Contains(id),
                 IsMuted: mutes.Contains(id),
@@ -1690,7 +1854,6 @@ public class UserService : IUserService
 
                     if (!profile.TryGetProperty("viewer", out var viewerProp))
                     {
-                        result[targetUser.Id] = new UserRelationshipStatusDto(false, false, false, false, null, null);
                         continue;
                     }
 
@@ -1718,6 +1881,7 @@ public class UserService : IUserService
         string? followingReference = null;
         string? blockingReference = null;
         var isFollowing = false;
+        var isFollowedBy = false;
         var isBlocking = false;
         var isBlockedBy = false;
         var isMuted = false;
@@ -1736,6 +1900,18 @@ public class UserService : IUserService
                 isBlocking = !string.IsNullOrWhiteSpace(blockingReference);
             }
 
+            if (viewerProp.TryGetProperty("followedBy", out var followedByProp))
+            {
+                if (followedByProp.ValueKind == JsonValueKind.True)
+                {
+                    isFollowedBy = true;
+                }
+                else if (followedByProp.ValueKind == JsonValueKind.String)
+                {
+                    isFollowedBy = !string.IsNullOrWhiteSpace(followedByProp.GetString());
+                }
+            }
+
             if (viewerProp.TryGetProperty("blockedBy", out var blockedByProp) && blockedByProp.ValueKind == JsonValueKind.True)
             {
                 isBlockedBy = true;
@@ -1749,6 +1925,7 @@ public class UserService : IUserService
 
         return new UserRelationshipStatusDto(
             IsFollowing: isFollowing,
+            IsFollowedBy: isFollowedBy,
             IsBlocking: isBlocking,
             IsBlockedBy: isBlockedBy,
             IsMuted: isMuted,

@@ -308,7 +308,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                                 ) : (
                                     <>
                                         <FiUserPlus size={14} />
-                                        <span>Follow</span>
+                                        <span>{isFollowedBy ? 'Follow back' : 'Follow'}</span>
                                     </>
                                 )}
                             </button>

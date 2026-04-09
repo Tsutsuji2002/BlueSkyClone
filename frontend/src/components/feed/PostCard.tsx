@@ -553,12 +553,6 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                         return null;
                                     })()}
 
-                                    {post.quotePost && (
-                                        <div onClick={(e) => e.stopPropagation()}>
-                                            <QuotedPost post={post.quotePost} />
-                                        </div>
-                                    )}
-
                                     {/* Media */}
                                     <div className="mb-3">
                                         <MediaGrid
@@ -572,6 +566,12 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                             }}
                                         />
                                     </div>
+
+                                    {post.quotePost && (
+                                        <div onClick={(e) => e.stopPropagation()}>
+                                            <QuotedPost post={post.quotePost} />
+                                        </div>
+                                    )}
                                 </>
                             );
                         })()}

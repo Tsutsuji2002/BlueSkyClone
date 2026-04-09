@@ -55,6 +55,7 @@ const mergeUserSnapshot = (existingUser: any, incomingUser: any) => {
         ...existingUser,
         ...incomingUser,
         isFollowing: incomingUser.isFollowing ?? existingUser.isFollowing,
+        isFollowedBy: incomingUser.isFollowedBy ?? existingUser.isFollowedBy,
         followingReference: incomingUser.followingReference ?? existingUser.followingReference,
     };
 };
@@ -620,23 +621,12 @@ const postsSlice = createSlice({
             const updateInArray = (arr: Post[]) => {
                 const post = arr.find((p: Post) => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                 if (post) {
-                    const isRemote = post.uri && !post.uri.includes('localhost') && !post.uri.includes('staging') && post.uri.includes('at://');
-                    if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
-                        if (stats.likesCount !== undefined) {
-                            post.likesCount = isRemote ? Math.max(post.likesCount, stats.likesCount) : stats.likesCount;
-                        }
-                        if (stats.repostsCount !== undefined) {
-                            post.repostsCount = isRemote ? Math.max(post.repostsCount, stats.repostsCount) : stats.repostsCount;
-                        }
-                        if (stats.bookmarksCount !== undefined) {
-                            post.bookmarksCount = isRemote ? Math.max(post.bookmarksCount, stats.bookmarksCount) : stats.bookmarksCount;
-                        }
-                        if (stats.repliesCount !== undefined) {
-                            post.repliesCount = isRemote ? Math.max(post.repliesCount, stats.repliesCount) : stats.repliesCount;
-                        }
-                        if (stats.quotesCount !== undefined) {
-                            post.quotesCount = isRemote ? Math.max(post.quotesCount, stats.quotesCount) : stats.quotesCount;
-                        }
+                        if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
+                        if (stats.likesCount !== undefined) post.likesCount = stats.likesCount;
+                        if (stats.repostsCount !== undefined) post.repostsCount = stats.repostsCount;
+                        if (stats.bookmarksCount !== undefined) post.bookmarksCount = stats.bookmarksCount;
+                        if (stats.repliesCount !== undefined) post.repliesCount = stats.repliesCount;
+                        if (stats.quotesCount !== undefined) post.quotesCount = stats.quotesCount;
                         if (timestamp) post.lastUpdated = timestamp;
                     }
                 }
@@ -886,10 +876,7 @@ const postsSlice = createSlice({
                     const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         post.isLiked = action.payload.isLiked;
-                        // Sync authoritative count from backend
-                        if (action.payload.likesCount !== undefined) {
-                            post.likesCount = Math.max(post.likesCount, action.payload.likesCount);
-                        }
+                        if (action.payload.likesCount !== undefined) post.likesCount = action.payload.likesCount;
                         if (!post.viewer) post.viewer = {};
                         post.viewer.like = action.payload.likeUri;
                         post.lastUpdated = new Date().toISOString();
@@ -947,10 +934,7 @@ const postsSlice = createSlice({
                     const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
                     if (post) {
                         post.isReposted = action.payload.isReposted;
-                        // Sync authoritative count from backend
-                        if (action.payload.repostsCount !== undefined) {
-                            post.repostsCount = Math.max(post.repostsCount, action.payload.repostsCount);
-                        }
+                        if (action.payload.repostsCount !== undefined) post.repostsCount = action.payload.repostsCount;
                         if (!post.viewer) post.viewer = {};
                         post.viewer.repost = action.payload.repostUri;
                         post.lastUpdated = new Date().toISOString();
