@@ -98,15 +98,16 @@ namespace BSkyClone.Services
 
                 // 3. Prepare the request
                 var request = new HttpRequestMessage(new HttpMethod(method), finalUrl);
+                // Hoist dpopKey outside the token block so it is accessible in nonce-retry logic below
+                string? dpopKey = (!string.IsNullOrEmpty(token) && userId.HasValue)
+                    ? await _cache.GetStringAsync($"BlueskyDPoPKey_{userId}")
+                    : null;
                 
                 if (!string.IsNullOrEmpty(token))
                 {
-                    // Check if we need DPoP
-                    string? dpopKey = userId.HasValue ? await _cache.GetStringAsync($"BlueskyDPoPKey_{userId}") : null;
-
                     if (!string.IsNullOrEmpty(dpopKey))
                     {
-                        var proof = CreateDPoPProof(method, htu, dpopKey);
+                        var proof = CreateDPoPProof(method, htu, dpopKey, accessToken: token);
                         request.Headers.Add("DPoP", proof);
                         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("DPoP", token);
                         _logger.LogInformation("[XrpcProxy] Using DPoP for request to {Url}", finalUrl);
@@ -134,11 +135,29 @@ namespace BSkyClone.Services
                 {
                     _logger.LogWarning("[XrpcProxy] Remote error {Status} for {Url}: {Content}", response.StatusCode, finalUrl, content);
                     
-                    // Handle DPoP Nonce Error
-                    if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && content.Contains("use_dpop_nonce"))
+                    // Handle DPoP Nonce Error — retry once with the server-provided nonce (RFC 9449 §4.3)
+                    if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(dpopKey) &&
+                        (response.StatusCode == System.Net.HttpStatusCode.BadRequest || response.StatusCode == System.Net.HttpStatusCode.Unauthorized) &&
+                        content.Contains("use_dpop_nonce") &&
+                        response.Headers.TryGetValues("DPoP-Nonce", out var nonceValues))
                     {
-                         // In a real app, we'd retry with the provided nonce. For simplicity in this fix, 
-                         // we log it and return. Usually nonces are required for mutations, not GETs like GetTimeline.
+                        var nonce = nonceValues.First();
+                        _logger.LogInformation("[XrpcProxy] Retrying with DPoP-Nonce for {Url}", finalUrl);
+                        var retryRequest = new HttpRequestMessage(new HttpMethod(method), finalUrl);
+                        var retryProof = CreateDPoPProof(method, htu, dpopKey!, nonce: nonce, accessToken: token);
+                        retryRequest.Headers.Add("DPoP", retryProof);
+                        retryRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("DPoP", token);
+                        if (method.Equals("POST", StringComparison.OrdinalIgnoreCase) && body != null)
+                        {
+                            var json2 = System.Text.Json.JsonSerializer.Serialize(body);
+                            retryRequest.Content = new StringContent(json2, System.Text.Encoding.UTF8, "application/json");
+                        }
+                        var retryClientReq = _httpClientFactory.CreateClient();
+                        retryClientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                        response = await retryClientReq.SendAsync(retryRequest);
+                        content = await response.Content.ReadAsStringAsync();
+                        if (!response.IsSuccessStatusCode)
+                            _logger.LogWarning("[XrpcProxy] Retry also failed {Status}: {Content}", response.StatusCode, content);
                     }
                 }
  
@@ -194,7 +213,7 @@ namespace BSkyClone.Services
 
                     if (!string.IsNullOrEmpty(dpopKey))
                     {
-                        var proof = CreateDPoPProof(method, htu, dpopKey);
+                        var proof = CreateDPoPProof(method, htu, dpopKey, accessToken: token);
                         request.Headers.Add("DPoP", proof);
                         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("DPoP", token);
                     }
@@ -276,7 +295,7 @@ namespace BSkyClone.Services
             }
         }
 
-        private string CreateDPoPProof(string method, string url, string privateKeyBase64, string? nonce = null)
+        private string CreateDPoPProof(string method, string url, string privateKeyBase64, string? nonce = null, string? accessToken = null)
         {
             using var ecKey = ECDsa.Create();
             ecKey.ImportPkcs8PrivateKey(Convert.FromBase64String(privateKeyBase64), out _);
@@ -295,6 +314,13 @@ namespace BSkyClone.Services
                 { "iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds() }
             };
             if (nonce != null) payload["nonce"] = nonce;
+            // RFC 9449 §4.2: include ath (access token hash) when presenting a DPoP-bound access token
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                var tokenBytes = Encoding.ASCII.GetBytes(accessToken);
+                var hashBytes = SHA256.HashData(tokenBytes);
+                payload["ath"] = Base64UrlEncode(hashBytes);
+            }
 
             string headerJson = JsonSerializer.Serialize(header);
             string payloadJson = JsonSerializer.Serialize(payload);

@@ -108,10 +108,14 @@ public class PostService : IPostService
                 if (doc.RootElement.TryGetProperty("feed", out var feedArray))
                     mappedPosts = MapBlueskyFeed(feedArray);
 
-                await _distributedCache.SetStringAsync(cacheKey,
-                    System.Text.Json.JsonSerializer.Serialize(mappedPosts),
-                    new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
-                    { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                // Only cache non-empty results to avoid serving stale empty responses
+                if (mappedPosts.Count > 0)
+                {
+                    await _distributedCache.SetStringAsync(cacheKey,
+                        System.Text.Json.JsonSerializer.Serialize(mappedPosts),
+                        new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
+                        { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                }
             }
             
             var paginated = mappedPosts.Skip(skip).Take(take).ToList();
