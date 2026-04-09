@@ -632,6 +632,27 @@ const PostDetailPage: React.FC = () => {
 
                     return (
                         <>
+                            {(post.isReposted || post.repostedBy) && (
+                                <div
+                                    className="flex items-center gap-2 mb-3 text-[13px] text-gray-500 dark:text-dark-text-secondary font-semibold"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const handle = post.repostedBy?.handle || currentUser?.handle;
+                                        if (handle) {
+                                            navigate(`/profile/${handle}`);
+                                        }
+                                    }}
+                                >
+                                    <FiRepeat size={14} className={post.isReposted ? 'text-green-500' : 'text-gray-500'} />
+                                    <span className="truncate">
+                                        {post.repostedBy
+                                            ? ((post.repostedBy.did !== currentUser?.did && post.repostedBy.handle !== currentUser?.handle)
+                                                ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle || 'Unknown' })
+                                                : t('post.reposted_by_you', 'Reposted by you'))
+                                            : (post.isReposted ? t('post.reposted_by_you', 'Reposted by you') : t('post.reposted', 'Reposted'))}
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex justify-between items-start">
                                 <div className="flex gap-3 mb-4 min-w-0">
                                     <div className="flex-shrink-0 relative flex flex-col items-center">

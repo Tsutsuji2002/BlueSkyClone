@@ -728,11 +728,11 @@ public class UserService : IUserService
         }
 
         var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-        var response = await SendRequestAsync("https://api.bsky.app", token);
+        var response = await SendRequestAsync("https://public.api.bsky.app", null);
 
         if ((response == null || !response.IsSuccessStatusCode) && !string.IsNullOrWhiteSpace(token))
         {
-            response = await SendRequestAsync("https://public.api.bsky.app", null);
+            response = await SendRequestAsync("https://api.bsky.app", token);
         }
 
         if (response == null || !response.IsSuccessStatusCode)
@@ -761,92 +761,249 @@ public class UserService : IUserService
         }
 
         var users = new List<User>();
-        var statuses = new Dictionary<Guid, UserRelationshipStatusDto>();
+        var dtos = new List<UserDto>();
+        var statusesByDid = new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
         var stubCache = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+
+        if (viewerId.HasValue && actorDids.Count > 0)
+        {
+            statusesByDid = await FetchRemoteInteractionStatusesByDidAsync(viewerId.Value, actorDids);
+        }
 
         foreach (var actorEntry in actorEntries)
         {
             try
             {
-                var user = await ResolveStubRemoteProfileAsync(actorEntry, stubCache, viewerId: viewerId, mergeDuplicates: false);
-                if (user == null)
+                var actorDid = actorEntry.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+                if (string.IsNullOrWhiteSpace(actorDid))
                 {
                     continue;
                 }
 
-                users.Add(user);
-
+                UserRelationshipStatusDto? status = null;
                 if (actorEntry.TryGetProperty("viewer", out var viewerProp) && viewerProp.ValueKind == JsonValueKind.Object)
                 {
-                    statuses[user.Id] = BuildInteractionStatusFromViewer(viewerProp);
+                    status = BuildInteractionStatusFromViewer(viewerProp);
                 }
+                else if (statusesByDid.TryGetValue(actorDid, out var fetchedStatus))
+                {
+                    status = fetchedStatus;
+                }
+
+                var user = await ResolveStubRemoteProfileAsync(actorEntry, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                if (user == null)
+                {
+                    dtos.Add(BuildRemoteGraphUserDto(actorEntry, status));
+                    continue;
+                }
+
+                users.Add(user);
+                dtos.Add(BuildRemoteGraphUserDto(user, actorEntry, status));
             }
             catch (Exception ex)
             {
                 var actorDid = actorEntry.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
                 _logger.LogWarning(ex, "Skipping remote graph actor {Did} while loading {Endpoint} for {TargetDid}", actorDid, endpoint, targetDid);
-            }
-        }
-
-        if (viewerId.HasValue)
-        {
-            var remoteStatuses = await FetchRemoteInteractionStatusesAsync(viewerId.Value, users);
-            foreach (var entry in remoteStatuses)
-            {
-                statuses[entry.Key] = entry.Value;
-            }
-
-            var missingIds = users
-                .Where(user => !statuses.ContainsKey(user.Id))
-                .Select(user => user.Id)
-                .Distinct()
-                .ToList();
-
-            if (missingIds.Count > 0)
-            {
-                var fallbackStatuses = await GetInteractionStatusesAsync(viewerId.Value, missingIds, refreshRemote: false);
-                foreach (var entry in fallbackStatuses)
+                try
                 {
-                    statuses[entry.Key] = entry.Value;
+                    var actorDidFallback = actorEntry.TryGetProperty("did", out var didFallbackProp) ? didFallbackProp.GetString() : null;
+                    if (!string.IsNullOrWhiteSpace(actorDidFallback))
+                    {
+                        statusesByDid.TryGetValue(actorDidFallback, out var fallbackStatus);
+                        dtos.Add(BuildRemoteGraphUserDto(actorEntry, fallbackStatus));
+                    }
+                }
+                catch
+                {
+                    // Ignore fallback DTO creation failures and keep the rest of the list.
                 }
             }
         }
 
         await _unitOfWork.CompleteAsync();
 
-        return (users.Select(user =>
+        return (dtos, nextCursor);
+    }
+
+    private async Task<Dictionary<string, UserRelationshipStatusDto>> FetchRemoteInteractionStatusesByDidAsync(Guid viewerId, IEnumerable<string> dids)
+    {
+        var normalizedDids = dids
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!normalizedDids.Any())
         {
-            statuses.TryGetValue(user.Id, out var status);
-            return new UserDto(
-                user.Id,
-                user.Username,
-                user.Handle,
-                user.Email,
-                user.DisplayName,
-                user.AvatarUrl,
-                user.CoverImageUrl,
-                user.Bio,
-                user.Location,
-                user.Website,
-                user.DateOfBirth,
-                user.FollowersCount,
-                user.FollowingCount,
-                user.PostsCount,
-                user.Role,
-                null,
-                user.IsVerified,
-                user.Did,
-                status?.FollowingReference
-            )
+            return new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var token = await GetOrRefreshBlueskyTokenAsync(viewerId);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        using var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var result = new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var batch in normalizedDids.Chunk(25))
+        {
+            var url = "https://api.bsky.app/xrpc/app.bsky.actor.getProfiles?" + string.Join("&", batch.Select(d => $"actors={Uri.EscapeDataString(d)}"));
+
+            try
             {
-                IsFollowing = status?.IsFollowing,
-                IsFollowedBy = status?.IsFollowedBy,
-                IsBlocking = status?.IsBlocking,
-                IsBlockedBy = status?.IsBlockedBy,
-                IsMuted = status?.IsMuted,
-                BlockingReference = status?.BlockingReference,
-            };
-        }).ToList(), nextCursor);
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                if (!doc.RootElement.TryGetProperty("profiles", out var profilesProp) || profilesProp.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var profile in profilesProp.EnumerateArray())
+                {
+                    if (!profile.TryGetProperty("did", out var didProp))
+                    {
+                        continue;
+                    }
+
+                    var did = didProp.GetString();
+                    if (string.IsNullOrWhiteSpace(did))
+                    {
+                        continue;
+                    }
+
+                    if (profile.TryGetProperty("viewer", out var viewerProp) && viewerProp.ValueKind == JsonValueKind.Object)
+                    {
+                        result[did] = BuildInteractionStatusFromViewer(viewerProp);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[FetchRemoteInteractionStatusesByDidAsync] Failed to fetch viewer statuses for viewer {ViewerId}", viewerId);
+            }
+        }
+
+        return result;
+    }
+
+    private static UserDto BuildRemoteGraphUserDto(User user, JsonElement actorEntry, UserRelationshipStatusDto? status)
+    {
+        var handle = actorEntry.TryGetProperty("handle", out var handleProp) ? handleProp.GetString() : user.Handle;
+        var displayName = actorEntry.TryGetProperty("displayName", out var displayNameProp) ? displayNameProp.GetString() : user.DisplayName;
+        var avatar = actorEntry.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : user.AvatarUrl;
+        var description = actorEntry.TryGetProperty("description", out var descriptionProp) ? descriptionProp.GetString() : user.Bio;
+        var followersCount = TryGetActorCount(actorEntry, "followersCount") ?? user.FollowersCount;
+        var followingCount = TryGetActorCount(actorEntry, "followsCount") ?? TryGetActorCount(actorEntry, "followingCount") ?? user.FollowingCount;
+        var postsCount = TryGetActorCount(actorEntry, "postsCount") ?? user.PostsCount;
+        var isVerified = actorEntry.TryGetProperty("associated", out var associatedProp)
+            ? associatedProp.ValueKind == JsonValueKind.Object
+            : user.IsVerified;
+
+        return new UserDto(
+            user.Id,
+            user.Username,
+            handle ?? user.Handle ?? user.Username,
+            user.Email,
+            displayName ?? user.DisplayName,
+            avatar ?? user.AvatarUrl,
+            user.CoverImageUrl,
+            description ?? user.Bio,
+            user.Location,
+            user.Website,
+            user.DateOfBirth,
+            followersCount,
+            followingCount,
+            postsCount,
+            user.Role,
+            null,
+            isVerified,
+            user.Did,
+            status?.FollowingReference
+        )
+        {
+            IsFollowing = status?.IsFollowing,
+            IsFollowedBy = status?.IsFollowedBy,
+            IsBlocking = status?.IsBlocking,
+            IsBlockedBy = status?.IsBlockedBy,
+            IsMuted = status?.IsMuted,
+            BlockingReference = status?.BlockingReference,
+        };
+    }
+
+    private static UserDto BuildRemoteGraphUserDto(JsonElement actorEntry, UserRelationshipStatusDto? status)
+    {
+        var did = actorEntry.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+        var handle = actorEntry.TryGetProperty("handle", out var handleProp) ? handleProp.GetString() : null;
+        var displayName = actorEntry.TryGetProperty("displayName", out var displayNameProp) ? displayNameProp.GetString() : null;
+        var avatar = actorEntry.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null;
+        var description = actorEntry.TryGetProperty("description", out var descriptionProp) ? descriptionProp.GetString() : null;
+        var followersCount = TryGetActorCount(actorEntry, "followersCount");
+        var followingCount = TryGetActorCount(actorEntry, "followsCount") ?? TryGetActorCount(actorEntry, "followingCount");
+        var postsCount = TryGetActorCount(actorEntry, "postsCount");
+        var username = !string.IsNullOrWhiteSpace(handle) ? handle.Split('.')[0] : (did ?? Guid.NewGuid().ToString("N"));
+        var stableIdSource = did ?? handle ?? username;
+
+        return new UserDto(
+            CreateDeterministicGuid(stableIdSource),
+            username,
+            handle ?? username,
+            $"{stableIdSource}@remote.bsky.social",
+            displayName ?? handle ?? username,
+            avatar,
+            null,
+            description,
+            null,
+            null,
+            null,
+            followersCount,
+            followingCount,
+            postsCount,
+            "user",
+            null,
+            actorEntry.TryGetProperty("associated", out var associatedProp) && associatedProp.ValueKind == JsonValueKind.Object,
+            did,
+            status?.FollowingReference
+        )
+        {
+            IsFollowing = status?.IsFollowing,
+            IsFollowedBy = status?.IsFollowedBy,
+            IsBlocking = status?.IsBlocking,
+            IsBlockedBy = status?.IsBlockedBy,
+            IsMuted = status?.IsMuted,
+            BlockingReference = status?.BlockingReference,
+        };
+    }
+
+    private static int? TryGetActorCount(JsonElement actorEntry, string propertyName)
+    {
+        if (!actorEntry.TryGetProperty(propertyName, out var countProp))
+        {
+            return null;
+        }
+
+        if (countProp.ValueKind == JsonValueKind.Number && countProp.TryGetInt32(out var count))
+        {
+            return count;
+        }
+
+        return null;
+    }
+
+    private static Guid CreateDeterministicGuid(string value)
+    {
+        using var md5 = MD5.Create();
+        var bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(value));
+        return new Guid(bytes);
     }
 
     private async Task<(List<User> Users, string? Cursor)> GetRemoteFollowingAsync(string did, int limit, string? cursor, Guid? viewerId = null)

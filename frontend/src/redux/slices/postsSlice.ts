@@ -60,6 +60,37 @@ const mergeUserSnapshot = (existingUser: any, incomingUser: any) => {
     };
 };
 
+const mergePostSnapshot = (existingPost: Post, incomingPost: Post): Post => ({
+    ...existingPost,
+    ...incomingPost,
+    author: incomingPost.author ? mergeUserSnapshot(existingPost.author, incomingPost.author) : existingPost.author,
+    repostedBy: incomingPost.repostedBy ? mergeUserSnapshot(existingPost.repostedBy, incomingPost.repostedBy) : existingPost.repostedBy,
+    quotePost: incomingPost.quotePost
+        ? existingPost.quotePost
+            ? mergePostSnapshot(existingPost.quotePost, incomingPost.quotePost)
+            : incomingPost.quotePost
+        : existingPost.quotePost,
+    parentPost: incomingPost.parentPost
+        ? existingPost.parentPost
+            ? mergePostSnapshot(existingPost.parentPost, incomingPost.parentPost)
+            : incomingPost.parentPost
+        : existingPost.parentPost,
+    images: incomingPost.images?.length ? incomingPost.images : existingPost.images,
+    imageUrls: incomingPost.imageUrls?.length ? incomingPost.imageUrls : existingPost.imageUrls,
+    media: incomingPost.media?.length ? incomingPost.media : existingPost.media,
+    video: incomingPost.video ?? existingPost.video,
+    videoUrl: incomingPost.videoUrl ?? existingPost.videoUrl,
+    linkPreview: incomingPost.linkPreview ?? existingPost.linkPreview,
+    likesCount: incomingPost.likesCount ?? existingPost.likesCount,
+    repostsCount: incomingPost.repostsCount ?? existingPost.repostsCount,
+    repliesCount: incomingPost.repliesCount ?? existingPost.repliesCount,
+    quotesCount: incomingPost.quotesCount ?? existingPost.quotesCount,
+    bookmarksCount: incomingPost.bookmarksCount ?? existingPost.bookmarksCount,
+    isLiked: incomingPost.isLiked ?? existingPost.isLiked,
+    isReposted: incomingPost.isReposted ?? existingPost.isReposted,
+    isBookmarked: incomingPost.isBookmarked ?? existingPost.isBookmarked,
+});
+
 const applyFollowStateToPosts = (posts: Post[], identifier: string, isFollowing: boolean, followUri?: string) => {
     posts.forEach((post) => {
         if (userMatchesIdentifier(post.author, identifier)) {
@@ -1025,12 +1056,7 @@ const postsSlice = createSlice({
 
                     if (index !== -1) {
                         const existingPost = state.threadPosts[index];
-                        state.threadPosts[index] = {
-                            ...existingPost,
-                            ...fetchedPost,
-                            author: mergeUserSnapshot(existingPost.author, fetchedPost.author),
-                            repostedBy: mergeUserSnapshot(existingPost.repostedBy, fetchedPost.repostedBy),
-                        };
+                        state.threadPosts[index] = mergePostSnapshot(existingPost, fetchedPost);
                     } else {
                         state.threadPosts.push(fetchedPost);
                     }

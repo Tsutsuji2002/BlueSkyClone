@@ -42,6 +42,8 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
 
     const record = atPost.record || {};
     const authorFollowingReference = atPost.author?.viewer?.following || atPost.author?.followingReference;
+    const repostReason = atPost.reason;
+    const repostBy = repostReason?.by;
 
     // Map author
     const author: Partial<User> & { id: string; username: string; handle: string; displayName: string; avatarUrl?: string } = {
@@ -60,6 +62,22 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         labels: normalizeLabelValues(atPost.author?.labels),
         muteInfo: atPost.author?.muteInfo,
     };
+
+    const repostedBy = repostBy
+        ? {
+            id: repostBy.did || repostBy.handle || '',
+            username: repostBy.handle?.split('.')[0] || repostBy.handle || '',
+            handle: repostBy.handle || '',
+            displayName: repostBy.displayName || repostBy.handle || '',
+            avatarUrl: repostBy.avatar,
+            avatar: repostBy.avatar,
+            did: repostBy.did,
+            isFollowing: repostBy.viewer?.following === true || !!repostBy.viewer?.following || repostBy.isFollowing === true,
+            isFollowedBy: repostBy.viewer?.followedBy === true || !!repostBy.viewer?.followedBy || repostBy.isFollowedBy === true,
+            followingReference: repostBy.viewer?.following || repostBy.followingReference || undefined,
+            labels: normalizeLabelValues(repostBy.labels),
+        }
+        : undefined;
 
     const embed = atPost.embed || {};
     let images: PostImage[] = [];
@@ -192,6 +210,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         quotePost,
         quotePostId,
         parentPost: atPost.parent ? mapAtProtoPostToPost(atPost.parent) : undefined,
+        repostedBy,
         viewer: atPost.viewer,
         tid: atPost.uri?.split('/').pop(),
         replyToPostId: record.reply?.parent?.uri?.split('/').pop(),
