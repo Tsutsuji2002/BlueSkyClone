@@ -64,20 +64,14 @@ const FollowingPage: React.FC = () => {
     }, [dispatch, effectiveId]);
 
     useEffect(() => {
-        let listPromise: any;
-
         if (effectiveId && profileMatchesIdentifier(profile, effectiveId) && resolvedListActor) {
             const targetActor = normalizeIdentifier(resolvedListActor);
             const needsInitialFetch = followingInitializedOwnerId !== targetActor;
 
             if (needsInitialFetch && !followingLoading) {
-                listPromise = dispatch(fetchFollowing({ actor: resolvedListActor, limit: INITIAL_PAGE_SIZE }));
+                dispatch(fetchFollowing({ actor: resolvedListActor, limit: INITIAL_PAGE_SIZE }));
             }
         }
-
-        return () => {
-            if (listPromise) listPromise.abort();
-        };
     }, [dispatch, effectiveId, profile, resolvedListActor, followingInitializedOwnerId, followingLoading]);
 
     // Infinite Scroll Observer
