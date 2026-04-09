@@ -46,7 +46,7 @@ import {
 } from 'react-icons/fi';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
-import { truncateIdentityText, formatHandleText } from '../../utils/identity';
+import { formatHandleText } from '../../utils/identity';
 
 interface PostCardProps {
     post: Post;
@@ -466,7 +466,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                     onClick={handleAvatarClick}
                                     title={post.author.displayName || post.author.handle || 'Unknown'}
                                 >
-                                    {truncateIdentityText(post.author.displayName || post.author.handle || 'Unknown', 26)}
+                                    {post.author.displayName || post.author.handle || 'Unknown'}
                                     {post.author.isVerified && (
                                         <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
                                     )}
@@ -476,7 +476,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
                                 className="text-[15px] text-gray-500 dark:text-dark-text-secondary truncate max-w-[110px] sm:max-w-[160px]"
                                 title={post.author.handle || ''}
                             >
-                                {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle, 22)}
+                                {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle)}
                             </span>
                             <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary">·</span>
                             <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary whitespace-nowrap">

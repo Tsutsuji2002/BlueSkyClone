@@ -56,7 +56,7 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import PostInteractionSettingsModal from '../modals/PostInteractionSettingsModal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { truncateIdentityText, formatHandleText } from '../utils/identity';
+import { formatHandleText } from '../utils/identity';
 
 import {
     FiAnchor,
@@ -613,14 +613,14 @@ const PostDetailPage: React.FC = () => {
                                                     onClick={() => navigate(`/profile/${post.author.handle}`)}
                                                     title={post.author.displayName || post.author.handle || 'Unknown'}
                                                 >
-                                                    {truncateIdentityText(post.author.displayName || post.author.handle || 'Unknown', 24)}
+                                                    {post.author.displayName || post.author.handle || 'Unknown'}
                                                 </span>
                                             </UserHoverCard>
                                             <span
                                                 className="truncate text-gray-500 dark:text-dark-text-secondary"
                                                 title={post.author.handle || ''}
                                             >
-                                                {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle, 24)}
+                                                {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle)}
                                             </span>
                                         </div>
                                     </div>
@@ -658,14 +658,14 @@ const PostDetailPage: React.FC = () => {
                                                 onClick={() => navigate(`/profile/${post.author.handle}`)}
                                                 title={post.author.displayName || post.author.handle || 'Unknown'}
                                             >
-                                                {truncateIdentityText(post.author.displayName || post.author.handle || 'Unknown', 28)}
+                                                {post.author.displayName || post.author.handle || 'Unknown'}
                                             </span>
                                         </UserHoverCard>
                                         <span
                                             className="truncate text-gray-500 dark:text-dark-text-secondary"
                                             title={post.author.handle || ''}
                                         >
-                                            {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle, 28)}
+                                            {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle)}
                                         </span>
                                     </div>
                                 </div>

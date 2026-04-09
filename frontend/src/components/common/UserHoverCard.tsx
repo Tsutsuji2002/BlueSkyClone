@@ -14,7 +14,7 @@ import { FiUserCheck, FiUserPlus } from 'react-icons/fi';
 import { cn } from '../../utils/classNames';
 import { formatCount } from '../../utils/formatNumber';
 import { API_BASE_URL } from '../../constants';
-import { truncateIdentityText, formatHandleText } from '../../utils/identity';
+import { formatHandleText } from '../../utils/identity';
 
 interface HoverCardUser {
     id: string;
@@ -323,7 +323,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                                     className="min-w-0 truncate font-bold text-[15px] text-gray-900 dark:text-dark-text hover:underline leading-tight"
                                     title={displayName}
                                 >
-                                    {truncateIdentityText(displayName, 24)}
+                                    {displayName}
                                 </span>
                                 {isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
                             </div>
@@ -333,7 +333,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                                         className="min-w-0 truncate text-[14px] text-gray-500 dark:text-dark-text-secondary"
                                         title={handle}
                                     >
-                                        {formatHandleText(handle, 24)}
+                                        {formatHandleText(handle)}
                                     </div>
                                     {isFollowedBy && (
                                         <span className="bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded text-[11px] font-bold">

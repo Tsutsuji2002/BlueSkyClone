@@ -10,7 +10,7 @@ import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { truncateIdentityText, formatHandleText } from '../utils/identity';
+import { formatHandleText } from '../utils/identity';
 import { fetchFollowing, fetchUserProfile, fetchUserProfileById, followUserAsync, unfollowUserAsync, clearFollowing, clearProfile, normalizeIdentifier, profileMatchesIdentifier } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import { User } from '../types';
@@ -163,7 +163,7 @@ const FollowingPage: React.FC = () => {
                     </button>
                     <div className="min-w-0">
                         <h1 className="truncate text-xl font-bold text-gray-900 dark:text-dark-text" title={profileUser.displayName || profileUser.handle}>
-                            {truncateIdentityText(profileUser.displayName || profileUser.handle, 26)}
+                            {profileUser.displayName || profileUser.handle}
                         </h1>
                         <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
                             {formatCount(profileUser.followingCount)} {t('profile.following')}
@@ -204,11 +204,11 @@ const FollowingPage: React.FC = () => {
                                         >
                                             <UserHoverCard user={user}>
                                                 <h3 className="truncate font-bold text-gray-900 dark:text-dark-text hover:underline" title={user.displayName || user.handle}>
-                                                    {truncateIdentityText(user.displayName || user.handle, 24)}
+                                                    {user.displayName || user.handle}
                                                 </h3>
                                             </UserHoverCard>
                                             <p className="truncate text-sm text-gray-500 dark:text-dark-text-secondary" title={user.handle}>
-                                                {formatHandleText(user.handle, 24)}
+                                                {formatHandleText(user.handle)}
                                             </p>
                                         </button>
                                         {user.bio && (
