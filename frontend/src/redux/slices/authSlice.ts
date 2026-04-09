@@ -84,6 +84,27 @@ function normalizeSettings(raw: any): UserSettings {
     } as UserSettings;
 }
 
+/**
+ * Ensures the AtpAgent session is hydrated from the current state/payload.
+ */
+function hydrateAtpSession(user: User, token?: string, refreshToken?: string) {
+    const finalToken = token || localStorage.getItem('token');
+    const finalRefresh = refreshToken || localStorage.getItem('refreshToken');
+    
+    if (finalToken) {
+        const userDid = user.did || user.handle;
+        console.log('DEBUG: Hydrating ATP session for', userDid);
+        agent.resumeSession({
+            accessJwt: finalToken,
+            refreshJwt: finalRefresh || '',
+            handle: user.handle,
+            did: userDid || user.handle,
+            active: true
+        });
+        console.log('DEBUG: ATP session hydrated. agent.session:', (agent as any).session);
+    }
+}
+
 const token = localStorage.getItem('token');
 
 const initialState: AuthState = {
@@ -387,6 +408,7 @@ const authSlice = createSlice({
                 if (action.payload.refreshToken) {
                     localStorage.setItem('refreshToken', action.payload.refreshToken);
                 }
+                hydrateAtpSession(action.payload.user, action.payload.token, action.payload.refreshToken);
             })
             .addCase(login.rejected, (state, action) => {
                 state.isLoading = false;
@@ -409,6 +431,7 @@ const authSlice = createSlice({
                 if (action.payload.refreshToken) {
                     localStorage.setItem('refreshToken', action.payload.refreshToken);
                 }
+                hydrateAtpSession(action.payload.user, action.payload.token, action.payload.refreshToken);
             })
             .addCase(signUp.rejected, (state, action) => {
                 state.isLoading = false;
@@ -431,6 +454,7 @@ const authSlice = createSlice({
                 if (action.payload.refreshToken) {
                     localStorage.setItem('refreshToken', action.payload.refreshToken);
                 }
+                hydrateAtpSession(action.payload.user, action.payload.token, action.payload.refreshToken);
             })
             .addCase(exchangeOAuthCode.rejected, (state, action) => {
                 state.isLoading = false;
@@ -447,21 +471,7 @@ const authSlice = createSlice({
                 state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
 
-                // Resume atpAgent session if we have the necessary data
-                const token = localStorage.getItem('token');
-                const refreshToken = localStorage.getItem('refreshToken');
-                if (token) {
-                    const userDid = action.payload.user.did || action.payload.user.handle;
-                    console.log('DEBUG: Resuming ATP session for', userDid);
-                    agent.resumeSession({
-                        accessJwt: token,
-                        refreshJwt: refreshToken || '',
-                        handle: action.payload.user.handle,
-                        did: userDid || action.payload.user.handle,
-                        active: true
-                    });
-                    console.log('DEBUG: ATP session resumed. agent.session:', (agent as any).session);
-                }
+                hydrateAtpSession(action.payload.user);
             })
             .addCase(getMe.rejected, (state) => {
                 state.isLoading = false;

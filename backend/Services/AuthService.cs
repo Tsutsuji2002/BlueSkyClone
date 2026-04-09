@@ -267,6 +267,10 @@ public class AuthService : IAuthService
         await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
         await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
 
+        // Store DPoP private key securely in cache (it's ephemeral for the session)
+        var privateKeyBase64 = Convert.ToBase64String(ecKey.ExportPkcs8PrivateKey());
+        await _cache.SetStringAsync($"BlueskyDPoPKey_{user.Id}", privateKeyBase64, bskyCacheOptions);
+
         return MapToAuthResponse(user, token, refreshToken);
     }
 
@@ -383,27 +387,40 @@ public class AuthService : IAuthService
             {
                 try 
                 {
-                    using var httpClient = new HttpClient();
-                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bskyRefreshToken);
-                    var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.refreshSession", null);
-                    
-                    if (response.IsSuccessStatusCode)
+                    var dpopKeyBase64 = await _cache.GetStringAsync($"BlueskyDPoPKey_{user.Id}");
+                    if (!string.IsNullOrEmpty(dpopKeyBase64))
                     {
-                        var bskySession = await JsonSerializer.DeserializeAsync<JsonElement>(await response.Content.ReadAsStreamAsync());
-                        string nextAccessJwt = bskySession.GetProperty("accessJwt").GetString()!;
-                        string nextRefreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
-
-                        var bskyCacheOptions = new DistributedCacheEntryOptions { 
-                            AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
-                        };
-                        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
-                        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
-                        _logger.LogInformation("Successfully refreshed Bluesky session for user {UserId}", user.Id);
+                        // OAuth DPoP Refresh
+                        await RefreshOAuthSessionAsync(user, bskyRefreshToken, dpopKeyBase64, rememberMe);
                     }
                     else
                     {
-                        var errorBody = await response.Content.ReadAsStringAsync();
-                        _logger.LogWarning("Failed to refresh Bluesky session for user {UserId}. Status: {Status}, Body: {Body}", user.Id, response.StatusCode, errorBody);
+                        // Traditional ATProto Refresh
+                        var refreshResult = await _xrpcProxy.ProxyRequestAsync(
+                            user.Did, 
+                            "com.atproto.server.refreshSession", 
+                            new Dictionary<string, string?>(), 
+                            bskyRefreshToken, 
+                            "POST"
+                        );
+                        
+                        if (refreshResult.Success)
+                        {
+                            var bskySession = JsonSerializer.Deserialize<JsonElement>(refreshResult.Content);
+                            string nextAccessJwt = bskySession.GetProperty("accessJwt").GetString()!;
+                            string nextRefreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
+
+                            var bskyCacheOptions = new DistributedCacheEntryOptions { 
+                                AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+                            };
+                            await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
+                            await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
+                            _logger.LogInformation("Successfully refreshed Bluesky session for user {UserId}", user.Id);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to refresh Bluesky session for user {UserId}. Status: {Status}, Body: {Body}", user.Id, refreshResult.StatusCode, refreshResult.Content);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -670,6 +687,58 @@ public class AuthService : IAuthService
         };
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
+    }
+
+    private async Task RefreshOAuthSessionAsync(User user, string refreshToken, string dpopKeyBase64, bool rememberMe)
+    {
+        var pdsUrl = await _xrpcProxy.ResolvePdsUrlAsync(user.Did!);
+        if (string.IsNullOrEmpty(pdsUrl)) throw new Exception("Could not resolve PDS for refresh.");
+
+        using var ecKey = ECDsa.Create();
+        ecKey.ImportPkcs8PrivateKey(Convert.FromBase64String(dpopKeyBase64), out _);
+
+        var tokenEndpoint = $"{pdsUrl.TrimEnd('/')}/oauth/token";
+        var clientMetadataUrl = "https://bskyclone.site/client-metadata.json";
+
+        var values = new Dictionary<string, string>
+        {
+            { "grant_type", "refresh_token" },
+            { "refresh_token", refreshToken },
+            { "client_id", clientMetadataUrl }
+        };
+
+        using var httpClient = new HttpClient();
+        var response = await SendWithDPoP(httpClient, tokenEndpoint, new FormUrlEncodedContent(values), ecKey, nonce: null);
+
+        // Handle use_dpop_nonce
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            if (errorBody.Contains("use_dpop_nonce") && response.Headers.TryGetValues("DPoP-Nonce", out var nonceValues))
+            {
+                response = await SendWithDPoP(httpClient, tokenEndpoint, new FormUrlEncodedContent(values), ecKey, nonceValues.First());
+            }
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            var oauthResponse = await JsonSerializer.DeserializeAsync<JsonElement>(await response.Content.ReadAsStreamAsync());
+            string nextAccessJwt = oauthResponse.GetProperty("access_token").GetString()!;
+            string nextRefreshJwt = oauthResponse.TryGetProperty("refresh_token", out var rt) ? rt.GetString()! : refreshToken;
+
+            var bskyCacheOptions = new DistributedCacheEntryOptions { 
+                AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+            };
+            await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
+            await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
+            _logger.LogInformation("Successfully refreshed Bluesky OAuth session for user {UserId}", user.Id);
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("Failed to refresh Bluesky OAuth session for user {UserId}. Status: {Status}, Error: {Error}", user.Id, response.StatusCode, error);
+            throw new Exception($"OAuth Refresh Failed: {error}");
+        }
     }
 }
 

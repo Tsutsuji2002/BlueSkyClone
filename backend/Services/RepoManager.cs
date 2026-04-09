@@ -16,13 +16,15 @@ namespace BSkyClone.Services
         private readonly ICryptoService _crypto;
         private readonly MstService _mst;
         private readonly IDistributedCache _cache;
+        private readonly IXrpcProxyService _xrpcProxy;
 
-        public RepoManager(BSkyDbContext dbContext, ICryptoService crypto, MstService mst, IDistributedCache cache)
+        public RepoManager(BSkyDbContext dbContext, ICryptoService crypto, MstService mst, IDistributedCache cache, IXrpcProxyService xrpcProxy)
         {
             _dbContext = dbContext;
             _crypto = crypto;
             _mst = mst;
             _cache = cache;
+            _xrpcProxy = xrpcProxy;
         }
 
         public async Task<string> CreateRecordAsync(string did, string collection, object record, string? rkey = null)
@@ -132,24 +134,26 @@ namespace BSkyClone.Services
                     var token = await _cache.GetStringAsync($"BlueskyToken_{user.Id}");
                     if (!string.IsNullOrEmpty(token))
                     {
-                        using var client = new HttpClient();
-                        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                        
-                        var payload = new { repo = did, collection = collection, rkey = rkey };
-                        var jsonPayload = JsonSerializer.Serialize(payload);
-                        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-                        
-                        var response = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord", content);
-                        if (response.IsSuccessStatusCode)
+                        var result = await _xrpcProxy.ProxyRequestAsync(
+                            did,
+                            "com.atproto.repo.deleteRecord",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            new { repo = did, collection = collection, rkey = rkey },
+                            user.Id
+                        );
+
+                        if (result.Success)
                         {
                             await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Remote Record Delete SUCCESS: {collection}/{rkey} for {did}\n");
                             Console.WriteLine($"[RepoManager] Proxied record delete to BlueSky: {collection}/{rkey}");
                         }
                         else
                         {
-                            var error = await response.Content.ReadAsStringAsync();
-                            await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Remote Record Delete FAILED: {response.StatusCode} - {error}\n");
-                            Console.WriteLine($"[RepoManager] Bluesky Record Delete Failed: {response.StatusCode} - {error}");
+                            var error = result.Content;
+                            await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Remote Record Delete FAILED: {result.StatusCode} - {error}\n");
+                            Console.WriteLine($"[RepoManager] Bluesky Record Delete Failed: {result.StatusCode} - {error}");
                         }
                     }
                 }
@@ -243,16 +247,20 @@ namespace BSkyClone.Services
                     var token = await _cache.GetStringAsync($"BlueskyToken_{user.Id}");
                     if (!string.IsNullOrEmpty(token))
                     {
-                        using var client = new HttpClient();
-                        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                        
-                        var content = new StreamContent(stream);
-                        content.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
-                        
-                        var response = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.uploadBlob", content);
-                        if (response.IsSuccessStatusCode)
+                        var result = await _xrpcProxy.ProxyRequestAsync(
+                            did,
+                            "com.atproto.repo.uploadBlob",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            stream,
+                            user.Id,
+                            mimeType
+                        );
+
+                        if (result.Success)
                         {
-                            var responseBody = await response.Content.ReadAsStringAsync();
+                            var responseBody = result.Content;
                             var json = JsonDocument.Parse(responseBody);
                             var cid = json.RootElement.GetProperty("blob").GetProperty("ref").GetProperty("$link").GetString();
                             
@@ -265,9 +273,9 @@ namespace BSkyClone.Services
                         }
                         else
                         {
-                            var error = await response.Content.ReadAsStringAsync();
-                            await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Blob Upload FAILED: {response.StatusCode} - {error}\n");
-                            Console.WriteLine($"[RepoManager] Bluesky Blob Upload Failed: {response.StatusCode} - {error}");
+                            var error = result.Content;
+                            await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", $"[RepoManager] Blob Upload FAILED: {result.StatusCode} - {error}\n");
+                            Console.WriteLine($"[RepoManager] Bluesky Blob Upload Failed: {result.StatusCode} - {error}");
                         }
                     }
                 }

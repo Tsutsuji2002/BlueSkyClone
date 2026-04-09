@@ -73,6 +73,13 @@ public class PostService : IPostService
 
             if (mappedPosts == null)
             {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null || string.IsNullOrEmpty(user.Did))
+                {
+                    _logger.LogWarning("[GetTimelineAsync] User or DID not found for {UserId}.", userId);
+                    return new List<PostDto>();
+                }
+
                 var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
                 if (string.IsNullOrEmpty(token))
                 {
@@ -80,22 +87,25 @@ public class PostService : IPostService
                     return new List<PostDto>();
                 }
 
-                using var httpClient = new HttpClient();
-                httpClient.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                var result = await _xrpcProxy.ProxyRequestAsync(
+                    user.Did,
+                    "app.bsky.feed.getTimeline",
+                    new Dictionary<string, string?> { { "limit", "100" } },
+                    token,
+                    "GET",
+                    null,
+                    userId
+                );
 
-                var response = await httpClient.GetAsync("https://bsky.social/xrpc/app.bsky.feed.getTimeline?limit=100");
-                if (!response.IsSuccessStatusCode)
+                if (!result.Success)
                 {
-                    _logger.LogError("[GetTimelineAsync] Bluesky proxy failed: {Res}", await response.Content.ReadAsStringAsync());
+                    _logger.LogError("[GetTimelineAsync] Bluesky proxy failed: {Res}", result.Content);
                     return new List<PostDto>();
                 }
 
-                var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(
-                    await response.Content.ReadAsStreamAsync());
-
                 mappedPosts = new List<PostDto>();
-                if (responseBody.TryGetProperty("feed", out var feedArray))
+                using var doc = JsonDocument.Parse(result.Content);
+                if (doc.RootElement.TryGetProperty("feed", out var feedArray))
                     mappedPosts = MapBlueskyFeed(feedArray);
 
                 await _distributedCache.SetStringAsync(cacheKey,
@@ -1851,14 +1861,19 @@ public class PostService : IPostService
                     if (embedRecord != null) postRecord["embed"] = embedRecord;
 
                     // 3. Create Record on Bluesky PDS
-                    using var client = new HttpClient();
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                    var bskyResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord", 
-                        new StringContent(JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.post", record = postRecord }), Encoding.UTF8, "application/json"));
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        authorUser.Did,
+                        "com.atproto.repo.createRecord",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        new { repo = authorUser.Did, collection = "app.bsky.feed.post", record = postRecord },
+                        userId
+                    );
 
-                    if (bskyResponse.IsSuccessStatusCode)
+                    if (result.Success)
                     {
-                        var responseBody = await bskyResponse.Content.ReadAsStringAsync();
+                        var responseBody = result.Content;
                         var json = JsonDocument.Parse(responseBody);
                          post.Uri = json.RootElement.GetProperty("uri").GetString();
                          post.Cid = json.RootElement.GetProperty("cid").GetString();
@@ -1883,12 +1898,19 @@ public class PostService : IPostService
                                  { "allow", threadgateRules }
                              };
 
-                             var tgResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.putRecord",
-                                 new StringContent(JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid, record = threadgateRecord }), Encoding.UTF8, "application/json"));
-                                 
-                             if (!tgResponse.IsSuccessStatusCode)
+                              var tgResponse = await _xrpcProxy.ProxyRequestAsync(
+                                  authorUser.Did,
+                                  "com.atproto.repo.putRecord",
+                                  new Dictionary<string, string?>(),
+                                  token,
+                                  "POST",
+                                  new { repo = authorUser.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid, record = threadgateRecord },
+                                  userId
+                              );
+                                  
+                              if (!tgResponse.Success)
                              {
-                                 var err = await tgResponse.Content.ReadAsStringAsync();
+                                 var err = tgResponse.Content;
                                  _logger.LogWarning("[CreatePostAsync] Failed to create threadgate: {Status} {Error}", tgResponse.StatusCode, err);
                              }
                          }
@@ -1903,12 +1925,19 @@ public class PostService : IPostService
                                  { "embeddingRules", new List<object> { new Dictionary<string, object> { { "$type", "app.bsky.feed.postgate#disableRule" } } } }
                              };
 
-                             var pgResponse = await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.putRecord",
-                                 new StringContent(JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid, record = postgateRecord }), Encoding.UTF8, "application/json"));
-                                 
-                             if (!pgResponse.IsSuccessStatusCode)
+                              var pgResponse = await _xrpcProxy.ProxyRequestAsync(
+                                  authorUser.Did,
+                                  "com.atproto.repo.putRecord",
+                                  new Dictionary<string, string?>(),
+                                  token,
+                                  "POST",
+                                  new { repo = authorUser.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid, record = postgateRecord },
+                                  userId
+                              );
+                                  
+                              if (!pgResponse.Success)
                              {
-                                 var err = await pgResponse.Content.ReadAsStringAsync();
+                                 var err = pgResponse.Content;
                                  _logger.LogWarning("[CreatePostAsync] Failed to create postgate: {Status} {Error}", pgResponse.StatusCode, err);
                              }
                          }
@@ -1919,11 +1948,11 @@ public class PostService : IPostService
                     }
                     else
                     {
-                        var error = await bskyResponse.Content.ReadAsStringAsync();
-                        string errorLog = $"[CreatePostAsync] FAILED: {bskyResponse.StatusCode} - {error}\nPayload: {JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.post", record = postRecord })}\n";
+                        var error = result.Content;
+                        string errorLog = $"[CreatePostAsync] FAILED: {result.StatusCode} - {error}\nPayload: {JsonSerializer.Serialize(new { repo = authorUser.Did, collection = "app.bsky.feed.post", record = postRecord })}\n";
                         await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", errorLog);
                         Console.WriteLine(errorLog);
-                        _logger.LogWarning("[CreatePostAsync] Bluesky Post Failed for user {UserId}. Status: {Status}, Error: {Error}", userId, bskyResponse.StatusCode, error);
+                        _logger.LogWarning("[CreatePostAsync] Bluesky Post Failed for user {UserId}. Status: {Status}, Error: {Error}", userId, result.StatusCode, error);
 
                         // ROLLBACK: Delete local post if network creation failed
                         _unitOfWork.Posts.Remove(post);
@@ -3996,15 +4025,15 @@ public class PostService : IPostService
                     var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
                     if (!string.IsNullOrEmpty(token))
                     {
-                        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
-                            repo = liker.Did,
-                            collection = "app.bsky.feed.like",
-                            rkey = existingLike.Tid
-                        }), System.Text.Encoding.UTF8, "application/json");
-
-                        using var httpClient = new HttpClient();
-                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                        await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord", content);
+                        var result = await _xrpcProxy.ProxyRequestAsync(
+                            liker.Did,
+                            "com.atproto.repo.deleteRecord",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            new { repo = liker.Did, collection = "app.bsky.feed.like", rkey = existingLike.Tid },
+                            userId
+                        );
                         
                         _logger.LogInformation("[ToggleLikeAsync] Proxied delete like record {Tid} for user {UserId}", existingLike.Tid, userId);
                     }
@@ -4057,19 +4086,19 @@ public class PostService : IPostService
                             { "createdAt", newLike.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
                         };
 
-                        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
-                            repo = liker.Did,
-                            collection = "app.bsky.feed.like",
-                            record = likeRecord
-                        }), System.Text.Encoding.UTF8, "application/json");
+                        var result = await _xrpcProxy.ProxyRequestAsync(
+                            liker.Did,
+                            "com.atproto.repo.createRecord",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            new { repo = liker.Did, collection = "app.bsky.feed.like", record = likeRecord },
+                            userId
+                        );
 
-                        using var httpClient = new HttpClient();
-                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                        var bskyResponse = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord", content);
-
-                        if (bskyResponse.IsSuccessStatusCode)
+                        if (result.Success)
                         {
-                            var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await bskyResponse.Content.ReadAsStreamAsync());
+                            var responseBody = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result.Content);
                             newLike.Uri = responseBody.GetProperty("uri").GetString();
                             newLike.Cid = responseBody.GetProperty("cid").GetString();
                             newLike.Tid = newLike.Uri?.Split('/').Last() ?? newLike.Tid;
@@ -4330,15 +4359,15 @@ public class PostService : IPostService
                     var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
                     if (!string.IsNullOrEmpty(token))
                     {
-                        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
-                            repo = reposter.Did,
-                            collection = "app.bsky.feed.repost",
-                            rkey = existingRepost.Tid
-                        }), System.Text.Encoding.UTF8, "application/json");
-
-                        using var httpClient = new HttpClient();
-                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                        await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord", content);
+                        var result = await _xrpcProxy.ProxyRequestAsync(
+                            reposter.Did,
+                            "com.atproto.repo.deleteRecord",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            new { repo = reposter.Did, collection = "app.bsky.feed.repost", rkey = existingRepost.Tid },
+                            userId
+                        );
                         
                         _logger.LogInformation("[ToggleRepostAsync] Proxied delete repost record {Tid} for user {UserId}", existingRepost.Tid, userId);
                     }
@@ -4391,19 +4420,19 @@ public class PostService : IPostService
                             { "createdAt", newRepost.CreatedAt?.ToString("O") ?? DateTime.UtcNow.ToString("O") }
                         };
 
-                        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
-                            repo = reposter.Did,
-                            collection = "app.bsky.feed.repost",
-                            record = repostRecord
-                        }), System.Text.Encoding.UTF8, "application/json");
+                        var result = await _xrpcProxy.ProxyRequestAsync(
+                            reposter.Did,
+                            "com.atproto.repo.createRecord",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            new { repo = reposter.Did, collection = "app.bsky.feed.repost", record = repostRecord },
+                            userId
+                        );
 
-                        using var httpClient = new HttpClient();
-                        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                        var bskyResponse = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.repo.createRecord", content);
-
-                        if (bskyResponse.IsSuccessStatusCode)
+                        if (result.Success)
                         {
-                            var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await bskyResponse.Content.ReadAsStreamAsync());
+                            var responseBody = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result.Content);
                             newRepost.Uri = responseBody.GetProperty("uri").GetString();
                             newRepost.Cid = responseBody.GetProperty("cid").GetString();
                             newRepost.Tid = newRepost.Uri?.Split('/').Last() ?? newRepost.Tid;
@@ -5301,9 +5330,6 @@ public class PostService : IPostService
                 var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
                 if (!string.IsNullOrEmpty(token))
                 {
-                    using var client = new HttpClient();
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
                     if (request.ReplyRestriction != null)
                     {
                         var threadgateRules = new List<object>();
@@ -5320,13 +5346,27 @@ public class PostService : IPostService
                                 { "allow", threadgateRules }
                             };
 
-                            await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.putRecord",
-                                new StringContent(JsonSerializer.Serialize(new { repo = post.Author.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid, record = threadgateRecord }), System.Text.Encoding.UTF8, "application/json"));
+                            await _xrpcProxy.ProxyRequestAsync(
+                                post.Author.Did,
+                                "com.atproto.repo.putRecord",
+                                new Dictionary<string, string?>(),
+                                token,
+                                "POST",
+                                new { repo = post.Author.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid, record = threadgateRecord },
+                                userId
+                            );
                         }
                         else
                         {
-                            await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord",
-                                new StringContent(JsonSerializer.Serialize(new { repo = post.Author.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid }), System.Text.Encoding.UTF8, "application/json"));
+                            await _xrpcProxy.ProxyRequestAsync(
+                                post.Author.Did,
+                                "com.atproto.repo.deleteRecord",
+                                new Dictionary<string, string?>(),
+                                token,
+                                "POST",
+                                new { repo = post.Author.Did, collection = "app.bsky.feed.threadgate", rkey = post.Tid },
+                                userId
+                            );
                         }
                     }
 
@@ -5342,13 +5382,27 @@ public class PostService : IPostService
                                 { "embeddingRules", new List<object> { new Dictionary<string, object> { { "$type", "app.bsky.feed.postgate#disableRule" } } } }
                             };
 
-                            await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.putRecord",
-                                new StringContent(JsonSerializer.Serialize(new { repo = post.Author.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid, record = postgateRecord }), System.Text.Encoding.UTF8, "application/json"));
+                            await _xrpcProxy.ProxyRequestAsync(
+                                post.Author.Did,
+                                "com.atproto.repo.putRecord",
+                                new Dictionary<string, string?>(),
+                                token,
+                                "POST",
+                                new { repo = post.Author.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid, record = postgateRecord },
+                                userId
+                            );
                         }
                         else
                         {
-                            await client.PostAsync("https://bsky.social/xrpc/com.atproto.repo.deleteRecord",
-                                new StringContent(JsonSerializer.Serialize(new { repo = post.Author.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid }), System.Text.Encoding.UTF8, "application/json"));
+                            await _xrpcProxy.ProxyRequestAsync(
+                                post.Author.Did,
+                                "com.atproto.repo.deleteRecord",
+                                new Dictionary<string, string?>(),
+                                token,
+                                "POST",
+                                new { repo = post.Author.Did, collection = "app.bsky.feed.postgate", rkey = post.Tid },
+                                userId
+                            );
                         }
                     }
                 }
@@ -5854,7 +5908,7 @@ public class PostService : IPostService
                 record = profile
             };
 
-            await _xrpcProxy.ProxyRequestAsync(user.Did!, nsid, new Dictionary<string, string?>(), token, "POST", body);
+            await _xrpcProxy.ProxyRequestAsync(user.Did!, nsid, new Dictionary<string, string?>(), token, "POST", body, user.Id);
         }
     }
 }

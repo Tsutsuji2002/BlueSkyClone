@@ -824,7 +824,8 @@ public class UserService : IUserService
                     new Dictionary<string, string?>(),
                     token,
                     "POST",
-                    requestBody
+                    requestBody,
+                    followerId
                 );
 
                 if (!result.Success)
@@ -914,7 +915,8 @@ public class UserService : IUserService
                         ["repo"] = followerUser.Did,
                         ["collection"] = "app.bsky.graph.follow",
                         ["rkey"] = followTid
-                    }
+                    },
+                    followerId
                 );
 
                 if (!result.Success)
@@ -996,7 +998,8 @@ public class UserService : IUserService
                         new Dictionary<string, string?>(),
                         token,
                         "POST",
-                        requestBody
+                        requestBody,
+                        userId
                     );
 
                     if (result.Success)
@@ -1065,7 +1068,8 @@ public class UserService : IUserService
                             ["repo"] = user.Did,
                             ["collection"] = "app.bsky.graph.block",
                             ["rkey"] = rkey
-                        }
+                        },
+                        userId
                     );
 
                     if (!result.Success)

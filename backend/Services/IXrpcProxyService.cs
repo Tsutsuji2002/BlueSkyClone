@@ -15,8 +15,8 @@ namespace BSkyClone.Services
         /// <param name="method">HTTP method (GET or POST).</param>
         /// <param name="body">Optional JSON body for POST requests.</param>
         /// <returns>The response content as a string or byte array.</returns>
-        Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null);
-        Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, Dictionary<string, string?> queryParams, string? token = null, string method = "GET", object? body = null);
+        Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null);
+        Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, Dictionary<string, string?> queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null);
     }
 
     public class ProxyResponse
