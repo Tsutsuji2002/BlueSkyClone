@@ -1186,6 +1186,12 @@ public class UserService : IUserService
                 };
                 await _cacheService.SetAsync(cacheKey, cached, TimeSpan.FromMinutes(10));
             }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("[GetRemoteFollowersAsync] API call failed for {Did}. Status: {Status}, Error: {Error}",
+                    did, response.StatusCode, errorContent.Substring(0, Math.Min(200, errorContent.Length)));
+            }
         }
 
         if (cached != null)
