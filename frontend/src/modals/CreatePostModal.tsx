@@ -353,6 +353,7 @@ const CreatePostModal: React.FC = () => {
                     linkPreview: linkPreview || undefined,
                     gifUrl: selectedGifUrl || undefined,
                     labels: labels.length > 0 ? labels : undefined,
+                    quotePostId: isQuoting ? postToQuote?.id : undefined,
                 })).unwrap();
                 dispatch(showToast({ message: t('post.created_success'), type: 'success' }));
             }
