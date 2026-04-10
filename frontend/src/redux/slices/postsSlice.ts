@@ -841,6 +841,22 @@ const postsSlice = createSlice({
                     newPost.quotePostId = action.meta.arg.quotePostId;
                 }
 
+                // If backend didn't populate quotePost DTO (e.g. cache miss), look it up in local state
+                if (action.meta.arg.quotePostId && !newPost.quotePost) {
+                    const qid = action.meta.arg.quotePostId;
+                    const findPost = (arr: Post[]) =>
+                        arr.find(p =>
+                            p.id === qid ||
+                            p.tid === qid ||
+                            (p.uri && (p.uri === qid || p.uri.endsWith('/' + qid)))
+                        );
+                    newPost.quotePost =
+                        findPost(state.posts) ||
+                        findPost(state.trendingPosts) ||
+                        findPost(state.discoverPosts) ||
+                        null;
+                }
+
                 // Prepend the new post to the store (avoids duplicate)
                 if (!state.posts.some(p => p.uri === newPost.uri)) {
                     state.posts.unshift(newPost);

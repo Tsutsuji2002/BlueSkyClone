@@ -557,6 +557,15 @@ public class PostService : IPostService
             {
                 MapEmbedToDto(postDto, recEmbed);
             }
+            // viewRecord uses "embeds" (plural array) — take first embed
+            else if (postObj.TryGetProperty("embeds", out var embedsArr) && embedsArr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var e in embedsArr.EnumerateArray())
+                {
+                    MapEmbedToDto(postDto, e);
+                    break; // only process first embed to avoid overwriting with wrong type
+                }
+            }
 
             return postDto;
         }
@@ -2024,6 +2033,26 @@ public class PostService : IPostService
                         new { repo = authorUser.Did, collection = "app.bsky.feed.post", record = postRecord },
                         userId
                     );
+
+                    // If the request failed AND we had a quote embed, retry without it
+                    // This prevents a bad quote CID/URI from rolling back the entire post
+                    if (!result.Success && postRecord.ContainsKey("embed") && 
+                        postRecord["embed"] is Dictionary<string, object> embedObj && 
+                        embedObj.ContainsKey("$type") && 
+                        embedObj["$type"]?.ToString()?.Contains("record") == true)
+                    {
+                        _logger.LogWarning("[CreatePostAsync] Federation with quote embed failed ({Status}: {Error}). Retrying without embed.", result.StatusCode, result.Content);
+                        postRecord.Remove("embed");
+                        result = await _xrpcProxy.ProxyRequestAsync(
+                            authorUser.Did,
+                            "com.atproto.repo.createRecord",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            new { repo = authorUser.Did, collection = "app.bsky.feed.post", record = postRecord },
+                            userId
+                        );
+                    }
 
                     if (result.Success)
                     {
