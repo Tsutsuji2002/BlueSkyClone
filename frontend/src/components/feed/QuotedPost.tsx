@@ -41,16 +41,16 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
             onClick={handleQuoteClick}
             className={`
                 border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden
-                ${isCard ? 'mt-1 mb-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors' : ''}
+                mt-1 mb-1 cursor-pointer transition-colors
             `}
         >
-            <div className="p-2.5">
-                <div className="flex items-center gap-1.5 mb-0.5">
+            <div className="p-2">
+                <div className="flex items-center gap-1.5 mb-1">
                     <Avatar
                         src={post.author.avatarUrl || post.author.avatar}
                         alt={post.author.displayName || post.author.handle || '?'}
                         size="xs"
-                        className="w-[18px] h-[18px]"
+                        className="w-[16px] h-[16px]"
                     />
                     <div className="flex items-center gap-1 min-w-0 overflow-hidden text-[13px]">
                         <span className="font-bold text-gray-900 dark:text-dark-text truncate">
@@ -69,27 +69,28 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                     </div>
                 </div>
 
-                <RichText
-                    content={post.content}
-                    facets={post.facets}
-                    className="text-[14px] text-gray-800 dark:text-dark-text mb-1.5 leading-snug break-words"
-                />
+                <div className="text-[13px] text-gray-800 dark:text-dark-text mb-1 leading-normal break-words">
+                    <RichText
+                        content={post.content}
+                        facets={post.facets}
+                    />
+                </div>
 
                 {post.linkPreview && (
-                    <div className="mb-1.5 mt-1">
+                    <div className="mb-1 mt-0.5">
                         <LinkPreviewCard preview={post.linkPreview} isSmall={true} />
                     </div>
                 )}
 
                 {post.quotePost && (
-                    <div className="flex items-center gap-1.5 mb-1.5 px-2 py-1.5 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-dark-border rounded-lg text-[11px] text-gray-500 dark:text-dark-text-secondary">
-                        <FiRepeat size={12} />
+                    <div className="flex items-center gap-1 mb-1 px-2 py-1 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-dark-border rounded-lg text-[11px] text-gray-500 dark:text-dark-text-secondary">
+                        <FiRepeat size={10} />
                         <span>{t('post.quote_post', 'Quote post')}</span>
                     </div>
                 )}
 
                 {(post.images?.length || post.imageUrls?.length || post.media?.length || post.video || post.videoUrl) && (
-                    <div className="max-h-[200px] overflow-hidden rounded-lg mt-1 border border-gray-100 dark:border-dark-border">
+                    <div className="max-h-[160px] overflow-hidden rounded-lg mt-1 border border-gray-100 dark:border-dark-border">
                         <MediaGrid
                             images={post.images}
                             imageUrls={post.imageUrls}

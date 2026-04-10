@@ -7,6 +7,7 @@ public class PostIndex
     public string AuthorHandle { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public List<string> Hashtags { get; set; } = new();
+    public Guid? QuotePostId { get; set; }
 }
 
 public class UserIndex

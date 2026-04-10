@@ -21,19 +21,29 @@ public class ElasticSearchService : ISearchService
 
     public async Task IndexPostAsync(Post post)
     {
-        var postIndex = new PostIndex
+        try
         {
-            Id = post.Id,
-            Content = post.Content ?? "",
-            AuthorHandle = post.Author?.Handle ?? "",
-            CreatedAt = post.CreatedAt ?? DateTime.UtcNow,
-            Hashtags = post.Hashtags?.Select(h => h.Name).ToList() ?? new List<string>()
-        };
+            var postIndex = new PostIndex
+            {
+                Id = post.Id,
+                Content = post.Content ?? "",
+                AuthorHandle = post.Author?.Handle ?? "",
+                CreatedAt = post.CreatedAt ?? DateTime.UtcNow,
+                Hashtags = post.Hashtags?.Select(h => h.Name).ToList() ?? new List<string>(),
+                QuotePostId = post.QuotePostId
+            };
 
-        var response = await _client.IndexAsync(postIndex, idx => idx.Index("posts").Id(post.Id));
-        if (!response.IsValidResponse)
+            var response = await _client.IndexAsync(postIndex, idx => idx.Index("posts").Id(post.Id));
+
+            if (!response.IsValidResponse)
+            {
+                _logger.LogError("Failed to index post {PostId}: {DebugInformation}", post.Id, response.DebugInformation);
+            }
+        }
+        catch (Exception ex)
         {
-            _logger.LogError("Failed to index post {PostId}: {DebugInformation}", post.Id, response.DebugInformation);
+            _logger.LogError(ex, "Exception while indexing post {PostId} to Elasticsearch", post.Id);
+            // We do NOT throw here to avoid failing the whole post creation process
         }
     }
 

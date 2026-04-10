@@ -1785,28 +1785,49 @@ public class PostService : IPostService
                         var quotePost = await _unitOfWork.Posts.Query().Include(p => p.Author).FirstOrDefaultAsync(p => p.Id == post.QuotePostId.Value);
                         if (quotePost != null)
                         {
-                            var quoteUri = quotePost.Uri ?? $"at://{quotePost.Author.Did}/app.bsky.feed.post/{quotePost.Tid}";
+                            var quoteUri = quotePost.Uri;
                             var quoteCid = quotePost.Cid;
                             
-                            if (string.IsNullOrEmpty(quoteCid) || !quoteCid.StartsWith("bafy"))
+                            // HYBRID RESOLUTION: If it's a local post that was just federated, it might have Uri/Cid now
+                            if (string.IsNullOrEmpty(quoteUri) || string.IsNullOrEmpty(quoteCid) || !quoteCid.StartsWith("bafy"))
                             {
-                                try {
-                                    var resolved = await GetPostByUriAsync(quoteUri);
-                                    if (resolved != null && !string.IsNullOrEmpty(resolved.Cid) && resolved.Cid.StartsWith("bafy"))
-                                        quoteCid = resolved.Cid;
-                                } catch { }
+                                if (!string.IsNullOrEmpty(quotePost.Author?.Did) && !string.IsNullOrEmpty(quotePost.Tid))
+                                {
+                                    quoteUri = $"at://{quotePost.Author.Did}/app.bsky.feed.post/{quotePost.Tid}";
+                                    quoteCid = quotePost.Cid; // Use whatever CID we have
+                                }
+                                
+                                // Final remote resolution attempt if still invalid
+                                if (string.IsNullOrEmpty(quoteCid) || !quoteCid.StartsWith("bafy"))
+                                {
+                                    try {
+                                        var resolvedUri = quoteUri ?? $"at://{quotePost.Author?.Did}/app.bsky.feed.post/{quotePost.Tid}";
+                                        var resolved = await GetPostByUriAsync(resolvedUri);
+                                        if (resolved != null && !string.IsNullOrEmpty(resolved.Cid) && resolved.Cid.StartsWith("bafy"))
+                                        {
+                                            quoteCid = resolved.Cid;
+                                            quoteUri = resolved.Uri ?? resolvedUri;
+                                        }
+                                    } catch { }
+                                }
                             }
 
-                            if (!string.IsNullOrEmpty(quoteCid) && quoteCid.StartsWith("bafy"))
+                            if (!string.IsNullOrEmpty(quoteUri) && !string.IsNullOrEmpty(quoteCid) && quoteCid.StartsWith("bafy"))
                             {
                                 embedRecord = new Dictionary<string, object>
                                 {
                                     { "$type", "app.bsky.embed.record" },
                                     { "record", new Dictionary<string, object> { { "uri", quoteUri }, { "cid", quoteCid } } }
                                 };
+                                _logger.LogInformation("[CreatePostAsync] Attaching quote embed: {Uri}", quoteUri);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("[CreatePostAsync] Could not resolve valid CID for quote post {QuoteId}. Skipping embed.", post.QuotePostId);
                             }
                         }
                     }
+
 
                         var webRoot = _environment.WebRootPath ?? "wwwroot";
                         foreach (var vid in post.PostMedia.Where(m => m.Type == "video" && !string.IsNullOrEmpty(m.Url)))
