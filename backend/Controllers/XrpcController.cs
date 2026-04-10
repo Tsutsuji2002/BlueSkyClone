@@ -1008,8 +1008,11 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var (users, nextCursor) = await _userService.GetFollowersAsync(actor, limit, cursor);
-                
+                var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+                var (users, nextCursor) = await _userService.GetFollowersAsync(actor, limit, cursor, currentUserId);
+
                 // Fetch the subject profile
                 User? subjectUser = null;
                 if (Guid.TryParse(actor, out var id)) subjectUser = await _userService.GetUserByIdAsync(id);
@@ -1041,8 +1044,11 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var (users, nextCursor) = await _userService.GetFollowingAsync(actor, limit, cursor);
-                
+                var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+                var (users, nextCursor) = await _userService.GetFollowingAsync(actor, limit, cursor, currentUserId);
+
                 // Fetch the subject profile
                 User? subjectUser = null;
                 if (Guid.TryParse(actor, out var id)) subjectUser = await _userService.GetUserByIdAsync(id);
