@@ -880,7 +880,14 @@ public class UserService : IUserService
             }
         }
 
-        await _unitOfWork.CompleteAsync();
+        try
+        {
+            await _unitOfWork.CompleteAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[GetRemoteGraphDtosAsync] Failed to complete unit of work. Remote users may not be fully cached locally.");
+        }
 
         return (dtos, nextCursor);
     }
