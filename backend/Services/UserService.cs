@@ -781,7 +781,14 @@ public class UserService : IUserService
 
         if (actorDids.Count > 0)
         {
-            await MergeDuplicateUsersBatchAsync(actorDids);
+            try
+            {
+                await MergeDuplicateUsersBatchAsync(actorDids);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetRemoteGraphDtosAsync] Database error during MergeDuplicateUsersBatchAsync. Continuing with remote data.");
+            }
         }
 
         var users = new List<User>();
@@ -791,7 +798,14 @@ public class UserService : IUserService
 
         if (viewerId.HasValue && actorDids.Count > 0)
         {
-            statusesByDid = await FetchRemoteInteractionStatusesByDidAsync(viewerId.Value, actorDids);
+            try
+            {
+                statusesByDid = await FetchRemoteInteractionStatusesByDidAsync(viewerId.Value, actorDids);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetRemoteGraphDtosAsync] Database error during FetchRemoteInteractionStatusesByDidAsync. Interaction statuses may be missing.");
+            }
         }
 
         foreach (var actorEntry in actorEntries)
@@ -814,7 +828,15 @@ public class UserService : IUserService
                     status = fetchedStatus;
                 }
 
-                var user = await ResolveStubRemoteProfileAsync(actorEntry, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                User? user = null;
+                try
+                {
+                    user = await ResolveStubRemoteProfileAsync(actorEntry, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[GetRemoteGraphDtosAsync] Database error during ResolveStubRemoteProfileAsync for {Did}. Falling back to DTO-only mode.", actorDid);
+                }
                 if (user == null)
                 {
                     dtos.Add(BuildRemoteGraphUserDto(actorEntry, status));
