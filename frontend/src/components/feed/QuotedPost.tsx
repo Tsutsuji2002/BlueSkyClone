@@ -10,6 +10,7 @@ import { FiRepeat } from 'react-icons/fi';
 import { BsPatchCheckFill } from 'react-icons/bs';
 
 import { useNavigate } from 'react-router-dom';
+import { cn } from '../../utils/classNames';
 
 interface QuotedPostProps {
     post: Post;
