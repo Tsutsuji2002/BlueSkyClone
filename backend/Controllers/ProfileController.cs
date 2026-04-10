@@ -307,8 +307,16 @@ public class ProfileController : ControllerBase
         {
             return await _userService.GetUserByIdAsync(guid);
         }
-        
-        // Try remote resolution or handle lookup
+
+        // Try local handle lookup first (for local users)
+        var localUser = await _userService.GetUserByHandleAsync(identifier)
+            ?? await _userService.GetUserByUsernameAsync(identifier);
+        if (localUser != null)
+        {
+            return localUser;
+        }
+
+        // Try remote resolution (for remote ATProto users)
         return await _userService.ResolveRemoteProfileAsync(identifier, viewerId: viewerId);
     }
 
@@ -404,14 +412,10 @@ public class ProfileController : ControllerBase
                                   !string.IsNullOrWhiteSpace(targetUser.Did) &&
                                   !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
 
-            Console.WriteLine($"[GetFollowers] userId={userId}, targetUser?.Did={targetUser?.Did}, isRemoteAtProto={isRemoteAtProto}");
-
             if (isRemoteAtProto)
             {
                 var remoteActor = targetUser.Did ?? targetUser.Handle ?? userId;
-                Console.WriteLine($"[GetFollowers] Fetching remote followers for actor={remoteActor}");
                 var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowersDtosAsync(remoteActor, limit, cursor, currentUserId);
-                Console.WriteLine($"[GetFollowers] Returning {remoteDtos.Count} remote followers");
                 return Ok(new { followers = remoteDtos, cursor = remoteNextCursor });
             }
 
@@ -440,6 +444,9 @@ public class ProfileController : ControllerBase
         }
         catch (Exception ex)
         {
+            // Log the exception to diagnose the root cause
+            System.Diagnostics.Debug.WriteLine($"[GetFollowers] Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[GetFollowers] Stack: {ex.StackTrace}");
             return Ok(new { followers = new List<object>(), cursor = (string?)null });
         }
     }

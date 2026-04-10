@@ -249,9 +249,7 @@ export const fetchFollowers = createAsyncThunk<
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch followers');
 
-            // Handle API response wrapped in array: [{"followers": [...], "cursor": null}]
-            const responseObj = Array.isArray(data) && data.length > 0 ? data[0] : data;
-            const followersArray = responseObj?.followers || (Array.isArray(data) ? data : []);
+            const followersArray = Array.isArray(data) ? data : (data.followers || []);
             const users = followersArray.map((u: any) => ({
                 id: u.id,
                 did: u.did,
@@ -268,7 +266,7 @@ export const fetchFollowers = createAsyncThunk<
                 followingReference: u.followingReference,
             } as User));
 
-            return { users, cursor: responseObj?.cursor ?? data.cursor ?? null };
+            return { users, cursor: data.cursor || null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -297,9 +295,7 @@ export const fetchFollowing = createAsyncThunk<
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch following');
 
-            // Handle API response wrapped in array: [{"following": [...], "cursor": null}]
-            const followingResponseObj = Array.isArray(data) && data.length > 0 ? data[0] : data;
-            const followingArray = followingResponseObj?.following || (Array.isArray(data) ? data : []);
+            const followingArray = Array.isArray(data) ? data : (data.following || []);
             const users = followingArray.map((u: any) => ({
                 id: u.id,
                 did: u.did,
@@ -316,7 +312,7 @@ export const fetchFollowing = createAsyncThunk<
                 followingReference: u.followingReference,
             } as User));
 
-            return { users, cursor: followingResponseObj?.cursor ?? data.cursor ?? null };
+            return { users, cursor: data.cursor || null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
