@@ -1134,6 +1134,8 @@ public class UserService : IUserService
                 var content = await response.Content.ReadAsStringAsync();
                 using var doc = JsonDocument.Parse(content);
                 var followers = doc.RootElement.GetProperty("followers");
+                _logger.LogInformation("[GetRemoteFollowersAsync] Fetched {Count} followers for {Did} from Bluesky API",
+                    followers.GetArrayLength(), did);
                 var nextCursor = doc.RootElement.TryGetProperty("cursor", out var cp) ? cp.GetString() : null;
 
                 var actorEntries = followers.EnumerateArray().ToList();
