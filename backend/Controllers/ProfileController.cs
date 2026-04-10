@@ -16,12 +16,14 @@ public class ProfileController : ControllerBase
     private readonly IUserService _userService;
     private readonly IPostService _postService;
     private readonly BSkyClone.Models.BSkyDbContext _db;
+    private readonly ILogger<ProfileController> _logger;
 
-    public ProfileController(IUserService userService, IPostService postService, BSkyClone.Models.BSkyDbContext db)
+    public ProfileController(IUserService userService, IPostService postService, BSkyClone.Models.BSkyDbContext db, ILogger<ProfileController> logger)
     {
         _userService = userService;
         _postService = postService;
         _db = db;
+        _logger = logger;
     }
 
     [AllowAnonymous]
@@ -407,6 +409,9 @@ public class ProfileController : ControllerBase
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+            
+            _logger.LogInformation("[GetFollowers] Request for userId: {UserId}, limit: {Limit}, cursor: {Cursor}, currentUserId: {CurrentUserId}", userId, limit, cursor, currentUserId);
+
             var targetUser = await ResolveUserAsync(userId, currentUserId);
             var isRemoteAtProto = (targetUser != null &&
                                    !string.IsNullOrWhiteSpace(targetUser.Did) &&
@@ -414,10 +419,14 @@ public class ProfileController : ControllerBase
                                    || userId.StartsWith("did:", StringComparison.OrdinalIgnoreCase)
                                    || (userId.Contains(".") && !Guid.TryParse(userId, out _));
 
+            _logger.LogInformation("[GetFollowers] Target resolved: {Resolved}, IsRemoteAtProto: {IsRemote}", targetUser != null, isRemoteAtProto);
+
             if (isRemoteAtProto)
             {
                 var remoteActor = targetUser?.Did ?? targetUser?.Handle ?? userId;
+                _logger.LogInformation("[GetFollowers] Fetching remote for actor: {RemoteActor}", remoteActor);
                 var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowersDtosAsync(remoteActor, limit, cursor, currentUserId);
+                _logger.LogInformation("[GetFollowers] Remote fetch returned {Count} followers.", remoteDtos.Count);
                 return Ok(new { followers = remoteDtos, cursor = remoteNextCursor });
             }
 

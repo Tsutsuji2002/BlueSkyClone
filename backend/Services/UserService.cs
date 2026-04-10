@@ -717,7 +717,7 @@ public class UserService : IUserService
                 url += $"&cursor={Uri.EscapeDataString(cursor)}";
             }
 
-            Console.WriteLine($"[GetRemoteGraphDtosAsync] Requesting: {url} (Auth: {!string.IsNullOrWhiteSpace(token)})");
+            _logger.LogInformation("[GetRemoteGraphDtosAsync] Requesting: {Url} (Auth: {HasAuth})", url, !string.IsNullOrWhiteSpace(token));
 
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
@@ -743,13 +743,13 @@ public class UserService : IUserService
             if (root.TryGetProperty(arrayProperty, out var list) && list.GetArrayLength() == 0)
             {
                 hasNoData = true; // Signal retry if authenticated
-                Console.WriteLine($"[GetRemoteGraphDtosAsync] Public API returned 0 {arrayProperty} for {actor}. Content: {initialContent.Substring(0, Math.Min(initialContent.Length, 100))}");
+                _logger.LogInformation("[GetRemoteGraphDtosAsync] Public API returned 0 {ArrayProperty} for {Actor}. Content: {ContentSnippet}", arrayProperty, actor, initialContent.Substring(0, Math.Min(initialContent.Length, 100)));
             }
         }
 
         if (hasNoData && !string.IsNullOrWhiteSpace(token))
         {
-            Console.WriteLine($"[GetRemoteGraphDtosAsync] Public API failed or empty. Retrying {endpoint} with authenticated API for {actor}.");
+            _logger.LogInformation("[GetRemoteGraphDtosAsync] Public API failed or empty. Retrying {Endpoint} with authenticated API for {Actor}.", endpoint, actor);
             response = await SendRequestAsync("https://api.bsky.app", token);
         }
 
@@ -758,13 +758,13 @@ public class UserService : IUserService
             if (response != null)
             {
                 var errContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"[GetRemoteGraphDtosAsync] {endpoint} failed: {response.StatusCode} - {errContent}");
+                _logger.LogWarning("[GetRemoteGraphDtosAsync] {Endpoint} failed: {StatusCode} - {ErrContent}", endpoint, response.StatusCode, errContent);
             }
             return (new List<UserDto>(), null);
         }
 
         var content = await response.Content.ReadAsStringAsync();
-        Console.WriteLine($"[GetRemoteGraphDtosAsync] Successful response from {endpoint} for {actor}. Items: {content.Substring(0, Math.Min(content.Length, 200))}");
+        _logger.LogInformation("[GetRemoteGraphDtosAsync] Successful response from {Endpoint} for {Actor}. Items: {ContentSnippet}", endpoint, actor, content.Substring(0, Math.Min(content.Length, 200)));
         using var doc = JsonDocument.Parse(content);
         if (!doc.RootElement.TryGetProperty(arrayProperty, out var actorsProp) || actorsProp.ValueKind != JsonValueKind.Array)
         {
