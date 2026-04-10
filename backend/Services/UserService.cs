@@ -731,20 +731,28 @@ public class UserService : IUserService
 
         var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
         var response = await SendRequestAsync("https://public.api.bsky.app", null);
-        string? initialContent = null;
+        string? content = null;
 
         // If public API returns no data or fails, and we have a token, try the authenticated API
         bool hasNoData = response == null || !response.IsSuccessStatusCode;
         
         if (!hasNoData && response != null)
         {
-            initialContent = await response.Content.ReadAsStringAsync();
-            using var initialDoc = JsonDocument.Parse(initialContent);
-            var root = initialDoc.RootElement;
-            if (root.TryGetProperty(arrayProperty, out var list) && list.GetArrayLength() == 0)
+            content = await response.Content.ReadAsStringAsync();
+            try
             {
-                hasNoData = true; // Signal retry if authenticated
-                _logger.LogInformation("[GetRemoteGraphDtosAsync] Public API returned 0 {ArrayProperty} for {Actor}. Content: {ContentSnippet}", arrayProperty, actor, initialContent.Substring(0, Math.Min(initialContent.Length, 100)));
+                using var initialDoc = JsonDocument.Parse(content);
+                var root = initialDoc.RootElement;
+                if (root.TryGetProperty(arrayProperty, out var list) && list.GetArrayLength() == 0)
+                {
+                    hasNoData = true; // Signal retry if authenticated
+                    _logger.LogInformation("[GetRemoteGraphDtosAsync] Public API returned 0 {ArrayProperty} for {Actor}. Content: {ContentSnippet}", arrayProperty, actor, content.Substring(0, Math.Min(content.Length, 100)));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetRemoteGraphDtosAsync] Failed to parse public API response. Retrying...");
+                hasNoData = true;
             }
         }
 
@@ -752,6 +760,7 @@ public class UserService : IUserService
         {
             _logger.LogInformation("[GetRemoteGraphDtosAsync] Public API failed or empty. Retrying {Endpoint} with authenticated API for {Actor}.", endpoint, actor);
             response = await SendRequestAsync("https://api.bsky.app", token);
+            content = null; // Clear out the old content so we re-read the new response
         }
 
         if (response == null || !response.IsSuccessStatusCode)
@@ -764,7 +773,11 @@ public class UserService : IUserService
             return (new List<UserDto>(), null);
         }
 
-        var content = await response.Content.ReadAsStringAsync();
+        if (content == null)
+        {
+            content = await response.Content.ReadAsStringAsync();
+        }
+        
         _logger.LogInformation("[GetRemoteGraphDtosAsync] Successful response from {Endpoint} for {Actor}. Items: {ContentSnippet}", endpoint, actor, content.Substring(0, Math.Min(content.Length, 200)));
         using var doc = JsonDocument.Parse(content);
         if (!doc.RootElement.TryGetProperty(arrayProperty, out var actorsProp) || actorsProp.ValueKind != JsonValueKind.Array)
