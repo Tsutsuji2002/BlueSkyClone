@@ -737,13 +737,18 @@ public class UserService : IUserService
 
         if (response == null || !response.IsSuccessStatusCode)
         {
+            var errorContent = response != null ? await response.Content.ReadAsStringAsync() : "null response";
+            _logger.LogWarning("[GetRemoteGraphDtosAsync] API call failed for {Endpoint}, Actor: {Actor}, Status: {Status}, Error: {Error}",
+                endpoint, targetDid, response?.StatusCode.ToString() ?? "null", errorContent.Substring(0, Math.Min(200, errorContent.Length)));
             return (new List<UserDto>(), null);
         }
 
         var content = await response.Content.ReadAsStringAsync();
+        _logger.LogInformation("[GetRemoteGraphDtosAsync] {Endpoint} response for {Actor}: {Content}", endpoint, targetDid, content.Substring(0, Math.Min(500, content.Length)));
         using var doc = JsonDocument.Parse(content);
         if (!doc.RootElement.TryGetProperty(arrayProperty, out var actorsProp) || actorsProp.ValueKind != JsonValueKind.Array)
         {
+            _logger.LogWarning("[GetRemoteGraphDtosAsync] Missing {ArrayProperty} array in response for {Actor}", arrayProperty, targetDid);
             return (new List<UserDto>(), null);
         }
 
@@ -822,6 +827,7 @@ public class UserService : IUserService
 
         await _unitOfWork.CompleteAsync();
 
+        _logger.LogInformation("[GetRemoteGraphDtosAsync] Returning {Count} DTOs for {Endpoint}, Actor: {Actor}", dtos.Count, endpoint, targetDid);
         return (dtos, nextCursor);
     }
 

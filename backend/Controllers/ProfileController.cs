@@ -404,10 +404,14 @@ public class ProfileController : ControllerBase
                                   !string.IsNullOrWhiteSpace(targetUser.Did) &&
                                   !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
 
+            Console.WriteLine($"[GetFollowers] userId={userId}, targetUser?.Did={targetUser?.Did}, isRemoteAtProto={isRemoteAtProto}");
+
             if (isRemoteAtProto)
             {
                 var remoteActor = targetUser.Did ?? targetUser.Handle ?? userId;
+                Console.WriteLine($"[GetFollowers] Fetching remote followers for actor={remoteActor}");
                 var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowersDtosAsync(remoteActor, limit, cursor, currentUserId);
+                Console.WriteLine($"[GetFollowers] Returning {remoteDtos.Count} remote followers");
                 return Ok(new { followers = remoteDtos, cursor = remoteNextCursor });
             }
 
