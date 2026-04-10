@@ -339,7 +339,7 @@ namespace BSkyClone.Controllers
                     RefreshJwt = authResponse.RefreshToken,
                     Handle = authResponse.User.Handle,
                     Did = authResponse.User.Did ?? "",
-                    DidDoc = null
+                    DidDoc = new { }
                 });
             }
             catch (Exception ex)
