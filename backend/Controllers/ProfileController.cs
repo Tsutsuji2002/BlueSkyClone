@@ -412,7 +412,16 @@ public class ProfileController : ControllerBase
             
             _logger.LogInformation("[GetFollowers] Request for userId: {UserId}, limit: {Limit}, cursor: {Cursor}, currentUserId: {CurrentUserId}", userId, limit, cursor, currentUserId);
 
-            var targetUser = await ResolveUserAsync(userId, currentUserId);
+            User? targetUser = null;
+            try
+            {
+                targetUser = await ResolveUserAsync(userId, currentUserId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetFollowers] Database error during ResolveUserAsync for {UserId}. Proceeding to check if remote.", userId);
+            }
+
             var isRemoteAtProto = (targetUser != null &&
                                    !string.IsNullOrWhiteSpace(targetUser.Did) &&
                                    !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase))
@@ -471,7 +480,16 @@ public class ProfileController : ControllerBase
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-            User? targetUser = await ResolveUserAsync(userId, currentUserId);
+            User? targetUser = null;
+            try
+            {
+                targetUser = await ResolveUserAsync(userId, currentUserId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetFollowing] Database error during ResolveUserAsync for {UserId}. Proceeding to check if remote.", userId);
+            }
+
             bool isOwnProfile = targetUser != null && currentUserId.HasValue && targetUser.Id == currentUserId.Value;
             var isRemoteAtProto = (targetUser != null &&
                                    !string.IsNullOrWhiteSpace(targetUser.Did) &&
