@@ -408,13 +408,15 @@ public class ProfileController : ControllerBase
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
             var targetUser = await ResolveUserAsync(userId, currentUserId);
-            var isRemoteAtProto = targetUser != null &&
-                                  !string.IsNullOrWhiteSpace(targetUser.Did) &&
-                                  !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+            var isRemoteAtProto = (targetUser != null &&
+                                   !string.IsNullOrWhiteSpace(targetUser.Did) &&
+                                   !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase))
+                                   || userId.StartsWith("did:", StringComparison.OrdinalIgnoreCase)
+                                   || (userId.Contains(".") && !Guid.TryParse(userId, out _));
 
             if (isRemoteAtProto)
             {
-                var remoteActor = targetUser.Did ?? targetUser.Handle ?? userId;
+                var remoteActor = targetUser?.Did ?? targetUser?.Handle ?? userId;
                 var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowersDtosAsync(remoteActor, limit, cursor, currentUserId);
                 return Ok(new { followers = remoteDtos, cursor = remoteNextCursor });
             }
@@ -462,13 +464,15 @@ public class ProfileController : ControllerBase
 
             User? targetUser = await ResolveUserAsync(userId, currentUserId);
             bool isOwnProfile = targetUser != null && currentUserId.HasValue && targetUser.Id == currentUserId.Value;
-            var isRemoteAtProto = targetUser != null &&
-                                  !string.IsNullOrWhiteSpace(targetUser.Did) &&
-                                  !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+            var isRemoteAtProto = (targetUser != null &&
+                                   !string.IsNullOrWhiteSpace(targetUser.Did) &&
+                                   !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase))
+                                   || userId.StartsWith("did:", StringComparison.OrdinalIgnoreCase)
+                                   || (userId.Contains(".") && !Guid.TryParse(userId, out _));
 
             if (isRemoteAtProto)
             {
-                var remoteActor = targetUser.Did ?? targetUser.Handle ?? userId;
+                var remoteActor = targetUser?.Did ?? targetUser?.Handle ?? userId;
                 var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowingDtosAsync(remoteActor, limit, cursor, currentUserId);
                 if (isOwnProfile)
                 {
