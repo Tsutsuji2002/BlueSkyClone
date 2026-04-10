@@ -731,13 +731,14 @@ public class UserService : IUserService
 
         var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
         var response = await SendRequestAsync("https://public.api.bsky.app", null);
+        string? initialContent = null;
 
         // If public API returns no data or fails, and we have a token, try the authenticated API
         bool hasNoData = response == null || !response.IsSuccessStatusCode;
         
         if (!hasNoData && response != null)
         {
-            var initialContent = await response.Content.ReadAsStringAsync();
+            initialContent = await response.Content.ReadAsStringAsync();
             using var initialDoc = JsonDocument.Parse(initialContent);
             var root = initialDoc.RootElement;
             if (root.TryGetProperty(arrayProperty, out var list) && list.GetArrayLength() == 0)
