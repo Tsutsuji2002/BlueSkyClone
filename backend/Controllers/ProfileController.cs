@@ -464,10 +464,9 @@ public class ProfileController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Log the exception to diagnose the root cause
-            System.Diagnostics.Debug.WriteLine($"[GetFollowers] Error: {ex.Message}");
-            System.Diagnostics.Debug.WriteLine($"[GetFollowers] Stack: {ex.StackTrace}");
-            return Ok(new { followers = new List<object>(), cursor = (string?)null });
+            _logger.LogError(ex, "[GetFollowers] Unhandled exception occurred for userId {UserId}", userId);
+            // Return error temporarily for live diagnostics
+            return Ok(new { followers = new List<object>(), cursor = (string?)null, error = ex.ToString() });
         }
     }
 
