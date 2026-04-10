@@ -448,15 +448,20 @@ public class PostService : IPostService
     {
         try
         {
-            var authorObj = postObj.GetProperty("author");
-            var recordObj = postObj.GetProperty("record");
+            if (!postObj.TryGetProperty("author", out var authorObj)) return null;
+            
+            // Post records can have 'record' (for postView) or 'value' (for viewRecord)
+            JsonElement recordObj;
+            if (postObj.TryGetProperty("record", out var r)) recordObj = r;
+            else if (postObj.TryGetProperty("value", out var v)) recordObj = v;
+            else return null;
 
             var authorDto = new AuthorDto
             {
                 Id = Guid.NewGuid(),
                 Did = authorObj.GetProperty("did").GetString(),
-                Handle = authorObj.GetProperty("handle").GetString()!,
-                DisplayName = authorObj.TryGetProperty("displayName", out var dn) ? dn.GetString() : (authorObj.GetProperty("handle").GetString()!),
+                Handle = authorObj.TryGetProperty("handle", out var h) ? h.GetString()! : authorObj.GetProperty("did").GetString()!,
+                DisplayName = authorObj.TryGetProperty("displayName", out var dn) ? dn.GetString() : (authorObj.TryGetProperty("handle", out var h2) ? h2.GetString() : authorObj.GetProperty("did").GetString()!),
                 AvatarUrl = authorObj.TryGetProperty("avatar", out var av) ? av.GetString() : null,
                 IsVerified = authorObj.TryGetProperty("viewer", out var aview) && aview.TryGetProperty("following", out var _), // Simple heuristic
             };
@@ -485,7 +490,7 @@ public class PostService : IPostService
             DateTime.TryParse(createdAtStr, out var createdAt);
 
             var facets = new List<FacetDto>();
-            if (recordObj.TryGetProperty("facets", out var facetsProp))
+            if (recordObj.TryGetProperty("facets", out var facetsProp) && facetsProp.ValueKind == JsonValueKind.Array)
             {
                 foreach (var facet in facetsProp.EnumerateArray())
                 {
@@ -515,8 +520,8 @@ public class PostService : IPostService
                 }
             }
 
-            var uri = postObj.GetProperty("uri").GetString();
-            var cid = postObj.GetProperty("cid").GetString();
+            var uri = postObj.TryGetProperty("uri", out var uProp) ? uProp.GetString() : null;
+            var cid = postObj.TryGetProperty("cid", out var cProp) ? cProp.GetString() : null;
             var tid = uri?.Split('/').Last() ?? Guid.NewGuid().ToString();
 
             var postDto = new PostDto
@@ -543,9 +548,14 @@ public class PostService : IPostService
                     if (lab.TryGetProperty("val", out var val)) postDto.Labels.Add(val.GetString()?.ToLower() ?? "");
             }
 
+            // Record embeds (for quotes, etc.) can be at top level (view*) or inside the record (value)
             if (postObj.TryGetProperty("embed", out var postEmbed))
             {
                 MapEmbedToDto(postDto, postEmbed);
+            }
+            else if (recordObj.TryGetProperty("embed", out var recEmbed))
+            {
+                MapEmbedToDto(postDto, recEmbed);
             }
 
             return postDto;
@@ -2212,7 +2222,14 @@ public class PostService : IPostService
         // Index in Elasticsearch
         if (savedPost != null)
         {
-            await _searchService.IndexPostAsync(savedPost);
+            try
+            {
+                await _searchService.IndexPostAsync(savedPost);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[PostService] Search indexing failed for post {PostId} during creation", savedPost.Id);
+            }
         }
 
             // Broadcast Real-time Updates for parents
@@ -4103,11 +4120,23 @@ public class PostService : IPostService
 
         await _unitOfWork.CompleteAsync();
         // Cleanup caches and search index for all affected posts
-        var cleanupTasks = affectedIds.SelectMany(id => new List<Task>
-        {
-            _cacheService.RemoveAsync($"post:{id}"),
-            _searchService.DeletePostAsync(id),
-            _postHubContext.Clients.All.SendAsync("PostDeleted", id)
+        var cleanupTasks = affectedIds.SelectMany(id => {
+            var tasks = new List<Task>
+            {
+                _cacheService.RemoveAsync($"post:{id}"),
+                _postHubContext.Clients.All.SendAsync("PostDeleted", id)
+            };
+
+            // Wrap search deletion in try-catch
+            tasks.Add(Task.Run(async () => {
+                try {
+                    await _searchService.DeletePostAsync(id);
+                } catch (Exception ex) {
+                    _logger.LogWarning(ex, "[PostService] Search deletion failed for post {PostId}", id);
+                }
+            }));
+
+            return tasks;
         }).ToList();
 
         // Broad timeline/trending invalidation
