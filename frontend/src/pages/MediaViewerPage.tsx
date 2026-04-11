@@ -92,6 +92,38 @@ const MediaViewerPage: React.FC = () => {
 
     const currentMedia = allMedia[currentIndex];
 
+    // Navigation (Moved above early return for Rules of Hooks)
+    const handlePrevMedia = useCallback(() => {
+        if (!currentPost) return;
+        const currentPostId = currentPost.tid || currentPost.id;
+        if (currentIndex > 0) {
+            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${currentIndex - 1}`, { replace: true });
+        }
+    }, [currentPost, currentIndex, navigate]);
+
+    const handleNextMedia = useCallback(() => {
+        if (!currentPost) return;
+        const currentPostId = currentPost.tid || currentPost.id;
+        if (currentIndex < allMedia.length - 1) {
+            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${currentIndex + 1}`, { replace: true });
+        }
+    }, [currentPost, currentIndex, allMedia.length, navigate]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') {
+                handlePrevMedia();
+            } else if (e.key === 'ArrowRight') {
+                handleNextMedia();
+            } else if (e.key === 'Escape') {
+                navigate(-1);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handlePrevMedia, handleNextMedia, navigate]);
+
     if (!currentPost) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
@@ -130,38 +162,6 @@ const MediaViewerPage: React.FC = () => {
             </div>
         );
     }
-
-    // Navigation
-    const handlePrevMedia = useCallback(() => {
-        if (!currentPost) return;
-        const currentPostId = currentPost.tid || currentPost.id;
-        if (currentIndex > 0) {
-            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${currentIndex - 1}`, { replace: true });
-        }
-    }, [currentPost, currentIndex, navigate]);
-
-    const handleNextMedia = useCallback(() => {
-        if (!currentPost) return;
-        const currentPostId = currentPost.tid || currentPost.id;
-        if (currentIndex < allMedia.length - 1) {
-            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${currentIndex + 1}`, { replace: true });
-        }
-    }, [currentPost, currentIndex, allMedia.length, navigate]);
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'ArrowLeft') {
-                handlePrevMedia();
-            } else if (e.key === 'ArrowRight') {
-                handleNextMedia();
-            } else if (e.key === 'Escape') {
-                navigate(-1);
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handlePrevMedia, handleNextMedia, navigate]);
 
     // Swipe handlers
     const onTouchStart = (e: React.TouchEvent) => {
