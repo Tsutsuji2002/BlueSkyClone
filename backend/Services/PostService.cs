@@ -548,23 +548,24 @@ public class PostService : IPostService
                     if (lab.TryGetProperty("val", out var val)) postDto.Labels.Add(val.GetString()?.ToLower() ?? "");
             }
 
-            // Record embeds (for quotes, etc.) can be at top level (view*) or inside the record (value)
+            // Priority 1: Hydrated top-level 'embed' (used by postView)
             if (postObj.TryGetProperty("embed", out var postEmbed))
             {
                 MapEmbedToDto(postDto, postEmbed);
             }
-            else if (recordObj.TryGetProperty("embed", out var recEmbed))
-            {
-                MapEmbedToDto(postDto, recEmbed);
-            }
-            // viewRecord uses "embeds" (plural array) — take first embed
+            // Priority 2: Hydrated top-level 'embeds' array (used by viewRecord for quotes)
             else if (postObj.TryGetProperty("embeds", out var embedsArr) && embedsArr.ValueKind == JsonValueKind.Array)
             {
                 foreach (var e in embedsArr.EnumerateArray())
                 {
                     MapEmbedToDto(postDto, e);
-                    break; // only process first embed to avoid overwriting with wrong type
+                    break; // only process first embed for now
                 }
+            }
+            // Priority 3: Fallback to raw record 'embed' (contains raw blobs, no URLs usually)
+            else if (recordObj.TryGetProperty("embed", out var recEmbed))
+            {
+                MapEmbedToDto(postDto, recEmbed);
             }
 
             return postDto;

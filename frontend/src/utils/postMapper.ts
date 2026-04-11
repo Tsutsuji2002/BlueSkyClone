@@ -40,7 +40,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         } as Post;
     }
 
-    const record = atPost.record || {};
+    const record = atPost.record || atPost.value || {};
     const authorFollowingReference = atPost.author?.viewer?.following || atPost.author?.followingReference;
     const repostReason = atPost.reason;
     const repostBy = repostReason?.by;
@@ -157,6 +157,10 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
     };
 
     extractMedia(embed);
+    // Also process the 'embeds' array (used by viewRecord in quote posts)
+    if (atPost.embeds && Array.isArray(atPost.embeds)) {
+        atPost.embeds.forEach((e: any) => extractMedia(e));
+    }
     const quotePostRecord = quotePost as Post | undefined;
     const quotePostId = quotePostRecord ? (quotePostRecord.uri || quotePostRecord.tid || quotePostRecord.id) : undefined;
 
