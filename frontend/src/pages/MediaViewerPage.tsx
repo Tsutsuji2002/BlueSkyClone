@@ -38,11 +38,15 @@ const MediaViewerPage: React.FC = () => {
     const minSwipeDistance = 50;
 
     const allPosts = useAppSelector((state: RootState) => state.posts.posts);
+    const threadPosts = useAppSelector((state: RootState) => state.posts.threadPosts);
+    const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
+    const postsError = useAppSelector((state: RootState) => state.posts.error);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
-    const currentPost = useMemo(() => 
-        allPosts.find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId)), 
-        [allPosts, postId]
-    );
+
+    const currentPost = useMemo(() => {
+        const findIn = (arr: Post[]) => arr.find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId));
+        return findIn(allPosts) || findIn(threadPosts);
+    }, [allPosts, threadPosts, postId]);
 
     // Media posts for swiping across feed
     const mediaPosts = useMemo(() => 
@@ -61,10 +65,11 @@ const MediaViewerPage: React.FC = () => {
     }, [indexParam]);
 
     useEffect(() => {
-        if (postId && !currentPost) {
+        // Only fetch if we don't have the post, and there's no active request or error
+        if (postId && !currentPost && !isPostsLoading && !postsError) {
             dispatch(fetchPostById({ uri: postId, handle }));
         }
-    }, [postId, currentPost, dispatch, handle]);
+    }, [postId, currentPost, dispatch, handle, isPostsLoading, postsError]);
 
     const getMediaUrl = useCallback((url: string) => {
         if (!url) return '';
@@ -90,7 +95,38 @@ const MediaViewerPage: React.FC = () => {
     if (!currentPost) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
-                <LoadingIndicator />
+                {postsError ? (
+                    <div className="text-center p-8 bg-dark-surface/50 rounded-[32px] backdrop-blur-xl border border-white/10 max-w-sm mx-4 shadow-2xl animate-in fade-in zoom-in duration-300">
+                        <div className="text-red-500 mb-6 flex justify-center">
+                            <FiX size={48} className="p-3 bg-red-500/20 rounded-full" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-3">
+                            {i18n.language === 'vi' ? 'Không thể tải bài đăng' : 'Failed to load post'}
+                        </h2>
+                        <p className="text-white/60 mb-8 leading-relaxed">
+                            {postsError}
+                        </p>
+                        <div className="flex flex-col gap-3">
+                            <button 
+                                onClick={() => dispatch(fetchPostById({ uri: postId!, handle }))}
+                                className="w-full py-4 bg-primary-500 hover:bg-primary-600 active:scale-95 transition-all text-white rounded-2xl font-bold text-[17px]"
+                            >
+                                {t('common.retry')}
+                            </button>
+                            <button 
+                                onClick={() => navigate(-1)}
+                                className="w-full py-4 bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-white/80 rounded-2xl font-bold text-[17px]"
+                            >
+                                {t('common.back')}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-primary-500/20 blur-3xl rounded-full scale-150 animate-pulse" />
+                        <LoadingIndicator />
+                    </div>
+                )}
             </div>
         );
     }
