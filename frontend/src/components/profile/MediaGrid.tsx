@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiPlay } from 'react-icons/fi';
 import { Post } from '../../types';
 import { API_BASE_URL } from '../../constants';
@@ -17,6 +17,7 @@ interface MediaGridProps {
 }
 
 const MediaGrid: React.FC<MediaGridProps> = ({ posts }) => {
+    const navigate = useNavigate();
     // Flatten all media from all posts into a single list, ordered by post date
     const allMedia: MediaItem[] = posts.flatMap(post => {
         const items: MediaItem[] = [];
@@ -64,48 +65,73 @@ const MediaGrid: React.FC<MediaGridProps> = ({ posts }) => {
 
     return (
         <div className="grid grid-cols-3 gap-0.5 bg-gray-100 dark:bg-dark-border">
-            {allMedia.map((media, index) => (
-                <Link
-                    key={`${media.post.id}-${media.mediaIndex}-${index}`}
-                    to={`/profile/${media.post.author.handle}/post/${media.post.tid || media.post.id}/media/${media.mediaIndex}`}
-                    className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-dark-surface group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset block"
-                >
-                    {media.type === 'video' ? (
-                        <>
-                            <video
-                                src={getMediaUrl(media.url)}
-                                className="w-full h-full object-cover"
-                                muted
-                                playsInline
-                            />
-                            {/* Video Play Icon Overlay */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
-                                <div className="w-12 h-12 bg-black/60 rounded-full flex items-center justify-center">
-                                    <FiPlay size={24} className="text-white ml-1" fill="white" />
+            {allMedia.map((media, index) => {
+                const postDetailPath = `/profile/${media.post.author.handle}/post/${media.post.tid || media.post.id}`;
+                const mediaViewerPath = `${postDetailPath}/media/${media.mediaIndex}`;
+                const isVideo = media.type === 'video';
+
+                const content = (
+                    <>
+                        {isVideo ? (
+                            <>
+                                <video
+                                    src={getMediaUrl(media.url)}
+                                    className="w-full h-full object-cover"
+                                    muted
+                                    playsInline
+                                />
+                                {/* Video Play Icon Overlay */}
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                                    <div className="w-12 h-12 bg-black/60 rounded-full flex items-center justify-center">
+                                        <FiPlay size={24} className="text-white ml-1" fill="white" />
+                                    </div>
                                 </div>
+                            </>
+                        ) : (
+                            <img
+                                src={getMediaUrl(media.url)}
+                                alt=""
+                                className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                                loading="lazy"
+                            />
+                        )}
+
+                        {media.altText && (
+                            <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/60 text-white rounded text-[10px] font-bold">
+                                ALT
                             </div>
-                        </>
-                    ) : (
-                        <img
-                            src={getMediaUrl(media.url)}
-                            alt=""
-                            className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
-                            loading="lazy"
-                        />
-                    )}
+                        )}
 
-                    {media.altText && (
-                        <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/60 text-white rounded text-[10px] font-bold">
-                            ALT
-                        </div>
-                    )}
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                    </>
+                );
 
-                    {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
-                </Link>
-            ))}
+                if (isVideo) {
+                    return (
+                        <button
+                            key={`${media.post.id}-${media.mediaIndex}-${index}`}
+                            onClick={() => navigate(postDetailPath)}
+                            className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-dark-surface group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset block text-left w-full"
+                        >
+                            {content}
+                        </button>
+                    );
+                }
+
+                return (
+                    <Link
+                        key={`${media.post.id}-${media.mediaIndex}-${index}`}
+                        to={mediaViewerPath}
+                        className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-dark-surface group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset block"
+                    >
+                        {content}
+                    </Link>
+                );
+            })}
         </div>
     );
+
 };
 
 export default MediaGrid;
