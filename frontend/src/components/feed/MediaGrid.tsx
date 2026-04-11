@@ -42,6 +42,11 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const [isLoading, setIsLoading] = useState(true);
     const [isVideoLoading, setIsVideoLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [showControls, setShowControls] = useState(false);
+    const [isMuted, setIsMuted] = useState(!isDetailView);
+    const [progress, setProgress] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const autoplayEnabled = settings?.autoplayVideoGif ?? true;
@@ -55,7 +60,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     videoRef.current?.play().catch(() => { });
                 } else {
                     videoRef.current?.pause();
-                    videoRef.current!.currentTime = 0;
+                    // Don't reset currentTime on invisible so playback resumes naturally
                 }
             },
             { threshold: 0.5 } // Play when at least 50% visible
@@ -66,11 +71,49 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     }, [item.isVideo, autoplayEnabled]);
 
     const handleMouseEnter = () => {
-        // Already handled by observer, but could be used for unmute or something in future
+        if (item.isVideo && isDetailView) {
+            setShowControls(true);
+        }
     };
 
     const handleMouseLeave = () => {
-        // Already handled by observer
+        if (item.isVideo && isDetailView) {
+            setShowControls(false);
+        }
+    };
+
+    const togglePlayPause = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (videoRef.current) {
+            if (isPlaying) videoRef.current.pause();
+            else videoRef.current.play();
+        }
+    };
+
+    const toggleMute = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (videoRef.current) {
+            videoRef.current.muted = !videoRef.current.muted;
+            setIsMuted(videoRef.current.muted);
+        }
+    };
+
+    const toggleFullscreen = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (videoRef.current) {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                videoRef.current.requestFullscreen();
+            }
+        }
+    };
+
+    const formatTime = (timeInSeconds: number) => {
+        if (isNaN(timeInSeconds)) return "0:00";
+        const m = Math.floor(timeInSeconds / 60);
+        const s = Math.floor(timeInSeconds % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
     // Reset error state when URL changes
@@ -112,7 +155,15 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
             )}
             onClick={(e) => {
                 e.stopPropagation();
-                onImageClick?.(index);
+                if (item.isVideo) {
+                    if (isDetailView) {
+                        setShowControls((prev) => !prev);
+                    } else {
+                        togglePlayPause();
+                    }
+                } else {
+                    onImageClick?.(index);
+                }
             }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -127,10 +178,19 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             "w-full h-full",
                             isDetailView ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover"
                         )}
-                        muted={!isDetailView}
+                        muted={isMuted}
                         playsInline
-                        loop
+                        loop={!isDetailView}
                         onLoadStart={() => setIsVideoLoading(true)}
+                        onLoadedMetadata={() => {
+                            if (videoRef.current) setDuration(videoRef.current.duration);
+                        }}
+                        onTimeUpdate={() => {
+                            if (videoRef.current) {
+                                setCurrentTime(videoRef.current.currentTime);
+                                setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100);
+                            }
+                        }}
                         onCanPlay={() => setIsVideoLoading(false)}
                         onWaiting={() => setIsVideoLoading(true)}
                         onPlaying={() => {
@@ -139,15 +199,18 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         }}
                         onPause={() => setIsPlaying(false)}
                         onError={(e) => {
-                            // On video error, we'll just show a generic indicator or nothing
                             console.error('Video load error:', item.url);
                             setIsVideoLoading(false);
                         }}
                     />
-                    <div className={cn(
-                        "absolute inset-0 bg-black/10 transition-colors flex items-center justify-center",
-                        isPlaying ? "opacity-0" : "group-hover/video:bg-transparent"
-                    )}>
+
+                    {/* Central Play/Pause Toggle overlay */}
+                    <div 
+                        className={cn(
+                            "absolute inset-0 bg-black/10 transition-colors flex items-center justify-center pointer-events-none",
+                            isPlaying ? "opacity-0" : "group-hover/video:bg-transparent opacity-100"
+                        )}
+                    >
                         {isVideoLoading ? (
                             <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white">
                                 <svg className="animate-spin w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -156,16 +219,77 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                 </svg>
                             </div>
                         ) : (
-                            <div className={cn(
-                                "w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white transition-opacity",
-                                isPlaying ? "opacity-0" : "opacity-80 group-hover/video:opacity-0"
-                            )}>
-                                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z" />
-                                </svg>
-                            </div>
+                            !isPlaying && (
+                                <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white opacity-80 backdrop-blur-sm pointer-events-auto" onClick={togglePlayPause}>
+                                    <svg className="w-6 h-6 fill-current ml-1" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                </div>
+                            )
                         )}
                     </div>
+
+                    {/* Bottom Custom Controls (only in detail view, visible on hover/touch) */}
+                    {isDetailView && (
+                        <div className={cn(
+                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 pointer-events-none",
+                            showControls ? "opacity-100" : "opacity-0"
+                        )}>
+                            {/* Progress bar */}
+                            <div className="w-full h-1 bg-white/30 cursor-pointer pointer-events-auto" onClick={(e) => {
+                                e.stopPropagation();
+                                if (!videoRef.current) return;
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const x = e.clientX - rect.left;
+                                const percent = x / rect.width;
+                                videoRef.current.currentTime = percent * duration;
+                            }}>
+                                <div className="h-full bg-white relative" style={{ width: `${progress}%` }}>
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full scale-0 group-hover/video:scale-100 transition-transform hidden" />
+                                </div>
+                            </div>
+                            
+                            {/* Controls Bar */}
+                            <div className="flex items-center justify-between px-3 py-2 pointer-events-auto">
+                                <div className="flex items-center gap-3">
+                                    <button onClick={togglePlayPause} className="text-white hover:text-gray-300 pointer-events-auto p-1">
+                                        {isPlaying ? (
+                                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                                                <rect x="6" y="4" width="4" height="16" />
+                                                <rect x="14" y="4" width="4" height="16" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                    <span className="text-white text-xs font-medium tabular-nums shadow-sm select-none">
+                                        {formatTime(currentTime)} / {formatTime(duration)}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button onClick={toggleMute} className="text-white hover:text-gray-300 p-1">
+                                        {isMuted ? (
+                                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                    <button onClick={toggleFullscreen} className="text-white hover:text-gray-300 p-1">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <img
