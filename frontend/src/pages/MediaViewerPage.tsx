@@ -132,30 +132,36 @@ const MediaViewerPage: React.FC = () => {
     }
 
     // Navigation
-    const handlePrevMedia = () => {
+    const handlePrevMedia = useCallback(() => {
         if (!currentPost) return;
         const currentPostId = currentPost.tid || currentPost.id;
         if (currentIndex > 0) {
             navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${currentIndex - 1}`, { replace: true });
-        } else if (currentPostIdx > 0) {
-            const prevPost = mediaPosts[currentPostIdx - 1];
-            const prevPostId = prevPost.tid || prevPost.id;
-            const prevMediaCount = (prevPost.media?.length || prevPost.imageUrls?.length || 0) + (prevPost.videoUrl ? 1 : 0);
-            navigate(`/profile/${prevPost.author.handle}/post/${prevPostId}/media/${prevMediaCount - 1}`, { replace: true });
         }
-    };
+    }, [currentPost, currentIndex, navigate]);
 
-    const handleNextMedia = () => {
+    const handleNextMedia = useCallback(() => {
         if (!currentPost) return;
         const currentPostId = currentPost.tid || currentPost.id;
         if (currentIndex < allMedia.length - 1) {
             navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${currentIndex + 1}`, { replace: true });
-        } else if (currentPostIdx < mediaPosts.length - 1) {
-            const nextPost = mediaPosts[currentPostIdx + 1];
-            const nextPostId = nextPost.uri?.split('/').pop() || nextPost.id;
-            navigate(`/profile/${nextPost.author.handle}/post/${nextPostId}/media/0`, { replace: true });
         }
-    };
+    }, [currentPost, currentIndex, allMedia.length, navigate]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') {
+                handlePrevMedia();
+            } else if (e.key === 'ArrowRight') {
+                handleNextMedia();
+            } else if (e.key === 'Escape') {
+                navigate(-1);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handlePrevMedia, handleNextMedia, navigate]);
 
     // Swipe handlers
     const onTouchStart = (e: React.TouchEvent) => {
@@ -272,12 +278,16 @@ const MediaViewerPage: React.FC = () => {
                 </div>
 
                 {/* PC Arrows */}
-                <button onClick={(e) => { e.stopPropagation(); handlePrevMedia(); }} className="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 p-4 bg-black/40 hover:bg-black/60 rounded-full text-white z-[110] transition-all hover:scale-110 active:scale-95">
-                    <FiChevronLeft size={32} />
-                </button>
-                <button onClick={(e) => { e.stopPropagation(); handleNextMedia(); }} className="hidden lg:flex absolute right-6 top-1/2 -translate-y-1/2 p-4 bg-black/40 hover:bg-black/60 rounded-full text-white z-[110] transition-all hover:scale-110 active:scale-95">
-                    <FiChevronRight size={32} />
-                </button>
+                {currentIndex > 0 && (
+                    <button onClick={(e) => { e.stopPropagation(); handlePrevMedia(); }} className="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 p-4 bg-black/40 hover:bg-black/60 rounded-full text-white z-[110] transition-all hover:scale-110 active:scale-95">
+                        <FiChevronLeft size={32} />
+                    </button>
+                )}
+                {currentIndex < allMedia.length - 1 && (
+                    <button onClick={(e) => { e.stopPropagation(); handleNextMedia(); }} className="hidden lg:flex absolute right-6 top-1/2 -translate-y-1/2 p-4 bg-black/40 hover:bg-black/60 rounded-full text-white z-[110] transition-all hover:scale-110 active:scale-95">
+                        <FiChevronRight size={32} />
+                    </button>
+                )}
 
                 {/* MOBILE Bar - Unified Icons, NO Views count as requested */}
                 <div className="lg:hidden absolute bottom-0 left-0 right-0 z-[180] bg-gradient-to-t from-black to-transparent p-4 pb-12 flex items-center justify-around border-t border-white/5 backdrop-blur-sm pointer-events-auto shadow-2xl">
