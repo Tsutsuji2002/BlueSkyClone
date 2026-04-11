@@ -229,7 +229,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         poster={item.thumbnail}
                         className={cn(
                             "w-full h-full",
-                            isDetailView ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover"
+                            isDetailView ? "object-contain bg-black max-h-[80vh]" : "object-cover"
                         )}
                         muted={isMuted}
                         playsInline
@@ -260,12 +260,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     {/* Central Play/Pause Toggle overlay — always show when paused, appears on hover/touch when playing */}
                     <div 
                         className={cn(
-                            "absolute inset-0 flex items-center justify-center transition-opacity duration-200 pointer-events-none",
+                            "absolute inset-0 flex items-center justify-center transition-opacity duration-200 pointer-events-none z-10",
                             isDetailView
-                                ? cn(
-                                    "group-hover/media:opacity-100",
-                                    isPlaying && !isTouched ? "opacity-0" : "opacity-100"
-                                  )
+                                ? (isPlaying && !isTouched ? "opacity-0" : "opacity-100")
                                 : (isPlaying ? "opacity-0" : "opacity-100")
                         )}
                     >
@@ -299,47 +296,42 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     {/* Bottom Custom Controls (only in detail view) — visible on hover (web) or after touch (mobile) */}
                     {isDetailView && (
                         <div className={cn(
-                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-200 z-20 pointer-events-auto",
+                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-200 z-30 pointer-events-auto",
                             "opacity-0 group-hover:opacity-100",
                             isTouched && "opacity-100"
                         )}>
-                            {/* Progress bar */}
-                            <div className="w-full h-1 relative cursor-pointer bg-white/20 hover:h-1.5 transition-all group/progress" onClick={(e) => {
-                                e.stopPropagation();
-                                if (!videoRef.current || !duration) return;
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const x = e.clientX - rect.left;
-                                const percent = x / rect.width;
-                                videoRef.current.currentTime = percent * duration;
-                            }}>
-                                <div className="h-full bg-white relative" style={{ width: `${progress}%` }}>
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 group-hover:scale-100 transition-transform" />
-                                </div>
-                            </div>
-
                             {/* Controls Bar */}
-                            <div className="flex items-center justify-between px-4 py-2">
-                                <div className="flex items-center">
-                                    <button onClick={(e) => { e.stopPropagation(); togglePlayPause(); }} className="text-white hover:text-gray-200 transition-colors p-1" title={isPlaying ? 'Pause' : 'Play'}>
-                                        {isPlaying ? (
-                                            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                                                <rect x="6" y="4" width="4" height="16" />
-                                                <rect x="14" y="4" width="4" height="16" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                                                <path d="M8 5v14l11-7z" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                </div>
+                            <div className="flex flex-col w-full">
+                                {/* Top row: Play/Pause, Timestamp, Volume, Fullscreen */}
+                                <div className="flex items-center justify-between px-3 py-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); togglePlayPause(); }} 
+                                            className="text-white hover:text-primary-400 transition-colors p-1" 
+                                            title={isPlaying ? 'Pause' : 'Play'}
+                                        >
+                                            {isPlaying ? (
+                                                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                    <rect x="6" y="4" width="4" height="16" />
+                                                    <rect x="14" y="4" width="4" height="16" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                    <path d="M8 5v14l11-7z" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                        <span className="text-white text-[12px] font-medium tabular-nums select-none tracking-tight opacity-90">
+                                            {formatTime(currentTime)} / {formatTime(duration)}
+                                        </span>
+                                    </div>
 
-                                <div className="flex items-center gap-4">
-                                    <span className="text-white text-[13px] font-medium tabular-nums select-none tracking-tight">
-                                        {formatTime(currentTime)} / {formatTime(duration)}
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                        <button onClick={(e) => { e.stopPropagation(); toggleMute(e); }} className="text-white hover:text-gray-200 transition-colors p-1" title={isMuted ? 'Unmute' : 'Mute'}>
+                                    <div className="flex items-center gap-1.5">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); toggleMute(e); }} 
+                                            className="text-white hover:text-primary-400 transition-colors p-1" 
+                                            title={isMuted ? 'Unmute' : 'Mute'}
+                                        >
                                             {isMuted ? (
                                                 <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                                     <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
@@ -350,11 +342,32 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                                 </svg>
                                             )}
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(e); }} className="text-white hover:text-gray-200 transition-colors p-1" title="Fullscreen">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); toggleFullscreen(e); }} 
+                                            className="text-white hover:text-primary-400 transition-colors p-1" 
+                                            title="Fullscreen"
+                                        >
                                             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                                 <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
                                             </svg>
                                         </button>
+                                    </div>
+                                </div>
+
+                                {/* Bottom row: Progress Bar */}
+                                <div 
+                                    className="w-full h-1 relative cursor-pointer bg-white/20 hover:h-1.5 transition-all group/progress overflow-hidden" 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!videoRef.current || !duration) return;
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = e.clientX - rect.left;
+                                        const percent = x / rect.width;
+                                        videoRef.current.currentTime = percent * duration;
+                                    }}
+                                >
+                                    <div className="h-full bg-primary-500 relative transition-all duration-100" style={{ width: `${progress}%` }}>
+                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform z-10" />
                                     </div>
                                 </div>
                             </div>
