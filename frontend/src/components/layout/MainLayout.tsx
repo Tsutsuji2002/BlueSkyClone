@@ -8,6 +8,7 @@ import TopBar from './TopBar';
 import BottomNav from './BottomNav';
 import MobileCreateButton from './MobileCreateButton';
 import MobileMenu from './MobileMenu';
+import GuestBottomBanner from './GuestBottomBanner';
 import { cn } from '../../utils/classNames';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
@@ -65,11 +66,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                 </div>
             </div>
 
-            {/* Mobile Bottom Navigation */}
-            {!hideBottomNav && <BottomNav />}
+            {isAuthenticated ? (
+                <>
+                    {/* Mobile Bottom Navigation */}
+                    {!hideBottomNav && <BottomNav />}
 
-            {/* Mobile Floating Create Button */}
-            <MobileCreateButton />
+                    {/* Mobile Floating Create Button */}
+                    <MobileCreateButton />
+                </>
+            ) : (
+                <GuestBottomBanner />
+            )}
 
             {/* Mobile Navigation Sidebar */}
             <MobileMenu />
