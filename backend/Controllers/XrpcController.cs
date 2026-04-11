@@ -792,24 +792,10 @@ namespace BSkyClone.Controllers
                     catch { /* Best effort */ }
                 }
 
-                // For remote users, local DB has no follow records, so use cached values from profile sync.
-                // For local users, use live DB aggregate counts for accuracy.
-                bool isRemoteUser = !string.IsNullOrEmpty(user.Did) && user.Did.StartsWith("did:");
-                int followersCount, followsCount, postsCount;
-                if (isRemoteUser)
-                {
-                    // For network users, the network stats are the source of truth.
-                    // Local counts are only fallback if network sync fails.
-                    followersCount = user.FollowersCount ?? await _unitOfWork.Follows.Query().CountAsync(f => f.FollowingId == user.Id);
-                    followsCount = user.FollowingCount ?? await _unitOfWork.Follows.Query().CountAsync(f => f.FollowerId == user.Id);
-                    postsCount = user.PostsCount ?? await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
-                }
-                else
-                {
-                    followersCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowingId == user.Id);
-                    followsCount = await _unitOfWork.Follows.Query().CountAsync(f => f.FollowerId == user.Id);
-                    postsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null));
-                }
+                // Trust the incrementally maintained counters for both local and remote users.
+                int followersCount = user.FollowersCount ?? 0;
+                int followsCount = user.FollowingCount ?? 0;
+                int postsCount = user.PostsCount ?? 0;
 
                 // Populate the results into the profile object we created earlier
                 profile.FollowersCount = followersCount;

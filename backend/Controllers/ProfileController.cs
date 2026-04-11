@@ -77,13 +77,7 @@ public class ProfileController : ControllerBase
             }
         }
 
-        // Dynamically compute counts for local users to prevent stale metrics
-        if (string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:"))
-        {
-            user.PostsCount = await _db.Posts.CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
-            user.FollowersCount = await _db.UserFollows.CountAsync(f => f.FollowingId == user.Id);
-            user.FollowingCount = await _db.UserFollows.CountAsync(f => f.FollowerId == user.Id);
-        }
+        // Counts are maintained incrementally in the service layer.
 
         bool isFollowing = false;
         bool isFollowedBy = false;
