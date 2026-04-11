@@ -3,7 +3,7 @@ import { useParams, useNavigate, useNavigationType } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab } from '../redux/slices/userSlice';
+import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab, profileMatchesIdentifier } from '../redux/slices/userSlice';
 import { openEditProfile, openCreatePost, openReport, openAuthWall, openAddToList } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import Avatar from '../components/common/Avatar';
@@ -83,22 +83,20 @@ const ProfilePage: React.FC = () => {
     useEffect(() => {
         if (!handle) return;
 
-        // Only clear if we are switching to a DIFFERENT profile.
+        // Only clear and fetch if we are switching to a DIFFERENT profile.
         // This preserves scroll position and content when navigating back.
-        const isSameProfile = profileUser && (
-            handle === profileUser.handle ||
-            handle === profileUser.did ||
-            handle === profileUser.id
-        );
+        const isSameProfile = profileMatchesIdentifier(profileUser, handle);
 
         if (!isSameProfile) {
             dispatch(clearProfile());
             dispatch(clearPosts());
             setShowWarn(true);
+            dispatch(fetchUserProfile(handle));
+        } else if (isProfileLoading === false && !profileUser) {
+            // Safety fetch if we think we are on the same profile but have no data
+            dispatch(fetchUserProfile(handle));
         }
-
-        dispatch(fetchUserProfile(handle));
-    }, [dispatch, handle]); // Only depend on handle — NOT profileUser
+    }, [dispatch, handle]); // Keep handle as the primary trigger
 
     useEffect(() => {
         if (handle && profileUser?.handle && handle !== profileUser.handle) {
@@ -143,7 +141,7 @@ const ProfilePage: React.FC = () => {
                 }
             }
         }
-    }, [dispatch, profileUser?.id, profileUser?.handle, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType]);
+    }, [dispatch, profileUser?.id, profileUser?.handle, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType, isPostsLoading]);
 
     // Scroll Persistence Logic
     useEffect(() => {
@@ -332,11 +330,7 @@ const ProfilePage: React.FC = () => {
 
     useDocumentTitle(profileUser?.displayName || profileUser?.handle || '');
 
-    const isStale = profileUser && handle &&
-        profileUser.handle !== handle &&
-        profileUser.did !== handle &&
-        profileUser.id !== handle &&
-        (!handle.startsWith('did:') || handle !== profileUser.did);
+    const isStale = profileUser && handle && !profileMatchesIdentifier(profileUser, handle);
 
     if ((isProfileLoading && !profileUser) || isStale) {
         return <ProfileSkeleton />;

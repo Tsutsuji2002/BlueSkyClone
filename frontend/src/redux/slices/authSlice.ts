@@ -86,21 +86,27 @@ function normalizeSettings(raw: any): UserSettings {
 /**
  * Ensures the AtpAgent session is hydrated from the current state/payload.
  */
-function hydrateAtpSession(user: User, token?: string, refreshToken?: string) {
+export async function hydrateAtpSession(user: User, token?: string, refreshToken?: string) {
     const finalToken = token || localStorage.getItem('token');
     const finalRefresh = refreshToken || localStorage.getItem('refreshToken');
     
     if (finalToken) {
-        const userDid = user.did || user.handle;
-        console.log('DEBUG: Hydrating ATP session for', userDid);
-        agent.resumeSession({
-            accessJwt: finalToken,
-            refreshJwt: finalRefresh || '',
-            handle: user.handle,
-            did: userDid || user.handle,
-            active: true
-        });
-        console.log('DEBUG: ATP session hydrated. agent.session:', (agent as any).session);
+        try {
+            const userDid = user.did || user.handle;
+            console.log('DEBUG: Hydrating ATP session for', userDid);
+            await agent.resumeSession({
+                accessJwt: finalToken,
+                refreshJwt: finalRefresh || '',
+                handle: user.handle,
+                did: userDid || user.handle,
+                active: true
+            });
+            console.log('DEBUG: ATP session hydrated. agent.session:', (agent as any).session);
+        } catch (err) {
+            console.warn('Failed to hydrate ATP session:', err);
+            // If resumeSession fails (e.g. invalid token), we don't crash here.
+            // App.tsx or thunk catch blocks will handle logout if needed.
+        }
     }
 }
 
@@ -128,13 +134,17 @@ export const login = createAsyncThunk(
                 localStorage.setItem('refreshToken', data.refreshJwt);
             }
 
-            // Map Lexicon response (with our custom fields) to Redux payload
-            return {
+            const payload = {
                 user: (data as any).user,
                 settings: (data as any).settings,
                 token: data.accessJwt,
                 refreshToken: data.refreshJwt
             };
+
+            // Hydrate session before returning to reducer
+            await hydrateAtpSession(payload.user, payload.token, payload.refreshToken);
+
+            return payload;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Login failed');
         }
@@ -174,6 +184,10 @@ export const signUp = createAsyncThunk(
             if (!response.ok) {
                 return rejectWithValue(data.message || 'Registration failed');
             }
+
+            // Hydrate session before returning to reducer
+            await hydrateAtpSession(data.user, data.token, data.refreshToken);
+
             return data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
@@ -204,10 +218,15 @@ export const getMe = createAsyncThunk(
             }
 
             // Return payload that matches the expected reducer type
-            return {
+            const payload = {
                 user: userData.user,
                 settings: userData.settings
             };
+
+            // Hydrate session before returning to reducer
+            await hydrateAtpSession(payload.user);
+
+            return payload;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
         }
@@ -387,7 +406,7 @@ const authSlice = createSlice({
                 if (action.payload.refreshToken) {
                     localStorage.setItem('refreshToken', action.payload.refreshToken);
                 }
-                hydrateAtpSession(action.payload.user, action.payload.token, action.payload.refreshToken);
+                // hydrateAtpSession moved to thunk
             })
             .addCase(login.rejected, (state, action) => {
                 state.isLoading = false;
@@ -410,7 +429,7 @@ const authSlice = createSlice({
                 if (action.payload.refreshToken) {
                     localStorage.setItem('refreshToken', action.payload.refreshToken);
                 }
-                hydrateAtpSession(action.payload.user, action.payload.token, action.payload.refreshToken);
+                // hydrateAtpSession moved to thunk
             })
             .addCase(signUp.rejected, (state, action) => {
                 state.isLoading = false;
@@ -426,8 +445,7 @@ const authSlice = createSlice({
                 state.user = action.payload.user;
                 state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
-
-                hydrateAtpSession(action.payload.user);
+                // hydrateAtpSession moved to thunk
             })
             .addCase(getMe.rejected, (state) => {
                 state.isLoading = false;

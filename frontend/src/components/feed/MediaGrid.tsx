@@ -252,6 +252,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                 }
                             }
                         }}
+                        onLoadedData={() => setIsVideoLoading(false)}
                         onCanPlay={() => setIsVideoLoading(false)}
                         onWaiting={() => setIsVideoLoading(true)}
                         onPlaying={() => {
@@ -263,7 +264,12 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             setIsPlaying(false);
                             setIsVideoLoading(false);
                         }}
-                        onStalled={() => setIsVideoLoading(true)}
+                        onStalled={() => {
+                            // Don't show spinner immediately on stall if we have enough buffer
+                            if (videoRef.current && videoRef.current.readyState < 3) {
+                                setIsVideoLoading(true);
+                            }
+                        }}
                         onSeeked={() => setIsVideoLoading(false)}
                         onSeeking={() => setIsVideoLoading(true)}
                         onError={(e) => {

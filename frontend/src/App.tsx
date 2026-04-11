@@ -49,7 +49,7 @@ const AppContent: React.FC = () => {
       const token = localStorage.getItem('token');
       if (token) {
         if (isTokenExpired(token)) {
-          // Try to refresh the session before giving up
+          console.log('DEBUG: Access token expired. Attempting refresh...');
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
             try {
@@ -61,33 +61,41 @@ const AppContent: React.FC = () => {
                   'Content-Type': 'application/json'
                 }
               });
+              
               if (res.ok) {
                 const data = await res.json();
                 if (data.accessJwt) {
                   localStorage.setItem('token', data.accessJwt);
                   localStorage.setItem('refreshToken', data.refreshJwt);
                   console.log('DEBUG: Token refreshed successfully');
-                  // Re-check auth now with new token
-                  if (!isAuthenticated) {
-                    dispatch(getMe());
-                  }
+                  dispatch(getMe());
                   return;
                 }
+              } else if (res.status === 401 || res.status === 400) {
+                console.warn('Refresh token rejected by server. Logging out.');
+                dispatch(logoutAsync());
+                return;
               } else if (res.status >= 500) {
-                console.warn('Token refresh encountered server error. Not logging out.');
-                return; // Try again next interval
+                console.warn('Token refresh encountered server error. Retaining session for now.');
+                return;
               }
             } catch (e) {
               console.warn('Token refresh network error:', e);
-              return; // Do not immediately logout on network error.
+              return;
             }
           }
-          // Refresh definitively failed (e.g., 401/403/400) - logout
+          // No refresh token or generic failure
           dispatch(logoutAsync());
           return;
         }
+
+        // Token technically not expired, but let's ensure session is valid
         if (!isAuthenticated) {
-          dispatch(getMe());
+          const result = await dispatch(getMe());
+          if (getMe.rejected.match(result)) {
+             console.warn('getMe failed for initialized user. Logging out.');
+             dispatch(logoutAsync());
+          }
         }
       }
     };
