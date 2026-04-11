@@ -38,7 +38,7 @@ const TrendingSection: React.FC = () => {
     };
 
     return (
-        <div className="border border-gray-200 dark:border-dark-border rounded-xl p-4 mb-4">
+        <div className="border border-gray-100 dark:border-dark-border rounded-2xl p-4 mb-4 bg-gray-100/30 dark:bg-dark-surface/30">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1">
                     <svg fill="none" width="16" height="16" viewBox="0 0 24 24">

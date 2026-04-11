@@ -234,7 +234,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         poster={item.thumbnail}
                         className={cn(
                             "w-full h-full",
-                            isDetailView ? "object-contain bg-black max-h-[80vh]" : "object-cover"
+                            isDetailView ? "object-contain bg-black" : "object-cover"
                         )}
                         muted={isMuted}
                         playsInline
@@ -247,6 +247,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             if (videoRef.current) {
                                 setCurrentTime(videoRef.current.currentTime);
                                 setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100);
+                                if (isVideoLoading && videoRef.current.currentTime > 0) {
+                                    setIsVideoLoading(false);
+                                }
                             }
                         }}
                         onCanPlay={() => setIsVideoLoading(false)}
@@ -305,44 +308,61 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         )}
                     </div>
 
-                    {/* Bottom Custom Controls (only in detail view) — visible on hover (web) or after touch (mobile) */}
+                    {/* Bottom Custom Controls (only in detail view) — always visible for consistent cross-device UX */}
                     {isDetailView && (
                         <div 
                             data-testid="antigravity-video-controls"
-                            className={cn(
-                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent transition-all duration-300 z-30 pointer-events-auto",
-                            (isTouched || !isPlaying || isVideoLoading) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
-                        )}>
+                            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent z-30 pointer-events-auto px-2 pb-1.5 pt-8">
                             {/* Controls Bar */}
                             <div className="flex flex-col w-full">
-                                {/* Top row: Play/Pause, Timestamp, Volume, Fullscreen */}
-                                <div className="flex items-center justify-between px-3 py-1.5">
-                                    <div className="flex items-center gap-2">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); togglePlayPause(); }} 
-                                            className="text-white hover:text-primary-400 transition-colors p-1" 
-                                            title={isPlaying ? 'Pause' : 'Play'}
-                                        >
-                                            {isPlaying ? (
-                                                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                                                    <rect x="6" y="4" width="4" height="16" />
-                                                    <rect x="14" y="4" width="4" height="16" />
-                                                </svg>
-                                            ) : (
-                                                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                                                    <path d="M8 5v14l11-7z" />
-                                                </svg>
-                                            )}
-                                        </button>
-                                        <span className="text-white text-[12px] font-medium tabular-nums select-none tracking-tight opacity-90">
+                                {/* Top row: Progress Bar */}
+                                <div 
+                                    className="w-full h-[3px] mb-2 px-1 relative cursor-pointer group/progress" 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!videoRef.current || !duration) return;
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = e.clientX - rect.left;
+                                        const percent = x / rect.width;
+                                        videoRef.current.currentTime = percent * duration;
+                                    }}
+                                >
+                                    <div className="h-full bg-white/30 rounded-full overflow-hidden">
+                                        <div className="h-full bg-white relative transition-all duration-100" style={{ width: `${progress}%` }}>
+                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform z-10" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bottom row: Buttons and Timestamp */}
+                                <div className="flex items-center justify-between px-1">
+                                    {/* Left: Play/Pause */}
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); togglePlayPause(); }} 
+                                        className="text-white hover:opacity-80 transition-opacity p-1.5" 
+                                        title={isPlaying ? 'Pause' : 'Play'}
+                                    >
+                                        {isPlaying ? (
+                                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                <rect x="6" y="4" width="4" height="16" rx="1" />
+                                                <rect x="14" y="4" width="4" height="16" rx="1" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                        )}
+                                    </button>
+
+                                    {/* Right: Timestamp, Mute, Fullscreen */}
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="text-white text-[13px] font-medium tabular-nums select-none tracking-tight opacity-95 mr-1">
                                             {formatTime(currentTime)} / {formatTime(duration)}
                                         </span>
-                                    </div>
 
-                                    <div className="flex items-center gap-1.5">
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); toggleMute(e); }} 
-                                            className="text-white hover:text-primary-400 transition-colors p-1" 
+                                            className="text-white hover:opacity-80 transition-opacity p-1.5" 
                                             title={isMuted ? 'Unmute' : 'Mute'}
                                         >
                                             {isMuted ? (
@@ -355,32 +375,16 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                                 </svg>
                                             )}
                                         </button>
+
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); toggleFullscreen(e); }} 
-                                            className="text-white hover:text-primary-400 transition-colors p-1" 
+                                            className="text-white hover:opacity-80 transition-opacity p-1.5" 
                                             title="Fullscreen"
                                         >
                                             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                                 <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
                                             </svg>
                                         </button>
-                                    </div>
-                                </div>
-
-                                {/* Bottom row: Progress Bar */}
-                                <div 
-                                    className="w-full h-1 relative cursor-pointer bg-white/20 hover:h-1.5 transition-all group/progress overflow-hidden" 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!videoRef.current || !duration) return;
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        const x = e.clientX - rect.left;
-                                        const percent = x / rect.width;
-                                        videoRef.current.currentTime = percent * duration;
-                                    }}
-                                >
-                                    <div className="h-full bg-primary-500 relative transition-all duration-100" style={{ width: `${progress}%` }}>
-                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform z-10" />
                                     </div>
                                 </div>
                             </div>
@@ -393,7 +397,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     alt={item.alt || ''}
                     className={cn(
                         "w-full h-full hover:opacity-90 transition-opacity",
-                        totalCount === 1 ? "object-contain bg-black/10 dark:bg-white/5" : "object-cover",
+                        totalCount === 1 ? (isDetailView ? "object-contain bg-black" : "object-contain bg-black/10 dark:bg-white/5") : "object-cover",
                         isLoading ? "opacity-0" : "opacity-100"
                     )}
                     loading="lazy"
@@ -429,8 +433,21 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     );
 };
 
+const useWindowSize = () => {
+    const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+    useEffect(() => {
+        const handleResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+    return size;
+};
+
 const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], media = [], video, videoUrl, onImageClick, isDetailView = false }) => {
+    const { width: windowWidth, height: windowHeight } = useWindowSize();
+    const isLandscape = windowWidth > windowHeight;
     const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
+    const [videoNativeRatio, setVideoNativeRatio] = useState<number | null>(null);
 
     const resolveUrl = (url: string) => {
         if (!url) return '';
@@ -601,10 +618,14 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
             const vid = document.createElement('video');
             vid.src = firstMediaUrl;
             vid.onloadedmetadata = () => {
-                setOrientation(vid.videoWidth >= vid.videoHeight ? 'landscape' : 'portrait');
+                const w = vid.videoWidth || 16;
+                const h = vid.videoHeight || 9;
+                setOrientation(w >= h ? 'landscape' : 'portrait');
+                setVideoNativeRatio(w / h);
             };
             vid.onerror = () => {
                 setOrientation('landscape');
+                setVideoNativeRatio(16 / 9);
             };
             return () => {
                 vid.onloadedmetadata = null;
@@ -634,22 +655,51 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
 
 
     if (count === 1) {
-        // Feed view: Zoom to center for portrait videos to avoid tall black bars
-        // Detail view: Show entire video with proper sizing
+        const isVideo = mediaList[0].isVideo;
+        // Use the video's real aspect ratio. Fall back to 16:9 while metadata loads.
+        const ratio = isVideo ? (videoNativeRatio ?? 16 / 9) : null;
+
+        // Key: set BOTH maxHeight AND maxWidth = maxHeight * ratio.
+        // When height cap activates (portrait video), width shrinks proportionally too —
+        // keeping the real aspect ratio without distortion or black bars.
+        // Stabilize feedMaxH
+        const feedMaxH = isLandscape ? Math.min(windowHeight * 0.75, 600) : Math.min(windowHeight * 0.6, 500);
+        const isPortraitVideo = ratio && ratio < 1;
+
+        const videoContainerStyle: React.CSSProperties = isVideo && ratio
+            ? isDetailView
+                ? {
+                    maxHeight: isPortraitVideo ? 'min(75dvh, 650px)' : 'min(85dvh, 800px)',
+                    width: '100%',
+                    aspectRatio: isPortraitVideo ? '4/3' : '16/9', // Standard container ratios for letterboxing
+                    margin: '0 auto',
+                  }
+                : {
+                    aspectRatio: String(ratio),
+                    maxHeight: `${feedMaxH}px`,
+                    maxWidth: `${feedMaxH * ratio}px`,
+                    width: '100%',
+                  }
+            : {};
+
+        const imageContainerClass = !isVideo
+            ? (orientation === 'portrait'
+                ? (isDetailView ? "max-h-[min(75dvh,650px)] w-full aspect-[4/3] mx-auto" : "aspect-[4/5] max-h-[512px] max-w-[450px] mx-auto")
+                : (isDetailView ? "max-h-[min(85dvh,800px)] w-full aspect-[16/9]" : "max-h-[512px] w-full"))
+            : '';
+
         return (
-            <div className={cn(
-                "rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border bg-black/[0.03] dark:bg-white/[0.03] flex justify-center w-full",
-                orientation === 'portrait'
-                    ? (isDetailView ? "max-h-[85vh] h-auto w-auto mx-auto" : "aspect-[4/5] max-h-[512px] max-w-[450px] mx-auto")
-                    : "max-h-[512px]"
-            )}>
+            <div
+                className={cn(
+                    "rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border bg-black mx-auto",
+                    !isVideo && imageContainerClass
+                )}
+                style={isVideo ? videoContainerStyle : undefined}
+            >
                 <GridItem
                     item={mediaList[0]}
                     index={0}
-                    className={cn(
-                        "w-full h-full min-h-[150px]",
-                        orientation === 'portrait' && !isDetailView ? "h-full w-full" : "aspect-auto"
-                    )}
+                    className="w-full h-full min-h-[150px]"
                     totalCount={count}
                     onImageClick={onImageClick}
                     isDetailView={isDetailView}
@@ -660,7 +710,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
 
     if (count === 2) {
         return (
-            <div className="grid grid-cols-2 gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-[2/1]">
+            <div className="grid grid-cols-2 gap-1 rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border aspect-[2/1]">
                 {mediaList.slice(0, 2).map((item, i) => (
                     <GridItem key={i} item={item} index={i} className="h-full" totalCount={count} onImageClick={onImageClick} isDetailView={isDetailView} />
                 ))}
@@ -671,7 +721,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
     if (count === 3) {
         return (
             <div className={cn(
-                "grid gap-1 rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border",
+                "grid gap-1 rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border",
                 orientation === 'landscape' ? "grid-cols-2" : "grid-cols-2 aspect-square"
             )}>
                 {orientation === 'landscape' ? (

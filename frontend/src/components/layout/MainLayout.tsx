@@ -36,12 +36,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
     }, [isAuthenticated, dispatch]);
 
     return (
-        <div className="min-h-screen bg-white dark:bg-dark-bg">
+        <div className="min-h-screen bg-gray-50 dark:bg-dark-bg/50">
             {/* Mobile Top Bar */}
             {!hideTopBar && <TopBar />}
 
             <div className="flex justify-center min-h-screen">
-                <div className="flex w-full max-w-[1200px] justify-center px-2 lg:px-4">
+                <div className="flex w-full max-w-[1260px] justify-center px-4 lg:gap-x-8 xl:gap-x-12">
                     {/* Left Sidebar - Desktop only */}
                     <div className={cn("hidden lg:block flex-shrink-0", isAuthenticated ? "w-20 xl:w-[280px]" : "w-64 xl:w-[280px]")}>
                         {isAuthenticated ? <Sidebar /> : <GuestSidebar />}
@@ -49,7 +49,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
 
                     {/* Main Content */}
                     <main className={cn(
-                        "w-full max-w-[600px] min-w-0 border-x border-gray-100 dark:border-dark-border lg:pb-0",
+                        "w-full max-w-[600px] min-w-0 border-x border-gray-100 dark:border-dark-border lg:pb-0 self-start bg-white dark:bg-dark-bg min-h-screen",
                         hideBottomNav ? "pb-0" : "pb-16"
                     )}>
                         {children || (

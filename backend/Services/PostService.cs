@@ -1351,6 +1351,11 @@ public class PostService : IPostService
         var allowQuotes = request.AllowQuotes ?? userSettings?.DefaultAllowQuotes ?? true;
         var language = request.Language;
 
+        if (!string.IsNullOrEmpty(request.Content) && request.Content.Length > 300)
+        {
+            throw new Exception("Post content exceeds 300 characters.");
+        }
+
         try
         {
             var author = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -2311,6 +2316,10 @@ public class PostService : IPostService
 
     public async Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request)
     {
+        if (!string.IsNullOrEmpty(request.Content) && request.Content.Length > 300)
+        {
+            throw new Exception("Post content exceeds 300 characters.");
+        }
         Console.WriteLine($"[UpdatePostAsync] Starting update for Post {postId} by User {userId}");
         try
         {

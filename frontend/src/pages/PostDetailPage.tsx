@@ -577,7 +577,7 @@ const PostDetailPage: React.FC = () => {
                 </div>
             ))}
 
-            <div ref={mainPostRef} className="p-4 border-b border-gray-200 dark:border-dark-border relative bg-white dark:bg-dark-bg">
+            <div ref={mainPostRef} className="px-4 py-3 border-b border-gray-100 dark:border-dark-border relative bg-white dark:bg-dark-bg">
                 {/* Post Content & Moderation UI logic */}
                 {(() => {
                     const isMuted = post.muteInfo?.isMuted && !isUnmuted;

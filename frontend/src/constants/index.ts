@@ -49,7 +49,7 @@ export const THEME_COLORS = {
 };
 
 // Post character limit
-export const POST_CHARACTER_LIMIT = 1000;
+export const POST_CHARACTER_LIMIT = 300;
 
 // Image upload limits
 export const MAX_IMAGES_PER_POST = 4;

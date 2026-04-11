@@ -180,7 +180,7 @@ const RightSidebar: React.FC = () => {
 
                 {/* Dropdown Results */}
                 {showResults && (searchQuery.trim() || loading) && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl shadow-xl z-50 overflow-hidden min-h-[100px] max-h-[80vh] flex flex-col">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-2xl shadow-xl z-50 overflow-hidden min-h-[100px] max-h-[80vh] flex flex-col">
                         <div className="p-3 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50">
                             <p className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
                                 {t('search.searching_for', { defaultValue: 'Search for "{{query}}"', query: searchQuery })}
