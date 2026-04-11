@@ -88,15 +88,20 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     const script = document.createElement('script');
                     script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
                     script.onload = () => {
-                        const LoadedHls = (window as any).Hls;
-                        if (LoadedHls && LoadedHls.isSupported()) {
-                            hlsInstance = new LoadedHls();
+                        const Hls = (window as any).Hls;
+                        if (Hls && Hls.isSupported()) {
+                            console.log('HLS.js loaded and supported');
+                            hlsInstance = new Hls();
+                            hlsInstance.on(Hls.Events.ERROR, (event: any, data: any) => {
+                                console.error('HLS error:', data);
+                            });
                             hlsInstance.loadSource(url);
                             hlsInstance.attachMedia(video);
                         }
                     };
                     document.head.appendChild(script);
                 } else {
+                    console.log('Native playback fallback');
                     video.src = url;
                 }
             }
@@ -251,6 +256,13 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             setIsVideoLoading(false);
                         }}
                         onPause={() => setIsPlaying(false)}
+                        onEnded={() => {
+                            setIsPlaying(false);
+                            setIsVideoLoading(false);
+                        }}
+                        onStalled={() => setIsVideoLoading(true)}
+                        onSeeked={() => setIsVideoLoading(false)}
+                        onSeeking={() => setIsVideoLoading(true)}
                         onError={(e) => {
                             console.error('Video load error');
                             setIsVideoLoading(false);
@@ -261,9 +273,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     <div 
                         className={cn(
                             "absolute inset-0 flex items-center justify-center transition-opacity duration-200 pointer-events-none z-10",
-                            isDetailView
-                                ? (isPlaying && !isTouched ? "opacity-0" : "opacity-100")
-                                : (isPlaying ? "opacity-0" : "opacity-100")
+                        isDetailView
+                                ? ((isPlaying && !isTouched && !isVideoLoading) ? "opacity-0 invisible" : "opacity-100 visible")
+                                : (isPlaying ? "opacity-0 invisible" : "opacity-100 visible")
                         )}
                     >
                         {isVideoLoading ? (
@@ -295,10 +307,11 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
 
                     {/* Bottom Custom Controls (only in detail view) — visible on hover (web) or after touch (mobile) */}
                     {isDetailView && (
-                        <div className={cn(
-                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-200 z-30 pointer-events-auto",
-                            "opacity-0 group-hover:opacity-100",
-                            isTouched && "opacity-100"
+                        <div 
+                            data-testid="antigravity-video-controls"
+                            className={cn(
+                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent transition-all duration-300 z-30 pointer-events-auto",
+                            (isTouched || !isPlaying || isVideoLoading) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
                         )}>
                             {/* Controls Bar */}
                             <div className="flex flex-col w-full">
@@ -627,7 +640,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
             <div className={cn(
                 "rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border bg-black/[0.03] dark:bg-white/[0.03] flex justify-center w-full",
                 orientation === 'portrait'
-                    ? (isDetailView ? "max-h-[650px] w-fit mx-auto" : "aspect-[4/5] max-h-[512px] max-w-[450px] mx-auto")
+                    ? (isDetailView ? "max-h-[85vh] h-auto w-auto mx-auto" : "aspect-[4/5] max-h-[512px] max-w-[450px] mx-auto")
                     : "max-h-[512px]"
             )}>
                 <GridItem
