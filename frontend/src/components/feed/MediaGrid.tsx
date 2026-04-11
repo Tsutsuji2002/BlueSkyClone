@@ -42,7 +42,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const [isLoading, setIsLoading] = useState(true);
     const [isVideoLoading, setIsVideoLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [showControls, setShowControls] = useState(false);
+    const [isTouched, setIsTouched] = useState(false);
     
     // Fallback for detail view detection if prop is missing but we're on a post page
     const isDetailView = isDetailViewProp || window.location.pathname.includes('/post/');
@@ -51,6 +51,15 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const [progress, setProgress] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
+
+    // Auto-hide touch controls after 3 seconds
+    const touchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const showTouchControls = () => {
+        setIsTouched(true);
+        if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+        touchTimerRef.current = setTimeout(() => setIsTouched(false), 3000);
+    };
+    React.useEffect(() => () => { if (touchTimerRef.current) clearTimeout(touchTimerRef.current); }, []);
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const autoplayEnabled = settings?.autoplayVideoGif ?? true;
@@ -120,17 +129,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
         return () => observer.disconnect();
     }, [item.isVideo, autoplayEnabled]);
 
-    const handleMouseEnter = () => {
-        if (item.isVideo && isDetailView) {
-            setShowControls(true);
-        }
-    };
-
-    const handleMouseLeave = () => {
-        if (item.isVideo && isDetailView) {
-            setShowControls(false);
-        }
-    };
+    // Mouse/touch handlers are now managed via CSS group-hover and isTouched state
 
     const togglePlayPause = (e?: React.MouseEvent) => {
         e?.stopPropagation();
@@ -200,14 +199,15 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     return (
         <div
             className={cn(
-                'relative cursor-pointer overflow-hidden bg-gray-100 dark:bg-dark-surface',
+                'relative cursor-pointer overflow-hidden bg-gray-100 dark:bg-dark-surface group/media',
                 className
             )}
             onClick={(e) => {
                 e.stopPropagation();
                 if (item.isVideo) {
                     if (isDetailView) {
-                        setShowControls((prev) => !prev);
+                        showTouchControls();
+                        togglePlayPause();
                     } else {
                         togglePlayPause();
                     }
@@ -215,8 +215,12 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     onImageClick?.(index);
                 }
             }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
+            onTouchStart={(e) => {
+                if (item.isVideo && isDetailView) {
+                    e.stopPropagation();
+                    showTouchControls();
+                }
+            }}
         >
             {item.isVideo ? (
                 <div className="w-full h-full relative group/video">
@@ -253,11 +257,16 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         }}
                     />
 
-                    {/* Central Play/Pause Toggle overlay */}
+                    {/* Central Play/Pause Toggle overlay — always show when paused, appears on hover/touch when playing */}
                     <div 
                         className={cn(
-                            "absolute inset-0 flex items-center justify-center transition-opacity duration-300",
-                            (isPlaying || !isDetailView) ? "opacity-0 pointer-events-none" : "opacity-100"
+                            "absolute inset-0 flex items-center justify-center transition-opacity duration-200 pointer-events-none",
+                            isDetailView
+                                ? cn(
+                                    "group-hover/media:opacity-100",
+                                    isPlaying && !isTouched ? "opacity-0" : "opacity-100"
+                                  )
+                                : (isPlaying ? "opacity-0" : "opacity-100")
                         )}
                     >
                         {isVideoLoading ? (
@@ -270,24 +279,32 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         ) : (
                             <button 
                                 className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center text-white backdrop-blur-md hover:scale-105 transition-transform pointer-events-auto shadow-xl" 
-                                onClick={togglePlayPause}
-                                aria-label="Play video"
+                                onClick={(e) => { e.stopPropagation(); togglePlayPause(); }}
+                                aria-label={isPlaying ? 'Pause video' : 'Play video'}
                             >
-                                <svg className="w-8 h-8 fill-current ml-1" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z" />
-                                </svg>
+                                {isPlaying ? (
+                                    <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
+                                        <rect x="6" y="4" width="4" height="16" />
+                                        <rect x="14" y="4" width="4" height="16" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-8 h-8 fill-current ml-1" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                )}
                             </button>
                         )}
                     </div>
 
-                    {/* Bottom Custom Controls (only in detail view, visible on hover/touch) */}
+                    {/* Bottom Custom Controls (only in detail view) — visible on hover (web) or after touch (mobile) */}
                     {isDetailView && (
                         <div className={cn(
-                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-300 pointer-events-none z-20",
-                            (showControls || !isPlaying) ? "opacity-100" : "opacity-0"
+                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-200 z-20",
+                            "opacity-0 group-hover/media:opacity-100",
+                            isTouched && "opacity-100"
                         )}>
                             {/* Progress bar */}
-                            <div className="w-full h-1 relative cursor-pointer pointer-events-auto bg-white/20 hover:h-1.5 transition-all group/progress" onClick={(e) => {
+                            <div className="w-full h-1 relative cursor-pointer bg-white/20 hover:h-1.5 transition-all group/progress" onClick={(e) => {
                                 e.stopPropagation();
                                 if (!videoRef.current || !duration) return;
                                 const rect = e.currentTarget.getBoundingClientRect();
@@ -301,9 +318,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             </div>
 
                             {/* Controls Bar */}
-                            <div className="flex items-center justify-between px-4 py-2 pointer-events-auto">
+                            <div className="flex items-center justify-between px-4 py-2">
                                 <div className="flex items-center">
-                                    <button onClick={togglePlayPause} className="text-white hover:text-gray-200 transition-colors p-1" title={isPlaying ? "Pause" : "Play"}>
+                                    <button onClick={(e) => { e.stopPropagation(); togglePlayPause(); }} className="text-white hover:text-gray-200 transition-colors p-1" title={isPlaying ? 'Pause' : 'Play'}>
                                         {isPlaying ? (
                                             <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                                                 <rect x="6" y="4" width="4" height="16" />
@@ -322,7 +339,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                         {formatTime(currentTime)} / {formatTime(duration)}
                                     </span>
                                     <div className="flex items-center gap-1">
-                                        <button onClick={toggleMute} className="text-white hover:text-gray-200 transition-colors p-1" title={isMuted ? "Unmute" : "Mute"}>
+                                        <button onClick={(e) => { e.stopPropagation(); toggleMute(e); }} className="text-white hover:text-gray-200 transition-colors p-1" title={isMuted ? 'Unmute' : 'Mute'}>
                                             {isMuted ? (
                                                 <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                                     <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
@@ -333,7 +350,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                                 </svg>
                                             )}
                                         </button>
-                                        <button onClick={toggleFullscreen} className="text-white hover:text-gray-200 transition-colors p-1" title="Fullscreen">
+                                        <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(e); }} className="text-white hover:text-gray-200 transition-colors p-1" title="Fullscreen">
                                             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                                 <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
                                             </svg>
@@ -427,23 +444,43 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
     const mediaList: MediaItem[] = React.useMemo(() => {
         const list: MediaItem[] = [];
         const addedUrls = new Set<string>();
+        const videoThumbnails = new Set<string>();
 
-        // Priority 1: Media array (richest source, includes alt text and potentially video)
+        // Phase 1: Identify all video thumbnails across all props
+        if (media && media.length > 0) {
+            media.forEach(m => {
+                if ((m.type === 'video' || isVideoUrl(resolveUrl(m.url))) && m.thumbnailUrl) {
+                    videoThumbnails.add(resolveUrl(m.thumbnailUrl));
+                }
+            });
+        }
+        if (video?.thumbnail) {
+            videoThumbnails.add(resolveUrl(video.thumbnail));
+        }
+
+        // Phase 2: Build prioritized list
+        // Priority 1: Media array
         if (media && media.length > 0) {
             media.forEach(m => {
                 const url = resolveUrl(m.url);
+                if (m.type === 'image' && videoThumbnails.has(url)) return;
+                
                 if (!addedUrls.has(url)) {
                     const isVideo = m.type === 'video' || isVideoUrl(url);
                     const optimized = getOptimizedUrl(m.url, url, isVideo, m.thumbnailUrl);
-                    list.push({ url: optimized, alt: m.altText, isVideo, thumbnail: m.thumbnailUrl ? resolveUrl(m.thumbnailUrl) : undefined });
+                    list.push({ 
+                        url: optimized, 
+                        alt: m.altText, 
+                        isVideo, 
+                        thumbnail: m.thumbnailUrl ? resolveUrl(m.thumbnailUrl) : undefined 
+                    });
                     addedUrls.add(url);
                 }
             });
-            // If we have media, we usually don't want to mix it with fallbacks to avoid duplication
             return list;
         } 
 
-        // Priority 2: Video object (specific video embed)
+        // Priority 2: Video object or videoUrl
         if (video) {
             const url = resolveUrl(video.url);
             const thumbUrl = video.thumbnail ? resolveUrl(video.thumbnail) : undefined;
@@ -459,10 +496,12 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
             }
         }
 
-        // Priority 3: Images array (mapped from AT Protocol embed)
+        // Priority 3: Images array
         if (images && images.length > 0) {
             images.forEach(img => {
                 const resolved = resolveUrl(img.url);
+                if (videoThumbnails.has(resolved)) return;
+                
                 if (!addedUrls.has(resolved)) {
                     const isActuallyVideo = isVideoUrl(resolved);
                     const optimized = getOptimizedUrl(img.url, resolved, isActuallyVideo);
@@ -471,10 +510,12 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                 }
             });
         }
-        // Priority 4: imageUrls (oldest backend format)
+        // Priority 4: imageUrls 
         else if (imageUrls && imageUrls.length > 0) {
             imageUrls.forEach(rawUrl => {
                 const resolved = resolveUrl(rawUrl);
+                if (videoThumbnails.has(resolved)) return;
+                
                 if (!addedUrls.has(resolved)) {
                     const isActuallyVideo = isVideoUrl(resolved);
                     const optimized = getOptimizedUrl(rawUrl, resolved, isActuallyVideo);
