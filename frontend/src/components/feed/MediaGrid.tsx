@@ -199,7 +199,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     return (
         <div
             className={cn(
-                'relative cursor-pointer overflow-hidden bg-gray-100 dark:bg-dark-surface group/media',
+                'relative cursor-pointer overflow-hidden bg-gray-100 dark:bg-dark-surface group',
                 className
             )}
             onClick={(e) => {
@@ -299,8 +299,8 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     {/* Bottom Custom Controls (only in detail view) — visible on hover (web) or after touch (mobile) */}
                     {isDetailView && (
                         <div className={cn(
-                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-200 z-20",
-                            "opacity-0 group-hover/media:opacity-100",
+                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-200 z-20 pointer-events-auto",
+                            "opacity-0 group-hover:opacity-100",
                             isTouched && "opacity-100"
                         )}>
                             {/* Progress bar */}
@@ -313,7 +313,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                 videoRef.current.currentTime = percent * duration;
                             }}>
                                 <div className="h-full bg-white relative" style={{ width: `${progress}%` }}>
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform" />
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 group-hover:scale-100 transition-transform" />
                                 </div>
                             </div>
 
@@ -440,33 +440,58 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         return videoExtensions.some(ext => urlWithoutQuery.endsWith(ext));
     };
 
+    // Extract CID/Blob Id from Bluesky CDN URLs for robust deduplication
+    const extractCid = (url: string) => {
+        if (!url) return null;
+        // Match standard format: plain/did:plc:.../bafk...
+        // Matches the 59-char CID (bafk...)
+        const match = url.match(/bafk[a-z0-9]{55,}/i);
+        return match ? match[0].toLowerCase() : null;
+    };
+
     // Memoize mediaList to prevent recreation on every render
     const mediaList: MediaItem[] = React.useMemo(() => {
         const list: MediaItem[] = [];
         const addedUrls = new Set<string>();
         const videoThumbnails = new Set<string>();
+        const videoCids = new Set<string>();
 
-        // Phase 1: Identify all video thumbnails across all props
-        if (media && media.length > 0) {
-            media.forEach(m => {
-                if ((m.type === 'video' || isVideoUrl(resolveUrl(m.url))) && m.thumbnailUrl) {
-                    videoThumbnails.add(resolveUrl(m.thumbnailUrl));
+        // Phase 1: Identify all video thumbnails and CIDs across all props
+        const processItemForPhase1 = (item: any, isExplicitVideo: boolean = false) => {
+            const resolved = resolveUrl(item.url || item);
+            const isVideo = isExplicitVideo || isVideoUrl(resolved);
+            const cid = extractCid(resolved);
+            
+            if (isVideo) {
+                if (cid) videoCids.add(cid);
+                const thumb = item.thumbnailUrl || (typeof item === 'object' ? item.thumbnail : null);
+                if (thumb) {
+                    const resolvedThumb = resolveUrl(thumb);
+                    videoThumbnails.add(resolvedThumb);
+                    const thumbCid = extractCid(resolvedThumb);
+                    if (thumbCid) videoCids.add(thumbCid);
                 }
-            });
+            }
+        };
+
+        if (media && media.length > 0) {
+            media.forEach(m => processItemForPhase1(m, m.type === 'video'));
         }
-        if (video?.thumbnail) {
-            videoThumbnails.add(resolveUrl(video.thumbnail));
-        }
+        if (video) processItemForPhase1(video, true);
+        if (videoUrl) processItemForPhase1(videoUrl, true);
 
         // Phase 2: Build prioritized list
         // Priority 1: Media array
         if (media && media.length > 0) {
             media.forEach(m => {
                 const url = resolveUrl(m.url);
-                if (m.type === 'image' && videoThumbnails.has(url)) return;
+                const cid = extractCid(url);
+                const isVideo = m.type === 'video' || isVideoUrl(url);
+
+                // Skip if this image is already identified as a video thumbnail or shares CID with a video
+                if (m.type === 'image' && (videoThumbnails.has(url) || (cid && videoCids.has(cid)))) return;
                 
                 if (!addedUrls.has(url)) {
-                    const isVideo = m.type === 'video' || isVideoUrl(url);
                     const optimized = getOptimizedUrl(m.url, url, isVideo, m.thumbnailUrl);
                     list.push({ 
                         url: optimized, 
@@ -487,12 +512,16 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
             if (!addedUrls.has(url)) {
                 list.push({ url, isVideo: true, thumbnail: thumbUrl, alt: video.alt });
                 addedUrls.add(url);
+                const cid = extractCid(url);
+                if (cid) addedUrls.add(cid); // Also prevent CID-duplicates from images prop
             }
         } else if (videoUrl) {
             const url = resolveUrl(videoUrl);
             if (!addedUrls.has(url)) {
                 list.push({ url, isVideo: true });
                 addedUrls.add(url);
+                const cid = extractCid(url);
+                if (cid) addedUrls.add(cid);
             }
         }
 
@@ -500,7 +529,8 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         if (images && images.length > 0) {
             images.forEach(img => {
                 const resolved = resolveUrl(img.url);
-                if (videoThumbnails.has(resolved)) return;
+                const cid = extractCid(resolved);
+                if (videoThumbnails.has(resolved) || (cid && (videoCids.has(cid) || addedUrls.has(cid)))) return;
                 
                 if (!addedUrls.has(resolved)) {
                     const isActuallyVideo = isVideoUrl(resolved);
@@ -514,7 +544,8 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         else if (imageUrls && imageUrls.length > 0) {
             imageUrls.forEach(rawUrl => {
                 const resolved = resolveUrl(rawUrl);
-                if (videoThumbnails.has(resolved)) return;
+                const cid = extractCid(resolved);
+                if (videoThumbnails.has(resolved) || (cid && (videoCids.has(cid) || addedUrls.has(cid)))) return;
                 
                 if (!addedUrls.has(resolved)) {
                     const isActuallyVideo = isVideoUrl(resolved);
