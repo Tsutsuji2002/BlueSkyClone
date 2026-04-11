@@ -78,7 +78,7 @@ const SearchPage: React.FC = () => {
 
     if (!isAuthenticated) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border pb-[80px]">
+            <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border pb-[80px]">
                 {/* Header */}
                 <div className="sticky top-0 z-30 bg-white dark:bg-dark-bg">
                     <div className="flex items-center gap-4 px-4 py-3">
@@ -111,7 +111,7 @@ const SearchPage: React.FC = () => {
                                 onFocus={() => setIsFocused(true)}
                                 onBlur={() => setTimeout(() => setIsFocused(false), 200)}
                                 placeholder={t('explore.search_placeholder_long', { defaultValue: 'Search posts, users, or feeds' })}
-                                className="w-full bg-white dark:bg-dark-surface py-2.5 pl-10 pr-10 rounded-lg text-[15px] border border-gray-200 dark:border-dark-border focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors dark:text-dark-text shadow-sm"
+                                className="w-full bg-[#EFF3F4] dark:bg-dark-surface py-[10px] pl-11 pr-10 rounded-full text-[15px] focus:bg-gray-200 dark:focus:bg-dark-border focus:outline-none transition-colors dark:text-dark-text placeholder-[#536471]"
                             />
                             {inputValue && (
                                 <button
@@ -138,7 +138,7 @@ const SearchPage: React.FC = () => {
                 </div>
 
                 {/* Body */}
-                <div className="bg-white dark:bg-dark-bg min-h-[calc(100vh-120px)] shadow-sm border-t border-gray-200 dark:border-dark-border">
+                <div className="bg-white dark:bg-dark-bg min-h-[calc(100vh-120px)] border-t border-gray-100 dark:border-dark-border">
                     {inputValue.trim() === '' ? (
                         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                             <div className="mb-4">
