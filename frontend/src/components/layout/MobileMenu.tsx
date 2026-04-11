@@ -135,7 +135,7 @@ const MobileMenu: React.FC = () => {
 
                 {/* Navigation Items */}
                 <nav className="p-4">
-                    {NAV_ITEMS.filter(item => user || ['home', 'search', 'feeds', 'lists'].includes(item.id)).map((item) => {
+                    {NAV_ITEMS.filter(item => user || ['home', 'explore', 'feeds'].includes(item.id)).map((item) => {
                         const isActive = location.pathname === item.path ||
                             (item.path === '/profile' && location.pathname.startsWith('/profile'));
 

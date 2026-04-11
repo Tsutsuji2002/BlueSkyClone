@@ -13,7 +13,8 @@ import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-
+import { openMobileMenu } from '../redux/slices/modalsSlice';
+import { FiMenu } from 'react-icons/fi';
 
 const SearchPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -70,7 +71,127 @@ const SearchPage: React.FC = () => {
         }
     };
 
-    useDocumentTitle(`${query} - ${t('nav.search', { defaultValue: 'Search' })}`);
+    useDocumentTitle(`${query ? query + ' - ' : ''}${t('nav.search', { defaultValue: 'Search' })}`);
+
+    const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
+    const [isFocused, setIsFocused] = useState(false);
+
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border pb-[80px]">
+                {/* Header */}
+                <div className="sticky top-0 z-30 bg-white dark:bg-dark-bg">
+                    <div className="flex items-center gap-4 px-4 py-3">
+                        <button
+                            onClick={() => dispatch(openMobileMenu())}
+                            className="p-1 -ml-1 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
+                        >
+                            <FiMenu size={22} className="text-gray-900 dark:text-dark-text" />
+                        </button>
+                        <h2 className="text-[20px] font-bold text-gray-900 dark:text-dark-text">
+                            {t('nav.explore', { defaultValue: 'Explore' })}
+                        </h2>
+                    </div>
+
+                    {/* Search Field */}
+                    <div className="px-4 pb-3 flex gap-2">
+                        <form onSubmit={handleSearch} className="flex-1 relative group">
+                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 focus-within:text-primary-500 transition-colors" size={18} />
+                            <input
+                                type="text"
+                                value={inputValue}
+                                onChange={(e) => {
+                                    setInputValue(e.target.value);
+                                    if (e.target.value.trim() !== '') {
+                                        // Auto-search for users in guest mode like typeahead
+                                        const q = e.target.value.trim().startsWith('@') ? e.target.value.trim().slice(1) : e.target.value.trim();
+                                        dispatch(searchUsers({ query: q, skip: 0, take: 10 }));
+                                    }
+                                }}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+                                placeholder={t('explore.search_placeholder_long', { defaultValue: 'Search posts, users, or feeds' })}
+                                className="w-full bg-white dark:bg-dark-surface py-2.5 pl-10 pr-10 rounded-lg text-[15px] border border-gray-200 dark:border-dark-border focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors dark:text-dark-text shadow-sm"
+                            />
+                            {inputValue && (
+                                <button
+                                    type="button"
+                                    onClick={() => setInputValue('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text p-1"
+                                >
+                                    <FiX size={16} />
+                                </button>
+                            )}
+                        </form>
+                        {(isFocused || inputValue) && (
+                            <button 
+                                onClick={() => {
+                                    setInputValue('');
+                                    setSearchParams({});
+                                }}
+                                className="text-primary-500 font-medium text-[15px] px-1 hover:underline whitespace-nowrap"
+                            >
+                                {t('common.cancel', { defaultValue: 'Cancel' })}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Body */}
+                <div className="bg-white dark:bg-dark-bg min-h-[calc(100vh-120px)] shadow-sm border-t border-gray-200 dark:border-dark-border">
+                    {inputValue.trim() === '' ? (
+                        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                            <div className="mb-4">
+                                <FiSearch className="text-gray-400 dark:text-dark-text-secondary" size={48} strokeWidth={2.5} />
+                            </div>
+                            <p className="text-gray-500 dark:text-dark-text-secondary text-[15px] font-medium max-w-xs">
+                                {t('explore.guest_hero_text', { defaultValue: 'Search posts, users, and feeds on Bluesky' })}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col">
+                            <div className="px-4 py-3 border-b border-gray-100 dark:border-dark-border">
+                                <span className="text-[15px] text-gray-900 dark:text-dark-text">
+                                    {t('search.search_for', { defaultValue: 'Search for' })} "{inputValue}"
+                                </span>
+                            </div>
+                            
+                            {/* User Results */}
+                            <div className="divide-y divide-gray-100 dark:divide-dark-border">
+                                {isUsersLoading && users.length === 0 ? (
+                                    <div className="flex justify-center py-8">
+                                        <LoadingIndicator size="md" />
+                                    </div>
+                                ) : users.map((user) => (
+                                    <div
+                                        key={user.id}
+                                        onClick={() => navigate(`/profile/${user.handle}`)}
+                                        className="flex gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer transition-colors"
+                                    >
+                                        <div className="flex-shrink-0 mt-0.5">
+                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName || user.handle || '?'} size="md" />
+                                        </div>
+                                        
+                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                            <div className="flex items-center gap-1 leading-tight">
+                                                <span className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate">
+                                                    {user.displayName || user.handle || 'Unknown'}
+                                                </span>
+                                                {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
+                                            </div>
+                                            <div className="text-gray-500 dark:text-dark-text-secondary text-[14px] truncate leading-tight mt-0.5">
+                                                @{user.handle}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
