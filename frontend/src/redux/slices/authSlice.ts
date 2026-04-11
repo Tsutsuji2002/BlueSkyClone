@@ -431,9 +431,13 @@ const authSlice = createSlice({
             })
             .addCase(getMe.rejected, (state) => {
                 state.isLoading = false;
-                state.isAuthenticated = false;
-                state.user = null;
-                state.settings = null;
+                // Only clear auth state if the token was definitively removed (e.g., 401 response).
+                // If it's a network error, keep existing state to prevent authorized UI from disappearing.
+                if (!localStorage.getItem('token')) {
+                    state.isAuthenticated = false;
+                    state.user = null;
+                    state.settings = null;
+                }
             })
             // Logout
             .addCase(logoutAsync.fulfilled, (state) => {

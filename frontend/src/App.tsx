@@ -73,12 +73,16 @@ const AppContent: React.FC = () => {
                   }
                   return;
                 }
+              } else if (res.status >= 500) {
+                console.warn('Token refresh encountered server error. Not logging out.');
+                return; // Try again next interval
               }
             } catch (e) {
-              console.warn('Token refresh failed:', e);
+              console.warn('Token refresh network error:', e);
+              return; // Do not immediately logout on network error.
             }
           }
-          // Refresh failed - logout
+          // Refresh definitively failed (e.g., 401/403/400) - logout
           dispatch(logoutAsync());
           return;
         }
