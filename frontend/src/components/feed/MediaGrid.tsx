@@ -35,7 +35,7 @@ interface GridItemProps {
     isDetailView?: boolean;
 }
 
-const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay, totalCount, onImageClick, isDetailView }) => {
+const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay, totalCount, onImageClick, isDetailView: isDetailViewProp }) => {
     const { t } = useTranslation();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [imageError, setImageError] = useState(false);
@@ -43,6 +43,10 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const [isVideoLoading, setIsVideoLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
     const [showControls, setShowControls] = useState(false);
+    
+    // Fallback for detail view detection if prop is missing but we're on a post page
+    const isDetailView = isDetailViewProp || window.location.pathname.includes('/post/');
+    
     const [isMuted, setIsMuted] = useState(!isDetailView);
     const [progress, setProgress] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
@@ -50,6 +54,53 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const autoplayEnabled = settings?.autoplayVideoGif ?? true;
+
+    // Handle HLS playback and standard video source
+    useEffect(() => {
+        if (!item.isVideo || !videoRef.current) return;
+        
+        const video = videoRef.current;
+        const url = item.url;
+        let hlsInstance: any = null;
+
+        if (url.toLowerCase().endsWith('.m3u8')) {
+            if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS support (Safari, iOS)
+                video.src = url;
+            } else {
+                // Try to use hls.js (Chrome, Firefox)
+                const Hls = (window as any).Hls;
+                if (Hls && Hls.isSupported()) {
+                    hlsInstance = new Hls();
+                    hlsInstance.loadSource(url);
+                    hlsInstance.attachMedia(video);
+                } else if (!Hls) {
+                    // Inject Hls.js from CDN if not present
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+                    script.onload = () => {
+                        const LoadedHls = (window as any).Hls;
+                        if (LoadedHls && LoadedHls.isSupported()) {
+                            hlsInstance = new LoadedHls();
+                            hlsInstance.loadSource(url);
+                            hlsInstance.attachMedia(video);
+                        }
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    video.src = url;
+                }
+            }
+        } else {
+            video.src = url;
+        }
+
+        return () => {
+            if (hlsInstance) {
+                hlsInstance.destroy();
+            }
+        };
+    }, [item.url, item.isVideo]);
 
     useEffect(() => {
         if (!item.isVideo || !videoRef.current || !autoplayEnabled) return;
@@ -60,10 +111,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     videoRef.current?.play().catch(() => { });
                 } else {
                     videoRef.current?.pause();
-                    // Don't reset currentTime on invisible so playback resumes naturally
                 }
             },
-            { threshold: 0.5 } // Play when at least 50% visible
+            { threshold: 0.5 }
         );
 
         observer.observe(videoRef.current);
@@ -172,7 +222,6 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 <div className="w-full h-full relative group/video">
                     <video
                         ref={videoRef}
-                        src={item.url}
                         poster={item.thumbnail}
                         className={cn(
                             "w-full h-full",
@@ -199,7 +248,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         }}
                         onPause={() => setIsPlaying(false)}
                         onError={(e) => {
-                            console.error('Video load error:', item.url);
+                            console.error('Video load error');
                             setIsVideoLoading(false);
                         }}
                     />
@@ -207,59 +256,61 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     {/* Central Play/Pause Toggle overlay */}
                     <div 
                         className={cn(
-                            "absolute inset-0 bg-black/10 transition-colors flex items-center justify-center pointer-events-none",
-                            isPlaying ? "opacity-0" : "group-hover/video:bg-transparent opacity-100"
+                            "absolute inset-0 flex items-center justify-center transition-opacity duration-300",
+                            (isPlaying || !isDetailView) ? "opacity-0 pointer-events-none" : "opacity-100"
                         )}
                     >
                         {isVideoLoading ? (
-                            <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white">
-                                <svg className="animate-spin w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <div className="w-16 h-16 rounded-full bg-black/40 flex items-center justify-center text-white backdrop-blur-md">
+                                <svg className="animate-spin w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                             </div>
                         ) : (
-                            !isPlaying && (
-                                <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white opacity-80 backdrop-blur-sm pointer-events-auto" onClick={togglePlayPause}>
-                                    <svg className="w-6 h-6 fill-current ml-1" viewBox="0 0 24 24">
-                                        <path d="M8 5v14l11-7z" />
-                                    </svg>
-                                </div>
-                            )
+                            <button 
+                                className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center text-white backdrop-blur-md hover:scale-105 transition-transform pointer-events-auto shadow-xl" 
+                                onClick={togglePlayPause}
+                                aria-label="Play video"
+                            >
+                                <svg className="w-8 h-8 fill-current ml-1" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                            </button>
                         )}
                     </div>
 
                     {/* Bottom Custom Controls (only in detail view, visible on hover/touch) */}
                     {isDetailView && (
                         <div className={cn(
-                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 pointer-events-none",
-                            showControls ? "opacity-100" : "opacity-0"
+                            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-300 pointer-events-none z-20",
+                            (showControls || !isPlaying) ? "opacity-100" : "opacity-0"
                         )}>
                             {/* Progress bar */}
-                            <div className="w-full h-1 bg-white/30 cursor-pointer pointer-events-auto" onClick={(e) => {
+                            <div className="w-full h-1 relative cursor-pointer pointer-events-auto bg-white/20 hover:h-1.5 transition-all group/progress" onClick={(e) => {
                                 e.stopPropagation();
-                                if (!videoRef.current) return;
+                                if (!videoRef.current || !duration) return;
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 const x = e.clientX - rect.left;
                                 const percent = x / rect.width;
                                 videoRef.current.currentTime = percent * duration;
                             }}>
                                 <div className="h-full bg-white relative" style={{ width: `${progress}%` }}>
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full scale-0 group-hover/video:scale-100 transition-transform hidden" />
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform" />
                                 </div>
                             </div>
-                            
+
                             {/* Controls Bar */}
-                            <div className="flex items-center justify-between px-3 py-2 pointer-events-auto">
-                                <div className="flex items-center gap-3">
-                                    <button onClick={togglePlayPause} className="text-white hover:text-gray-300 pointer-events-auto p-1">
+                            <div className="flex items-center justify-between px-4 py-2 pointer-events-auto">
+                                <div className="flex items-center">
+                                    <button onClick={togglePlayPause} className="text-white hover:text-gray-200 transition-colors p-1" title={isPlaying ? "Pause" : "Play"}>
                                         {isPlaying ? (
-                                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                                            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                                                 <rect x="6" y="4" width="4" height="16" />
                                                 <rect x="14" y="4" width="4" height="16" />
                                             </svg>
                                         ) : (
-                                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                                                 <path d="M8 5v14l11-7z" />
                                             </svg>
                                         )}
@@ -267,11 +318,11 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                 </div>
 
                                 <div className="flex items-center gap-4">
-                                    <span className="text-white text-[13px] font-medium tabular-nums shadow-sm select-none">
+                                    <span className="text-white text-[13px] font-medium tabular-nums select-none tracking-tight">
                                         {formatTime(currentTime)} / {formatTime(duration)}
                                     </span>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={toggleMute} className="text-white hover:text-gray-300 p-1">
+                                    <div className="flex items-center gap-1">
+                                        <button onClick={toggleMute} className="text-white hover:text-gray-200 transition-colors p-1" title={isMuted ? "Unmute" : "Mute"}>
                                             {isMuted ? (
                                                 <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                                     <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
@@ -282,7 +333,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                                                 </svg>
                                             )}
                                         </button>
-                                        <button onClick={toggleFullscreen} className="text-white hover:text-gray-300 p-1">
+                                        <button onClick={toggleFullscreen} className="text-white hover:text-gray-200 transition-colors p-1" title="Fullscreen">
                                             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                                 <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
                                             </svg>

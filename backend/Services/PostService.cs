@@ -5129,9 +5129,11 @@ public class PostService : IPostService
             dto.VideoUrl = embed.TryGetProperty("playlist", out var p) ? p.GetString() : null;
             if (embed.TryGetProperty("thumbnail", out var th))
             {
+                var thumbnail = th.GetString() ?? "";
                 dto.Media = new List<MediaDto> { 
                     new MediaDto { 
-                        Url = th.GetString() ?? "", 
+                        Url = dto.VideoUrl ?? thumbnail, 
+                        ThumbnailUrl = thumbnail,
                         Type = "video",
                         AltText = embed.TryGetProperty("alt", out var a) ? a.GetString() : null
                     } 
