@@ -331,19 +331,30 @@ public class PostService : IPostService
                     };
                     if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
 
-                    var resultProxy = await _xrpcProxy.ProxyRequestAsync(
-                        handleOrDid,
-                        "app.bsky.feed.getAuthorFeed",
-                        queryArgs,
-                        token,
-                        "GET",
-                        null,
-                        viewerId
-                    );
+                    // [FIX] Use AppView (api.bsky.app) instead of proxying to the Author's PDS for feeds.
+                    // Federated AppViews are much more reliable for feed indexing than individual PDSs.
+                    var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+                    var queryStr = string.Join("&", queryArgs.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
+                    
+                    using var client = _httpClientFactory.CreateClient();
+                    client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    }
 
-                    if (!resultProxy.Success) return new PagedPostDto();
+                    _logger.LogInformation("[GetUserPostsAsync] Fetching remote feed from AppView: {BaseUrl}/xrpc/app.bsky.feed.getAuthorFeed for {Actor}", baseUrl, handleOrDid);
+                    var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{queryStr}");
+                    
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errContent = await response.Content.ReadAsStringAsync();
+                        _logger.LogWarning("[GetUserPostsAsync] Remote feed fetch failed: {Status} for {Actor}. Error: {Error}", response.StatusCode, handleOrDid, errContent);
+                        return new PagedPostDto();
+                    }
 
-                    using var doc = JsonDocument.Parse(resultProxy.Content);
+                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(jsonContent);
                     var responseBody = doc.RootElement;
                     var mappedPosts = responseBody.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
                     
@@ -814,6 +825,19 @@ public class PostService : IPostService
             var likedPostUris = await _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).ToDictionaryAsync(l => l.PostId, l => l.Uri ?? "");
             var repostPostUris = await _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).ToDictionaryAsync(r => r.PostId, r => r.Uri ?? "");
             var followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
+            
+            // [NEW] Fetch followed DIDs to support ExcludeFollowing in muted words
+            var followedDids = new HashSet<string>();
+            if (viewerId != Guid.Empty)
+            {
+                var followList = await _unitOfWork.Follows.Query()
+                    .Where(f => f.FollowerId == viewerId)
+                    .Join(_unitOfWork.Users.Query(), f => f.FollowingId, u => u.Id, (f, u) => u.Did)
+                    .Where(d => !string.IsNullOrEmpty(d))
+                    .ToListAsync();
+                followedDids = new HashSet<string>(followList);
+            }
+
             var mutedWords = await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync();
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: MutedWords count={Count} for ViewerId={ViewerId}", mutedWords.Count, viewerId);
             var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId);
@@ -1047,6 +1071,14 @@ public class PostService : IPostService
                     bool isMutedByWord = false;
                     foreach (var mw in mutedWords)
                     {
+                        // [NEW] Skip expired muted words
+                        if (mw.ExpiresAt.HasValue && mw.ExpiresAt.Value < DateTime.UtcNow)
+                            continue;
+
+                        // [NEW] Respect ExcludeFollowing
+                        if (mw.ExcludeFollowing && post.Author != null && !string.IsNullOrEmpty(post.Author.Did) && followedDids.Contains(post.Author.Did))
+                            continue;
+
                         var targetsRaw = mw.Targets;
                         var targets = (string.IsNullOrWhiteSpace(targetsRaw) ? "content" : targetsRaw).Split(',').Select(t => t.Trim().ToLower()).Where(t => !string.IsNullOrEmpty(t)).ToList();
                         if (!targets.Any()) targets.Add("content");
