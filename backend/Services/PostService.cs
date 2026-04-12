@@ -742,6 +742,14 @@ public class PostService : IPostService
                         var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
                         var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
                         var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                        
+                        // [NEW] Fallback to public AppView if authenticated fetch fails (e.g. 401 Unauthorized)
+                        if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+                        {
+                            _logger.LogWarning("[EnrichAndFilterPostsAsync] Authenticated ATProto fetch failed with {Status}. Falling back to public API.", response.StatusCode);
+                            response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                        }
+
                         if (response.IsSuccessStatusCode)
                         {
                             var json = await response.Content.ReadAsStringAsync();
