@@ -201,7 +201,7 @@ public class FeedService : IFeedService
             foreach (var uri in uris)
             {
                 var resp = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.feed.getFeedGenerator", 
-                    new Dictionary<string, string?> { ["generator"] = uri }, token);
+                    new Dictionary<string, string?> { ["feed"] = uri }, token);
                 
                 if (resp.Success)
                 {
@@ -229,7 +229,7 @@ public class FeedService : IFeedService
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
             foreach (var uri in uris)
             {
-                 var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?generator={Uri.EscapeDataString(uri)}");
+                 var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(uri)}");
                  if (response.IsSuccessStatusCode)
                  {
                      var content = await response.Content.ReadAsStringAsync();
