@@ -1177,6 +1177,7 @@ public class PostService : IPostService
                     Like = likedPostUris.TryGetValue(post.Id, out var lUri) ? lUri : post.Viewer?.Like,
                     Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : post.Viewer?.Repost
                 };
+                post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
 
                 // Unified Count Merging: Ensure local actuals take precedence or augment remote data
                 localLikesCounts.TryGetValue(post.Id, out var localLikes);
@@ -1190,23 +1191,21 @@ public class PostService : IPostService
                 {
                     if (post.Uri != null && remoteInteractionCache.TryGetValue(post.Uri, out var remotePost))
                     {
-                        // THIN-CLIENT: Strictly prioritize AppView counts and viewer state for remote posts
+                        // THIN-CLIENT: strictly prioritize AppView counts for remote posts
                         if (remotePost.TryGetProperty("likeCount", out var lc)) post.LikesCount = lc.GetInt32();
                         if (remotePost.TryGetProperty("repostCount", out var rc)) post.RepostsCount = rc.GetInt32();
                         if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = rpc.GetInt32();
                         if (remotePost.TryGetProperty("quoteCount", out var qc)) post.QuotesCount = qc.GetInt32();
 
-                        // Viewer state from Remote
+                        // Viewer state from Remote - Merge with local
                         if (remotePost.TryGetProperty("viewer", out var v))
                         {
                             var rLike = v.TryGetProperty("like", out var vl) && vl.ValueKind != JsonValueKind.Null ? vl.GetString() : null;
                             var rRepost = v.TryGetProperty("repost", out var vr) && vr.ValueKind != JsonValueKind.Null ? vr.GetString() : null;
                             
                             post.Viewer ??= new PostViewerDto();
-                            post.Viewer.Like = rLike;
-                            post.Viewer.Repost = rRepost;
-                            post.IsLiked = !string.IsNullOrEmpty(rLike);
-                            post.IsReposted = !string.IsNullOrEmpty(rRepost);
+                            if (string.IsNullOrEmpty(post.Viewer.Like)) post.Viewer.Like = rLike;
+                            if (string.IsNullOrEmpty(post.Viewer.Repost)) post.Viewer.Repost = rRepost;
                         }
 
                         post.BookmarksCount = localBookmarks;
@@ -1219,7 +1218,7 @@ public class PostService : IPostService
                     }
                     else
                     {
-                        // If AppView proxy failed, we keep whatever MapBlueskyPost set (which was already remote)
+                        // If AppView proxy failed, we keep whatever MapBlueskyPost set or local state
                         post.BookmarksCount = localBookmarks;
                     }
                 }
@@ -1231,14 +1230,11 @@ public class PostService : IPostService
                     post.RepliesCount = localReplies;
                     post.QuotesCount = localQuotes;
                     post.BookmarksCount = localBookmarks;
-                    post.Viewer = new PostViewerDto
-                    {
-                        Like = likedPostUris.TryGetValue(post.Id, out var lUriLocal) ? lUriLocal : post.Viewer?.Like,
-                        Repost = repostPostUris.TryGetValue(post.Id, out var rUriLocal) ? rUriLocal : post.Viewer?.Repost
-                    };
-                    post.IsLiked = !string.IsNullOrEmpty(post.Viewer.Like);
-                    post.IsReposted = !string.IsNullOrEmpty(post.Viewer.Repost);
                 }
+
+                // Final Sync of boolean flags from Viewer state
+                post.IsLiked = !string.IsNullOrEmpty(post.Viewer?.Like);
+                post.IsReposted = !string.IsNullOrEmpty(post.Viewer?.Repost);
 
 
                 if (post.ParentPost != null)
