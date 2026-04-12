@@ -321,16 +321,30 @@ public class PostService : IPostService
                 }
                 else
                 {
-                    using var httpClient = new HttpClient();
+                    var token = viewerId.HasValue ? await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}") : null;
                     var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
-                    var url = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={handleOrDid}&limit=100&filter={filter}";
-                    if (!string.IsNullOrEmpty(cursor))
-                        url += $"&cursor={Uri.EscapeDataString(cursor)}";
+                    
+                    var queryArgs = new Dictionary<string, string?> { 
+                        { "actor", handleOrDid }, 
+                        { "limit", "100" }, 
+                        { "filter", filter } 
+                    };
+                    if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
 
-                    var response = await httpClient.GetAsync(url);
-                    if (!response.IsSuccessStatusCode) return new PagedPostDto();
+                    var resultProxy = await _xrpcProxy.ProxyRequestAsync(
+                        handleOrDid.StartsWith("did:") ? handleOrDid : "remote",
+                        "app.bsky.feed.getAuthorFeed",
+                        queryArgs,
+                        token,
+                        "GET",
+                        null,
+                        viewerId
+                    );
 
-                    var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
+                    if (!resultProxy.Success) return new PagedPostDto();
+
+                    using var doc = JsonDocument.Parse(resultProxy.Content);
+                    var responseBody = doc.RootElement;
                     var mappedPosts = responseBody.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
                     
                     if (type == "replies")
@@ -702,12 +716,21 @@ public class PostService : IPostService
             {
                 try
                 {
-                    using var client = new HttpClient();
+                    var token = viewerId != Guid.Empty ? await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId}") : null;
+
                     // Split into chunks if there are too many (limit is 25)
                     foreach (var chunk in remoteUrisList.Chunk(25))
                     {
-                        var query = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                        var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{query}");
+                        // Use HttpClient with Bearer token if available to get viewer interaction state
+                        using var client = new HttpClient();
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        }
+                        
+                        var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+                        var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+                        var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
                         if (response.IsSuccessStatusCode)
                         {
                             var json = await response.Content.ReadAsStringAsync();
