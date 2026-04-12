@@ -343,6 +343,9 @@ public partial class BSkyDbContext : DbContext
 
             entity.HasIndex(e => e.Tid, "UQ__Posts__C451DB308F8113F0").IsUnique();
 
+            entity.HasIndex(e => e.CreatedAt, "IX_Posts_CreatedAt");
+            entity.HasIndex(e => e.LikesCount, "IX_Posts_LikesCount");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.AllowQuotes).HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");

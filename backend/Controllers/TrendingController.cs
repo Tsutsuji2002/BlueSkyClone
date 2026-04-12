@@ -15,7 +15,7 @@ public class TrendingController : ControllerBase
 {
     private readonly BSkyDbContext _context;
     private readonly IMemoryCache _cache;
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
     private const string TrendingCacheKey = "trending_topics";
 
     public TrendingController(BSkyDbContext context, IMemoryCache cache)
@@ -108,13 +108,13 @@ public class TrendingController : ControllerBase
 
         try
         {
-            // Limit to 300 posts for performance (was 1000)
-            // Fetch recent posts for trending analysis
+            // Limit to 100 top-liked recent posts for expensive phrase analysis (was 300)
+            // This ensures we only scan high-engagement content for trending topics.
             var recentPosts = await _context.Posts
                 .AsNoTracking()
-                .Where(p => p.CreatedAt >= since && p.IsDeleted != true && p.Content != null && p.Content.Length > 3)
+                .Where(p => p.CreatedAt >= since && p.IsDeleted != true && p.Content != null && p.Content.Length > 5)
                 .OrderByDescending(p => p.LikesCount)
-                .Take(300)
+                .Take(100)
                 .Select(p => p.Content)
                 .ToListAsync();
 
@@ -162,7 +162,7 @@ public class TrendingController : ControllerBase
 
             result.Topics = phraseCounts
                 .OrderByDescending(kvp => kvp.Value)
-                .Take(20)
+                .Take(15)
                 .Select((kvp, index) => new TrendingTopic
                 {
                     Id = index.ToString(),
