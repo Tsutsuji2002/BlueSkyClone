@@ -1938,7 +1938,7 @@ public class PostService : IPostService
                                 {
                                     vid.Cid = blobCid;
                                     // [FIX] Update to Bluesky CDN URL
-                                    vid.Url = $"https://video.bsky.app/watch/{authorUser.Did}/{blobCid}/playlist.m3u8";
+                                    vid.Url = $"https://video.bsky.app/playlist/{authorUser.Did}/{blobCid}/playlist.m3u8";
                                     vid.ThumbnailUrl = $"https://cdn.bsky.app/img/feed_thumbnail/plain/{authorUser.Did}/{blobCid}@jpeg";
 
                                     var videoEmbed = new Dictionary<string, object>
@@ -3835,6 +3835,31 @@ public class PostService : IPostService
                     }
                 }
             }
+            else if (type == "app.bsky.embed.video#view")
+            {
+                if (embed.TryGetProperty("playlist", out var playlist))
+                {
+                    var playlistUrl = playlist.GetString();
+                    var thumb = embed.TryGetProperty("thumbnail", out var th) ? th.GetString() : null;
+                    var alt = embed.TryGetProperty("alt", out var a) ? a.GetString() : null;
+
+                    if (!string.IsNullOrEmpty(playlistUrl))
+                    {
+                        var medium = new PostMedium
+                        {
+                            Id = Guid.NewGuid(),
+                            PostId = post.Id,
+                            Type = "video",
+                            Url = playlistUrl,
+                            ThumbnailUrl = thumb,
+                            AltText = alt,
+                            Position = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _unitOfWork.PostMedia.AddAsync(medium);
+                    }
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -3899,6 +3924,28 @@ public class PostService : IPostService
                         };
                         await _unitOfWork.LinkPreviews.AddAsync(preview);
                     }
+                }
+            }
+            else if (type == "app.bsky.embed.video#view")
+            {
+                var playlist = embed["playlist"]?.ToString();
+                var thumb = embed["thumbnail"]?.ToString();
+                var alt = embed["alt"]?.ToString();
+
+                if (!string.IsNullOrEmpty(playlist))
+                {
+                    var medium = new PostMedium
+                    {
+                        Id = Guid.NewGuid(),
+                        PostId = post.Id,
+                        Type = "video",
+                        Url = playlist,
+                        ThumbnailUrl = thumb,
+                        AltText = alt,
+                        Position = 0,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _unitOfWork.PostMedia.AddAsync(medium);
                 }
             }
         }
@@ -4065,7 +4112,7 @@ public class PostService : IPostService
                             Id = Guid.NewGuid(),
                             PostId = newPost.Id,
                             Type = "video",
-                            Url = $"https://video.bsky.app/watch/{did}/{videoCid}/playlist.m3u8",
+                            Url = $"https://video.bsky.app/playlist/{did}/{videoCid}/playlist.m3u8",
                             CreatedAt = DateTime.UtcNow
                         });
                     }
@@ -6075,6 +6122,14 @@ public class PostService : IPostService
         }
 
         await _unitOfWork.CompleteAsync();
+
+        // Recursively ingest embeds (Images, Video, Links)
+        if (postNode["embed"] != null)
+        {
+            await IngestEmbedsAsync(post, postNode["embed"]);
+            await _unitOfWork.CompleteAsync();
+        }
+
         return post.Id;
     }
     private async Task<byte[]> CompressImageForBlueskyAsync(string fullPath)

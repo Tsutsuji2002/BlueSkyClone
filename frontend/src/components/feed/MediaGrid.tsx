@@ -4,9 +4,22 @@ import Skeleton from '../common/Skeleton';
 import { PostImage, PostVideo } from '../../types';
 import { useAppSelector } from '../../redux/hooks';
 import { RootState } from '../../redux/store';
+import Hls from 'hls.js';
 
 import { cn } from '../../utils/classNames';
 import { API_BASE_URL } from '../../constants';
+
+const resolveUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+
+    // Clean base URL: remove trailing /api or just trailing slash
+    const base = API_BASE_URL.replace(/\/api$/, '').replace(/\/$/, '');
+    // Clean relative URL: ensure it starts with a single slash
+    const path = url.startsWith('/') ? url : `/${url}`;
+
+    return `${base}${path}`;
+};
 
 interface MediaGridProps {
     images?: PostImage[];
@@ -63,50 +76,64 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const autoplayEnabled = settings?.autoplayVideoGif ?? true;
+    // FIX 2: Keep a ref so HLS callbacks (closures) always see the latest value
+    const autoplayEnabledRef = React.useRef(autoplayEnabled);
+    React.useEffect(() => { autoplayEnabledRef.current = autoplayEnabled; }, [autoplayEnabled]);
+
 
     // Handle HLS playback and standard video source
     useEffect(() => {
         if (!item.isVideo || !videoRef.current) return;
         
         const video = videoRef.current;
-        const url = item.url;
+        const rawUrl = item.url;
+        const url = resolveUrl(rawUrl);
         let hlsInstance: any = null;
 
-        if (url.toLowerCase().endsWith('.m3u8')) {
+        console.log('[MediaGrid] UseEffect running', { isVideo: item.isVideo, url });
+
+        if (url.toLowerCase().includes('.m3u8')) {
             if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 // Native HLS support (Safari, iOS)
                 video.src = url;
-            } else {
-                // Try to use hls.js (Chrome, Firefox)
-                const Hls = (window as any).Hls;
-                if (Hls && Hls.isSupported()) {
-                    hlsInstance = new Hls();
-                    hlsInstance.loadSource(url);
-                    hlsInstance.attachMedia(video);
-                } else if (!Hls) {
-                    // Inject Hls.js from CDN if not present
-                    const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
-                    script.onload = () => {
-                        const Hls = (window as any).Hls;
-                        if (Hls && Hls.isSupported()) {
-                            console.log('HLS.js loaded and supported');
-                            hlsInstance = new Hls();
-                            hlsInstance.on(Hls.Events.ERROR, (event: any, data: any) => {
-                                console.error('HLS error:', data);
-                            });
-                            hlsInstance.loadSource(url);
-                            hlsInstance.attachMedia(video);
-                        }
-                    };
-                    document.head.appendChild(script);
-                } else {
-                    console.log('Native playback fallback');
-                    video.src = url;
+                // FIX 2: use ref so this isn't stale
+                if (autoplayEnabledRef.current && !isDetailView) {
+                    video.play().catch(() => {});
                 }
+            } else if (Hls.isSupported()) {
+                // Use imported hls.js package
+                console.log('[MediaGrid] Setting up HLS.js for:', url);
+                hlsInstance = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                });
+                hlsInstance.on(Hls.Events.ERROR, (_event: any, data: any) => {
+                    if (data.fatal) {
+                        console.error('[MediaGrid] HLS fatal error:', data.type, data.details);
+                        hlsInstance.destroy();
+                    }
+                });
+                hlsInstance.attachMedia(video);
+                hlsInstance.on(Hls.Events.MEDIA_ATTACHED, () => {
+                    hlsInstance.loadSource(url);
+                });
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                    console.log('[MediaGrid] HLS manifest parsed, ready to play');
+                    // FIX 2: use ref so this reads the current setting, not a stale closure
+                    if (autoplayEnabledRef.current && !isDetailView) {
+                        video.play().catch(err => console.warn('[MediaGrid] Autoplay blocked:', err.name));
+                    }
+                });
+            } else {
+                console.warn('[MediaGrid] HLS is not supported, trying native src');
+                video.src = url;
             }
         } else {
             video.src = url;
+            // FIX 2: use ref so this isn't stale
+            if (autoplayEnabledRef.current && !isDetailView) {
+                video.play().catch(() => {});
+            }
         }
 
         return () => {
@@ -114,26 +141,29 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 hlsInstance.destroy();
             }
         };
-    }, [item.url, item.isVideo]);
+    }, [item.url, item.isVideo, autoplayEnabled]);
 
     useEffect(() => {
         if (!item.isVideo || !videoRef.current) return;
 
+        // FIX 2: Always keep the IntersectionObserver active for pause-on-scroll-out.
+        // Only call .play() when autoplay is enabled.
         if (!autoplayEnabled) {
+            // Pause immediately if setting was just turned off
             videoRef.current.pause();
-            return;
         }
 
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
-                    // Try to play if it was paused but we're in view and autoplay is on
-                    if (videoRef.current?.paused) {
+                    // Only autoplay when the setting is on
+                    if (autoplayEnabledRef.current && videoRef.current?.paused) {
                         videoRef.current?.play().catch((err) => {
                             console.warn('Autoplay failed:', err);
                         });
                     }
                 } else {
+                    // Always pause when scrolled out of view
                     videoRef.current?.pause();
                 }
             },
@@ -147,8 +177,14 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     // Mouse/touch handlers are now managed via CSS group-hover and isTouched state
 
     const togglePlayPause = (e?: React.MouseEvent | React.TouchEvent) => {
+        console.log('[MediaGrid] togglePlayPause called', { isPlaying, isVideoLoading });
         e?.stopPropagation();
         if (videoRef.current) {
+            console.log('[MediaGrid] videoRef.current state:', { 
+                paused: videoRef.current.paused, 
+                readyState: videoRef.current.readyState,
+                src: videoRef.current.src ? (videoRef.current.src.substring(0, 50) + '...') : 'empty'
+            });
             if (isPlaying) {
                 videoRef.current.pause();
                 setIsPlaying(false);
@@ -157,20 +193,24 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 if (playPromise !== undefined) {
                     playPromise
                         .then(() => {
+                            console.log('[MediaGrid] Playback started successfully');
                             setIsPlaying(true);
                             setIsVideoLoading(false);
                         })
                         .catch(error => {
-                            console.error("Playback failed:", error);
+                            console.error("[MediaGrid] Playback failed:", error);
                             // If it failed because it wasn't muted, mute it and try again
                             if (error.name === 'NotAllowedError') {
+                                console.log('[MediaGrid] Attempting muted playback recovery...');
                                 videoRef.current!.muted = true;
                                 setIsMuted(true);
-                                videoRef.current!.play().catch(e => console.error("Final playback attempt failed:", e));
+                                videoRef.current!.play().catch(e => console.error("[MediaGrid] Final playback attempt failed:", e));
                             }
                         });
                 }
             }
+        } else {
+            console.error('[MediaGrid] videoRef.current is null!');
         }
     };
 
@@ -187,23 +227,42 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
         const video = videoRef.current;
         if (!video) return;
 
-        // iOS Chrome/Safari specific handling
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        
-        if (isIOS && (video as any).webkitEnterFullscreen) {
-            (video as any).webkitEnterFullscreen();
-            return;
-        }
+        try {
+            // iOS Safari/Chrome: fullscreen is only possible via webkitEnterFullscreen.
+            // playsInline (set on the <video> element) blocks webkitEnterFullscreen —
+            // FIX 3: temporarily remove it, enter fullscreen, then restore on exit.
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-        // Standard Fullscreen API
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-        } else if (video.requestFullscreen) {
-            video.requestFullscreen();
-        } else if ((video as any).webkitRequestFullscreen) {
-            (video as any).webkitRequestFullscreen();
-        } else if ((video as any).msRequestFullscreen) {
-            (video as any).msRequestFullscreen();
+            if (isIOS && (video as any).webkitEnterFullscreen) {
+                // Remove playsInline so webkitEnterFullscreen is allowed
+                video.removeAttribute('playsinline');
+                video.removeAttribute('webkit-playsinline');
+
+                // Restore playsInline when the user exits fullscreen
+                const restorePlaysinline = () => {
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('webkit-playsinline', '');
+                    video.removeEventListener('webkitendfullscreen', restorePlaysinline);
+                };
+                video.addEventListener('webkitendfullscreen', restorePlaysinline);
+
+                (video as any).webkitEnterFullscreen();
+                return;
+            }
+
+            // Standard Fullscreen API (Android Chrome, desktop)
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else if (video.requestFullscreen) {
+                video.requestFullscreen();
+            } else if ((video as any).webkitRequestFullscreen) {
+                (video as any).webkitRequestFullscreen();
+            } else if ((video as any).msRequestFullscreen) {
+                (video as any).msRequestFullscreen();
+            }
+        } catch (err) {
+            console.warn('[MediaGrid] Fullscreen request failed:', err);
         }
     };
 
@@ -252,20 +311,15 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 className
             )}
             onClick={(e) => {
+                // FIX 1: Always stop propagation for videos so PostCard navigation never fires
                 e.stopPropagation();
-                if (item.isVideo) {
-                    if (isDetailView) {
-                        showTouchControls();
-                        togglePlayPause();
-                    } else {
-                        togglePlayPause();
-                    }
-                } else {
+                if (!item.isVideo) {
                     onImageClick?.(index);
                 }
             }}
             onTouchStart={(e) => {
-                if (item.isVideo && isDetailView) {
+                if (item.isVideo) {
+                    // FIX 1: Show touch controls in BOTH feed and detail view on mobile
                     e.stopPropagation();
                     showTouchControls();
                 }
@@ -282,7 +336,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         )}
                         muted={isMuted}
                         playsInline
-                        autoPlay={autoplayEnabled && !isDetailView}
+                        autoPlay={false} // Managed by effects for reliability
                         loop={!isDetailView}
                         onLoadStart={() => setIsVideoLoading(true)}
                         onLoadedMetadata={() => {
@@ -334,9 +388,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     <div 
                         className={cn(
                             "absolute inset-0 flex items-center justify-center transition-opacity duration-200 z-10",
-                            isDetailView
-                                ? ((isPlaying && !isTouched && !isVideoLoading) ? "opacity-0 invisible pointer-events-none" : "opacity-100 visible pointer-events-auto")
-                                : (isPlaying ? "opacity-0 invisible pointer-events-none" : "opacity-100 visible pointer-events-auto")
+                            // FIX 1: In feed, show overlay when paused OR when touched (so mobile can see play btn)
+                            // Hide overlay only when actively playing AND not recently touched
+                            (isPlaying && !isTouched && !isVideoLoading) ? "opacity-0 invisible pointer-events-none" : "opacity-100 visible pointer-events-auto"
                         )}
                         onClick={(e) => {
                             // Only toggle if we're not clicking the button itself (which has its own handler)
@@ -345,8 +399,8 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             togglePlayPause();
                         }}
                     >
-                        {isVideoLoading ? (
-                            <div className="w-16 h-16 rounded-full bg-black/40 flex items-center justify-center text-white backdrop-blur-md">
+                                                {isVideoLoading ? (
+                            <div className="w-16 h-16 rounded-full bg-black/40 flex items-center justify-center text-white backdrop-blur-md pointer-events-none">
                                 <svg className="animate-spin w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -355,7 +409,10 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         ) : (
                             <button 
                                 className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center text-white backdrop-blur-md hover:scale-105 transition-transform pointer-events-auto shadow-xl" 
-                                onClick={(e) => { e.stopPropagation(); togglePlayPause(); }}
+                                onClick={(e) => { 
+                                    e.stopPropagation(); // Prevent bubbling to overlay div which would double-fire
+                                    togglePlayPause(); 
+                                }}
                                 aria-label={isPlaying ? 'Pause video' : 'Play video'}
                             >
                                 {isPlaying ? (
@@ -513,27 +570,18 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
     const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
     const [videoNativeRatio, setVideoNativeRatio] = useState<number | null>(null);
 
-    const resolveUrl = (url: string) => {
-        if (!url) return '';
-        if (url.startsWith('http') || url.startsWith('data:')) return url;
-
-        // Clean base URL: remove trailing /api or just trailing slash
-        const base = API_BASE_URL.replace(/\/api$/, '').replace(/\/$/, '');
-        // Clean relative URL: ensure it starts with a single slash
-        const path = url.startsWith('/') ? url : `/${url}`;
-
-        return `${base}${path}`;
-    };
 
     // Route images/videos through resize or use pre-generated thumbnails
     const getOptimizedUrl = (originalRelativePath: string, resolvedUrl: string, isVideo: boolean, thumbnailUrl?: string) => {
         if (isDetailView) return resolvedUrl;
         
-        // If we have a pre-generated thumbnail from the backend, use it!
+        // [FIX] For videos, always use the resolved stream URL, never the thumbnail for the 'src'
+        if (isVideo) return resolvedUrl;
+
+        // If we have a pre-generated thumbnail from the backend, use it for images
         if (thumbnailUrl) return resolveUrl(thumbnailUrl);
 
-        if (isVideo) return resolvedUrl;
-        // Only optimize local uploads
+        // Only optimize local uploads for images
         if (!originalRelativePath.includes('/uploads/')) return resolvedUrl;
         const base = API_BASE_URL.replace(/\/$/, '');
         const path = originalRelativePath.startsWith('/') ? originalRelativePath : `/${originalRelativePath}`;
@@ -544,7 +592,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         if (!url) return false;
         const videoExtensions = ['.mp4', '.mov', '.webm', '.ogg', '.m4v', '.m3u8'];
         const urlWithoutQuery = url.split('?')[0].toLowerCase();
-        return videoExtensions.some(ext => urlWithoutQuery.endsWith(ext));
+        return videoExtensions.some(ext => urlWithoutQuery.endsWith(ext)) || urlWithoutQuery.includes('/playlist/');
     };
 
     // Extract CID/Blob Id from Bluesky CDN URLs for robust deduplication
