@@ -315,6 +315,8 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 e.stopPropagation();
                 if (!item.isVideo) {
                     onImageClick?.(index);
+                } else {
+                    togglePlayPause();
                 }
             }}
             onTouchStart={(e) => {
