@@ -683,29 +683,33 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                 : {
                     aspectRatio: String(ratio),
                     maxHeight: `${feedMaxH}px`,
-                    maxWidth: `${feedMaxH * ratio}px`,
+                    maxWidth: isPortraitVideo ? '420px' : `${feedMaxH * ratio}px`,
                     width: '100%',
                   }
             : {};
 
         const imageContainerClass = !isVideo
             ? (orientation === 'portrait'
-                ? (isDetailView ? "max-h-[min(75dvh,650px)] w-full aspect-[4/3] mx-auto" : "aspect-[4/5] max-h-[512px] max-w-[450px] mx-auto")
-                : (isDetailView ? "max-h-[min(85dvh,800px)] w-full aspect-[16/9]" : "max-h-[512px] w-full"))
+                ? (isDetailView ? "max-h-[min(75dvh,650px)] w-full aspect-[4/3] mx-auto" : "aspect-auto max-h-[550px] max-w-[420px] mx-auto")
+                : (isDetailView ? "max-h-[min(85dvh,800px)] w-full aspect-[16/9]" : "max-h-[550px] w-full"))
             : '';
 
         return (
             <div
                 className={cn(
-                    "rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border bg-black mx-auto",
-                    !isVideo && imageContainerClass
+                    "rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border bg-black/5 dark:bg-white/5 mx-auto",
+                    !isVideo && imageContainerClass,
+                    isVideo && "bg-black"
                 )}
                 style={isVideo ? videoContainerStyle : undefined}
             >
                 <GridItem
                     item={mediaList[0]}
                     index={0}
-                    className="w-full h-full min-h-[150px]"
+                    className={cn(
+                        "w-full h-full min-h-[150px]",
+                        !isVideo && orientation === 'portrait' ? "object-contain" : ""
+                    )}
                     totalCount={count}
                     onImageClick={onImageClick}
                     isDetailView={isDetailView}

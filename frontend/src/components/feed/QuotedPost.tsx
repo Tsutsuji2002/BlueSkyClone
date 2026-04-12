@@ -51,7 +51,7 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
             )}
         >
             <div className="p-2.5">
-                <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                <div className="flex items-center gap-1 mb-1 min-w-0">
                     <Avatar
                         src={post.author.avatarUrl || post.author.avatar}
                         alt={post.author.displayName || post.author.handle || '?'}
