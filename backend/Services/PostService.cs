@@ -332,7 +332,7 @@ public class PostService : IPostService
                     if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
 
                     var resultProxy = await _xrpcProxy.ProxyRequestAsync(
-                        handleOrDid.StartsWith("did:") ? handleOrDid : "remote",
+                        handleOrDid,
                         "app.bsky.feed.getAuthorFeed",
                         queryArgs,
                         token,
