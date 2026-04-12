@@ -1178,6 +1178,8 @@ public class PostService : IPostService
                     Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : post.Viewer?.Repost
                 };
                 post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
+                post.IsLiked = post.Viewer?.Like != null;
+                post.IsReposted = post.Viewer?.Repost != null;
 
                 // Unified Count Merging: Ensure local actuals take precedence or augment remote data
                 localLikesCounts.TryGetValue(post.Id, out var localLikes);
@@ -1204,8 +1206,8 @@ public class PostService : IPostService
                             var rRepost = v.TryGetProperty("repost", out var vr) && vr.ValueKind != JsonValueKind.Null ? vr.GetString() : null;
                             
                             post.Viewer ??= new PostViewerDto();
-                            if (string.IsNullOrEmpty(post.Viewer.Like)) post.Viewer.Like = rLike;
-                            if (string.IsNullOrEmpty(post.Viewer.Repost)) post.Viewer.Repost = rRepost;
+                            if (post.Viewer.Like == null) post.Viewer.Like = rLike;
+                            if (post.Viewer.Repost == null) post.Viewer.Repost = rRepost;
                         }
 
                         post.BookmarksCount = localBookmarks;
@@ -1233,8 +1235,8 @@ public class PostService : IPostService
                 }
 
                 // Final Sync of boolean flags from Viewer state
-                post.IsLiked = !string.IsNullOrEmpty(post.Viewer?.Like);
-                post.IsReposted = !string.IsNullOrEmpty(post.Viewer?.Repost);
+                post.IsLiked = post.Viewer?.Like != null;
+                post.IsReposted = post.Viewer?.Repost != null;
 
 
                 if (post.ParentPost != null)
@@ -1302,9 +1304,9 @@ public class PostService : IPostService
                     }
                 }
 
-                post.IsLiked = post.Viewer.Like != null;
+                post.IsLiked = post.Viewer?.Like != null;
                 post.IsBookmarked = post.Id != Guid.Empty && bookmarkedPostIds.Contains(post.Id);
-                post.IsReposted = post.Viewer.Repost != null;
+                post.IsReposted = post.Viewer?.Repost != null;
 
                 // [REFACTORED] Pinned logic removed from generic enrichment as it's profile-context specific.
                 // It is now handled directly in GetUserPostsAsync for the profile owner.
@@ -3137,12 +3139,100 @@ public class PostService : IPostService
             await _unitOfWork.Posts.AddAsync(newPost);
             await _unitOfWork.CompleteAsync();
 
+            // 3. Ingest Media and Link Previews if present
+            if (postData.TryGetProperty("embed", out var embed))
+            {
+                await IngestMediaFromEmbedAsync(newPost.Id, embed);
+            }
+
             return newPost;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error ingesting remote post: {Uri}", uri);
             return null;
+        }
+    }
+
+    private async Task IngestMediaFromEmbedAsync(Guid postId, JsonElement embed)
+    {
+        if (embed.ValueKind == JsonValueKind.Null) return;
+
+        string? type = embed.TryGetProperty("$type", out var t) ? t.GetString() : null;
+
+        if (type == "app.bsky.embed.images#view" || embed.TryGetProperty("images", out _))
+        {
+            if (embed.TryGetProperty("images", out var imgs))
+            {
+                int pos = 0;
+                foreach (var img in imgs.EnumerateArray())
+                {
+                    string thumb = img.TryGetProperty("thumb", out var th) ? th.GetString() ?? "" : "";
+                    string full = img.TryGetProperty("fullsize", out var f) ? f.GetString() ?? "" : "";
+                    string alt = img.TryGetProperty("alt", out var a) ? a.GetString() ?? "" : "";
+                    
+                    await _unitOfWork.PostMedia.AddAsync(new PostMedium
+                    {
+                        Id = Guid.NewGuid(),
+                        PostId = postId,
+                        Url = full,
+                        ThumbnailUrl = thumb,
+                        AltText = alt,
+                        Type = "image",
+                        Position = pos++,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                await _unitOfWork.CompleteAsync();
+            }
+        }
+        else if (type == "app.bsky.embed.video#view" || embed.TryGetProperty("playlist", out _))
+        {
+            string? vUrl = embed.TryGetProperty("playlist", out var p) ? p.GetString() : null;
+            string? thumb = embed.TryGetProperty("thumbnail", out var th) ? th.GetString() : null;
+            if (!string.IsNullOrEmpty(vUrl))
+            {
+                await _unitOfWork.PostMedia.AddAsync(new PostMedium
+                {
+                    Id = Guid.NewGuid(),
+                    PostId = postId,
+                    Url = vUrl,
+                    ThumbnailUrl = thumb,
+                    Type = "video",
+                    Position = 0,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _unitOfWork.CompleteAsync();
+            }
+        }
+        else if (type == "app.bsky.embed.external#view" || embed.TryGetProperty("external", out _))
+        {
+            if (embed.TryGetProperty("external", out var ext))
+            {
+                var preview = new LinkPreview
+                {
+                    Id = Guid.NewGuid(),
+                    PostId = postId,
+                    Url = ext.TryGetProperty("uri", out var u) ? u.GetString() ?? "" : "",
+                    Title = ext.TryGetProperty("title", out var ti) ? ti.GetString() ?? "" : "",
+                    Description = ext.TryGetProperty("description", out var ds) ? ds.GetString() ?? "" : "",
+                    Image = ext.TryGetProperty("thumb", out var thh) ? thh.GetString() : null,
+                    CreatedAt = DateTime.UtcNow
+                };
+                if (!string.IsNullOrEmpty(preview.Url))
+                {
+                    try { preview.Domain = new Uri(preview.Url).Host; } catch { }
+                }
+                await _unitOfWork.LinkPreviews.AddAsync(preview);
+                await _unitOfWork.CompleteAsync();
+            }
+        }
+        else if (type == "app.bsky.embed.recordWithMedia#view" || embed.TryGetProperty("media", out _))
+        {
+            if (embed.TryGetProperty("media", out var media))
+            {
+                await IngestMediaFromEmbedAsync(postId, media);
+            }
         }
     }
 
@@ -3230,6 +3320,13 @@ public class PostService : IPostService
 
             await _unitOfWork.Posts.AddAsync(newPost);
             await _unitOfWork.CompleteAsync();
+
+            // 3. Ingest Media if present
+            if (record.TryGetProperty("embed", out var embed))
+            {
+                await IngestMediaFromEmbedAsync(newPost.Id, embed);
+            }
+
             return newPost;
         }
         catch { return null; }
