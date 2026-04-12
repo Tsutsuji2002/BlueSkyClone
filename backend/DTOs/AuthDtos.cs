@@ -154,5 +154,7 @@ public record MutedWordDto(
     string Word,
     string MuteBehavior,
     DateTime? CreatedAt,
-    string? Targets = null
+    string? Targets = null,
+    DateTime? ExpiresAt = null,
+    bool ExcludeFollowing = false
 );

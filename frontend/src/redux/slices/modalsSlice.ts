@@ -18,6 +18,10 @@ interface ExtendedModalsState extends ModalsState {
     authWall: {
         isOpen: boolean;
     };
+    mutedWords: {
+        isOpen: boolean;
+        initialWord?: string;
+    };
 }
 
 const initialState: ExtendedModalsState = {
@@ -66,6 +70,10 @@ const initialState: ExtendedModalsState = {
     addToList: {
         isOpen: false,
         user: null,
+    },
+    mutedWords: {
+        isOpen: false,
+        initialWord: undefined,
     },
 };
 
@@ -220,6 +228,18 @@ const modalsSlice = createSlice({
                 user: null,
             };
         },
+        openMutedWords: (state, action: PayloadAction<{ initialWord?: string } | undefined>) => {
+            state.mutedWords = {
+                isOpen: true,
+                initialWord: action.payload?.initialWord,
+            };
+        },
+        closeMutedWords: (state) => {
+            state.mutedWords = {
+                isOpen: false,
+                initialWord: undefined,
+            };
+        },
         closeAllModals: (state) => {
             state.createPost = false;
             state.editProfile = false;
@@ -295,6 +315,8 @@ export const {
     closeAuthWall,
     openAddToList,
     closeAddToList,
+    openMutedWords,
+    closeMutedWords,
     closeAllModals,
 } = modalsSlice.actions;
 

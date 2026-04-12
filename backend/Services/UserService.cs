@@ -1370,8 +1370,16 @@ public class UserService : IUserService
     public async Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20, Guid? viewerId = null) => new List<User>();
     public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId) => await _unitOfWork.MutedWords.Query().Where(m => m.UserId == userId).ToListAsync();
     
-    public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content") {
-        var mw = new MutedWord { UserId = userId, Word = word, MuteBehavior = behavior, Targets = targets, CreatedAt = DateTime.UtcNow };
+    public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content", DateTime? expiresAt = null, bool excludeFollowing = false) {
+        var mw = new MutedWord { 
+            UserId = userId, 
+            Word = word, 
+            MuteBehavior = behavior, 
+            Targets = targets, 
+            ExpiresAt = expiresAt,
+            ExcludeFollowing = excludeFollowing,
+            CreatedAt = DateTime.UtcNow 
+        };
         await _unitOfWork.MutedWords.AddAsync(mw);
         await _unitOfWork.CompleteAsync();
         return mw;

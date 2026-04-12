@@ -500,7 +500,7 @@ export const fetchMutedWords = createAsyncThunk<MutedWord[], void, { rejectValue
     }
 );
 
-export const addMutedWordAsync = createAsyncThunk<MutedWord, { word: string, muteBehavior: string, targets: string }, { rejectValue: string }>(
+export const addMutedWordAsync = createAsyncThunk<MutedWord, { word: string, muteBehavior: string, targets: string, expiresAt?: string, excludeFollowing?: boolean }, { rejectValue: string }>(
     'user/addMutedWord',
     async (data, { rejectWithValue }) => {
         try {

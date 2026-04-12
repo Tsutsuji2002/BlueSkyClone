@@ -4,7 +4,7 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { toggleLike, repostPost, toggleBookmark, pinPost, unpinPost } from '../../redux/slices/postsSlice';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
-import { openReply, openEditPost, openQuote, openDeleteConfirm, openReport, openAuthWall } from '../../redux/slices/modalsSlice';
+import { openReply, openEditPost, openQuote, openDeleteConfirm, openReport, openAuthWall, openMutedWords } from '../../redux/slices/modalsSlice';
 import QuotedPost from './QuotedPost';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
@@ -152,6 +152,13 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
         for (const mw of mutedWords) {
             const word = (mw.word || '').toLowerCase().replace(/^#/, '');
             if (!word) continue;
+
+            // Check expiration
+            if (mw.expiresAt && new Date(mw.expiresAt) < new Date()) continue;
+
+            // Check follow exclusion
+            if (mw.excludeFollowing && (post.author.isFollowing || post.author.viewer?.following)) continue;
+
             const targets = (mw.targets || 'content').split(',').map((t: string) => t.trim()).filter(Boolean);
             const matchContent = targets.includes('content') && content.includes(word);
             const matchTag = targets.includes('tag') && tags.includes(word);
@@ -276,11 +283,11 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPo
         },
         ...(!isOwnPost ? [
             {
-                id: 'hide-words',
-                label: t('post.hide_words'),
+                id: 'muted-words-tags',
+                label: 'Muted words & tags',
                 icon: <FiFilter />,
                 hasDivider: true,
-                onClick: () => { },
+                onClick: () => dispatch(openMutedWords()),
             },
             {
                 id: isComment ? 'hide-reply' : 'hide-post',

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -13,6 +13,8 @@ public partial class MutedWord
 
     public string MuteBehavior { get; set; } = "hide";
     public string Targets { get; set; } = "content"; // "content", "tag", or "content,tag"
+    public DateTime? ExpiresAt { get; set; }
+    public bool ExcludeFollowing { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public virtual User User { get; set; } = null!;

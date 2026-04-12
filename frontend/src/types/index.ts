@@ -268,6 +268,8 @@ export interface MutedWord {
     word: string;
     muteBehavior: string;
     targets?: string;
+    expiresAt?: string;
+    excludeFollowing?: boolean;
     createdAt?: string;
 }
 

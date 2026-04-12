@@ -624,7 +624,7 @@ public class ProfileController : ControllerBase
         var currentUserId = Guid.Parse(userIdStr);
 
         var words = await _userService.GetMutedWordsAsync(currentUserId);
-        var dtos = words.Select(w => new MutedWordDto(w.Id, w.Word, w.MuteBehavior, w.CreatedAt, w.Targets));
+        var dtos = words.Select(w => new MutedWordDto(w.Id, w.Word, w.MuteBehavior, w.CreatedAt, w.Targets, w.ExpiresAt, w.ExcludeFollowing));
         return Ok(dtos);
     }
 
@@ -635,8 +635,15 @@ public class ProfileController : ControllerBase
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var currentUserId = Guid.Parse(userIdStr);
 
-        var word = await _userService.AddMutedWordAsync(currentUserId, request.Word, request.MuteBehavior, request.Targets ?? "content");
-        return Ok(new MutedWordDto(word.Id, word.Word, word.MuteBehavior, word.CreatedAt, word.Targets));
+        var word = await _userService.AddMutedWordAsync(
+            currentUserId, 
+            request.Word, 
+            request.MuteBehavior, 
+            request.Targets ?? "content",
+            request.ExpiresAt,
+            request.ExcludeFollowing
+        );
+        return Ok(new MutedWordDto(word.Id, word.Word, word.MuteBehavior, word.CreatedAt, word.Targets, word.ExpiresAt, word.ExcludeFollowing));
     }
 
     [HttpPost("muted-words/sync")]
