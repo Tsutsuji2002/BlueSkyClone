@@ -888,7 +888,7 @@ public class PostService : IPostService
                 }
             }
 
-            _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, IsTimeline={IsTimeline}", posts.Count, viewerId, isTimeline);
+            _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, IsTimeline={IsTimeline}", posts.Count(), viewerId, isTimeline);
         // Pre-resolve all stub authors and posts in parallel to avoid N+1 network/DB calls inside the loop
         var stubAuthors = new HashSet<string>();
         var stubPosts = new HashSet<string>();
@@ -1386,7 +1386,7 @@ public class PostService : IPostService
                 filteredPosts.Add(post);
             }
 
-            _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Output Count={OutputCount}", filteredPosts.Count);
+            _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Output Count={OutputCount}", filteredPosts.Count());
             return filteredPosts;
         }
         catch (Exception ex)
