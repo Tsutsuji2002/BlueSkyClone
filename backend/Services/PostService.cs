@@ -479,10 +479,20 @@ public class PostService : IPostService
 
             var isLiked = false;
             var isReposted = false;
+            string? likeUri = null;
+            string? repostUri = null;
             if (postObj.TryGetProperty("viewer", out var viewer))
             {
-                if (viewer.TryGetProperty("like", out var vl)) isLiked = vl.ValueKind != System.Text.Json.JsonValueKind.Null;
-                if (viewer.TryGetProperty("repost", out var vr)) isReposted = vr.ValueKind != System.Text.Json.JsonValueKind.Null;
+                if (viewer.TryGetProperty("like", out var vl))
+                {
+                    isLiked = vl.ValueKind != System.Text.Json.JsonValueKind.Null;
+                    likeUri = isLiked ? vl.GetString() : null;
+                }
+                if (viewer.TryGetProperty("repost", out var vr))
+                {
+                    isReposted = vr.ValueKind != System.Text.Json.JsonValueKind.Null;
+                    repostUri = isReposted ? vr.GetString() : null;
+                }
             }
 
             var text = recordObj.TryGetProperty("text", out var t) ? t.GetString() : "";
@@ -539,7 +549,12 @@ public class PostService : IPostService
                 RepliesCount = replyCount,
                 QuotesCount = quoteCount,
                 IsLiked = isLiked,
-                IsReposted = isReposted
+                IsReposted = isReposted,
+                Viewer = new PostViewerDto
+                {
+                    Like = likeUri,
+                    Repost = repostUri
+                }
             };
 
             if (postObj.TryGetProperty("labels", out var pLabels) && pLabels.ValueKind == JsonValueKind.Array)
@@ -3100,8 +3115,13 @@ public class PostService : IPostService
             LikesCount = postData.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
             RepostsCount = postData.TryGetProperty("repostCount", out var rc) ? rc.GetInt32() : 0,
             RepliesCount = postData.TryGetProperty("replyCount", out var rpc) ? rpc.GetInt32() : 0,
-            IsLiked = postData.TryGetProperty("viewer", out var v) && v.TryGetProperty("like", out var l) ? true : false,
-            IsReposted = postData.TryGetProperty("viewer", out v) && v.TryGetProperty("repost", out var r) ? true : false
+            IsLiked = postData.TryGetProperty("viewer", out var v1) && v1.TryGetProperty("like", out var l) && l.ValueKind != System.Text.Json.JsonValueKind.Null,
+            IsReposted = postData.TryGetProperty("viewer", out var v2) && v2.TryGetProperty("repost", out var r) && r.ValueKind != System.Text.Json.JsonValueKind.Null,
+            Viewer = new PostViewerDto
+            {
+                Like = postData.TryGetProperty("viewer", out var v3) && v3.TryGetProperty("like", out var vl2) && vl2.ValueKind != System.Text.Json.JsonValueKind.Null ? vl2.GetString() : null,
+                Repost = postData.TryGetProperty("viewer", out var v4) && v4.TryGetProperty("repost", out var vr2) && vr2.ValueKind != System.Text.Json.JsonValueKind.Null ? vr2.GetString() : null
+            }
         };
     }
 
