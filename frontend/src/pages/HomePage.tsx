@@ -63,7 +63,7 @@ const HomePage: React.FC = () => {
         lastTab.current = activeTab;
     }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading]);
 
-    // Unified Scroll Preservation Logic
+    // Independent Scroll Preservation Logic
     useEffect(() => {
         if (!activeTab) return;
 
@@ -72,39 +72,45 @@ const HomePage: React.FC = () => {
             (!activeTab.startsWith('list:') && feedPosts[activeTab]?.length > 0)
         );
 
-        // When switching tabs or when posts initially load for the current tab
+        // When switching tabs or when content becomes available for a tab that needs restoration
         if (lastTab.current !== activeTab || (hasPosts && !hasRestoredScroll.current[activeTab])) {
             const isTabSwitch = lastTab.current !== activeTab;
             
             if (isTabSwitch) {
-                const oldTab = lastTab.current;
-                if (oldTab) {
-                    sessionStorage.setItem(`home_scroll_${oldTab}`, window.scrollY.toString());
-                }
+                // Sync the ref immediately so we don't double-trigger
                 lastTab.current = activeTab;
             }
 
             if (hasPosts) {
                 const scrollKey = `home_scroll_${activeTab}`;
                 const savedScroll = sessionStorage.getItem(scrollKey);
+                
                 if (savedScroll) {
                     hasRestoredScroll.current[activeTab] = true;
-                    // Small timeout to ensure DOM has updated visibility
+                    const scrollPos = parseInt(savedScroll, 10);
+                    
+                    // Use a small delay to ensure the DOM has rendered the list items at the correct heights
                     setTimeout(() => {
-                        window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'auto' });
-                    }, 50);
+                        window.scrollTo({ top: scrollPos, behavior: 'auto' });
+                    }, 30);
                 } else if (isTabSwitch) {
+                    // New tab with posts but no saved scroll -> start at top
                     hasRestoredScroll.current[activeTab] = true;
                     window.scrollTo({ top: 0, behavior: 'auto' });
                 }
+            } else if (isTabSwitch) {
+                // Switching to a tab that's still loading -> reset scroll to top immediately for clean feel
+                window.scrollTo({ top: 0, behavior: 'auto' });
             }
         }
 
+        // Keep session storage updated as user scrolls for the CURRENT tab
         const handleScroll = () => {
-            if (activeTab === lastTab.current) {
+            if (activeTab) {
                 sessionStorage.setItem(`home_scroll_${activeTab}`, window.scrollY.toString());
             }
         };
+
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, [activeTab, feedPosts, activeListFeed.length]);
@@ -114,6 +120,14 @@ const HomePage: React.FC = () => {
             navigate('/feeds');
             return;
         }
+
+        // [SCROLL FIX] Save current position for the tab we are LEAVING
+        if (activeTab) {
+            sessionStorage.setItem(`home_scroll_${activeTab}`, window.scrollY.toString());
+        }
+
+        // Allow restoration to run again for the new tab
+        hasRestoredScroll.current[tabId] = false;
 
         dispatch(setActiveTab(tabId));
         const now = Date.now();
