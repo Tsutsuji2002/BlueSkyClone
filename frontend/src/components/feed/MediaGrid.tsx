@@ -117,7 +117,12 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     }, [item.url, item.isVideo]);
 
     useEffect(() => {
-        if (!item.isVideo || !videoRef.current || !autoplayEnabled) return;
+        if (!item.isVideo || !videoRef.current) return;
+
+        if (!autoplayEnabled) {
+            videoRef.current.pause();
+            return;
+        }
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -154,12 +159,26 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
 
     const toggleFullscreen = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        if (videoRef.current) {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                videoRef.current.requestFullscreen();
-            }
+        const video = videoRef.current;
+        if (!video) return;
+
+        // iOS Chrome/Safari specific handling
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        if (isIOS && (video as any).webkitEnterFullscreen) {
+            (video as any).webkitEnterFullscreen();
+            return;
+        }
+
+        // Standard Fullscreen API
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else if (video.requestFullscreen) {
+            video.requestFullscreen();
+        } else if ((video as any).webkitRequestFullscreen) {
+            (video as any).webkitRequestFullscreen();
+        } else if ((video as any).msRequestFullscreen) {
+            (video as any).msRequestFullscreen();
         }
     };
 
@@ -234,7 +253,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         poster={item.thumbnail}
                         className={cn(
                             "w-full h-full",
-                            isDetailView ? "object-contain bg-black" : "object-cover"
+                            isDetailView ? "object-contain bg-black" : "object-contain bg-black/5 dark:bg-white/5"
                         )}
                         muted={isMuted}
                         playsInline
@@ -677,14 +696,15 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                 ? {
                     maxHeight: isPortraitVideo ? 'min(75dvh, 650px)' : 'min(85dvh, 800px)',
                     width: '100%',
-                    aspectRatio: isPortraitVideo ? '4/3' : '16/9', // Standard container ratios for letterboxing
+                    aspectRatio: isPortraitVideo ? '4/3' : '16/9', // Standard container ratios for letterboxing in detail view
                     margin: '0 auto',
                   }
                 : {
                     aspectRatio: String(ratio),
                     maxHeight: `${feedMaxH}px`,
-                    maxWidth: isPortraitVideo ? '420px' : `${feedMaxH * ratio}px`,
+                    maxWidth: isPortraitVideo ? 'min(80%, 420px)' : '100%',
                     width: '100%',
+                    margin: '0 auto',
                   }
             : {};
 
