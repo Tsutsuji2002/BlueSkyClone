@@ -127,12 +127,17 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
-                    videoRef.current?.play().catch(() => { });
+                    // Try to play if it was paused but we're in view and autoplay is on
+                    if (videoRef.current?.paused) {
+                        videoRef.current?.play().catch((err) => {
+                            console.warn('Autoplay failed:', err);
+                        });
+                    }
                 } else {
                     videoRef.current?.pause();
                 }
             },
-            { threshold: 0.5 }
+            { threshold: 0.1 }
         );
 
         observer.observe(videoRef.current);
@@ -141,11 +146,31 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
 
     // Mouse/touch handlers are now managed via CSS group-hover and isTouched state
 
-    const togglePlayPause = (e?: React.MouseEvent) => {
+    const togglePlayPause = (e?: React.MouseEvent | React.TouchEvent) => {
         e?.stopPropagation();
         if (videoRef.current) {
-            if (isPlaying) videoRef.current.pause();
-            else videoRef.current.play();
+            if (isPlaying) {
+                videoRef.current.pause();
+                setIsPlaying(false);
+            } else {
+                const playPromise = videoRef.current.play();
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            setIsPlaying(true);
+                            setIsVideoLoading(false);
+                        })
+                        .catch(error => {
+                            console.error("Playback failed:", error);
+                            // If it failed because it wasn't muted, mute it and try again
+                            if (error.name === 'NotAllowedError') {
+                                videoRef.current!.muted = true;
+                                setIsMuted(true);
+                                videoRef.current!.play().catch(e => console.error("Final playback attempt failed:", e));
+                            }
+                        });
+                }
+            }
         }
     };
 
@@ -257,11 +282,20 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         )}
                         muted={isMuted}
                         playsInline
+                        autoPlay={autoplayEnabled && !isDetailView}
                         loop={!isDetailView}
                         onLoadStart={() => setIsVideoLoading(true)}
                         onLoadedMetadata={() => {
-                            if (videoRef.current) setDuration(videoRef.current.duration);
+                            if (videoRef.current) {
+                                setDuration(videoRef.current.duration);
+                                // If autoplay is enabled and it's muted, try to play immediately
+                                if (autoplayEnabled && videoRef.current.muted) {
+                                    videoRef.current.play().catch(() => {});
+                                }
+                            }
                         }}
+                        onCanPlay={() => setIsVideoLoading(false)}
+                        onCanPlayThrough={() => setIsVideoLoading(false)}
                         onTimeUpdate={() => {
                             if (videoRef.current) {
                                 setCurrentTime(videoRef.current.currentTime);
@@ -272,7 +306,6 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             }
                         }}
                         onLoadedData={() => setIsVideoLoading(false)}
-                        onCanPlay={() => setIsVideoLoading(false)}
                         onWaiting={() => setIsVideoLoading(true)}
                         onPlaying={() => {
                             setIsPlaying(true);
@@ -300,11 +333,17 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     {/* Central Play/Pause Toggle overlay — always show when paused, appears on hover/touch when playing */}
                     <div 
                         className={cn(
-                            "absolute inset-0 flex items-center justify-center transition-opacity duration-200 pointer-events-none z-10",
-                        isDetailView
-                                ? ((isPlaying && !isTouched && !isVideoLoading) ? "opacity-0 invisible" : "opacity-100 visible")
-                                : (isPlaying ? "opacity-0 invisible" : "opacity-100 visible")
+                            "absolute inset-0 flex items-center justify-center transition-opacity duration-200 z-10",
+                            isDetailView
+                                ? ((isPlaying && !isTouched && !isVideoLoading) ? "opacity-0 invisible pointer-events-none" : "opacity-100 visible pointer-events-auto")
+                                : (isPlaying ? "opacity-0 invisible pointer-events-none" : "opacity-100 visible pointer-events-auto")
                         )}
+                        onClick={(e) => {
+                            // Only toggle if we're not clicking the button itself (which has its own handler)
+                            // or if click reached this overlay.
+                            e.stopPropagation();
+                            togglePlayPause();
+                        }}
                     >
                         {isVideoLoading ? (
                             <div className="w-16 h-16 rounded-full bg-black/40 flex items-center justify-center text-white backdrop-blur-md">
