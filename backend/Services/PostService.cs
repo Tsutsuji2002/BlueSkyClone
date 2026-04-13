@@ -747,6 +747,7 @@ public class PostService : IPostService
                         if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
                         {
                             _logger.LogWarning("[EnrichAndFilterPostsAsync] Authenticated ATProto fetch failed with {Status}. Falling back to public API.", response.StatusCode);
+                            client.DefaultRequestHeaders.Authorization = null;
                             response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
                         }
 
