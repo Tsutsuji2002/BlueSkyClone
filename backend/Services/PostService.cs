@@ -5194,6 +5194,7 @@ public class PostService : IPostService
                 .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(b => b.Post)
                 .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .AsSplitQuery()
             .OrderByDescending(b => b.CreatedAt)
             .Select(b => b.Post)
             .ToListAsync();

@@ -157,6 +157,7 @@ export interface PostMedia {
     url: string;
     altText?: string;
     type?: string;
+    thumbnailUrl?: string;
 }
 
 export interface Facet {
