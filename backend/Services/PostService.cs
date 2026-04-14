@@ -1216,7 +1216,15 @@ public class PostService : IPostService
                 post.IsLiked = post.Viewer?.Like != null;
                 post.IsReposted = post.Viewer?.Repost != null;
 
-                // Sync with AT-Proto viewer status if available from cache
+                // Look up local interaction counts
+                localLikesCounts.TryGetValue(post.Id, out var localLikes);
+                localRepostsCounts.TryGetValue(post.Id, out var localReposts);
+                localBookmarksCounts.TryGetValue(post.Id, out var localBookmarks);
+                localRepliesCounts.TryGetValue(post.Id, out var localReplies);
+                localQuotesCounts.TryGetValue(post.Id, out var localQuotes);
+
+
+                // Sync with AT-Proto status and counts if available from cache (Case-Insensitive)
                 if (pUriKey != null && remoteInteractionCache.TryGetValue(pUriKey, out var remotePost))
                 {
                     if (remotePost.TryGetProperty("viewer", out var v))
@@ -1230,55 +1238,31 @@ public class PostService : IPostService
                     {
                         MapEmbedToDto(post, embed);
                     }
-                }
 
-
-                // Unified Count Merging: Ensure local actuals take precedence or augment remote data
-                localLikesCounts.TryGetValue(post.Id, out var localLikes);
-                localRepostsCounts.TryGetValue(post.Id, out var localReposts);
-                localBookmarksCounts.TryGetValue(post.Id, out var localBookmarks);
-                localRepliesCounts.TryGetValue(post.Id, out var localReplies);
-                localQuotesCounts.TryGetValue(post.Id, out var localQuotes);
-
-                bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
-                if (isRemote)
-                {
-                    if (post.Uri != null && remoteInteractionCache.TryGetValue(post.Uri, out var remotePost))
+                    // THIN-CLIENT: strictly prioritize AppView counts for remote posts
+                    bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
+                    if (isRemote)
                     {
-                        // THIN-CLIENT: strictly prioritize AppView counts for remote posts
                         if (remotePost.TryGetProperty("likeCount", out var lc)) post.LikesCount = lc.GetInt32();
                         if (remotePost.TryGetProperty("repostCount", out var rc)) post.RepostsCount = rc.GetInt32();
                         if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = rpc.GetInt32();
                         if (remotePost.TryGetProperty("quoteCount", out var qc)) post.QuotesCount = qc.GetInt32();
-
-                        // Viewer state from Remote - Merge with local
-                        if (remotePost.TryGetProperty("viewer", out var v))
-                        {
-                            var rLike = v.TryGetProperty("like", out var vl) && vl.ValueKind != JsonValueKind.Null ? vl.GetString() : null;
-                            var rRepost = v.TryGetProperty("repost", out var vr) && vr.ValueKind != JsonValueKind.Null ? vr.GetString() : null;
-                            
-                            post.Viewer ??= new PostViewerDto();
-                            if (post.Viewer.Like == null) post.Viewer.Like = rLike;
-                            if (post.Viewer.Repost == null) post.Viewer.Repost = rRepost;
-                        }
-
+                        
                         post.BookmarksCount = localBookmarks;
-
-                        // Map Media
-                        if (remotePost.TryGetProperty("embed", out var embed))
-                        {
-                            MapEmbedToDto(post, embed);
-                        }
                     }
                     else
                     {
-                        // If AppView proxy failed, we keep whatever MapBlueskyPost set or local state
+                        // Use local counts for local posts (with remote cache fallback if applicable)
+                        post.LikesCount = localLikes;
+                        post.RepostsCount = localReposts;
+                        post.RepliesCount = localReplies;
+                        post.QuotesCount = localQuotes;
                         post.BookmarksCount = localBookmarks;
                     }
                 }
                 else 
                 {
-                    // For purely local (un-federated) posts, use local counts
+                    // Fallback to purely local data
                     post.LikesCount = localLikes;
                     post.RepostsCount = localReposts;
                     post.RepliesCount = localReplies;
@@ -1293,8 +1277,9 @@ public class PostService : IPostService
 
                 if (post.ParentPost != null)
                 {
+                    string? parentUriKey = post.ParentPost.Uri?.ToLower();
                     bool isRemoteParent = !string.IsNullOrEmpty(post.ParentPost.Uri) && !post.ParentPost.Uri.Contains(_localDomain);
-                    if (isRemoteParent && remoteInteractionCache.TryGetValue(post.ParentPost.Uri, out var remoteParent))
+                    if (isRemoteParent && parentUriKey != null && remoteInteractionCache.TryGetValue(parentUriKey, out var remoteParent))
                     {
                         if (remoteParent.TryGetProperty("likeCount", out var lc)) post.ParentPost.LikesCount = lc.GetInt32();
                         if (remoteParent.TryGetProperty("repostCount", out var rc)) post.ParentPost.RepostsCount = rc.GetInt32();
@@ -1328,8 +1313,9 @@ public class PostService : IPostService
 
                 if (post.QuotePost != null)
                 {
+                    string? quoteUriKey = post.QuotePost.Uri?.ToLower();
                     bool isRemoteQuote = !string.IsNullOrEmpty(post.QuotePost.Uri) && !post.QuotePost.Uri.Contains(_localDomain);
-                    if (isRemoteQuote && remoteInteractionCache.TryGetValue(post.QuotePost.Uri, out var remoteQuote))
+                    if (isRemoteQuote && quoteUriKey != null && remoteInteractionCache.TryGetValue(quoteUriKey, out var remoteQuote))
                     {
                         if (remoteQuote.TryGetProperty("likeCount", out var lc)) post.QuotePost.LikesCount = lc.GetInt32();
                         if (remoteQuote.TryGetProperty("repostCount", out var rc)) post.QuotePost.RepostsCount = rc.GetInt32();
