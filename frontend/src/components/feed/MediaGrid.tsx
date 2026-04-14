@@ -659,7 +659,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                     addedUrls.add(url);
                 }
             });
-            return list;
+            if (list.length > 0) return list;
         } 
 
         // Priority 2: Video object or videoUrl
@@ -841,7 +841,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         return (
             <div className={cn(
                 "grid gap-1 rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border",
-                orientation === 'landscape' ? "grid-cols-2" : "grid-cols-2 aspect-square"
+                orientation === 'landscape' ? "grid-cols-2 aspect-[4/5]" : "grid-cols-2 aspect-square"
             )}>
                 {orientation === 'landscape' ? (
                     <>

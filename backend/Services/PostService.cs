@@ -5194,13 +5194,19 @@ public class PostService : IPostService
                 .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(b => b.Post)
                 .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .AsNoTracking()
             .AsSplitQuery()
             .OrderByDescending(b => b.CreatedAt)
             .Select(b => b.Post)
             .ToListAsync();
 
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
-        return await EnrichAndFilterPostsAsync(postDtos, userId);
+        var enriched = await EnrichAndFilterPostsAsync(postDtos, userId);
+        // Force IsBookmarked = true: every post returned here IS a bookmark by definition.
+        // EnrichAndFilterPostsAsync may fail to set this correctly for remote posts.
+        foreach (var p in enriched)
+            p.IsBookmarked = true;
+        return enriched;
     }
 
     public async Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0)
@@ -5266,8 +5272,8 @@ public class PostService : IPostService
                 Did = post.Author.Did,
                 Labels = !string.IsNullOrEmpty(post.Author.Labels) ? post.Author.Labels.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() : new List<string>()
             },
-            ImageUrls = post.PostMedia.Where(m => m.Type == "image").Select(m => m.Url).ToList(),
-            Media = post.PostMedia.OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
+            ImageUrls = (post.PostMedia ?? Enumerable.Empty<PostMedium>()).Where(m => m.Type == "image").Select(m => m.Url).ToList(),
+            Media = (post.PostMedia ?? Enumerable.Empty<PostMedium>()).OrderBy(m => m.Position ?? 0).Select(m => new MediaDto
             {
                 Id = m.Id,
                 Url = m.Url,
@@ -5276,7 +5282,7 @@ public class PostService : IPostService
                 ThumbnailUrl = m.ThumbnailUrl,
                 Cid = m.Cid
             }).ToList(),
-            VideoUrl = post.PostMedia.FirstOrDefault(m => m.Type == "video")?.Url,
+            VideoUrl = (post.PostMedia ?? Enumerable.Empty<PostMedium>()).FirstOrDefault(m => m.Type == "video")?.Url,
             LikesCount = post.LikesCount ?? 0,
             RepostsCount = post.RepostsCount ?? 0,
             RepliesCount = post.RepliesCount ?? 0,
