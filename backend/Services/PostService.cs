@@ -764,7 +764,7 @@ public class PostService : IPostService
                                         var uri = uriProp.GetString();
                                         if (uri != null)
                                         {
-                                            remoteInteractionCache[uri] = rp.Clone(); // Clone to preserve it outside the JsonDocument scope
+                                            remoteInteractionCache[uri.ToLower()] = rp.Clone(); // Case-insensitive key
                                             
                                             // [NEW] Extract labels from remote AppView result (Post, Author, and Media)
                                             void AddToActiveLabels(string subject, JsonElement labProp)
@@ -831,8 +831,24 @@ public class PostService : IPostService
             }
 
             var usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync();
-            var likedPostUris = await _unitOfWork.Likes.Query().Where(l => l.UserId == viewerId && postIds.Contains(l.PostId)).ToDictionaryAsync(l => l.PostId, l => l.Uri ?? "");
-            var repostPostUris = await _unitOfWork.Reposts.Query().Where(r => r.UserId == viewerId && postIds.Contains(r.PostId)).ToDictionaryAsync(r => r.PostId, r => r.Uri ?? "");
+            var postUris = posts.Where(p => !string.IsNullOrEmpty(p.Uri)).Select(p => p.Uri!.ToLower()).Distinct().ToList();
+            
+            // Collect Likes joined with Post Uri
+            var likedItems = await _unitOfWork.Likes.Query()
+                .Where(l => l.UserId == viewerId && (postIds.Contains(l.PostId) || (l.Post != null && postUris.Contains(l.Post.Uri.ToLower()))))
+                .Select(l => new { l.PostId, Uri = l.Post.Uri, LikeUri = l.Uri ?? "" })
+                .ToListAsync();
+            var likedPostUrisByUri = likedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).ToDictionary(x => x.Uri!.ToLower(), x => x.LikeUri);
+            var likedPostUrisById = likedItems.GroupBy(x => x.PostId).ToDictionary(g => g.Key, g => g.First().LikeUri);
+
+            // Collect Reposts joined with Post Uri
+            var repostItems = await _unitOfWork.Reposts.Query()
+                .Where(r => r.UserId == viewerId && (postIds.Contains(r.PostId) || (r.Post != null && postUris.Contains(r.Post.Uri.ToLower()))))
+                .Select(r => new { r.PostId, Uri = r.Post.Uri, RepostUri = r.Uri ?? "" })
+                .ToListAsync();
+            var repostPostUrisByUri = repostItems.Where(x => !string.IsNullOrEmpty(x.Uri)).ToDictionary(x => x.Uri!.ToLower(), x => x.RepostUri);
+            var repostPostUrisById = repostItems.GroupBy(x => x.PostId).ToDictionary(g => g.Key, g => g.First().RepostUri);
+
             var followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
             
             // [NEW] Fetch followed DIDs to support ExcludeFollowing in muted words
@@ -871,7 +887,14 @@ public class PostService : IPostService
                     .ToListAsync()).ToHashSet();
             }
 
-            var bookmarkedPostIds = await _unitOfWork.Bookmarks.Query().Where(b => b.UserId == viewerId && postIds.Contains(b.PostId)).Select(b => b.PostId).ToListAsync();
+            // Collect Bookmarks joined with Post Uri
+            var bookmarkedItems = await _unitOfWork.Bookmarks.Query()
+                .Where(b => b.UserId == viewerId && (postIds.Contains(b.PostId) || (b.Post != null && postUris.Contains(b.Post.Uri.ToLower()))))
+                .Select(b => new { b.PostId, Uri = b.Post.Uri })
+                .ToListAsync();
+            var bookmarkedUris = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).Select(x => x.Uri!.ToLower()).ToHashSet();
+            var bookmarkedIds = bookmarkedItems.Select(x => x.PostId).ToHashSet();
+
             var blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}");
             var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
             var viewerHandle = viewerUser?.Handle?.ToLower();
@@ -1181,14 +1204,34 @@ public class PostService : IPostService
                     post.Author.FollowingReference = post.Author.Viewer.Following;
                 }
 
+                string? pUriKey = post.Uri?.ToLower();
                 post.Viewer = new PostViewerDto
                 {
-                    Like = likedPostUris.TryGetValue(post.Id, out var lUri) ? lUri : post.Viewer?.Like,
-                    Repost = repostPostUris.TryGetValue(post.Id, out var rUri) ? rUri : post.Viewer?.Repost
+                    Like = (pUriKey != null && likedPostUrisByUri.TryGetValue(pUriKey, out var lu)) ? lu : 
+                           likedPostUrisById.TryGetValue(post.Id, out var li) ? li : post.Viewer?.Like,
+                    Repost = (pUriKey != null && repostPostUrisByUri.TryGetValue(pUriKey, out var ru)) ? ru : 
+                             repostPostUrisById.TryGetValue(post.Id, out var ri) ? ri : post.Viewer?.Repost
                 };
-                post.IsBookmarked = bookmarkedPostIds.Contains(post.Id);
+                post.IsBookmarked = (pUriKey != null && bookmarkedUris.Contains(pUriKey)) || bookmarkedIds.Contains(post.Id);
                 post.IsLiked = post.Viewer?.Like != null;
                 post.IsReposted = post.Viewer?.Repost != null;
+
+                // Sync with AT-Proto viewer status if available from cache
+                if (pUriKey != null && remoteInteractionCache.TryGetValue(pUriKey, out var remotePost))
+                {
+                    if (remotePost.TryGetProperty("viewer", out var v))
+                    {
+                        if (v.TryGetProperty("like", out var vl)) post.Viewer.Like = post.Viewer.Like ?? vl.GetString();
+                        if (v.TryGetProperty("repost", out var vr)) post.Viewer.Repost = post.Viewer.Repost ?? vr.GetString();
+                    }
+                    
+                    // Map Media for remote posts if not already present
+                    if ((post.Media == null || post.Media.Count == 0) && remotePost.TryGetProperty("embed", out var embed))
+                    {
+                        MapEmbedToDto(post, embed);
+                    }
+                }
+
 
                 // Unified Count Merging: Ensure local actuals take precedence or augment remote data
                 localLikesCounts.TryGetValue(post.Id, out var localLikes);
@@ -1314,8 +1357,9 @@ public class PostService : IPostService
                 }
 
                 post.IsLiked = post.Viewer?.Like != null;
-                post.IsBookmarked = post.Id != Guid.Empty && bookmarkedPostIds.Contains(post.Id);
+                post.IsBookmarked = (pUriKey != null && bookmarkedUris.Contains(pUriKey)) || (post.Id != Guid.Empty && bookmarkedIds.Contains(post.Id));
                 post.IsReposted = post.Viewer?.Repost != null;
+
 
                 // [REFACTORED] Pinned logic removed from generic enrichment as it's profile-context specific.
                 // It is now handled directly in GetUserPostsAsync for the profile owner.
@@ -5155,6 +5199,7 @@ public class PostService : IPostService
                     var content = await response.Content.ReadAsStringAsync();
                     using var doc = System.Text.Json.JsonDocument.Parse(content);
                     if (!doc.RootElement.TryGetProperty("feed", out var feedArray)) continue;
+
 
                     var posts = MapBlueskyFeed(feedArray);
                     allPosts.AddRange(posts);

@@ -840,7 +840,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
     if (count === 3) {
         return (
             <div className={cn(
-                "grid gap-1 rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border",
+                "grid gap-1 rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border min-h-[300px]",
                 orientation === 'landscape' ? "grid-cols-2 aspect-[4/5]" : "grid-cols-2 aspect-square"
             )}>
                 {orientation === 'landscape' ? (
