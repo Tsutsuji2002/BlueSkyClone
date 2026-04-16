@@ -824,10 +824,15 @@ public class PostService : IPostService
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to fetch remote counts for timeline posts");
-                }
+            }
+
+            // [NEW] Index remote cache by rkey for robust cross-URI lookups (DID vs Handle)
+            var remotePostsByRkey = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in remoteInteractionCache)
+            {
+                var rk = kvp.Key.Split('/').LastOrDefault()?.ToLower();
+                if (rk != null && !remotePostsByRkey.ContainsKey(rk)) 
+                    remotePostsByRkey[rk] = kvp.Value;
             }
 
             var usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync();
@@ -840,6 +845,10 @@ public class PostService : IPostService
                 .ToListAsync();
             var likedPostUrisByUri = likedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).ToDictionary(x => x.Uri!.ToLower(), x => x.LikeUri);
             var likedPostUrisById = likedItems.GroupBy(x => x.PostId).ToDictionary(g => g.Key, g => g.First().LikeUri);
+            // [NEW] Dictionary by rkey for robust cross-URI matching
+            var rkeyToLikedUri = likedItems.Where(x => !string.IsNullOrEmpty(x.Uri))
+                .GroupBy(x => x.Uri!.Split('/').Last().ToLower())
+                .ToDictionary(g => g.Key, g => g.First().LikeUri);
 
             // Collect Reposts joined with Post Uri
             var repostItems = await _unitOfWork.Reposts.Query()
@@ -848,6 +857,10 @@ public class PostService : IPostService
                 .ToListAsync();
             var repostPostUrisByUri = repostItems.Where(x => !string.IsNullOrEmpty(x.Uri)).ToDictionary(x => x.Uri!.ToLower(), x => x.RepostUri);
             var repostPostUrisById = repostItems.GroupBy(x => x.PostId).ToDictionary(g => g.Key, g => g.First().RepostUri);
+            // [NEW] Dictionary by rkey for robust cross-URI matching
+            var rkeyToRepostUri = repostItems.Where(x => !string.IsNullOrEmpty(x.Uri))
+                .GroupBy(x => x.Uri!.Split('/').Last().ToLower())
+                .ToDictionary(g => g.Key, g => g.First().RepostUri);
 
             var followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
             
@@ -894,6 +907,9 @@ public class PostService : IPostService
                 .ToListAsync();
             var bookmarkedUris = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).Select(x => x.Uri!.ToLower()).ToHashSet();
             var bookmarkedIds = bookmarkedItems.Select(x => x.PostId).ToHashSet();
+            // [NEW] Set of rkeys for robust cross-URI matching
+            var bookmarkedRkeys = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.Uri))
+                .Select(x => x.Uri!.Split('/').Last().ToLower()).ToHashSet();
 
             var blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}");
             var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
@@ -1204,15 +1220,19 @@ public class PostService : IPostService
                     post.Author.FollowingReference = post.Author.Viewer.Following;
                 }
 
-                string? pUriKey = post.Uri?.ToLower();
+                string? rkey = pUriKey?.Split('/').Last().ToLower();
                 post.Viewer = new PostViewerDto
                 {
                     Like = (pUriKey != null && likedPostUrisByUri.TryGetValue(pUriKey, out var lu)) ? lu : 
+                           (rkey != null && rkeyToLikedUri.TryGetValue(rkey, out var rlu)) ? rlu :
                            likedPostUrisById.TryGetValue(post.Id, out var li) ? li : post.Viewer?.Like,
                     Repost = (pUriKey != null && repostPostUrisByUri.TryGetValue(pUriKey, out var ru)) ? ru : 
+                             (rkey != null && rkeyToRepostUri.TryGetValue(rkey, out var rru)) ? rru :
                              repostPostUrisById.TryGetValue(post.Id, out var ri) ? ri : post.Viewer?.Repost
                 };
-                post.IsBookmarked = (pUriKey != null && bookmarkedUris.Contains(pUriKey)) || bookmarkedIds.Contains(post.Id);
+                post.IsBookmarked = (pUriKey != null && bookmarkedUris.Contains(pUriKey)) || 
+                                    (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
+                                    bookmarkedIds.Contains(post.Id);
                 post.IsLiked = post.Viewer?.Like != null;
                 post.IsReposted = post.Viewer?.Repost != null;
 
@@ -1225,7 +1245,12 @@ public class PostService : IPostService
 
 
                 // Sync with AT-Proto status and counts if available from cache (Case-Insensitive)
-                if (pUriKey != null && remoteInteractionCache.TryGetValue(pUriKey, out var remotePost))
+                // Get remote post data using robust rkey-backed lookup
+                JsonElement remotePost = default;
+                bool hasRemotePost = (pUriKey != null && remoteInteractionCache.TryGetValue(pUriKey, out remotePost)) ||
+                                     (rkey != null && remotePostsByRkey.TryGetValue(rkey, out remotePost));
+
+                if (hasRemotePost)
                 {
                     if (remotePost.TryGetProperty("viewer", out var v))
                     {
@@ -5385,7 +5410,8 @@ public class PostService : IPostService
                     images.Add(full);
                     media.Add(new MediaDto
                     {
-                        Url = thumb,
+                        Url = string.IsNullOrEmpty(full) ? thumb : full,
+                        ThumbnailUrl = thumb,
                         AltText = alt,
                         Type = "image",
                         Cid = img.TryGetProperty("cid", out var c) ? c.GetString() : null

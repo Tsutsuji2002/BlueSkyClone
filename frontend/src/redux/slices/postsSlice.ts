@@ -137,6 +137,56 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
 
     return deduped;
 };
+export const applyInteractionOverlay = (state: PostsState, targetPosts: Post[]) => {
+    if (!targetPosts || !targetPosts.length) return;
+
+    // 1. Gather "truth" from all post arrays in state
+    const truthMap = new Map<string, { isLiked?: boolean, isReposted?: boolean, isBookmarked?: boolean, lc?: number, rc?: number, bc?: number }>();
+    
+    const gather = (posts: Post[]) => {
+        if (!posts) return;
+        posts.forEach(p => {
+            const keys = [p.uri, p.id, p.tid].filter(Boolean) as string[];
+            if (!keys.length) return;
+            
+            const existing = truthMap.get(keys[0]) || {};
+            const current = {
+                isLiked: existing.isLiked || p.isLiked,
+                isReposted: existing.isReposted || p.isReposted,
+                isBookmarked: existing.isBookmarked || p.isBookmarked,
+                lc: Math.max(existing.lc || 0, p.likesCount || 0),
+                rc: Math.max(existing.rc || 0, p.repostsCount || 0),
+                bc: Math.max(existing.bc || 0, p.bookmarksCount || 0)
+            };
+            
+            keys.forEach(k => truthMap.set(k, current));
+        });
+    };
+
+    gather(state.posts);
+    gather(state.discoverPosts);
+    gather(state.bookmarkedPosts);
+    gather(state.trendingPosts);
+    gather(state.threadPosts);
+
+    // 2. Apply truth to target posts
+    targetPosts.forEach(p => {
+        const key = p.uri || p.id || p.tid;
+        if (!key) return;
+        
+        const truth = truthMap.get(key);
+        if (truth) {
+            if (truth.isLiked) p.isLiked = true;
+            if (truth.isReposted) p.isReposted = true;
+            if (truth.isBookmarked) p.isBookmarked = true;
+            
+            if (truth.lc !== undefined && (p.likesCount === undefined || truth.lc > (p.likesCount || 0))) p.likesCount = truth.lc;
+            if (truth.rc !== undefined && (p.repostsCount === undefined || truth.rc > (p.repostsCount || 0))) p.repostsCount = truth.rc;
+            if (truth.bc !== undefined && (p.bookmarksCount === undefined || truth.bc > (p.bookmarksCount || 0))) p.bookmarksCount = truth.bc;
+        }
+    });
+};
+
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
@@ -734,6 +784,10 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.timelineLoading = false;
                 const { skip } = action.meta.arg;
+
+                // Overlay interaction states
+                applyInteractionOverlay(state, action.payload.posts);
+
                 if (skip === 0) {
                     state.posts = action.payload.posts;
                     state.lastTimelineFetch = Date.now();
@@ -780,6 +834,10 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 const { posts, userId, cursor, type } = action.payload;
                 const { skip = 0, take = 20 } = action.meta.arg || {};
+                
+                // Overlay interaction states
+                applyInteractionOverlay(state, posts);
+
                 const dedupedFetchedPosts = dedupePostsByIdentity(posts);
                 let appendedCount = 0;
 
@@ -1159,6 +1217,10 @@ const postsSlice = createSlice({
             .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: any) => {
                 state.bookmarkedLoading = false;
                 const { skip } = action.meta.arg || { skip: 0 };
+
+                // Apply existing interaction truth (like/repost) to the bookmarked posts
+                applyInteractionOverlay(state, action.payload);
+
                 if (skip === 0) {
                     state.bookmarkedPosts = action.payload;
                 } else {
@@ -1241,6 +1303,10 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.discoverLoading = false;
                 const { skip } = action.meta.arg || { skip: 0 };
+
+                // Overlay interaction states
+                applyInteractionOverlay(state, action.payload.posts);
+
                 if (skip === 0) {
                     state.discoverPosts = action.payload.posts;
                     state.lastDiscoverFetch = Date.now();
