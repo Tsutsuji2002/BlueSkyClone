@@ -824,6 +824,10 @@ public class PostService : IPostService
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to fetch remote counts for timeline posts");
+                }
             }
 
             // [NEW] Index remote cache by rkey for robust cross-URI lookups (DID vs Handle)
@@ -996,6 +1000,9 @@ public class PostService : IPostService
         var filteredPosts = new List<PostDto>();
             foreach (var post in posts)
             {
+                string? pUriKey = post.Uri?.ToLower();
+                string? rkey = pUriKey?.Split('/').LastOrDefault()?.ToLower();
+
                 // Apply resolved posts FIRST (because it provides content and author)
                 if (resolvedPosts.TryGetValue(post.Uri ?? "", out var rp))
                 {
@@ -1220,7 +1227,7 @@ public class PostService : IPostService
                     post.Author.FollowingReference = post.Author.Viewer.Following;
                 }
 
-                string? rkey = pUriKey?.Split('/').Last().ToLower();
+                rkey = pUriKey?.Split('/').LastOrDefault()?.ToLower();
                 post.Viewer = new PostViewerDto
                 {
                     Like = (pUriKey != null && likedPostUrisByUri.TryGetValue(pUriKey, out var lu)) ? lu : 
