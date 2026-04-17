@@ -1368,7 +1368,9 @@ public class PostService : IPostService
                 }
 
                 post.IsLiked = post.Viewer?.Like != null;
-                post.IsBookmarked = (pUriKey != null && bookmarkedUris.Contains(pUriKey)) || (post.Id != Guid.Empty && bookmarkedIds.Contains(post.Id));
+                post.IsBookmarked = (pUriKey != null && bookmarkedUris.Contains(pUriKey)) ||
+                                    (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
+                                    (post.Id != Guid.Empty && bookmarkedIds.Contains(post.Id));
                 post.IsReposted = post.Viewer?.Repost != null;
 
 

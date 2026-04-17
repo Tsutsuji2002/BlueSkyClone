@@ -119,6 +119,26 @@ const getPostIdentityKey = (post?: Partial<Post> | null): string => {
     return '';
 };
 
+const getPostInteractionKeys = (post?: Partial<Post> | null): string[] => {
+    if (!post) return [];
+
+    const normalized = (value?: string | null) => value?.trim().toLowerCase() ?? '';
+    const keys = new Set<string>();
+    const uri = normalized(post.uri);
+    const tid = normalized(post.tid);
+    const id = normalized(post.id);
+    const cid = normalized(post.cid);
+    const rkey = uri ? uri.split('/').pop() ?? '' : (tid || id);
+
+    if (uri) keys.add(`uri:${uri}`);
+    if (tid) keys.add(`tid:${tid}`);
+    if (id) keys.add(`id:${id}`);
+    if (cid) keys.add(`cid:${cid}`);
+    if (rkey) keys.add(`rkey:${rkey}`);
+
+    return Array.from(keys);
+};
+
 const dedupePostsByIdentity = (posts: Post[]): Post[] => {
     const seen = new Set<string>();
     const deduped: Post[] = [];
@@ -146,7 +166,7 @@ export const applyInteractionOverlay = (state: PostsState, targetPosts: Post[]) 
     const gather = (posts: Post[]) => {
         if (!posts) return;
         posts.forEach(p => {
-            const keys = [p.uri, p.id, p.tid].filter(Boolean) as string[];
+            const keys = getPostInteractionKeys(p);
             if (!keys.length) return;
             
             const existing = truthMap.get(keys[0]) || {};
@@ -171,10 +191,9 @@ export const applyInteractionOverlay = (state: PostsState, targetPosts: Post[]) 
 
     // 2. Apply truth to target posts
     targetPosts.forEach(p => {
-        const key = p.uri || p.id || p.tid;
-        if (!key) return;
-        
-        const truth = truthMap.get(key);
+        const truth = getPostInteractionKeys(p)
+            .map((key) => truthMap.get(key))
+            .find(Boolean);
         if (truth) {
             if (truth.isLiked) p.isLiked = true;
             if (truth.isReposted) p.isReposted = true;
@@ -185,6 +204,14 @@ export const applyInteractionOverlay = (state: PostsState, targetPosts: Post[]) 
             if (truth.bc !== undefined && (p.bookmarksCount === undefined || truth.bc > (p.bookmarksCount || 0))) p.bookmarksCount = truth.bc;
         }
     });
+};
+
+const syncInteractionTruthAcrossState = (state: PostsState) => {
+    applyInteractionOverlay(state, state.posts);
+    applyInteractionOverlay(state, state.threadPosts);
+    applyInteractionOverlay(state, state.discoverPosts);
+    applyInteractionOverlay(state, state.trendingPosts);
+    applyInteractionOverlay(state, state.bookmarkedPosts);
 };
 
 export const fetchTimeline = createAsyncThunk(
@@ -802,6 +829,7 @@ const postsSlice = createSlice({
                     state.posts = [...state.posts, ...newPosts];
                 }
                 state.hasMore = action.payload.posts.length > 0;
+                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchTimeline.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -873,6 +901,7 @@ const postsSlice = createSlice({
 
                 state.hasMore = posts.length >= take && appendedCount > 0;
                 state.cursor = state.hasMore ? (cursor ?? String(skip + posts.length)) : null;
+                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchUserPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -1130,6 +1159,7 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 const fetchedPosts: Post[] = Array.isArray(action.payload) ? action.payload : [action.payload];
                 fetchedPosts.forEach(fetchedPost => {
+                    applyInteractionOverlay(state, [fetchedPost]);
                     // Deduplicate by URI or ID (if ID is not empty)
                     const index = state.threadPosts.findIndex(p =>
                         (fetchedPost.uri && p.uri === fetchedPost.uri) ||
@@ -1143,6 +1173,7 @@ const postsSlice = createSlice({
                         state.threadPosts.push(fetchedPost);
                     }
                 });
+                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchPostById.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -1231,10 +1262,7 @@ const postsSlice = createSlice({
                 // Sync newly loaded bookmark truth back to existing state
                 // This ensures that if the timeline was fully loaded before bookmarks,
                 // posts will now correctly know they are bookmarked.
-                applyInteractionOverlay(state, state.posts);
-                applyInteractionOverlay(state, state.threadPosts);
-                applyInteractionOverlay(state, state.discoverPosts);
-                applyInteractionOverlay(state, state.trendingPosts);
+                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
                 state.bookmarkedLoading = false;
