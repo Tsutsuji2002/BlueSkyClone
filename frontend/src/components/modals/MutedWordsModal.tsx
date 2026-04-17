@@ -31,10 +31,7 @@ const MutedWordsModal: React.FC = () => {
         }
     }, [isOpen, initialWord, dispatch]);
 
-    const handleAdd = async (event?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
-        event?.preventDefault();
-        event?.stopPropagation();
-
+    const submitMutedWord = async () => {
         const normalizedWord = word.trim();
         if (!normalizedWord) {
             dispatch(showToast({ message: 'Please enter a word or tag', type: 'error' }));
@@ -67,6 +64,12 @@ const MutedWordsModal: React.FC = () => {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void submitMutedWord();
     };
 
     const handleDelete = async (id: number) => {
@@ -123,19 +126,21 @@ const MutedWordsModal: React.FC = () => {
                                 <label className="text-[13px] font-bold uppercase tracking-wider text-gray-500 dark:text-dark-text-secondary">
                                     Word or tag
                                 </label>
-                                <form className="relative group" onSubmit={handleAdd}>
+                                <form className="relative group" onSubmit={handleFormSubmit}>
                                     <input 
                                         type="text"
                                         value={word}
                                         onChange={(e) => setWord(e.target.value)}
                                         placeholder="Enter word/tag"
+                                        autoFocus
                                         className="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-[16px] text-gray-900 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all pr-12"
                                     />
                                     <button 
-                                        type="submit"
-                                        onClick={handleAdd}
+                                        type="button"
+                                        onClick={() => void submitMutedWord()}
                                         disabled={!word.trim() || isSubmitting}
                                         className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary hover:bg-primary/10 rounded-lg transition-all disabled:opacity-30"
+                                        aria-label="Add muted word"
                                     >
                                         <FiPlus size={24} />
                                     </button>
@@ -191,6 +196,15 @@ const MutedWordsModal: React.FC = () => {
                                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
                             </div>
                         </label>
+
+                        <button
+                            type="button"
+                            onClick={() => void submitMutedWord()}
+                            disabled={!word.trim() || isSubmitting}
+                            className="w-full py-3.5 rounded-2xl bg-primary text-white font-black shadow-lg shadow-primary/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99]"
+                        >
+                            {isSubmitting ? 'Adding...' : 'Add muted word'}
+                        </button>
 
                         <div className="pt-2">
                             <h3 className="text-[13px] font-bold uppercase tracking-wider text-gray-500 dark:text-dark-text-secondary mb-4">
