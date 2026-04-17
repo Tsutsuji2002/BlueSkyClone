@@ -1229,6 +1229,14 @@ const postsSlice = createSlice({
                     state.bookmarkedPosts = [...state.bookmarkedPosts, ...newPosts];
                 }
                 state.hasMore = action.payload.length > 0;
+
+                // Sync newly loaded bookmark truth back to existing state
+                // This ensures that if the timeline was fully loaded before bookmarks,
+                // posts will now correctly know they are bookmarked.
+                applyInteractionOverlay(state, state.posts);
+                applyInteractionOverlay(state, state.threadPosts);
+                applyInteractionOverlay(state, state.discoverPosts);
+                applyInteractionOverlay(state, state.trendingPosts);
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
                 state.bookmarkedLoading = false;

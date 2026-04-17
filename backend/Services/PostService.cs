@@ -3620,6 +3620,7 @@ public class PostService : IPostService
 
                             Dictionary<Guid, string> userLikes = new();
                             Dictionary<Guid, string> userReposts = new();
+                            HashSet<Guid> userBookmarks = new();
 
                             if (viewerId.HasValue)
                             {
@@ -3630,6 +3631,12 @@ public class PostService : IPostService
                                 userReposts = await _unitOfWork.Reposts.Query()
                                     .Where(r => r.UserId == viewerId.Value && postIds.Contains(r.PostId))
                                     .ToDictionaryAsync(r => r.PostId, r => r.Uri ?? "local");
+
+                                var bookmarksList = await _unitOfWork.Bookmarks.Query()
+                                    .Where(b => b.UserId == viewerId.Value && postIds.Contains(b.PostId))
+                                    .Select(b => b.PostId)
+                                    .ToListAsync();
+                                userBookmarks = new HashSet<Guid>(bookmarksList);
                             }
 
                             // Mutate JTokens
@@ -3668,6 +3675,9 @@ public class PostService : IPostService
                                         
                                         if (userReposts.TryGetValue(pid, out var rUri))
                                             postNode["viewer"]["repost"] = rUri;
+                                            
+                                        if (userBookmarks.Contains(pid))
+                                            postNode["isBookmarked"] = true;
                                     }
                                 }
                             }
