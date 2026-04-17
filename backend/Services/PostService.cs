@@ -864,7 +864,7 @@ public class PostService : IPostService
             var followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
             
             // [NEW] Fetch followed DIDs to support ExcludeFollowing in muted words
-            var followedDids = new HashSet<string>();
+            var followedDids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (viewerId != Guid.Empty)
             {
                 var followList = await _unitOfWork.Follows.Query()
@@ -872,7 +872,7 @@ public class PostService : IPostService
                     .Join(_unitOfWork.Users.Query(), f => f.FollowingId, u => u.Id, (f, u) => u.Did)
                     .Where(d => !string.IsNullOrEmpty(d))
                     .ToListAsync();
-                followedDids = new HashSet<string>(followList);
+                followedDids = new HashSet<string>(followList, StringComparer.OrdinalIgnoreCase);
             }
 
             var mutedWords = await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync();
@@ -1426,14 +1426,12 @@ public class PostService : IPostService
                     var tags = (post.Tags ?? new List<string>())
                         .Concat(post.Interests ?? new List<string>())
                         .Where(t => t != null)
-                        .Select(t => t.ToLower());
+                        .Select(t => NormalizeMutedWordTerm(t))
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .ToHashSet();
 
-                    var matchingWord = mutedWords.FirstOrDefault(mw => 
-                    {
-                        if (string.IsNullOrEmpty(mw.Word)) return false;
-                        var word = mw.Word.ToLower();
-                        return content.Contains(word) || tags.Contains(word);
-                    });
+                    var matchingWord = mutedWords.FirstOrDefault(mw =>
+                        MutedWordAppliesToPost(mw, post, content, tags, followedDids));
 
                     if (matchingWord != null)
                     {
@@ -1458,6 +1456,71 @@ public class PostService : IPostService
             _logger.LogError(ex, "[PostService] EnrichAndFilterPostsAsync Error: {Message}", ex.Message);
             return posts; // Return unenriched posts as fallback to prevent 500
         }
+    }
+
+    private static bool MutedWordAppliesToPost(
+        MutedWord mutedWord,
+        PostDto post,
+        string normalizedContent,
+        HashSet<string> normalizedTags,
+        HashSet<string> followedDids)
+    {
+        if (string.IsNullOrWhiteSpace(mutedWord.Word))
+        {
+            return false;
+        }
+
+        if (mutedWord.ExpiresAt.HasValue && mutedWord.ExpiresAt.Value <= DateTime.UtcNow)
+        {
+            return false;
+        }
+
+        var authorDid = post.Author?.Did;
+        if (mutedWord.ExcludeFollowing && !string.IsNullOrWhiteSpace(authorDid) && followedDids.Contains(authorDid))
+        {
+            return false;
+        }
+
+        var normalizedWord = NormalizeMutedWordTerm(mutedWord.Word);
+        if (string.IsNullOrWhiteSpace(normalizedWord))
+        {
+            return false;
+        }
+
+        var targets = ParseMutedWordTargets(mutedWord.Targets);
+        var contentMatches = targets.Contains("content") && normalizedContent.Contains(normalizedWord, StringComparison.Ordinal);
+        var tagMatches = targets.Contains("tag") && normalizedTags.Contains(normalizedWord);
+        return contentMatches || tagMatches;
+    }
+
+    private static HashSet<string> ParseMutedWordTargets(string? targets)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var target in (targets ?? "content").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (string.Equals(target, "content", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(target, "tag", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(target.ToLowerInvariant());
+            }
+        }
+
+        if (result.Count == 0)
+        {
+            result.Add("content");
+        }
+
+        return result;
+    }
+
+    private static string NormalizeMutedWordTerm(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Trim().TrimStart('#').ToLowerInvariant();
     }
 
     public async Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request)

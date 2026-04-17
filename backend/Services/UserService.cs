@@ -1368,14 +1368,22 @@ public class UserService : IUserService
     public async Task<BlockedAccount?> GetBlockAsync(Guid userId, Guid blockedUserId) => await _unitOfWork.Blocks.Query().FirstOrDefaultAsync(b => b.UserId == userId && b.BlockedUserId == blockedUserId);
     public async Task<MutedByListDto?> GetMutingListAsync(Guid viewerId, Guid targetUserId) => null; // Placeholder
     public async Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20, Guid? viewerId = null) => new List<User>();
-    public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId) => await _unitOfWork.MutedWords.Query().Where(m => m.UserId == userId).ToListAsync();
+    public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId) => await _unitOfWork.MutedWords.Query()
+        .Where(m => m.UserId == userId)
+        .OrderByDescending(m => m.CreatedAt)
+        .ThenByDescending(m => m.Id)
+        .ToListAsync();
     
     public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content", DateTime? expiresAt = null, bool excludeFollowing = false) {
+        var normalizedWord = word.Trim();
+        var normalizedBehavior = string.Equals(behavior, "warn", StringComparison.OrdinalIgnoreCase) ? "warn" : "hide";
+        var normalizedTargets = string.IsNullOrWhiteSpace(targets) ? "content" : targets.Trim().ToLowerInvariant();
+
         var mw = new MutedWord { 
             UserId = userId, 
-            Word = word, 
-            MuteBehavior = behavior, 
-            Targets = targets, 
+            Word = normalizedWord, 
+            MuteBehavior = normalizedBehavior, 
+            Targets = normalizedTargets, 
             ExpiresAt = expiresAt,
             ExcludeFollowing = excludeFollowing,
             CreatedAt = DateTime.UtcNow 

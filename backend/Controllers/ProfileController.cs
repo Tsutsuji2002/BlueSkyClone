@@ -620,8 +620,7 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> GetMutedWords()
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
-        var currentUserId = Guid.Parse(userIdStr);
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var currentUserId)) return Unauthorized();
 
         var words = await _userService.GetMutedWordsAsync(currentUserId);
         var dtos = words.Select(w => new MutedWordDto(w.Id, w.Word, w.MuteBehavior, w.CreatedAt, w.Targets, w.ExpiresAt, w.ExcludeFollowing));
@@ -632,13 +631,13 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> AddMutedWord([FromBody] MutedWordDto request)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
-        var currentUserId = Guid.Parse(userIdStr);
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var currentUserId)) return Unauthorized();
+        if (string.IsNullOrWhiteSpace(request.Word)) return BadRequest(new { message = "Word is required" });
 
         var word = await _userService.AddMutedWordAsync(
             currentUserId, 
-            request.Word, 
-            request.MuteBehavior, 
+            request.Word.Trim(), 
+            string.IsNullOrWhiteSpace(request.MuteBehavior) ? "hide" : request.MuteBehavior, 
             request.Targets ?? "content",
             request.ExpiresAt,
             request.ExcludeFollowing
@@ -650,8 +649,7 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> SyncMutedWords()
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
-        var currentUserId = Guid.Parse(userIdStr);
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var currentUserId)) return Unauthorized();
 
         await _userService.SyncMutedWordsWithAtProtoAsync(currentUserId);
         return Ok(new { success = true });
@@ -661,8 +659,7 @@ public class ProfileController : ControllerBase
     public async Task<IActionResult> DeleteMutedWord(int id)
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
-        var currentUserId = Guid.Parse(userIdStr);
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var currentUserId)) return Unauthorized();
 
         var success = await _userService.DeleteMutedWordAsync(currentUserId, id);
         if (!success) return NotFound();

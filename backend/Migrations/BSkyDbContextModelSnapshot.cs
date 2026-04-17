@@ -635,6 +635,14 @@ namespace BSkyClone.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("(getutcdate())");
 
+                    b.Property<bool>("ExcludeFollowing")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("MuteBehavior")
                         .IsRequired()
                         .ValueGeneratedOnAdd()

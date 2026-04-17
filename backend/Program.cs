@@ -250,9 +250,37 @@ using (var scope = app.Services.CreateScope())
             logger.LogError(ex, "Database migration failed. Attempting manual schema updates as fallback...");
         }
 
-        // Manual schema updates and recalculations removed to optimize startup performance.
-        // Use Entity Framework Migrations for schema changes.
-        // Manual schema updates blocks 1-8 and global recalculations have been deprecated.
+        // Keep muted-word moderation resilient even if an older deployment missed one of the later schema changes.
+        try
+        {
+            context.Database.ExecuteSqlRaw(@"
+IF COL_LENGTH('MutedWords', 'CreatedAt') IS NULL
+BEGIN
+    ALTER TABLE [MutedWords] ADD [CreatedAt] datetime2 NOT NULL CONSTRAINT [DF_MutedWords_CreatedAt] DEFAULT ((getutcdate()));
+END
+IF COL_LENGTH('MutedWords', 'MuteBehavior') IS NULL
+BEGIN
+    ALTER TABLE [MutedWords] ADD [MuteBehavior] nvarchar(20) NOT NULL CONSTRAINT [DF_MutedWords_MuteBehavior] DEFAULT N'hide';
+END
+IF COL_LENGTH('MutedWords', 'Targets') IS NULL
+BEGIN
+    ALTER TABLE [MutedWords] ADD [Targets] nvarchar(50) NOT NULL CONSTRAINT [DF_MutedWords_Targets] DEFAULT N'content';
+END
+IF COL_LENGTH('MutedWords', 'ExpiresAt') IS NULL
+BEGIN
+    ALTER TABLE [MutedWords] ADD [ExpiresAt] datetime2 NULL;
+END
+IF COL_LENGTH('MutedWords', 'ExcludeFollowing') IS NULL
+BEGIN
+    ALTER TABLE [MutedWords] ADD [ExcludeFollowing] bit NOT NULL CONSTRAINT [DF_MutedWords_ExcludeFollowing] DEFAULT ((0));
+END
+");
+            logger.LogInformation("Verified muted word schema.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to verify muted word schema.");
+        }
 
 
         // --- SEED AI FEEDS AND INTERESTS ---
