@@ -31,8 +31,12 @@ const MutedWordsModal: React.FC = () => {
         }
     }, [isOpen, initialWord, dispatch]);
 
-    const handleAdd = async () => {
-        if (!word.trim()) {
+    const handleAdd = async (event?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
+        event?.preventDefault();
+        event?.stopPropagation();
+
+        const normalizedWord = word.trim();
+        if (!normalizedWord) {
             dispatch(showToast({ message: 'Please enter a word or tag', type: 'error' }));
             return;
         }
@@ -49,7 +53,7 @@ const MutedWordsModal: React.FC = () => {
             }
 
             await dispatch(addMutedWordAsync({
-                word: word.trim(),
+                word: normalizedWord,
                 muteBehavior: 'hide',
                 targets,
                 expiresAt,
@@ -119,23 +123,23 @@ const MutedWordsModal: React.FC = () => {
                                 <label className="text-[13px] font-bold uppercase tracking-wider text-gray-500 dark:text-dark-text-secondary">
                                     Word or tag
                                 </label>
-                                <div className="relative group">
+                                <form className="relative group" onSubmit={handleAdd}>
                                     <input 
                                         type="text"
                                         value={word}
                                         onChange={(e) => setWord(e.target.value)}
                                         placeholder="Enter word/tag"
                                         className="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-[16px] text-gray-900 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all pr-12"
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                                     />
                                     <button 
+                                        type="submit"
                                         onClick={handleAdd}
                                         disabled={!word.trim() || isSubmitting}
                                         className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary hover:bg-primary/10 rounded-lg transition-all disabled:opacity-30"
                                     >
                                         <FiPlus size={24} />
                                     </button>
-                                </div>
+                                </form>
                             </div>
                         </div>
 
