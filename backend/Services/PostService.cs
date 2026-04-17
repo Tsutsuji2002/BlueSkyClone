@@ -3494,10 +3494,33 @@ public class PostService : IPostService
             {
                 try
                 {
-                    _logger.LogInformation("Trying Public AppView for GetPostThread: {Uri}", uri);
-                    using var client = new System.Net.Http.HttpClient();
+                    var viewerToken = viewerId.HasValue && viewerId.Value != Guid.Empty
+                        ? await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}")
+                        : null;
+
+                    _logger.LogInformation("Trying {Mode} AppView for GetPostThread: {Uri}",
+                        string.IsNullOrEmpty(viewerToken) ? "public" : "authenticated", uri);
+
+                    using var client = _httpClientFactory.CreateClient();
                     client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                    var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
+                    if (!string.IsNullOrEmpty(viewerToken))
+                    {
+                        client.DefaultRequestHeaders.Authorization =
+                            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
+                    }
+
+                    var response = await client.GetAsync(
+                        $"https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
+
+                    if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(viewerToken))
+                    {
+                        _logger.LogWarning("Authenticated AppView failed with {Status} for {Uri}, falling back to public AppView",
+                            response.StatusCode, uri);
+                        client.DefaultRequestHeaders.Authorization = null;
+                        response = await client.GetAsync(
+                            $"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth={depth}&parentHeight={parentHeight}");
+                    }
+
                     if (response.IsSuccessStatusCode)
                     {
                         rawJson = await response.Content.ReadAsStringAsync();
@@ -3506,12 +3529,12 @@ public class PostService : IPostService
                     {
                         _logger.LogWarning("Post strictly Not Found on AppView: {Uri}", uri);
                         // If it's definitely gone from Bluesky, we should NOT show it from local cache
-                        return null; 
+                        return null;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Public AppView failed for {Uri}, falling back to Proxy/Local", uri);
+                    _logger.LogWarning(ex, "AppView failed for {Uri}, falling back to Proxy/Local", uri);
                 }
             }
 
@@ -3620,7 +3643,8 @@ public class PostService : IPostService
                 try
                 {
                     var jObject = Newtonsoft.Json.Linq.JObject.Parse(rawJson);
-                    var allCids = new List<string>();
+                    var allCids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var allUris = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     var postNodes = new List<Newtonsoft.Json.Linq.JToken>();
                     var threadNodes = new List<Newtonsoft.Json.Linq.JToken>();
 
@@ -3633,7 +3657,10 @@ public class PostService : IPostService
                         {
                             threadNodes.Add(node);
                             postNodes.Add(node["post"]);
-                            if (node["post"]["cid"] != null) allCids.Add(node["post"]["cid"].ToString());
+                            var nodeUri = node["post"]["uri"]?.ToString();
+                            if (!string.IsNullOrEmpty(nodeUri)) allUris.Add(nodeUri);
+                            var nodeCid = node["post"]["cid"]?.ToString();
+                            if (!string.IsNullOrEmpty(nodeCid)) allCids.Add(nodeCid);
                         }
                         if (node["parent"] != null) extractPosts(node["parent"]);
                         if (node["replies"] != null)
@@ -3659,16 +3686,40 @@ public class PostService : IPostService
 
                     extractPosts(threadNode);
 
-                    if (allCids.Any())
+                    if (allUris.Any() || allCids.Any())
                     {
-                        // Optimization: Fetch local posts matching these Cids
-                        var localPosts = await _unitOfWork.Posts.Query()
-                            .Where(p => allCids.Contains(p.Cid) || allCids.Contains(p.Tid))
-                            .ToDictionaryAsync(p => p.Cid ?? p.Tid, p => p.Id);
+                        var allRkeys = allUris
+                            .Select(u => u.Split('/').LastOrDefault())
+                            .Where(rk => !string.IsNullOrEmpty(rk))
+                            .Cast<string>()
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
 
-                        if (localPosts.Any())
+                        // Match thread posts using the subject post identity, not only CID.
+                        var localPostRows = await _unitOfWork.Posts.Query()
+                            .Where(p =>
+                                (p.Uri != null && allUris.Contains(p.Uri)) ||
+                                (p.Cid != null && allCids.Contains(p.Cid)) ||
+                                (p.Tid != null && allRkeys.Contains(p.Tid)))
+                            .Select(p => new { p.Id, p.Uri, p.Cid, p.Tid })
+                            .ToListAsync();
+
+                        var localPostsByUri = localPostRows
+                            .Where(p => !string.IsNullOrEmpty(p.Uri))
+                            .GroupBy(p => p.Uri!, StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+                        var localPostsByCid = localPostRows
+                            .Where(p => !string.IsNullOrEmpty(p.Cid))
+                            .GroupBy(p => p.Cid!, StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+                        var localPostsByTid = localPostRows
+                            .Where(p => !string.IsNullOrEmpty(p.Tid))
+                            .GroupBy(p => p.Tid!, StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+                        if (localPostRows.Any())
                         {
-                            var postIds = localPosts.Values.ToList();
+                            var postIds = localPostRows.Select(p => p.Id).Distinct().ToList();
                             
                              // Get local interactions for ALL posts in the thread
                              var localLikes = await _unitOfWork.Likes.Query()
@@ -3719,25 +3770,32 @@ public class PostService : IPostService
                             // Mutate JTokens
                             foreach (var postNode in postNodes)
                             {
+                                Guid? pid = null;
+                                var nodeUri = postNode["uri"]?.ToString();
                                 var cid = postNode["cid"]?.ToString();
-                                if (cid != null && localPosts.TryGetValue(cid, out var pid))
+                                var nodeRkey = nodeUri?.Split('/').LastOrDefault();
+
+                                if ((!string.IsNullOrEmpty(nodeUri) && localPostsByUri.TryGetValue(nodeUri, out var pidByUri) && (pid = pidByUri) != null) ||
+                                    (!string.IsNullOrEmpty(cid) && localPostsByCid.TryGetValue(cid, out var pidByCid) && (pid = pidByCid) != null) ||
+                                    (!string.IsNullOrEmpty(nodeRkey) && localPostsByTid.TryGetValue(nodeRkey, out var pidByTid) && (pid = pidByTid) != null))
                                 {
-                                    if (localLikes.TryGetValue(pid, out var llCount))
+                                    var matchedPostId = pid.Value;
+                                    if (localLikes.TryGetValue(matchedPostId, out var llCount))
                                     {
                                         var remoteLC = parseInt(postNode["likeCount"]);
                                         postNode["likeCount"] = Math.Max(llCount, remoteLC);
                                     }
-                                    if (localReposts.TryGetValue(pid, out var lrCount))
+                                    if (localReposts.TryGetValue(matchedPostId, out var lrCount))
                                     {
                                         var remoteRC = parseInt(postNode["repostCount"]);
                                         postNode["repostCount"] = Math.Max(lrCount, remoteRC);
                                     }
-                                    if (localRepliesCounts.TryGetValue(pid, out var lrplCount))
+                                    if (localRepliesCounts.TryGetValue(matchedPostId, out var lrplCount))
                                     {
                                         var remoteRPC = parseInt(postNode["replyCount"]);
                                         postNode["replyCount"] = Math.Max(lrplCount, remoteRPC);
                                     }
-                                    if (localQuotesCounts.TryGetValue(pid, out var lqCount))
+                                    if (localQuotesCounts.TryGetValue(matchedPostId, out var lqCount))
                                     {
                                         var remoteQC = parseInt(postNode["quoteCount"]);
                                         postNode["quoteCount"] = Math.Max(lqCount, remoteQC);
@@ -3747,13 +3805,13 @@ public class PostService : IPostService
                                     {
                                         if (postNode["viewer"] == null) postNode["viewer"] = new Newtonsoft.Json.Linq.JObject();
                                         
-                                        if (userLikes.TryGetValue(pid, out var lUri))
+                                        if (userLikes.TryGetValue(matchedPostId, out var lUri))
                                             postNode["viewer"]["like"] = lUri;
                                         
-                                        if (userReposts.TryGetValue(pid, out var rUri))
+                                        if (userReposts.TryGetValue(matchedPostId, out var rUri))
                                             postNode["viewer"]["repost"] = rUri;
                                             
-                                        if (userBookmarks.Contains(pid))
+                                        if (userBookmarks.Contains(matchedPostId))
                                             postNode["isBookmarked"] = true;
                                     }
                                 }
@@ -3765,11 +3823,17 @@ public class PostService : IPostService
                                 foreach (var threadWrapperNode in threadNodes)
                                 {
                                     var postNodeForThisThread = threadWrapperNode["post"];
+                                    Guid? pid = null;
+                                    var threadUri = postNodeForThisThread?["uri"]?.ToString();
                                     var cid = postNodeForThisThread?["cid"]?.ToString();
-                                    
-                                    if (cid != null && localPosts.TryGetValue(cid, out var pid))
+                                    var threadRkey = threadUri?.Split('/').LastOrDefault();
+
+                                    if ((!string.IsNullOrEmpty(threadUri) && localPostsByUri.TryGetValue(threadUri, out var pidByUri) && (pid = pidByUri) != null) ||
+                                        (!string.IsNullOrEmpty(cid) && localPostsByCid.TryGetValue(cid, out var pidByCid) && (pid = pidByCid) != null) ||
+                                        (!string.IsNullOrEmpty(threadRkey) && localPostsByTid.TryGetValue(threadRkey, out var pidByTid) && (pid = pidByTid) != null))
                                     {
-                                        var repliesToThis = localReplies.Where(r => r.ReplyToPostId == pid).ToList();
+                                        var matchedPostId = pid.Value;
+                                        var repliesToThis = localReplies.Where(r => r.ReplyToPostId == matchedPostId).ToList();
                                         if (repliesToThis.Any())
                                         {
                                             if (threadWrapperNode["replies"] == null) threadWrapperNode["replies"] = new Newtonsoft.Json.Linq.JArray();

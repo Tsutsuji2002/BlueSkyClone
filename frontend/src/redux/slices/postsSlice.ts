@@ -119,26 +119,6 @@ const getPostIdentityKey = (post?: Partial<Post> | null): string => {
     return '';
 };
 
-const getPostInteractionKeys = (post?: Partial<Post> | null): string[] => {
-    if (!post) return [];
-
-    const normalized = (value?: string | null) => value?.trim().toLowerCase() ?? '';
-    const keys = new Set<string>();
-    const uri = normalized(post.uri);
-    const tid = normalized(post.tid);
-    const id = normalized(post.id);
-    const cid = normalized(post.cid);
-    const rkey = uri ? uri.split('/').pop() ?? '' : (tid || id);
-
-    if (uri) keys.add(`uri:${uri}`);
-    if (tid) keys.add(`tid:${tid}`);
-    if (id) keys.add(`id:${id}`);
-    if (cid) keys.add(`cid:${cid}`);
-    if (rkey) keys.add(`rkey:${rkey}`);
-
-    return Array.from(keys);
-};
-
 const dedupePostsByIdentity = (posts: Post[]): Post[] => {
     const seen = new Set<string>();
     const deduped: Post[] = [];
@@ -156,62 +136,6 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
     });
 
     return deduped;
-};
-export const applyInteractionOverlay = (state: PostsState, targetPosts: Post[]) => {
-    if (!targetPosts || !targetPosts.length) return;
-
-    // 1. Gather "truth" from all post arrays in state
-    const truthMap = new Map<string, { isLiked?: boolean, isReposted?: boolean, isBookmarked?: boolean, lc?: number, rc?: number, bc?: number }>();
-    
-    const gather = (posts: Post[]) => {
-        if (!posts) return;
-        posts.forEach(p => {
-            const keys = getPostInteractionKeys(p);
-            if (!keys.length) return;
-            
-            const existing = truthMap.get(keys[0]) || {};
-            const current = {
-                isLiked: existing.isLiked || p.isLiked,
-                isReposted: existing.isReposted || p.isReposted,
-                isBookmarked: existing.isBookmarked || p.isBookmarked,
-                lc: Math.max(existing.lc || 0, p.likesCount || 0),
-                rc: Math.max(existing.rc || 0, p.repostsCount || 0),
-                bc: Math.max(existing.bc || 0, p.bookmarksCount || 0)
-            };
-            
-            keys.forEach(k => truthMap.set(k, current));
-        });
-    };
-
-    gather(state.posts);
-    gather(state.discoverPosts);
-    gather(state.bookmarkedPosts);
-    gather(state.trendingPosts);
-    gather(state.threadPosts);
-
-    // 2. Apply truth to target posts
-    targetPosts.forEach(p => {
-        const truth = getPostInteractionKeys(p)
-            .map((key) => truthMap.get(key))
-            .find(Boolean);
-        if (truth) {
-            if (truth.isLiked !== undefined) p.isLiked = truth.isLiked;
-            if (truth.isReposted !== undefined) p.isReposted = truth.isReposted;
-            if (truth.isBookmarked !== undefined) p.isBookmarked = truth.isBookmarked;
-            
-            if (truth.lc !== undefined && (p.likesCount === undefined || truth.lc > (p.likesCount || 0))) p.likesCount = truth.lc;
-            if (truth.rc !== undefined && (p.repostsCount === undefined || truth.rc > (p.repostsCount || 0))) p.repostsCount = truth.rc;
-            if (truth.bc !== undefined && (p.bookmarksCount === undefined || truth.bc > (p.bookmarksCount || 0))) p.bookmarksCount = truth.bc;
-        }
-    });
-};
-
-const syncInteractionTruthAcrossState = (state: PostsState) => {
-    applyInteractionOverlay(state, state.posts);
-    applyInteractionOverlay(state, state.threadPosts);
-    applyInteractionOverlay(state, state.discoverPosts);
-    applyInteractionOverlay(state, state.trendingPosts);
-    applyInteractionOverlay(state, state.bookmarkedPosts);
 };
 
 export const fetchTimeline = createAsyncThunk(
@@ -750,7 +674,6 @@ const postsSlice = createSlice({
             updateInArray(state.trendingPosts);
             updateInArray(state.bookmarkedPosts);
             updateInArray(state.threadPosts);
-            syncInteractionTruthAcrossState(state);
         },
         updateUserPostStatus: (state, action: PayloadAction<{ uri: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
             const { uri: actionUri, timestamp, ...status } = action.payload;
@@ -768,7 +691,6 @@ const postsSlice = createSlice({
             updateInArray(state.trendingPosts);
             updateInArray(state.bookmarkedPosts);
             updateInArray(state.threadPosts);
-            syncInteractionTruthAcrossState(state);
         },
         removePost: (state, action: PayloadAction<string>) => {
             const postUri = action.payload;
@@ -816,9 +738,6 @@ const postsSlice = createSlice({
                 state.timelineLoading = false;
                 const { skip } = action.meta.arg;
 
-                // Overlay interaction states
-                applyInteractionOverlay(state, action.payload.posts);
-
                 if (skip === 0) {
                     state.posts = action.payload.posts;
                     state.lastTimelineFetch = Date.now();
@@ -831,7 +750,6 @@ const postsSlice = createSlice({
                     state.posts = [...state.posts, ...newPosts];
                 }
                 state.hasMore = action.payload.posts.length > 0;
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchTimeline.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -844,9 +762,7 @@ const postsSlice = createSlice({
             })
             .addCase(fetchTrendingPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
                 state.isLoading = false;
-                applyInteractionOverlay(state, action.payload);
                 state.trendingPosts = action.payload;
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchTrendingPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -869,9 +785,6 @@ const postsSlice = createSlice({
                 const { posts, userId, cursor, type } = action.payload;
                 const { skip = 0, take = 20 } = action.meta.arg || {};
                 
-                // Overlay interaction states
-                applyInteractionOverlay(state, posts);
-
                 const dedupedFetchedPosts = dedupePostsByIdentity(posts);
                 let appendedCount = 0;
 
@@ -905,7 +818,6 @@ const postsSlice = createSlice({
 
                 state.hasMore = posts.length >= take && appendedCount > 0;
                 state.cursor = state.hasMore ? (cursor ?? String(skip + posts.length)) : null;
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchUserPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -1014,7 +926,6 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isLiked: boolean, likeUri?: string, likesCount?: number }>) => {
                 const actionUri = action.payload.uri;
@@ -1034,7 +945,6 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(toggleLike.rejected, (state: PostsState, action) => {
                 const { uri: actionUri } = action.meta.arg;
@@ -1054,7 +964,6 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
-                syncInteractionTruthAcrossState(state);
                 state.error = action.payload as string;
             })
             .addCase(repostPost.pending, (state: PostsState, action) => {
@@ -1075,7 +984,6 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isReposted: boolean, repostUri?: string, repostsCount?: number }>) => {
                 const actionUri = action.payload.uri;
@@ -1097,7 +1005,6 @@ const postsSlice = createSlice({
                 updateInArray(state.threadPosts);
                 // Invalidate profile post cache so reposts appear/disappear on next profile visit
                 state.lastUserPostsFetch = 0;
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(repostPost.rejected, (state: PostsState, action) => {
                 const { uri: actionUri } = action.meta.arg;
@@ -1117,7 +1024,6 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
-                syncInteractionTruthAcrossState(state);
             })
             // Update Post
             .addCase(updatePost.pending, (state) => {
@@ -1169,7 +1075,6 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 const fetchedPosts: Post[] = Array.isArray(action.payload) ? action.payload : [action.payload];
                 fetchedPosts.forEach(fetchedPost => {
-                    applyInteractionOverlay(state, [fetchedPost]);
                     // Deduplicate by URI or ID (if ID is not empty)
                     const index = state.threadPosts.findIndex(p =>
                         (fetchedPost.uri && p.uri === fetchedPost.uri) ||
@@ -1183,7 +1088,6 @@ const postsSlice = createSlice({
                         state.threadPosts.push(fetchedPost);
                     }
                 });
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchPostById.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -1208,7 +1112,6 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, bookmarksCount?: number }>) => {
                 const actionUri = action.payload.uri;
@@ -1231,7 +1134,6 @@ const postsSlice = createSlice({
                 if (!action.payload.isBookmarked) {
                     state.bookmarkedPosts = state.bookmarkedPosts.filter(p => p.uri !== action.payload.uri);
                 }
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(toggleBookmark.rejected, (state: PostsState, action) => {
                 const { uri: actionUri } = action.meta.arg;
@@ -1251,7 +1153,6 @@ const postsSlice = createSlice({
                 updateInArray(state.trendingPosts);
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
-                syncInteractionTruthAcrossState(state);
             })
             // Fetch Bookmarked Posts
             .addCase(fetchBookmarkedPosts.pending, (state: PostsState, action: any) => {
@@ -1261,9 +1162,6 @@ const postsSlice = createSlice({
                 state.bookmarkedLoading = false;
                 const { skip } = action.meta.arg || { skip: 0 };
 
-                // Preserve recent local interaction state while bookmarks are being refreshed.
-                applyInteractionOverlay(state, action.payload);
-
                 if (skip === 0) {
                     state.bookmarkedPosts = action.payload;
                 } else {
@@ -1272,11 +1170,6 @@ const postsSlice = createSlice({
                     state.bookmarkedPosts = [...state.bookmarkedPosts, ...newPosts];
                 }
                 state.hasMore = action.payload.length > 0;
-
-                // Sync newly loaded bookmark truth back to existing state
-                // This ensures that if the timeline was fully loaded before bookmarks,
-                // posts will now correctly know they are bookmarked.
-                syncInteractionTruthAcrossState(state);
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
                 state.bookmarkedLoading = false;
@@ -1351,9 +1244,6 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.discoverLoading = false;
                 const { skip } = action.meta.arg || { skip: 0 };
-
-                // Overlay interaction states
-                applyInteractionOverlay(state, action.payload.posts);
 
                 if (skip === 0) {
                     state.discoverPosts = action.payload.posts;
