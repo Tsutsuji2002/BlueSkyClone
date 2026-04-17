@@ -845,21 +845,29 @@ public class PostService : IPostService
             
             // Collect Likes joined with Post Uri or Tid
             var likedItems = await _unitOfWork.Likes.Query()
-                .Where(l => l.UserId == viewerId && (postIds.Contains(l.PostId) || (l.Post != null && postUris.Contains(l.Post.Uri.ToLower())) || postRkeys.Contains(l.Tid)))
-                .Select(l => new { l.PostId, Uri = l.Post.Uri, Tid = l.Tid, LikeUri = l.Uri ?? "" })
+                .Where(l => l.UserId == viewerId && (
+                    postIds.Contains(l.PostId) ||
+                    (l.Post != null && l.Post.Uri != null && postUris.Contains(l.Post.Uri.ToLower())) ||
+                    (l.Post != null && l.Post.Tid != null && postRkeys.Contains(l.Post.Tid.ToLower()))
+                ))
+                .Select(l => new { l.PostId, Uri = l.Post.Uri, SubjectTid = l.Post.Tid, LikeUri = l.Uri ?? "" })
                 .ToListAsync();
             var likedPostUrisByUri = likedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).ToDictionary(x => x.Uri!.ToLower(), x => x.LikeUri);
             var likedPostUrisById = likedItems.GroupBy(x => x.PostId).ToDictionary(g => g.Key, g => g.First().LikeUri);
-            var rkeyToLikedUri = likedItems.Where(x => !string.IsNullOrEmpty(x.Tid)).ToDictionary(x => x.Tid.ToLower(), x => x.LikeUri);
+            var rkeyToLikedUri = likedItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).ToDictionary(x => x.SubjectTid!.ToLower(), x => x.LikeUri);
 
             // Collect Reposts joined with Post Uri or Tid
             var repostItems = await _unitOfWork.Reposts.Query()
-                .Where(r => r.UserId == viewerId && (postIds.Contains(r.PostId) || (r.Post != null && postUris.Contains(r.Post.Uri.ToLower())) || postRkeys.Contains(r.Tid)))
-                .Select(r => new { r.PostId, Uri = r.Post.Uri, Tid = r.Tid, RepostUri = r.Uri ?? "" })
+                .Where(r => r.UserId == viewerId && (
+                    postIds.Contains(r.PostId) ||
+                    (r.Post != null && r.Post.Uri != null && postUris.Contains(r.Post.Uri.ToLower())) ||
+                    (r.Post != null && r.Post.Tid != null && postRkeys.Contains(r.Post.Tid.ToLower()))
+                ))
+                .Select(r => new { r.PostId, Uri = r.Post.Uri, SubjectTid = r.Post.Tid, RepostUri = r.Uri ?? "" })
                 .ToListAsync();
             var repostPostUrisByUri = repostItems.Where(x => !string.IsNullOrEmpty(x.Uri)).ToDictionary(x => x.Uri!.ToLower(), x => x.RepostUri);
             var repostPostUrisById = repostItems.GroupBy(x => x.PostId).ToDictionary(g => g.Key, g => g.First().RepostUri);
-            var rkeyToRepostUri = repostItems.Where(x => !string.IsNullOrEmpty(x.Tid)).ToDictionary(x => x.Tid.ToLower(), x => x.RepostUri);
+            var rkeyToRepostUri = repostItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).ToDictionary(x => x.SubjectTid!.ToLower(), x => x.RepostUri);
 
             var followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
             
@@ -901,12 +909,16 @@ public class PostService : IPostService
 
             // Collect Bookmarks joined with Post Uri or Tid
             var bookmarkedItems = await _unitOfWork.Bookmarks.Query()
-                .Where(b => b.UserId == viewerId && (postIds.Contains(b.PostId) || (b.Post != null && postUris.Contains(b.Post.Uri.ToLower())) || postRkeys.Contains(b.Tid)))
-                .Select(b => new { b.PostId, Uri = b.Post.Uri, Tid = b.Tid })
+                .Where(b => b.UserId == viewerId && (
+                    postIds.Contains(b.PostId) ||
+                    (b.Post != null && b.Post.Uri != null && postUris.Contains(b.Post.Uri.ToLower())) ||
+                    (b.Post != null && b.Post.Tid != null && postRkeys.Contains(b.Post.Tid.ToLower()))
+                ))
+                .Select(b => new { b.PostId, Uri = b.Post.Uri, SubjectTid = b.Post.Tid })
                 .ToListAsync();
             var bookmarkedUris = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).Select(x => x.Uri!.ToLower()).ToHashSet();
             var bookmarkedIds = bookmarkedItems.Select(x => x.PostId).ToHashSet();
-            var bookmarkedRkeys = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.Tid)).Select(x => x.Tid.ToLower()).ToHashSet();
+            var bookmarkedRkeys = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).Select(x => x.SubjectTid!.ToLower()).ToHashSet();
 
             var blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}");
             var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
@@ -4820,7 +4832,7 @@ public class PostService : IPostService
             {
                 PostId = postId,
                 UserId = userId,
-                Tid = GenerateTid(),
+                Tid = !string.IsNullOrEmpty(post.Tid) ? post.Tid : GenerateTid(),
                 CreatedAt = DateTime.UtcNow
             });
             isBookmarked = true;

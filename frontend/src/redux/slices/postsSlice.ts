@@ -3,41 +3,12 @@ import { PostsState, Post } from '../../types';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
 
-type InteractionSnapshot = NonNullable<PostsState['interactionRegistry'][string]>;
-
-const INTERACTION_REGISTRY_STORAGE_KEY = 'posts:interaction-registry:v1';
-
-const loadInteractionRegistry = (): PostsState['interactionRegistry'] => {
-    if (typeof window === 'undefined') return {};
-
-    try {
-        const raw = window.sessionStorage.getItem(INTERACTION_REGISTRY_STORAGE_KEY);
-        if (!raw) return {};
-
-        const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch {
-        return {};
-    }
-};
-
-const persistInteractionRegistry = (registry: PostsState['interactionRegistry']) => {
-    if (typeof window === 'undefined') return;
-
-    try {
-        window.sessionStorage.setItem(INTERACTION_REGISTRY_STORAGE_KEY, JSON.stringify(registry));
-    } catch {
-        // Ignore session storage failures and keep the in-memory overlay.
-    }
-};
-
 const initialState: PostsState = {
     posts: [],
     threadPosts: [], // Dedicated array for thread views to prevent pollution
     discoverPosts: [],
     trendingPosts: [],
     bookmarkedPosts: [],
-    interactionRegistry: loadInteractionRegistry(),
     isLoading: false,
     timelineLoading: false,
     discoverLoading: false,
@@ -168,64 +139,6 @@ const getPostInteractionKeys = (post?: Partial<Post> | null): string[] => {
     return Array.from(keys);
 };
 
-const buildInteractionSnapshot = (post?: Partial<Post> | null): InteractionSnapshot | null => {
-    if (!post) return null;
-
-    const snapshot: InteractionSnapshot = {};
-
-    if (post.isLiked !== undefined) snapshot.isLiked = post.isLiked;
-    if (post.isReposted !== undefined) snapshot.isReposted = post.isReposted;
-    if (post.isBookmarked !== undefined) snapshot.isBookmarked = post.isBookmarked;
-    if (typeof post.likesCount === 'number') snapshot.likesCount = post.likesCount;
-    if (typeof post.repostsCount === 'number') snapshot.repostsCount = post.repostsCount;
-    if (typeof post.bookmarksCount === 'number') snapshot.bookmarksCount = post.bookmarksCount;
-
-    return Object.keys(snapshot).length ? snapshot : null;
-};
-
-const rememberInteractionSnapshot = (state: PostsState, post?: Partial<Post> | null) => {
-    const keys = getPostInteractionKeys(post);
-    const snapshot = buildInteractionSnapshot(post);
-
-    if (!keys.length || !snapshot) return;
-
-    keys.forEach((key) => {
-        state.interactionRegistry[key] = {
-            ...state.interactionRegistry[key],
-            ...snapshot,
-        };
-    });
-};
-
-const rebuildInteractionRegistryFromState = (state: PostsState) => {
-    const registry: PostsState['interactionRegistry'] = { ...state.interactionRegistry };
-
-    const rememberPosts = (posts: Post[]) => {
-        posts.forEach((post) => {
-            const keys = getPostInteractionKeys(post);
-            const snapshot = buildInteractionSnapshot(post);
-
-            if (!keys.length || !snapshot) return;
-
-            keys.forEach((key) => {
-                registry[key] = {
-                    ...registry[key],
-                    ...snapshot,
-                };
-            });
-        });
-    };
-
-    rememberPosts(state.posts);
-    rememberPosts(state.threadPosts);
-    rememberPosts(state.discoverPosts);
-    rememberPosts(state.trendingPosts);
-    rememberPosts(state.bookmarkedPosts);
-
-    state.interactionRegistry = registry;
-    persistInteractionRegistry(registry);
-};
-
 const dedupePostsByIdentity = (posts: Post[]): Post[] => {
     const seen = new Set<string>();
     const deduped: Post[] = [];
@@ -249,17 +162,6 @@ export const applyInteractionOverlay = (state: PostsState, targetPosts: Post[]) 
 
     // 1. Gather "truth" from all post arrays in state
     const truthMap = new Map<string, { isLiked?: boolean, isReposted?: boolean, isBookmarked?: boolean, lc?: number, rc?: number, bc?: number }>();
-
-    Object.entries(state.interactionRegistry).forEach(([key, snapshot]) => {
-        truthMap.set(key, {
-            isLiked: snapshot.isLiked,
-            isReposted: snapshot.isReposted,
-            isBookmarked: snapshot.isBookmarked,
-            lc: snapshot.likesCount,
-            rc: snapshot.repostsCount,
-            bc: snapshot.bookmarksCount,
-        });
-    });
     
     const gather = (posts: Post[]) => {
         if (!posts) return;
@@ -310,7 +212,6 @@ const syncInteractionTruthAcrossState = (state: PostsState) => {
     applyInteractionOverlay(state, state.discoverPosts);
     applyInteractionOverlay(state, state.trendingPosts);
     applyInteractionOverlay(state, state.bookmarkedPosts);
-    rebuildInteractionRegistryFromState(state);
 };
 
 export const fetchTimeline = createAsyncThunk(
@@ -849,12 +750,6 @@ const postsSlice = createSlice({
             updateInArray(state.trendingPosts);
             updateInArray(state.bookmarkedPosts);
             updateInArray(state.threadPosts);
-            rememberInteractionSnapshot(state, {
-                uri: actionUri,
-                id: actionUri,
-                tid: actionUri,
-                ...stats,
-            });
             syncInteractionTruthAcrossState(state);
         },
         updateUserPostStatus: (state, action: PayloadAction<{ uri: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
@@ -873,12 +768,6 @@ const postsSlice = createSlice({
             updateInArray(state.trendingPosts);
             updateInArray(state.bookmarkedPosts);
             updateInArray(state.threadPosts);
-            rememberInteractionSnapshot(state, {
-                uri: actionUri,
-                id: actionUri,
-                tid: actionUri,
-                ...status,
-            });
             syncInteractionTruthAcrossState(state);
         },
         removePost: (state, action: PayloadAction<string>) => {

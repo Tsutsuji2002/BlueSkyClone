@@ -419,14 +419,6 @@ export interface PostsState {
     discoverPosts: Post[];
     trendingPosts: Post[];
     bookmarkedPosts: Post[];
-    interactionRegistry: Record<string, {
-        isLiked?: boolean;
-        isReposted?: boolean;
-        isBookmarked?: boolean;
-        likesCount?: number;
-        repostsCount?: number;
-        bookmarksCount?: number;
-    }>;
     isLoading: boolean;
     timelineLoading: boolean;
     discoverLoading: boolean;
