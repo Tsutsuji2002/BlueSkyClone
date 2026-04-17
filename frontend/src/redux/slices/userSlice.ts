@@ -502,7 +502,7 @@ export const fetchMutedWords = createAsyncThunk<MutedWord[], void, { rejectValue
 
 export const addMutedWordAsync = createAsyncThunk<MutedWord, { word: string, muteBehavior: string, targets: string, expiresAt?: string, excludeFollowing?: boolean }, { rejectValue: string }>(
     'user/addMutedWord',
-    async (data, { rejectWithValue }) => {
+    async (data, { rejectWithValue, dispatch }) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
@@ -512,6 +512,7 @@ export const addMutedWordAsync = createAsyncThunk<MutedWord, { word: string, mut
             });
             const result = await response.json();
             if (!response.ok) return rejectWithValue(result.message || 'Failed to add muted word');
+            await dispatch(fetchMutedWords());
             return result;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -542,7 +543,7 @@ export const syncMutedWords = createAsyncThunk<void, void, { rejectValue: string
 
 export const deleteMutedWordAsync = createAsyncThunk<number, number, { rejectValue: string }>(
     'user/deleteMutedWord',
-    async (id, { rejectWithValue }) => {
+    async (id, { rejectWithValue, dispatch }) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/muted-words/${id}`, {
@@ -553,6 +554,7 @@ export const deleteMutedWordAsync = createAsyncThunk<number, number, { rejectVal
                 const data = await response.json();
                 return rejectWithValue(data.message || 'Failed to delete muted word');
             }
+            await dispatch(fetchMutedWords());
             return id;
         } catch (error: any) {
             return rejectWithValue(error.message);
