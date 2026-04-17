@@ -722,6 +722,7 @@ const postsSlice = createSlice({
             updateInArray(state.discoverPosts);
             updateInArray(state.trendingPosts);
             updateInArray(state.bookmarkedPosts);
+            updateInArray(state.threadPosts);
         },
         updateUserPostStatus: (state, action: PayloadAction<{ uri: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
             const { uri: actionUri, timestamp, ...status } = action.payload;
@@ -738,6 +739,7 @@ const postsSlice = createSlice({
             updateInArray(state.discoverPosts);
             updateInArray(state.trendingPosts);
             updateInArray(state.bookmarkedPosts);
+            updateInArray(state.threadPosts);
         },
         removePost: (state, action: PayloadAction<string>) => {
             const postUri = action.payload;
@@ -1209,16 +1211,12 @@ const postsSlice = createSlice({
             // Fetch Bookmarked Posts
             .addCase(fetchBookmarkedPosts.pending, (state: PostsState, action: any) => {
                 state.bookmarkedLoading = true;
-                const { skip } = action.meta.arg || { skip: 0 };
-                if (skip === 0) {
-                    state.bookmarkedPosts = [];
-                }
             })
             .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: any) => {
                 state.bookmarkedLoading = false;
                 const { skip } = action.meta.arg || { skip: 0 };
 
-                // Apply existing interaction truth (like/repost) to the bookmarked posts
+                // Preserve recent local interaction state while bookmarks are being refreshed.
                 applyInteractionOverlay(state, action.payload);
 
                 if (skip === 0) {
