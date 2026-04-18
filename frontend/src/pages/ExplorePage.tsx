@@ -4,6 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { FiSearch, FiX, FiPlus, FiGrid, FiMenu, FiCheck, FiRefreshCw } from 'react-icons/fi';
+import { BsPatchCheckFill } from 'react-icons/bs';
 
 import { useTranslation } from 'react-i18next';
 import LoadingIndicator from '../components/common/LoadingIndicator';
@@ -30,12 +31,15 @@ const ExplorePage: React.FC = () => {
     const { accounts, interests, topics } = useAppSelector((state: RootState) => state.trending);
     const { feeds } = useAppSelector((state: RootState) => state.feeds);
     const { discoverPosts, discoverHasMore, discoverLoading } = useAppSelector((state: RootState) => state.posts);
+    const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
+    const [isSearchUIActive, setIsSearchUIActive] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const observerTarget = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         dispatch(fetchTrending());
@@ -139,6 +143,14 @@ const ExplorePage: React.FC = () => {
         }
         setSearchQuery('');
         setShowResults(false);
+        setIsSearchUIActive(false);
+    };
+
+    const handleCancelSearch = () => {
+        setIsSearchUIActive(false);
+        setSearchQuery('');
+        setResults([]);
+        setShowResults(false);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -152,6 +164,7 @@ const ExplorePage: React.FC = () => {
         setSearchQuery('');
         setResults([]);
         setShowResults(false);
+        if (searchInputRef.current) searchInputRef.current.focus();
     };
 
 
@@ -166,45 +179,68 @@ const ExplorePage: React.FC = () => {
         dispatch(fetchSubscribedFeeds());
     };
 
+    useEffect(() => {
+        if (isSearchUIActive && searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
+    }, [isSearchUIActive]);
+
     useDocumentTitle(t('nav.explore'));
 
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 {/* Header */}
                 <div className="sticky top-0 z-40 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-4">
-                    <button
-                        onClick={() => dispatch(openMobileMenu())}
-                        className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
-                    >
-                        <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
-                    </button>
+                    {!isSearchUIActive && (
+                        <button
+                            onClick={() => dispatch(openMobileMenu())}
+                            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
+                        >
+                            <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
+                        </button>
+                    )}
                     <div className="relative group flex-1" ref={searchRef}>
-                        <div className="relative">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
-                            <input
-                                type="text"
-                                placeholder={t('explore.search_placeholder')}
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value);
-                                    setShowResults(true);
-                                }}
-                                onFocus={() => setShowResults(true)}
-                                onKeyDown={handleKeyDown}
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={clearSearch}
-                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+                        <div className="relative flex items-center gap-3">
+                            <div className="relative flex-1">
+                                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    placeholder={t('explore.search_placeholder')}
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setShowResults(true);
+                                    }}
+                                    onFocus={() => {
+                                        setShowResults(true);
+                                        // setIsSearchUIActive(true); // Don't auto-activate unless clicked from feeds? 
+                                        // Actually, let's make it consistent.
+                                    }}
+                                    onKeyDown={handleKeyDown}
+                                    className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={clearSearch}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+                                    >
+                                        <FiX size={16} />
+                                    </button>
+                                )}
+                            </div>
+                            {isSearchUIActive && (
+                                <button 
+                                    onClick={handleCancelSearch}
+                                    className="text-primary-500 font-medium hover:underline px-1"
                                 >
-                                    <FiX size={16} />
+                                    {t('common.cancel', { defaultValue: 'Cancel' })}
                                 </button>
                             )}
                         </div>
 
                         {/* Dropdown Results */}
-                        {showResults && (searchQuery.trim() || loading) && (
+                        {showResults && !isSearchUIActive && (searchQuery.trim() || loading) && (
                             <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl shadow-xl z-50 overflow-hidden min-h-[100px] max-h-[80vh] flex flex-col">
                                 <div className="p-3 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50">
                                     <p className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
@@ -276,6 +312,105 @@ const ExplorePage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-6 p-4">
+                    {isSearchUIActive ? (
+                        <section className="flex flex-col">
+                            {searchQuery.trim() && (
+                                <div className="mb-4">
+                                    <h3 className="text-sm font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider px-2">
+                                        {t('search.results_for', { defaultValue: 'Search for "{{query}}"', query: searchQuery })}
+                                    </h3>
+                                </div>
+                            )}
+
+                            <div className="flex flex-col">
+                                {loading ? (
+                                    <div className="p-8 flex justify-center">
+                                        <LoadingIndicator size="md" />
+                                    </div>
+                                ) : results.length > 0 ? (
+                                    <div className="flex flex-col">
+                                        {results.map((result) => (
+                                            <button
+                                                key={result.id || result.did || result.handle}
+                                                onClick={() => handleResultClick(result)}
+                                                className="w-full flex items-center gap-3 px-3 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors text-left border-b border-gray-100 dark:border-dark-border last:border-0"
+                                            >
+                                                {result._type === 'feed' ? (
+                                                    <div className="w-12 h-12 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xl flex-shrink-0">
+                                                        {result.avatarUrl || result.avatar ? (
+                                                            <img src={result.avatarUrl || result.avatar} alt="" className="w-full h-full rounded-lg object-cover" />
+                                                        ) : (
+                                                            result.name?.[0] || 'F'
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <UserHoverCard user={result}>
+                                                        <div onClick={(e) => { e.stopPropagation(); handleResultClick(result); }}>
+                                                            <Avatar
+                                                                src={result.avatarUrl || result.avatar}
+                                                                alt={result.displayName}
+                                                                size="lg"
+                                                            />
+                                                        </div>
+                                                    </UserHoverCard>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-1">
+                                                        <p className="font-bold text-gray-900 dark:text-dark-text truncate">
+                                                            {result._type === 'feed' ? result.name : (
+                                                                <UserHoverCard user={result}>
+                                                                    <span>{result.displayName}</span>
+                                                                </UserHoverCard>
+                                                            )}
+                                                        </p>
+                                                        {result.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
+                                                    </div>
+                                                    <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary truncate">
+                                                        {result._type === 'feed' ? (
+                                                            <>Feed · @{result.handle}</>
+                                                        ) : (
+                                                            <>@{result.handle}</>
+                                                        )}
+                                                    </p>
+                                                    {result.bio && (
+                                                        <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-1 mt-0.5">
+                                                            {result.bio}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                
+                                                {result._type === 'user' && (currentUser?.id !== result.id) && (
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // Optional: add follow toggle here if needed, but the card has it
+                                                        }}
+                                                        className={cn(
+                                                            "px-4 py-1.5 rounded-full text-sm font-bold border",
+                                                            result.isFollowing 
+                                                                ? "border-gray-300 dark:border-dark-border text-gray-900 dark:text-dark-text"
+                                                                : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-transparent"
+                                                        )}
+                                                    >
+                                                        {result.isFollowing ? t('profile.following') : t('profile.follow')}
+                                                    </button>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : searchQuery.trim() ? (
+                                    <div className="p-12 text-center text-gray-500 dark:text-dark-text-secondary">
+                                        <p>{t('search.no_results', { defaultValue: 'No results found for "{{query}}"', query: searchQuery })}</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-12 text-center text-gray-500 dark:text-dark-text-secondary">
+                                        <p>{t('search.start_typing', { defaultValue: 'Search for posts, users, or feeds' })}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    ) : (
+                        <>
                     {/* Interests Section */}
                     <section className="flex flex-col relative px-2">
                         <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text transition-colors">
@@ -375,7 +510,12 @@ const ExplorePage: React.FC = () => {
                                 <span className="p-1 px-2 border-2 border-primary-500 rounded text-xs font-bold">Ξ</span>
                                 <h2 className="text-lg font-bold">{t('feeds.discover_new')}</h2>
                             </div>
-                            <FiSearch className="text-gray-400" size={20} />
+                            <button 
+                                onClick={() => setIsSearchUIActive(true)}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                            >
+                                <FiSearch className="text-gray-400" size={20} />
+                            </button>
                         </div>
 
                         <div className="flex flex-col gap-4">
@@ -476,6 +616,8 @@ const ExplorePage: React.FC = () => {
                             )}
                         </div>
                     </section>
+                        </>
+                    )}
                 </div>
             </div>
 
