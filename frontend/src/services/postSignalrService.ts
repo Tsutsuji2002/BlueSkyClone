@@ -7,6 +7,16 @@ const HUB_URL = API_BASE_URL.replace('/api', '/hubs/posts');
 
 class PostSignalRService {
     private connection: signalR.HubConnection | null = null;
+    private listeners: Set<(type: string, data: any) => void> = new Set();
+
+    public onEvent(callback: (type: string, data: any) => void) {
+        this.listeners.add(callback);
+        return () => this.listeners.delete(callback);
+    }
+
+    private emit(type: string, data: any) {
+        this.listeners.forEach(l => l(type, data));
+    }
 
     public async startConnection() {
         if (this.connection) return;
@@ -18,34 +28,27 @@ class PostSignalRService {
             .withAutomaticReconnect()
             .build();
 
-        this.connection.on('UpdatePostStats', (stats: { postId: string; uri?: string; tid?: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number, timestamp?: string }) => {
-            // Dispatch with uri so feedsSlice can match remote AT Protocol posts
-            store.dispatch(updatePostStats({ 
-                ...stats, 
-                uri: stats.uri || stats.postId // prefer AT Protocol uri, fall back to postId
-            }));
+        this.connection.on('UpdatePostStats', (stats: any) => {
+            const data = { ...stats, uri: stats.uri || stats.postId };
+            store.dispatch(updatePostStats(data));
+            this.emit('stats', data);
         });
 
-        this.connection.on('UpdateUserPostStatus', (status: { postId: string; uri?: string; tid?: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean, timestamp?: string }) => {
-            store.dispatch(updateUserPostStatus({ 
-                ...status, 
-                uri: status.uri || status.postId 
-            }));
+        this.connection.on('UpdateUserPostStatus', (status: any) => {
+            const data = { ...status, uri: status.uri || status.postId };
+            store.dispatch(updateUserPostStatus(data));
+            this.emit('status', data);
         });
 
         this.connection.on('PostDeleted', (postId: string) => {
             store.dispatch(removePost(postId));
+            this.emit('deleted', postId);
         });
         
         this.connection.on('newPost', (post: any) => {
             store.dispatch(receiveNewPost(post));
+            this.emit('created', post);
         });
-
-        /* 
-37:         this.connection.on('newGlobalPost', (post: any) => {
-38:             store.dispatch(receiveGlobalPost(post));
-39:         });
-40:         */
 
         try {
             await this.connection.start();

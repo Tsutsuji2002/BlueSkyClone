@@ -329,6 +329,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
         >
             {item.isVideo ? (
                 <div className="w-full h-full relative group/video">
+                    {/* Video content remains same */}
                     <video
                         ref={videoRef}
                         poster={item.thumbnail}
@@ -515,21 +516,23 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     )}
                 </div>
             ) : (
-                <img
-                    src={item.url}
-                    alt={item.alt || ''}
-                    className={cn(
-                        "w-full h-full hover:opacity-90 transition-opacity",
-                        totalCount === 1 ? (isDetailView ? "object-contain bg-black" : "object-contain bg-black/10 dark:bg-white/5") : "object-cover",
-                        isLoading ? "opacity-0" : "opacity-100"
-                    )}
-                    loading="lazy"
-                    onLoad={() => setIsLoading(false)}
-                    onError={() => {
-                        setImageError(true);
-                        setIsLoading(false);
-                    }}
-                />
+                <div className="w-full h-full relative" style={{ aspectRatio: '16/9', background: '#f0f0f0' }}>
+                    <img
+                        src={item.url}
+                        alt={item.alt || ''}
+                        className={cn(
+                            "w-full h-full hover:opacity-90 transition-opacity duration-300",
+                            totalCount === 1 ? (isDetailView ? "object-contain bg-black" : "object-contain bg-black/10 dark:bg-white/5") : "object-cover",
+                            isLoading ? "opacity-0" : "opacity-100"
+                        )}
+                        loading="lazy"
+                        onLoad={() => setIsLoading(false)}
+                        onError={() => {
+                            setImageError(true);
+                            setIsLoading(false);
+                        }}
+                    />
+                </div>
             )}
             {isLoading && !item.isVideo && (
                 <div className="absolute inset-0 pointer-events-none">

@@ -30,6 +30,14 @@ const HomePage: React.FC = () => {
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
     const { isAuthenticated, user } = useAppSelector((state: RootState) => state.auth);
 
+    const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
+
+    useEffect(() => {
+        if (activeTab && !visitedTabs.has(activeTab)) {
+            setVisitedTabs(prev => new Set(prev).add(activeTab));
+        }
+    }, [activeTab, visitedTabs]);
+
     
     // Lists state
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
@@ -327,13 +335,15 @@ const HomePage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Tabbed Feed Panels - Keep in DOM for state persistence */}
                 {visibleHomeFeeds.map((feed: any) => {
                     const tabId = feedActionKey(feed) || feed.id;
                     const isDiscover = tabId === 'discover';
                     const isFollowing = tabId === 'following';
+                    
+                    if (!visitedTabs.has(tabId)) return null;
+
                     return (
-                        <div key={tabId} style={{ display: activeTab === tabId ? 'block' : 'none' }}>
+                        <div key={tabId} hidden={activeTab !== tabId} style={{ display: activeTab === tabId ? 'block' : 'none' }}>
                             <Feed
                                 posts={feedPosts[tabId] || []}
                                 isLoading={!!(feedLoading[tabId] ?? (feedsLoading && activeTab === tabId))}
@@ -347,6 +357,7 @@ const HomePage: React.FC = () => {
                                     : isFollowing
                                         ? followingEmptyMessage
                                         : t('feeds.end', 'End of feed')}
+                                isActive={activeTab === tabId}
                             />
                         </div>
                     );
@@ -356,8 +367,10 @@ const HomePage: React.FC = () => {
                 {/* Pinned Lists Panels */}
                 {pinnedLists.map((list: ListDto) => {
                     const tabId = `list:${list.id}`;
+                    if (!visitedTabs.has(tabId)) return null;
+
                     return (
-                        <div key={tabId} style={{ display: activeTab === tabId ? 'block' : 'none' }}>
+                        <div key={tabId} hidden={activeTab !== tabId} style={{ display: activeTab === tabId ? 'block' : 'none' }}>
                             <Feed
                                 posts={activeListFeed}
                                 isLoading={listsLoading && activeTab === tabId}
@@ -365,6 +378,7 @@ const HomePage: React.FC = () => {
                                 onLoadMore={handleLoadMore}
                                 endMessage={t('lists.feed_end', 'No more posts in this list...')}
                                 emptyMessage={t('lists.feed_empty', 'No posts in this list yet.')}
+                                isActive={activeTab === tabId}
                             />
                         </div>
                     );
