@@ -6,8 +6,10 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchBookmarkedPosts } from '../redux/slices/postsSlice';
 import PostCard from '../components/feed/PostCard';
 import Feed from '../components/feed/Feed';
-import { FiBookmark } from 'react-icons/fi';
+import { FiBookmark, FiMenu } from 'react-icons/fi';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { openMobileMenu } from '../redux/slices/modalsSlice';
+import ButterflyLogo from '../components/common/ButterflyLogo';
 
 const SavedPage: React.FC = () => {
     const { t } = useTranslation();
@@ -27,11 +29,24 @@ const SavedPage: React.FC = () => {
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
-                <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
-                    <div className="p-4">
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
+                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
+                    <div className="flex items-center justify-between px-4 h-12 w-full">
+                        <button
+                            onClick={() => dispatch(openMobileMenu())}
+                            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
+                        >
+                            <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
+                        </button>
+                        <div className="hidden lg:block w-10 flex-shrink-0" /> {/* Spacer */}
+
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text truncate mx-4">
                             {t('saved.title')}
                         </h1>
+
+                        <ButterflyLogo
+                            className="w-7 h-7 text-primary-500 cursor-pointer flex-shrink-0"
+                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        />
                     </div>
                 </div>
 
