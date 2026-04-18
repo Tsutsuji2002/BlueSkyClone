@@ -424,6 +424,8 @@ export interface PostsState {
     discoverLoading: boolean;
     bookmarkedLoading: boolean;
     error: string | null;
+    bookmarkedError: string | null;
+    threadError: string | null;
     hasMore: boolean;
     discoverHasMore: boolean;
     actionLoading: Record<string, boolean>;

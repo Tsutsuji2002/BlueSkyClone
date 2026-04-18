@@ -98,6 +98,25 @@ public class PostsController : ControllerBase
         }
     }
 
+    [HttpPost("interactions/status")]
+    public async Task<IActionResult> GetInteractionStatuses([FromBody] PostInteractionStatusRequest? request)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var uris = request?.Uris ?? new List<string>();
+            var statuses = await _postService.GetInteractionStatusesAsync(userId, uris);
+            return Ok(statuses);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PostsController] GetInteractionStatuses error: {ex.Message}");
+            return Ok(new List<PostInteractionStatusDto>());
+        }
+    }
+
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0, [FromQuery] string? cursor = null)

@@ -12,7 +12,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 const SavedPage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { bookmarkedPosts, bookmarkedLoading, hasMore, error } = useAppSelector((state) => state.posts);
+    const { bookmarkedPosts, bookmarkedLoading, hasMore, bookmarkedError } = useAppSelector((state) => state.posts);
 
     useEffect(() => {
         dispatch(fetchBookmarkedPosts({ skip: 0 }));
@@ -37,11 +37,11 @@ const SavedPage: React.FC = () => {
 
                 {bookmarkedLoading && bookmarkedPosts.length === 0 ? (
                     <LoadingIndicator text={t('common.loading')} />
-                ) : error ? (
+                ) : bookmarkedError ? (
                     <div className="p-12 text-center text-red-500 flex flex-col items-center">
                         <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl mb-4">
                             <p className="font-bold mb-2">{t('common.error_occurred', 'An error occurred')}</p>
-                            <p className="text-sm opacity-80">{error}</p>
+                            <p className="text-sm opacity-80">{bookmarkedError}</p>
                         </div>
                         <button 
                             onClick={() => dispatch(fetchBookmarkedPosts({ skip: 0 }))}

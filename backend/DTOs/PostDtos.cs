@@ -181,6 +181,22 @@ public class PagedPostDto
     public string? Cursor { get; set; }
 }
 
+public class PostInteractionStatusRequest
+{
+    public List<string> Uris { get; set; } = new();
+}
+
+public class PostInteractionStatusDto
+{
+    public string Uri { get; set; } = string.Empty;
+    public string? Tid { get; set; }
+    public bool IsLiked { get; set; }
+    public bool IsReposted { get; set; }
+    public bool IsBookmarked { get; set; }
+    public string? LikeUri { get; set; }
+    public string? RepostUri { get; set; }
+}
+
 public class PagedFeedsDto
 {
     public IEnumerable<FeedDto> Feeds { get; set; } = new List<FeedDto>();

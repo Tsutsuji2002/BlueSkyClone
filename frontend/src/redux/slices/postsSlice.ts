@@ -14,6 +14,8 @@ const initialState: PostsState = {
     discoverLoading: false,
     bookmarkedLoading: false,
     error: null,
+    bookmarkedError: null,
+    threadError: null,
     hasMore: true,
     discoverHasMore: true,
     actionLoading: {},
@@ -138,6 +140,93 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
     return deduped;
 };
 
+type InteractionStatus = {
+    uri: string;
+    tid?: string | null;
+    isLiked: boolean;
+    isReposted: boolean;
+    isBookmarked: boolean;
+    likeUri?: string | null;
+    repostUri?: string | null;
+};
+
+const normalizeUri = (value?: string | null): string => value?.trim().toLowerCase() ?? '';
+
+const applyInteractionStatuses = (posts: Post[], statuses: InteractionStatus[]): Post[] => {
+    if (!posts.length || !statuses.length) return posts;
+
+    const byUri = new Map<string, InteractionStatus>();
+    const byTid = new Map<string, InteractionStatus>();
+
+    statuses.forEach((status) => {
+        const uriKey = normalizeUri(status.uri);
+        if (uriKey) byUri.set(uriKey, status);
+        const tidKey = normalizeUri(status.tid);
+        if (tidKey) byTid.set(tidKey, status);
+    });
+
+    const patchPost = (post?: Post | null): Post | undefined => {
+        if (!post) return undefined;
+
+        const uriKey = normalizeUri(post.uri);
+        const tidKey = normalizeUri(post.tid || post.uri?.split('/').pop());
+        const status = (uriKey ? byUri.get(uriKey) : undefined) || (tidKey ? byTid.get(tidKey) : undefined);
+
+        const patchedQuote = patchPost(post.quotePost);
+        const patchedParent = patchPost(post.parentPost);
+
+        if (!status && patchedQuote === post.quotePost && patchedParent === post.parentPost) {
+            return post;
+        }
+
+        return {
+            ...post,
+            isLiked: status ? status.isLiked : post.isLiked,
+            isReposted: status ? status.isReposted : post.isReposted,
+            isBookmarked: status ? status.isBookmarked : post.isBookmarked,
+            viewer: status ? {
+                ...(post.viewer || {}),
+                like: status.likeUri ?? undefined,
+                repost: status.repostUri ?? undefined,
+            } : post.viewer,
+            quotePost: patchedQuote,
+            parentPost: patchedParent,
+        };
+    };
+
+    return posts.map((post) => patchPost(post) ?? post);
+};
+
+const hydratePostsWithInteractionStatus = async (posts: Post[], token: string | null): Promise<Post[]> => {
+    if (!token || !posts.length) return posts;
+
+    const uris = posts
+        .map((post) => post.uri)
+        .filter((uri): uri is string => typeof uri === 'string' && uri.length > 0);
+
+    if (!uris.length) return posts;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/posts/interactions/status`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ uris })
+        });
+
+        if (!response.ok) {
+            return posts;
+        }
+
+        const statuses = await response.json() as InteractionStatus[];
+        return applyInteractionStatuses(posts, statuses);
+    } catch {
+        return posts;
+    }
+};
+
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
@@ -151,7 +240,8 @@ export const fetchTimeline = createAsyncThunk(
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
-            const posts: Post[] = await response.json();
+            const fetchedPosts: Post[] = await response.json();
+            const posts = await hydratePostsWithInteractionStatus(fetchedPosts, token);
             return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -176,7 +266,8 @@ export const fetchUserPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
-            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const rawPosts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const posts = await hydratePostsWithInteractionStatus(rawPosts, token);
             const cursorVal = data.cursor || null;
             return { posts, userId, cursor: cursorVal, type };
         } catch (error: any) {
@@ -496,10 +587,11 @@ export const fetchPostById = createAsyncThunk(
                 };
 
                 extractPosts(data.thread);
-                return Array.from(postsMap.values());
+                return await hydratePostsWithInteractionStatus(Array.from(postsMap.values()), token);
             }
 
-            return Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
+            const mappedPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
+            return await hydratePostsWithInteractionStatus(mappedPosts, token);
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -540,7 +632,8 @@ export const fetchTrendingPosts = createAsyncThunk(
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch trending');
-            return await response.json() as Post[];
+            const posts = await response.json() as Post[];
+            return await hydratePostsWithInteractionStatus(posts, token);
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -611,7 +704,8 @@ export const fetchBookmarkedPosts = createAsyncThunk(
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
-            return await response.json() as Post[];
+            const posts = await response.json() as Post[];
+            return await hydratePostsWithInteractionStatus(posts, token);
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -633,7 +727,8 @@ export const fetchDiscoverPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
-            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const rawPosts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const posts = await hydratePostsWithInteractionStatus(rawPosts, token);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             return { posts, skip, hasMore };
         } catch (error: any) {
@@ -1069,7 +1164,7 @@ const postsSlice = createSlice({
             // Fetch Post By ID
             .addCase(fetchPostById.pending, (state: PostsState) => {
                 state.isLoading = true;
-                state.error = null;
+                state.threadError = null;
             })
             .addCase(fetchPostById.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
@@ -1091,7 +1186,7 @@ const postsSlice = createSlice({
             })
             .addCase(fetchPostById.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
-                state.error = action.payload as string;
+                state.threadError = action.payload as string;
             })
             // toggleBookmark
             .addCase(toggleBookmark.pending, (state: PostsState, action) => {
@@ -1157,9 +1252,11 @@ const postsSlice = createSlice({
             // Fetch Bookmarked Posts
             .addCase(fetchBookmarkedPosts.pending, (state: PostsState, action: any) => {
                 state.bookmarkedLoading = true;
+                state.bookmarkedError = null;
             })
             .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: any) => {
                 state.bookmarkedLoading = false;
+                state.bookmarkedError = null;
                 const { skip } = action.meta.arg || { skip: 0 };
 
                 if (skip === 0) {
@@ -1173,7 +1270,7 @@ const postsSlice = createSlice({
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
                 state.bookmarkedLoading = false;
-                state.error = action.payload as string;
+                state.bookmarkedError = action.payload as string;
             })
             // Fetch Posts By Tag
             .addCase(fetchPostsByTag.pending, (state: PostsState, action: any) => {

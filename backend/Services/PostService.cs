@@ -5416,6 +5416,151 @@ public class PostService : IPostService
         return enriched;
     }
 
+    public async Task<IEnumerable<PostInteractionStatusDto>> GetInteractionStatusesAsync(Guid userId, IEnumerable<string> uris)
+    {
+        var normalizedUris = uris
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Select(u => u.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!normalizedUris.Any())
+        {
+            return Array.Empty<PostInteractionStatusDto>();
+        }
+
+        var loweredUris = normalizedUris
+            .Select(u => u.ToLowerInvariant())
+            .ToList();
+        var rkeys = loweredUris
+            .Select(u => u.Split('/').LastOrDefault())
+            .Where(rk => !string.IsNullOrWhiteSpace(rk))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var matchedPosts = await _unitOfWork.Posts.Query()
+            .Where(p =>
+                (p.Uri != null && loweredUris.Contains(p.Uri.ToLower())) ||
+                (p.Tid != null && rkeys.Contains(p.Tid.ToLower())))
+            .Select(p => new { p.Id, p.Uri, p.Tid })
+            .ToListAsync();
+
+        var matchedIds = matchedPosts.Select(p => p.Id).Distinct().ToList();
+
+        var likes = await _unitOfWork.Likes.Query()
+            .Where(l => l.UserId == userId && (
+                matchedIds.Contains(l.PostId) ||
+                (l.Post != null && l.Post.Uri != null && loweredUris.Contains(l.Post.Uri.ToLower())) ||
+                (l.Post != null && l.Post.Tid != null && rkeys.Contains(l.Post.Tid.ToLower()))
+            ))
+            .Select(l => new { l.PostId, Uri = l.Post.Uri, SubjectTid = l.Post.Tid, LikeUri = l.Uri })
+            .ToListAsync();
+
+        var reposts = await _unitOfWork.Reposts.Query()
+            .Where(r => r.UserId == userId && (
+                matchedIds.Contains(r.PostId) ||
+                (r.Post != null && r.Post.Uri != null && loweredUris.Contains(r.Post.Uri.ToLower())) ||
+                (r.Post != null && r.Post.Tid != null && rkeys.Contains(r.Post.Tid.ToLower()))
+            ))
+            .Select(r => new { r.PostId, Uri = r.Post.Uri, SubjectTid = r.Post.Tid, RepostUri = r.Uri })
+            .ToListAsync();
+
+        var bookmarks = await _unitOfWork.Bookmarks.Query()
+            .Where(b => b.UserId == userId && (
+                matchedIds.Contains(b.PostId) ||
+                (b.Post != null && b.Post.Uri != null && loweredUris.Contains(b.Post.Uri.ToLower())) ||
+                (b.Post != null && b.Post.Tid != null && rkeys.Contains(b.Post.Tid.ToLower()))
+            ))
+            .Select(b => new { b.PostId, Uri = b.Post.Uri, SubjectTid = b.Post.Tid })
+            .ToListAsync();
+
+        var likeByUri = likes
+            .Where(x => !string.IsNullOrWhiteSpace(x.Uri))
+            .GroupBy(x => x.Uri!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().LikeUri, StringComparer.OrdinalIgnoreCase);
+        var likeByTid = likes
+            .Where(x => !string.IsNullOrWhiteSpace(x.SubjectTid))
+            .GroupBy(x => x.SubjectTid!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().LikeUri, StringComparer.OrdinalIgnoreCase);
+        var likeByPostId = likes
+            .GroupBy(x => x.PostId)
+            .ToDictionary(g => g.Key, g => g.First().LikeUri);
+
+        var repostByUri = reposts
+            .Where(x => !string.IsNullOrWhiteSpace(x.Uri))
+            .GroupBy(x => x.Uri!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().RepostUri, StringComparer.OrdinalIgnoreCase);
+        var repostByTid = reposts
+            .Where(x => !string.IsNullOrWhiteSpace(x.SubjectTid))
+            .GroupBy(x => x.SubjectTid!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().RepostUri, StringComparer.OrdinalIgnoreCase);
+        var repostByPostId = reposts
+            .GroupBy(x => x.PostId)
+            .ToDictionary(g => g.Key, g => g.First().RepostUri);
+
+        var bookmarkedUris = bookmarks
+            .Where(x => !string.IsNullOrWhiteSpace(x.Uri))
+            .Select(x => x.Uri!.ToLowerInvariant())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var bookmarkedTids = bookmarks
+            .Where(x => !string.IsNullOrWhiteSpace(x.SubjectTid))
+            .Select(x => x.SubjectTid!.ToLowerInvariant())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var bookmarkedPostIds = bookmarks
+            .Select(x => x.PostId)
+            .ToHashSet();
+
+        var postByUri = matchedPosts
+            .Where(p => !string.IsNullOrWhiteSpace(p.Uri))
+            .GroupBy(p => p.Uri!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var postByTid = matchedPosts
+            .Where(p => !string.IsNullOrWhiteSpace(p.Tid))
+            .GroupBy(p => p.Tid!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<PostInteractionStatusDto>(normalizedUris.Count);
+        foreach (var originalUri in normalizedUris)
+        {
+            var loweredUri = originalUri.ToLowerInvariant();
+            var rkey = loweredUri.Split('/').LastOrDefault();
+
+            var matchedPost =
+                (!string.IsNullOrWhiteSpace(loweredUri) && postByUri.TryGetValue(loweredUri, out var byUri)) ? byUri :
+                (!string.IsNullOrWhiteSpace(rkey) && postByTid.TryGetValue(rkey!, out var byTid)) ? byTid :
+                null;
+
+            var likeUri =
+                (likeByUri.TryGetValue(loweredUri, out var byUriLike) ? byUriLike : null) ??
+                (!string.IsNullOrWhiteSpace(rkey) && likeByTid.TryGetValue(rkey!, out var byTidLike) ? byTidLike : null) ??
+                (matchedPost != null && likeByPostId.TryGetValue(matchedPost.Id, out var byIdLike) ? byIdLike : null);
+
+            var repostUri =
+                (repostByUri.TryGetValue(loweredUri, out var byUriRepost) ? byUriRepost : null) ??
+                (!string.IsNullOrWhiteSpace(rkey) && repostByTid.TryGetValue(rkey!, out var byTidRepost) ? byTidRepost : null) ??
+                (matchedPost != null && repostByPostId.TryGetValue(matchedPost.Id, out var byIdRepost) ? byIdRepost : null);
+
+            var isBookmarked =
+                bookmarkedUris.Contains(loweredUri) ||
+                (!string.IsNullOrWhiteSpace(rkey) && bookmarkedTids.Contains(rkey!)) ||
+                (matchedPost != null && bookmarkedPostIds.Contains(matchedPost.Id));
+
+            result.Add(new PostInteractionStatusDto
+            {
+                Uri = matchedPost?.Uri ?? originalUri,
+                Tid = matchedPost?.Tid,
+                IsLiked = !string.IsNullOrWhiteSpace(likeUri),
+                IsReposted = !string.IsNullOrWhiteSpace(repostUri),
+                IsBookmarked = isBookmarked,
+                LikeUri = likeUri,
+                RepostUri = repostUri
+            });
+        }
+
+        return result;
+    }
+
     public async Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0)
     {
         var lowerQuery = query.ToLower();

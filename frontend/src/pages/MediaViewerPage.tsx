@@ -40,7 +40,7 @@ const MediaViewerPage: React.FC = () => {
     const allPosts = useAppSelector((state: RootState) => state.posts.posts);
     const threadPosts = useAppSelector((state: RootState) => state.posts.threadPosts);
     const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
-    const postsError = useAppSelector((state: RootState) => state.posts.error);
+    const postsError = useAppSelector((state: RootState) => state.posts.threadError);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
 
     const currentPost = useMemo(() => {
