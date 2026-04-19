@@ -61,11 +61,19 @@ export const applyInteractionStatuses = (posts: Post[], statuses: InteractionSta
 export const hydratePostsWithInteractionStatus = async (posts: Post[], token: string | null): Promise<Post[]> => {
     if (!token || !posts.length) return posts;
 
-    const uris = posts
-        .map((post) => post.uri)
-        .filter((uri): uri is string => typeof uri === 'string' && uri.length > 0);
+    const collectUris = (post?: Post | null, set: Set<string> = new Set()): Set<string> => {
+        if (!post || !post.uri) return set;
+        set.add(post.uri);
+        collectUris(post.parentPost, set);
+        collectUris(post.quotePost, set);
+        return set;
+    };
 
-    if (!uris.length) return posts;
+    const uriSet = new Set<string>();
+    posts.forEach(post => collectUris(post, uriSet));
+    const uris = Array.from(uriSet);
+
+    if (uris.length === 0) return posts;
 
     try {
         const response = await fetch(`${API_BASE_URL}/posts/interactions/status`, {
