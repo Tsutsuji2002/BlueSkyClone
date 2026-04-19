@@ -1361,8 +1361,8 @@ public class PostService : IPostService
                     if (parentUriKey != null)
                     {
                         post.ParentPost.IsBookmarked = bookmarkedUris.Contains(parentUriKey);
-                        post.ParentPost.IsLiked = post.ParentPost.Viewer?.Like != null || likedUris.Contains(parentUriKey);
-                        post.ParentPost.IsReposted = post.ParentPost.Viewer?.Repost != null || repostedUris.Contains(parentUriKey);
+                        post.ParentPost.IsLiked = post.ParentPost.Viewer?.Like != null || likedPostUrisByUri.ContainsKey(parentUriKey);
+                        post.ParentPost.IsReposted = post.ParentPost.Viewer?.Repost != null || repostPostUrisByUri.ContainsKey(parentUriKey);
                     }
                 }
 
@@ -1392,8 +1392,8 @@ public class PostService : IPostService
                     if (quoteUriKey != null)
                     {
                         post.QuotePost.IsBookmarked = bookmarkedUris.Contains(quoteUriKey);
-                        post.QuotePost.IsLiked = post.QuotePost.Viewer?.Like != null || likedUris.Contains(quoteUriKey);
-                        post.QuotePost.IsReposted = post.QuotePost.Viewer?.Repost != null || repostedUris.Contains(quoteUriKey);
+                        post.QuotePost.IsLiked = post.QuotePost.Viewer?.Like != null || likedPostUrisByUri.ContainsKey(quoteUriKey);
+                        post.QuotePost.IsReposted = post.QuotePost.Viewer?.Repost != null || repostPostUrisByUri.ContainsKey(quoteUriKey);
                     }
                 }
 
