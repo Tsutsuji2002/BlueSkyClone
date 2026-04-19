@@ -437,6 +437,7 @@ export interface PostsState {
     lastUserPostsFetch: number;
     lastUserPostsUserId: string | null;
     lastUserPostsType: string | null;
+    interactionTruth: Record<string, Partial<Post>>;
 }
 
 export interface UserState {

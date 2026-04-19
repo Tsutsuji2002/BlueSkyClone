@@ -27,6 +27,7 @@ const initialState: PostsState = {
     lastUserPostsFetch: 0,
     lastUserPostsUserId: null,
     lastUserPostsType: null,
+    interactionTruth: {},
 };
 
 const normalizeIdentifier = (value?: string | null): string => {
@@ -151,12 +152,27 @@ const matchesPost = (post: Post, actionUri: string): boolean => {
     );
 };
 
-const recursivelyUpdatePost = (post: Post, actionUri: string, updateFn: (p: Post) => void) => {
+const updateInteractionTruth = (state: PostsState, post: Post) => {
+    if (!post.uri) return;
+    state.interactionTruth[post.uri] = {
+        isLiked: post.isLiked,
+        isReposted: post.isReposted,
+        isBookmarked: post.isBookmarked,
+        likesCount: post.likesCount,
+        repostsCount: post.repostsCount,
+        bookmarksCount: post.bookmarksCount,
+        repliesCount: post.repliesCount,
+        viewer: post.viewer,
+    };
+};
+
+const recursivelyUpdatePost = (post: Post, actionUri: string, updateFn: (p: Post) => void, state?: PostsState) => {
     if (matchesPost(post, actionUri)) {
         updateFn(post);
+        if (state) updateInteractionTruth(state, post);
     }
-    if (post.parentPost) recursivelyUpdatePost(post.parentPost, actionUri, updateFn);
-    if (post.quotePost) recursivelyUpdatePost(post.quotePost, actionUri, updateFn);
+    if (post.parentPost) recursivelyUpdatePost(post.parentPost, actionUri, updateFn, state);
+    if (post.quotePost) recursivelyUpdatePost(post.quotePost, actionUri, updateFn, state);
 };
 
 
@@ -941,13 +957,20 @@ const postsSlice = createSlice({
                 state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isLiked: !state.interactionTruth[actionUri]?.isLiked,
+                    likesCount: state.interactionTruth[actionUri]?.isLiked 
+                        ? Math.max(0, (state.interactionTruth[actionUri]?.likesCount || 0) - 1) 
+                        : (state.interactionTruth[actionUri]?.likesCount || 0) + 1
+                };
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             const wasLiked = post.isLiked;
                             post.isLiked = !wasLiked;
                             post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
-                        });
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -959,6 +982,15 @@ const postsSlice = createSlice({
             .addCase(toggleLike.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isLiked: boolean, likeUri?: string, likesCount?: number }>) => {
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
+                
+                // Ensure global truth is updated
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isLiked: action.payload.isLiked,
+                    likesCount: action.payload.likesCount,
+                    viewer: { ...state.interactionTruth[actionUri]?.viewer, like: action.payload.likeUri }
+                };
+
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
@@ -967,7 +999,7 @@ const postsSlice = createSlice({
                             if (!post.viewer) post.viewer = {};
                             post.viewer.like = action.payload.likeUri;
                             post.lastUpdated = new Date().toISOString();
-                        });
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -980,14 +1012,23 @@ const postsSlice = createSlice({
                 const { uri: actionUri } = action.meta.arg;
                 state.actionLoading[actionUri] = false;
 
-                // Rollback on Error
+                // Rollback global truth
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isLiked: !state.interactionTruth[actionUri]?.isLiked,
+                    likesCount: state.interactionTruth[actionUri]?.isLiked 
+                        ? Math.max(0, (state.interactionTruth[actionUri]?.likesCount || 0) - 1) 
+                        : (state.interactionTruth[actionUri]?.likesCount || 0) + 1
+                };
+
+                // Rollback on Error in arrays
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             const wasLiked = post.isLiked;
                             post.isLiked = !wasLiked;
                             post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
-                        });
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -1002,13 +1043,20 @@ const postsSlice = createSlice({
                 state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isReposted: !state.interactionTruth[actionUri]?.isReposted,
+                    repostsCount: state.interactionTruth[actionUri]?.isReposted 
+                        ? Math.max(0, (state.interactionTruth[actionUri]?.repostsCount || 0) - 1) 
+                        : (state.interactionTruth[actionUri]?.repostsCount || 0) + 1
+                };
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             const wasReposted = post.isReposted;
                             post.isReposted = !wasReposted;
                             post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
-                        });
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -1020,6 +1068,15 @@ const postsSlice = createSlice({
             .addCase(repostPost.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isReposted: boolean, repostUri?: string, repostsCount?: number }>) => {
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
+
+                // Ensure global truth is updated
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isReposted: action.payload.isReposted,
+                    repostsCount: action.payload.repostsCount,
+                    viewer: { ...state.interactionTruth[actionUri]?.viewer, repost: action.payload.repostUri }
+                };
+
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
@@ -1028,7 +1085,7 @@ const postsSlice = createSlice({
                             if (!post.viewer) post.viewer = {};
                             post.viewer.repost = action.payload.repostUri;
                             post.lastUpdated = new Date().toISOString();
-                        });
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -1043,7 +1100,16 @@ const postsSlice = createSlice({
                 const { uri: actionUri } = action.meta.arg;
                 state.actionLoading[actionUri] = false;
 
-                // Rollback
+                // Rollback global truth
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isReposted: !state.interactionTruth[actionUri]?.isReposted,
+                    repostsCount: state.interactionTruth[actionUri]?.isReposted 
+                        ? Math.max(0, (state.interactionTruth[actionUri]?.repostsCount || 0) - 1) 
+                        : (state.interactionTruth[actionUri]?.repostsCount || 0) + 1
+                };
+
+                // Rollback in arrays
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
@@ -1133,13 +1199,20 @@ const postsSlice = createSlice({
                 state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isBookmarked: !state.interactionTruth[actionUri]?.isBookmarked,
+                    bookmarksCount: state.interactionTruth[actionUri]?.isBookmarked 
+                        ? Math.max(0, (state.interactionTruth[actionUri]?.bookmarksCount || 0) - 1) 
+                        : (state.interactionTruth[actionUri]?.bookmarksCount || 0) + 1
+                };
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             const wasBookmarked = post.isBookmarked;
                             post.isBookmarked = !wasBookmarked;
                             post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
-                        });
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -1151,13 +1224,21 @@ const postsSlice = createSlice({
             .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, bookmarksCount?: number }>) => {
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
+                
+                // Ensure global truth is updated even if not in any tracked array
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isBookmarked: action.payload.isBookmarked,
+                    bookmarksCount: action.payload.bookmarksCount
+                };
+
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             post.isBookmarked = action.payload.isBookmarked;
                             if (action.payload.bookmarksCount !== undefined) post.bookmarksCount = action.payload.bookmarksCount;
                             post.lastUpdated = new Date().toISOString();
-                        });
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -1175,14 +1256,23 @@ const postsSlice = createSlice({
                 const { uri: actionUri } = action.meta.arg;
                 state.actionLoading[actionUri] = false;
 
-                // Rollback
+                // Rollback global truth
+                state.interactionTruth[actionUri] = {
+                    ...state.interactionTruth[actionUri],
+                    isBookmarked: !state.interactionTruth[actionUri]?.isBookmarked,
+                    bookmarksCount: state.interactionTruth[actionUri]?.isBookmarked 
+                        ? Math.max(0, (state.interactionTruth[actionUri]?.bookmarksCount || 0) - 1) 
+                        : (state.interactionTruth[actionUri]?.bookmarksCount || 0) + 1
+                };
+
+                // Rollback in arrays
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             const wasBookmarked = post.isBookmarked;
                             post.isBookmarked = !wasBookmarked;
                             post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
-                        });
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -1354,8 +1444,9 @@ const postsSlice = createSlice({
                     arr.forEach(p => {
                         // For pinning, we clear pinned status for ALL posts first, then set it for the one.
                         p.isPinned = (p.uri === pinnedUri || p.id === pinnedUri || p.tid === pinnedUri);
-                        if (p.parentPost) recursivelyUpdatePost(p.parentPost, pinnedUri, (post) => { post.isPinned = true; });
-                        if (p.quotePost) recursivelyUpdatePost(p.quotePost, pinnedUri, (post) => { post.isPinned = true; });
+                        if (p.uri === pinnedUri) updateInteractionTruth(state, p);
+                        if (p.parentPost) recursivelyUpdatePost(p.parentPost, pinnedUri, (post) => { post.isPinned = true; }, state);
+                        if (p.quotePost) recursivelyUpdatePost(p.quotePost, pinnedUri, (post) => { post.isPinned = true; }, state);
                     });
                 };
                 updatePinned(state.posts);

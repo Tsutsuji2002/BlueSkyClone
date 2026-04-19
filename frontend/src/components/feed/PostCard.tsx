@@ -78,20 +78,33 @@ const normalizeLowercaseStrings = (values: unknown[]): string[] => {
         .map((value) => value.toLowerCase());
 };
 
-const PostCard: React.FC<PostCardProps> = React.memo(({ post, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList, hasTopLine, hasBottomLine, hideBorder, indentFactor }) => {
+const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList, hasTopLine, hasBottomLine, hideBorder, indentFactor }) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
+    const interactionTruth = useAppSelector((state: RootState) => (postData.uri ? state.posts.interactionTruth[postData.uri] : null) || null);
+    
+    // Merge global interaction truth with the local post object data
+    const post = React.useMemo(() => {
+        if (!interactionTruth) return postData;
+        return {
+            ...postData,
+            ...interactionTruth
+        };
+    }, [postData, interactionTruth]);
+
+    const [isUnmuted, setIsUnmuted] = React.useState(false);
+    const [isExpanded, setIsExpanded] = React.useState(false);
+
     const isOwnPost = isOwnPostProp ?? (
         currentUser?.id === post.author.id ||
         (currentUser?.did && post.author.did && currentUser.did === post.author.did) ||
         (currentUser?.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
-    const [isUnmuted, setIsUnmuted] = React.useState(false);
-    const [isExpanded, setIsExpanded] = React.useState(false);
-    const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
+
     const mutedWords = useAppSelector((state: RootState) => (state.user as any).mutedWords as MutedWord[] ?? []);
 
     const moderationSettings = useAppSelector((state: RootState) => state.auth.settings);
