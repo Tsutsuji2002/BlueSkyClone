@@ -141,6 +141,24 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
     return deduped;
 };
 
+const matchesPost = (post: Post, actionUri: string): boolean => {
+    if (!actionUri) return false;
+    return !!(
+        post.uri === actionUri ||
+        post.id === actionUri ||
+        post.tid === actionUri ||
+        (post.uri && post.uri.endsWith('/' + actionUri.split('/').pop()!))
+    );
+};
+
+const recursivelyUpdatePost = (post: Post, actionUri: string, updateFn: (p: Post) => void) => {
+    if (matchesPost(post, actionUri)) {
+        updateFn(post);
+    }
+    if (post.parentPost) recursivelyUpdatePost(post.parentPost, actionUri, updateFn);
+    if (post.quotePost) recursivelyUpdatePost(post.quotePost, actionUri, updateFn);
+};
+
 
 
 export const fetchTimeline = createAsyncThunk(
@@ -156,8 +174,7 @@ export const fetchTimeline = createAsyncThunk(
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
-            const fetchedPosts: Post[] = await response.json();
-            const posts = await hydratePostsWithInteractionStatus(fetchedPosts, token);
+            const posts = await response.json();
             return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -182,8 +199,7 @@ export const fetchUserPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
-            const rawPosts: Post[] = Array.isArray(data) ? data : (data.posts || []);
-            const posts = await hydratePostsWithInteractionStatus(rawPosts, token);
+            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const cursorVal = data.cursor || null;
             return { posts, userId, cursor: cursorVal, type };
         } catch (error: any) {
@@ -549,7 +565,7 @@ export const fetchTrendingPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch trending');
             const posts = await response.json() as Post[];
-            return await hydratePostsWithInteractionStatus(posts, token);
+            return posts;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -621,7 +637,7 @@ export const fetchBookmarkedPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
             const posts = await response.json() as Post[];
-            return await hydratePostsWithInteractionStatus(posts, token);
+            return posts;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -643,8 +659,7 @@ export const fetchDiscoverPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
-            const rawPosts: Post[] = Array.isArray(data) ? data : (data.posts || []);
-            const posts = await hydratePostsWithInteractionStatus(rawPosts, token);
+            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             return { posts, skip, hasMore };
         } catch (error: any) {
@@ -668,17 +683,18 @@ const postsSlice = createSlice({
         updatePostStats: (state, action: PayloadAction<{ uri: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
             const { uri: actionUri, timestamp, ...stats } = action.payload;
             const updateInArray = (arr: Post[]) => {
-                const post = arr.find((p: Post) => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                if (post) {
+                arr.forEach((p: Post) => {
+                    recursivelyUpdatePost(p, actionUri, (post) => {
                         if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
-                        if (stats.likesCount !== undefined) post.likesCount = stats.likesCount;
-                        if (stats.repostsCount !== undefined) post.repostsCount = stats.repostsCount;
-                        if (stats.bookmarksCount !== undefined) post.bookmarksCount = stats.bookmarksCount;
-                        if (stats.repliesCount !== undefined) post.repliesCount = stats.repliesCount;
-                        if (stats.quotesCount !== undefined) post.quotesCount = stats.quotesCount;
-                        if (timestamp) post.lastUpdated = timestamp;
-                    }
-                }
+                            if (stats.likesCount !== undefined) post.likesCount = stats.likesCount;
+                            if (stats.repostsCount !== undefined) post.repostsCount = stats.repostsCount;
+                            if (stats.bookmarksCount !== undefined) post.bookmarksCount = stats.bookmarksCount;
+                            if (stats.repliesCount !== undefined) post.repliesCount = stats.repliesCount;
+                            if (stats.quotesCount !== undefined) post.quotesCount = stats.quotesCount;
+                            if (timestamp) post.lastUpdated = timestamp;
+                        }
+                    });
+                });
             };
             updateInArray(state.posts);
             updateInArray(state.discoverPosts);
@@ -689,13 +705,14 @@ const postsSlice = createSlice({
         updateUserPostStatus: (state, action: PayloadAction<{ uri: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
             const { uri: actionUri, timestamp, ...status } = action.payload;
             const updateInArray = (arr: Post[]) => {
-                const post = arr.find((p: Post) => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                if (post) {
-                    if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
-                        Object.assign(post, status);
-                        if (timestamp) post.lastUpdated = timestamp;
-                    }
-                }
+                arr.forEach((p: Post) => {
+                    recursivelyUpdatePost(p, actionUri, (post) => {
+                        if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
+                            Object.assign(post, status);
+                            if (timestamp) post.lastUpdated = timestamp;
+                        }
+                    });
+                });
             };
             updateInArray(state.posts);
             updateInArray(state.discoverPosts);
@@ -925,12 +942,13 @@ const postsSlice = createSlice({
 
                 // Optimistic Update
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        const wasLiked = post.isLiked;
-                        post.isLiked = !wasLiked;
-                        post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            const wasLiked = post.isLiked;
+                            post.isLiked = !wasLiked;
+                            post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -942,14 +960,15 @@ const postsSlice = createSlice({
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        post.isLiked = action.payload.isLiked;
-                        if (action.payload.likesCount !== undefined) post.likesCount = action.payload.likesCount;
-                        if (!post.viewer) post.viewer = {};
-                        post.viewer.like = action.payload.likeUri;
-                        post.lastUpdated = new Date().toISOString();
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            post.isLiked = action.payload.isLiked;
+                            if (action.payload.likesCount !== undefined) post.likesCount = action.payload.likesCount;
+                            if (!post.viewer) post.viewer = {};
+                            post.viewer.like = action.payload.likeUri;
+                            post.lastUpdated = new Date().toISOString();
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -963,12 +982,13 @@ const postsSlice = createSlice({
 
                 // Rollback on Error
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        const wasLiked = post.isLiked;
-                        post.isLiked = !wasLiked;
-                        post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            const wasLiked = post.isLiked;
+                            post.isLiked = !wasLiked;
+                            post.likesCount = wasLiked ? Math.max(0, post.likesCount - 1) : post.likesCount + 1;
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -983,12 +1003,13 @@ const postsSlice = createSlice({
 
                 // Optimistic Update
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        const wasReposted = post.isReposted;
-                        post.isReposted = !wasReposted;
-                        post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            const wasReposted = post.isReposted;
+                            post.isReposted = !wasReposted;
+                            post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -1000,14 +1021,15 @@ const postsSlice = createSlice({
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        post.isReposted = action.payload.isReposted;
-                        if (action.payload.repostsCount !== undefined) post.repostsCount = action.payload.repostsCount;
-                        if (!post.viewer) post.viewer = {};
-                        post.viewer.repost = action.payload.repostUri;
-                        post.lastUpdated = new Date().toISOString();
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            post.isReposted = action.payload.isReposted;
+                            if (action.payload.repostsCount !== undefined) post.repostsCount = action.payload.repostsCount;
+                            if (!post.viewer) post.viewer = {};
+                            post.viewer.repost = action.payload.repostUri;
+                            post.lastUpdated = new Date().toISOString();
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -1023,12 +1045,13 @@ const postsSlice = createSlice({
 
                 // Rollback
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        const wasReposted = post.isReposted;
-                        post.isReposted = !wasReposted;
-                        post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            const wasReposted = post.isReposted;
+                            post.isReposted = !wasReposted;
+                            post.repostsCount = wasReposted ? Math.max(0, post.repostsCount - 1) : post.repostsCount + 1;
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -1111,12 +1134,13 @@ const postsSlice = createSlice({
 
                 // Optimistic Update
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        const wasBookmarked = post.isBookmarked;
-                        post.isBookmarked = !wasBookmarked;
-                        post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            const wasBookmarked = post.isBookmarked;
+                            post.isBookmarked = !wasBookmarked;
+                            post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -1128,12 +1152,13 @@ const postsSlice = createSlice({
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        post.isBookmarked = action.payload.isBookmarked;
-                        if (action.payload.bookmarksCount !== undefined) post.bookmarksCount = action.payload.bookmarksCount;
-                        post.lastUpdated = new Date().toISOString();
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            post.isBookmarked = action.payload.isBookmarked;
+                            if (action.payload.bookmarksCount !== undefined) post.bookmarksCount = action.payload.bookmarksCount;
+                            post.lastUpdated = new Date().toISOString();
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -1152,12 +1177,13 @@ const postsSlice = createSlice({
 
                 // Rollback
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                    if (post) {
-                        const wasBookmarked = post.isBookmarked;
-                        post.isBookmarked = !wasBookmarked;
-                        post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, actionUri, (post) => {
+                            const wasBookmarked = post.isBookmarked;
+                            post.isBookmarked = !wasBookmarked;
+                            post.bookmarksCount = wasBookmarked ? Math.max(0, post.bookmarksCount - 1) : post.bookmarksCount + 1;
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -1287,12 +1313,12 @@ const postsSlice = createSlice({
                 // Optimistic Update
                 const { postUri, replyRestriction, allowQuotes } = action.meta.arg;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === postUri);
-                    if (post) {
-                        // Store original values for potential rollback if needed (optional)
-                        post.replyRestriction = replyRestriction;
-                        post.allowQuotes = allowQuotes;
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, postUri, (post) => {
+                            post.replyRestriction = replyRestriction;
+                            post.allowQuotes = allowQuotes;
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -1303,11 +1329,12 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 const { postUri, replyRestriction, allowQuotes } = action.payload;
                 const updateInArray = (arr: Post[]) => {
-                    const post = arr.find(p => p.uri === postUri);
-                    if (post) {
-                        post.replyRestriction = replyRestriction;
-                        post.allowQuotes = allowQuotes;
-                    }
+                    arr.forEach(p => {
+                        recursivelyUpdatePost(p, postUri, (post) => {
+                            post.replyRestriction = replyRestriction;
+                            post.allowQuotes = allowQuotes;
+                        });
+                    });
                 };
                 updateInArray(state.posts);
                 updateInArray(state.discoverPosts);
@@ -1325,7 +1352,10 @@ const postsSlice = createSlice({
                 const pinnedUri = action.payload;
                 const updatePinned = (arr: Post[]) => {
                     arr.forEach(p => {
+                        // For pinning, we clear pinned status for ALL posts first, then set it for the one.
                         p.isPinned = (p.uri === pinnedUri || p.id === pinnedUri || p.tid === pinnedUri);
+                        if (p.parentPost) recursivelyUpdatePost(p.parentPost, pinnedUri, (post) => { post.isPinned = true; });
+                        if (p.quotePost) recursivelyUpdatePost(p.quotePost, pinnedUri, (post) => { post.isPinned = true; });
                     });
                 };
                 updatePinned(state.posts);

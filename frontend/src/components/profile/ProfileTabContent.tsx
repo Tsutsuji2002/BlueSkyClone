@@ -47,7 +47,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             let nextCursor: string | null = null;
 
             if (type === 'posts' || type === 'replies' || type === 'media' || type === 'video' || type === 'likes') {
-                // Use custom backend for all main tabs to ensure interaction status and consistency
                 const params = new URLSearchParams({
                     take: '20',
                     type: type,
@@ -58,7 +57,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 if (response.ok) {
                     const data = await response.json();
                     fetchedPosts = Array.isArray(data) ? data : (data.posts || []);
-                    // For video type, apply frontend filtering as well to be sure
                     if (type === 'video') {
                         fetchedPosts = fetchedPosts.filter((p: Post) => 
                             !!p.videoUrl || !!p.video || (p.media && p.media.some(m => m.type === 'video'))
@@ -71,15 +69,12 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 nextCursor = null;
             }
 
-            let hydratedPosts = await hydratePostsWithInteractionStatus(fetchedPosts, token);
-            
             // If we are in the likes tab, these posts are inherently liked by the user.
-            // Sometimes the hydrator might return false if the interaction status DB is slightly out of sync.
             if (type === 'likes') {
-                hydratedPosts = hydratedPosts.map(p => ({ ...p, isLiked: true }));
+                fetchedPosts.forEach(p => { p.isLiked = true; });
             }
 
-            setPosts(prev => isInitial ? hydratedPosts : [...prev, ...hydratedPosts]);
+            setPosts(prev => isInitial ? fetchedPosts : [...prev, ...fetchedPosts]);
             setCursor(nextCursor);
             setHasMore(!!nextCursor && fetchedPosts.length > 0);
         } catch (err) {
