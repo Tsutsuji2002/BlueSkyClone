@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import Feed from '../feed/Feed';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
+import { API_BASE_URL } from '../../constants';
 import { agent } from '../../services/atpAgent';
 import { Post } from '../../types';
 import LoadingIndicator from '../common/LoadingIndicator';
@@ -31,13 +32,34 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
         setLoading(true);
         isFetchingRef.current = true;
-        if (isInitial) setInitialLoading(true);
+        if (isInitial) {
+            setInitialLoading(true);
+            setPosts([]);
+        }
 
         try {
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
+
             let fetchedPosts: Post[] = [];
             let nextCursor: string | null = null;
 
-            if (type === 'likes') {
+            if (type === 'posts' || type === 'replies') {
+                // Use custom backend for standard tabs to ensure interaction status and consistency
+                const params = new URLSearchParams({
+                    take: '20',
+                    type: type,
+                });
+                if (!isInitial && cursor) params.set('cursor', cursor);
+
+                const response = await fetch(`${API_BASE_URL}/posts/user/${userId}?${params}`, { headers });
+                if (response.ok) {
+                    const data = await response.json();
+                    fetchedPosts = Array.isArray(data) ? data : (data.posts || []);
+                    nextCursor = data.cursor || null;
+                }
+            } else if (type === 'likes') {
                 const response = await agent.app.bsky.feed.getActorLikes({
                     actor: userId,
                     limit: 20,
@@ -46,39 +68,41 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
                 if (response.success) {
                     const data = response.data as any;
-                    fetchedPosts = (data.likes || []).map((like: any) => mapAtProtoPostToPost(like.post));
+                    fetchedPosts = (data.likes || []).map((item: any) => mapAtProtoPostToPost(item.post));
                     nextCursor = data.cursor || null;
                 }
-            } else if (type === 'media' || type === 'video') {
-                // For media/video, we use getAuthorFeed with media filter
+            } else if (type === 'lists') {
+                // Placeholder for lists
+                fetchedPosts = [];
+                nextCursor = null;
+            } else {
+                // media, video
                 const response = await agent.app.bsky.feed.getAuthorFeed({
                     actor: userId,
-                    filter: 'posts_with_media',
+                    filter: type === 'video' ? 'posts_with_media' : 'posts_with_media', // getAuthorFeed filter
                     limit: 30,
                     cursor: isInitial ? undefined : cursor || undefined
                 });
 
                 if (response.success) {
                     const data = response.data as any;
-                    let filtered = (data.feed || []).map((item: any) => mapAtProtoPostToPost(item.post));
+                    // For direct AT Proto feed, we should map the full item to preserve reasons (reposts) if needed,
+                    // but FeedViewPost mapping is tricky. For now, map the post and inject reason if present.
+                    fetchedPosts = (data.feed || []).map((item: any) => {
+                        const post = mapAtProtoPostToPost(item.post);
+                        if (item.reason) {
+                            // Inject reason into mapped post for postMapper to use next time or for UI
+                            const reasonPost = { ...item.post, reason: item.reason };
+                            return mapAtProtoPostToPost(reasonPost);
+                        }
+                        return post;
+                    });
+                    
                     if (type === 'video') {
-                        filtered = filtered.filter((p: Post) => !!p.videoUrl || !!p.video || (p.media && p.media.some(m => m.type === 'video')));
+                        fetchedPosts = fetchedPosts.filter((p: Post) => 
+                            !!p.videoUrl || !!p.video || (p.media && p.media.some(m => m.type === 'video'))
+                        );
                     }
-                    fetchedPosts = filtered;
-                    nextCursor = data.cursor || null;
-                }
-            } else {
-                // posts, replies
-                const response = await agent.app.bsky.feed.getAuthorFeed({
-                    actor: userId,
-                    filter: type === 'replies' ? 'posts_with_replies' : 'posts_no_replies',
-                    limit: 20,
-                    cursor: isInitial ? undefined : cursor || undefined
-                });
-
-                if (response.success) {
-                    const data = response.data as any;
-                    fetchedPosts = (data.feed || []).map((item: any) => mapAtProtoPostToPost(item.post));
                     nextCursor = data.cursor || null;
                 }
             }
@@ -94,7 +118,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             setInitialLoading(false);
             isFetchingRef.current = false;
         }
-    }, [userId, type, cursor, hasMore, loading]);
+    }, [userId, type, cursor, hasMore, loading, t]);
 
     useEffect(() => {
         fetchBatch(true);
