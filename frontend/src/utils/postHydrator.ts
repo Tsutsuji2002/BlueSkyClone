@@ -22,16 +22,26 @@ export const applyInteractionStatuses = (posts: Post[], statuses: InteractionSta
     statuses.forEach((status) => {
         const uriKey = normalizeUri(status.uri);
         if (uriKey) byUri.set(uriKey, status);
+        
         const tidKey = normalizeUri(status.tid);
         if (tidKey) byTid.set(tidKey, status);
+        
+        // Extract rkey from URI as a common fallback for TID matching
+        const parts = status.uri.split('/');
+        const rkey = parts[parts.length - 1];
+        if (rkey) byTid.set(normalizeUri(rkey), status);
     });
 
     const patchPost = (post?: Post | null): Post | undefined => {
         if (!post) return undefined;
 
         const uriKey = normalizeUri(post.uri);
-        const tidKey = normalizeUri(post.tid || post.uri?.split('/').pop());
-        const status = (uriKey ? byUri.get(uriKey) : undefined) || (tidKey ? byTid.get(tidKey) : undefined);
+        const rkey = post.uri?.split('/').pop();
+        const tidKey = normalizeUri(post.tid || rkey);
+        
+        // Try matching by full URI first, then by TID/rkey
+        const status = (uriKey ? byUri.get(uriKey) : undefined) || 
+                       (tidKey ? byTid.get(tidKey) : undefined);
 
         const patchedQuote = patchPost(post.quotePost);
         const patchedParent = patchPost(post.parentPost);

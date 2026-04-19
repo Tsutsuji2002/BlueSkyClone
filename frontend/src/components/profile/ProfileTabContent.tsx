@@ -71,7 +71,14 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 nextCursor = null;
             }
 
-            const hydratedPosts = await hydratePostsWithInteractionStatus(fetchedPosts, token);
+            let hydratedPosts = await hydratePostsWithInteractionStatus(fetchedPosts, token);
+            
+            // If we are in the likes tab, these posts are inherently liked by the user.
+            // Sometimes the hydrator might return false if the interaction status DB is slightly out of sync.
+            if (type === 'likes') {
+                hydratedPosts = hydratedPosts.map(p => ({ ...p, isLiked: true }));
+            }
+
             setPosts(prev => isInitial ? hydratedPosts : [...prev, ...hydratedPosts]);
             setCursor(nextCursor);
             setHasMore(!!nextCursor && fetchedPosts.length > 0);
@@ -103,6 +110,14 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         return () => observer.disconnect();
     }, [type, hasMore, loading, isActive, fetchBatch]);
 
+    if (initialLoading && posts.length === 0) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <LoadingIndicator size="lg" />
+            </div>
+        );
+    }
+
     if (type === 'lists') {
         return (
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -114,7 +129,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         );
     }
 
-    if (type === 'media' && !initialLoading && posts.length === 0) {
+    if (type === 'media' && posts.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
                 <FiImage size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
@@ -125,7 +140,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         );
     }
 
-    if (type === 'video' && !initialLoading && posts.length === 0) {
+    if (type === 'video' && posts.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
                 <FiVideo size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
