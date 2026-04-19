@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { PostsState, Post } from '../../types';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
+import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 
 const initialState: PostsState = {
     posts: [],
@@ -140,7 +141,7 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
     return deduped;
 };
 
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
+
 
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
