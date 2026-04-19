@@ -5,6 +5,7 @@ import { mapAtProtoPostToPost } from '../../utils/postMapper';
 import { API_BASE_URL } from '../../constants';
 import { agent } from '../../services/atpAgent';
 import { Post } from '../../types';
+import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 import LoadingIndicator from '../common/LoadingIndicator';
 import { FiList, FiImage, FiVideo } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
@@ -45,8 +46,8 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             let fetchedPosts: Post[] = [];
             let nextCursor: string | null = null;
 
-            if (type === 'posts' || type === 'replies') {
-                // Use custom backend for standard tabs to ensure interaction status and consistency
+            if (type === 'posts' || type === 'replies' || type === 'media' || type === 'video' || type === 'likes') {
+                // Use custom backend for all main tabs to ensure interaction status and consistency
                 const params = new URLSearchParams({
                     take: '20',
                     type: type,
@@ -57,47 +58,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 if (response.ok) {
                     const data = await response.json();
                     fetchedPosts = Array.isArray(data) ? data : (data.posts || []);
-                    nextCursor = data.cursor || null;
-                }
-            } else if (type === 'likes') {
-                const response = await agent.app.bsky.feed.getActorLikes({
-                    actor: userId,
-                    limit: 20,
-                    cursor: isInitial ? undefined : cursor || undefined
-                });
-
-                if (response.success) {
-                    const data = response.data as any;
-                    fetchedPosts = (data.likes || []).map((item: any) => mapAtProtoPostToPost(item.post));
-                    nextCursor = data.cursor || null;
-                }
-            } else if (type === 'lists') {
-                // Placeholder for lists
-                fetchedPosts = [];
-                nextCursor = null;
-            } else {
-                // media, video
-                const response = await agent.app.bsky.feed.getAuthorFeed({
-                    actor: userId,
-                    filter: type === 'video' ? 'posts_with_media' : 'posts_with_media', // getAuthorFeed filter
-                    limit: 30,
-                    cursor: isInitial ? undefined : cursor || undefined
-                });
-
-                if (response.success) {
-                    const data = response.data as any;
-                    // For direct AT Proto feed, we should map the full item to preserve reasons (reposts) if needed,
-                    // but FeedViewPost mapping is tricky. For now, map the post and inject reason if present.
-                    fetchedPosts = (data.feed || []).map((item: any) => {
-                        const post = mapAtProtoPostToPost(item.post);
-                        if (item.reason) {
-                            // Inject reason into mapped post for postMapper to use next time or for UI
-                            const reasonPost = { ...item.post, reason: item.reason };
-                            return mapAtProtoPostToPost(reasonPost);
-                        }
-                        return post;
-                    });
-                    
+                    // For video type, apply frontend filtering as well to be sure
                     if (type === 'video') {
                         fetchedPosts = fetchedPosts.filter((p: Post) => 
                             !!p.videoUrl || !!p.video || (p.media && p.media.some(m => m.type === 'video'))
@@ -105,9 +66,13 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     }
                     nextCursor = data.cursor || null;
                 }
+            } else if (type === 'lists') {
+                fetchedPosts = [];
+                nextCursor = null;
             }
 
-            setPosts(prev => isInitial ? fetchedPosts : [...prev, ...fetchedPosts]);
+            const hydratedPosts = await hydratePostsWithInteractionStatus(fetchedPosts, token);
+            setPosts(prev => isInitial ? hydratedPosts : [...prev, ...hydratedPosts]);
             setCursor(nextCursor);
             setHasMore(!!nextCursor && fetchedPosts.length > 0);
         } catch (err) {
