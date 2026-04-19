@@ -63,16 +63,10 @@ const SettingsPage: React.FC = () => {
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center gap-6">
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => dispatch(openMobileMenu())}
-                            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
-                        >
-                            <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
-                        </button>
-                        <button
                             onClick={() => navigate(-1)}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors hidden sm:block"
+                            className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
                         >
-                            <FiArrowLeft size={20} className="dark:text-dark-text" />
+                            <FiArrowLeft size={24} className="text-gray-700 dark:text-dark-text" />
                         </button>
                     </div>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">

@@ -4,14 +4,15 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { fetchMyLists, fetchListsIAmOn, createList } from '../redux/slices/listsSlice';
 import CreateListModal from '../components/lists/CreateListModal';
-import { Link } from 'react-router-dom';
-import { FiPlus } from 'react-icons/fi';
+import { useNavigate, Link } from 'react-router-dom';
+import { FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { CreateListDto } from '../types';
 import ListAvatar from '../components/common/ListAvatar';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const ListsPage: React.FC = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { myLists, listsIAmOn, isLoading } = useAppSelector(state => state.lists);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -34,6 +35,12 @@ const ListsPage: React.FC = () => {
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
                     <div className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                            >
+                                <FiArrowLeft size={22} className="text-gray-700 dark:text-dark-text" />
+                            </button>
                             <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
                                 {t('lists.title')}
                             </h1>

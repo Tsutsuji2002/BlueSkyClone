@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -6,13 +7,14 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchBookmarkedPosts } from '../redux/slices/postsSlice';
 import PostCard from '../components/feed/PostCard';
 import Feed from '../components/feed/Feed';
-import { FiBookmark, FiMenu } from 'react-icons/fi';
+import { FiBookmark, FiArrowLeft } from 'react-icons/fi';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import ButterflyLogo from '../components/common/ButterflyLogo';
 
 const SavedPage: React.FC = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { bookmarkedPosts, bookmarkedLoading, hasMore, bookmarkedError } = useAppSelector((state) => state.posts);
 
@@ -32,10 +34,10 @@ const SavedPage: React.FC = () => {
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
                     <div className="flex items-center justify-between px-4 h-12 w-full">
                         <button
-                            onClick={() => dispatch(openMobileMenu())}
-                            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
+                            onClick={() => navigate(-1)}
+                            className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
                         >
-                            <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
+                            <FiArrowLeft size={24} className="text-gray-700 dark:text-dark-text" />
                         </button>
                         <div className="hidden lg:block w-10 flex-shrink-0" /> {/* Spacer */}
 
