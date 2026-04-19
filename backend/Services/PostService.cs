@@ -273,6 +273,7 @@ public class PostService : IPostService
                         .Include(p => p.Author)
                         .Include(p => p.PostMedia)
                         .Include(p => p.LinkPreview)
+                        .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
                         .Where(p => p.AuthorId == localUser.Id && (p.IsDeleted == false || p.IsDeleted == null) && !string.IsNullOrEmpty(p.Content));
 
                     if (type == "replies")
@@ -1334,6 +1335,15 @@ public class PostService : IPostService
 
                         if (remoteParent.TryGetProperty("embed", out var embed)) MapEmbedToDto(post.ParentPost, embed);
 
+                        // [Fix] Hydrate ParentPost interaction state
+                        if (remoteParent.TryGetProperty("viewer", out var pv))
+                        {
+                            post.ParentPost.Viewer ??= new PostViewerDto();
+                            if (pv.TryGetProperty("like", out var pvl)) post.ParentPost.Viewer.Like = pvl.GetString();
+                            if (pv.TryGetProperty("repost", out var pvr)) post.ParentPost.Viewer.Repost = pvr.GetString();
+                        }
+
+
                         // Also hydrate parent's author if missing metadata can be inferred (rudimentary fallback if ResolveRemoteProfile isn't fast enough)
                         if (remoteParent.TryGetProperty("author", out var remAuth) && post.ParentPost.Author != null)
                         {
@@ -1345,6 +1355,14 @@ public class PostService : IPostService
                                 post.ReplyToHandle = post.ParentPost.Author.Handle; // Sync to child
                             }
                         }
+                    }
+
+                    // [Fix] Sync boolean interaction flags for ParentPost
+                    if (parentUriKey != null)
+                    {
+                        post.ParentPost.IsBookmarked = bookmarkedUris.Contains(parentUriKey);
+                        post.ParentPost.IsLiked = post.ParentPost.Viewer?.Like != null || likedUris.Contains(parentUriKey);
+                        post.ParentPost.IsReposted = post.ParentPost.Viewer?.Repost != null || repostedUris.Contains(parentUriKey);
                     }
                 }
 
@@ -1358,24 +1376,24 @@ public class PostService : IPostService
                         if (remoteQuote.TryGetProperty("repostCount", out var rc)) post.QuotePost.RepostsCount = rc.GetInt32();
                         if (remoteQuote.TryGetProperty("replyCount", out var rpc)) post.QuotePost.RepliesCount = rpc.GetInt32();
                         if (remoteQuote.TryGetProperty("quoteCount", out var qc)) post.QuotePost.QuotesCount = qc.GetInt32();
-                        
-                        if (remoteQuote.TryGetProperty("record", out var rec))
-                        {
-                            if (rec.TryGetProperty("text", out var txt)) post.QuotePost.Content = txt.GetString();
-                            if (rec.TryGetProperty("createdAt", out var cat)) 
-                            { 
-                                if (DateTime.TryParse(cat.GetString(), out var dt)) post.QuotePost.CreatedAt = dt; 
-                            }
-                        }
 
                         if (remoteQuote.TryGetProperty("embed", out var embed)) MapEmbedToDto(post.QuotePost, embed);
 
-                        if (remoteQuote.TryGetProperty("author", out var remAuth) && post.QuotePost.Author != null)
+                        // [Fix] Hydrate QuotePost interaction state
+                        if (remoteQuote.TryGetProperty("viewer", out var qv))
                         {
-                            if (remAuth.TryGetProperty("displayName", out var dn)) post.QuotePost.Author.DisplayName = dn.GetString();
-                            if (remAuth.TryGetProperty("avatar", out var av)) post.QuotePost.Author.AvatarUrl = av.GetString();
-                            if (remAuth.TryGetProperty("handle", out var hndl)) post.QuotePost.Author.Handle = hndl.GetString();
+                            post.QuotePost.Viewer ??= new PostViewerDto();
+                            if (qv.TryGetProperty("like", out var qvl)) post.QuotePost.Viewer.Like = qvl.GetString();
+                            if (qv.TryGetProperty("repost", out var qvr)) post.QuotePost.Viewer.Repost = qvr.GetString();
                         }
+                    }
+
+                    // [Fix] Sync boolean interaction flags for QuotePost
+                    if (quoteUriKey != null)
+                    {
+                        post.QuotePost.IsBookmarked = bookmarkedUris.Contains(quoteUriKey);
+                        post.QuotePost.IsLiked = post.QuotePost.Viewer?.Like != null || likedUris.Contains(quoteUriKey);
+                        post.QuotePost.IsReposted = post.QuotePost.Viewer?.Repost != null || repostedUris.Contains(quoteUriKey);
                     }
                 }
 
@@ -3528,7 +3546,6 @@ public class PostService : IPostService
                     else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     {
                         _logger.LogWarning("Post strictly Not Found on AppView: {Uri}", uri);
-                        // If it's definitely gone from Bluesky, we should NOT show it from local cache
                         return null;
                     }
                 }
@@ -5401,6 +5418,8 @@ public class PostService : IPostService
                 .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(b => b.Post)
                 .ThenInclude(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .Include(b => b.Post)
+                .ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
             .AsNoTracking()
             .AsSplitQuery()
             .OrderByDescending(b => b.CreatedAt)
