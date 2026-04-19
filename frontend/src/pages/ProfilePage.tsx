@@ -14,24 +14,20 @@ import { BsPatchCheckFill } from 'react-icons/bs';
 import ListAvatar from '../components/common/ListAvatar';
 import { showToast } from '../redux/slices/toastSlice';
 import ConfirmModal from '../components/common/ConfirmModal';
-import { PROFILE_TABS, COVER_PLACEHOLDER } from '../constants';
-import { cn } from '../utils/classNames';
-import { formatCount } from '../utils/formatNumber';
-import PostCard from '../components/feed/PostCard';
-import MediaGrid from '../components/profile/MediaGrid';
-import { fetchUserPosts, clearPosts } from '../redux/slices/postsSlice';
-import { fetchUserLists } from '../redux/slices/listsSlice';
+import ProfileTabContent from '../components/profile/ProfileTabContent';
+import { clearPosts } from '../redux/slices/postsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import ProfileSkeleton from '../components/profile/ProfileSkeleton';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import FeedComponent from '../components/feed/Feed';
-import RichText from '../components/common/RichText';
-import { fetchUserFeeds } from '../redux/slices/feedsSlice';
 import { formatHandleText } from '../utils/identity';
+import { PROFILE_TABS, COVER_PLACEHOLDER } from '../constants';
+import { cn } from '../utils/classNames';
+import { formatCount } from '../utils/formatNumber';
+import RichText from '../components/common/RichText';
 
-import { Post, ListDto, Feed } from '../types';
+import { ListDto } from '../types';
 
 const INITIAL_PROFILE_POSTS_TAKE = 10;
 const NEXT_PROFILE_POSTS_TAKE = 14;
@@ -107,52 +103,26 @@ const ProfilePage: React.FC = () => {
         }
     }, [handle, profileUser?.handle, navigate]);
 
+    const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([activeTab]));
+
     useEffect(() => {
-        if (profileUser?.id && !isPostsLoading) {
-            if (activeTab === 'lists') {
-                dispatch(fetchUserLists(profileUser.id));
-            } else if (activeTab === 'feeds' && profileUser?.handle) {
-                dispatch(fetchUserFeeds(profileUser.handle));
-            } else {
-                const RELOAD_TIMEOUT = 5 * 60 * 1000;
-                const now = Date.now();
-                const isStale = (now - lastUserPostsFetch) > RELOAD_TIMEOUT;
-
-                const dispatchUserId = profileUser.handle || profileUser.did || profileUser.id;
-                const matchesCurrent =
-                    lastUserPostsUserId === dispatchUserId &&
-                    lastUserPostsType === activeTab;
-
-                if (!matchesCurrent || isStale || !lastUserPostsFetch) {
-                    if (isFetchingRef.current) return;
-                    isFetchingRef.current = true;
-
-                    if (!matchesCurrent) {
-                        dispatch(clearPosts());
-                    }
-                    dispatch(fetchUserPosts({
-                        userId: dispatchUserId,
-                        type: activeTab,
-                        skip: 0,
-                        take: INITIAL_PROFILE_POSTS_TAKE
-                    })).finally(() => {
-                        isFetchingRef.current = false;
-                    });
-                }
-            }
+        if (activeTab && !visitedTabs.has(activeTab)) {
+            setVisitedTabs(prev => new Set(prev).add(activeTab));
         }
-    }, [dispatch, profileUser?.id, profileUser?.handle, activeTab, lastUserPostsFetch, lastUserPostsUserId, lastUserPostsType, isPostsLoading]);
+    }, [activeTab, visitedTabs]);
 
     // Scroll Persistence Logic
     useEffect(() => {
-        if (!profileUser?.id || isPostsLoading || navType !== 'POP') return;
+        if (!profileUser?.id || navType !== 'POP') return;
 
         const scrollKey = `profile_scroll_${profileUser.id}_${activeTab}`;
 
         // Restoration
         const savedScroll = sessionStorage.getItem(scrollKey);
-        if (savedScroll && reduxPosts.length > 0) {
-            window.scrollTo(0, parseInt(savedScroll, 10));
+        if (savedScroll) {
+            setTimeout(() => {
+                window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'auto' });
+            }, 30);
         }
 
         // Saving
@@ -162,9 +132,12 @@ const ProfilePage: React.FC = () => {
 
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [profileUser?.id, activeTab, isPostsLoading, reduxPosts.length]);
+    }, [profileUser?.id, activeTab, navType]);
 
     const handleTabChange = (tabId: string) => {
+        if (profileUser?.id) {
+            sessionStorage.setItem(`profile_scroll_${profileUser.id}_${activeTab}`, window.scrollY.toString());
+        }
         dispatch(setActiveProfileTab(tabId));
     };
 
@@ -632,149 +605,24 @@ const ProfilePage: React.FC = () => {
                     </div>
 
                     {/* Content Section */}
-                    <div className="flex-1 bg-white dark:bg-dark-bg">
-                        {activeTab === 'feeds' ? (
-                            isUserFeedsLoading ? (
-                                <div className="flex items-center justify-center py-20">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
+                    <div className="flex-1 bg-white dark:bg-dark-bg min-h-screen">
+                        {PROFILE_TABS.map((tab: any) => {
+                            if (!visitedTabs.has(tab.id)) return null;
+                            return (
+                                <div 
+                                    key={tab.id} 
+                                    hidden={activeTab !== tab.id}
+                                    style={{ display: activeTab === tab.id ? 'block' : 'none' }}
+                                >
+                                    <ProfileTabContent 
+                                        userId={profileUser!.handle || profileUser!.did || profileUser!.id}
+                                        type={tab.id}
+                                        isOwnProfile={isOwnProfile}
+                                        isActive={activeTab === tab.id}
+                                    />
                                 </div>
-                            ) : userFeeds.length > 0 ? (
-                                <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
-                                    {userFeeds.map((feed) => (
-                                        <div
-                                            key={feed.uri}
-                                            className="p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer transition-colors"
-                                            onClick={() => navigate(`/feeds/${encodeURIComponent(feed.uri || '')}`)}
-                                        >
-                                            <div className="flex gap-4">
-                                                <div className="shrink-0">
-                                                    <ListAvatar src={feed.avatarUrl} alt={feed.name} size="lg" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="font-bold text-gray-900 dark:text-dark-text truncate">{feed.name}</h4>
-                                                        <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                            {t('feeds.likes_count', { count: feed.subscribersCount || 0 })}
-                                                        </span>
-                                                    </div>
-                                                    {feed.description && (
-                                                        <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
-                                                            {feed.description}
-                                                        </p>
-                                                    )}
-                                                    {feed.creator && (
-                                                        <div className="flex items-center gap-2 mt-2">
-                                                            <Avatar
-                                                                src={feed.creator.avatarUrl}
-                                                                alt={feed.creator.displayName}
-                                                                size="xs"
-                                                            />
-                                                            <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                                {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{feed.creator.handle}</span>
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                                    <FiRss size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                                    <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
-                                        {t('profile.no_feeds')}
-                                    </h3>
-                                </div>
-                            )
-                        ) : activeTab === 'lists' ? (
-                            isListsLoading ? (
-                                <div className="flex items-center justify-center py-20">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
-                                </div>
-                            ) : userLists.length > 0 ? (
-                                <div className="flex flex-col divide-y divide-gray-100 dark:divide-dark-border">
-                                    {userLists.map((list: ListDto) => (
-                                        <div
-                                            key={list.id}
-                                            className="p-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 cursor-pointer transition-colors"
-                                            onClick={() => navigate(`/lists/${list.id}`)}
-                                        >
-                                            <div className="flex gap-4">
-                                                <div className="shrink-0">
-                                                    <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="font-bold text-gray-900 dark:text-dark-text truncate">{list.name}</h4>
-                                                        <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                            {t('lists.members_count', { count: list.membersCount || 0 })}
-                                                        </span>
-                                                    </div>
-                                                    {list.description && (
-                                                        <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
-                                                            {list.description}
-                                                        </p>
-                                                    )}
-                                                    {list.owner && (
-                                                        <div className="flex items-center gap-2 mt-2">
-                                                            <Avatar
-                                                                src={list.owner.avatarUrl || list.owner.avatar}
-                                                                alt={list.owner.displayName}
-                                                                size="xs"
-                                                            />
-                                                            <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                                                {t('profile.feed_by')} <span className="font-medium text-gray-700 dark:text-dark-text">@{list.owner.handle}</span>
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                                    <FiList size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                                    <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
-                                        {t('profile.no_lists')}
-                                    </h3>
-                                </div>
-                            )
-                        ) : activeTab === 'media' ? (
-                            isPostsLoading && reduxPosts.length === 0 ? (
-                                <div className="flex items-center justify-center py-20">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
-                                </div>
-                            ) : reduxPosts.length > 0 ? (
-                                <MediaGrid posts={reduxPosts} />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
-                                    <FiImage size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
-                                    <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-4">
-                                        {t('profile.no_media')}
-                                    </h3>
-                                </div>
-                            )
-                        ) : (
-                            <FeedComponent
-                                posts={sortedPosts}
-                                isLoading={isPostsLoading}
-                                hasMore={hasMore}
-                                onLoadMore={() => {
-                                    if ((profileUser?.handle || profileUser?.did || profileUser?.id) && hasMore && !isPostsLoading) {
-                                        dispatch(fetchUserPosts({
-                                            userId: profileUser!.handle || profileUser!.did || profileUser!.id,
-                                            type: activeTab,
-                                            skip: reduxPosts.length,
-                                            take: NEXT_PROFILE_POSTS_TAKE,
-                                            cursor: postCursor || undefined
-                                        }));
-                                    }
-                                }}
-                                emptyMessage={t(`profile.no_${activeTab}`)}
-                            />
-                        )}
+                            );
+                        })}
                     </div>
                 </>
             )}

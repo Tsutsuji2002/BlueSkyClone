@@ -32,7 +32,7 @@ const SavedPage: React.FC = () => {
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
-                    <div className="flex items-center gap-4 px-4 h-12 w-full">
+                    <div className="flex items-center gap-4 px-4 p-4 w-full">
                         <button
                             onClick={() => navigate(-1)}
                             className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
@@ -43,13 +43,6 @@ const SavedPage: React.FC = () => {
                         <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text truncate">
                             {t('saved.posts_title')}
                         </h1>
-
-                        <div className="flex-1" />
-
-                        <ButterflyLogo
-                            className="w-7 h-7 text-primary-500 cursor-pointer flex-shrink-0"
-                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                        />
                     </div>
                 </div>
 
