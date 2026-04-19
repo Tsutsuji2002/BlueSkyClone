@@ -468,6 +468,7 @@
     },
     "saved": {
         "title": "Đã lưu",
+        "posts_title": "Bài viết đã lưu",
         "no_saved": "Chưa có mục nào được lưu"
     },
     "auth": {

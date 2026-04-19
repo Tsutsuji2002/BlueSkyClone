@@ -32,18 +32,19 @@ const SavedPage: React.FC = () => {
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
             <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
-                    <div className="flex items-center justify-between px-4 h-12 w-full">
+                    <div className="flex items-center gap-4 px-4 h-12 w-full">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                            className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
                         >
                             <FiArrowLeft size={24} className="text-gray-700 dark:text-dark-text" />
                         </button>
-                        <div className="hidden lg:block w-10 flex-shrink-0" /> {/* Spacer */}
 
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text truncate mx-4">
-                            {t('saved.title')}
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text truncate">
+                            {t('saved.posts_title')}
                         </h1>
+
+                        <div className="flex-1" />
 
                         <ButterflyLogo
                             className="w-7 h-7 text-primary-500 cursor-pointer flex-shrink-0"

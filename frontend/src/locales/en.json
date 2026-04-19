@@ -526,6 +526,7 @@
     },
     "saved": {
         "title": "Saved",
+        "posts_title": "Saved Posts",
         "no_saved": "No saved items yet"
     },
     "auth": {
