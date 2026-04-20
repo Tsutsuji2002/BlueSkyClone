@@ -175,6 +175,14 @@ const recursivelyUpdatePost = (post: Post, actionUri: string, updateFn: (p: Post
     if (post.quotePost) recursivelyUpdatePost(post.quotePost, actionUri, updateFn, state);
 };
 
+const syncPostsWithTruth = (state: PostsState, posts: Post[]) => {
+    posts.forEach(post => {
+        updateInteractionTruth(state, post);
+        if (post.parentPost) syncPostsWithTruth(state, [post.parentPost]);
+        if (post.quotePost) syncPostsWithTruth(state, [post.quotePost]);
+    });
+};
+
 
 
 export const fetchTimeline = createAsyncThunk(
@@ -793,6 +801,7 @@ const postsSlice = createSlice({
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.posts = [...state.posts, ...newPosts];
                 }
+                syncPostsWithTruth(state, action.payload.posts);
                 state.hasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchTimeline.rejected, (state: PostsState, action) => {
@@ -807,6 +816,7 @@ const postsSlice = createSlice({
             .addCase(fetchTrendingPosts.fulfilled, (state: PostsState, action: PayloadAction<Post[]>) => {
                 state.isLoading = false;
                 state.trendingPosts = action.payload;
+                syncPostsWithTruth(state, action.payload);
             })
             .addCase(fetchTrendingPosts.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -860,6 +870,7 @@ const postsSlice = createSlice({
                     }
                 }
 
+                syncPostsWithTruth(state, posts);
                 state.hasMore = posts.length >= take && appendedCount > 0;
                 state.cursor = state.hasMore ? (cursor ?? String(skip + posts.length)) : null;
             })
@@ -1298,6 +1309,7 @@ const postsSlice = createSlice({
                     const newPosts = action.payload.filter((p: Post) => !existingUris.has(p.uri));
                     state.bookmarkedPosts = [...state.bookmarkedPosts, ...newPosts];
                 }
+                syncPostsWithTruth(state, action.payload);
                 state.hasMore = action.payload.length > 0;
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
@@ -1326,6 +1338,7 @@ const postsSlice = createSlice({
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.posts = [...state.posts, ...newPosts];
                 }
+                syncPostsWithTruth(state, action.payload.posts);
                 state.hasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchPostsByTag.rejected, (state: PostsState, action) => {
@@ -1354,6 +1367,7 @@ const postsSlice = createSlice({
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.posts = [...state.posts, ...newPosts];
                 }
+                syncPostsWithTruth(state, action.payload.posts);
                 state.hasMore = action.payload.posts.length > 0;
             })
             .addCase(fetchPostsSearch.rejected, (state: PostsState, action) => {
@@ -1382,6 +1396,7 @@ const postsSlice = createSlice({
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.discoverPosts = [...state.discoverPosts, ...newPosts];
                 }
+                syncPostsWithTruth(state, action.payload.posts);
                 state.discoverHasMore = action.payload.hasMore;
             })
             .addCase(fetchDiscoverPosts.rejected, (state: PostsState, action) => {

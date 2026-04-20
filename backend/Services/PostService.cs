@@ -673,8 +673,31 @@ public class PostService : IPostService
                 return posts;
             }
 
-            var postIds = posts.Where(p => p.Id != Guid.Empty).Select(p => p.Id).Distinct().ToList();
-            var postUris = posts.Where(p => !string.IsNullOrEmpty(p.Uri)).Select(p => p.Uri!.ToLower()).Distinct().ToList();
+            var postIds = new HashSet<Guid>();
+            var postUris = new HashSet<string>();
+            var postRkeys = new HashSet<string>();
+
+            void CollectIdentifiersRecursive(PostDto? p)
+            {
+                if (p == null) return;
+                if (p.Id != Guid.Empty) postIds.Add(p.Id);
+                if (!string.IsNullOrEmpty(p.Uri)) 
+                {
+                    var uriLower = p.Uri.ToLower();
+                    postUris.Add(uriLower);
+                    var rkey = uriLower.Split('/').LastOrDefault();
+                    if (!string.IsNullOrEmpty(rkey)) postRkeys.Add(rkey);
+                }
+                
+                if (p.ParentPost != null) CollectIdentifiersRecursive(p.ParentPost);
+                if (p.QuotePost != null) CollectIdentifiersRecursive(p.QuotePost);
+            }
+
+            foreach (var p in posts) CollectIdentifiersRecursive(p);
+
+            var postIdsList = postIds.Distinct().ToList();
+            var postUrisList = postUris.Distinct().ToList();
+            var postRkeysList = postRkeys.Distinct().ToList();
 
             // [NEW] Fetch labels for posts and authors from local DB first
             var activeLabels = new Dictionary<string, List<string>>();
@@ -842,14 +865,14 @@ public class PostService : IPostService
             }
 
             var usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync();
-            var postRkeys = postUris.Select(u => u.Split('/').Last().ToLower()).Distinct().ToHashSet();
+            // postRkeys already collected recursively above
             
             // Collect Likes joined with Post Uri or Tid
             var likedItems = await _unitOfWork.Likes.Query()
                 .Where(l => l.UserId == viewerId && (
-                    postIds.Contains(l.PostId) ||
-                    (l.Post != null && l.Post.Uri != null && postUris.Contains(l.Post.Uri.ToLower())) ||
-                    (l.Post != null && l.Post.Tid != null && postRkeys.Contains(l.Post.Tid.ToLower()))
+                    postIdsList.Contains(l.PostId) ||
+                    (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri.ToLower())) ||
+                    (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid.ToLower()))
                 ))
                 .Select(l => new { l.PostId, Uri = l.Post.Uri, SubjectTid = l.Post.Tid, LikeUri = l.Uri ?? "" })
                 .ToListAsync();
@@ -860,9 +883,9 @@ public class PostService : IPostService
             // Collect Reposts joined with Post Uri or Tid
             var repostItems = await _unitOfWork.Reposts.Query()
                 .Where(r => r.UserId == viewerId && (
-                    postIds.Contains(r.PostId) ||
-                    (r.Post != null && r.Post.Uri != null && postUris.Contains(r.Post.Uri.ToLower())) ||
-                    (r.Post != null && r.Post.Tid != null && postRkeys.Contains(r.Post.Tid.ToLower()))
+                    postIdsList.Contains(r.PostId) ||
+                    (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri.ToLower())) ||
+                    (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid.ToLower()))
                 ))
                 .Select(r => new { r.PostId, Uri = r.Post.Uri, SubjectTid = r.Post.Tid, RepostUri = r.Uri ?? "" })
                 .ToListAsync();
@@ -911,9 +934,9 @@ public class PostService : IPostService
             // Collect Bookmarks joined with Post Uri or Tid
             var bookmarkedItems = await _unitOfWork.Bookmarks.Query()
                 .Where(b => b.UserId == viewerId && (
-                    postIds.Contains(b.PostId) ||
-                    (b.Post != null && b.Post.Uri != null && postUris.Contains(b.Post.Uri.ToLower())) ||
-                    (b.Post != null && b.Post.Tid != null && postRkeys.Contains(b.Post.Tid.ToLower()))
+                    postIdsList.Contains(b.PostId) ||
+                    (b.Post != null && b.Post.Uri != null && postUrisList.Contains(b.Post.Uri.ToLower())) ||
+                    (b.Post != null && b.Post.Tid != null && postRkeysList.Contains(b.Post.Tid.ToLower()))
                 ))
                 .Select(b => new { b.PostId, Uri = b.Post.Uri, SubjectTid = b.Post.Tid })
                 .ToListAsync();
@@ -925,11 +948,11 @@ public class PostService : IPostService
             var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
             var viewerHandle = viewerUser?.Handle?.ToLower();
             
-            var localLikesCounts = await _unitOfWork.Likes.Query().Where(l => postIds.Contains(l.PostId)).GroupBy(l => l.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
-            var localRepostsCounts = await _unitOfWork.Reposts.Query().Where(r => postIds.Contains(r.PostId)).GroupBy(r => r.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
-            var localBookmarksCounts = await _unitOfWork.Bookmarks.Query().Where(b => postIds.Contains(b.PostId)).GroupBy(b => b.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
-            var localRepliesCounts = await _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIds.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
-            var localQuotesCounts = await _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIds.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
+            var localLikesCounts = await _unitOfWork.Likes.Query().Where(l => postIdsList.Contains(l.PostId)).GroupBy(l => l.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localRepostsCounts = await _unitOfWork.Reposts.Query().Where(r => postIdsList.Contains(r.PostId)).GroupBy(r => r.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localBookmarksCounts = await _unitOfWork.Bookmarks.Query().Where(b => postIdsList.Contains(b.PostId)).GroupBy(b => b.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+            var localRepliesCounts = await _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIdsList.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
+            var localQuotesCounts = await _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIdsList.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
 
             // Fetch user settings for moderation filtering
             UserSetting? userSettings = null;
