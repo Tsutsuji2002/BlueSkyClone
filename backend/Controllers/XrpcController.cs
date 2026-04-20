@@ -411,6 +411,103 @@ namespace BSkyClone.Controllers
             }
         }
 
+        [Authorize]
+        [HttpGet("app.bsky.actor.getPreferences")]
+        public async Task<IActionResult> GetPreferences()
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                var settings = await _userService.GetSettingsAsync(userId);
+                
+                var preferences = new List<object>();
+
+                // Map bskyAppStatePref (logged-out visibility)
+                preferences.Add(new Dictionary<string, object>
+                {
+                    ["$type"] = "app.bsky.actor.defs#bskyAppStatePref",
+                    ["loggedOutVisibility"] = (settings.RequireLogoutVisibility ?? false) ? "hide" : "show"
+                });
+
+                // Map postInteractionSettingsPref
+                if (!string.IsNullOrEmpty(settings.DefaultReplyRestriction))
+                {
+                    var rules = new List<object>();
+                    if (settings.DefaultReplyRestriction == "followers")
+                    {
+                        rules.Add(new Dictionary<string, object> { ["$type"] = "app.bsky.feed.threadgate#followerRule" });
+                    }
+
+                    preferences.Add(new Dictionary<string, object>
+                    {
+                        ["$type"] = "app.bsky.actor.defs#postInteractionSettingsPref",
+                        ["threadgateAllowRules"] = settings.DefaultReplyRestriction == "none" ? rules : (settings.DefaultReplyRestriction == "followers" ? rules : null)
+                    });
+                }
+
+                return Ok(new { preferences });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in getPreferences XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("app.bsky.actor.putPreferences")]
+        public async Task<IActionResult> PutPreferences([FromBody] JsonElement request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                if (!request.TryGetProperty("preferences", out var prefsProp) || prefsProp.ValueKind != JsonValueKind.Array)
+                    return BadRequest(new { error = "InvalidRequest", message = "Preferences array required" });
+
+                var settingsUpdate = new UserSettingDto(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                
+                foreach (var pref in prefsProp.EnumerateArray())
+                {
+                    if (pref.TryGetProperty("$type", out var typeProp))
+                    {
+                        var type = typeProp.GetString();
+                        if (type == "app.bsky.actor.defs#bskyAppStatePref" && pref.TryGetProperty("loggedOutVisibility", out var lovProp))
+                        {
+                            settingsUpdate = settingsUpdate with { RequireLogoutVisibility = lovProp.GetString() == "hide" };
+                        }
+                        else if (type == "app.bsky.actor.defs#postInteractionSettingsPref" && pref.TryGetProperty("threadgateAllowRules", out var rulesProp))
+                        {
+                            if (rulesProp.ValueKind == JsonValueKind.Array)
+                            {
+                                if (rulesProp.GetArrayLength() == 0)
+                                    settingsUpdate = settingsUpdate with { DefaultReplyRestriction = "none" };
+                                else
+                                    settingsUpdate = settingsUpdate with { DefaultReplyRestriction = "followers" };
+                            }
+                            else
+                            {
+                                settingsUpdate = settingsUpdate with { DefaultReplyRestriction = "anyone" };
+                            }
+                        }
+                    }
+                }
+
+                await _userService.UpdateSettingsAsync(userId, settingsUpdate);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in putPreferences XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
         [AllowAnonymous]
         [HttpGet("app.bsky.actor.getSuggestions")]
         public async Task<IActionResult> GetSuggestions([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
