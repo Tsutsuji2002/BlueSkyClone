@@ -778,6 +778,17 @@ const postsSlice = createSlice({
         clearThreadPosts: (state) => {
             state.threadPosts = [];
         },
+        /**
+         * Seed interactionTruth from posts fetched outside of Redux thunks
+         * (e.g. ProfileTabContent which stores posts in local component state).
+         * Calling this after a local fetch ensures PostCard reads the correct
+         * isLiked / isReposted / isBookmarked values from the global truth store,
+         * and that any stale truth from a previous timeline load is overwritten
+         * with the fresher, re-enriched data from the backend.
+         */
+        seedInteractionTruth: (state, action: PayloadAction<Post[]>) => {
+            syncPostsWithTruth(state, action.payload);
+        },
         /*
 468:         receiveGlobalPost: (state, action: PayloadAction<Post>) => {
 469:             const newPost = action.payload;
@@ -1601,7 +1612,7 @@ const postsSlice = createSlice({
 });
 
 
-export const { clearPosts, clearThreadPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost } = postsSlice.actions;
+export const { clearPosts, clearThreadPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost, seedInteractionTruth } = postsSlice.actions;
 
 
 export default postsSlice.reducer;

@@ -9,6 +9,8 @@ import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 import LoadingIndicator from '../common/LoadingIndicator';
 import { FiList, FiImage, FiVideo } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { seedInteractionTruth } from '../../redux/slices/postsSlice';
 
 interface ProfileTabContentProps {
     userId: string;
@@ -24,6 +26,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
     const { t } = useTranslation();
+    const dispatch = useAppDispatch();
     const isFetchingRef = useRef(false);
     const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +77,13 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 fetchedPosts.forEach(p => { p.isLiked = true; });
             }
 
+            // Seed interactionTruth in Redux so PostCard reads the correct
+            // isLiked / isReposted / isBookmarked from the backend-enriched data,
+            // overwriting any stale entries from earlier timeline loads.
+            if (fetchedPosts.length > 0) {
+                dispatch(seedInteractionTruth(fetchedPosts));
+            }
+
             setPosts(prev => isInitial ? fetchedPosts : [...prev, ...fetchedPosts]);
             setCursor(nextCursor);
             setHasMore(!!nextCursor && fetchedPosts.length > 0);
@@ -85,7 +95,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             setInitialLoading(false);
             isFetchingRef.current = false;
         }
-    }, [userId, type, cursor, hasMore, loading, t]);
+    }, [userId, type, cursor, hasMore, loading, t, dispatch]);
 
     useEffect(() => {
         fetchBatch(true);
