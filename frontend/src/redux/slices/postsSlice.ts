@@ -680,12 +680,18 @@ export const fetchBookmarkedPosts = createAsyncThunk(
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
-            let posts = await response.json() as Post[];
+            
+            interface BookmarksResponse {
+                posts: Post[];
+                cursor: string | null;
+            }
+            const data = await response.json() as BookmarksResponse;
+            
             // Authoritatively hydrate isLiked / isReposted / isBookmarked from the
             // dedicated interactions/status endpoint (queries local DB directly),
             // bypassing any AppView timing / token issues in EnrichAndFilterPostsAsync.
-            posts = await hydratePostsWithInteractionStatus(posts, token);
-            return posts;
+            const hydratedPosts = await hydratePostsWithInteractionStatus(data.posts || [], token);
+            return { posts: hydratedPosts, cursor: data.cursor };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -1338,14 +1344,14 @@ const postsSlice = createSlice({
                 const { skip } = action.meta.arg || { skip: 0 };
 
                 if (skip === 0) {
-                    state.bookmarkedPosts = action.payload;
+                    state.bookmarkedPosts = action.payload.posts;
                 } else {
                     const existingUris = new Set(state.bookmarkedPosts.map((p: Post) => p.uri));
-                    const newPosts = action.payload.filter((p: Post) => !existingUris.has(p.uri));
+                    const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     state.bookmarkedPosts = [...state.bookmarkedPosts, ...newPosts];
                 }
-                syncPostsWithTruth(state, action.payload);
-                state.hasMore = action.payload.length > 0;
+                syncPostsWithTruth(state, action.payload.posts);
+                state.hasMore = action.payload.cursor !== null;
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {
                 state.bookmarkedLoading = false;

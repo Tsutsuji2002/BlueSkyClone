@@ -1317,8 +1317,9 @@ public class PostService : IPostService
                             post.Viewer.Repost = vr.ValueKind != JsonValueKind.Null ? vr.GetString() : post.Viewer.Repost;
                     }
                     
-                    // Map Media for remote posts if not already present
-                    if ((post.Media == null || post.Media.Count == 0) && remotePost.TryGetProperty("embed", out var embed))
+                    // Always refresh media/embed from AppView for remote posts — local DB may have
+                    // stale or incomplete PostMedia records, so AppView is the authoritative source.
+                    if (remotePost.TryGetProperty("embed", out var embed))
                     {
                         MapEmbedToDto(post, embed);
                     }
@@ -5448,9 +5449,9 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> GetBookmarkedPostsAsync(Guid userId)
+    public async Task<PagedPostDto> GetBookmarkedPostsAsync(Guid userId, int skip = 0, int take = 20)
     {
-        var bookmarkedPosts = await _unitOfWork.Bookmarks.Query()
+        var query = _unitOfWork.Bookmarks.Query()
             .Where(b => b.UserId == userId)
             .Include(b => b.Post)
                 .ThenInclude(p => p.Author)
@@ -5468,7 +5469,12 @@ public class PostService : IPostService
                 .ThenInclude(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
             .AsNoTracking()
             .AsSplitQuery()
-            .OrderByDescending(b => b.CreatedAt)
+            .OrderByDescending(b => b.CreatedAt);
+
+        var total = await query.CountAsync();
+        var bookmarkedPosts = await query
+            .Skip(skip)
+            .Take(take)
             .Select(b => b.Post)
             .ToListAsync();
 
@@ -5478,7 +5484,12 @@ public class PostService : IPostService
         // EnrichAndFilterPostsAsync may fail to set this correctly for remote posts.
         foreach (var p in enriched)
             p.IsBookmarked = true;
-        return enriched;
+
+        var hasMore = (skip + take) < total;
+        // Simple cursor: encode skip position for next page
+        var nextCursor = hasMore ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes((skip + take).ToString())) : null;
+
+        return new PagedPostDto { Posts = enriched, Cursor = nextCursor };
     }
 
     /// <summary>
