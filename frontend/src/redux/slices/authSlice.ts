@@ -337,6 +337,63 @@ export const updateNotificationSettings = createAsyncThunk(
             if (!response.ok) {
                 return rejectWithValue(data.message || 'Update failed');
             }
+
+            // Sync with official AT Protocol preferences if possible
+            try {
+                if (agent.session) {
+                    const res = await (agent as any).api.app.bsky.actor.getPreferences();
+                    let prefsList = res.data.preferences || [];
+                    let hasChanges = false;
+
+                    // Logged-out visibility
+                    if (settings.logoutVisibility !== undefined) {
+                        let pref = prefsList.find((p: any) => p.$type === 'app.bsky.actor.defs#bskyAppStatePref') as any;
+                        if (!pref) {
+                            pref = { $type: 'app.bsky.actor.defs#bskyAppStatePref', loggedOutVisibility: settings.logoutVisibility === false ? 'show' : 'hide' };
+                            prefsList.push(pref);
+                        } else {
+                            pref.loggedOutVisibility = settings.logoutVisibility === false ? 'show' : 'hide';
+                        }
+                        
+                        // Some clients respect personalDetailsPref
+                        let pDetail = prefsList.find((p: any) => p.$type === 'app.bsky.actor.defs#personalDetailsPref') as any;
+                        if (!pDetail) {
+                            pDetail = { $type: 'app.bsky.actor.defs#personalDetailsPref', show: !settings.logoutVisibility };
+                            prefsList.push(pDetail);
+                        } else {
+                            pDetail.show = !settings.logoutVisibility;
+                        }
+                        hasChanges = true;
+                    }
+
+                    // Post notifications / Reply rules
+                    if (settings.defaultReplyRestriction !== undefined) {
+                        let pref = prefsList.find((p: any) => p.$type === 'app.bsky.actor.defs#postInteractionSettingsPref') as any;
+                        if (!pref) {
+                            pref = { $type: 'app.bsky.actor.defs#postInteractionSettingsPref' };
+                            prefsList.push(pref);
+                        }
+                        
+                        // Map our local string to AT Proto rules
+                        if (settings.defaultReplyRestriction === 'none') {
+                            pref.threadgateAllowRules = []; // No one
+                        } else if (settings.defaultReplyRestriction === 'followers') {
+                            pref.threadgateAllowRules = [{ $type: 'app.bsky.feed.threadgate#followerRule' }];
+                        } else {
+                            pref.threadgateAllowRules = undefined; // Anyone
+                        }
+                        hasChanges = true;
+                    }
+
+                    if (hasChanges) {
+                        await (agent as any).api.app.bsky.actor.putPreferences({ preferences: prefsList });
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to sync settings with AT Protocol PDS:', err);
+                // Non-fatal, intentionally ignore errors from PDS
+            }
+
             return data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');

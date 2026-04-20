@@ -238,7 +238,7 @@
         "next": "Next",
         "notify_posts": "Allow others to be notified of your posts",
         "notify_posts_subtitle": "Anyone who follows me",
-        "notify_posts_desc": "This feature allows users to receive notifications for your new posts and replies.",
+        "notify_posts_desc": "This feature allows users to receive notifications when you make a post. Turn off this feature to discourage other users from receiving notifications when you make a post.",
         "anyone_follows": "Anyone who follows me",
         "followers_i_follow": "Only followers who I follow",
         "no_one": "No one",

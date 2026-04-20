@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiChevronRight, FiShield, FiKey, FiBell, FiEye, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronRight, FiShield, FiKey, FiBell, FiEyeOff, FiX } from 'react-icons/fi';
 import Button from '../components/common/Button';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
@@ -69,23 +69,23 @@ const PrivacySettingsPage: React.FC = () => {
                     {/* Security Group */}
                     <div className="py-2">
                         <button
-                            onClick={() => setIs2FAModalOpen(true)}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            disabled
+                            className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-dark-border/50 opacity-50 cursor-not-allowed"
                         >
                             <div className="flex items-center gap-4">
                                 <FiShield size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.2fa_title')}</span>
+                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.2fa_title', 'Two-factor authentication (2FA)')}</span>
                             </div>
-                            <span className="text-blue-500 font-medium text-sm">{t('privacy.enable')}</span>
+                            <span className="text-blue-500 font-medium text-sm">{t('privacy.enable', 'Enable')}</span>
                         </button>
 
                         <button
-                            onClick={() => navigate('/settings/privacy/app-passwords')}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                            disabled
+                            className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-dark-border/50 opacity-50 cursor-not-allowed"
                         >
                             <div className="flex items-center gap-4">
                                 <FiKey size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.app_passwords')}</span>
+                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.app_passwords', 'App passwords')}</span>
                             </div>
                             <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
                         </button>
@@ -97,8 +97,8 @@ const PrivacySettingsPage: React.FC = () => {
                             <div className="flex items-center gap-4">
                                 <FiBell size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
                                 <div className="flex flex-col items-start text-left">
-                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.notify_posts')}</span>
-                                    <span className="text-sm text-gray-500 dark:text-dark-text-secondary">{t('privacy.notify_posts_subtitle')}</span>
+                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.notify_posts', 'Allow others to be notified of your posts')}</span>
+                                    <span className="text-sm text-gray-500 dark:text-dark-text-secondary">{t('privacy.notify_posts_subtitle', 'Anyone who follows me')}</span>
                                 </div>
                             </div>
                             <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
@@ -106,36 +106,44 @@ const PrivacySettingsPage: React.FC = () => {
                     </div>
 
                     {/* Visibility Group */}
-                    <div className="mt-4 px-4">
-                        <div className="flex items-start gap-4 mb-2">
-                            <FiEye size={22} className="text-gray-900 dark:text-dark-text opacity-80 mt-1" />
-                            <div>
-                                <h3 className="text-[15px] font-medium text-gray-900 dark:text-dark-text mb-1">
-                                    {t('privacy.logout_visibility')}
-                                </h3>
-                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-3 leading-relaxed">
-                                    {t('privacy.logout_visibility_desc')}
-                                </p>
-                            </div>
-                            <div className="relative inline-flex items-center cursor-pointer ml-auto">
+                    <div className="mt-4 px-4 pb-8">
+                        <div className="flex items-center gap-3 mb-4">
+                            <FiEyeOff size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
+                            <h3 className="text-[17px] font-bold text-gray-900 dark:text-dark-text">
+                                {t('privacy.logout_visibility', 'Logged-out visibility')}
+                            </h3>
+                        </div>
+                        
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                            <h4 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
+                                Discourage apps from showing my account to logged-out users
+                            </h4>
+                            <div className="relative inline-flex items-center cursor-pointer ml-auto shrink-0 mt-0.5">
                                 <input
                                     type="checkbox"
                                     className="sr-only peer"
                                     checked={settings?.logoutVisibility ?? false}
                                     onChange={() => handleToggle('logoutVisibility', !settings?.logoutVisibility)}
                                 />
-                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                <div className="w-5 h-5 bg-white border-2 border-gray-300 rounded peer-focus:ring-2 peer-focus:ring-blue-500 dark:bg-dark-bg dark:border-gray-500 peer-checked:bg-blue-500 peer-checked:border-blue-500 after:content-['✓'] after:absolute after:text-white after:text-xs after:font-bold after:left-[4px] after:top-[1px] after:opacity-0 peer-checked:after:opacity-100 transition-all"></div>
                             </div>
                         </div>
 
-                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                            <p className="text-sm text-blue-700 dark:text-blue-300 flex gap-2">
-                                <span className="font-bold">ⓘ</span>
-                                {t('privacy.logout_visibility_note')}
-                            </p>
-                            <button className="text-sm text-blue-600 dark:text-blue-400 font-medium hover:underline mt-1 ml-6">
-                                {t('privacy.learn_more')}
-                            </button>
+                        <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary mb-4 leading-relaxed">
+                            Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.
+                        </p>
+
+                        <div className="bg-transparent border border-blue-200 dark:border-blue-900/50 p-4 rounded-xl">
+                            <div className="flex gap-2">
+                                <span className="text-blue-500 mt-0.5">ⓘ</span>
+                                <p className="text-[14px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                                    <span className="font-bold">Note:</span> Bluesky is an open and public network. This setting only limits the visibility of your content on the Bluesky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.
+                                    <br />
+                                    <a href="#" className="text-blue-500 hover:underline mt-1 inline-block">
+                                        Learn more about what is public on Bluesky.
+                                    </a>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
