@@ -75,83 +75,6 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-using BSkyClone.DTOs;
-using BSkyClone.Services;
-using BSkyClone.UnitOfWork;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-
-namespace BSkyClone.Controllers;
-
-[Authorize]
-[ApiController]
-[Route("api/[controller]")]
-public class PostsController : ControllerBase
-{
-    private readonly IPostService _postService;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<PostsController> _logger;
-
-    public PostsController(IPostService postService, IUnitOfWork unitOfWork, ILogger<PostsController> logger)
-    {
-        _postService = postService;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
-
-    [HttpGet("timeline")]
-    public async Task<IActionResult> GetTimeline([FromQuery] int skip = 0, [FromQuery] int take = 20)
-    {
-        try
-        {
-            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
-            
-            var posts = await _postService.GetTimelineAsync(userId, skip, take);
-            _logger.LogInformation("[PostsController] GetTimeline: UserId={UserId}, Count={Count}", userId, posts.Count());
-            return Ok(posts);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[PostsController] GetTimeline error: {ex.Message}");
-            return Ok(new List<PostDto>());
-        }
-    }
-
-    [HttpGet("trending")]
-    [AllowAnonymous]
-    public async Task<IActionResult> GetTrending([FromQuery] int skip = 0, [FromQuery] int take = 20)
-    {
-        try
-        {
-            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
-
-            var posts = await _postService.GetTrendingPostsAsync(viewerId, skip, take);
-            _logger.LogInformation("[PostsController] GetTrending: ViewerId={ViewerId}, Count={Count}, Skip={Skip}, Take={Take}", viewerId, posts.Count(), skip, take);
-            return Ok(posts);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[PostsController] GetTrending error: {ex}");
-            return Ok(new List<PostDto>());
-        }
-    }
-
-    [HttpGet("discover")]
-    public async Task<IActionResult> GetDiscover([FromQuery] int take = 20, [FromQuery] int skip = 0)
-    {
-        try
-        {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
-
-            var posts = await _postService.GetDiscoverPostsAsync(userId, take, skip);
-            return Ok(posts);
-        }
-        catch (Exception ex)
-        {
             Console.WriteLine($"[PostsController] GetDiscover error: {ex}");
             return Ok(new List<PostDto>());
         }
@@ -174,7 +97,6 @@ public class PostsController : ControllerBase
             return Ok(new PagedPostDto());
         }
     }
-
     [HttpPost("interactions/status")]
     public async Task<IActionResult> GetInteractionStatuses([FromBody] PostInteractionStatusRequest? request)
     {

@@ -25,11 +25,11 @@ namespace BSkyClone.Controllers
                 var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
                 if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-                var posts = await _postService.GetBookmarkedPostsAsync(userId);
+                var pagedResult = await _postService.GetBookmarkedPostsAsync(userId);
                 
                 string debugInfo = $"UserId: {userId}\n";
-                debugInfo += $"Count: {posts.Count()}\n";
-                foreach (var p in posts) {
+                debugInfo += $"Count: {pagedResult.Posts.Count()}\n";
+                foreach (var p in pagedResult.Posts) {
                     debugInfo += $"\nPost {p.Id}:\n- isBookmarked: {p.IsBookmarked}\n- isLiked: {p.IsLiked}\n- LinkPreview: {p.LinkPreview != null}\n- MediaCount: {p.Media.Count}\n- Uri: {p.Uri}";
                 }
                 return Ok(new { debug = debugInfo });

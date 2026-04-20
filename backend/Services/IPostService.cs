@@ -9,25 +9,7 @@ public interface IPostService
     Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null);
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
-    Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null);
-    Task<IEnumerable<PostDto>> GetPostsByIdsAsync(IEnumerable<Guid> postIds, Guid? viewerId = null);
-    Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null);
-    Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null);
-    Task FetchRemoteAuthorFeedAsync(string did, string? type = null, string? cursor = null);
-    Task ProcessRemotePostAsync(string did, string path, string cid, byte[] recordData);
-    Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId);
-    Task<object> ToggleLikeAsync(Guid userId, Guid postId);
-using BSkyClone.DTOs;
-using BSkyClone.Models;
 
-namespace BSkyClone.Services;
-
-public interface IPostService
-{
-    Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20);
-    Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null);
-    Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
-    Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
     Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null);
     Task<IEnumerable<PostDto>> GetPostsByIdsAsync(IEnumerable<Guid> postIds, Guid? viewerId = null);
     Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null);
