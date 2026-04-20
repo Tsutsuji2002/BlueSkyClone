@@ -931,15 +931,17 @@ public class PostService : IPostService
                     .ToListAsync()).ToHashSet();
             }
 
-            // Collect Bookmarks joined with Post Uri or Tid
-            var bookmarkedItems = await _unitOfWork.Bookmarks.Query()
-                .Where(b => b.UserId == viewerId && (
-                    postIdsList.Contains(b.PostId) ||
-                    (b.Post != null && b.Post.Uri != null && postUrisList.Contains(b.Post.Uri.ToLower())) ||
-                    (b.Post != null && b.Post.Tid != null && postRkeysList.Contains(b.Post.Tid.ToLower()))
-                ))
-                .Select(b => new { b.PostId, Uri = b.Post.Uri, SubjectTid = b.Post.Tid })
+            // Collect ALL Bookmarks for the user to evaluate in-memory, bypassing SQLite's EF Core translation bugs with ToLower()
+            var allUserBookmarks = await _unitOfWork.Bookmarks.Query()
+                .Where(b => b.UserId == viewerId)
+                .Select(b => new { b.PostId, Uri = b.Post.Uri ?? b.Tid, SubjectTid = b.Post.Tid ?? b.Tid }) // Provide robust fallback to Tid if Uri is null to avoid null refs
                 .ToListAsync();
+
+            var bookmarkedItems = allUserBookmarks.Where(b => 
+                postIdsList.Contains(b.PostId) ||
+                (b.Uri != null && postUrisList.Contains(b.Uri.ToLower())) ||
+                (b.SubjectTid != null && postRkeysList.Contains(b.SubjectTid.ToLower()))
+            ).ToList();
             var bookmarkedUris = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).Select(x => x.Uri!.ToLower()).ToHashSet();
             var bookmarkedIds = bookmarkedItems.Select(x => x.PostId).ToHashSet();
             var bookmarkedRkeys = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).Select(x => x.SubjectTid!.ToLower()).ToHashSet();
@@ -953,6 +955,16 @@ public class PostService : IPostService
             var localBookmarksCounts = await _unitOfWork.Bookmarks.Query().Where(b => postIdsList.Contains(b.PostId)).GroupBy(b => b.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
             var localRepliesCounts = await _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIdsList.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
             var localQuotesCounts = await _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIdsList.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
+
+            var localBookmarksCountsByUriRaw = await _unitOfWork.Bookmarks.Query()
+                .Where(b => b.Post != null && b.Post.Uri != null)
+                .Select(b => b.Post.Uri!.ToLower())
+                .ToListAsync();
+
+            var localBookmarksCountsByUri = localBookmarksCountsByUriRaw
+                .Where(uri => postUrisList.Contains(uri))
+                .GroupBy(uri => uri)
+                .ToDictionary(g => g.Key, g => g.Count());
 
             // Fetch user settings for moderation filtering
             UserSetting? userSettings = null;
@@ -1276,6 +1288,11 @@ public class PostService : IPostService
                 localLikesCounts.TryGetValue(post.Id, out var localLikes);
                 localRepostsCounts.TryGetValue(post.Id, out var localReposts);
                 localBookmarksCounts.TryGetValue(post.Id, out var localBookmarks);
+                if (pUriKey != null && localBookmarksCountsByUri.TryGetValue(pUriKey, out var uriBookmarks)) 
+                {
+                    localBookmarks = Math.Max(localBookmarks, uriBookmarks);
+                }
+
                 localRepliesCounts.TryGetValue(post.Id, out var localReplies);
                 localQuotesCounts.TryGetValue(post.Id, out var localQuotes);
 

@@ -154,16 +154,31 @@ const matchesPost = (post: Post, actionUri: string): boolean => {
 
 const updateInteractionTruth = (state: PostsState, post: Post) => {
     if (!post.uri) return;
-    state.interactionTruth[post.uri] = {
-        isLiked: post.isLiked,
-        isReposted: post.isReposted,
-        isBookmarked: post.isBookmarked,
-        likesCount: post.likesCount,
-        repostsCount: post.repostsCount,
-        bookmarksCount: post.bookmarksCount,
-        repliesCount: post.repliesCount,
-        viewer: post.viewer,
-    };
+    
+    if (!state.interactionTruth[post.uri]) {
+        state.interactionTruth[post.uri] = {
+            isLiked: post.isLiked,
+            isReposted: post.isReposted,
+            isBookmarked: post.isBookmarked,
+            likesCount: post.likesCount,
+            repostsCount: post.repostsCount,
+            bookmarksCount: post.bookmarksCount,
+            repliesCount: post.repliesCount,
+            viewer: post.viewer,
+        };
+    } else {
+        const existing = state.interactionTruth[post.uri];
+        if ((post.likesCount ?? 0) > (existing.likesCount ?? 0)) existing.likesCount = post.likesCount;
+        if ((post.repostsCount ?? 0) > (existing.repostsCount ?? 0)) existing.repostsCount = post.repostsCount;
+        if ((post.bookmarksCount ?? 0) > (existing.bookmarksCount ?? 0)) existing.bookmarksCount = post.bookmarksCount;
+        if ((post.repliesCount ?? 0) > (existing.repliesCount ?? 0)) existing.repliesCount = post.repliesCount;
+        
+        // Merge boolean states if the incoming payload has true values, or update unconditionally
+        if (post.isLiked !== undefined) existing.isLiked = post.isLiked;
+        if (post.isReposted !== undefined) existing.isReposted = post.isReposted;
+        if (post.isBookmarked !== undefined) existing.isBookmarked = post.isBookmarked;
+        if (post.viewer !== undefined) existing.viewer = post.viewer;
+    }
 };
 
 const recursivelyUpdatePost = (post: Post, actionUri: string, updateFn: (p: Post) => void, state?: PostsState) => {
