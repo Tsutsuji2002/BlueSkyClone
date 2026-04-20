@@ -5481,6 +5481,83 @@ public class PostService : IPostService
         return enriched;
     }
 
+    /// <summary>
+    /// Calls Bluesky AppView's getPosts with the user's OAuth token to get viewer.like / viewer.repost
+    /// for each given AT-URI. Returns interaction statuses that may include native Bluesky likes/reposts
+    /// not yet reflected in the local Likes/Reposts tables.
+    /// </summary>
+    public async Task<IEnumerable<PostInteractionStatusDto>> GetViewerStateFromAppViewAsync(Guid userId, IEnumerable<string> uris)
+    {
+        var uriList = uris
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!uriList.Any()) return Array.Empty<PostInteractionStatusDto>();
+
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) return Array.Empty<PostInteractionStatusDto>();
+
+        var result = new List<PostInteractionStatusDto>();
+
+        try
+        {
+            using var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            foreach (var chunk in uriList.Chunk(25))
+            {
+                var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+                var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("[GetViewerStateFromAppViewAsync] AppView getPosts failed with {Status}", response.StatusCode);
+                    continue;
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                if (!doc.RootElement.TryGetProperty("posts", out var posts)) continue;
+
+                foreach (var post in posts.EnumerateArray())
+                {
+                    if (!post.TryGetProperty("uri", out var uriProp)) continue;
+                    var uri = uriProp.GetString();
+                    if (string.IsNullOrEmpty(uri)) continue;
+
+                    string? likeUri = null;
+                    string? repostUri = null;
+
+                    if (post.TryGetProperty("viewer", out var viewer))
+                    {
+                        if (viewer.TryGetProperty("like", out var lv) && lv.ValueKind == JsonValueKind.String)
+                            likeUri = lv.GetString();
+                        if (viewer.TryGetProperty("repost", out var rv) && rv.ValueKind == JsonValueKind.String)
+                            repostUri = rv.GetString();
+                    }
+
+                    result.Add(new PostInteractionStatusDto
+                    {
+                        Uri = uri,
+                        IsLiked = !string.IsNullOrEmpty(likeUri),
+                        IsReposted = !string.IsNullOrEmpty(repostUri),
+                        IsBookmarked = false, // Not available from AppView; use GetInteractionStatusesAsync for bookmarks
+                        LikeUri = likeUri,
+                        RepostUri = repostUri
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[GetViewerStateFromAppViewAsync] Error fetching viewer state for user {UserId}", userId);
+        }
+
+        return result;
+    }
+
     public async Task<IEnumerable<PostInteractionStatusDto>> GetInteractionStatusesAsync(Guid userId, IEnumerable<string> uris)
     {
         var normalizedUris = uris

@@ -680,7 +680,11 @@ export const fetchBookmarkedPosts = createAsyncThunk(
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
-            const posts = await response.json() as Post[];
+            let posts = await response.json() as Post[];
+            // Authoritatively hydrate isLiked / isReposted / isBookmarked from the
+            // dedicated interactions/status endpoint (queries local DB directly),
+            // bypassing any AppView timing / token issues in EnrichAndFilterPostsAsync.
+            posts = await hydratePostsWithInteractionStatus(posts, token);
             return posts;
         } catch (error: any) {
             return rejectWithValue(error.message);

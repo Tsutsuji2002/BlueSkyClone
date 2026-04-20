@@ -117,6 +117,36 @@ public class PostsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Returns viewer like/repost state for a given list of AT-URIs by querying the Bluesky AppView
+    /// with the user's stored OAuth token. Supplements the local-DB-based /interactions/status for
+    /// posts liked/reposted natively on Bluesky (not stored in our Likes/Reposts tables).
+    /// </summary>
+    [HttpPost("interactions/viewer-state")]
+    public async Task<IActionResult> GetViewerState([FromBody] PostInteractionStatusRequest? request)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var uris = (request?.Uris ?? new List<string>())
+                .Where(u => !string.IsNullOrWhiteSpace(u) && u.StartsWith("at://") && !u.Contains("local"))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (!uris.Any()) return Ok(new List<PostInteractionStatusDto>());
+
+            var statuses = await _postService.GetViewerStateFromAppViewAsync(userId, uris);
+            return Ok(statuses);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PostsController] GetViewerState error: {ex.Message}");
+            return Ok(new List<PostInteractionStatusDto>());
+        }
+    }
+
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0, [FromQuery] string? cursor = null)
