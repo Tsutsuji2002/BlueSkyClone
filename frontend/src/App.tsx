@@ -31,6 +31,7 @@ import { isTokenExpired } from './utils/authUtils';
 import signalrService, { HubStatus } from './services/signalrService';
 import postSignalrService from './services/postSignalrService';
 import { closeAllModals } from './redux/slices/modalsSlice';
+import { stopLoading } from './redux/slices/authSlice';
 
 import LoadingScreen from './components/common/LoadingScreen';
 
@@ -76,12 +77,14 @@ const AppContent: React.FC = () => {
                 console.warn('Refresh token rejected by server. Logging out.');
                 dispatch(logoutAsync());
                 return;
-              } else if (res.status >= 500) {
-                console.warn('Token refresh encountered server error. Retaining session for now.');
+              } else {
+                console.warn(`Token refresh encountered status ${res.status}. Falling back to logout.`);
+                dispatch(logoutAsync());
                 return;
               }
             } catch (e) {
               console.warn('Token refresh network error:', e);
+              dispatch(stopLoading()); // Ensure we don't hang on network error
               return;
             }
           }
@@ -98,13 +101,25 @@ const AppContent: React.FC = () => {
              dispatch(logoutAsync());
           }
         }
+      } else {
+        // No token at all - ensure we're not stuck in loading
+        dispatch(stopLoading());
       }
     };
 
     checkAuth();
+    
+    // Safety fallback: Clear loading state if it's still true after 10 seconds
+    const fallbackTimer = setTimeout(() => {
+        dispatch(stopLoading());
+    }, 10000);
+
     // Also check every minute for auto-logout
     const interval = setInterval(checkAuth, 60000);
-    return () => clearInterval(interval);
+    return () => {
+        clearInterval(interval);
+        clearTimeout(fallbackTimer);
+    };
   }, [dispatch, isAuthenticated]);
 
   useEffect(() => {
