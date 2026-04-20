@@ -173,10 +173,15 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
         if ((post.bookmarksCount ?? 0) > (existing.bookmarksCount ?? 0)) existing.bookmarksCount = post.bookmarksCount;
         if ((post.repliesCount ?? 0) > (existing.repliesCount ?? 0)) existing.repliesCount = post.repliesCount;
         
-        // Merge boolean states if the incoming payload has true values, or update unconditionally
-        if (post.isLiked !== undefined) existing.isLiked = post.isLiked;
-        if (post.isReposted !== undefined) existing.isReposted = post.isReposted;
-        if (post.isBookmarked !== undefined) existing.isBookmarked = post.isBookmarked;
+        // Boolean interaction flags: prefer "true" (confirmed state) over "false" (possibly stale).
+        // A feed refresh might return isLiked:false because the AppView cache hasn't caught up yet,
+        // but we should never reset a confirmed interaction back to false via a background reload.
+        // The only authoritative source of a "false" is an explicit user action, which goes through
+        // dedicated Redux cases (toggleLike.fulfilled etc.) that bypass this function entirely.
+        if (post.isLiked === true) existing.isLiked = true;
+        if (post.isReposted === true) existing.isReposted = true;
+        if (post.isBookmarked === true) existing.isBookmarked = true;
+        // Only propagate false when we have no existing truth (handled above in the !existing branch)
         if (post.viewer !== undefined) existing.viewer = post.viewer;
     }
 };
