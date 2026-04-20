@@ -116,7 +116,7 @@ const PrivacySettingsPage: React.FC = () => {
                         
                         <div className="flex items-start justify-between gap-4 mb-2">
                             <h4 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
-                                Discourage apps from showing my account to logged-out users
+                                {t('privacy.logout_visibility_label', 'Discourage apps from showing my account to logged-out users')}
                             </h4>
                             <div className="relative inline-flex items-center cursor-pointer ml-auto shrink-0 mt-0.5">
                                 <input
@@ -130,19 +130,20 @@ const PrivacySettingsPage: React.FC = () => {
                         </div>
 
                         <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary mb-4 leading-relaxed">
-                            Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.
+                            {t('privacy.logout_visibility_desc', 'Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.')}
                         </p>
 
-                        <div className="bg-transparent border border-blue-200 dark:border-blue-900/50 p-4 rounded-xl">
-                            <div className="flex gap-2">
-                                <span className="text-blue-500 mt-0.5">ⓘ</span>
-                                <p className="text-[14px] text-gray-600 dark:text-gray-300 leading-relaxed">
-                                    <span className="font-bold">Note:</span> Bluesky is an open and public network. This setting only limits the visibility of your content on the Bluesky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.
-                                    <br />
-                                    <a href="#" className="text-blue-500 hover:underline mt-1 inline-block">
-                                        Learn more about what is public on Bluesky.
+                        <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-4 rounded-xl">
+                            <div className="flex gap-3">
+                                <span className="text-blue-500 mt-0.5 text-lg">ⓘ</span>
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-[14px] text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                                        <span className="font-bold">{t('settings.note', 'Note')}:</span> {t('privacy.logout_visibility_note', 'Bluesky is an open and public network. This setting only limits the visibility of your content on the BlueSky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.')}
+                                    </p>
+                                    <a href="#" className="text-blue-500 hover:underline text-[14px] font-medium inline-block transition-colors">
+                                        {t('privacy.learn_more', 'Learn more about what is public on BlueSky.')}
                                     </a>
-                                </p>
+                                </div>
                             </div>
                         </div>
                     </div>

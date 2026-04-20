@@ -85,7 +85,8 @@
         "handle_same": "Đây là handle hiện tại của bạn",
         "username_updated_success": "Đã cập nhật handle thành công",
         "handle_cannot_be_blank": "Handle không được để trống",
-        "birthdate_future_error": "Ngày sinh không được ở tương lai"
+        "birthdate_future_error": "Ngày sinh không được ở tương lai",
+        "note": "Lưu ý"
     },
     "moderation": {
         "title": "Kiểm duyệt",
@@ -198,8 +199,9 @@
         "followers_i_follow": "Chỉ những người theo dõi mà tôi theo dõi",
         "no_one": "Không ai",
         "logout_visibility": "Trạng thái hiển thị sau đăng xuất",
-        "logout_visibility_desc": "Ngăn ứng dụng hiển thị tài khoản của tôi cho người dùng đã đăng xuất.",
-        "logout_visibility_note": "Chú ý: BlueSky là một trang mạng mở và công khai. Cài đặt này chỉ giới hạn hiển thị trên ứng dụng BlueSky.",
+        "logout_visibility_label": "Hạn chế các ứng dụng hiển thị tài khoản của tôi với người dùng chưa đăng nhập",
+        "logout_visibility_desc": "BlueSky sẽ không hiển thị hồ sơ và bài đăng của bạn với những người dùng chưa đăng nhập. Các ứng dụng khác có thể không tuân thủ yêu cầu này. Cài đặt này không làm cho tài khoản của bạn trở nên riêng tư.",
+        "logout_visibility_note": "Lưu ý: BlueSky là một mạng lưới mở và công khai. Cài đặt này chỉ giới hạn khả năng hiển thị nội dung của bạn trên ứng dụng và trang web BlueSky, còn các ứng dụng khác có thể không tôn trọng cài đặt này. Nội dung của bạn vẫn có thể được hiển thị cho người dùng chưa đăng nhập bởi các ứng dụng và trang web khác.",
         "learn_more": "Tìm hiểu thêm về những gì công khai trên BlueSky."
     },
     "notifications": {

@@ -102,7 +102,8 @@
         "handle_cannot_be_blank": "Handle cannot be blank",
         "birthdate_future_error": "Birthday cannot be in the future",
         "muted_success": "User muted successfully",
-        "blocked_success": "User blocked successfully"
+        "blocked_success": "User blocked successfully",
+        "note": "Note"
     },
     "moderation": {
         "title": "Moderation",
@@ -242,10 +243,11 @@
         "anyone_follows": "Anyone who follows me",
         "followers_i_follow": "Only followers who I follow",
         "no_one": "No one",
-        "logout_visibility": "Status visibility after logout",
-        "logout_visibility_desc": "Prevent apps from showing your account to logged-out users.",
-        "logout_visibility_note": "Note: BlueSky is an open and public network. This setting only limits visibility on BlueSky apps.",
-        "learn_more": "Learn more about what's public on BlueSky."
+        "logout_visibility": "Logged-out visibility",
+        "logout_visibility_label": "Discourage apps from showing my account to logged-out users",
+        "logout_visibility_desc": "Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.",
+        "logout_visibility_note": "Note: Bluesky is an open and public network. This setting only limits the visibility of your content on the BlueSky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.",
+        "learn_more": "Learn more about what is public on BlueSky."
     },
     "notifications": {
         "title": "Notifications",

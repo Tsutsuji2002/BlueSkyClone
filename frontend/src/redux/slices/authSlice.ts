@@ -37,6 +37,7 @@ function normalizeSettings(raw: any): UserSettings {
         enabledMediaProviders: parsedProviders,
         defaultReplyRestriction: raw.defaultReplyRestriction ?? raw.DefaultReplyRestriction ?? 'anyone',
         defaultAllowQuotes: raw.defaultAllowQuotes ?? raw.DefaultAllowQuotes ?? true,
+        logoutVisibility: raw.logoutVisibility ?? raw.LogoutVisibility ?? raw.requireLogoutVisibility ?? raw.RequireLogoutVisibility ?? false,
 
         // Moderation
         enableAdultContent: raw.enableAdultContent ?? raw.EnableAdultContent ?? false,
