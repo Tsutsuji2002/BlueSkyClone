@@ -13,6 +13,7 @@ public interface IUserService
     Task<User> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
     Task<User> UpdateAccountAsync(Guid userId, UpdateAccountRequest request);
     Task<UserSetting> UpdateSettingsAsync(Guid userId, UserSettingDto request);
+    Task<UserSetting> GetSettingsAsync(Guid userId);
     Task<string?> FollowUserAsync(Guid followerId, Guid followingId);
     Task<bool> UnfollowUserAsync(Guid followerId, Guid followingId);
     Task<bool> IsFollowingAsync(Guid followerId, Guid followingId);
