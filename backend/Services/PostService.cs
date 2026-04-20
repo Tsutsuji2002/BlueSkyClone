@@ -752,7 +752,7 @@ public class PostService : IPostService
             {
                 try
                 {
-                    var token = viewerId != Guid.Empty ? await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId}") : null;
+                    var token = viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
 
                     // Split into chunks if there are too many (limit is 25)
                     foreach (var chunk in remoteUrisList.Chunk(25))

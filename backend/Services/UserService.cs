@@ -2422,7 +2422,7 @@ public class UserService : IUserService
         return anyMerged;
     }
 
-    private async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId)
+    public async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId)
     {
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (!string.IsNullOrEmpty(token)) return token;

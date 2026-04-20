@@ -49,4 +49,5 @@ public interface IUserService
     Task SyncMutedWordsWithAtProtoAsync(Guid userId);
     Task<bool> MergeDuplicateUsersAsync(string did);
     Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids);
+    Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId);
 }
