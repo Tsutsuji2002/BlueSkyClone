@@ -81,7 +81,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("bookmarks")]
-    public async Task<IActionResult> GetBookmarks([FromQuery] int skip = 0, [FromQuery] int take = 20)
+    public async Task<IActionResult> GetBookmarks([FromQuery] int skip = 0, [FromQuery] int take = 5)
     {
         try
         {

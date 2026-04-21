@@ -23,7 +23,7 @@ public class UnifiedFeedController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 20, [FromQuery] int skip = 0)
+    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 5, [FromQuery] int skip = 0)
     {
         try
         {

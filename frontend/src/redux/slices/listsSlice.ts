@@ -212,7 +212,7 @@ export const fetchListMembers = createAsyncThunk(
 
 export const fetchListFeed = createAsyncThunk(
     'lists/fetchListFeed',
-    async ({ id, skip = 0, take = 20 }: { id: string; skip?: number; take?: number }, { rejectWithValue }) => {
+    async ({ id, skip = 0, take = 5 }: { id: string; skip?: number; take?: number }, { rejectWithValue }) => {
         try {
             return await listService.getListFeed(id, skip, take);
         } catch (error: any) {

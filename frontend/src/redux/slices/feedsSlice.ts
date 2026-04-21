@@ -444,11 +444,11 @@ export const searchFeeds = createAsyncThunk<
 
 export const fetchFeedPosts = createAsyncThunk<
     { feedId: string; posts: Post[]; isMore: boolean },
-    { feedId: string; skip: number; take: number },
+    { feedId: string; skip: number; take?: number },
     { rejectValue: string }
 >(
     'feeds/fetchPosts',
-    async ({ feedId, skip, take }: { feedId: string; skip: number; take: number }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async ({ feedId, skip, take = 5 }: { feedId: string; skip: number; take?: number }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};

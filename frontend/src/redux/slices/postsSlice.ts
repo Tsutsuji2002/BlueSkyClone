@@ -672,7 +672,7 @@ export const unpinPost = createAsyncThunk(
 
 export const fetchBookmarkedPosts = createAsyncThunk(
     'posts/fetchBookmarks',
-    async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 5 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(

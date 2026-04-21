@@ -64,7 +64,7 @@ const HomePage: React.FC = () => {
             const neverFetched = lastFetch === 0;
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             if (neverFetched || isStale) {
-                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: 20 }));
+                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: 5 }));
             }
         }
 
@@ -148,7 +148,7 @@ const HomePage: React.FC = () => {
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             const currentFeedPosts = feedPosts[tabId] || [];
             if (currentFeedPosts.length === 0 || isStale) {
-                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: 20 }));
+                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: 5 }));
             }
         }
     };
@@ -159,7 +159,7 @@ const HomePage: React.FC = () => {
             dispatch(fetchListFeed({ id: listId, skip: activeListFeed.length }));
         } else {
             const currentFeedPosts = feedPosts[activeTab] || [];
-            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: 20 }));
+            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: 5 }));
         }
     };
 
