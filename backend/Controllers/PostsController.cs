@@ -254,7 +254,33 @@ public class PostsController : ControllerBase
                 }
             }
 
-            return Ok(new List<PostDto> { post });
+            var thread = new List<PostDto> { post };
+            var current = post;
+
+            // Fetch Ancestors
+            for (int i = 0; i < 5; i++)
+            {
+                if (!string.IsNullOrEmpty(current.ReplyToPostId))
+                {
+                    var parent = await _postService.GetPostByTidAsync(current.ReplyToPostId, viewerId);
+                    if (parent != null)
+                    {
+                        if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
+                        current = parent;
+                    }
+                    else break;
+                }
+                else break;
+            }
+
+            // Fetch Replies
+            var replies = await _postService.GetPostRepliesAsync(post.Id, viewerId);
+            foreach (var reply in replies)
+            {
+                if (!thread.Any(p => p.Id == reply.Id)) thread.Add(reply);
+            }
+
+            return Ok(thread);
         }
         catch (Exception ex)
         {
@@ -287,6 +313,10 @@ public class PostsController : ControllerBase
             }
 
             if (post == null) return NotFound();
+
+            var thread = new List<PostDto> { post };
+            var current = post;
+
             for (int i = 0; i < 5; i++)
             {
                 if (!string.IsNullOrEmpty(current.ReplyToPostId))
