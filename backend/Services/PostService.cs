@@ -6777,38 +6777,38 @@ public class PostService : IPostService
 
         Guid? replyToPostId = null;
         Guid? rootPostId = null;
+        Post parentPost = null;
+        Post rootPost = null;
 
-        // Extract reply info from record if available
         if (recordNode["reply"] != null)
         {
             var parentUri = recordNode["reply"]["parent"]?["uri"]?.ToString();
             var rootUri = recordNode["reply"]["root"]?["uri"]?.ToString();
 
-            Post parentPost = null;
             if (!string.IsNullOrEmpty(parentUri))
             {
                 parentPost = await FindOrCreateRemotePostStubAsync(parentUri, autoSave: false, uriGuidMap: uriGuidMap);
                 replyToPostId = parentPost?.Id;
             }
 
-            Post rootPost = null;
             if (!string.IsNullOrEmpty(rootUri))
             {
                 rootPost = await FindOrCreateRemotePostStubAsync(rootUri, autoSave: false, uriGuidMap: uriGuidMap);
                 rootPostId = rootPost?.Id;
             }
+        }
 
-            var post = existing ?? new Post { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
-            post.AuthorId = author.Id;
-            post.Uri = uri;
-            post.Cid = cid;
-            post.Tid = uri.Split('/').Last();
-            post.Content = recordNode["text"]?.ToString() ?? "";
-            post.ReplyToPostId = replyToPostId;
-            post.ReplyToPost = parentPost; // Populate in-memory for MapToDto
-            post.RootPostId = rootPostId;
-            post.RootPost = rootPost; // Populate in-memory for MapToDto
-            post.LikesCount = postNode["likeCount"]?.ToObject<int>() ?? 0;
+        var post = existing ?? new Post { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
+        post.AuthorId = author.Id;
+        post.Uri = uri;
+        post.Cid = cid;
+        post.Tid = uri.Split('/').Last();
+        post.Content = recordNode["text"]?.ToString() ?? "";
+        post.ReplyToPostId = replyToPostId;
+        post.ReplyToPost = parentPost; // Populate in-memory for MapToDto
+        post.RootPostId = rootPostId;
+        post.RootPost = rootPost; // Populate in-memory for MapToDto
+        post.LikesCount = postNode["likeCount"]?.ToObject<int>() ?? 0;
         post.RepostsCount = postNode["repostCount"]?.ToObject<int>() ?? 0;
         post.RepliesCount = postNode["replyCount"]?.ToObject<int>() ?? 0;
         post.IsDeleted = false;
