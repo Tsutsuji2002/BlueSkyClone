@@ -3108,8 +3108,9 @@ public class PostService : IPostService
         var tidLower = tid.ToLowerInvariant();
         
         // Search by Tid column OR by Uri suffix for robustness (case-insensitive)
+        // [Hotfix] Also search by Cid because frontend uses Cid as primary ID for remote posts
         var post = await _unitOfWork.Posts.Query()
-            .FirstOrDefaultAsync(p => (p.Tid.ToLower() == tidLower || (p.Uri != null && p.Uri.ToLower().EndsWith("/" + tidLower))) && 
+            .FirstOrDefaultAsync(p => (p.Tid.ToLower() == tidLower || p.Cid == tid || (p.Uri != null && p.Uri.ToLower().EndsWith("/" + tidLower))) && 
                                      (p.IsDeleted == false || p.IsDeleted == null));
 
         if (post == null) 
