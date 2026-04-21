@@ -250,9 +250,9 @@ public class PostsController : ControllerBase
             var current = post;
             for (int i = 0; i < 5; i++)
             {
-                if (current.ReplyToPostId.HasValue)
+                if (!string.IsNullOrEmpty(current.ReplyToPostId))
                 {
-                    var parent = await _postService.GetPostByIdAsync(current.ReplyToPostId.Value, viewerId);
+                    var parent = await _postService.GetPostByTidAsync(current.ReplyToPostId, viewerId);
                     if (parent != null)
                     {
                         if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
@@ -313,9 +313,9 @@ public class PostsController : ControllerBase
             var current = post;
             for (int i = 0; i < 5; i++)
             {
-                if (current.ReplyToPostId.HasValue)
+                if (!string.IsNullOrEmpty(current.ReplyToPostId))
                 {
-                    var parent = await _postService.GetPostByIdAsync(current.ReplyToPostId.Value, viewerId);
+                    var parent = await _postService.GetPostByTidAsync(current.ReplyToPostId, viewerId);
                     if (parent != null)
                     {
                         if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);

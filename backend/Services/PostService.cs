@@ -3103,12 +3103,14 @@ public class PostService : IPostService
     }
     public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null)
     {
-        _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid/Cid='{Tid}'", tid);
+        _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid/Cid/Id='{Tid}'", tid);
         
-        // Search by Tid column OR by Uri suffix for robustness (case-insensitive)
-        // [Hotfix] Also search by Cid because frontend uses Cid as primary ID for remote posts
+        Guid? parsedId = null;
+        if (Guid.TryParse(tid, out var guid)) parsedId = guid;
+
+        // Search by Tid, Cid, Uri suffix or the internal Id (if tid is a GUID)
         var post = await _unitOfWork.Posts.Query()
-            .FirstOrDefaultAsync(p => (p.Tid == tid || p.Cid == tid || (p.Uri != null && p.Uri.EndsWith("/" + tid))) && 
+            .FirstOrDefaultAsync(p => (p.Tid == tid || p.Cid == tid || (p.Uri != null && p.Uri.EndsWith("/" + tid)) || (parsedId != null && p.Id == parsedId)) && 
                                      (p.IsDeleted == false || p.IsDeleted == null));
 
         if (post == null) 
@@ -3117,7 +3119,7 @@ public class PostService : IPostService
             return null;
         }
 
-        _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} with Guid {Guid} for '{Tid}'.", post.Id, post.Id, tid);
+        _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} for '{Tid}'.", post.Id, tid);
         return await GetPostByIdAsync(post.Id, viewerId);
     }
 
