@@ -42,10 +42,10 @@ public class PostDto
     public int RepliesCount { get; set; }
     public int QuotesCount { get; set; }
     public int BookmarksCount { get; set; }
-    public Guid? ReplyToPostId { get; set; }
+    public string? ReplyToPostId { get; set; }
     public string? ReplyToHandle { get; set; }
-    public Guid? RootPostId { get; set; }
-    public Guid? QuotePostId { get; set; }
+    public string? RootPostId { get; set; }
+    public string? QuotePostId { get; set; }
     public PostDto? QuotePost { get; set; }
     public PostDto? ParentPost { get; set; }
     public bool IsLiked { get; set; }

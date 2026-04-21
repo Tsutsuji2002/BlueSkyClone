@@ -5303,6 +5303,8 @@ public class PostService : IPostService
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+            .Include(p => p.ReplyToPost) // Crucial for Tid matching
+            .Include(p => p.RootPost)    // Crucial for Tid matching
             .AsSplitQuery()
             .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
             .OrderBy(p => p.CreatedAt)
@@ -5825,9 +5827,9 @@ public class PostService : IPostService
             RepliesCount = post.RepliesCount ?? 0,
             QuotesCount = post.QuotesCount ?? 0,
             BookmarksCount = post.BookmarksCount ?? 0,
-            ReplyToPostId = post.ReplyToPostId,
+            ReplyToPostId = post.ReplyToPost?.Tid ?? post.ReplyToPostId?.ToString(), // Use TID for frontend matching if available
             ReplyToHandle = post.ReplyToPost?.Author?.Handle,
-            RootPostId = post.RootPostId,
+            RootPostId = post.RootPost?.Tid ?? post.RootPostId?.ToString(),       // Use TID for frontend matching if available
             IsLiked = false,
             IsBookmarked = false,
             IsReposted = false,
@@ -5845,7 +5847,7 @@ public class PostService : IPostService
             AllowQuotes = post.AllowQuotes ?? true,
             Language = post.Language,
             IsDeleted = post.IsDeleted ?? false,
-            QuotePostId = post.QuotePostId,
+            QuotePostId = post.QuotePost?.Tid ?? post.QuotePostId?.ToString(), // Use TID for frontend matching if available
             QuotePost = (includeQuote && post.QuotePost != null) ? MapToDto(post.QuotePost, false, false) : null,
             ParentPost = (includeParent && post.ReplyToPost != null) ? MapToDto(post.ReplyToPost, false, false) : null,
             CanReply = true, // Default
