@@ -539,16 +539,16 @@ namespace BSkyClone.Controllers
 
         [AllowAnonymous]
         [HttpGet("app.bsky.feed.getPostThread")]
-        public async Task<IActionResult> GetPostThread([FromQuery] string uri, [FromQuery] int depth = 6, [FromQuery] int parentHeight = 80)
+        public async Task<IActionResult> GetPostThread([FromQuery] string uri, [FromQuery] int depth = 6, [FromQuery] int parentHeight = 80, [FromQuery] int take = 20)
         {
             try
             {
                 var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
                 Guid? viewerId = Guid.TryParse(userIdStr, out var vid) ? vid : null;
 
-                _logger.LogInformation("XRPC GetPostThread for {Uri}, depth={Depth}, parentHeight={ParentHeight}", uri, depth, parentHeight);
+                _logger.LogInformation("XRPC GetPostThread for {Uri}, depth={Depth}, parentHeight={ParentHeight}, take={Take}", uri, depth, parentHeight, take);
 
-                var thread = await _postService.GetPostThreadAsync(uri, depth, parentHeight, viewerId);
+                var thread = await _postService.GetPostThreadAsync(uri, depth, parentHeight, viewerId, take);
                 if (thread == null) return NotFound(new { error = "NotFound", message = "Thread not found" });
 
                 return Ok(thread);

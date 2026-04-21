@@ -223,7 +223,7 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetPost(Guid id)
+    public async Task<IActionResult> GetPost(Guid id, [FromQuery] int take = 20)
     {
         try
         {
@@ -236,7 +236,7 @@ public class PostsController : ControllerBase
             // If it's a remote post (stub), fetch the full thread from AppView
             if (!string.IsNullOrEmpty(post.Uri) && post.Uri.StartsWith("at://"))
             {
-                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId);
+                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId, take);
                 if (xrpcThread != null)
                 {
                     return Ok(xrpcThread);
@@ -281,7 +281,7 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("tid/{tid}")]
-    public async Task<IActionResult> GetPostByTid(string tid)
+    public async Task<IActionResult> GetPostByTid(string tid, [FromQuery] int take = 20)
     {
         try
         {
@@ -300,7 +300,7 @@ public class PostsController : ControllerBase
             // If it's a remote post (stub), fetch the full thread from AppView
             if (!string.IsNullOrEmpty(post.Uri) && post.Uri.StartsWith("at://"))
             {
-                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId);
+                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId, take);
                 if (xrpcThread != null)
                 {
                     return Ok(xrpcThread);

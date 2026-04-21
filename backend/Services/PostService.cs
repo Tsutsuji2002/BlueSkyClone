@@ -3538,7 +3538,7 @@ public class PostService : IPostService
         catch { return null; }
     }
 
-    public async Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null)
+    public async Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null, int take = 20)
     {
         if (string.IsNullOrEmpty(uri)) return null;
 
@@ -3935,6 +3935,19 @@ public class PostService : IPostService
                             }
 
                             int parseInt(Newtonsoft.Json.Linq.JToken t) => t != null && int.TryParse(t.ToString(), out int v) ? v : 0;
+                        }
+                    }
+
+                    // [NEW] Truncate replies to respect 'take' parameter
+                    var threadForTruncation = jObject["thread"];
+                    if (threadForTruncation != null && threadForTruncation["replies"] is Newtonsoft.Json.Linq.JArray repliesArray)
+                    {
+                        if (repliesArray.Count > take)
+                        {
+                            while (repliesArray.Count > take)
+                            {
+                                repliesArray.RemoveAt(repliesArray.Count - 1);
+                            }
                         }
                     }
 
