@@ -103,7 +103,7 @@ const PostDetailPage: React.FC = () => {
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
-    const post = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post | undefined;
+    const post = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post;
 
     const pageTitle = post?.content
         ? (post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content)
@@ -461,13 +461,13 @@ const PostDetailPage: React.FC = () => {
             id: 'translate',
             label: t('post.translate', 'Translate'),
             icon: <FiType />,
-            onClick: () => post && handleTranslate(post.content),
+            onClick: () => handleTranslate(post.content),
         },
         {
             id: 'copy-text',
             label: t('post.copy_text', 'Copy post text'),
             icon: <FiClipboard />,
-            onClick: () => post && handleCopyText(post.content),
+            onClick: () => handleCopyText(post.content),
         },
         {
             id: 'toggle-view-shortcut',
@@ -501,7 +501,7 @@ const PostDetailPage: React.FC = () => {
             icon: <FiFlag />,
             danger: true,
             onClick: () => {
-                if (post?.uri && post?.cid) {
+                if (post.uri && post.cid) {
                     dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
                 }
             },
@@ -512,7 +512,7 @@ const PostDetailPage: React.FC = () => {
                 id: 'edit',
                 label: t('common.edit_post', 'Edit Post'),
                 icon: <FiType />,
-                onClick: () => post && dispatch(openEditPost(post)),
+                onClick: () => dispatch(openEditPost(post)),
             },
             {
                 id: 'delete',
@@ -531,7 +531,6 @@ const PostDetailPage: React.FC = () => {
             dispatch(openAuthWall());
             return;
         }
-        if (!post) return;
         try {
             const author = post.author as User;
             const followActor = author.did || author.handle || author.id;
@@ -545,6 +544,7 @@ const PostDetailPage: React.FC = () => {
             dispatch(showToast({ message: error.message || 'Failed to update follow status', type: 'error' }));
         }
     };
+
 
 
     return (
