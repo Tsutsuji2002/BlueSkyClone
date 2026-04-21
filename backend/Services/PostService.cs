@@ -3103,9 +3103,7 @@ public class PostService : IPostService
     }
     public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null)
     {
-        _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid='{Tid}' (case-insensitive)", tid);
-        
-        var tidLower = tid.ToLowerInvariant();
+        _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid/Cid='{Tid}'", tid);
         
         // Search by Tid column OR by Uri suffix for robustness (case-insensitive)
         // [Hotfix] Also search by Cid because frontend uses Cid as primary ID for remote posts
@@ -3115,11 +3113,11 @@ public class PostService : IPostService
 
         if (post == null) 
         {
-            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with identifier '{Tid}' NOT FOUND in database (tried Tid match and Uri suffix).", tid);
+            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with identifier '{Tid}' NOT FOUND in database.", tid);
             return null;
         }
 
-        _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} for Tid='{Tid}'.", post.Id, tid);
+        _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} with Guid {Guid} for '{Tid}'.", post.Id, post.Id, tid);
         return await GetPostByIdAsync(post.Id, viewerId);
     }
 
@@ -5296,6 +5294,8 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null, int skip = 0, int take = 20)
     {
+        _logger.LogInformation("[PostService] GetPostRepliesAsync: Fetching replies for PostId {PostId}, skip={Skip}, take={Take}", postId, skip, take);
+
         var replies = await _unitOfWork.Posts.Query()
             .Include(p => p.Author)
             .Include(p => p.PostMedia)
@@ -5309,6 +5309,8 @@ public class PostService : IPostService
             .Skip(skip)
             .Take(take)
             .ToListAsync();
+
+        _logger.LogInformation("[PostService] GetPostRepliesAsync: Found {Count} replies in database for PostId {PostId}", replies.Count, postId);
 
         var replyDtos = replies.Select(MapToDto).ToList();
 
@@ -6595,7 +6597,7 @@ public class PostService : IPostService
         return null;
     }
 
-    private async Task<Post?> FindOrCreateRemotePostStubAsync(string? atUri)
+    private async Task<Post?> FindOrCreateRemotePostStubAsync(string? atUri, bool autoSave = true)
     {
         if (string.IsNullOrWhiteSpace(atUri))
         {
@@ -6635,6 +6637,7 @@ public class PostService : IPostService
                 CreatedAt = DateTime.UtcNow
             };
             await _unitOfWork.Users.AddAsync(author);
+            if (autoSave) await _unitOfWork.CompleteAsync();
         }
 
         var stubPost = new Post
@@ -6649,7 +6652,7 @@ public class PostService : IPostService
         };
 
         await _unitOfWork.Posts.AddAsync(stubPost);
-        await _unitOfWork.CompleteAsync();
+        if (autoSave) await _unitOfWork.CompleteAsync();
         return stubPost;
     }
 
@@ -6657,18 +6660,33 @@ public class PostService : IPostService
     {
         if (node == null) return;
 
+        try 
+        {
+            await IngestThreadRecursiveInternalAsync(node);
+            await _unitOfWork.CompleteAsync(); // Save everything in one big batch
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostService] IngestThreadRecursiveAsync failed");
+        }
+    }
+
+    private async Task IngestThreadRecursiveInternalAsync(Newtonsoft.Json.Linq.JToken? node)
+    {
+        if (node == null) return;
+
         // 1. Ingest the current post
         var postNode = node["post"];
         if (postNode != null)
         {
-            await IngestPostNodeAsync(postNode);
+            await IngestPostNodeAsync(postNode, autoSave: false);
         }
 
         // 2. Recursively ingest parent
         var parentNode = node["parent"];
         if (parentNode != null && parentNode["post"] != null)
         {
-            await IngestThreadRecursiveAsync(parentNode);
+            await IngestThreadRecursiveInternalAsync(parentNode);
         }
 
         // 3. Recursively ingest replies
@@ -6677,12 +6695,12 @@ public class PostService : IPostService
         {
             foreach (var reply in replies)
             {
-                await IngestThreadRecursiveAsync(reply);
+                await IngestThreadRecursiveInternalAsync(reply);
             }
         }
     }
 
-    private async Task<Guid?> IngestPostNodeAsync(Newtonsoft.Json.Linq.JToken? postNode)
+    public async Task<Guid?> IngestPostNodeAsync(Newtonsoft.Json.Linq.JToken? postNode, bool autoSave = true)
     {
         if (postNode == null) return null;
 
@@ -6690,6 +6708,7 @@ public class PostService : IPostService
         var cid = postNode["cid"]?.ToString();
         if (string.IsNullOrEmpty(uri)) return null;
 
+        // Use change tracker + DB to avoid duplicates within same transaction
         var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
         if (existing != null && !string.IsNullOrEmpty(existing.Content)) 
             return existing.Id;
@@ -6716,7 +6735,7 @@ public class PostService : IPostService
                 CreatedAt = DateTime.UtcNow
             };
             await _unitOfWork.Users.AddAsync(author);
-            await _unitOfWork.CompleteAsync();
+            if (autoSave) await _unitOfWork.CompleteAsync();
         }
 
         var recordNode = postNode["record"];
@@ -6733,13 +6752,13 @@ public class PostService : IPostService
 
             if (!string.IsNullOrEmpty(parentUri))
             {
-                var parentPost = await FindOrCreateRemotePostStubAsync(parentUri);
+                var parentPost = await FindOrCreateRemotePostStubAsync(parentUri, autoSave: false);
                 replyToPostId = parentPost?.Id;
             }
 
             if (!string.IsNullOrEmpty(rootUri))
             {
-                var rootPost = await FindOrCreateRemotePostStubAsync(rootUri);
+                var rootPost = await FindOrCreateRemotePostStubAsync(rootUri, autoSave: false);
                 rootPostId = rootPost?.Id;
             }
         }
@@ -6766,13 +6785,13 @@ public class PostService : IPostService
             _unitOfWork.Posts.Update(post);
         }
 
-        await _unitOfWork.CompleteAsync();
+        if (autoSave) await _unitOfWork.CompleteAsync();
 
         // Recursively ingest embeds (Images, Video, Links)
         if (postNode["embed"] != null)
         {
-            await IngestEmbedsAsync(post, postNode["embed"]);
-            await _unitOfWork.CompleteAsync();
+            await IngestEmbedsAsync(post, postNode["embed"], autoSave: autoSave);
+            if (autoSave) await _unitOfWork.CompleteAsync();
         }
 
         return post.Id;
