@@ -4121,7 +4121,7 @@ public class PostService : IPostService
                         
                         if (postData.TryGetProperty("embed", out var e))
                         {
-                            await IngestEmbedsAsync(existing, e);
+                            await IngestEmbedsAsync(existing, e, autoSave: true);
                         }
                         
                         await _unitOfWork.Posts.AddAsync(existing);
@@ -4177,7 +4177,7 @@ public class PostService : IPostService
         };
     }
 
-    private async Task IngestEmbedsAsync(Post post, System.Text.Json.JsonElement embed)
+    private async Task IngestEmbedsAsync(Post post, System.Text.Json.JsonElement embed, bool autoSave = true)
     {
         try
         {
@@ -4267,7 +4267,7 @@ public class PostService : IPostService
         }
     }
 
-    private async Task IngestEmbedsAsync(Post post, Newtonsoft.Json.Linq.JToken? embed)
+    private async Task IngestEmbedsAsync(Post post, Newtonsoft.Json.Linq.JToken? embed, bool autoSave = true)
     {
         if (embed == null) return;
         try
