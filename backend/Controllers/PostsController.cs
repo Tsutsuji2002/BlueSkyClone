@@ -579,7 +579,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PostsController] GetPostReplies error: {ex.Message}");
+            _logger.LogError(ex, "[PostsController] GetPostReplies error for identifier {Identifier}", identifier);
             return Ok(new List<PostDto>());
         }
     }

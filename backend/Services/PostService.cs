@@ -3962,7 +3962,7 @@ public class PostService : IPostService
 
                                     if (isTopLevel)
                                     {
-                                        if (topLevelCount >= take)
+                                        if (topLevelCount >= 50) // Increased from 'take' (usually 20) to 50 for better initial thread visibility
                                         {
                                             // Already have enough top-level replies
                                             while (replies.Count > i) replies.RemoveAt(replies.Count - 1);
@@ -5333,6 +5333,7 @@ public class PostService : IPostService
             .AsSplitQuery()
             .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
             .OrderBy(p => p.CreatedAt)
+            .ThenBy(p => p.Id) // Ensure stable sorting
             .Skip(skip)
             .Take(take)
             .ToListAsync();
@@ -5368,10 +5369,12 @@ public class PostService : IPostService
                         .AsSplitQuery()
                         .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
                         .OrderBy(p => p.CreatedAt)
+                        .ThenBy(p => p.Id) // Stable sort
                         .Skip(skip)
                         .Take(take)
                         .ToListAsync();
-                 }
+                
+                _logger.LogInformation("[PostService] GetPostRepliesAsync: Re-query returned {Count} replies.", replies.Count);
             }
         }
 
