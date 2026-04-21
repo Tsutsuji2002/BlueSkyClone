@@ -5352,8 +5352,8 @@ public class PostService : IPostService
                      _logger.LogInformation("[PostService] Local replies ({Local}) < Remote ({Remote}). Triggering Sync Ingestion for {Uri}", 
                          totalLocalCount, parentPost.RepliesCount, parentPost.Uri);
                          
-                     // Sync fetch thread to populate DB
-                     var xrpcThread = await GetPostThreadAsync(parentPost.Uri, 6, 80, viewerId, 100);
+                     // Sync fetch thread to populate DB securely without heavy HTTP mapping overhead
+                     await SyncRemoteThreadToDbAsync(parentPost.Uri);
                      
                      // Re-query (synchronously now that ingestion happened)
                      replies = await _unitOfWork.Posts.Query()
@@ -5384,7 +5384,43 @@ public class PostService : IPostService
         return replyDtos;
     }
 
-        public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null)
+    public async Task SyncRemoteThreadToDbAsync(string uri)
+    {
+        if (string.IsNullOrEmpty(uri) || !uri.StartsWith("at://")) return;
+        try
+        {
+            using var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(30); // Prevent 504 Gateway hangs
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+
+            var response = await client.GetAsync(
+                $"https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=6&parentHeight=80");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                response = await client.GetAsync(
+                    $"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=6&parentHeight=80");
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                var rawJson = await response.Content.ReadAsStringAsync();
+                var jObject = Newtonsoft.Json.Linq.JObject.Parse(rawJson);
+                var threadNode = jObject["thread"];
+                if (threadNode != null)
+                {
+                    // Await full ingestion natively! This ensures subsequent DB queries yield accurate results.
+                    await IngestThreadRecursiveAsync(threadNode);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[SyncRemoteThreadToDbAsync] Failed to sync remote thread natively for URI {Uri}", uri);
+        }
+    }
+
+    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null)
     {
         var cacheKey = $"posts:trending:v3";
         var now = DateTime.UtcNow;
