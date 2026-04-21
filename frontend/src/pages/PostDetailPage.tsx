@@ -238,7 +238,7 @@ const PostDetailPage: React.FC = () => {
                         console.log(`[PostDetail] Triggering fetchPostReplies: skip=${currentTopLevelCount}, lastSkip=${lastSkipRef.current}`);
                         lastSkipRef.current = currentTopLevelCount;
                         lastRequestTimeRef.current = currentTime;
-                        dispatch(fetchPostReplies({ postId: post.id, skip: currentTopLevelCount, take: REPLIES_PER_PAGE }));
+                        dispatch(fetchPostReplies({ postId: post.uri || post.id, skip: currentTopLevelCount, take: REPLIES_PER_PAGE }));
                     } else {
                         console.log(`[PostDetail] Skipping fetch (Same offset ${currentTopLevelCount} or throttled)`);
                     }

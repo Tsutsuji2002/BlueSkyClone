@@ -3115,7 +3115,15 @@ public class PostService : IPostService
 
         if (post == null) 
         {
-            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with identifier '{Tid}' NOT FOUND in database.", tid);
+            _logger.LogWarning("[PostService] GetPostByTidAsync: Post with identifier '{Tid}' NOT FOUND in database. Attempting remote resolution...", tid);
+            
+            // If it looks like a CID or URI, try to resolve and ingest it
+            if (tid.StartsWith("at://") || tid.StartsWith("bafy"))
+            {
+                var ingested = await GetPostByUriAsync(tid.StartsWith("at://") ? tid : $"at://{tid}", viewerId); // This method handles ingestion
+                if (ingested != null) return ingested;
+            }
+            
             return null;
         }
 
