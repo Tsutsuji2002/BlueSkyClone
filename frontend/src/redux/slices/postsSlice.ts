@@ -500,12 +500,13 @@ export const fetchPostById = createAsyncThunk(
             const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
 
             let endpoint: string;
-            if (isGuid) {
+            // If it's a full AT-URI or a GUID, use the consolidated /posts/{id} endpoint
+            if (uri.startsWith('at://')) {
+                endpoint = `${API_BASE_URL}/posts/${encodeURIComponent(uri)}?take=${take}`;
+            } else if (isGuid) {
                 endpoint = `${API_BASE_URL}/posts/${postId}?take=${take}`;
             } else if (handle && handle !== 'local') {
-                // Use Standard AT Protocol XRPC getPostThread
-                const fullUri = uri.startsWith('at://') ? uri : `at://${handle}/app.bsky.feed.post/${uri}`;
-                // Note: API_BASE_URL is usually .../api, so we go up for /xrpc
+                const fullUri = `at://${handle}/app.bsky.feed.post/${postId}`;
                 const baseUrl = API_BASE_URL.replace(/\/api$/, '');
                 endpoint = `${baseUrl}/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(fullUri)}&take=${take}`;
             } else {

@@ -193,7 +193,7 @@ public class PostsController : ControllerBase
         }
     }
 
-    [HttpPut("{*id}")]
+    [HttpPut("{id}")]
     public async Task<IActionResult> UpdatePost(string id, [FromForm] CreatePostRequest request)
     {
         try
@@ -222,7 +222,7 @@ public class PostsController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet("{*id}")]
+    [HttpGet("{id}")]
     public async Task<IActionResult> GetPost(string id, [FromQuery] int take = 20)
     {
         try
@@ -289,7 +289,7 @@ public class PostsController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet("tid/{*tid}")]
+    [HttpGet("tid/{tid}")]
     public async Task<IActionResult> GetPostByTid(string tid, [FromQuery] int take = 20)
     {
         try
@@ -495,7 +495,7 @@ public class PostsController : ControllerBase
         }
     }
 
-    [HttpGet("{*id}/replies")]
+    [HttpGet("{id}/replies")]
     public async Task<IActionResult> GetPostReplies(string id, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         try
