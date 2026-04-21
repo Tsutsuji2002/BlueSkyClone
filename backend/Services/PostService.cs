@@ -3737,11 +3737,12 @@ public class PostService : IPostService
                     if (threadNode != null)
                     {
                         // Background ingestion to populate local DB with remote replies
+                        var threadNodeForIngestion = threadNode.DeepClone();
                         _ = Task.Run(async () => {
                             try {
                                 using var scope = _scopeFactory.CreateScope();
                                 var backgroundPostService = scope.ServiceProvider.GetRequiredService<IPostService>();
-                                await backgroundPostService.IngestThreadRecursiveAsync(threadNode);
+                                await backgroundPostService.IngestThreadRecursiveAsync(threadNodeForIngestion);
                             } catch (Exception ex) {
                                 _logger.LogWarning(ex, "Background thread ingestion failed for {Uri}", uri);
                             }
@@ -3938,17 +3939,32 @@ public class PostService : IPostService
                         }
                     }
 
-                    // [NEW] Truncate replies to respect 'take' parameter
-                    var threadForTruncation = jObject["thread"];
-                    if (threadForTruncation != null && threadForTruncation["replies"] is Newtonsoft.Json.Linq.JArray repliesArray)
+                    // [NEW] Recursive truncation to respect 'take' parameter (counting all nested posts)
+                    if (threadNode != null)
                     {
-                        if (repliesArray.Count > take)
+                        int currentCount = 1; // Count the root post
+                        void TruncateRecursive(Newtonsoft.Json.Linq.JToken node)
                         {
-                            while (repliesArray.Count > take)
+                            if (node["replies"] is Newtonsoft.Json.Linq.JArray replies)
                             {
-                                repliesArray.RemoveAt(repliesArray.Count - 1);
+                                for (int i = 0; i < replies.Count; i++)
+                                {
+                                    if (currentCount >= take)
+                                    {
+                                        // Remove all remaining replies at this level and stop
+                                        while (replies.Count > i)
+                                        {
+                                            replies.RemoveAt(replies.Count - 1);
+                                        }
+                                        break;
+                                    }
+
+                                    currentCount++;
+                                    TruncateRecursive(replies[i]);
+                                }
                             }
                         }
+                        TruncateRecursive(threadNode);
                     }
 
                     return System.Text.Json.JsonSerializer.Deserialize<object>(jObject.ToString());

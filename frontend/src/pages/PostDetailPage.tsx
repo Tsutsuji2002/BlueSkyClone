@@ -236,7 +236,7 @@ const PostDetailPage: React.FC = () => {
     React.useEffect(() => {
         if (postId) {
             dispatch(clearThreadPosts());
-            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: dynamicRepliesPerPage }));
+            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: 5 }));
         }
         return () => {
             dispatch(clearThreadPosts());
