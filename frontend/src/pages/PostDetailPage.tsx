@@ -201,9 +201,10 @@ const PostDetailPage: React.FC = () => {
     const observerTarget = React.useRef<HTMLDivElement>(null);
     const lastSkipRef = React.useRef<number>(-1);
     const lastRequestTimeRef = React.useRef<number>(0);
+    const [hasExhaustedReplies, setHasExhaustedReplies] = React.useState(false);
 
     const hasMoreReplies = React.useMemo(() => {
-        if (!post) return false;
+        if (!post || hasExhaustedReplies) return false;
         const topLevelRepliesList = posts.filter(p => {
             if (!p.replyToPostId) return false;
             const matches = 
@@ -220,7 +221,7 @@ const PostDetailPage: React.FC = () => {
             console.log(`[PostDetail] TopLevelCount: ${topLevelCount}, total replies: ${post.repliesCount}`);
         }
         return topLevelCount < (post.repliesCount || 0);
-    }, [post, posts]);
+    }, [post, posts, hasExhaustedReplies]);
 
     // Intersection observer for lazy loading replies
     React.useEffect(() => {
@@ -243,7 +244,15 @@ const PostDetailPage: React.FC = () => {
                 if (currentTopLevelCount === lastSkipRef.current) return;
                 lastSkipRef.current = currentTopLevelCount;
                 lastRequestTimeRef.current = Date.now();
-                dispatch(fetchPostReplies({ postId: post.uri || post.id, skip: currentTopLevelCount, take: LAZY_REPLIES_TAKE }));
+                
+                dispatch(fetchPostReplies({ postId: post.uri || post.id, skip: currentTopLevelCount, take: LAZY_REPLIES_TAKE }))
+                    .unwrap()
+                    .then((fetchedReplies) => {
+                        if (fetchedReplies.posts.length < LAZY_REPLIES_TAKE) {
+                            setHasExhaustedReplies(true);
+                        }
+                    })
+                    .catch(() => { /* handle cleanly */ });
             },
             // Pre-load before user actually reaches the bottom
             { threshold: 0, rootMargin: '300px' }
@@ -260,7 +269,25 @@ const PostDetailPage: React.FC = () => {
         if (postId) {
             dispatch(clearThreadPosts());
             lastSkipRef.current = -1;
-            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: INITIAL_REPLIES_TAKE }));
+            setHasExhaustedReplies(false);
+            
+            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: INITIAL_REPLIES_TAKE }))
+                .unwrap()
+                .then((threadArray) => {
+                    // Evaluate if the initial fetch exhausted the available top-level replies
+                    const mainPost = threadArray.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId!));
+                    if (mainPost) {
+                        const directReplies = threadArray.filter((p: Post) => 
+                            p.replyToPostId === mainPost.id || 
+                            p.replyToPostId === mainPost.tid || 
+                            (mainPost.uri && (p.replyToPostId === mainPost.uri || mainPost.uri.endsWith('/' + p.replyToPostId!)))
+                        );
+                        if (directReplies.length < INITIAL_REPLIES_TAKE) {
+                            setHasExhaustedReplies(true);
+                        }
+                    }
+                })
+                .catch(() => { /* handled by reducer */ });
         }
         return () => {
             dispatch(clearThreadPosts());
@@ -275,6 +302,7 @@ const PostDetailPage: React.FC = () => {
     React.useEffect(() => {
         if (replyCount > lastPostsLength.current && post?.uri) {
             // A new local reply was added — refresh the post thread from server
+            setHasExhaustedReplies(false);
             dispatch(fetchPostById({ uri: post.uri }));
         }
         lastPostsLength.current = replyCount;
