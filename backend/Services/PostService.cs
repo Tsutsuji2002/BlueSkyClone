@@ -5844,9 +5844,9 @@ public class PostService : IPostService
             RepliesCount = post.RepliesCount ?? 0,
             QuotesCount = post.QuotesCount ?? 0,
             BookmarksCount = post.BookmarksCount ?? 0,
-            ReplyToPostId = post.ReplyToPost?.Tid ?? post.ReplyToPostId?.ToString(), // Use TID for frontend matching if available
+            ReplyToPostId = post.ReplyToPost?.Tid ?? post.ReplyToPost?.Uri ?? post.ReplyToPostId?.ToString(),
             ReplyToHandle = post.ReplyToPost?.Author?.Handle,
-            RootPostId = post.RootPost?.Tid ?? post.RootPostId?.ToString(),       // Use TID for frontend matching if available
+            RootPostId = post.RootPost?.Tid ?? post.RootPost?.Uri ?? post.RootPostId?.ToString(),
             IsLiked = false,
             IsBookmarked = false,
             IsReposted = false,
