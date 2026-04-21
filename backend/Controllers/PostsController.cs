@@ -274,7 +274,7 @@ public class PostsController : ControllerBase
             }
 
             // Fetch Replies
-            var replies = await _postService.GetPostRepliesAsync(post.Id, viewerId);
+            var replies = await _postService.GetPostRepliesAsync(post.Id, viewerId, 0, take);
             foreach (var reply in replies)
             {
                 if (!thread.Any(p => p.Id == reply.Id)) thread.Add(reply);

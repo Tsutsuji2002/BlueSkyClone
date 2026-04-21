@@ -111,11 +111,10 @@ const PostDetailPage: React.FC = () => {
 
     useDocumentTitle(pageTitle);
 
-    // Dynamic initial batch: fill ~80% of viewport height with ~120px-per-reply estimate, min 5, max 20
-    const INITIAL_REPLIES_TAKE = React.useMemo(
-        () => Math.min(20, Math.max(5, Math.ceil((window.innerHeight * 0.8) / 120))),
-        []
-    );
+    // Use a larger initial batch (20) to ensure most threads are fully loaded immediately.
+    // This allows the initial fetch logic to verify if directReplies.length < 20, 
+    // seamlessly exhausting the thread and preventing the observer from firing useless [] requests.
+    const INITIAL_REPLIES_TAKE = 20;
     const LAZY_REPLIES_TAKE = 10;
 
     // Helper to sort a list of posts by current sortOrder
