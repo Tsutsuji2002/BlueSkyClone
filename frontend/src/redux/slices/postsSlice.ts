@@ -574,7 +574,6 @@ export const fetchPostById = createAsyncThunk(
         }
     }
 );
-
 export const fetchPostReplies = createAsyncThunk(
     'posts/fetchReplies',
     async ({ postId, skip = 0, take = 20 }: { postId: string; skip?: number; take?: number }, { rejectWithValue }) => {
@@ -583,8 +582,9 @@ export const fetchPostReplies = createAsyncThunk(
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
+            const encodedId = encodeURIComponent(postId);
             const response = await fetch(
-                `${API_BASE_URL}/posts/${postId}/replies?skip=${skip}&take=${take}`,
+                `${API_BASE_URL}/posts/${encodedId}/replies?skip=${skip}&take=${take}`,
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch replies');

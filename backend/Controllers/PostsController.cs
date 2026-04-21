@@ -193,7 +193,7 @@ public class PostsController : ControllerBase
         }
     }
 
-    [HttpPut("{id}")]
+    [HttpPut("{*id}")]
     public async Task<IActionResult> UpdatePost(string id, [FromForm] CreatePostRequest request)
     {
         try
@@ -222,15 +222,24 @@ public class PostsController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetPost(Guid id, [FromQuery] int take = 20)
+    [HttpGet("{*id}")]
+    public async Task<IActionResult> GetPost(string id, [FromQuery] int take = 20)
     {
         try
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-            var post = await _postService.GetPostByIdAsync(id, viewerId);
+            PostDto? post = null;
+            if (Guid.TryParse(id, out var guidTaskId))
+            {
+                post = await _postService.GetPostByIdAsync(guidTaskId, viewerId);
+            }
+            else
+            {
+                post = await _postService.GetPostByTidAsync(id, viewerId);
+            }
+
             if (post == null) return NotFound();
 
             // If it's a remote post (stub), fetch the full thread from AppView
@@ -280,7 +289,7 @@ public class PostsController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet("tid/{tid}")]
+    [HttpGet("tid/{*tid}")]
     public async Task<IActionResult> GetPostByTid(string tid, [FromQuery] int take = 20)
     {
         try
@@ -486,7 +495,7 @@ public class PostsController : ControllerBase
         }
     }
 
-    [HttpGet("{id}/replies")]
+    [HttpGet("{*id}/replies")]
     public async Task<IActionResult> GetPostReplies(string id, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         try
