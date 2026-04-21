@@ -5320,14 +5320,52 @@ public class PostService : IPostService
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
             .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
-            .Include(p => p.ReplyToPost) // Crucial for Tid matching
-            .Include(p => p.RootPost)    // Crucial for Tid matching
+            .Include(p => p.ReplyToPost)
+            .Include(p => p.RootPost)
             .AsSplitQuery()
             .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
             .OrderBy(p => p.CreatedAt)
             .Skip(skip)
             .Take(take)
             .ToListAsync();
+
+        // [ON-DEMAND INGESTION] If we have fewer than requested and the post claims to have more, fetch from remote
+        if (replies.Count < take)
+        {
+            var parentPost = await _unitOfWork.Posts.GetByIdAsync(postId);
+            if (parentPost != null && !string.IsNullOrEmpty(parentPost.Uri) && parentPost.Uri.StartsWith("at://"))
+            {
+                 // Check if the total ingested direct replies is actually less than the remote count
+                 var totalLocalCount = await _unitOfWork.Posts.Query()
+                     .CountAsync(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null));
+                 
+                 if (totalLocalCount < (parentPost.RepliesCount ?? 0))
+                 {
+                     _logger.LogInformation("[PostService] Local replies ({Local}) < Remote ({Remote}). Triggering Sync Ingestion for {Uri}", 
+                         totalLocalCount, parentPost.RepliesCount, parentPost.Uri);
+                         
+                     // Sync fetch thread to populate DB
+                     var xrpcThread = await GetPostThreadAsync(parentPost.Uri, 6, 80, viewerId, 100);
+                     
+                     // Re-query (synchronously now that ingestion happened)
+                     replies = await _unitOfWork.Posts.Query()
+                        .Include(p => p.Author)
+                        .Include(p => p.PostMedia)
+                        .Include(p => p.LinkPreview)
+                        .Include(p => p.QuotePost).ThenInclude(qp => qp!.Author)
+                        .Include(p => p.QuotePost).ThenInclude(qp => qp!.PostMedia)
+                        .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
+                        .Include(p => p.ReplyToPost)
+                        .Include(p => p.RootPost)
+                        .AsSplitQuery()
+                        .Where(p => p.ReplyToPostId == postId && (p.IsDeleted == false || p.IsDeleted == null))
+                        .OrderBy(p => p.CreatedAt)
+                        .Skip(skip)
+                        .Take(take)
+                        .ToListAsync();
+                 }
+            }
+        }
 
         _logger.LogInformation("[PostService] GetPostRepliesAsync: Found {Count} replies in database for PostId {PostId}", replies.Count, postId);
 

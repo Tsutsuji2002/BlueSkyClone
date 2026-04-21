@@ -193,6 +193,8 @@ const PostDetailPage: React.FC = () => {
     const observerTarget = React.useRef<HTMLDivElement>(null);
     const dynamicRepliesPerPage = 5; // Forced to 5 per user request
     const REPLIES_PER_PAGE = dynamicRepliesPerPage;
+    const lastSkipRef = React.useRef<number>(-1);
+    const lastRequestTimeRef = React.useRef<number>(0);
 
     const hasMoreReplies = React.useMemo(() => {
         if (!post) return false;
@@ -230,8 +232,16 @@ const PostDetailPage: React.FC = () => {
                                (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)));
                     }).length;
                     
-                    console.log(`[PostDetail] Triggering fetchPostReplies: skip=${currentTopLevelCount}`);
-                    dispatch(fetchPostReplies({ postId: post.id, skip: currentTopLevelCount, take: REPLIES_PER_PAGE }));
+                    const currentTime = Date.now();
+                    // Throttle requests and prevent same-skip loops
+                    if (currentTopLevelCount !== lastSkipRef.current || (currentTime - lastRequestTimeRef.current > 3000)) {
+                        console.log(`[PostDetail] Triggering fetchPostReplies: skip=${currentTopLevelCount}, lastSkip=${lastSkipRef.current}`);
+                        lastSkipRef.current = currentTopLevelCount;
+                        lastRequestTimeRef.current = currentTime;
+                        dispatch(fetchPostReplies({ postId: post.id, skip: currentTopLevelCount, take: REPLIES_PER_PAGE }));
+                    } else {
+                        console.log(`[PostDetail] Skipping fetch (Same offset ${currentTopLevelCount} or throttled)`);
+                    }
                 }
             },
             { threshold: 0.1 }
