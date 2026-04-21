@@ -191,7 +191,7 @@ const PostDetailPage: React.FC = () => {
         (currentUser.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
     const observerTarget = React.useRef<HTMLDivElement>(null);
-    const dynamicRepliesPerPage = getDynamicBatchSize(150);
+    const dynamicRepliesPerPage = 5; // Forced to 5 per user request
     const REPLIES_PER_PAGE = dynamicRepliesPerPage;
 
     const hasMoreReplies = React.useMemo(() => {
@@ -217,7 +217,7 @@ const PostDetailPage: React.FC = () => {
                         p.replyToPostId === post.tid ||
                         (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)))
                     ).length;
-                    dispatch(fetchPostReplies({ postId: post.id, skip: currentTopLevelCount, take: 5 }));
+                    dispatch(fetchPostReplies({ postId: post.id, skip: currentTopLevelCount, take: REPLIES_PER_PAGE }));
                 }
             },
             { threshold: 0.1 }
@@ -236,7 +236,7 @@ const PostDetailPage: React.FC = () => {
     React.useEffect(() => {
         if (postId) {
             dispatch(clearThreadPosts());
-            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: 5 }));
+            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: REPLIES_PER_PAGE }));
         }
         return () => {
             dispatch(clearThreadPosts());

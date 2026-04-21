@@ -3940,32 +3940,47 @@ public class PostService : IPostService
                         }
                     }
 
-                    // [NEW] Recursive truncation to respect 'take' parameter (counting all nested posts)
+                    // [NEW] Balanced truncation: prioritizes top-level replies (up to 'take'), then limited nesting
                     if (threadNode != null)
                     {
-                        int currentCount = 1; // Count the root post
-                        void TruncateRecursive(Newtonsoft.Json.Linq.JToken node)
+                        int topLevelCount = 0;
+                        void TruncateBalanced(Newtonsoft.Json.Linq.JToken node, int depth)
                         {
                             if (node["replies"] is Newtonsoft.Json.Linq.JArray replies)
                             {
                                 for (int i = 0; i < replies.Count; i++)
                                 {
-                                    if (currentCount >= take)
+                                    bool isTopLevel = depth == 0;
+
+                                    if (isTopLevel)
                                     {
-                                        // Remove all remaining replies at this level and stop
-                                        while (replies.Count > i)
+                                        if (topLevelCount >= take)
                                         {
-                                            replies.RemoveAt(replies.Count - 1);
+                                            // Already have enough top-level replies
+                                            while (replies.Count > i) replies.RemoveAt(replies.Count - 1);
+                                            break;
                                         }
+                                        topLevelCount++;
+                                    }
+                                    else if (i >= 2) // Limit to 2 sub-replies per level to prevent deep-thread drowning
+                                    {
+                                        while (replies.Count > i) replies.RemoveAt(replies.Count - 1);
                                         break;
                                     }
 
-                                    currentCount++;
-                                    TruncateRecursive(replies[i]);
+                                    if (depth < 3) // Prevent infinite depth in the initial "snappy" batch
+                                    {
+                                        TruncateBalanced(replies[i], depth + 1);
+                                    }
+                                    else
+                                    {
+                                        // Clear deep nesting for the first load
+                                        if (replies[i]["replies"] != null) replies[i]["replies"] = new Newtonsoft.Json.Linq.JArray();
+                                    }
                                 }
                             }
                         }
-                        TruncateRecursive(threadNode);
+                        TruncateBalanced(threadNode, 0);
                     }
 
                     return System.Text.Json.JsonSerializer.Deserialize<object>(jObject.ToString());
@@ -6769,28 +6784,31 @@ public class PostService : IPostService
             var parentUri = recordNode["reply"]["parent"]?["uri"]?.ToString();
             var rootUri = recordNode["reply"]["root"]?["uri"]?.ToString();
 
+            Post parentPost = null;
             if (!string.IsNullOrEmpty(parentUri))
             {
-                var parentPost = await FindOrCreateRemotePostStubAsync(parentUri, autoSave: false, uriGuidMap: uriGuidMap);
+                parentPost = await FindOrCreateRemotePostStubAsync(parentUri, autoSave: false, uriGuidMap: uriGuidMap);
                 replyToPostId = parentPost?.Id;
             }
 
+            Post rootPost = null;
             if (!string.IsNullOrEmpty(rootUri))
             {
-                var rootPost = await FindOrCreateRemotePostStubAsync(rootUri, autoSave: false, uriGuidMap: uriGuidMap);
+                rootPost = await FindOrCreateRemotePostStubAsync(rootUri, autoSave: false, uriGuidMap: uriGuidMap);
                 rootPostId = rootPost?.Id;
             }
-        }
 
-        var post = existing ?? new Post { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
-        post.AuthorId = author.Id;
-        post.Uri = uri;
-        post.Cid = cid;
-        post.Tid = uri.Split('/').Last();
-        post.Content = recordNode["text"]?.ToString() ?? "";
-        post.ReplyToPostId = replyToPostId;
-        post.RootPostId = rootPostId;
-        post.LikesCount = postNode["likeCount"]?.ToObject<int>() ?? 0;
+            var post = existing ?? new Post { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
+            post.AuthorId = author.Id;
+            post.Uri = uri;
+            post.Cid = cid;
+            post.Tid = uri.Split('/').Last();
+            post.Content = recordNode["text"]?.ToString() ?? "";
+            post.ReplyToPostId = replyToPostId;
+            post.ReplyToPost = parentPost; // Populate in-memory for MapToDto
+            post.RootPostId = rootPostId;
+            post.RootPost = rootPost; // Populate in-memory for MapToDto
+            post.LikesCount = postNode["likeCount"]?.ToObject<int>() ?? 0;
         post.RepostsCount = postNode["repostCount"]?.ToObject<int>() ?? 0;
         post.RepliesCount = postNode["replyCount"]?.ToObject<int>() ?? 0;
         post.IsDeleted = false;
