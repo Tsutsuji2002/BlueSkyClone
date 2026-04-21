@@ -6597,11 +6597,17 @@ public class PostService : IPostService
         return null;
     }
 
-    private async Task<Post?> FindOrCreateRemotePostStubAsync(string? atUri, bool autoSave = true)
+    private async Task<Post?> FindOrCreateRemotePostStubAsync(string? atUri, bool autoSave = true, Dictionary<string, Guid>? uriGuidMap = null)
     {
         if (string.IsNullOrWhiteSpace(atUri))
         {
             return null;
+        }
+
+        // Check the memory map first (for uncommitted records in this batch)
+        if (uriGuidMap != null && uriGuidMap.TryGetValue(atUri, out var mappedId))
+        {
+            return new Post { Id = mappedId, Uri = atUri }; // Stub object with correct ID
         }
 
         var existingPost = await _unitOfWork.Posts.Query()
@@ -6652,6 +6658,7 @@ public class PostService : IPostService
         };
 
         await _unitOfWork.Posts.AddAsync(stubPost);
+        if (uriGuidMap != null) uriGuidMap[atUri] = stubPost.Id;
         if (autoSave) await _unitOfWork.CompleteAsync();
         return stubPost;
     }
@@ -6662,8 +6669,10 @@ public class PostService : IPostService
 
         try 
         {
-            await IngestThreadRecursiveInternalAsync(node);
+            var uriGuidMap = new Dictionary<string, Guid>();
+            await IngestThreadRecursiveInternalAsync(node, uriGuidMap);
             await _unitOfWork.CompleteAsync(); // Save everything in one big batch
+            _logger.LogInformation("[PostService] IngestThreadRecursiveAsync: Successfully ingested {Count} posts in batch.", uriGuidMap.Count);
         }
         catch (Exception ex)
         {
@@ -6671,7 +6680,7 @@ public class PostService : IPostService
         }
     }
 
-    private async Task IngestThreadRecursiveInternalAsync(Newtonsoft.Json.Linq.JToken? node)
+    private async Task IngestThreadRecursiveInternalAsync(Newtonsoft.Json.Linq.JToken? node, Dictionary<string, Guid> uriGuidMap)
     {
         if (node == null) return;
 
@@ -6679,14 +6688,14 @@ public class PostService : IPostService
         var postNode = node["post"];
         if (postNode != null)
         {
-            await IngestPostNodeAsync(postNode, autoSave: false);
+            await IngestPostNodeAsync(postNode, autoSave: false, uriGuidMap: uriGuidMap);
         }
 
         // 2. Recursively ingest parent
         var parentNode = node["parent"];
         if (parentNode != null && parentNode["post"] != null)
         {
-            await IngestThreadRecursiveInternalAsync(parentNode);
+            await IngestThreadRecursiveInternalAsync(parentNode, uriGuidMap);
         }
 
         // 3. Recursively ingest replies
@@ -6695,18 +6704,24 @@ public class PostService : IPostService
         {
             foreach (var reply in replies)
             {
-                await IngestThreadRecursiveInternalAsync(reply);
+                await IngestThreadRecursiveInternalAsync(reply, uriGuidMap);
             }
         }
     }
 
-    public async Task<Guid?> IngestPostNodeAsync(Newtonsoft.Json.Linq.JToken? postNode, bool autoSave = true)
+    public async Task<Guid?> IngestPostNodeAsync(Newtonsoft.Json.Linq.JToken? postNode, bool autoSave = true, Dictionary<string, Guid>? uriGuidMap = null)
     {
         if (postNode == null) return null;
 
         var uri = postNode["uri"]?.ToString();
         var cid = postNode["cid"]?.ToString();
         if (string.IsNullOrEmpty(uri)) return null;
+
+        // Check the memory map first (for uncommitted records in this batch)
+        if (uriGuidMap != null && uriGuidMap.TryGetValue(uri, out var mappedId))
+        {
+            return mappedId;
+        }
 
         // Use change tracker + DB to avoid duplicates within same transaction
         var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
@@ -6752,13 +6767,13 @@ public class PostService : IPostService
 
             if (!string.IsNullOrEmpty(parentUri))
             {
-                var parentPost = await FindOrCreateRemotePostStubAsync(parentUri, autoSave: false);
+                var parentPost = await FindOrCreateRemotePostStubAsync(parentUri, autoSave: false, uriGuidMap: uriGuidMap);
                 replyToPostId = parentPost?.Id;
             }
 
             if (!string.IsNullOrEmpty(rootUri))
             {
-                var rootPost = await FindOrCreateRemotePostStubAsync(rootUri, autoSave: false);
+                var rootPost = await FindOrCreateRemotePostStubAsync(rootUri, autoSave: false, uriGuidMap: uriGuidMap);
                 rootPostId = rootPost?.Id;
             }
         }
@@ -6785,6 +6800,7 @@ public class PostService : IPostService
             _unitOfWork.Posts.Update(post);
         }
 
+        if (uriGuidMap != null) uriGuidMap[uri] = post.Id;
         if (autoSave) await _unitOfWork.CompleteAsync();
 
         // Recursively ingest embeds (Images, Video, Links)
