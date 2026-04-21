@@ -1416,6 +1416,33 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
+            // Fetch Post Replies
+            .addCase(fetchPostReplies.pending, (state: PostsState) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchPostReplies.fulfilled, (state: PostsState, action: any) => {
+                state.isLoading = false;
+                const { posts: fetchedPosts } = action.payload;
+                
+                fetchedPosts.forEach((fetchedPost: Post) => {
+                    // Deduplicate by URI or ID
+                    const index = state.threadPosts.findIndex(p =>
+                        (fetchedPost.uri && p.uri === fetchedPost.uri) ||
+                        (fetchedPost.id && p.id === fetchedPost.id && fetchedPost.id !== '')
+                    );
+
+                    if (index !== -1) {
+                        state.threadPosts[index] = mergePostSnapshot(state.threadPosts[index], fetchedPost);
+                    } else {
+                        state.threadPosts.push(fetchedPost);
+                    }
+                });
+                syncPostsWithTruth(state, fetchedPosts);
+            })
+            .addCase(fetchPostReplies.rejected, (state: PostsState, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
             // Fetch Discover Posts
             .addCase(fetchDiscoverPosts.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
