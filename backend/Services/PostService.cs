@@ -5377,6 +5377,7 @@ public class PostService : IPostService
                 _logger.LogInformation("[PostService] GetPostRepliesAsync: Re-query returned {Count} replies.", replies.Count);
             }
         }
+    }
 
         _logger.LogInformation("[PostService] GetPostRepliesAsync: Found {Count} replies in database for PostId {PostId}", replies.Count, postId);
 
