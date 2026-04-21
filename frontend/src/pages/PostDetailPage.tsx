@@ -211,16 +211,16 @@ const PostDetailPage: React.FC = () => {
 
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting) {
+                if (entries[0].isIntersecting && !isLoading) {
                     const currentTopLevelCount = posts.filter(p =>
                         p.replyToPostId === post.id ||
                         p.replyToPostId === post.tid ||
                         (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)))
                     ).length;
-                    dispatch(fetchPostReplies({ postId: post.id, skip: currentTopLevelCount, take: REPLIES_PER_PAGE }));
+                    dispatch(fetchPostReplies({ postId: post.id, skip: currentTopLevelCount, take: 5 }));
                 }
             },
-            { threshold: 0.5 }
+            { threshold: 0.1 }
         );
 
         if (observerTarget.current) {
