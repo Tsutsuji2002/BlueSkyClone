@@ -420,6 +420,8 @@ export interface PostsState {
     trendingPosts: Post[];
     bookmarkedPosts: Post[];
     isLoading: boolean;
+    isThreadLoading: boolean;
+    isRepliesLoading: boolean;
     timelineLoading: boolean;
     discoverLoading: boolean;
     bookmarkedLoading: boolean;

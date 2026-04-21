@@ -11,6 +11,8 @@ const initialState: PostsState = {
     trendingPosts: [],
     bookmarkedPosts: [],
     isLoading: false,
+    isThreadLoading: false,
+    isRepliesLoading: false,
     timelineLoading: false,
     discoverLoading: false,
     bookmarkedLoading: false,
@@ -1219,11 +1221,11 @@ const postsSlice = createSlice({
             })
             // Fetch Post By ID
             .addCase(fetchPostById.pending, (state: PostsState) => {
-                state.isLoading = true;
+                state.isThreadLoading = true;
                 state.threadError = null;
             })
             .addCase(fetchPostById.fulfilled, (state: PostsState, action: any) => {
-                state.isLoading = false;
+                state.isThreadLoading = false;
                 const fetchedPosts: Post[] = Array.isArray(action.payload) ? action.payload : [action.payload];
                 fetchedPosts.forEach(fetchedPost => {
                     // Deduplicate by URI or ID (if ID is not empty)
@@ -1239,9 +1241,10 @@ const postsSlice = createSlice({
                         state.threadPosts.push(fetchedPost);
                     }
                 });
+                syncPostsWithTruth(state, fetchedPosts);
             })
             .addCase(fetchPostById.rejected, (state: PostsState, action) => {
-                state.isLoading = false;
+                state.isThreadLoading = false;
                 state.threadError = action.payload as string;
             })
             // toggleBookmark
@@ -1416,10 +1419,10 @@ const postsSlice = createSlice({
             })
             // Fetch Post Replies
             .addCase(fetchPostReplies.pending, (state: PostsState) => {
-                state.isLoading = true;
+                state.isRepliesLoading = true;
             })
             .addCase(fetchPostReplies.fulfilled, (state: PostsState, action: any) => {
-                state.isLoading = false;
+                state.isRepliesLoading = false;
                 const { posts: fetchedPosts } = action.payload;
                 
                 fetchedPosts.forEach((fetchedPost: Post) => {
@@ -1438,7 +1441,7 @@ const postsSlice = createSlice({
                 syncPostsWithTruth(state, fetchedPosts);
             })
             .addCase(fetchPostReplies.rejected, (state: PostsState, action) => {
-                state.isLoading = false;
+                state.isRepliesLoading = false;
                 state.error = action.payload as string;
             })
             // Fetch Discover Posts

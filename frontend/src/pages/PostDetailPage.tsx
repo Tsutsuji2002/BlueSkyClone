@@ -95,20 +95,28 @@ const PostDetailPage: React.FC = () => {
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
     const posts = useAppSelector((state: RootState) => state.posts.threadPosts);
-    const isLoading = useAppSelector((state: RootState) => state.posts.isLoading);
+    const isThreadLoading = useAppSelector((state: RootState) => state.posts.isThreadLoading);
+    const isRepliesLoading = useAppSelector((state: RootState) => state.posts.isRepliesLoading);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
     const userActionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
-    const post = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId));
+    const post = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post | undefined;
 
     const pageTitle = post?.content
         ? (post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content)
         : t('post.title');
 
     useDocumentTitle(pageTitle);
+
+    // Dynamic initial batch: fill ~80% of viewport height with ~120px-per-reply estimate, min 5, max 20
+    const INITIAL_REPLIES_TAKE = React.useMemo(
+        () => Math.min(20, Math.max(5, Math.ceil((window.innerHeight * 0.8) / 120))),
+        []
+    );
+    const LAZY_REPLIES_TAKE = 10;
 
     // Helper to sort a list of posts by current sortOrder
     const sortPosts = React.useCallback((arr: Post[]) => {
@@ -191,8 +199,6 @@ const PostDetailPage: React.FC = () => {
         (currentUser.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
     const observerTarget = React.useRef<HTMLDivElement>(null);
-    const dynamicRepliesPerPage = 5; // Forced to 5 per user request
-    const REPLIES_PER_PAGE = dynamicRepliesPerPage;
     const lastSkipRef = React.useRef<number>(-1);
     const lastRequestTimeRef = React.useRef<number>(0);
 
@@ -216,43 +222,36 @@ const PostDetailPage: React.FC = () => {
         return topLevelCount < (post.repliesCount || 0);
     }, [post, posts]);
 
-    // Intersection observer for lazy loading
+    // Intersection observer for lazy loading replies
     React.useEffect(() => {
-        if (!hasMoreReplies || isLoading || !post?.id) return;
+        if (!post?.id || !hasMoreReplies) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting && !isLoading) {
-                    const currentTopLevelCount = posts.filter(p => {
-                        if (!p.replyToPostId) return false;
-                        return p.replyToPostId === post.id ||
-                               p.replyToPostId === post.tid ||
-                               p.replyToPostId === post.cid ||
-                               p.replyToPostId === post.uri ||
-                               (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)));
-                    }).length;
-                    
-                    const currentTime = Date.now();
-                    // Throttle requests and prevent same-skip loops
-                    if (currentTopLevelCount !== lastSkipRef.current || (currentTime - lastRequestTimeRef.current > 3000)) {
-                        console.log(`[PostDetail] Triggering fetchPostReplies: skip=${currentTopLevelCount}, lastSkip=${lastSkipRef.current}`);
-                        lastSkipRef.current = currentTopLevelCount;
-                        lastRequestTimeRef.current = currentTime;
-                        dispatch(fetchPostReplies({ postId: post.uri || post.id, skip: currentTopLevelCount, take: REPLIES_PER_PAGE }));
-                    } else {
-                        console.log(`[PostDetail] Skipping fetch (Same offset ${currentTopLevelCount} or throttled)`);
-                    }
-                }
+                if (!entries[0].isIntersecting || isRepliesLoading) return;
+
+                const currentTopLevelCount = posts.filter(p => {
+                    if (!p.replyToPostId) return false;
+                    return p.replyToPostId === post.id ||
+                           p.replyToPostId === post.tid ||
+                           p.replyToPostId === post.cid ||
+                           p.replyToPostId === post.uri ||
+                           (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)));
+                }).length;
+
+                // Prevent duplicate fetches for the same page offset
+                if (currentTopLevelCount === lastSkipRef.current) return;
+                lastSkipRef.current = currentTopLevelCount;
+                lastRequestTimeRef.current = Date.now();
+                dispatch(fetchPostReplies({ postId: post.uri || post.id, skip: currentTopLevelCount, take: LAZY_REPLIES_TAKE }));
             },
-            { threshold: 0.1 }
+            // Pre-load before user actually reaches the bottom
+            { threshold: 0, rootMargin: '300px' }
         );
 
-        if (observerTarget.current) {
-            observer.observe(observerTarget.current);
-        }
-
+        if (observerTarget.current) observer.observe(observerTarget.current);
         return () => observer.disconnect();
-    }, [dispatch, hasMoreReplies, isLoading, post?.id, posts, post?.uri, post?.tid]);
+    }, [dispatch, hasMoreReplies, isRepliesLoading, post?.id, posts, post?.uri, post?.tid, LAZY_REPLIES_TAKE]);
 
     // Track which post IDs we've already fetched replies for to avoid re-fetching
     const fetchedRepliesRef = React.useRef<Set<string>>(new Set());
@@ -260,12 +259,13 @@ const PostDetailPage: React.FC = () => {
     React.useEffect(() => {
         if (postId) {
             dispatch(clearThreadPosts());
-            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: REPLIES_PER_PAGE }));
+            lastSkipRef.current = -1;
+            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: INITIAL_REPLIES_TAKE }));
         }
         return () => {
             dispatch(clearThreadPosts());
         };
-    }, [dispatch, handle, postId]);
+    }, [dispatch, handle, postId, INITIAL_REPLIES_TAKE]);
 
     // Re-fetch the thread immediately after the user posts a reply, so the new reply is visible
     const lastPostsLength = React.useRef(0);
@@ -297,7 +297,7 @@ const PostDetailPage: React.FC = () => {
 
     // Auto scroll to main post if it has a parent
     React.useEffect(() => {
-        if (parentPost && post?.replyToPostId && mainPostRef.current && !isLoading && !hasScrolledRef.current) {
+        if (parentPost && post?.replyToPostId && mainPostRef.current && !isThreadLoading && !hasScrolledRef.current) {
             const rect = mainPostRef.current.getBoundingClientRect();
             window.scrollTo({
                 top: rect.top + window.scrollY - 60,
@@ -305,7 +305,7 @@ const PostDetailPage: React.FC = () => {
             });
             hasScrolledRef.current = true;
         }
-    }, [parentPost, post, isLoading]);
+    }, [parentPost, post, isThreadLoading]);
 
     // Reset scroll ref when post changes
     React.useEffect(() => {
@@ -313,10 +313,10 @@ const PostDetailPage: React.FC = () => {
     }, [postId]);
 
 
-    // Show loading if post is absent OR is a stub (no content, no media) while still fetching or if we haven't resolved full thread yet
+    // Show skeleton while loading the thread (first fetch in progress and no post in cache yet)
     const isShell = post && !post.content && !post.media?.length && (!post.imageUrls || post.imageUrls.length === 0);
 
-    if (isLoading && !post) {
+    if (isThreadLoading && !post) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
                 <LoadingIndicator />
@@ -325,7 +325,7 @@ const PostDetailPage: React.FC = () => {
         );
     }
 
-    if (isShell && isLoading) {
+    if (isShell && isThreadLoading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
                 <LoadingIndicator text={t('post.loading', { defaultValue: 'Loading post...' })} />
@@ -333,7 +333,8 @@ const PostDetailPage: React.FC = () => {
         );
     }
 
-    if (!post) {
+    // Only show not-found AFTER the load attempt has finished (isThreadLoading is false)
+    if (!post && !isThreadLoading) {
         return (
             <div className="min-h-screen flex flex-col bg-white dark:bg-dark-bg">
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 h-[53px] flex items-center">
@@ -351,7 +352,6 @@ const PostDetailPage: React.FC = () => {
             </div>
         );
     }
-
 
     const handleBack = () => {
         navigate(-1);
@@ -1125,14 +1125,15 @@ const PostDetailPage: React.FC = () => {
                         })}
                     </div>
                 )}
-                {/* Infinite Scroll Trigger for Replies */}
-                {hasMoreReplies && (
-                    <div ref={observerTarget} className="h-20 flex items-center justify-center border-t border-gray-100 dark:border-dark-border">
-                        {isLoading && (
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
-                        )}
-                    </div>
-                )}
+                {/* Infinite Scroll Trigger for Replies — always mounted so the observer can attach */}
+                <div
+                    ref={observerTarget}
+                    className={hasMoreReplies ? 'h-20 flex items-center justify-center border-t border-gray-100 dark:border-dark-border' : 'h-1'}
+                >
+                    {isRepliesLoading && hasMoreReplies && (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
+                    )}
+                </div>
             </div>
 
             <ConfirmModal
