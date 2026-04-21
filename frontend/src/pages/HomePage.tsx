@@ -17,6 +17,7 @@ import Button from '../components/common/Button';
 import ButterflyLogo from '../components/common/ButterflyLogo';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { feedActionKey } from '../utils/feedKeys';
+import { getDynamicBatchSize } from '../utils/pagination';
 
 const RELOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
@@ -64,7 +65,8 @@ const HomePage: React.FC = () => {
             const neverFetched = lastFetch === 0;
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             if (neverFetched || isStale) {
-                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: 5 }));
+                const dynamicTake = getDynamicBatchSize(250);
+                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: dynamicTake }));
             }
         }
 
@@ -148,7 +150,8 @@ const HomePage: React.FC = () => {
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             const currentFeedPosts = feedPosts[tabId] || [];
             if (currentFeedPosts.length === 0 || isStale) {
-                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: 5 }));
+                const dynamicTake = getDynamicBatchSize(250);
+                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: dynamicTake }));
             }
         }
     };
@@ -159,7 +162,8 @@ const HomePage: React.FC = () => {
             dispatch(fetchListFeed({ id: listId, skip: activeListFeed.length }));
         } else {
             const currentFeedPosts = feedPosts[activeTab] || [];
-            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: 5 }));
+            const dynamicTake = getDynamicBatchSize(250);
+            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake }));
         }
     };
 

@@ -11,6 +11,7 @@ import { FiBookmark, FiArrowLeft } from 'react-icons/fi';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import ButterflyLogo from '../components/common/ButterflyLogo';
+import { getDynamicBatchSize } from '../utils/pagination';
 
 const SavedPage: React.FC = () => {
     const { t } = useTranslation();
@@ -19,11 +20,13 @@ const SavedPage: React.FC = () => {
     const { bookmarkedPosts, bookmarkedLoading, hasMore, bookmarkedError } = useAppSelector((state) => state.posts);
 
     useEffect(() => {
-        dispatch(fetchBookmarkedPosts({ skip: 0 }));
+        const dynamicTake = getDynamicBatchSize(250);
+        dispatch(fetchBookmarkedPosts({ skip: 0, take: dynamicTake }));
     }, [dispatch]);
 
     const handleLoadMore = () => {
-        dispatch(fetchBookmarkedPosts({ skip: bookmarkedPosts.length }));
+        const dynamicTake = getDynamicBatchSize(250);
+        dispatch(fetchBookmarkedPosts({ skip: bookmarkedPosts.length, take: dynamicTake }));
     };
 
     useDocumentTitle(t('saved.title'));

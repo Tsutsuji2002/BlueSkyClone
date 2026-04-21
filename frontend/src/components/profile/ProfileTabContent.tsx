@@ -11,6 +11,7 @@ import { FiList, FiImage, FiVideo } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { seedInteractionTruth } from '../../redux/slices/postsSlice';
+import { getDynamicBatchSize } from '../../utils/pagination';
 
 interface ProfileTabContentProps {
     userId: string;
@@ -50,8 +51,10 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             let nextCursor: string | null = null;
 
             if (type === 'posts' || type === 'replies' || type === 'media' || type === 'video' || type === 'likes') {
+                const itemHeight = (type === 'media' || type === 'video') ? 150 : 250;
+                const dynamicTake = getDynamicBatchSize(itemHeight);
                 const params = new URLSearchParams({
-                    take: '20',
+                    take: dynamicTake.toString(),
                     type: type,
                 });
                 if (!isInitial && cursor) params.set('cursor', cursor);

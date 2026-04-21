@@ -57,6 +57,7 @@ import PostInteractionSettingsModal from '../modals/PostInteractionSettingsModal
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { formatHandleText } from '../utils/identity';
+import { getDynamicBatchSize } from '../utils/pagination';
 
 import {
     FiAnchor,
@@ -190,7 +191,8 @@ const PostDetailPage: React.FC = () => {
         (currentUser.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
     const observerTarget = React.useRef<HTMLDivElement>(null);
-    const REPLIES_PER_PAGE = 20;
+    const dynamicRepliesPerPage = getDynamicBatchSize(150);
+    const REPLIES_PER_PAGE = dynamicRepliesPerPage;
 
     const hasMoreReplies = React.useMemo(() => {
         if (!post) return false;
