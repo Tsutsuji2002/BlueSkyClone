@@ -500,11 +500,9 @@ export const fetchPostById = createAsyncThunk(
             const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
 
             let endpoint: string;
-            // If it's a full AT-URI or a GUID, use the consolidated /posts/{id} endpoint
-            if (uri.startsWith('at://')) {
-                endpoint = `${API_BASE_URL}/posts/${encodeURIComponent(uri)}?take=${take}`;
-            } else if (isGuid) {
-                endpoint = `${API_BASE_URL}/posts/${postId}?take=${take}`;
+            // Use query-based routing to avoid path-segment encoding issues with slashes/colons
+            if (uri.startsWith('at://') || isGuid) {
+                endpoint = `${API_BASE_URL}/posts/details?uri=${encodeURIComponent(uri)}&take=${take}`;
             } else if (handle && handle !== 'local') {
                 const fullUri = `at://${handle}/app.bsky.feed.post/${postId}`;
                 const baseUrl = API_BASE_URL.replace(/\/api$/, '');
@@ -583,9 +581,8 @@ export const fetchPostReplies = createAsyncThunk(
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const encodedId = encodeURIComponent(postId);
             const response = await fetch(
-                `${API_BASE_URL}/posts/${encodedId}/replies?skip=${skip}&take=${take}`,
+                `${API_BASE_URL}/posts/replies?uri=${encodeURIComponent(postId)}&skip=${skip}&take=${take}`,
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch replies');

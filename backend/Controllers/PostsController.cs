@@ -221,10 +221,56 @@ public class PostsController : ControllerBase
         }
     }
 
+    [HttpGet("details")]
+    public async Task<IActionResult> GetPostDetails([FromQuery] string? id, [FromQuery] string? uri, [FromQuery] int take = 20)
+    {
+        string identifier = uri ?? id ?? "";
+        if (string.IsNullOrEmpty(identifier)) return BadRequest("Post ID or URI required.");
+
+        try
+        {
+            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+            PostDto? post = null;
+            if (Guid.TryParse(identifier, out var guidTaskId))
+            {
+                post = await _postService.GetPostByIdAsync(guidTaskId, viewerId);
+            }
+            else
+            {
+                post = await _postService.GetPostByTidAsync(identifier, viewerId);
+            }
+
+            if (post == null) return NotFound();
+
+            // If it's a remote post (stub), fetch the full thread from AppView
+            if (!string.IsNullOrEmpty(post.Uri) && post.Uri.StartsWith("at://"))
+            {
+                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId, take);
+                if (xrpcThread != null)
+                {
+                    return Ok(xrpcThread);
+                }
+            }
+
+            return Ok(new List<PostDto> { post });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PostsController] GetPostDetails error: {ex.Message}");
+            return NotFound();
+        }
+    }
+
     [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetPost(string id, [FromQuery] int take = 20)
     {
+        // Redirect to new query-based logic for robustness if it looks like a URI
+        if (id.Contains("at://") || id.Contains("%")) 
+            return await GetPostDetails(null, System.Net.WebUtility.UrlDecode(id), take);
+            
         try
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
@@ -241,22 +287,6 @@ public class PostsController : ControllerBase
             }
 
             if (post == null) return NotFound();
-
-            // If it's a remote post (stub), fetch the full thread from AppView
-            if (!string.IsNullOrEmpty(post.Uri) && post.Uri.StartsWith("at://"))
-            {
-                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId, take);
-                if (xrpcThread != null)
-                {
-                    return Ok(xrpcThread);
-                }
-                // Fall back to local DB if proxy fails (very unlikely but for robustness)
-            }
-
-            var thread = new List<PostDto> { post };
-
-            // Fetch Ancestors
-            var current = post;
             for (int i = 0; i < 5; i++)
             {
                 if (!string.IsNullOrEmpty(current.ReplyToPostId))
@@ -495,18 +525,21 @@ public class PostsController : ControllerBase
         }
     }
 
-    [HttpGet("{id}/replies")]
-    public async Task<IActionResult> GetPostReplies(string id, [FromQuery] int skip = 0, [FromQuery] int take = 20)
+    [HttpGet("replies")]
+    public async Task<IActionResult> GetPostReplies([FromQuery] string? id, [FromQuery] string? uri, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
+        string identifier = uri ?? id ?? "";
+        if (string.IsNullOrEmpty(identifier)) return BadRequest("Post ID or URI required.");
+        
         try
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
             Guid postId;
-            if (!Guid.TryParse(id, out postId))
+            if (!Guid.TryParse(identifier, out postId))
             {
-                var post = await _postService.GetPostByTidAsync(id);
+                var post = await _postService.GetPostByTidAsync(identifier, viewerId);
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
