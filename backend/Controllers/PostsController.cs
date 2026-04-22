@@ -574,39 +574,39 @@ public class PostsController : ControllerBase
             // Normalize identifier if it's a known post TID or a handle-based URI
             string cacheKey = inputIdentifier;
             PostDto? post = null;
+            
+            // Log specifically for Mariana post to debug if needed
+            if (inputIdentifier.Contains("3mk2b7qv3nk2h"))
+            {
+                _logger.LogInformation("[PostsController] Debugging scale post: {Id}", inputIdentifier);
+            }
+
             if (!inputIdentifier.Contains("did:plc:"))
             {
-                // If it's a TID or a handle-based URI, try to resolve to canonical URI
-                if (inputIdentifier.StartsWith("at://"))
-                {
-                    post = await _postService.GetPostByUriAsync(inputIdentifier, viewerId);
-                }
-                else
-                {
-                    post = await _postService.GetPostByTidAsync(inputIdentifier, viewerId);
-                }
+                // Resolve handle-based URI or TID to canonical DID-based URI
+                if (inputIdentifier.StartsWith("at://")) post = await _postService.GetPostByUriAsync(inputIdentifier, viewerId);
+                else post = await _postService.GetPostByTidAsync(inputIdentifier, viewerId);
                 
-                if (post != null && !string.IsNullOrEmpty(post.Uri))
-                {
-                    cacheKey = post.Uri;
-                }
+                if (post != null && !string.IsNullOrEmpty(post.Uri)) cacheKey = post.Uri;
             }
 
             // 1. Check cache first
             if (!_threadReplyCacheService.TryGet(cacheKey, out var allReplies) || allReplies == null)
             {
-                // 2. Cache miss — fetch the thread from Bluesky ONCE
+                // 2. Cache miss — fetch the thread from Bluesky
                 allReplies = new List<PostDto>();
                 
-                // If we didn't resolve post yet, do it now
                 if (post == null)
                 {
                     if (inputIdentifier.StartsWith("at://")) post = await _postService.GetPostByUriAsync(inputIdentifier, viewerId);
                     else post = await _postService.GetPostByTidAsync(inputIdentifier, viewerId);
                 }
 
-                string threadUri = post?.Uri ?? (inputIdentifier.StartsWith("at://") ? inputIdentifier : null);
+                string? threadUri = post?.Uri ?? (inputIdentifier.StartsWith("at://") ? inputIdentifier : null);
                 if (string.IsNullOrEmpty(threadUri)) return NotFound("Post not found.");
+                
+                // Final normalization check: ensure we always use the DID-based URI in the cache
+                cacheKey = threadUri;
 
                 // Depth 2 gives some sub-replies for the first 50 results
                 var xrpcThread = await _postService.GetPostThreadAsync(threadUri, 2, 0, viewerId);
@@ -736,24 +736,31 @@ public class PostsController : ControllerBase
                         .GetStringAsync($"BlueskyToken_{viewerId.Value}")
                     : null;
 
-            var proxy = HttpContext.RequestServices.GetRequiredService<IXrpcProxyService>();
+            var clientFactory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+            using var client = clientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+
+            if (!string.IsNullOrEmpty(viewerToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
+            }
+
             string? cursor = null;
-            int maxPages = 10; // Fetch up to 1000 replies (100 per page)
-            
+            int maxPages = 10; 
+            string hostname = string.IsNullOrEmpty(viewerToken) ? "public.api.bsky.app" : "api.bsky.app";
+
             for (int page = 0; page < maxPages; page++)
             {
-                var queryParams = new Dictionary<string, string?> 
-                { 
-                    { "q", $"to:{rootUri}" },
-                    { "limit", "100" }
-                };
-                if (!string.IsNullOrEmpty(cursor)) queryParams.Add("cursor", cursor);
+                var url = $"https://{hostname}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString($"to:{rootUri}")}&limit=100";
+                if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
-                var response = await proxy.ProxyRequestAsync("api.bsky.app", "app.bsky.feed.searchPosts", queryParams, viewerToken);
+                var response = await client.GetAsync(url);
 
-                if (response.Success)
+                if (response.IsSuccessStatusCode)
                 {
-                    using var doc = System.Text.Json.JsonDocument.Parse(response.Content);
+                    var content = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(content);
                     bool addedAny = false;
                     
                     if (doc.RootElement.TryGetProperty("posts", out var postsArray))
