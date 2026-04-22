@@ -3527,6 +3527,42 @@ public class PostService : IPostService
         catch { return null; }
     }
 
+    public async Task<object?> GetPostThreadV2Async(string anchor, int below, int parentHeight, string sort = "top", Guid? viewerId = null)
+    {
+        if (string.IsNullOrEmpty(anchor)) return null;
+        try
+        {
+            var viewerToken = viewerId.HasValue && viewerId.Value != Guid.Empty
+                ? await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}")
+                : null;
+
+            string hostname = "api.bsky.app"; // unspecced is more reliable on the main AppView
+            string url = $"https://{hostname}/xrpc/app.bsky.unspecced.getPostThreadV2?anchor={Uri.EscapeDataString(anchor)}&below={below}&parentHeight={parentHeight}&sort={sort}";
+
+            using var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            if (!string.IsNullOrEmpty(viewerToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
+            }
+
+            var response = await client.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<object>(content);
+            }
+            
+            _logger.LogWarning("[PostService] getPostThreadV2 failed for {Anchor}: {Status}", anchor, response.StatusCode);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostService] GetPostThreadV2Async error for {Anchor}", anchor);
+            return null;
+        }
+    }
+
     public async Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null, int take = 20)
     {
         if (string.IsNullOrEmpty(uri)) return null;
@@ -3589,6 +3625,11 @@ public class PostService : IPostService
                 {
                     _logger.LogWarning(ex, "AppView failed for {Uri}, falling back to Proxy/Local", uri);
                 }
+            }
+
+            if (rawJson != null)
+            {
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<object>(rawJson);
             }
 
             // 2. Fallback to local DB or PDS Proxy if AppView fails (only if not strictly NotFound)

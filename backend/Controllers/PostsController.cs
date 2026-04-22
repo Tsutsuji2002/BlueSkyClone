@@ -608,8 +608,16 @@ public class PostsController : ControllerBase
                 // Final normalization check: ensure we always use the DID-based URI in the cache
                 cacheKey = threadUri;
 
-                // Depth 2 gives some sub-replies for the first 50 results
-                var xrpcThread = await _postService.GetPostThreadAsync(threadUri, 2, 0, viewerId);
+                // Depth 4 gives a deeper conversation tree, matching BSky's detailed view
+                // We use V2 (unspecced) which handles large threads better
+                var xrpcThread = await _postService.GetPostThreadV2Async(threadUri, 4, 0, "top", viewerId);
+                
+                // Fallback to standard V1 if V2 fails
+                if (xrpcThread == null)
+                {
+                    xrpcThread = await _postService.GetPostThreadAsync(threadUri, 2, 0, viewerId);
+                }
+
                 int totalExpected = 0;
                 
                 if (xrpcThread == null)
@@ -707,17 +715,24 @@ public class PostsController : ControllerBase
             {
                 foreach (var replyNode in repliesArray)
                 {
-                var postNode = replyNode["post"];
-                if (postNode == null) continue;
+                    var postNode = replyNode["post"];
+                    if (postNode == null) continue;
 
-                var postDto = postNode.ToObject<PostDto>();
-                if (postDto != null)
-                {
-                    postDto.RepliesCount = replyNode["replies"]?.Count() ?? postDto.RepliesCount;
-                results.Add(postDto);
+                    var postDto = postNode.ToObject<PostDto>();
+                    if (postDto != null)
+                    {
+                        postDto.RepliesCount = replyNode["replies"]?.Count() ?? postDto.RepliesCount;
+                        results.Add(postDto);
+                    }
                 }
             }
-        }
+            
+            if (results.Count == 0 && threadNode != null)
+            {
+                _logger.LogWarning("[PostsController] No replies extracted from threadNode. Root post URI: {Uri}, Raw keys: {Keys}", 
+                    threadNode["post"]?["uri"]?.ToString(), 
+                    string.Join(", ", threadNode.Children().Select(c => (c as Newtonsoft.Json.Linq.JProperty)?.Name).Where(n => n != null)));
+            }
     }
     catch (Exception ex)
         {

@@ -34,6 +34,7 @@ public interface IPostService
     Task<IEnumerable<PostInteractionStatusDto>> GetViewerStateFromAppViewAsync(Guid userId, IEnumerable<string> uris);
     Task<PostDto?> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request);
     Task<object?> GetPostThreadAsync(string uri, int depth, int parentHeight, Guid? viewerId = null, int take = 20);
+    Task<object?> GetPostThreadV2Async(string anchor, int below, int parentHeight, string sort = "top", Guid? viewerId = null);
     Task PinPostAsync(Guid userId, string postUri);
     Task UnpinPostAsync(Guid userId);
     PostDto MapToDto(Post post);
