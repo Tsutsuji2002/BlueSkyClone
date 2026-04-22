@@ -148,90 +148,70 @@ public class PostService : IPostService
 
             var followedActors = new List<string>();
             string? cursor = null;
-            var desiredActors = 18;
             var pageCount = 0;
 
-            while (followedActors.Count < desiredActors && pageCount < 2)
+            // Fetch up to 50 follows (2 pages)
+            while (followedActors.Count < 50 && pageCount < 2)
             {
                 var url = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getFollows?actor={Uri.EscapeDataString(user.Did)}&limit=25";
-                if (!string.IsNullOrWhiteSpace(cursor))
-                {
-                    url += $"&cursor={Uri.EscapeDataString(cursor)}";
-                }
+                if (!string.IsNullOrWhiteSpace(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
                 var response = await httpClient.GetAsync(url);
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("[BuildTimelineFallbackFromFollowingAsync] Failed to load follows for {Did}: {StatusCode}", user.Did, response.StatusCode);
-                    break;
-                }
+                if (!response.IsSuccessStatusCode) break;
 
                 using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
                 if (doc.RootElement.TryGetProperty("follows", out var follows) && follows.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var follow in follows.EnumerateArray())
                     {
-                        var actor = follow.TryGetProperty("handle", out var handleProp) && !string.IsNullOrWhiteSpace(handleProp.GetString())
-                            ? handleProp.GetString()
-                            : follow.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
-
-                        if (!string.IsNullOrWhiteSpace(actor))
-                        {
-                            followedActors.Add(actor);
-                        }
+                        var actor = follow.TryGetProperty("handle", out var handleProp) ? handleProp.GetString() : follow.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(actor)) followedActors.Add(actor);
                     }
                 }
-
                 cursor = doc.RootElement.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
-                if (string.IsNullOrWhiteSpace(cursor))
-                {
-                    break;
-                }
-
+                if (string.IsNullOrWhiteSpace(cursor)) break;
                 pageCount++;
             }
 
             var distinctActors = followedActors
                 .Where(actor => !string.IsNullOrWhiteSpace(actor))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(desiredActors)
+                .Take(12) // Limit to 12 actors for reliability
                 .ToList();
 
-            if (distinctActors.Count == 0)
-            {
-                return new List<PostDto>();
-            }
+            if (distinctActors.Count == 0) return new List<PostDto>();
 
             var desiredPosts = Math.Clamp(skip + Math.Max(take, 1) * 3, 20, 80);
-            var perActor = Math.Clamp((int)Math.Ceiling((double)desiredPosts / distinctActors.Count), 1, 4);
+            var perActor = Math.Max(1, desiredPosts / distinctActors.Count);
 
-            var authorFeedTasks = distinctActors.Select(async actor =>
+            var feedChunks = new List<PostDto[]>();
+            // Process actors in small parallel batches to avoid 504 timeouts and rate limits
+            for (int i = 0; i < distinctActors.Count; i += 4)
             {
-                try
+                var chunk = distinctActors.Skip(i).Take(4);
+                var chunkTasks = chunk.Select(async actor =>
                 {
-                    var actorFeedUrl = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={Uri.EscapeDataString(actor)}&limit={perActor}&filter=posts_no_replies";
-                    var actorResponse = await httpClient.GetAsync(actorFeedUrl);
-                    if (!actorResponse.IsSuccessStatusCode)
+                    try
                     {
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                        var actorFeedUrl = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={Uri.EscapeDataString(actor)}&limit={perActor}&filter=posts_no_replies";
+                        var actorResponse = await httpClient.GetAsync(actorFeedUrl, cts.Token);
+                        if (!actorResponse.IsSuccessStatusCode) return new List<PostDto>();
+
+                        using var actorDoc = JsonDocument.Parse(await actorResponse.Content.ReadAsStringAsync());
+                        if (!actorDoc.RootElement.TryGetProperty("feed", out var actorFeed) || actorFeed.ValueKind != JsonValueKind.Array) return new List<PostDto>();
+                        return MapBlueskyFeed(actorFeed);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug("[BuildTimelineFallbackFromFollowingAsync] Skip {Actor}: {Msg}", actor, ex.Message);
                         return new List<PostDto>();
                     }
+                });
+                var chunkResults = await Task.WhenAll(chunkTasks);
+                feedChunks.AddRange(chunkResults.Select(r => r.ToArray()));
+            }
 
-                    using var actorDoc = JsonDocument.Parse(await actorResponse.Content.ReadAsStringAsync());
-                    if (!actorDoc.RootElement.TryGetProperty("feed", out var actorFeed) || actorFeed.ValueKind != JsonValueKind.Array)
-                    {
-                        return new List<PostDto>();
-                    }
-
-                    return MapBlueskyFeed(actorFeed);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "[BuildTimelineFallbackFromFollowingAsync] Failed to load author feed for {Actor}", actor);
-                    return new List<PostDto>();
-                }
-            });
-
-            var feedChunks = await Task.WhenAll(authorFeedTasks);
             return feedChunks
                 .SelectMany(posts => posts)
                 .GroupBy(post => post.Uri ?? post.Id.ToString())

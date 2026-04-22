@@ -3,18 +3,18 @@
   "name": "BlueSky Clone",
   "icons": [
     {
-      "src": "favicon.svg",
+      "src": "favicon.svg?v=3",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "logo192.png",
+      "src": "logo192.png?v=3",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png",
+      "src": "logo512.png?v=3",
       "type": "image/png",
       "sizes": "512x512"
     }
