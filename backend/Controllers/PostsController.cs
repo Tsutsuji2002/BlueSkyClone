@@ -734,7 +734,7 @@ public class PostsController : ControllerBase
             if (results.Count == 0 && threadNode != null)
             {
                 _logger.LogWarning("[PostsController] No replies extracted from threadNode for {Uri}. Raw JSON first 500 chars: {Raw}", 
-                    threadUri, 
+                    rootUri, 
                     Newtonsoft.Json.JsonConvert.SerializeObject(threadResponse).Substring(0, Math.Min(500, Newtonsoft.Json.JsonConvert.SerializeObject(threadResponse).Length)));
             }
     }
