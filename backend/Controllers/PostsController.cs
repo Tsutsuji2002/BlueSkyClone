@@ -575,8 +575,8 @@ public class PostsController : ControllerBase
             {
                 // 2. Cache miss — fetch the thread from Bluesky ONCE
                 allReplies = new List<PostDto>();
-                // Depth 1 is sufficient as we only want direct replies; deep fetch will handle truncation
-                var xrpcThread = await _postService.GetPostThreadAsync(identifier, 1, 0, viewerId);
+                // Depth 2 gives some sub-replies for the first 50 results, better matching Bluesky's conversational view
+                var xrpcThread = await _postService.GetPostThreadAsync(identifier, 2, 0, viewerId);
                 int totalExpected = 0;
                 
                 if (xrpcThread == null)
@@ -699,34 +699,54 @@ public class PostsController : ControllerBase
                         .GetStringAsync($"BlueskyToken_{viewerId.Value}")
                     : null;
 
-            // Bluesky search query to find all replies to a specific post URI
-            var queryParams = new Dictionary<string, string?> 
-            { 
-                { "q", $"to:{rootUri}" },
-                { "limit", "100" }
-            };
-
-            // Call the search API via proxy to ensure we have auth/proper AppView access
             var proxy = HttpContext.RequestServices.GetRequiredService<IXrpcProxyService>();
-            var response = await proxy.ProxyRequestAsync("api.bsky.app", "app.bsky.feed.searchPosts", queryParams, viewerToken);
-
-            if (response.Success)
+            string? cursor = null;
+            int maxPages = 10; // Fetch up to 1000 replies (100 per page)
+            
+            for (int page = 0; page < maxPages; page++)
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(response.Content);
-                if (doc.RootElement.TryGetProperty("posts", out var postsArray))
+                var queryParams = new Dictionary<string, string?> 
+                { 
+                    { "q", $"to:{rootUri}" },
+                    { "limit", "100" }
+                };
+                if (!string.IsNullOrEmpty(cursor)) queryParams.Add("cursor", cursor);
+
+                var response = await proxy.ProxyRequestAsync("api.bsky.app", "app.bsky.feed.searchPosts", queryParams, viewerToken);
+
+                if (response.Success)
                 {
-                    foreach (var postItem in postsArray.EnumerateArray())
+                    using var doc = System.Text.Json.JsonDocument.Parse(response.Content);
+                    bool addedAny = false;
+                    
+                    if (doc.RootElement.TryGetProperty("posts", out var postsArray))
                     {
-                        // We need to map these search results to PostDto. 
-                        // Since they are from app.bsky.feed.defs#postView, we can use our MapBlueskyFeed logic or just deserialize.
-                        var postDto = Newtonsoft.Json.JsonConvert.DeserializeObject<PostDto>(postItem.GetRawText());
-                        if (postDto != null)
+                        foreach (var postItem in postsArray.EnumerateArray())
                         {
-                            // Search API results are just posts. We should verify it's a direct reply if we care, 
-                            // but 'to:{uri}' search on Bluesky is quite accurate for direct replies.
-                            searchResults.Add(postDto);
+                            var postDto = Newtonsoft.Json.JsonConvert.DeserializeObject<PostDto>(postItem.GetRawText());
+                            if (postDto != null)
+                            {
+                                searchResults.Add(postDto);
+                                addedAny = true;
+                            }
                         }
                     }
+                    
+                    if (doc.RootElement.TryGetProperty("cursor", out var nextCursor))
+                    {
+                        cursor = nextCursor.GetString();
+                    }
+                    else
+                    {
+                        cursor = null;
+                    }
+
+                    if (string.IsNullOrEmpty(cursor) || !addedAny) break;
+                }
+                else
+                {
+                    _logger.LogWarning("[PostsController] Search page {Page} failed for {Uri}", page, rootUri);
+                    break;
                 }
             }
         }
