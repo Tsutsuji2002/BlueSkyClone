@@ -618,9 +618,14 @@ export const fetchPostReplies = createAsyncThunk(
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch replies');
-            const posts: Post[] = await response.json();
+            const data = await response.json();
+            
+            // Support both { posts, hasMore } shape and plain Post[] for backward compat
+            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
+            
             const hydrated = await hydratePostsWithInteractionStatus(posts, token);
-            return { posts: hydrated, postId, skip };
+            return { posts: hydrated, postId, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

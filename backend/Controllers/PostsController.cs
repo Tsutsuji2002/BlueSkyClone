@@ -14,12 +14,14 @@ public class PostsController : ControllerBase
 {
     private readonly IPostService _postService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ThreadReplyCacheService _threadReplyCacheService;
     private readonly ILogger<PostsController> _logger;
 
-    public PostsController(IPostService postService, IUnitOfWork unitOfWork, ILogger<PostsController> logger)
+    public PostsController(IPostService postService, IUnitOfWork unitOfWork, ThreadReplyCacheService threadReplyCacheService, ILogger<PostsController> logger)
     {
         _postService = postService;
         _unitOfWork = unitOfWork;
+        _threadReplyCacheService = threadReplyCacheService;
         _logger = logger;
     }
 
@@ -566,22 +568,100 @@ public class PostsController : ControllerBase
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-            Guid postId;
-            if (!Guid.TryParse(identifier, out postId))
+            // 1. Check cache first
+            if (!_threadReplyCacheService.TryGet(identifier, out var allReplies))
             {
-                var post = await _postService.GetPostByTidAsync(identifier, viewerId);
-                if (post == null) return NotFound();
-                postId = post.Id;
+                // 2. Cache miss — fetch the full thread from Bluesky ONCE
+                // We use depth=1000 as suggested to get all replies in one go
+                var xrpcThread = await _postService.GetPostThreadAsync(identifier, 1000, 0, viewerId);
+                
+                if (xrpcThread == null)
+                {
+                    // Fallback to local DB if remote resolution fails or it's not a remote post yet
+                    Guid postId;
+                    if (!Guid.TryParse(identifier, out postId))
+                    {
+                        var post = await _postService.GetPostByTidAsync(identifier, viewerId);
+                        if (post == null) return NotFound();
+                        postId = post.Id;
+                    }
+                    var replies = await _postService.GetPostRepliesAsync(postId, viewerId, 0, 1000);
+                    allReplies = replies.ToList();
+                }
+                else
+                {
+                    // Extract and flatten all direct replies from the XRPC response
+                    allReplies = ExtractDirectRepliesFromThread(xrpcThread, identifier);
+                }
+
+                // 3. Sort consistently
+                allReplies = allReplies
+                    .OrderByDescending(r => r.LikesCount)
+                    .ThenBy(r => r.CreatedAt)
+                    .ToList();
+
+                // 4. Cache the full sorted list
+                _threadReplyCacheService.Set(identifier, allReplies);
             }
 
-            var replies = await _postService.GetPostRepliesAsync(postId, viewerId, skip, take);
-            return Ok(replies);
+            // 5. Apply skip/take to the cached list
+            var page = allReplies
+                .Skip(skip)
+                .Take(take)
+                .ToList();
+
+            var hasMore = (skip + take) < allReplies.Count;
+
+            return Ok(new 
+            { 
+                posts = page, 
+                hasMore = hasMore, 
+                totalCount = allReplies.Count 
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[PostsController] GetPostReplies error for identifier {Identifier}", identifier);
             return Ok(new List<PostDto>());
         }
+    }
+
+    private List<PostDto> ExtractDirectRepliesFromThread(object threadResponse, string rootUri)
+    {
+        var results = new List<PostDto>();
+        try
+        {
+            // The threadResponse is a dynamic object returned by GetPostThreadAsync
+            // It can be an anonymous object or a deserialized JObject
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(threadResponse);
+            var jObject = Newtonsoft.Json.Linq.JObject.Parse(json);
+            
+            var threadNode = jObject["thread"];
+            if (threadNode == null || threadNode["replies"] == null) return results;
+
+            foreach (var replyNode in threadNode["replies"])
+            {
+                var postNode = replyNode["post"];
+                if (postNode == null) continue;
+
+                // Map JToken to PostDto (we can reuse the logic from PostService if it was accessible, 
+                // but here we might need to manually Map or use the serialized structure)
+                // However, PostService.GetPostThreadAsync already enriched the posts and they are in the JSON.
+                // We'll deserialize the post node into PostDto.
+                var postDto = postNode.ToObject<PostDto>();
+                if (postDto != null)
+                {
+                    // Count sub-replies for the frontend "Read more" link
+                    postDto.RepliesCount = replyNode["replies"]?.Count() ?? postDto.RepliesCount;
+                    results.Add(postDto);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostsController] Error extracting replies from thread response");
+        }
+        return results;
     }
 
     [HttpGet("tag/{tag}")]

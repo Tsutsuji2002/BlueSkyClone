@@ -247,8 +247,8 @@ const PostDetailPage: React.FC = () => {
                 
                 dispatch(fetchPostReplies({ postId: post.uri || post.id, skip: currentTopLevelCount, take: LAZY_REPLIES_TAKE }))
                     .unwrap()
-                    .then((fetchedReplies) => {
-                        if (fetchedReplies.posts.length < LAZY_REPLIES_TAKE) {
+                    .then((result) => {
+                        if (result.hasMore === false) {
                             setHasExhaustedReplies(true);
                         }
                     })

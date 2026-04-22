@@ -83,6 +83,8 @@ builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ICategorizationService, CategorizationService>();
 builder.Services.AddScoped<ISearchService, ElasticSearchService>();
 builder.Services.AddSingleton<IMLModelService, MLModelService>();
+builder.Services.AddSingleton<ThreadReplyCacheService>();
+
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
 builder.Services.AddScoped<IRepoManager, RepoManager>();
