@@ -571,9 +571,10 @@ public class PostsController : ControllerBase
             // 1. Check cache first
             if (!_threadReplyCacheService.TryGet(identifier, out var allReplies))
             {
-                // 2. Cache miss — fetch the full thread from Bluesky ONCE
-                // We use depth=1000 as suggested to get all replies in one go
-                var xrpcThread = await _postService.GetPostThreadAsync(identifier, 1000, 0, viewerId);
+                // 2. Cache miss — fetch the thread from Bluesky ONCE
+                // Depth 1 is sufficient as we only want direct replies; deep fetch will handle truncation
+                var xrpcThread = await _postService.GetPostThreadAsync(identifier, 1, 0, viewerId);
+                int totalExpected = 0;
                 
                 if (xrpcThread == null)
                 {
@@ -590,8 +591,25 @@ public class PostsController : ControllerBase
                 }
                 else
                 {
-                    // Extract and flatten all direct replies from the XRPC response
-                    allReplies = ExtractDirectRepliesFromThread(xrpcThread, identifier);
+                    // Extract all direct replies from the XRPC response
+                    allReplies = ExtractDirectRepliesFromThread(xrpcThread, identifier, out totalExpected);
+                    
+                    // 3. Deep Fetch Fallback: If AppView truncated the thread (common for > 50 replies),
+                    // use the Search API to find the "missing" direct replies.
+                    if (allReplies.Count < totalExpected && totalExpected > 20)
+                    {
+                        var searchReplies = await FetchMoreRepliesViaSearch(identifier, viewerId);
+                        var existingUris = new HashSet<string>(allReplies.Select(r => r.Uri).Where(u => u != null)!, StringComparer.OrdinalIgnoreCase);
+                        
+                        foreach (var sr in searchReplies)
+                        {
+                            if (sr.Uri != null && !existingUris.Contains(sr.Uri))
+                            {
+                                allReplies.Add(sr);
+                                existingUris.Add(sr.Uri);
+                            }
+                        }
+                    }
                 }
 
                 // 3. Sort consistently
@@ -626,32 +644,35 @@ public class PostsController : ControllerBase
         }
     }
 
-    private List<PostDto> ExtractDirectRepliesFromThread(object threadResponse, string rootUri)
+    private List<PostDto> ExtractDirectRepliesFromThread(object threadResponse, string rootUri, out int totalReplyCount)
     {
         var results = new List<PostDto>();
+        totalReplyCount = 0;
         try
         {
-            // The threadResponse is a dynamic object returned by GetPostThreadAsync
-            // It can be an anonymous object or a deserialized JObject
             var json = Newtonsoft.Json.JsonConvert.SerializeObject(threadResponse);
             var jObject = Newtonsoft.Json.Linq.JObject.Parse(json);
             
             var threadNode = jObject["thread"];
-            if (threadNode == null || threadNode["replies"] == null) return results;
+            if (threadNode == null) return results;
+
+            // Get total reply count from the root post node
+            var rootPostNode = threadNode["post"];
+            if (rootPostNode != null)
+            {
+                totalReplyCount = (int)(rootPostNode["replyCount"] ?? 0);
+            }
+
+            if (threadNode["replies"] == null) return results;
 
             foreach (var replyNode in threadNode["replies"])
             {
                 var postNode = replyNode["post"];
                 if (postNode == null) continue;
 
-                // Map JToken to PostDto (we can reuse the logic from PostService if it was accessible, 
-                // but here we might need to manually Map or use the serialized structure)
-                // However, PostService.GetPostThreadAsync already enriched the posts and they are in the JSON.
-                // We'll deserialize the post node into PostDto.
                 var postDto = postNode.ToObject<PostDto>();
                 if (postDto != null)
                 {
-                    // Count sub-replies for the frontend "Read more" link
                     postDto.RepliesCount = replyNode["replies"]?.Count() ?? postDto.RepliesCount;
                     results.Add(postDto);
                 }
@@ -662,6 +683,54 @@ public class PostsController : ControllerBase
             _logger.LogError(ex, "[PostsController] Error extracting replies from thread response");
         }
         return results;
+    }
+
+    private async Task<List<PostDto>> FetchMoreRepliesViaSearch(string rootUri, Guid? viewerId)
+    {
+        var searchResults = new List<PostDto>();
+        try
+        {
+            string? viewerToken = viewerId.HasValue && viewerId.Value != Guid.Empty
+                    ? await (HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>())
+                        .GetStringAsync($"BlueskyToken_{viewerId.Value}")
+                    : null;
+
+            // Bluesky search query to find all replies to a specific post URI
+            var queryParams = new Dictionary<string, string?> 
+            { 
+                { "q", $"to:{rootUri}" },
+                { "limit", "100" }
+            };
+
+            // Call the search API via proxy to ensure we have auth/proper AppView access
+            var proxy = HttpContext.RequestServices.GetRequiredService<IXrpcProxyService>();
+            var response = await proxy.ProxyRequestAsync("api.bsky.app", "app.bsky.feed.searchPosts", queryParams, viewerToken);
+
+            if (response.Success)
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(response.Content);
+                if (doc.RootElement.TryGetProperty("posts", out var postsArray))
+                {
+                    foreach (var postItem in postsArray.EnumerateArray())
+                    {
+                        // We need to map these search results to PostDto. 
+                        // Since they are from app.bsky.feed.defs#postView, we can use our MapBlueskyFeed logic or just deserialize.
+                        var postDto = Newtonsoft.Json.JsonConvert.DeserializeObject<PostDto>(postItem.GetRawText());
+                        if (postDto != null)
+                        {
+                            // Search API results are just posts. We should verify it's a direct reply if we care, 
+                            // but 'to:{uri}' search on Bluesky is quite accurate for direct replies.
+                            searchResults.Add(postDto);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostsController] Deep fetch via Search failed for {Uri}", rootUri);
+        }
+        return searchResults;
     }
 
     [HttpGet("tag/{tag}")]
