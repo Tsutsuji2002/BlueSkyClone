@@ -559,35 +559,68 @@ public class PostsController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("replies")]
-    public async Task<IActionResult> GetPostReplies([FromQuery] string? id, [FromQuery] string? uri, [FromQuery] int skip = 0, [FromQuery] int take = 20)
+    public async Task<IActionResult> GetPostReplies([FromQuery] string? id, [FromQuery] string? uri, [FromQuery] string? identifier, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
-        string identifier = uri ?? id ?? "";
-        if (string.IsNullOrEmpty(identifier)) return BadRequest("Post ID or URI required.");
+        string inputIdentifier = identifier ?? uri ?? id ?? "";
+        if (string.IsNullOrEmpty(inputIdentifier)) return BadRequest("Post ID or URI required.");
         
         try
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
+            // Normalize identifier if it's a known post TID or a handle-based URI
+            string cacheKey = inputIdentifier;
+            PostDto? post = null;
+            if (!inputIdentifier.Contains("did:plc:"))
+            {
+                // If it's a TID or a handle-based URI, try to resolve to canonical URI
+                if (inputIdentifier.StartsWith("at://"))
+                {
+                    post = await _postService.GetPostByUriAsync(inputIdentifier, viewerId);
+                }
+                else
+                {
+                    post = await _postService.GetPostByTidAsync(inputIdentifier, viewerId);
+                }
+                
+                if (post != null && !string.IsNullOrEmpty(post.Uri))
+                {
+                    cacheKey = post.Uri;
+                }
+            }
+
             // 1. Check cache first
-            if (!_threadReplyCacheService.TryGet(identifier, out var allReplies) || allReplies == null)
+            if (!_threadReplyCacheService.TryGet(cacheKey, out var allReplies) || allReplies == null)
             {
                 // 2. Cache miss — fetch the thread from Bluesky ONCE
                 allReplies = new List<PostDto>();
-                // Depth 2 gives some sub-replies for the first 50 results, better matching Bluesky's conversational view
-                var xrpcThread = await _postService.GetPostThreadAsync(identifier, 2, 0, viewerId);
+                
+                // If we didn't resolve post yet, do it now
+                if (post == null)
+                {
+                    if (inputIdentifier.StartsWith("at://")) post = await _postService.GetPostByUriAsync(inputIdentifier, viewerId);
+                    else post = await _postService.GetPostByTidAsync(inputIdentifier, viewerId);
+                }
+
+                string threadUri = post?.Uri ?? (inputIdentifier.StartsWith("at://") ? inputIdentifier : null);
+                if (string.IsNullOrEmpty(threadUri)) return NotFound("Post not found.");
+
+                // Depth 2 gives some sub-replies for the first 50 results
+                var xrpcThread = await _postService.GetPostThreadAsync(threadUri, 2, 0, viewerId);
                 int totalExpected = 0;
                 
                 if (xrpcThread == null)
                 {
                     // Fallback to local DB if remote resolution fails or it's not a remote post yet
                     Guid postId;
-                    if (!Guid.TryParse(identifier, out postId))
+                    if (!Guid.TryParse(inputIdentifier, out postId))
                     {
-                        var post = await _postService.GetPostByTidAsync(identifier, viewerId);
-                        if (post == null) return NotFound();
-                        postId = post.Id;
+                        var p3 = await _postService.GetPostByTidAsync(inputIdentifier, viewerId);
+                        if (p3 == null) return NotFound();
+                        postId = p3.Id;
                     }
                     var replies = await _postService.GetPostRepliesAsync(postId, viewerId, 0, 1000);
                     allReplies = replies.ToList();
@@ -595,13 +628,12 @@ public class PostsController : ControllerBase
                 else
                 {
                     // Extract all direct replies from the XRPC response
-                    allReplies = ExtractDirectRepliesFromThread(xrpcThread, identifier, out totalExpected);
+                    allReplies = ExtractDirectRepliesFromThread(xrpcThread, cacheKey, out totalExpected);
                     
-                    // 3. Deep Fetch Fallback: If AppView truncated the thread (common for > 50 replies),
-                    // use the Search API to find the "missing" direct replies.
+                    // 3. Deep Fetch Fallback
                     if (allReplies.Count < totalExpected && totalExpected > 20)
                     {
-                        var searchReplies = await FetchMoreRepliesViaSearch(identifier, viewerId);
+                        var searchReplies = await FetchMoreRepliesViaSearch(cacheKey, viewerId);
                         var existingUris = new HashSet<string>(allReplies.Select(r => r.Uri).Where(u => u != null)!, StringComparer.OrdinalIgnoreCase);
                         
                         foreach (var sr in searchReplies)
@@ -622,7 +654,7 @@ public class PostsController : ControllerBase
                     .ToList() ?? new List<PostDto>();
 
                 // 4. Cache the full sorted list
-                _threadReplyCacheService.Set(identifier, allReplies);
+                _threadReplyCacheService.Set(cacheKey, allReplies);
             }
 
             // 5. Apply skip/take to the cached list
@@ -642,8 +674,13 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[PostsController] GetPostReplies error for identifier {Identifier}", identifier);
-            return Ok(new List<PostDto>());
+            _logger.LogError(ex, "[PostsController] GetPostReplies error for identifier {Identifier}", inputIdentifier);
+            return Ok(new 
+            { 
+                posts = new List<PostDto>(), 
+                hasMore = false, 
+                totalCount = 0 
+            });
         }
     }
 
