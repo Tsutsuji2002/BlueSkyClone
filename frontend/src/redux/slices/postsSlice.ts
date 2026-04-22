@@ -565,10 +565,40 @@ export const fetchPostById = createAsyncThunk(
                 };
 
                 extractPosts(data.thread);
-                return await hydratePostsWithInteractionStatus(Array.from(postsMap.values()), token);
+                const posts = Array.from(postsMap.values());
+                
+                // Problem 1 Fix: Check if we have authenticated viewer fields already
+                // If every post has a viewer object, it means getPostThread was called with auth
+                // and we can skip the extra round-trip to the local interactions DB.
+                const hasViewerState = token && posts.length > 0 && posts.every(p => p.viewer !== undefined);
+                
+                if (hasViewerState) {
+                    // Map bsky viewer fields to our internal interaction flags
+                    posts.forEach(p => {
+                        if (p.viewer) {
+                            p.isLiked = !!p.viewer.like;
+                            p.isReposted = !!p.viewer.repost;
+                        }
+                    });
+                    return posts;
+                }
+                
+                return await hydratePostsWithInteractionStatus(posts, token);
             }
 
             const mappedPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
+            
+            // Apply same skip-logic for direct API calls if they return viewer state
+            if (token && mappedPosts.length > 0 && mappedPosts.every(p => p.viewer !== undefined)) {
+                 mappedPosts.forEach(p => {
+                    if (p.viewer) {
+                        p.isLiked = !!p.viewer.like;
+                        p.isReposted = !!p.viewer.repost;
+                    }
+                });
+                return mappedPosts;
+            }
+            
             return await hydratePostsWithInteractionStatus(mappedPosts, token);
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -589,7 +619,8 @@ export const fetchPostReplies = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch replies');
             const posts: Post[] = await response.json();
-            return { posts, postId, skip };
+            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
+            return { posts: hydrated, postId, skip };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -1000,6 +1031,21 @@ const postsSlice = createSlice({
                     updateInArray(state.discoverPosts);
                     updateInArray(state.trendingPosts);
                 }
+
+                // Problem 4 Fix: Prepend the new reply to threadPosts if the parent is present
+                if (newPost.replyToPostId) {
+                    const parent = state.threadPosts.find(p =>
+                        p.id === newPost.replyToPostId ||
+                        p.tid === newPost.replyToPostId ||
+                        (p.uri && (p.uri === newPost.replyToPostId || p.uri.endsWith('/' + newPost.replyToPostId)))
+                    );
+                    if (parent) {
+                        // Deduplicate by URI before unshifting
+                        if (!state.threadPosts.some(p => p.uri === newPost.uri)) {
+                            state.threadPosts.unshift(newPost);
+                        }
+                    }
+                }
             })
             .addCase(createPost.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
@@ -1238,6 +1284,16 @@ const postsSlice = createSlice({
                         const existingPost = state.threadPosts[index];
                         state.threadPosts[index] = mergePostSnapshot(existingPost, fetchedPost);
                     } else {
+                        // Problem 3 Fix: Apply existing interactionTruth to new posts before pushing
+                        const truth = state.interactionTruth[fetchedPost.uri!];
+                        if (truth) {
+                            if (truth.isLiked === true) fetchedPost.isLiked = true;
+                            if (truth.isReposted === true) fetchedPost.isReposted = true;
+                            if (truth.isBookmarked === true) fetchedPost.isBookmarked = true;
+                            if (truth.likesCount !== undefined) fetchedPost.likesCount = truth.likesCount;
+                            if (truth.repostsCount !== undefined) fetchedPost.repostsCount = truth.repostsCount;
+                            if (truth.viewer) fetchedPost.viewer = truth.viewer;
+                        }
                         state.threadPosts.push(fetchedPost);
                     }
                 });
@@ -1435,6 +1491,16 @@ const postsSlice = createSlice({
                     if (index !== -1) {
                         state.threadPosts[index] = mergePostSnapshot(state.threadPosts[index], fetchedPost);
                     } else {
+                        // Problem 3 Fix: Apply existing interactionTruth
+                        const truth = state.interactionTruth[fetchedPost.uri!];
+                        if (truth) {
+                            if (truth.isLiked === true) fetchedPost.isLiked = true;
+                            if (truth.isReposted === true) fetchedPost.isReposted = true;
+                            if (truth.isBookmarked === true) fetchedPost.isBookmarked = true;
+                            if (truth.likesCount !== undefined) fetchedPost.likesCount = truth.likesCount;
+                            if (truth.repostsCount !== undefined) fetchedPost.repostsCount = truth.repostsCount;
+                            if (truth.viewer) fetchedPost.viewer = truth.viewer;
+                        }
                         state.threadPosts.push(fetchedPost);
                     }
                 });

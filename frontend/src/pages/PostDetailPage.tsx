@@ -201,6 +201,7 @@ const PostDetailPage: React.FC = () => {
     const lastSkipRef = React.useRef<number>(-1);
     const lastRequestTimeRef = React.useRef<number>(0);
     const [hasExhaustedReplies, setHasExhaustedReplies] = React.useState(false);
+    const isInitialFetchComplete = React.useRef(false);
 
     const hasMoreReplies = React.useMemo(() => {
         if (!post || hasExhaustedReplies) return false;
@@ -228,7 +229,7 @@ const PostDetailPage: React.FC = () => {
 
         const observer = new IntersectionObserver(
             (entries) => {
-                if (!entries[0].isIntersecting || isRepliesLoading) return;
+                if (!entries[0].isIntersecting || isRepliesLoading || !isInitialFetchComplete.current) return;
 
                 const currentTopLevelCount = posts.filter(p => {
                     if (!p.replyToPostId) return false;
@@ -273,6 +274,7 @@ const PostDetailPage: React.FC = () => {
             dispatch(fetchPostById({ handle: handle!, uri: postId!, take: INITIAL_REPLIES_TAKE }))
                 .unwrap()
                 .then((threadArray) => {
+                    isInitialFetchComplete.current = true;
                     // Evaluate if the initial fetch exhausted the available top-level replies
                     const mainPost = threadArray.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId!));
                     if (mainPost) {
@@ -286,26 +288,30 @@ const PostDetailPage: React.FC = () => {
                         }
                     }
                 })
-                .catch(() => { /* handled by reducer */ });
+                .catch(() => {
+                    isInitialFetchComplete.current = true; // Still mark as complete even if errored to allow retry via scroll
+                });
         }
         return () => {
             dispatch(clearThreadPosts());
+            isInitialFetchComplete.current = false;
         };
     }, [dispatch, handle, postId, INITIAL_REPLIES_TAKE]);
 
     // Re-fetch the thread immediately after the user posts a reply, so the new reply is visible
+    // Problem 4: This is now handled optimistically in the Redux reducer.
+    // We only need to reset the exhaustion flag to allow loading more replies if any.
     const lastPostsLength = React.useRef(0);
     const replyCount = useAppSelector((state: RootState) => state.posts.posts.filter(
         (p: Post) => p.replyToPostId === post?.id || p.replyToPostId === post?.tid || p.replyToPostId === post?.uri
     ).length);
+
     React.useEffect(() => {
         if (replyCount > lastPostsLength.current && post?.uri) {
-            // A new local reply was added — refresh the post thread from server
             setHasExhaustedReplies(false);
-            dispatch(fetchPostById({ uri: post.uri }));
         }
         lastPostsLength.current = replyCount;
-    }, [replyCount, post?.uri, dispatch]);
+    }, [replyCount, post?.uri]);
 
     const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
     React.useEffect(() => {
