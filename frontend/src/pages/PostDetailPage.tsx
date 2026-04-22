@@ -114,8 +114,8 @@ const PostDetailPage: React.FC = () => {
     // Use a larger initial batch (20) to ensure most threads are fully loaded immediately.
     // This allows the initial fetch logic to verify if directReplies.length < 20, 
     // seamlessly exhausting the thread and preventing the observer from firing useless [] requests.
-    const INITIAL_REPLIES_TAKE = 20;
-    const LAZY_REPLIES_TAKE = 10;
+    const INITIAL_REPLIES_TAKE = 10;
+    const LAZY_REPLIES_TAKE = 5;
 
     // Helper to sort a list of posts by current sortOrder
     const sortPosts = React.useCallback((arr: Post[]) => {

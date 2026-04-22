@@ -6864,7 +6864,18 @@ public class PostService : IPostService
             }
         }
 
-        var post = existing ?? new Post { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
+        var post = existing ?? new Post { Id = Guid.NewGuid() };
+        
+        // Extract CreatedAt from remote record if available
+        if (recordNode["createdAt"] != null && DateTime.TryParse(recordNode["createdAt"].ToString(), out var remoteCreatedAt))
+        {
+            post.CreatedAt = remoteCreatedAt;
+        }
+        else if (post.CreatedAt == null)
+        {
+            post.CreatedAt = DateTime.UtcNow;
+        }
+
         post.AuthorId = author.Id;
         post.Uri = uri;
         post.Cid = cid;
