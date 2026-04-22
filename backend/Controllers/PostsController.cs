@@ -610,11 +610,13 @@ public class PostsController : ControllerBase
 
                 // Depth 4 gives a deeper conversation tree, matching BSky's detailed view
                 // We use V2 (unspecced) which handles large threads better
+                _logger.LogInformation("[PostsController] Fetching V2 thread for {Uri} (Viewer: {Viewer})", threadUri, viewerId);
                 var xrpcThread = await _postService.GetPostThreadV2Async(threadUri, 4, 0, "top", viewerId);
                 
                 // Fallback to standard V1 if V2 fails
                 if (xrpcThread == null)
                 {
+                    _logger.LogInformation("[PostsController] V2 failed, falling back to V1 for {Uri}", threadUri);
                     xrpcThread = await _postService.GetPostThreadAsync(threadUri, 2, 0, viewerId);
                 }
 
@@ -635,13 +637,15 @@ public class PostsController : ControllerBase
                 }
                 else
                 {
-                    // Extract all direct replies from the XRPC response
                     allReplies = ExtractDirectRepliesFromThread(xrpcThread, cacheKey, out totalExpected);
+                    _logger.LogInformation("[PostsController] Extracted {Count} replies from XRPC (Expected: {Expected}) for {Uri}", allReplies.Count, totalExpected, cacheKey);
                     
                     // 3. Deep Fetch Fallback
                     if (allReplies.Count < totalExpected && totalExpected > 20)
                     {
+                        _logger.LogInformation("[PostsController] Attempting Search Deep Fetch for {Uri}", cacheKey);
                         var searchReplies = await FetchMoreRepliesViaSearch(cacheKey, viewerId);
+                        _logger.LogInformation("[PostsController] Search found {Count} new replies for {Uri}", searchReplies.Count, cacheKey);
                         var existingUris = new HashSet<string>(allReplies.Select(r => r.Uri).Where(u => u != null)!, StringComparer.OrdinalIgnoreCase);
                         
                         foreach (var sr in searchReplies)
@@ -729,9 +733,9 @@ public class PostsController : ControllerBase
             
             if (results.Count == 0 && threadNode != null)
             {
-                _logger.LogWarning("[PostsController] No replies extracted from threadNode. Root post URI: {Uri}, Raw keys: {Keys}", 
-                    threadNode["post"]?["uri"]?.ToString(), 
-                    string.Join(", ", threadNode.Children().Select(c => (c as Newtonsoft.Json.Linq.JProperty)?.Name).Where(n => n != null)));
+                _logger.LogWarning("[PostsController] No replies extracted from threadNode for {Uri}. Raw JSON first 500 chars: {Raw}", 
+                    threadUri, 
+                    Newtonsoft.Json.JsonConvert.SerializeObject(threadResponse).Substring(0, Math.Min(500, Newtonsoft.Json.JsonConvert.SerializeObject(threadResponse).Length)));
             }
     }
     catch (Exception ex)
@@ -767,7 +771,9 @@ public class PostsController : ControllerBase
 
             for (int page = 0; page < maxPages; page++)
             {
-                var url = $"https://{hostname}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString($"to:{rootUri}")}&limit=100";
+                // Try searching for the URI directly (most robust way to find replies in search index)
+            var url = $"https://{hostname}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(rootUri)}&limit=100";
+            _logger.LogInformation("[PostsController] Searching for replies via {Url}", url);
                 if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
                 var response = await client.GetAsync(url);
