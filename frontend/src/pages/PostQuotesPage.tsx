@@ -19,7 +19,8 @@ const PostQuotesPage: React.FC = () => {
     const { t } = useTranslation();
 
     const post = useAppSelector((s: RootState) =>
-        s.posts.posts.find(p => p.tid === postId || p.id === postId)
+        s.posts.posts.find(p => p.tid === postId || p.id === postId) ||
+        s.posts.threadPosts.find(p => p.tid === postId || p.id === postId)
     );
 
     const [quotes, setQuotes] = useState<any[]>([]);

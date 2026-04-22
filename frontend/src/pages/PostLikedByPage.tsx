@@ -25,7 +25,8 @@ const PostLikedByPage: React.FC = () => {
 
     const currentUser = useAppSelector((s: RootState) => s.auth.user);
     const post = useAppSelector((s: RootState) =>
-        s.posts.posts.find(p => p.tid === postId || p.id === postId)
+        s.posts.posts.find(p => p.tid === postId || p.id === postId) ||
+        s.posts.threadPosts.find(p => p.tid === postId || p.id === postId)
     );
 
     const [users, setUsers] = useState<User[]>([]);
