@@ -3,6 +3,8 @@ using BSkyClone.Services;
 using BSkyClone.UnitOfWork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 
 namespace BSkyClone.Controllers;
@@ -569,9 +571,10 @@ public class PostsController : ControllerBase
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
             // 1. Check cache first
-            if (!_threadReplyCacheService.TryGet(identifier, out var allReplies))
+            if (!_threadReplyCacheService.TryGet(identifier, out var allReplies) || allReplies == null)
             {
                 // 2. Cache miss — fetch the thread from Bluesky ONCE
+                allReplies = new List<PostDto>();
                 // Depth 1 is sufficient as we only want direct replies; deep fetch will handle truncation
                 var xrpcThread = await _postService.GetPostThreadAsync(identifier, 1, 0, viewerId);
                 int totalExpected = 0;
@@ -613,17 +616,17 @@ public class PostsController : ControllerBase
                 }
 
                 // 3. Sort consistently
-                allReplies = allReplies
+                allReplies = allReplies?
                     .OrderByDescending(r => r.LikesCount)
                     .ThenBy(r => r.CreatedAt)
-                    .ToList();
+                    .ToList() ?? new List<PostDto>();
 
                 // 4. Cache the full sorted list
                 _threadReplyCacheService.Set(identifier, allReplies);
             }
 
             // 5. Apply skip/take to the cached list
-            var page = allReplies
+            var page = (allReplies ?? new List<PostDto>())
                 .Skip(skip)
                 .Take(take)
                 .ToList();
@@ -663,10 +666,10 @@ public class PostsController : ControllerBase
                 totalReplyCount = (int)(rootPostNode["replyCount"] ?? 0);
             }
 
-            if (threadNode["replies"] == null) return results;
-
-            foreach (var replyNode in threadNode["replies"])
+            if (threadNode["replies"] is Newtonsoft.Json.Linq.JArray repliesArray)
             {
+                foreach (var replyNode in repliesArray)
+                {
                 var postNode = replyNode["post"];
                 if (postNode == null) continue;
 
@@ -674,11 +677,12 @@ public class PostsController : ControllerBase
                 if (postDto != null)
                 {
                     postDto.RepliesCount = replyNode["replies"]?.Count() ?? postDto.RepliesCount;
-                    results.Add(postDto);
+                results.Add(postDto);
                 }
             }
         }
-        catch (Exception ex)
+    }
+    catch (Exception ex)
         {
             _logger.LogError(ex, "[PostsController] Error extracting replies from thread response");
         }
