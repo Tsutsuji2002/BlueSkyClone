@@ -43,6 +43,9 @@ public interface IUserService
     Task<bool> UpdateHandleAsync(Guid userId, string newHandle);
     Task<User?> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null);
     Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds, bool refreshRemote = true);
+    /// <summary>Looks up relationship status for a list of remote DIDs (used by reposted-by/liked-by endpoints).</summary>
+    Task<Dictionary<string, UserRelationshipStatusDto>> GetInteractionStatusesByDidsAsync(Guid viewerId, IEnumerable<string> dids);
+
     Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowersDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
     Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowingDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
     Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null, bool mergeDuplicates = true);

@@ -759,6 +759,34 @@ export const fetchDiscoverPosts = createAsyncThunk(
     }
 );
 
+export const fetchPostQuotes = createAsyncThunk<
+    { posts: Post[], cursor: string | null, hasMore: boolean },
+    { postUri: string, cursor?: string, limit?: number },
+    { rejectValue: string }
+>(
+    'posts/fetchQuotes',
+    async ({ postUri, cursor, limit = 20 }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
+
+            const params = new URLSearchParams({ uri: postUri, limit: String(limit) });
+            if (cursor) params.append('cursor', cursor);
+
+            const response = await fetch(`${API_BASE_URL}/posts/quotes?${params}`, { headers });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch quotes');
+
+            const posts: Post[] = (data.posts || []);
+            return { posts, cursor: data.cursor || null, hasMore: data.hasMore ?? !!data.cursor };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+
 const postsSlice = createSlice({
     name: 'posts',
     initialState,

@@ -319,7 +319,93 @@ export const fetchFollowing = createAsyncThunk<
     }
 );
 
+
+export const fetchPostRepostedBy = createAsyncThunk<
+    { users: User[], cursor: string | null },
+    { postUri: string, cursor?: string, limit?: number },
+    { rejectValue: string }
+>(
+    'user/fetchPostRepostedBy',
+    async ({ postUri, cursor, limit = 50 }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
+
+            const params = new URLSearchParams({ uri: postUri, limit: String(limit) });
+            if (cursor) params.append('cursor', cursor);
+
+            const response = await fetch(`${API_BASE_URL}/posts/reposted-by?${params}`, { headers });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch');
+
+            const usersArray: User[] = (data.users || []).map((u: any) => ({
+                id: u.id || u.did || u.handle,
+                did: u.did,
+                handle: u.handle,
+                username: u.username || u.handle,
+                displayName: u.displayName || u.handle,
+                avatarUrl: u.avatar || u.avatarUrl,
+                bio: u.bio,
+                followersCount: u.followersCount || 0,
+                followingCount: u.followingCount || 0,
+                postsCount: u.postsCount || 0,
+                isFollowing: u.isFollowing ?? false,
+                isFollowedBy: u.isFollowedBy ?? false,
+                followingReference: u.followingReference,
+            } as User));
+
+            return { users: usersArray, cursor: data.cursor || null };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const fetchPostLikedBy = createAsyncThunk<
+    { users: User[], cursor: string | null },
+    { postUri: string, cursor?: string, limit?: number },
+    { rejectValue: string }
+>(
+    'user/fetchPostLikedBy',
+    async ({ postUri, cursor, limit = 50 }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
+
+            const params = new URLSearchParams({ uri: postUri, limit: String(limit) });
+            if (cursor) params.append('cursor', cursor);
+
+            const response = await fetch(`${API_BASE_URL}/posts/liked-by?${params}`, { headers });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch');
+
+            const usersArray: User[] = (data.users || []).map((u: any) => ({
+                id: u.id || u.did || u.handle,
+                did: u.did,
+                handle: u.handle,
+                username: u.username || u.handle,
+                displayName: u.displayName || u.handle,
+                avatarUrl: u.avatar || u.avatarUrl,
+                bio: u.bio,
+                followersCount: u.followersCount || 0,
+                followingCount: u.followingCount || 0,
+                postsCount: u.postsCount || 0,
+                isFollowing: u.isFollowing ?? false,
+                isFollowedBy: u.isFollowedBy ?? false,
+                followingReference: u.followingReference,
+            } as User));
+
+            return { users: usersArray, cursor: data.cursor || null };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const followUserAsync = createAsyncThunk<
+
     { isFollowing: boolean, followersCount: number, uri: string },
     string,
     { rejectValue: string }

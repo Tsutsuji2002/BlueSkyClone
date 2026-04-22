@@ -2034,6 +2034,77 @@ public class UserService : IUserService
         return result;
     }
 
+    public async Task<Dictionary<string, UserRelationshipStatusDto>> GetInteractionStatusesByDidsAsync(Guid viewerId, IEnumerable<string> dids)
+    {
+        var didList = dids
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var result = new Dictionary<string, UserRelationshipStatusDto>(StringComparer.OrdinalIgnoreCase);
+        if (!didList.Any()) return result;
+
+        // Try to enrich from AppView if viewer has a token
+        var token = await GetOrRefreshBlueskyTokenAsync(viewerId);
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            using var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            foreach (var batch in didList.Chunk(25))
+            {
+                var url = "https://api.bsky.app/xrpc/app.bsky.actor.getProfiles?" +
+                          string.Join("&", batch.Select(d => $"actors={Uri.EscapeDataString(d)}"));
+                try
+                {
+                    var response = await client.GetAsync(url);
+                    if (!response.IsSuccessStatusCode) continue;
+                    var content = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(content);
+                    if (!doc.RootElement.TryGetProperty("profiles", out var profilesProp)) continue;
+                    foreach (var profile in profilesProp.EnumerateArray())
+                    {
+                        if (!profile.TryGetProperty("did", out var didProp)) continue;
+                        var did = didProp.GetString();
+                        if (string.IsNullOrEmpty(did)) continue;
+                        var status = profile.TryGetProperty("viewer", out var viewerProp)
+                            ? BuildInteractionStatusFromViewer(viewerProp)
+                            : new UserRelationshipStatusDto(false, false, false, false, false, null, null);
+                        result[did] = status;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[GetInteractionStatusesByDidsAsync] Batch fetch failed for viewer {ViewerId}", viewerId);
+                }
+            }
+        }
+
+        // For DIDs not returned by AppView, fall back to local DB
+        var missing = didList.Where(d => !result.ContainsKey(d)).ToList();
+        if (missing.Any())
+        {
+            var localUsers = await _unitOfWork.Users.Query()
+                .Where(u => missing.Contains(u.Did!))
+                .Select(u => new { u.Id, u.Did })
+                .ToListAsync();
+
+            if (localUsers.Any())
+            {
+                var localIds = localUsers.Select(u => u.Id).ToList();
+                var localStatuses = await GetInteractionStatusesAsync(viewerId, localIds, refreshRemote: false);
+                foreach (var lu in localUsers)
+                {
+                    if (!string.IsNullOrEmpty(lu.Did) && localStatuses.TryGetValue(lu.Id, out var s))
+                        result[lu.Did] = s;
+                }
+            }
+        }
+
+        return result;
+    }
+
     private async Task<Dictionary<Guid, UserRelationshipStatusDto>> FetchRemoteInteractionStatusesAsync(Guid viewerId, IEnumerable<User> targetUsers)
     {
         var remoteTargets = targetUsers

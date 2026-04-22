@@ -59,6 +59,9 @@ const BlockedAccountsPage = React.lazy(() => import('../pages/BlockedAccountsPag
 const VerificationSettingsPage = React.lazy(() => import('../pages/VerificationSettingsPage'));
 
 const PostDetailPage = React.lazy(() => import('../pages/PostDetailPage'));
+const PostRepostedByPage = React.lazy(() => import('../pages/PostRepostedByPage'));
+const PostLikedByPage = React.lazy(() => import('../pages/PostLikedByPage'));
+const PostQuotesPage = React.lazy(() => import('../pages/PostQuotesPage'));
 const TagPage = React.lazy(() => import('../pages/TagPage'));
 const SubmitRequestPage = React.lazy(() => import('../pages/SubmitRequestPage'));
 
@@ -123,6 +126,13 @@ const AppRoutes: React.FC = () => {
                     } />
                     <Route path="tag/:tag" element={<TagPage />} />
                     <Route path="profile/:handle/post/:postId" element={<PostDetailPage />} />
+                    <Route path="profile/:handle/post/:postId/reposted-by" element={<PostRepostedByPage />} />
+                    <Route path="profile/:handle/post/:postId/liked-by" element={
+                        <ProtectedRoute>
+                            <PostLikedByPage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="profile/:handle/post/:postId/quotes" element={<PostQuotesPage />} />
                     <Route path="profile/:handle/post/:postId/media/:index" element={<MediaViewerPage />} />
                     <Route path="settings" element={
                         <ProtectedRoute>

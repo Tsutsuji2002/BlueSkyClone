@@ -850,18 +850,30 @@ const PostDetailPage: React.FC = () => {
 
                 {/* Stats */}
                 <div className="flex items-center gap-4 py-3 border-t border-gray-100 dark:border-dark-border/50 text-sm">
-                    <div className="flex items-center gap-1">
-                        <span className="font-bold text-gray-900 dark:text-dark-text">{post.repostsCount}</span>
-                        <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.reposts')}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="font-bold text-gray-900 dark:text-dark-text">{post.quotesCount || 0}</span>
-                        <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.quotes')}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="font-bold text-gray-900 dark:text-dark-text">{post.likesCount}</span>
-                        <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.likes')}</span>
-                    </div>
+                    <button 
+                        className="flex items-center gap-1 hover:underline group disabled:opacity-50 disabled:hover:no-underline"
+                        onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/reposted-by`)}
+                        disabled={post.repostsCount === 0}
+                    >
+                        <span className="font-bold text-gray-900 dark:text-dark-text group-hover:text-primary-500">{post.repostsCount}</span>
+                        <span className="text-gray-500 dark:text-dark-text-secondary group-hover:text-primary-500">{t('post.reposts')}</span>
+                    </button>
+                    <button 
+                        className="flex items-center gap-1 hover:underline group disabled:opacity-50 disabled:hover:no-underline"
+                        onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/quotes`)}
+                        disabled={!post.quotesCount || post.quotesCount === 0}
+                    >
+                        <span className="font-bold text-gray-900 dark:text-dark-text group-hover:text-primary-500">{post.quotesCount || 0}</span>
+                        <span className="text-gray-500 dark:text-dark-text-secondary group-hover:text-primary-500">{t('post.quotes')}</span>
+                    </button>
+                    <button 
+                        className="flex items-center gap-1 hover:underline group disabled:opacity-50 disabled:hover:no-underline"
+                        onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/liked-by`)}
+                        disabled={post.likesCount === 0}
+                    >
+                        <span className="font-bold text-gray-900 dark:text-dark-text group-hover:text-primary-500">{post.likesCount}</span>
+                        <span className="text-gray-500 dark:text-dark-text-secondary group-hover:text-primary-500">{t('post.likes')}</span>
+                    </button>
                     <div className="flex items-center gap-1">
                         <span className="font-bold text-gray-900 dark:text-dark-text">{post.bookmarksCount || 0}</span>
                         <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.saves')}</span>

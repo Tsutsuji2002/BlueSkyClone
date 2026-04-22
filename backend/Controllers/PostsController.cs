@@ -899,4 +899,278 @@ public class PostsController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    // ─── Post Interaction Lists ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the list of users who reposted a given post (proxies app.bsky.feed.getRepostedBy).
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("reposted-by")]
+    public async Task<IActionResult> GetRepostedBy([FromQuery] string uri, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+    {
+        if (string.IsNullOrWhiteSpace(uri)) return BadRequest("uri is required.");
+        try
+        {
+            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+            var viewerToken = viewerId.HasValue
+                ? await (HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>())
+                    .GetStringAsync($"BlueskyToken_{viewerId.Value}")
+                : null;
+
+            var clientFactory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+            using var client = clientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(20);
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            if (!string.IsNullOrEmpty(viewerToken))
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
+
+            var hostname = string.IsNullOrEmpty(viewerToken) ? "public.api.bsky.app" : "api.bsky.app";
+            var url = $"https://{hostname}/xrpc/app.bsky.feed.getRepostedBy?uri={Uri.EscapeDataString(uri)}&limit={limit}";
+            if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+            var response = await client.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+                return Ok(new { users = new List<object>(), cursor = (string?)null });
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(content);
+
+            string? nextCursor = doc.RootElement.TryGetProperty("cursor", out var cur) ? cur.GetString() : null;
+            var userService = HttpContext.RequestServices.GetRequiredService<IUserService>();
+
+            var users = new List<BSkyClone.DTOs.UserDto>();
+            if (doc.RootElement.TryGetProperty("repostedBy", out var repostedByArray))
+            {
+                foreach (var item in repostedByArray.EnumerateArray())
+                {
+                    var dto = MapBskyActorToUserDto(item);
+                    if (dto != null) users.Add(dto);
+                }
+            }
+
+            // Enrich with follow status for authenticated viewer
+            if (viewerId.HasValue && users.Any())
+            {
+                var dids = users.Where(u => !string.IsNullOrEmpty(u.Did)).Select(u => u.Did!).ToList();
+                try
+                {
+                    var statuses = await userService.GetInteractionStatusesByDidsAsync(viewerId.Value, dids);
+                    users = users.Select(u =>
+                    {
+                        if (!string.IsNullOrEmpty(u.Did) && statuses.TryGetValue(u.Did, out var s))
+                        {
+                            return u with
+                            {
+                                IsFollowing = s.IsFollowing,
+                                IsFollowedBy = s.IsFollowedBy,
+                                FollowingReference = s.FollowingReference
+                            };
+                        }
+                        return u;
+                    }).ToList();
+                }
+                catch { /* Enrich is best-effort */ }
+            }
+
+            return Ok(new { users, cursor = nextCursor });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostsController] GetRepostedBy error for {Uri}", uri);
+            return Ok(new { users = new List<object>(), cursor = (string?)null });
+        }
+    }
+
+    /// <summary>
+    /// Returns the list of users who liked a given post (proxies app.bsky.feed.getLikes).
+    /// Requires authentication.
+    /// </summary>
+    [HttpGet("liked-by")]
+    public async Task<IActionResult> GetLikedBy([FromQuery] string uri, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+    {
+        if (string.IsNullOrWhiteSpace(uri)) return BadRequest("uri is required.");
+        try
+        {
+            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(currentUserIdString) || !Guid.TryParse(currentUserIdString, out var viewerId))
+                return Unauthorized();
+
+            var viewerToken = await (HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>())
+                .GetStringAsync($"BlueskyToken_{viewerId}");
+
+            var clientFactory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+            using var client = clientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(20);
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            if (!string.IsNullOrEmpty(viewerToken))
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
+
+            var hostname = string.IsNullOrEmpty(viewerToken) ? "public.api.bsky.app" : "api.bsky.app";
+            var url = $"https://{hostname}/xrpc/app.bsky.feed.getLikes?uri={Uri.EscapeDataString(uri)}&limit={limit}";
+            if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+            var response = await client.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+                return Ok(new { users = new List<object>(), cursor = (string?)null });
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(content);
+
+            string? nextCursor = doc.RootElement.TryGetProperty("cursor", out var cur) ? cur.GetString() : null;
+            var userService = HttpContext.RequestServices.GetRequiredService<IUserService>();
+
+            var users = new List<BSkyClone.DTOs.UserDto>();
+            if (doc.RootElement.TryGetProperty("likes", out var likesArray))
+            {
+                foreach (var item in likesArray.EnumerateArray())
+                {
+                    // getLikes returns { createdAt, indexedAt, actor: {...} }
+                    if (item.TryGetProperty("actor", out var actorEl))
+                    {
+                        var dto = MapBskyActorToUserDto(actorEl);
+                        if (dto != null) users.Add(dto);
+                    }
+                }
+            }
+
+            // Enrich with follow status
+            if (users.Any())
+            {
+                var dids = users.Where(u => !string.IsNullOrEmpty(u.Did)).Select(u => u.Did!).ToList();
+                try
+                {
+                    var statuses = await userService.GetInteractionStatusesByDidsAsync(viewerId, dids);
+                    users = users.Select(u =>
+                    {
+                        if (!string.IsNullOrEmpty(u.Did) && statuses.TryGetValue(u.Did, out var s))
+                        {
+                            return u with
+                            {
+                                IsFollowing = s.IsFollowing,
+                                IsFollowedBy = s.IsFollowedBy,
+                                FollowingReference = s.FollowingReference
+                            };
+                        }
+                        return u;
+                    }).ToList();
+                }
+                catch { /* Enrich is best-effort */ }
+            }
+
+            return Ok(new { users, cursor = nextCursor });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostsController] GetLikedBy error for {Uri}", uri);
+            return Ok(new { users = new List<object>(), cursor = (string?)null });
+        }
+    }
+
+    /// <summary>
+    /// Returns the list of posts that quote a given post (proxies app.bsky.feed.getQuotes).
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("quotes")]
+    public async Task<IActionResult> GetQuotes([FromQuery] string uri, [FromQuery] int limit = 20, [FromQuery] string? cursor = null)
+    {
+        if (string.IsNullOrWhiteSpace(uri)) return BadRequest("uri is required.");
+        try
+        {
+            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+            var viewerToken = viewerId.HasValue
+                ? await (HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>())
+                    .GetStringAsync($"BlueskyToken_{viewerId.Value}")
+                : null;
+
+            var clientFactory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+            using var client = clientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(20);
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            if (!string.IsNullOrEmpty(viewerToken))
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
+
+            var hostname = string.IsNullOrEmpty(viewerToken) ? "public.api.bsky.app" : "api.bsky.app";
+            var url = $"https://{hostname}/xrpc/app.bsky.feed.getQuotes?uri={Uri.EscapeDataString(uri)}&limit={limit}";
+            if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+            var response = await client.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+                return Ok(new { posts = new List<object>(), cursor = (string?)null, hasMore = false });
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(content);
+
+            string? nextCursor = doc.RootElement.TryGetProperty("cursor", out var cur) ? cur.GetString() : null;
+
+            var posts = new List<BSkyClone.DTOs.PostDto>();
+            if (doc.RootElement.TryGetProperty("posts", out var postsArray))
+            {
+                foreach (var postEl in postsArray.EnumerateArray())
+                {
+                    var mapped = _postService.MapBlueskyPost(postEl);
+                    if (mapped != null) posts.Add(mapped);
+                }
+            }
+
+            // Enrich with interaction status (isLiked, isReposted, isBookmarked)
+            if (viewerId.HasValue && posts.Any())
+            {
+                try
+                {
+                    var enriched = await _postService.EnrichAndFilterPostsAsync(posts, viewerId.Value, false, false);
+                    posts = enriched.ToList();
+                }
+                catch { /* Enrich is best-effort */ }
+            }
+
+            return Ok(new { posts, cursor = nextCursor, hasMore = !string.IsNullOrEmpty(nextCursor) });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostsController] GetQuotes error for {Uri}", uri);
+            return Ok(new { posts = new List<object>(), cursor = (string?)null, hasMore = false });
+        }
+    }
+
+    /// <summary>Helper to parse a Bluesky actor object into a UserDto.</summary>
+    private static BSkyClone.DTOs.UserDto? MapBskyActorToUserDto(System.Text.Json.JsonElement actorEl)
+    {
+        try
+        {
+            var did = actorEl.TryGetProperty("did", out var didEl) ? didEl.GetString() : null;
+            var handle = actorEl.TryGetProperty("handle", out var hEl) ? hEl.GetString() : null;
+            var displayName = actorEl.TryGetProperty("displayName", out var dnEl) ? dnEl.GetString() : handle;
+            var avatarUrl = actorEl.TryGetProperty("avatar", out var avEl) ? avEl.GetString() : null;
+            string? bio = null;
+            if (actorEl.TryGetProperty("description", out var descEl)) bio = descEl.GetString();
+
+            if (string.IsNullOrEmpty(did) && string.IsNullOrEmpty(handle)) return null;
+
+            return new BSkyClone.DTOs.UserDto(
+                Guid.Empty, // No local ID for remote users
+                handle ?? did ?? "",
+                handle ?? did ?? "",
+                "",
+                displayName ?? handle ?? "",
+                avatarUrl,
+                null, // coverImageUrl
+                bio,
+                null, null, null,
+                0, 0, 0,
+                "user",
+                null,
+                false,
+                did
+            );
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
