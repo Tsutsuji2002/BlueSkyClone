@@ -669,6 +669,8 @@
         "undo_repost": "Bỏ đăng lại",
         "reposted_by_you": "Đã đăng lại bởi bạn",
         "reposted_by": "Đã đăng lại bởi {{name}}",
+        "reposted_by_title": "Đã đăng lại bởi",
+        "liked_by_title": "Đã thích bởi",
         "read_more_replies": "Đọc thêm {{count}} phản hồi",
         "read_more_reply": "Đọc thêm 1 phản hồi",
         "search_gifs": "Tìm GIF từ GIPHY",

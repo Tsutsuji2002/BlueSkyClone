@@ -37,7 +37,7 @@ const PostLikedByPage: React.FC = () => {
     const observerTarget = useRef<HTMLDivElement>(null);
     const postUri = post?.uri;
 
-    useDocumentTitle(post ? `${t('post.liked_by', 'Liked By')} · ${post.likesCount} ${t('post.likes', 'Likes')}` : t('post.liked_by', 'Liked By'));
+    useDocumentTitle(post ? `${t('post.liked_by_title', 'Liked By')} · ${post.likesCount} ${t('post.likes', 'Likes')}` : t('post.liked_by_title', 'Liked By'));
 
     // Load the post if we don't have it
     useEffect(() => {
@@ -118,7 +118,7 @@ const PostLikedByPage: React.FC = () => {
                     </button>
                     <div>
                         <h1 className="font-bold text-lg text-gray-900 dark:text-dark-text">
-                            {t('post.liked_by', 'Liked By')}
+                            {t('post.liked_by_title', 'Liked By')}
                         </h1>
                         {post && (
                             <p className="text-sm text-gray-500 dark:text-dark-text-secondary">

@@ -37,7 +37,7 @@ const PostRepostedByPage: React.FC = () => {
     const observerTarget = useRef<HTMLDivElement>(null);
     const postUri = post?.uri;
 
-    useDocumentTitle(post ? `${t('post.reposted_by', 'Reposted By')} · ${post.repostsCount} ${t('post.reposts', 'Reposts')}` : t('post.reposted_by', 'Reposted By'));
+    useDocumentTitle(post ? `${t('post.reposted_by_title', 'Reposted By')} · ${post.repostsCount} ${t('post.reposts', 'Reposts')}` : t('post.reposted_by_title', 'Reposted By'));
 
     // Load the post if we don't have it
     useEffect(() => {
@@ -118,7 +118,7 @@ const PostRepostedByPage: React.FC = () => {
                     </button>
                     <div>
                         <h1 className="font-bold text-lg text-gray-900 dark:text-dark-text">
-                            {t('post.reposted_by', 'Reposted By')}
+                            {t('post.reposted_by_title', 'Reposted By')}
                         </h1>
                         {post && (
                             <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
