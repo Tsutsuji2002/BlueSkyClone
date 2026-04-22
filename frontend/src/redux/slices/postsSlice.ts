@@ -493,7 +493,7 @@ export const fetchPostById = createAsyncThunk(
             const token = localStorage.getItem('token');
             const uri = typeof args === 'string' ? args : args.uri;
             const handle = typeof args === 'object' ? args.handle : undefined;
-            const take = typeof args === 'object' ? args.take : 20;
+            const take = typeof args === 'object' && args.take !== undefined ? args.take : 20;
 
             // uri may be a full AT URI or just a GUID or a TID
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
@@ -508,7 +508,7 @@ export const fetchPostById = createAsyncThunk(
             } else if (handle && handle !== 'local') {
                 const fullUri = `at://${handle}/app.bsky.feed.post/${postId}`;
                 const baseUrl = API_BASE_URL.replace(/\/api$/, '');
-                endpoint = `${baseUrl}/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(fullUri)}&take=${take}`;
+                endpoint = `${baseUrl}/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(fullUri)}`;
             } else {
                 endpoint = `${API_BASE_URL}/posts/tid/${postId}?take=${take}`;
             }

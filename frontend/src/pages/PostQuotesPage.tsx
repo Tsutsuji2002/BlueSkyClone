@@ -97,7 +97,6 @@ const PostQuotesPage: React.FC = () => {
                         </h1>
                         {post && (
                             <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                <FiMessageSquare size={12} className="inline mr-1" />
                                 {post.quotesCount} {t('post.quotes', 'quotes')}
                             </p>
                         )}

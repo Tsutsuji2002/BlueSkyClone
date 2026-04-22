@@ -122,7 +122,6 @@ const PostLikedByPage: React.FC = () => {
                         </h1>
                         {post && (
                             <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                <FiHeart size={12} className="inline mr-1" />
                                 {post.likesCount} {t('post.likes', 'likes')}
                             </p>
                         )}
@@ -170,13 +169,15 @@ const PostLikedByPage: React.FC = () => {
                                     size="sm"
                                     onClick={() => handleFollow(user)}
                                     disabled={isLoading}
-                                    className="flex-shrink-0"
+                                    className="flex-shrink-0 rounded-full font-bold px-4"
                                 >
                                     {isLoading
                                         ? '...'
                                         : user.isFollowing
                                             ? t('profile.following', 'Following')
-                                            : t('profile.follow', 'Follow')
+                                            : user.isFollowedBy
+                                                ? t('profile.follow_back', '+ Follow back')
+                                                : t('profile.follow', '+ Follow')
                                     }
                                 </Button>
                             )}
