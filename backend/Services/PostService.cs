@@ -3550,7 +3550,7 @@ public class PostService : IPostService
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                return Newtonsoft.Json.JsonConvert.DeserializeObject<object>(content);
+                return System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(content);
             }
             
             _logger.LogWarning("[PostService] getPostThreadV2 failed for {Anchor}: {Status}", anchor, response.StatusCode);
@@ -3629,7 +3629,7 @@ public class PostService : IPostService
 
             if (rawJson != null)
             {
-                return Newtonsoft.Json.JsonConvert.DeserializeObject<object>(rawJson);
+                return System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(rawJson);
             }
 
             // 2. Fallback to local DB or PDS Proxy if AppView fails (only if not strictly NotFound)
