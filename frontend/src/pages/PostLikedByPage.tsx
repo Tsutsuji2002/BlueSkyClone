@@ -42,9 +42,9 @@ const PostLikedByPage: React.FC = () => {
     // Load the post if we don't have it
     useEffect(() => {
         if (!post && postId) {
-            dispatch(fetchPostById({ id: postId }));
+            dispatch(fetchPostById({ handle, uri: postId }));
         }
-    }, [dispatch, post, postId]);
+    }, [dispatch, post, postId, handle]);
 
     // Initial fetch once we have the URI
     useEffect(() => {
@@ -138,13 +138,13 @@ const PostLikedByPage: React.FC = () => {
                     const isSelf = currentUser?.id === user.id || currentUser?.did === user.did;
                     return (
                         <div key={identifier} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
-                            <UserHoverCard handle={user.handle || user.did || ''}>
+                            <UserHoverCard user={user}>
                                 <button onClick={() => navigate(`/profile/${user.handle || user.did}`)}>
                                     <Avatar src={user.avatarUrl} alt={user.displayName || user.handle} size="md" />
                                 </button>
                             </UserHoverCard>
                             <div className="flex-1 min-w-0">
-                                <UserHoverCard handle={user.handle || user.did || ''}>
+                                <UserHoverCard user={user}>
                                     <button
                                         className="font-semibold text-gray-900 dark:text-dark-text hover:underline truncate max-w-full block text-left"
                                         onClick={() => navigate(`/profile/${user.handle || user.did}`)}

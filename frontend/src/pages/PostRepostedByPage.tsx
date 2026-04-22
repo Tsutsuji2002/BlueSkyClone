@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiRepeat2 } from 'react-icons/fi';
+import { FiArrowLeft, FiRepeat } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
 import UserSkeleton from '../components/common/UserSkeleton';
@@ -42,9 +42,9 @@ const PostRepostedByPage: React.FC = () => {
     // Load the post if we don't have it
     useEffect(() => {
         if (!post && postId) {
-            dispatch(fetchPostById({ id: postId }));
+            dispatch(fetchPostById({ handle, uri: postId }));
         }
-    }, [dispatch, post, postId]);
+    }, [dispatch, post, postId, handle]);
 
     // Initial fetch once we have the URI
     useEffect(() => {
@@ -122,7 +122,7 @@ const PostRepostedByPage: React.FC = () => {
                         </h1>
                         {post && (
                             <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                <FiRepeat2 size={12} className="inline mr-1" />
+                                <FiRepeat size={12} className="inline mr-1" />
                                 {post.repostsCount} {t('post.reposts', 'reposts')}
                             </p>
                         )}
@@ -138,13 +138,13 @@ const PostRepostedByPage: React.FC = () => {
                     const isSelf = currentUser?.id === user.id || currentUser?.did === user.did;
                     return (
                         <div key={identifier} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
-                            <UserHoverCard handle={user.handle || user.did || ''}>
+                            <UserHoverCard user={user}>
                                 <button onClick={() => navigate(`/profile/${user.handle || user.did}`)}>
                                     <Avatar src={user.avatarUrl} alt={user.displayName || user.handle} size="md" />
                                 </button>
                             </UserHoverCard>
                             <div className="flex-1 min-w-0">
-                                <UserHoverCard handle={user.handle || user.did || ''}>
+                                <UserHoverCard user={user}>
                                     <button
                                         className="font-semibold text-gray-900 dark:text-dark-text hover:underline truncate max-w-full block text-left"
                                         onClick={() => navigate(`/profile/${user.handle || user.did}`)}
@@ -192,7 +192,7 @@ const PostRepostedByPage: React.FC = () => {
                 {/* Empty State */}
                 {!loading && users.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-dark-text-secondary">
-                        <FiRepeat2 size={40} className="mb-3 opacity-40" />
+                        <FiRepeat size={40} className="mb-3 opacity-40" />
                         <p className="font-medium">{t('post.no_reposts', 'No reposts yet')}</p>
                     </div>
                 )}

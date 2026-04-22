@@ -35,9 +35,9 @@ const PostQuotesPage: React.FC = () => {
     // Load the post if we don't have it
     useEffect(() => {
         if (!post && postId) {
-            dispatch(fetchPostById({ id: postId }));
+            dispatch(fetchPostById({ handle, uri: postId }));
         }
-    }, [dispatch, post, postId]);
+    }, [dispatch, post, postId, handle]);
 
     // Initial fetch once we have the URI
     useEffect(() => {
