@@ -118,7 +118,7 @@ const PrivacySettingsPage: React.FC = () => {
                             <h4 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
                                 {t('privacy.logout_visibility_label', 'Discourage apps from showing my account to logged-out users')}
                             </h4>
-                            <div className="relative inline-flex items-center cursor-pointer ml-auto shrink-0 mt-0.5">
+                            <label className="relative inline-flex items-center cursor-pointer ml-auto shrink-0 mt-0.5">
                                 <input
                                     type="checkbox"
                                     className="sr-only peer"
@@ -126,7 +126,7 @@ const PrivacySettingsPage: React.FC = () => {
                                     onChange={() => handleToggle('logoutVisibility', !settings?.logoutVisibility)}
                                 />
                                 <div className="w-5 h-5 bg-white border-2 border-gray-300 rounded peer-focus:ring-2 peer-focus:ring-blue-500 dark:bg-dark-bg dark:border-gray-500 peer-checked:bg-blue-500 peer-checked:border-blue-500 after:content-['✓'] after:absolute after:text-white after:text-xs after:font-bold after:left-[4px] after:top-[1px] after:opacity-0 peer-checked:after:opacity-100 transition-all"></div>
-                            </div>
+                            </label>
                         </div>
 
                         <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary mb-4 leading-relaxed">
