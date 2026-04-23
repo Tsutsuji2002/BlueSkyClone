@@ -789,7 +789,7 @@ public class ChatService : IChatService
     public async Task<string> GetChatSettingsAsync(Guid userId)
     {
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-        if (string.IsNullOrEmpty(token)) return "everyone";
+        if (string.IsNullOrEmpty(token)) return "all";
 
         return await _chatProxy.GetChatDeclarationAsync(token);
     }

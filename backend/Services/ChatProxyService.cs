@@ -211,15 +211,15 @@ namespace BSkyClone.Services
         {
             var url = $"{ChatEndpoint}/chat.bsky.actor.getDeclaration";
             var response = await CallAsync(token, url);
-            if (!response.IsSuccessStatusCode) return "everyone"; // Default fallback
+            if (!response.IsSuccessStatusCode) return "all"; // Default fallback
 
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("allowIncoming", out var prop))
             {
-                return prop.GetString() ?? "everyone";
+                return prop.GetString() ?? "all";
             }
-            return "everyone";
+            return "all";
         }
 
         public async Task<bool> UpdateChatDeclarationAsync(string token, string allowIncoming)
