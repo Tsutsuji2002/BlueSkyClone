@@ -454,6 +454,21 @@ public class PostService : IPostService
     {
         try
         {
+            if (postObj.ValueKind == JsonValueKind.Null) return null;
+
+            if (postObj.TryGetProperty("$type", out var pt))
+            {
+                var type = pt.GetString();
+                if (type == "app.bsky.feed.defs#notFoundPost" || type == "app.bsky.feed.defs#blockedPost")
+                {
+                    return new PostDto { 
+                        IsDeleted = true, 
+                        Uri = postObj.TryGetProperty("uri", out var u) ? u.GetString() : null,
+                        Content = type == "app.bsky.feed.defs#blockedPost" ? "[Blocked Post]" : "[Post Not Found]"
+                    };
+                }
+            }
+
             if (!postObj.TryGetProperty("author", out var authorObj)) return null;
             
             // Post records can have 'record' (for postView) or 'value' (for viewRecord)
@@ -965,19 +980,38 @@ public class PostService : IPostService
         // Pre-resolve all stub authors and posts in parallel to avoid N+1 network/DB calls inside the loop
         var stubAuthors = new HashSet<string>();
         var stubPosts = new HashSet<string>();
+        // Recursive stub collection helper
+        void CollectStubs(PostDto p)
+        {
+            if (p == null) return;
+
+            // Post is a stub if it has no content, no media, and no quote, but has a URI
+            bool isPostStub = !string.IsNullOrEmpty(p.Uri) && p.Uri.StartsWith("at://") && 
+                             string.IsNullOrEmpty(p.Content) && 
+                             (p.Media == null || p.Media.Count == 0) && 
+                             (p.ImageUrls == null || p.ImageUrls.Count == 0) &&
+                             p.QuotePost == null;
+
+            if (isPostStub) stubPosts.Add(p.Uri!);
+
+            // Author is a stub if ID is empty, it's just a DID/handle placeholder, or metadata is missing
+            if (p.Author != null)
+            {
+                bool isAuthorStub = p.Author.Id == Guid.Empty || 
+                                   string.IsNullOrEmpty(p.Author.Handle) || 
+                                   p.Author.Did == p.Author.Handle ||
+                                   (string.IsNullOrEmpty(p.Author.AvatarUrl) && !string.IsNullOrEmpty(p.Author.Did));
+
+                if (isAuthorStub && !string.IsNullOrEmpty(p.Author.Did)) stubAuthors.Add(p.Author.Did);
+            }
+
+            if (p.ParentPost != null) CollectStubs(p.ParentPost);
+            if (p.QuotePost != null) CollectStubs(p.QuotePost);
+        }
+
         foreach (var p in posts)
         {
-            bool isAuthorStub = p.Author != null && (p.Author.Id == Guid.Empty || string.IsNullOrEmpty(p.Author.Handle) || p.Author.Did == p.Author.Handle);
-            bool isPostStub = string.IsNullOrEmpty(p.Content) && !string.IsNullOrEmpty(p.Uri) && p.Uri.StartsWith("at://");
-
-            if (isAuthorStub && !string.IsNullOrEmpty(p.Author?.Did)) stubAuthors.Add(p.Author.Did);
-            if (isPostStub && !string.IsNullOrEmpty(p.Uri)) stubPosts.Add(p.Uri);
-
-            // Also check quoted/parent posts
-            if (p.ParentPost?.Author != null && (p.ParentPost.Author.Id == Guid.Empty || string.IsNullOrEmpty(p.ParentPost.Author.Handle) || p.ParentPost.Author.Did == p.ParentPost.Author.Handle)) 
-                stubAuthors.Add(p.ParentPost.Author.Did!);
-            if (p.QuotePost?.Author != null && (p.QuotePost.Author.Id == Guid.Empty || string.IsNullOrEmpty(p.QuotePost.Author.Handle) || p.QuotePost.Author.Did == p.QuotePost.Author.Handle)) 
-                stubAuthors.Add(p.QuotePost.Author.Did!);
+            CollectStubs(p);
         }
 
         var resolvedAuthors = new System.Collections.Concurrent.ConcurrentDictionary<string, User>();
@@ -1024,36 +1058,39 @@ public class PostService : IPostService
                 string? pUriKey = post.Uri?.ToLower();
                 string? rkey = pUriKey?.Split('/').LastOrDefault()?.ToLower();
 
-                // Apply resolved posts FIRST (because it provides content and author)
-                if (resolvedPosts.TryGetValue(post.Uri ?? "", out var rp))
+                // Sync metadata helper (Recursive for parent/quote)
+                void SyncMetadata(PostDto target)
                 {
-                    post.Content = rp.Content;
-                    post.Author = rp.Author;
-                    post.Media = rp.Media;
-                    post.ImageUrls = rp.ImageUrls;
-                    post.VideoUrl = rp.VideoUrl;
-                    post.LinkPreview = rp.LinkPreview;
-                    post.LikesCount = rp.LikesCount;
-                    post.RepostsCount = rp.RepostsCount;
-                    post.RepliesCount = rp.RepliesCount;
-                    post.Labels = rp.Labels;
+                    if (target == null) return;
+
+                    if (resolvedPosts.TryGetValue(target.Uri ?? "", out var rp))
+                    {
+                        target.Content = rp.Content;
+                        target.Author = rp.Author;
+                        target.Media = rp.Media;
+                        target.ImageUrls = rp.ImageUrls;
+                        target.VideoUrl = rp.VideoUrl;
+                        target.LinkPreview = rp.LinkPreview;
+                        target.LikesCount = rp.LikesCount;
+                        target.RepostsCount = rp.RepostsCount;
+                        target.RepliesCount = rp.RepliesCount;
+                        target.Labels = rp.Labels;
+                        target.QuotePost = rp.QuotePost;
+                    }
+
+                    if (target.Author != null && resolvedAuthors.TryGetValue(target.Author.Did ?? "", out var ra))
+                    {
+                        target.Author.Id = ra.Id;
+                        target.Author.Handle = ra.Handle;
+                        target.Author.DisplayName = ra.DisplayName;
+                        target.Author.AvatarUrl = ra.AvatarUrl;
+                    }
+
+                    if (target.ParentPost != null) SyncMetadata(target.ParentPost);
+                    if (target.QuotePost != null) SyncMetadata(target.QuotePost);
                 }
 
-                // Apply resolved authors (to current post and attachments)
-                if (post.Author != null && resolvedAuthors.TryGetValue(post.Author.Did ?? "", out var ra))
-                {
-                    post.Author.Id = ra.Id;
-                    post.Author.Handle = ra.Handle;
-                    post.Author.DisplayName = ra.DisplayName;
-                    post.Author.AvatarUrl = ra.AvatarUrl;
-                }
-                if (post.ParentPost?.Author != null && resolvedAuthors.TryGetValue(post.ParentPost.Author.Did ?? "", out var rpa))
-                {
-                    post.ParentPost.Author.Id = rpa.Id;
-                    post.ParentPost.Author.Handle = rpa.Handle;
-                    post.ParentPost.Author.DisplayName = rpa.DisplayName;
-                    post.ParentPost.Author.AvatarUrl = rpa.AvatarUrl;
-                }
+                SyncMetadata(post);
                 if (post.QuotePost?.Author != null && resolvedAuthors.TryGetValue(post.QuotePost.Author.Did ?? "", out var rqa))
                 {
                     post.QuotePost.Author.Id = rqa.Id;
@@ -1308,6 +1345,13 @@ public class PostService : IPostService
                     bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
                     if (isRemote)
                     {
+                        // Sync Author metadata if missing
+                        if (remotePost.TryGetProperty("author", out var remAuth) && post.Author != null)
+                        {
+                            if (string.IsNullOrEmpty(post.Author.DisplayName) && remAuth.TryGetProperty("displayName", out var dn)) post.Author.DisplayName = dn.GetString();
+                            if (string.IsNullOrEmpty(post.Author.AvatarUrl) && remAuth.TryGetProperty("avatar", out var av)) post.Author.AvatarUrl = av.GetString();
+                        }
+
                         if (remotePost.TryGetProperty("likeCount", out var lc)) post.LikesCount = lc.GetInt32();
                         if (remotePost.TryGetProperty("repostCount", out var rc)) post.RepostsCount = rc.GetInt32();
                         if (remotePost.TryGetProperty("replyCount", out var rpc)) post.RepliesCount = rpc.GetInt32();
@@ -3337,7 +3381,7 @@ public class PostService : IPostService
             // 3. Ingest Media and Link Previews if present
             if (postData.TryGetProperty("embed", out var embed))
             {
-                await IngestMediaFromEmbedAsync(newPost.Id, embed);
+                await IngestEmbedsAsync(newPost, embed, autoSave: true);
             }
 
             return newPost;
@@ -3519,7 +3563,7 @@ public class PostService : IPostService
             // 3. Ingest Media if present
             if (record.TryGetProperty("embed", out var embed))
             {
-                await IngestMediaFromEmbedAsync(newPost.Id, embed);
+                await IngestEmbedsAsync(newPost, embed, autoSave: true);
             }
 
             return newPost;
@@ -4280,6 +4324,27 @@ public class PostService : IPostService
                         await _unitOfWork.LinkPreviews.AddAsync(preview);
                     }
                 }
+            }
+            else if (type == "app.bsky.embed.record#view")
+            {
+                if (embed.TryGetProperty("record", out var rec))
+                {
+                    var uri = rec.TryGetProperty("uri", out var u) ? u.GetString() : null;
+                    if (!string.IsNullOrEmpty(uri))
+                    {
+                        var quotedPost = await IngestRemotePostAsync(uri);
+                        if (quotedPost != null) {
+                            post.QuotePostId = quotedPost.Id;
+                            post.QuotePost = quotedPost; 
+                            _unitOfWork.Posts.Update(post);
+                        }
+                    }
+                }
+            }
+            else if (type == "app.bsky.embed.recordWithMedia#view")
+            {
+                if (embed.TryGetProperty("media", out var media)) await IngestEmbedsAsync(post, media, false);
+                if (embed.TryGetProperty("record", out var rec)) await IngestEmbedsAsync(post, rec, false);
             }
             else if (type == "app.bsky.embed.video#view")
             {
