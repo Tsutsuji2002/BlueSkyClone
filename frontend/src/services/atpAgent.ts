@@ -1,9 +1,12 @@
 import { AtpAgent } from '@atproto/api';
 
 const API_URL = '/api';
-// The XRPC endpoints are at /xrpc, but the AtpAgent takes the base service URL.
-// If API_URL is http://localhost:5000/api, the agent will call http://localhost:5000/api/xrpc/...
-export const SERVICE_URL = API_URL.replace(/\/api$/, '');
+/**
+ * The AtpAgent requires a fully qualified service URL (including protocol and host).
+ * Since we are using an Nginx proxy that handles /xrpc on the same domain,
+ * we use the current window origin as the service base.
+ */
+export const SERVICE_URL = (window.location.origin || 'http://localhost:5000');
 
 export const agent = new AtpAgent({
     service: SERVICE_URL,
