@@ -121,53 +121,64 @@ const Dropdown: React.FC<DropdownProps> = ({
             </div>
 
             {isOpen && createPortal(
-                <div
-                    ref={menuRef}
-                    style={getAlignmentStyles()}
-                    className={cn(
-                        'bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl shadow-xl py-1 transition-all',
-                        'max-h-[min(480px,80vh)] overflow-y-auto scrollbar-hide'
-                    )}
-                >
-                    {items.map((item) => (
-                        <React.Fragment key={item.id}>
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    item.onClick();
-                                    // Delay closing to ensure the action (like file picker) is triggered
-                                    setTimeout(() => setIsOpen(false), 10);
-                                }}
-                                className={cn(
-                                    'w-full px-4 py-3 text-left flex items-center justify-between transition-colors font-semibold text-[15px]',
-                                    'hover:bg-gray-50 dark:hover:bg-dark-hover',
-                                    item.danger
-                                        ? 'text-red-500'
-                                        : 'text-gray-900 dark:text-dark-text'
+                <>
+                    {/* Transparent backdrop to catch clicks and lock background UI */}
+                    <div 
+                        className="fixed inset-0 z-[9998] bg-transparent cursor-default"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsOpen(false);
+                        }}
+                    />
+                    <div
+                        ref={menuRef}
+                        style={getAlignmentStyles()}
+                        className={cn(
+                            'bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl shadow-xl py-1 transition-all',
+                            'max-h-[min(480px,80vh)] overflow-y-auto scrollbar-hide'
+                        )}
+                    >
+                        {items.map((item) => (
+                            <React.Fragment key={item.id}>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        item.onClick();
+                                        // Delay closing to ensure the action (like file picker) is triggered
+                                        setTimeout(() => setIsOpen(false), 10);
+                                    }}
+                                    className={cn(
+                                        'w-full px-4 py-3 text-left flex items-center justify-between transition-colors font-semibold text-[15px]',
+                                        'hover:bg-gray-50 dark:hover:bg-dark-hover',
+                                        item.danger
+                                            ? 'text-red-500'
+                                            : 'text-gray-900 dark:text-dark-text'
+                                    )}
+                                >
+                                    <span>{item.label}</span>
+                                    {item.type === 'radio' ? (
+                                        <div className={cn(
+                                            "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                            item.selected 
+                                                ? "border-primary-500 bg-primary-500" 
+                                                : "border-gray-300 dark:border-dark-border"
+                                        )}>
+                                            {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                        </div>
+                                    ) : (
+                                        item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>
+                                    )}
+                                </button>
+                                {item.hasDivider && (
+                                    <div className="h-[1px] bg-gray-100 dark:bg-dark-border mx-0" />
                                 )}
-                            >
-                                <span>{item.label}</span>
-                                {item.type === 'radio' ? (
-                                    <div className={cn(
-                                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-                                        item.selected 
-                                            ? "border-primary-500 bg-primary-500" 
-                                            : "border-gray-300 dark:border-dark-border"
-                                    )}>
-                                        {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
-                                    </div>
-                                ) : (
-                                    item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>
-                                )}
-                            </button>
-                            {item.hasDivider && (
-                                <div className="h-[1px] bg-gray-100 dark:bg-dark-border mx-0" />
-                            )}
-                        </React.Fragment>
-                    ))}
-                </div>,
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </>,
                 document.body
             )}
         </div>
