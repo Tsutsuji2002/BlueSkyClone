@@ -22,7 +22,7 @@ namespace BSkyClone.Services
 
         public PlcService(IConfiguration configuration, ICryptoService crypto)
         {
-            _httpClient = new HttpClient();
+            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             _plcDirectory = configuration["PlcDirectory"] ?? "https://plc.directory";
             _crypto = crypto;
             _pdsDid = $"did:web:{configuration["DomainName"] ?? "bskyclone.site"}";

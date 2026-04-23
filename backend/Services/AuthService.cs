@@ -50,7 +50,7 @@ public class AuthService : IAuthService
 
     public async Task RequestPhoneVerificationAsync(string phone)
     {
-        using var httpClient = new HttpClient();
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
             phoneNumber = phone
         }), Encoding.UTF8, "application/json");
@@ -76,7 +76,7 @@ public class AuthService : IAuthService
         var handle = $"{username}.{request.HostingProvider.ToLower()}";
 
         // Proxy to Bluesky createAccount
-        using var httpClient = new HttpClient();
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         var payload = new Dictionary<string, object>
         {
             { "handle", handle },
@@ -158,7 +158,7 @@ public class AuthService : IAuthService
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
         // Proxy to Bluesky createSession
-        using var httpClient = new HttpClient();
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new {
             identifier = request.Identifier,
             password = request.Password

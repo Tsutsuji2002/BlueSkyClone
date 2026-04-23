@@ -602,7 +602,7 @@ public class PostService : IPostService
     {
         try
         {
-            using var httpClient = new HttpClient();
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             if (!string.IsNullOrEmpty(token))
             {
                 httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -738,7 +738,7 @@ public class PostService : IPostService
                     foreach (var chunk in remoteUrisList.Chunk(25))
                     {
                         // Use HttpClient with Bearer token if available to get viewer interaction state
-                        using var client = new HttpClient();
+                        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
                         if (!string.IsNullOrEmpty(token))
                         {
                             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -2241,7 +2241,7 @@ public class PostService : IPostService
                         {
                             try
                             {
-                                using var httpClient = new HttpClient();
+                                using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
                                 var imageBytes = await httpClient.GetByteArrayAsync(post.LinkPreview.Image);
                                 
                                 // Compress thumbnail too if needed

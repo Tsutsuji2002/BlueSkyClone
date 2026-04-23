@@ -74,7 +74,10 @@ builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IFeedService, FeedService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddHttpClient();
+builder.Services.AddHttpClient(Microsoft.Extensions.Options.Options.DefaultName, client => 
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 builder.Services.AddScoped<ILinkService, LinkService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
