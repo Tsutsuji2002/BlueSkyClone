@@ -361,60 +361,23 @@ public class UserService : IUserService
             await _unitOfWork.UserSettings.AddAsync(settings);
         }
 
-        // Map DTO to Model
-        settings.AdultContentFilter = request.AdultContentFilter;
-        settings.EnableAdultContent = request.EnableAdultContent;
-        settings.SexuallyExplicitFilter = request.SexuallyExplicitFilter;
-        settings.GraphicMediaFilter = request.GraphicMediaFilter;
-        settings.NonSexualNudityFilter = request.NonSexualNudityFilter;
-        settings.SortReplies = request.SortReplies;
-        settings.RequireAltText = request.RequireAltText;
-        settings.AutoplayVideoGif = request.AutoplayVideoGif;
-        settings.AppLanguage = request.AppLanguage;
-        settings.ThemeMode = request.ThemeMode;
-        settings.NotifyLikes = request.NotifyLikes;
-        settings.NotifyFollowers = request.NotifyFollowers;
-        settings.NotifyReplies = request.NotifyReplies;
-        settings.NotifyMentions = request.NotifyMentions;
-        settings.NotifyQuotes = request.NotifyQuotes;
-        settings.NotifyReposts = request.NotifyReposts;
-        settings.PushNotifyLikes = request.PushNotifyLikes;
-        settings.PushNotifyFollowers = request.PushNotifyFollowers;
-        settings.PushNotifyReplies = request.PushNotifyReplies;
-        settings.PushNotifyMentions = request.PushNotifyMentions;
-        settings.PushNotifyQuotes = request.PushNotifyQuotes;
-        settings.PushNotifyReposts = request.PushNotifyReposts;
-        settings.InAppNotifyLikes = request.InAppNotifyLikes;
-        settings.InAppNotifyFollowers = request.InAppNotifyFollowers;
-        settings.InAppNotifyReplies = request.InAppNotifyReplies;
-        settings.InAppNotifyMentions = request.InAppNotifyMentions;
-        settings.InAppNotifyQuotes = request.InAppNotifyQuotes;
-        settings.InAppNotifyReposts = request.InAppNotifyReposts;
-        settings.NotifyActivity = request.NotifyActivity;
-        settings.PushNotifyActivity = request.PushNotifyActivity;
-        settings.InAppNotifyActivity = request.InAppNotifyActivity;
-        settings.NotifyLikesOfReposts = request.NotifyLikesOfReposts;
-        settings.PushNotifyLikesOfReposts = request.PushNotifyLikesOfReposts;
-        settings.InAppNotifyLikesOfReposts = request.InAppNotifyLikesOfReposts;
-        settings.NotifyRepostsOfReposts = request.NotifyRepostsOfReposts;
-        settings.PushNotifyRepostsOfReposts = request.PushNotifyRepostsOfReposts;
-        settings.InAppNotifyRepostsOfReposts = request.InAppNotifyRepostsOfReposts;
-        settings.NotifyOthers = request.NotifyOthers;
-        settings.PushNotifyOthers = request.PushNotifyOthers;
-        settings.InAppNotifyOthers = request.InAppNotifyOthers;
-        settings.DefaultReplyRestriction = request.DefaultReplyRestriction;
-        settings.DefaultAllowQuotes = request.DefaultAllowQuotes;
-        settings.FontSize = request.FontSize;
-        settings.EnableTrending = request.EnableTrending;
-        settings.EnableDiscoverVideo = request.EnableDiscoverVideo;
-        settings.EnableTreeView = request.EnableTreeView;
-        settings.RequireLogoutVisibility = request.RequireLogoutVisibility;
-        settings.LargerAltBadge = request.LargerAltBadge;
-        settings.ShowReplies = request.ShowReplies;
-        settings.ShowReposts = request.ShowReposts;
-        settings.ShowQuotePosts = request.ShowQuotePosts;
-        settings.ShowSampleSavedFeeds = request.ShowSampleSavedFeeds;
-        settings.EnabledMediaProviders = request.EnabledMediaProviders;
+        // Map DTO to Model using reflection to support partial updates
+        var dtoProps = typeof(UserSettingDto).GetProperties();
+        var modelType = typeof(UserSetting);
+        
+        foreach (var prop in dtoProps)
+        {
+            var val = prop.GetValue(request);
+            if (val != null)
+            {
+                var modelProp = modelType.GetProperty(prop.Name);
+                if (modelProp != null && modelProp.CanWrite)
+                {
+                    modelProp.SetValue(settings, val);
+                }
+            }
+        }
+
 
         _unitOfWork.UserSettings.Update(settings);
         await _unitOfWork.CompleteAsync();
