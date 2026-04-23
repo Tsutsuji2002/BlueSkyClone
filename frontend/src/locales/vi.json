@@ -570,11 +570,12 @@
     },
     "chat_settings": {
         "title": "Cài đặt trò chuyện",
-        "allow_messages_from": "Cho phép tin nhắn từ",
+        "allow_messages_from": "Cho phép tin nhắn mới từ",
         "everyone": "Tất cả mọi người",
-        "followers": "Người theo dõi",
+        "followers": "Người tôi theo dõi",
         "none": "Không ai cả",
-        "allow_messages_from_desc": "Chọn đối tượng có thể bắt đầu cuộc trò chuyện tin nhắn trực tiếp với bạn."
+        "allow_messages_from_desc": "Chọn đối tượng có thể bắt đầu cuộc trò chuyện tin nhắn trực tiếp với bạn.",
+        "allow_ongoing_desc": "Bạn có thể tiếp tục các cuộc trò chuyện đang diễn ra bất kể bạn chọn cài đặt nào."
     },
     "search": {
         "title": "Tìm kiếm",

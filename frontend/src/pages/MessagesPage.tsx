@@ -62,6 +62,7 @@ const MessagesPage: React.FC = () => {
                             <IconButton
                                 icon={<FiSettings size={20} />}
                                 tooltip={t('messages.settings')}
+                                onClick={() => navigate('/settings/chat')}
                             />
                             <IconButton
                                 icon={<FiMail size={20} />}

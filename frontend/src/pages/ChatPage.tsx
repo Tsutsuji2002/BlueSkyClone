@@ -516,13 +516,6 @@ const ChatPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
-                        <button
-                            onClick={() => navigate('/settings/chat')}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
-                            title={t('settings.chat_settings')}
-                        >
-                            <FiSettings size={20} className="text-gray-600 dark:text-dark-text" />
-                        </button>
                         <div className="relative">
                             <button
                                 id="chat-options-toggle"

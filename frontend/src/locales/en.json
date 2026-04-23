@@ -628,11 +628,12 @@
     },
     "chat_settings": {
         "title": "Chat settings",
-        "allow_messages_from": "Allow messages from",
+        "allow_messages_from": "Allow new messages from",
         "everyone": "Everyone",
-        "followers": "Followers",
+        "followers": "Users I follow",
         "none": "No one",
-        "allow_messages_from_desc": "Choose who can start a direct message conversation with you."
+        "allow_messages_from_desc": "Select who can start a direct message conversation with you.",
+        "allow_ongoing_desc": "You can continue ongoing conversations regardless of which setting you choose."
     },
     "search": {
         "title": "Search",
