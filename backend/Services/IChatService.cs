@@ -16,10 +16,12 @@ public interface IChatService
     Task<MessageDto> RecallMessageAsync(Guid userId, string messageId);
     Task<MessageDto> AddOrUpdateReactionAsync(Guid userId, string conversationId, string messageId, string emoji);
     Task<IEnumerable<MessageDto>> ForwardMessageAsync(Guid userId, string messageId, List<string> targetConversationIds);
-    Task MarkAsReadAsync(Guid userId, string conversationId);
+    Task MarkAsReadAsync(Guid userId, string conversationId, string? messageId = null);
     Task DeleteMessageForSelfAsync(Guid userId, string conversationId, string messageId);
     Task<List<Guid>> GetParticipantIdsAsync(string conversationId);
     Task<ChatLogResult> GetLogAsync(Guid userId, string conversationId, string? cursor);
+    Task<string> GetChatSettingsAsync(Guid userId);
+    Task<bool> UpdateChatSettingsAsync(Guid userId, string allowIncoming);
 }
 
 public record ChatLogResult(IEnumerable<MessageDto> Messages, string? Cursor);

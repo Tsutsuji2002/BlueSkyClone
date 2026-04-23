@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import {
     FiArrowLeft, FiUserPlus, FiUser, FiLock, FiShield,
     FiBell, FiMonitor, FiLayout, FiMaximize, FiGlobe,
-    FiHelpCircle, FiInfo, FiChevronRight, FiMenu
+    FiHelpCircle, FiInfo, FiChevronRight, FiMenu, FiMessageSquare
 } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -47,6 +47,7 @@ const SettingsPage: React.FC = () => {
         { id: 'privacy', label: t('settings.privacy'), icon: <FiLock size={20} /> },
         { id: 'moderation', label: t('settings.moderation'), icon: <FiShield size={20} /> },
         { id: 'notifications', label: t('settings.notifications'), icon: <FiBell size={20} /> },
+        { id: 'chat', label: t('settings.chat_settings'), icon: <FiMessageSquare size={20} /> },
         { id: 'content', label: t('settings.content'), icon: <FiMonitor size={20} /> },
         { id: 'appearance', label: t('settings.appearance'), icon: <FiLayout size={20} />, value: currentThemeName, active: true },
         { id: 'accessibility', label: t('settings.accessibility'), icon: <FiMaximize size={20} /> },
@@ -118,6 +119,8 @@ const SettingsPage: React.FC = () => {
                                     navigate('/settings/about');
                                 } else if (item.id === 'moderation') {
                                     navigate('/settings/moderation');
+                                } else if (item.id === 'chat') {
+                                    navigate('/settings/chat');
                                 } else if (item.id === 'content') {
                                     navigate('/settings/content');
                                 } else if (item.id === 'accessibility') {

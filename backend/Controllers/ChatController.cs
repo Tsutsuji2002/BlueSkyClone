@@ -50,11 +50,28 @@ public class ChatController : ControllerBase
     }
 
     [HttpPost("conversations/{id}/read")]
-    public async Task<IActionResult> MarkAsRead(string id)
+    public async Task<IActionResult> MarkAsRead(string id, [FromQuery] string? messageId = null)
     {
         var userId = GetUserId();
-        await _chatService.MarkAsReadAsync(userId, id);
+        await _chatService.MarkAsReadAsync(userId, id, messageId);
         return Ok();
+    }
+
+    [HttpGet("settings")]
+    public async Task<IActionResult> GetSettings()
+    {
+        var userId = GetUserId();
+        var allowIncoming = await _chatService.GetChatSettingsAsync(userId);
+        return Ok(new { allowIncoming });
+    }
+
+    [HttpPost("settings")]
+    public async Task<IActionResult> UpdateSettings([FromBody] UpdateChatSettingsRequest request)
+    {
+        var userId = GetUserId();
+        var success = await _chatService.UpdateChatSettingsAsync(userId, request.AllowIncoming);
+        if (success) return Ok();
+        return BadRequest(new { message = "Failed to update chat settings" });
     }
 
     [HttpGet("conversations/{id}/messages")]

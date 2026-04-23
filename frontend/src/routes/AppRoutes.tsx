@@ -48,6 +48,7 @@ const ContentSettingsPage = React.lazy(() => import('../pages/ContentSettingsPag
 const DiscussionSettingsPage = React.lazy(() => import('../pages/DiscussionSettingsPage'));
 const FollowingFeedSettingsPage = React.lazy(() => import('../pages/FollowingFeedSettingsPage'));
 const ExternalMediaPage = React.lazy(() => import('../pages/ExternalMediaPage'));
+const ChatSettingsPage = React.lazy(() => import('../pages/ChatSettingsPage'));
 
 // Moderation Pages
 const ModerationSettingsPage = React.lazy(() => import('../pages/ModerationSettingsPage'));
@@ -242,6 +243,11 @@ const AppRoutes: React.FC = () => {
                     <Route path="settings/content/external-media" element={
                         <ProtectedRoute>
                             <ExternalMediaPage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="settings/chat" element={
+                        <ProtectedRoute>
+                            <ChatSettingsPage />
                         </ProtectedRoute>
                     } />
                 </Route>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiImage, FiX, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash, FiSettings, FiX } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -10,7 +10,6 @@ import { openImageViewer } from '../redux/slices/modalsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import signalrService, { HubStatus } from '../services/signalrService';
 import EmojiPicker, { Theme as EmojiTheme, EmojiClickData } from 'emoji-picker-react';
-import { uploadImage } from '../services/mediaService';
 import { RootState, store } from '../redux/store';
 import { Message, Conversation, User } from '../types';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
@@ -63,8 +62,6 @@ const ChatPage: React.FC = () => {
             setHubStatus(status);
         });
     }, []);
-    const [selectedImage, setSelectedImage] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     // Link Detection
     useEffect(() => {
@@ -129,7 +126,7 @@ const ChatPage: React.FC = () => {
 
         prevContentRef.current = message;
     }, [message, stickyLink, dismissedLinks, linkPreview]);
-    const [isUploading, setIsUploading] = useState(false);
+
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -144,22 +141,11 @@ const ChatPage: React.FC = () => {
         onConfirm: () => { }
     });
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const emojiPickerRef = useRef<HTMLDivElement>(null);
     const reactionPickerRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const messageMenuRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
-
-    const [isConnected, setIsConnected] = useState(signalrService.hubStatus === HubStatus.Connected);
-
-    useEffect(() => {
-        const handleStatusChange = (status: HubStatus) => {
-            setIsConnected(status === HubStatus.Connected);
-        };
-        signalrService.onStatusChange(handleStatusChange);
-        setIsConnected(signalrService.hubStatus === HubStatus.Connected);
-    }, []);
 
     const { conversations, activeConversationMessages, isLoading, hasMore, isLoadingMore } = useAppSelector((state: RootState) => state.messages);
     const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
@@ -195,13 +181,17 @@ const ChatPage: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showOptionsMenu, selectedReactionMessageId, showEmojiPicker, showReactionPicker]);
 
-    const hasConversation = !!conversation;
     // Set active conversation and fetch messages on mount
     useEffect(() => {
         if (conversationId) {
             dispatch(setActiveConversation(conversationId));
             dispatch(fetchMessages({ conversationId, limit: 10 }));
-            dispatch(markAsRead(conversationId));
+            
+            if (conversation?.lastMessage) {
+                dispatch(markAsRead({ conversationId, messageId: conversation.lastMessage.id }));
+            } else {
+                dispatch(markAsRead({ conversationId }));
+            }
 
             if (!conversation) {
                 dispatch(fetchConversationById(conversationId));
@@ -211,15 +201,15 @@ const ChatPage: React.FC = () => {
 
     // Reliable Join conversation
     useEffect(() => {
-        if (conversationId && isConnected) {
+        if (conversationId && hubStatus === HubStatus.Connected) {
             signalrService.joinConversation(conversationId);
         }
         return () => {
-            if (conversationId && isConnected) {
+            if (conversationId && hubStatus === HubStatus.Connected) {
                 signalrService.leaveConversation(conversationId);
             }
         };
-    }, [conversationId, isConnected]);
+    }, [conversationId, hubStatus]);
 
     // Clear active conversation on unmount completely
     useEffect(() => {
@@ -233,7 +223,8 @@ const ChatPage: React.FC = () => {
         if (conversationId && activeConversationMessages.length > 0) {
             const hasUnread = activeConversationMessages.some((m: Message) => m.senderId !== currentUser?.id && !m.isRead);
             if (hasUnread) {
-                dispatch(markAsRead(conversationId));
+                const lastMsg = activeConversationMessages[activeConversationMessages.length - 1];
+                dispatch(markAsRead({ conversationId, messageId: lastMsg.id }));
             }
         }
     }, [activeConversationMessages, conversationId, dispatch, currentUser?.id]);
@@ -250,7 +241,6 @@ const ChatPage: React.FC = () => {
         const lastMessage = activeConversationMessages[activeConversationMessages.length - 1];
         const sentByMe = lastMessage?.senderId === currentUser?.id;
 
-        // Check if user is already at the bottom
         const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
         const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
 
@@ -262,18 +252,15 @@ const ChatPage: React.FC = () => {
         prevConversationId.current = conversationId;
     }, [activeConversationMessages, conversationId, currentUser?.id]);
 
-    // Incremental Sync Polling - Mirroring BlueSky getLog (Feature 2)
-    // This acts as a reliable fallback for SignalR and ensures no messages are missed.
+    // Incremental Sync Polling
     useEffect(() => {
         if (!conversationId || !activeConversationMessages.length) return;
 
-        // Poll every 10 seconds if connected, or 5 seconds if disconnected
         const intervalTime = hubStatus === HubStatus.Connected ? 10000 : 5000;
         
         const pollInterval = setInterval(() => {
             const lastMessage = activeConversationMessages[activeConversationMessages.length - 1];
             if (lastMessage) {
-                // Use Tid as cursor (primary) or Id as fallback
                 const cursor = lastMessage.tid || lastMessage.id;
                 dispatch(fetchChatLog({ conversationId, cursor }));
             }
@@ -281,24 +268,6 @@ const ChatPage: React.FC = () => {
 
         return () => clearInterval(pollInterval);
     }, [conversationId, activeConversationMessages, hubStatus, dispatch]);
-
-    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setSelectedImage(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const removeImage = () => {
-        setSelectedImage(null);
-        setImagePreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-    };
 
     const handleEmojiClick = (emojiData: EmojiClickData) => {
         setMessage(prev => prev + emojiData.emoji);
@@ -328,25 +297,16 @@ const ChatPage: React.FC = () => {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if ((!message.trim() && !selectedImage) || !conversationId) return;
+        if (!message.trim() || !conversationId) return;
 
         try {
             if (editingMessage) {
                 await signalrService.editMessage(editingMessage.id, message);
                 setEditingMessage(null);
             } else {
-                let imageUrl: string | undefined;
-                if (selectedImage) {
-                    setIsUploading(true);
-                    imageUrl = await uploadImage(selectedImage);
-                    setIsUploading(false);
-                }
-
-                // Pass linkPreview to signalrService if exists
-                await signalrService.sendMessage(conversationId, message.trim() || null, imageUrl || null, replyingTo?.id || null, linkPreview);
+                await signalrService.sendMessage(conversationId, message.trim(), null, replyingTo?.id || null, linkPreview);
             }
             setMessage('');
-            removeImage();
             setShowEmojiPicker(false);
             setReplyingTo(null);
             setLinkPreview(null);
@@ -354,7 +314,6 @@ const ChatPage: React.FC = () => {
             setDismissedLinks(new Set());
         } catch (error) {
             console.error('Failed to send message:', error);
-            setIsUploading(false);
         }
     };
 
@@ -390,9 +349,6 @@ const ChatPage: React.FC = () => {
     const handleAddReaction = async (msgId: string, emoji: string) => {
         if (!conversationId) return;
         try {
-            console.log(`Adding reaction: ${emoji} to message: ${msgId}`);
-            
-            // Optimistic Update
             const msgToUpdate = activeConversationMessages.find((m: Message) => m.id === msgId);
             if (msgToUpdate && currentUser) {
                 const existingReaction = msgToUpdate.reactions?.find((r: any) => r.userId === currentUser.id || r.userId === currentUser.did);
@@ -406,7 +362,7 @@ const ChatPage: React.FC = () => {
                     }
                 } else {
                     newReactions.push({
-                        userId: currentUser.did || currentUser.id, // Prefer DID for proxy
+                        userId: currentUser.did || currentUser.id,
                         emoji,
                         displayName: currentUser.displayName || currentUser.handle
                     });
@@ -454,16 +410,12 @@ const ChatPage: React.FC = () => {
             variant: 'danger',
             onConfirm: async () => {
                 try {
-                    console.log('Deleting message for self:', { conversationId, msgId });
-                    // Optimistic update
                     dispatch(removeMessageFromStore(msgId));
-                    
                     await signalrService.deleteMessageForSelf(conversationId, msgId);
                     dispatch(showToast({ message: t('messages.delete_success', 'Message deleted for you'), type: 'success' }));
                 } catch (err) {
                     console.error('Failed to delete for me:', err);
                     dispatch(showToast({ message: t('messages.delete_error', 'Failed to delete message'), type: 'error' }));
-                    // Should we add it back on error? Complex, so just log for now
                 }
                 setConfirmModal(prev => ({ ...prev, isOpen: false }));
             }
@@ -479,7 +431,6 @@ const ChatPage: React.FC = () => {
     };
 
     const handleMuteConversation = () => {
-        // TODO: Implement mute conversation functionality
         console.log('Mute conversation');
         setShowOptionsMenu(false);
     };
@@ -491,7 +442,6 @@ const ChatPage: React.FC = () => {
             title: t('moderation.block_title', 'Block User'),
             message: t('moderation.block_confirm', { name: otherParticipant.displayName || otherParticipant.handle }),
             onConfirm: () => {
-                // TODO: Implement block user functionality
                 console.log('Block user:', otherParticipant.id);
                 navigate('/messages');
             },
@@ -502,7 +452,6 @@ const ChatPage: React.FC = () => {
 
     const handleReportUser = () => {
         if (otherParticipant) {
-            // TODO: Implement report user functionality
             console.log('Report user:', otherParticipant.id);
         }
         setShowOptionsMenu(false);
@@ -514,7 +463,6 @@ const ChatPage: React.FC = () => {
             title: t('messages.leave_conversation', 'Leave Conversation'),
             message: t('messages.leave_confirm'),
             onConfirm: () => {
-                // TODO: Implement leave conversation functionality
                 console.log('Leave conversation');
                 navigate('/messages');
             },
@@ -567,14 +515,22 @@ const ChatPage: React.FC = () => {
                             </p>
                         </div>
                     </div>
-                    <div className="relative">
+                    <div className="flex items-center gap-1">
                         <button
-                            id="chat-options-toggle"
-                            onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                            onClick={() => navigate('/settings/chat')}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                            title={t('settings.chat_settings')}
                         >
-                            <FiMoreHorizontal size={20} className="text-gray-600 dark:text-dark-text" />
+                            <FiSettings size={20} className="text-gray-600 dark:text-dark-text" />
                         </button>
+                        <div className="relative">
+                            <button
+                                id="chat-options-toggle"
+                                onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                            >
+                                <FiMoreHorizontal size={20} className="text-gray-600 dark:text-dark-text" />
+                            </button>
 
                         {showOptionsMenu && (
                             <div
@@ -615,6 +571,7 @@ const ChatPage: React.FC = () => {
                             </div>
                         )}
                     </div>
+                  </div>
                 </div>
 
                 {/* Chat Area */}
@@ -645,107 +602,84 @@ const ChatPage: React.FC = () => {
                     ) : (
                         <>
                             {isLoadingMore && (
-                <div className="flex justify-center py-2">
+                                <div className="flex justify-center py-2">
                                     <LoadingIndicator size="sm" center={false} />
                                 </div>
                             )}
                             <div className="flex-grow min-h-0"></div>
                             {activeConversationMessages.map((msg: Message) => {
-                                 const senderDid = msg.sender?.did;
-                                 const senderId = msg.senderId;
-                                 const senderHandle = msg.sender?.handle;
-                                 const myDid = currentUser?.did;
-                                 const myId = currentUser?.id;
-                                 const myHandle = currentUser?.handle;
-
-                                 const isMe = (senderDid && myDid && String(senderDid) === String(myDid)) ||
-                                              (senderId && myId && String(senderId) === String(myId)) ||
-                                              (senderHandle && myHandle && String(senderHandle).toLowerCase() === String(myHandle).toLowerCase());
+                                 const isMe = msg.senderId === currentUser?.id || msg.sender?.did === currentUser?.did;
                                  
-
                                 return (
                                     <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col w-full ${isMe ? 'items-end pl-[15%] sm:pl-[20%]' : 'items-start pr-[15%] sm:pr-[20%]'} group/msg relative mb-2`}>
-
-                                        {/* Row: bubble + inline hover icons */}
                                         <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-2 max-w-full w-full ${isMe ? 'justify-start' : 'justify-start'}`}>
-
-                                            {/* Message Bubble & Reactions Wrapper */}
                                             <div className="relative min-w-0 max-w-full">
-                                                {/* Message Bubble */}
                                                 <div className={`overflow-hidden ${isMe
                                                     ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
                                                     : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
                                                     }`}>
-
-                                            {/* Reply Context */}
-                                            {msg.replyTo && !msg.isRecalled && (
-                                                <div className={`mx-2 mt-2 p-2 rounded-lg text-xs border-l-2 bg-black/5 dark:bg-white/5 flex flex-col gap-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${isMe ? 'border-white/50' : 'border-primary-500/50'}`}
-                                                    onClick={() => {
-                                                        const target = document.getElementById(`msg-${msg.replyTo?.id}`);
-                                                        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                    }}
-                                                >
-                                                    <span className="font-bold opacity-70">
-                                                        {msg.replyTo.senderId === currentUser?.id ? t('common.you') : (msg.replyTo.sender?.displayName || t('messages.unknown_user'))}
-                                                    </span>
-                                                    <p className="line-clamp-1 opacity-60 text-[11px]">
-                                                        {msg.replyTo.isRecalled ? t('messages.recalled_msg', { name: '' }).trim() : msg.replyTo.content || (msg.replyTo.imageUrl ? '📷 Photo' : '')}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {msg.isRecalled ? (
-                                                <div className="px-4 py-2 italic opacity-50 text-[13px]">
-                                                    {t('messages.recalled_msg', { name: isMe ? t('common.you') : (msg.sender?.displayName || t('messages.unknown_user')) })}
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    {msg.imageUrl && (
-                                                        <div className="p-1">
-                                                            <img
-                                                                src={msg.imageUrl!.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl!}
-                                                                alt="Chat"
-                                                                className="rounded-xl w-full max-h-[400px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                                                onClick={() => {
-                                                                    const fullUrl = msg.imageUrl!.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl!;
-                                                                    dispatch(openImageViewer({
-                                                                        images: [{ url: fullUrl }],
-                                                                        index: 0
-                                                                    }));
-                                                                }}
-                                                                onLoad={() => {
-                                                                    if (messagesContainerRef.current) {
-                                                                        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-                                                                    }
-                                                                }}
-                                                            />
+                                                    {msg.replyTo && !msg.isRecalled && (
+                                                        <div className={`mx-2 mt-2 p-2 rounded-lg text-xs border-l-2 bg-black/5 dark:bg-white/5 flex flex-col gap-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${isMe ? 'border-white/50' : 'border-primary-500/50'}`}
+                                                            onClick={() => {
+                                                                const target = document.getElementById(`msg-${msg.replyTo?.id}`);
+                                                                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                            }}
+                                                        >
+                                                            <span className="font-bold opacity-70">
+                                                                {msg.replyTo.senderId === currentUser?.id ? t('common.you') : (msg.replyTo.sender?.displayName || t('messages.unknown_user'))}
+                                                            </span>
+                                                            <p className="line-clamp-1 opacity-60 text-[11px]">
+                                                                {msg.replyTo.isRecalled ? t('messages.recalled_msg', { name: '' }).trim() : msg.replyTo.content || (msg.replyTo.imageUrl ? '📷 Photo' : '')}
+                                                            </p>
                                                         </div>
                                                     )}
 
-                                                    {msg.content && (
-                                                        <div className="px-4 py-2.5">
-                                                            <p className="text-[15px] whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
-                                                            {msg.isModified && (
-                                                                <span className="text-[10px] opacity-70 block mt-1 italic leading-none">{t('messages.modified')}</span>
+                                                    {msg.isRecalled ? (
+                                                        <div className="px-4 py-2 italic opacity-50 text-[13px]">
+                                                            {t('messages.recalled_msg', { name: isMe ? t('common.you') : (msg.sender?.displayName || t('messages.unknown_user')) })}
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            {msg.imageUrl && (
+                                                                <div className="p-1">
+                                                                    <img
+                                                                        src={msg.imageUrl!.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl!}
+                                                                        alt="Chat"
+                                                                        className="rounded-xl w-full max-h-[400px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                                                        onClick={() => {
+                                                                            const fullUrl = msg.imageUrl!.startsWith('/') ? `http://localhost:5000${msg.imageUrl}` : msg.imageUrl!;
+                                                                            dispatch(openImageViewer({
+                                                                                images: [{ url: fullUrl }],
+                                                                                index: 0
+                                                                            }));
+                                                                        }}
+                                                                    />
+                                                                </div>
                                                             )}
-                                                            {(() => {
-                                                                const details = extractPostDetails(msg.content!);
-                                                                if (details) {
-                                                                    return <PostEmbed postId={details.postId} handle={details.handle} />;
-                                                                }
-                                                                return msg.linkPreview && <LinkPreviewCard preview={msg.linkPreview} />;
-                                                            })()}
-                                                        </div>
+
+                                                            {msg.content && (
+                                                                <div className="px-4 py-2.5">
+                                                                    <p className="text-[15px] whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                                                                    {msg.isModified && (
+                                                                        <span className="text-[10px] opacity-70 block mt-1 italic leading-none">{t('messages.modified')}</span>
+                                                                    )}
+                                                                    {(() => {
+                                                                        const details = extractPostDetails(msg.content!);
+                                                                        if (details) {
+                                                                            return <PostEmbed postId={details.postId} handle={details.handle} />;
+                                                                        }
+                                                                        return msg.linkPreview && <LinkPreviewCard preview={msg.linkPreview} />;
+                                                                    })()}
+                                                                </div>
+                                                            )}
+                                                        </>
                                                     )}
-                                                </>
-                                            )}
                                                 </div>
-                                                {/* Reaction badges overlapping the bubble corner - Pic 4 Style */}
+
+                                                {/* Reactions */}
                                                 {(() => {
                                                     const reactions = msg.reactions || [];
                                                     if (reactions.length === 0) return null;
-
-                                                    // Group reactions by emoji
                                                     const grouped = reactions.reduce((acc, r) => {
                                                         acc[r.emoji] = (acc[r.emoji] || 0) + 1;
                                                         return acc;
@@ -756,10 +690,7 @@ const ChatPage: React.FC = () => {
                                                             {Object.entries(grouped).map(([emoji, count]) => (
                                                                 <div
                                                                     key={emoji}
-                                                                    className={`flex items-center justify-center w-6 h-6 rounded-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-dark-border shadow-sm pointer-events-auto transition-transform hover:scale-110 active:scale-95 ${msg.reactions?.some(r => r.userId === currentUser?.id || r.userId === currentUser?.did)
-                                                                        ? 'ring-1 ring-primary-500/50'
-                                                                        : ''
-                                                                        }`}
+                                                                    className={`flex items-center justify-center w-6 h-6 rounded-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-dark-border shadow-sm pointer-events-auto transition-transform hover:scale-110 active:scale-95 ${msg.reactions?.some(r => r.userId === currentUser?.id || r.userId === currentUser?.did) ? 'ring-1 ring-primary-500/50' : ''}`}
                                                                     title={`${count} reactions`}
                                                                     onClick={(e) => { e.stopPropagation(); handleAddReaction(msg.id, emoji); }}
                                                                 >
@@ -770,15 +701,8 @@ const ChatPage: React.FC = () => {
                                                     );
                                                 })()}
                                             </div>
-
-                                            {/* Reaction badges Logic removed from here */}
-                                            {(() => { return null; })()}
                                             
-                                            {/* Inline hover icons: ... and 🙂 */}
                                             <div className="flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 mb-1 z-10">
-
-
-                                                {/* ... Options */}
                                                 <div className="relative">
                                                     <button
                                                         onClick={(e) => { 
@@ -792,7 +716,6 @@ const ChatPage: React.FC = () => {
                                                             const height = 180;
                                                             let left = isMe ? rect.left - width : rect.right;
                                                             let top = rect.bottom + 4;
-                                                            
                                                             if (left + width > window.innerWidth - 10) left = window.innerWidth - width - 10;
                                                             if (left < 10) left = 10;
                                                             if (top + height > window.innerHeight - 10) top = rect.top - height - 4;
@@ -803,13 +726,30 @@ const ChatPage: React.FC = () => {
                                                             setShowReactionPicker(false); 
                                                         }}
                                                         className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
-                                                        title="Options"
                                                     >
                                                         <FiMoreHorizontal size={15} />
                                                     </button>
+                                                    {selectedReactionMessageId === msg.id && !showReactionPicker && menuPosition && (
+                                                        <div 
+                                                            ref={messageMenuRef}
+                                                            style={{ position: 'fixed', top: menuPosition.top, left: menuPosition.left }}
+                                                            className="w-48 bg-white dark:bg-dark-surface rounded-xl shadow-2xl border border-gray-100 dark:border-dark-border py-2 z-50 animate-in fade-in zoom-in-95 duration-200"
+                                                        >
+                                                            {!msg.isRecalled && (
+                                                                <>
+                                                                    <button onClick={() => handleReply(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiCornerUpLeft size={16}/> {t('messages.options.reply')}</button>
+                                                                    {isMe && <button onClick={() => handleEdit(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiEdit3 size={16}/> {t('messages.options.edit')}</button>}
+                                                                    <button onClick={() => handleForward(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiShare2 size={16}/> {t('messages.options.forward')}</button>
+                                                                    {msg.content && <button onClick={() => handleCopyText(msg.content!)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiCopy size={16}/> {t('messages.options.copy')}</button>}
+                                                                    {msg.content && <button onClick={() => handleTranslate(msg.content!)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiGlobe size={16}/> {t('messages.options.translate')}</button>}
+                                                                </>
+                                                            )}
+                                                            <button onClick={() => handleDeleteForMe(msg.id)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm text-red-500 font-medium"><FiTrash size={16}/> {t('messages.options.delete_for_me')}</button>
+                                                            {isMe && !msg.isRecalled && <button onClick={() => handleRecall(msg.id)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm text-red-500 font-medium"><FiBellOff size={16}/> {t('messages.options.recall')}</button>}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                
-                                                {/* 🙂 React - Pic 4 Style: Direct Picker */}
+
                                                 <div className="relative">
                                                     <button
                                                         onClick={(e) => { 
@@ -820,11 +760,10 @@ const ChatPage: React.FC = () => {
                                                                 return;
                                                             }
                                                             const rect = e.currentTarget.getBoundingClientRect();
-                                                            const width = Math.min(310, window.innerWidth - 20);
+                                                            const width = 310;
                                                             const height = 400;
                                                             let left = isMe ? rect.left - width : rect.right;
                                                             let top = rect.bottom + 4;
-                                                            
                                                             if (left + width > window.innerWidth - 10) left = window.innerWidth - width - 10;
                                                             if (left < 10) left = 10;
                                                             if (top + height > window.innerHeight - 10) top = rect.top - height - 4;
@@ -834,85 +773,28 @@ const ChatPage: React.FC = () => {
                                                             setShowReactionPicker(true);
                                                             setActiveQuickBarMessageId(null); 
                                                         }}
-                                                        className={`w-7 h-7 flex items-center justify-center rounded-full transition-all ${selectedReactionMessageId === msg.id && showReactionPicker 
-                                                            ? 'text-primary-500 bg-primary-50 dark:bg-primary-500/10' 
-                                                            : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10'
-                                                        }`}
-                                                        title="React"
+                                                        className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                                                     >
                                                         <FiSmile size={16} />
                                                     </button>
+                                                    {selectedReactionMessageId === msg.id && showReactionPicker && pickerPosition && (
+                                                        <div 
+                                                            ref={reactionPickerRef}
+                                                            style={{ position: 'fixed', top: pickerPosition.top, left: pickerPosition.left }}
+                                                            className="z-[60] shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+                                                        >
+                                                            <EmojiPicker
+                                                                onEmojiClick={(emojiData) => handleAddReaction(msg.id, emojiData.emoji)}
+                                                                theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
+                                                                lazyLoadEmojis={true}
+                                                                skinTonesDisabled={true}
+                                                                searchPlaceHolder={t('common.search_emojis')}
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-
-                                            {/* Message Options Menu - Dynamic JS Bounds */}
-                                            {selectedReactionMessageId === msg.id && !showReactionPicker && menuPosition && (
-                                                <>
-                                                    <div className="fixed inset-0 z-[90]" onClick={(e) => { e.stopPropagation(); setSelectedReactionMessageId(null); }} />
-                                                    <div
-                                                        ref={messageMenuRef}
-                                                        className="fixed z-[100] bg-white dark:bg-dark-surface shadow-xl rounded-xl border border-gray-100 dark:border-dark-border overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-                                                        style={{ left: `${menuPosition.left}px`, top: `${menuPosition.top}px`, width: '170px' }}
-                                                    >
-                                                        <div className="py-1">
-                                                            <button onClick={() => { handleTranslate(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                                <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.translate')}</span>
-                                                                <FiGlobe size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
-                                                            </button>
-                                                            <button onClick={() => { handleCopyText(msg.content || ''); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                                <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.copy_text')}</span>
-                                                                <FiCopy size={16} className="text-gray-400 group-hover/item:text-primary-500 transition-colors" />
-                                                            </button>
-                                                            <div className="h-[1px] bg-gray-100 dark:bg-dark-border my-1 mx-2" />
-                                                            <button onClick={() => { handleDeleteForMe(msg.id); setSelectedReactionMessageId(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-bg/50 flex items-center justify-between text-gray-700 dark:text-dark-text group/item">
-                                                                <span className="font-medium tracking-tight whitespace-nowrap">{t('messages.delete_for_me')}</span>
-                                                                <FiTrash size={16} className="text-gray-400 group-hover/item:text-red-500 transition-colors" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-
-                                            {/* Full Emoji Picker per-message - Dynamic JS Bounds */}
-                                            {selectedReactionMessageId === msg.id && showReactionPicker && pickerPosition && (
-                                                <>
-                                                    <div className="fixed inset-0 z-[90]" onClick={(e) => { e.stopPropagation(); setShowReactionPicker(false); setSelectedReactionMessageId(null); }} />
-                                                    <div 
-                                                        ref={reactionPickerRef}
-                                                        className="fixed z-[100] bg-white dark:bg-dark-surface rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
-                                                        style={{ 
-                                                            left: `${pickerPosition.left}px`, 
-                                                            top: `${pickerPosition.top}px`,
-                                                            width: '310px',
-                                                            maxWidth: 'calc(100vw - 20px)',
-                                                            height: '400px'
-                                                        }}
-                                                        onClick={(e) => { e.stopPropagation(); }}
-                                                    >
-                                                        <EmojiPicker
-                                                            onEmojiClick={(emojiData: EmojiClickData) => {
-                                                                handleAddReaction(msg.id, emojiData.emoji);
-                                                                setShowReactionPicker(false);
-                                                                setSelectedReactionMessageId(null);
-                                                            }}
-                                                            theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
-                                                            lazyLoadEmojis={true}
-                                                            skinTonesDisabled={true}
-                                                            searchPlaceholder="Search emojis..."
-                                                            width="100%"
-                                                            height="100%"
-                                                            previewConfig={{ showPreview: false }}
-                                                            scrollConfig={{ categoryRef: null }}
-                                                        />
-                                                    </div>
-                                                </>
-                                            )}
                                         </div>
-
-                                        {/* Timestamp removed from here as it should be outside the bubble+icons row */}
-
-
-                                        {/* Timestamp */}
                                         <div className="flex items-center gap-2 mt-0.5 px-1">
                                             <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary">
                                                 {formatChatMessageDate(msg.createdAt, i18n.language)}
@@ -930,27 +812,7 @@ const ChatPage: React.FC = () => {
                     )}
                 </div>
 
-                {/* Image Preview */}
-                {imagePreview && (
-                    <div className="px-4 py-3 bg-gray-50 dark:bg-dark-surface/30 border-t border-gray-100 dark:border-dark-border animate-in slide-in-from-bottom duration-300">
-                        <div className="relative inline-block group">
-                            <img src={imagePreview} alt="Preview" className="h-32 w-32 object-cover rounded-xl shadow-lg ring-2 ring-white dark:ring-dark-border" />
-                            <button
-                                onClick={removeImage}
-                                className="absolute -top-2 -right-2 p-1.5 bg-gray-900/80 hover:bg-gray-900 text-white rounded-full shadow-md backdrop-blur-sm transition-all"
-                            >
-                                <FiX size={14} />
-                            </button>
-                            {isUploading && (
-                                <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
-                                    <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Reply/Edit Preview */}
+                {/* Reply/Edit/Link Preview */}
                 {(replyingTo || editingMessage || linkPreview || isLinkLoading) && (
                     <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/50 border-t border-gray-100 dark:border-dark-border flex items-center justify-between animate-in slide-in-from-bottom duration-200">
                         {(replyingTo || editingMessage) ? (
@@ -970,7 +832,6 @@ const ChatPage: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            // Link Preview
                             <div className="w-full relative group">
                                 {isLinkLoading ? (
                                     <div className="flex items-center gap-3 animate-pulse">
@@ -996,7 +857,6 @@ const ChatPage: React.FC = () => {
                                 ) : null}
                             </div>
                         )}
-
                         <button
                             onClick={() => {
                                 if (replyingTo || editingMessage) {
@@ -1017,21 +877,6 @@ const ChatPage: React.FC = () => {
                     <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                         <div className="flex flex-1 items-end gap-2 bg-gray-100 dark:bg-dark-surface rounded-[24px] px-3 py-2 border border-transparent focus-within:border-primary-500/30 focus-within:bg-white dark:focus-within:bg-dark-surface transition-all">
                             <div className="flex items-center gap-1 mb-1">
-                                <button
-                                    type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="p-2 text-primary-500 hover:bg-primary-500/10 rounded-full transition-colors cursor-pointer"
-                                    title={t('common.add_image')}
-                                >
-                                    <FiImage size={22} />
-                                </button>
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={handleImageSelect}
-                                />
                                 <div className="relative">
                                     <button
                                         type="button"
@@ -1041,7 +886,6 @@ const ChatPage: React.FC = () => {
                                     >
                                         <FiSmile size={22} />
                                     </button>
-
                                     {showEmojiPicker && (
                                         <div
                                             ref={emojiPickerRef}
@@ -1058,11 +902,10 @@ const ChatPage: React.FC = () => {
                                     )}
                                 </div>
                             </div>
-
                             <textarea
                                 value={message}
-                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
-                                onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                                onChange={(e) => setMessage(e.target.value)}
+                                onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
                                         handleSendMessage(e);
@@ -1080,22 +923,21 @@ const ChatPage: React.FC = () => {
                                 }}
                             />
                         </div>
-
                         <button
                             type="submit"
-                            disabled={(!message.trim() && !selectedImage) || isUploading || hubStatus !== HubStatus.Connected}
-                            className={`p-2 rounded-full transition-all transform active:scale-90 ${(message.trim() || selectedImage) && !isUploading && hubStatus === HubStatus.Connected
+                            disabled={!message.trim() || hubStatus !== HubStatus.Connected}
+                            className={`p-2 rounded-full transition-all transform active:scale-90 ${message.trim() && hubStatus === HubStatus.Connected
                                 ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
                                 : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                                 }`}
                         >
-                            <FiSend size={24} className="translate-x-0" />
+                            <FiSend size={24} />
                         </button>
                     </form>
                 </div>
             </div>
 
-            {/* Forward Message Modal */}
+            {/* Forward Modal */}
             {forwardingMessage && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-dark-surface w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1105,7 +947,6 @@ const ChatPage: React.FC = () => {
                                 <FiX size={20} />
                             </button>
                         </div>
-
                         <div className="p-4 bg-gray-50/50 dark:bg-dark-bg/20 border-b border-gray-100 dark:border-dark-border">
                             <div className="relative">
                                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1114,11 +955,10 @@ const ChatPage: React.FC = () => {
                                     placeholder={t('common.search')}
                                     value={forwardSearch}
                                     onChange={(e) => setForwardSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
+                                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl text-sm outline-none transition-all"
                                 />
                             </div>
                         </div>
-
                         <div className="flex-1 overflow-y-auto p-2">
                             {conversations
                                 .filter(c => {
@@ -1150,9 +990,7 @@ const ChatPage: React.FC = () => {
                                                 <p className="font-bold text-gray-900 dark:text-dark-text truncate">{other?.displayName}</p>
                                                 <p className="text-xs text-gray-500 truncate">@{other?.handle}</p>
                                             </div>
-                                            <div className="w-8 h-8 rounded-full border-2 border-gray-200 dark:border-dark-border flex items-center justify-center group-hover:border-primary-500 transition-colors">
-                                                <FiSend size={14} className="text-gray-400 group-hover:text-primary-500" />
-                                            </div>
+                                            <FiSend size={14} className="text-gray-400" />
                                         </button>
                                     );
                                 })}
@@ -1160,7 +998,7 @@ const ChatPage: React.FC = () => {
                     </div>
                 </div>
             )}
-            {/* Confirm Modal */}
+
             <ConfirmModal
                 isOpen={confirmModal.isOpen}
                 onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}

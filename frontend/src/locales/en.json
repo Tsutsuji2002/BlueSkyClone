@@ -103,7 +103,8 @@
         "birthdate_future_error": "Birthday cannot be in the future",
         "muted_success": "User muted successfully",
         "blocked_success": "User blocked successfully",
-        "note": "Note"
+        "note": "Note",
+        "chat_settings": "Chat settings"
     },
     "moderation": {
         "title": "Moderation",
@@ -624,6 +625,14 @@
         "confirm_delete_for_me": "Are you sure you want to delete this message for yourself? It will remain visible to other participants.",
         "delete_success": "Message deleted for you",
         "delete_error": "Failed to delete message"
+    },
+    "chat_settings": {
+        "title": "Chat settings",
+        "allow_messages_from": "Allow messages from",
+        "everyone": "Everyone",
+        "followers": "Followers",
+        "none": "No one",
+        "allow_messages_from_desc": "Choose who can start a direct message conversation with you."
     },
     "search": {
         "title": "Search",

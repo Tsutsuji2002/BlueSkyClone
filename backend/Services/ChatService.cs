@@ -119,7 +119,13 @@ public class ChatService : IChatService
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
-            return await _chatProxy.GetMessagesAsync(token, conversationId, limit, before?.ToString("O"));
+            var msgs = await _chatProxy.GetMessagesAsync(token, conversationId, limit, before?.ToString("O"));
+            if (!before.HasValue && msgs.Any())
+            {
+                // Mark the latest message as read
+                await MarkAsReadAsync(userId, conversationId, msgs.Last().Id);
+            }
+            return msgs;
         }
 
         var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
@@ -142,9 +148,6 @@ public class ChatService : IChatService
             throw new Exception("Conversation not found or access denied");
         }
 
-        // When user fetches messages, mark the conversation as read
-        await MarkAsReadAsync(userId, conversationId);
-
         var query = _unitOfWork.Messages.Query()
             .Include(m => m.Sender)
             .Include(m => m.LinkPreview)
@@ -164,6 +167,16 @@ public class ChatService : IChatService
             .ToListAsync();
 
         var dtos = messages.OrderBy(m => m.CreatedAt).Select(MapToMessageDto).ToList();
+
+        // When user fetches messages, mark the conversation as read
+        if (!before.HasValue && dtos.Any())
+        {
+            await MarkAsReadAsync(userId, conversationId, dtos.Last().Id);
+        }
+        else if (!before.HasValue)
+        {
+             await MarkAsReadAsync(userId, conversationId);
+        }
 
         if (!before.HasValue && limit == 50)
         {
@@ -575,12 +588,22 @@ public class ChatService : IChatService
         }
     }
 
-    public async Task MarkAsReadAsync(Guid userId, string conversationId)
+    public async Task MarkAsReadAsync(Guid userId, string conversationId, string? messageId = null)
     {
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
-            await _chatProxy.UpdateReadAsync(token, conversationId);
+            // If messageId is null, we try to find the latest message from the proxy convo
+            if (string.IsNullOrEmpty(messageId))
+            {
+                var conv = await _chatProxy.GetConversationAsync(token, conversationId);
+                messageId = conv?.LastMessage?.Id;
+            }
+
+            if (!string.IsNullOrEmpty(messageId))
+            {
+                await _chatProxy.UpdateReadAsync(token, conversationId, messageId);
+            }
             return;
         }
 
@@ -761,5 +784,21 @@ public class ChatService : IChatService
 
         await _hubContext.Clients.Group($"user-{notification.RecipientId}")
             .SendAsync("ReceiveNotification", notificationDto);
+    }
+
+    public async Task<string> GetChatSettingsAsync(Guid userId)
+    {
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (string.IsNullOrEmpty(token)) return "everyone";
+
+        return await _chatProxy.GetChatDeclarationAsync(token);
+    }
+
+    public async Task<bool> UpdateChatSettingsAsync(Guid userId, string allowIncoming)
+    {
+        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+        if (string.IsNullOrEmpty(token)) return false;
+
+        return await _chatProxy.UpdateChatDeclarationAsync(token, allowIncoming);
     }
 }

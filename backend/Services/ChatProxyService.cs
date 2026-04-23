@@ -207,6 +207,30 @@ namespace BSkyClone.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<string> GetChatDeclarationAsync(string token)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.actor.getDeclaration";
+            var response = await CallAsync(token, url);
+            if (!response.IsSuccessStatusCode) return "everyone"; // Default fallback
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("allowIncoming", out var prop))
+            {
+                return prop.GetString() ?? "everyone";
+            }
+            return "everyone";
+        }
+
+        public async Task<bool> UpdateChatDeclarationAsync(string token, string allowIncoming)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.actor.updateDeclaration";
+            var body = new { allowIncoming = allowIncoming };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            return response.IsSuccessStatusCode;
+        }
+
 
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {

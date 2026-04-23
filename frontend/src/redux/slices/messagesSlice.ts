@@ -119,10 +119,13 @@ export const startConversation = createAsyncThunk(
 
 export const markAsRead = createAsyncThunk(
     'messages/markAsRead',
-    async (conversationId: string, { rejectWithValue }) => {
+    async ({ conversationId, messageId }: { conversationId: string; messageId?: string }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/read`, {
+            let url = `${API_URL}/chat/conversations/${conversationId}/read`;
+            if (messageId) url += `?messageId=${messageId}`;
+            
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -131,6 +134,47 @@ export const markAsRead = createAsyncThunk(
                 return rejectWithValue(data.message || 'Failed to mark as read');
             }
             return conversationId;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
+export const fetchChatSettings = createAsyncThunk(
+    'messages/fetchSettings',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/chat/settings`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch settings');
+            return data.allowIncoming;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
+export const updateChatSettings = createAsyncThunk(
+    'messages/updateSettings',
+    async (allowIncoming: string, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/chat/settings`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ allowIncoming })
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to update settings');
+            }
+            return allowIncoming;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
         }

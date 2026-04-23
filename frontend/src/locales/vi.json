@@ -86,7 +86,8 @@
         "username_updated_success": "Đã cập nhật handle thành công",
         "handle_cannot_be_blank": "Handle không được để trống",
         "birthdate_future_error": "Ngày sinh không được ở tương lai",
-        "note": "Lưu ý"
+        "note": "Lưu ý",
+        "chat_settings": "Cài đặt trò chuyện"
     },
     "moderation": {
         "title": "Kiểm duyệt",
@@ -566,6 +567,14 @@
         "confirm_delete_for_me": "Bạn có chắc chắn muốn xóa tin nhắn này đối với bạn không? Những người khác vẫn sẽ thấy nó.",
         "delete_success": "Đã xóa tin nhắn cho bạn",
         "delete_error": "Xóa tin nhắn thất bại"
+    },
+    "chat_settings": {
+        "title": "Cài đặt trò chuyện",
+        "allow_messages_from": "Cho phép tin nhắn từ",
+        "everyone": "Tất cả mọi người",
+        "followers": "Người theo dõi",
+        "none": "Không ai cả",
+        "allow_messages_from_desc": "Chọn đối tượng có thể bắt đầu cuộc trò chuyện tin nhắn trực tiếp với bạn."
     },
     "search": {
         "title": "Tìm kiếm",

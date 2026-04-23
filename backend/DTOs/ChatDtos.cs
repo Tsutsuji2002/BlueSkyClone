@@ -59,3 +59,7 @@ public record ForwardMessageRequest(
 public record CreateConversationRequest(
     List<string> ParticipantIds
 );
+
+public record UpdateChatSettingsRequest(
+    string AllowIncoming
+);
