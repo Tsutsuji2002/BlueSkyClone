@@ -1,6 +1,6 @@
 import { AtpAgent } from '@atproto/api';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = '/api';
 // The XRPC endpoints are at /xrpc, but the AtpAgent takes the base service URL.
 // If API_URL is http://localhost:5000/api, the agent will call http://localhost:5000/api/xrpc/...
 export const SERVICE_URL = API_URL.replace(/\/api$/, '');

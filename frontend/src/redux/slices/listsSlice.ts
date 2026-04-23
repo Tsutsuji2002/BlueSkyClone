@@ -35,8 +35,7 @@ const initialState: ListsState = {
 };
 
 // ---------- XRPC helpers (bypass @atproto/api SDK validation) ----------
-const getXrpcBase = () =>
-    (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '') + '/xrpc';
+const getXrpcBase = () => '/xrpc';
 
 const getAuthHeaders = (): Record<string, string> => {
     const token = localStorage.getItem('token');

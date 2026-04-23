@@ -36,6 +36,8 @@ const ChatSettingsPage: React.FC = () => {
         console.log('handleUpdateSettings called with:', value, 'current:', allowIncoming, 'isSaving:', isSaving);
         if (isSaving || value === allowIncoming) return;
         
+        // window.alert(`Changing to: ${value}`); // Temporary diagnostic alert
+        
         setIsSaving(true);
         // Optimistic update
         const previousValue = allowIncoming;
