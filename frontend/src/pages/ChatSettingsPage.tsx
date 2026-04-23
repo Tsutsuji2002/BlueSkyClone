@@ -33,6 +33,7 @@ const ChatSettingsPage: React.FC = () => {
     }, [dispatch]);
 
     const handleUpdateSettings = async (value: string) => {
+        console.log('handleUpdateSettings called with:', value, 'current:', allowIncoming, 'isSaving:', isSaving);
         if (isSaving || value === allowIncoming) return;
         
         setIsSaving(true);
@@ -41,7 +42,9 @@ const ChatSettingsPage: React.FC = () => {
         setAllowIncoming(value);
 
         try {
+            console.log('Dispatching updateChatSettings...');
             await dispatch(updateChatSettings(value)).unwrap();
+            console.log('Update successful');
         } catch (error) {
             console.error('Failed to update chat settings:', error);
             setAllowIncoming(previousValue);
@@ -83,11 +86,15 @@ const ChatSettingsPage: React.FC = () => {
                     
                     <div className="space-y-1">
                         {options.map((option) => (
-                            <button
+                            <div
                                 key={option.id}
-                                onClick={() => handleUpdateSettings(option.id)}
-                                disabled={isSaving}
-                                className="w-full flex items-center justify-between py-3 group"
+                                onClick={() => {
+                                    console.log('Option clicked:', option.id);
+                                    handleUpdateSettings(option.id);
+                                }}
+                                className={`w-full flex items-center justify-between py-3 group cursor-pointer ${
+                                    isSaving ? 'opacity-50 pointer-events-none' : ''
+                                }`}
                             >
                                 <span className="text-[15px] font-semibold text-gray-800 dark:text-[#dce2ea] group-hover:opacity-80 transition-opacity">
                                     {option.label}
@@ -101,7 +108,7 @@ const ChatSettingsPage: React.FC = () => {
                                         <div className="w-2.5 h-2.5 bg-white rounded-full" />
                                     )}
                                 </div>
-                            </button>
+                            </div>
                         ))}
                     </div>
                 </div>

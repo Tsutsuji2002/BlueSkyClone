@@ -161,6 +161,7 @@ export const updateChatSettings = createAsyncThunk(
     'messages/updateSettings',
     async (allowIncoming: string, { rejectWithValue }) => {
         try {
+            console.log('Thunk: updateChatSettings starting with:', allowIncoming);
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/chat/settings`, {
                 method: 'POST',
@@ -170,12 +171,16 @@ export const updateChatSettings = createAsyncThunk(
                 },
                 body: JSON.stringify({ allowIncoming })
             });
+            console.log('Thunk: response received:', response.status);
             if (!response.ok) {
                 const data = await response.json();
+                console.error('Thunk: update failed:', data);
                 return rejectWithValue(data.message || 'Failed to update settings');
             }
+            console.log('Thunk: update success');
             return allowIncoming;
         } catch (error: any) {
+            console.error('Thunk: error processing request:', error);
             return rejectWithValue(error.message || 'Something went wrong');
         }
     }
@@ -317,6 +322,12 @@ const messagesSlice = createSlice({
                 if (conv) {
                     conv.unreadCount = 0;
                 }
+            })
+            .addCase(fetchChatSettings.fulfilled, (state, action) => {
+                // Settings are managed by the component state, but we could store them here if needed
+            })
+            .addCase(updateChatSettings.fulfilled, (state, action) => {
+                // Settings update confirmed
             })
             .addCase(fetchChatLog.fulfilled, (state, action) => {
                 const { logs } = action.payload;
