@@ -429,7 +429,7 @@ namespace BSkyClone.Controllers
                 preferences.Add(new Dictionary<string, object>
                 {
                     ["$type"] = "app.bsky.actor.defs#bskyAppStatePref",
-                    ["loggedOutVisibility"] = (settings.RequireLogoutVisibility ?? false) ? "hide" : "show"
+                    ["loggedOutVisibility"] = settings.RequireLogoutVisibility ?? false
                 });
 
                 // Map postInteractionSettingsPref
@@ -479,7 +479,10 @@ namespace BSkyClone.Controllers
                         var type = typeProp.GetString();
                         if (type == "app.bsky.actor.defs#bskyAppStatePref" && pref.TryGetProperty("loggedOutVisibility", out var lovProp))
                         {
-                            settingsUpdate = settingsUpdate with { RequireLogoutVisibility = lovProp.GetString() == "hide" };
+                            if (lovProp.ValueKind == JsonValueKind.True || lovProp.ValueKind == JsonValueKind.False)
+                                settingsUpdate = settingsUpdate with { RequireLogoutVisibility = lovProp.GetBoolean() };
+                            else
+                                settingsUpdate = settingsUpdate with { RequireLogoutVisibility = lovProp.GetString() == "hide" };
                         }
                         else if (type == "app.bsky.actor.defs#postInteractionSettingsPref" && pref.TryGetProperty("threadgateAllowRules", out var rulesProp))
                         {
