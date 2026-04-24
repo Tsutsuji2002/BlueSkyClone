@@ -517,7 +517,9 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var suggestions = await _userService.GetSuggestedUsersAsync(limit);
+                Guid? viewerId = User?.Identity?.IsAuthenticated == true ? Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString()) : (Guid?)null;
+                if (viewerId == Guid.Empty) viewerId = null;
+                var suggestions = await _userService.GetSuggestedUsersAsync(limit, viewerId);
                 return Ok(new
                 {
                     actors = suggestions.Select(u => new Lexicons.App.Bsky.Actor.Defs.ProfileView

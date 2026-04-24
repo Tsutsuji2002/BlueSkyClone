@@ -49,7 +49,7 @@ public interface IUserService
     Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowersDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
     Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowingDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
     Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null, bool mergeDuplicates = true);
-    Task<List<User>> GetSuggestedUsersAsync(int limit = 10);
+    Task<List<User>> GetSuggestedUsersAsync(int limit = 10, Guid? viewerId = null);
     Task SyncMutedWordsWithAtProtoAsync(Guid userId);
     Task<bool> MergeDuplicateUsersAsync(string did);
     Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids);

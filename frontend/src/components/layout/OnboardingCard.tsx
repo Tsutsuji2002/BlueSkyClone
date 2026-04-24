@@ -14,16 +14,16 @@ const OnboardingCard: React.FC = () => {
     const [avatars, setAvatars] = useState<string[]>([]);
     const [isHidden, setIsHidden] = useState(false);
 
+    const isGoalReached = user && user.followingCount >= 10;
+    
     useEffect(() => {
         const loadAvatars = async () => {
             if (!user) return;
 
             try {
                 // 1. Fetch people the user already follows
-                // Use DID if available, otherwise handle. Avoid using internal ID.
                 const actor = user.did || user.handle;
                 
-                // Concurrently fetch following and suggestions for speed and reliability
                 const [followingResult, suggestionsResult] = await Promise.allSettled([
                     agent.app.bsky.graph.getFollows({ actor, limit: 10 }),
                     agent.app.bsky.actor.getSuggestions({ limit: 15 })
@@ -34,8 +34,6 @@ const OnboardingCard: React.FC = () => {
                     followedAvatars = (followingResult.value.data.follows || [])
                         .map((u: any) => u.avatar)
                         .filter(Boolean) as string[];
-                } else if (followingResult.status === 'rejected') {
-                    console.warn('Failed to fetch following for onboarding card:', followingResult.reason);
                 }
 
                 let suggestedAvatars: string[] = [];
@@ -44,8 +42,6 @@ const OnboardingCard: React.FC = () => {
                         .map((a: any) => a.avatar)
                         .filter(Boolean)
                         .filter((avg: string) => !followedAvatars.includes(avg));
-                } else if (suggestionsResult.status === 'rejected') {
-                    console.warn('Failed to fetch suggestions for onboarding card:', suggestionsResult.reason);
                 }
 
                 // 3. Combine: followers first, then suggestions
@@ -56,13 +52,13 @@ const OnboardingCard: React.FC = () => {
             }
         };
 
-        if (user && user.followingCount < 10 && !isHidden) {
+        if (user && !isHidden) {
             loadAvatars();
         }
     }, [user, isHidden]);
 
-    // Only show if user follows 9 or less people
-    if (isHidden || !user || user.followingCount >= 10) {
+    // Show suggestions for longer, or permanently
+    if (isHidden || !user || user.followingCount >= 50) {
         return null;
     }
 
@@ -70,7 +66,10 @@ const OnboardingCard: React.FC = () => {
         <div className="bg-gray-50 dark:bg-[#19222e] rounded-xl p-4 relative mb-3 border border-gray-100 dark:border-transparent">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-[15px] text-gray-900 dark:text-white">
-                    {t('sidebar.follow_ten', { defaultValue: 'Follow 10 people to get started' })}
+                    {isGoalReached 
+                        ? t('sidebar.discover_people', { defaultValue: 'Discover people to follow' })
+                        : t('sidebar.follow_ten', { defaultValue: 'Follow 10 people to get started' })
+                    }
                 </h3>
                 <button 
                     onClick={() => setIsHidden(true)}

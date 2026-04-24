@@ -1373,7 +1373,30 @@ public class UserService : IUserService
         return true;
     }
     
-    public async Task<List<User>> GetSuggestedUsersAsync(int limit = 10) => await _unitOfWork.Users.Query().Take(limit).ToListAsync();
+    public async Task<List<User>> GetSuggestedUsersAsync(int limit = 10, Guid? viewerId = null)
+    {
+        var localUsers = await _unitOfWork.Users.Query().Take(limit).ToListAsync();
+        if (localUsers.Count >= limit) return localUsers;
+
+        // If we don't have enough local users, fetch remote suggestions
+        var remoteSuggestions = await GetRemoteSuggestionsAsync(limit, viewerId);
+
+        // Merge lists, avoid duplicates by DID
+        var combined = localUsers.ToList();
+        var localDids = localUsers.Select(u => u.Did).Where(d => !string.IsNullOrEmpty(d)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var remoteUser in remoteSuggestions)
+        {
+            if (!string.IsNullOrEmpty(remoteUser.Did) && !localDids.Contains(remoteUser.Did))
+            {
+                combined.Add(remoteUser);
+            }
+            if (combined.Count >= limit) break;
+        }
+
+        return combined;
+    }
+
     public async Task SyncMutedWordsWithAtProtoAsync(Guid userId) { }
 
 
@@ -2526,6 +2549,62 @@ public class UserService : IUserService
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var random = RandomNumberGenerator.GetInt32(1000, 9999);
         return $"{timestamp}{random}";
+    }
+
+    private async Task<List<User>> GetRemoteSuggestionsAsync(int limit, Guid? viewerId = null)
+    {
+        try
+        {
+            string baseApiUrl = "https://api.bsky.app";
+            var token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
+            if (string.IsNullOrEmpty(token)) baseApiUrl = "https://public.api.bsky.app";
+
+            var url = $"{baseApiUrl}/xrpc/app.bsky.actor.getSuggestions?limit={limit}";
+
+            using var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+            if (!string.IsNullOrEmpty(token)) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await client.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return new List<User>();
+
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(content);
+            var actors = doc.RootElement.GetProperty("actors");
+
+            var actorDids = actors.EnumerateArray()
+                .Where(a => a.TryGetProperty("did", out var d))
+                .Select(a => a.GetProperty("did").GetString()!)
+                .ToList();
+
+            if (actorDids.Count > 0)
+            {
+                await MergeDuplicateUsersBatchAsync(actorDids);
+            }
+
+            var users = new List<User>();
+            var stubCache = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+            foreach (var actor in actors.EnumerateArray())
+            {
+                try
+                {
+                    var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                    if (u != null) users.Add(u);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error resolving suggested remote profile");
+                }
+            }
+
+            await _unitOfWork.CompleteAsync();
+            return users;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching remote suggestions");
+            return new List<User>();
+        }
     }
 }
 
