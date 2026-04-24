@@ -1373,28 +1373,62 @@ public class UserService : IUserService
         return true;
     }
     
-    public async Task<List<User>> GetSuggestedUsersAsync(int limit = 10, Guid? viewerId = null)
+    public async Task<List<User>> GetSuggestedUsersAsync(int limit = 15, Guid? viewerId = null)
     {
-        var localUsers = await _unitOfWork.Users.Query().Take(limit).ToListAsync();
-        if (localUsers.Count >= limit) return localUsers;
+        // 1. Get local users who have an avatar and a display name (higher quality suggestions)
+        var localQualityUsers = await _unitOfWork.Users.Query()
+            .Where(u => !string.IsNullOrEmpty(u.AvatarUrl) && !string.IsNullOrEmpty(u.DisplayName) && u.IsBanned != true)
+            .OrderByDescending(u => u.FollowersCount)
+            .Take(limit)
+            .ToListAsync();
 
-        // If we don't have enough local users, fetch remote suggestions
+        // 2. If we have enough quality local users, we still might want some remote variety
+        // but if we have very FEW, we definitely need remote ones.
+        if (localQualityUsers.Count >= limit) 
+        {
+             // Even if we have enough local, let's mix in 20% remote if possible for variety
+             var remoteLimit = Math.Max(3, limit / 5);
+             var remoteVar = await GetRemoteSuggestionsAsync(remoteLimit, viewerId);
+             
+             var combinedVar = localQualityUsers.ToList();
+             var localDids = localQualityUsers.Select(u => u.Did).ToHashSet(StringComparer.OrdinalIgnoreCase);
+             
+             foreach (var r in remoteVar.Where(r => !localDids.Contains(r.Did)))
+             {
+                 combinedVar.Insert(Random.Shared.Next(0, combinedVar.Count), r);
+             }
+             return combinedVar.Take(limit).ToList();
+        }
+
+        // 3. Not enough local quality users, fetch remote suggestions
         var remoteSuggestions = await GetRemoteSuggestionsAsync(limit, viewerId);
 
-        // Merge lists, avoid duplicates by DID
-        var combined = localUsers.ToList();
-        var localDids = localUsers.Select(u => u.Did).Where(d => !string.IsNullOrEmpty(d)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // 4. Merge lists, avoid duplicates by DID
+        var combined = localQualityUsers.ToList();
+        var seenDids = localQualityUsers.Select(u => u.Did).Where(d => !string.IsNullOrEmpty(d)).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var remoteUser in remoteSuggestions)
         {
-            if (!string.IsNullOrEmpty(remoteUser.Did) && !localDids.Contains(remoteUser.Did))
+            if (!string.IsNullOrEmpty(remoteUser.Did) && !seenDids.Contains(remoteUser.Did))
             {
                 combined.Add(remoteUser);
+                seenDids.Add(remoteUser.Did);
             }
             if (combined.Count >= limit) break;
         }
 
-        return combined;
+        // 5. If STILL not enough, take ANY local users as last resort
+        if (combined.Count < limit)
+        {
+            var remaining = limit - combined.Count;
+            var anyLocal = await _unitOfWork.Users.Query()
+                .Where(u => !seenDids.Contains(u.Did) && u.IsBanned != true)
+                .Take(remaining)
+                .ToListAsync();
+            combined.AddRange(anyLocal);
+        }
+
+        return combined.Take(limit).ToList();
     }
 
     public async Task SyncMutedWordsWithAtProtoAsync(Guid userId) { }

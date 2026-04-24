@@ -522,16 +522,7 @@ namespace BSkyClone.Controllers
                 var suggestions = await _userService.GetSuggestedUsersAsync(limit, viewerId);
                 return Ok(new
                 {
-                    actors = suggestions.Select(u => new Lexicons.App.Bsky.Actor.Defs.ProfileView
-                    {
-                        Did = u.Did ?? "",
-                        Handle = u.Handle,
-                        DisplayName = u.DisplayName,
-                        Avatar = u.AvatarUrl,
-                        Description = u.Bio,
-                        IndexedAt = DateTime.UtcNow.ToString("o"),
-                        Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
-                    }).ToList(),
+                    actors = suggestions.Select(MapUserToProfileView).ToList(),
                     cursor = (string?)null
                 });
             }
@@ -1252,13 +1243,19 @@ namespace BSkyClone.Controllers
 
         private ProfileView MapUserToProfileView(User user)
         {
+            var avatar = user.AvatarUrl;
+            if (!string.IsNullOrEmpty(avatar) && avatar.StartsWith("uploads/") && !avatar.StartsWith("/"))
+            {
+                avatar = "/" + avatar;
+            }
+
             return new ProfileView
             {
                 Did = user.Did ?? "",
                 Handle = user.Handle ?? user.Did ?? "unknown",
                 DisplayName = user.DisplayName,
                 Description = user.Bio,
-                Avatar = user.AvatarUrl,
+                Avatar = avatar,
                 IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
                 Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
             };

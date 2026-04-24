@@ -5,6 +5,7 @@ import { FiX, FiUser } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import Button from '../common/Button';
+import Avatar from '../common/Avatar';
 import agent from '../../services/atpAgent';
 
 const OnboardingCard: React.FC = () => {
@@ -84,9 +85,13 @@ const OnboardingCard: React.FC = () => {
                     {avatars.length > 0 ? (
                         <>
                             {avatars.map((avatar, i) => (
-                                <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-gray-50 dark:ring-[#19222e] overflow-hidden border border-gray-200 dark:border-[#232e3e] z-[10]">
-                                    <img src={avatar} alt="" className="h-full w-full object-cover" />
-                                </div>
+                                <Avatar
+                                    key={i}
+                                    src={avatar}
+                                    alt=""
+                                    size="sm"
+                                    className="ring-2 ring-gray-50 dark:ring-[#19222e] z-[10]"
+                                />
                             ))}
                             {avatars.length < 10 && [...Array(10 - avatars.length)].map((_, i) => (
                                 <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-gray-50 dark:ring-[#19222e] bg-gray-100 dark:bg-[#232e3e] flex items-center justify-center border border-gray-200 dark:border-[#232e3e]">
