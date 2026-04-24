@@ -6,14 +6,13 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import Button from '../common/Button';
 import Avatar from '../common/Avatar';
-import agent from '../../services/atpAgent';
+import api from '../../utils/api';
 
 const OnboardingCard: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const { user } = useAppSelector((state: RootState) => state.auth);
     const [suggestionData, setSuggestionData] = useState<{avatar: string, displayName: string}[]>([]);
-    const [status, setStatus] = useState<string>('initializing...');
     const [isHidden, setIsHidden] = useState(false);
 
     const isGoalReached = user && user.followingCount >= 10;
@@ -23,41 +22,15 @@ const OnboardingCard: React.FC = () => {
             if (!user) return;
 
             try {
-                // 1. Fetch people the user already follows
-                const actor = user.did || user.handle;
-                
-                const [followingResult, suggestionsResult] = await Promise.allSettled([
-                    agent.app.bsky.graph.getFollows({ actor, limit: 10 }),
-                    agent.app.bsky.actor.getSuggestions({ limit: 15 })
-                ]);
+                // Use backend user search with a broad query to find people to follow
+                const response = await api.search.users('a', 0, 15);
+                const users: any[] = response.data || [];
 
-                let followedResults: any[] = [];
-                if (followingResult.status === 'fulfilled') {
-                    const val = followingResult.value as any;
-                    followedResults = val.data?.follows || val.follows || [];
-                }
-
-                let suggestedResults: any[] = [];
-                if (suggestionsResult.status === 'fulfilled') {
-                    const val = suggestionsResult.value as any;
-                    const actors = val.data?.actors || val.actors || [];
-                    const followedDids = new Set(followedResults.map(u => u.did));
-                    suggestedResults = actors.filter((a: any) => a && a.did && !followedDids.has(a.did));
-                }
-
-                setStatus(`actor=${actor.substring(0, 15)}... follows=${followedResults.length}, suggestions=${suggestedResults.length}`);
-
-                // 3. Combine: followers first, then suggestions
-                const combined = [...followedResults, ...suggestedResults].slice(0, 10);
-                
-                if (combined.length > 0) {
-                    setSuggestionData(combined.map(u => ({
-                        avatar: u.avatar || '',
+                if (users.length > 0) {
+                    setSuggestionData(users.slice(0, 10).map((u: any) => ({
+                        avatar: u.avatarUrl || u.avatar || '',
                         displayName: u.displayName || u.handle || '?'
                     })));
-                } else {
-                    // Emergency local fallback if both remote calls return empty (though network says 200)
-                    console.warn('OnboardingCard: Both following and suggestions results were empty.');
                 }
             } catch (error) {
                 console.error('Failed to load avatars for onboarding card', error);
@@ -83,7 +56,6 @@ const OnboardingCard: React.FC = () => {
                         : t('sidebar.follow_ten', { defaultValue: 'Follow 10 people to get started' })
                     }
                 </h3>
-                <div className="text-[9px] text-gray-400 font-mono ml-2 uppercase opacity-60">{status}</div>
                 <button 
                     onClick={() => setIsHidden(true)}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full text-gray-500 dark:text-[#8798b0] transition-colors"
