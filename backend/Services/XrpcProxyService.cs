@@ -30,8 +30,69 @@ namespace BSkyClone.Services
             _logger = logger;
         }
 
+        private static readonly HashSet<string> ContentCacheWhitelist = new()
+        {
+            "app.bsky.actor.getProfile",
+            "app.bsky.feed.getAuthorFeed",
+            "app.bsky.feed.getPostThread",
+            "app.bsky.feed.getActorLikes",
+            "app.bsky.feed.getActorFeeds",
+            "app.bsky.actor.getPreferences",
+            "app.bsky.graph.getFollowers",
+            "app.bsky.graph.getFollows"
+        };
+
+        private string GetContentCacheKey(string didOrHandle, string nsid, IQueryCollection queryParams, Guid? userId)
+        {
+            var sb = new StringBuilder();
+            sb.Append($"ContentCache_{nsid}_{didOrHandle.ToLower()}_");
+            if (userId.HasValue) sb.Append($"{userId}_");
+            
+            if (queryParams != null && queryParams.Any())
+            {
+                var sortedParams = queryParams.OrderBy(p => p.Key);
+                foreach (var param in sortedParams)
+                {
+                    sb.Append($"{param.Key}={param.Value}_");
+                }
+            }
+
+            var fullKey = sb.ToString();
+            if (fullKey.Length > 200)
+            {
+                using var sha256 = SHA256.Create();
+                var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(fullKey));
+                return "HashedContentCache_" + Convert.ToHexString(hash);
+            }
+            return fullKey;
+        }
+
         public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null)
         {
+            bool cacheable = method.Equals("GET", StringComparison.OrdinalIgnoreCase) && ContentCacheWhitelist.Contains(nsid);
+            string? cacheKey = cacheable ? GetContentCacheKey(didOrHandle, nsid, queryParams, userId) : null;
+
+            if (cacheKey != null)
+            {
+                var cached = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cached))
+                {
+                    try
+                    {
+                        var response = JsonSerializer.Deserialize<ProxyResponse>(cached);
+                        if (response != null)
+                        {
+                            _logger.LogInformation("[XrpcProxy] Cache hit for {Nsid} ({DidOrHandle})", nsid, didOrHandle);
+                            return response;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to deserialize cached response for {CacheKey}", cacheKey);
+                    }
+                }
+            }
+
             try
             {
                 var baseUrl = await ResolvePdsUrlAsync(didOrHandle);
@@ -79,16 +140,27 @@ namespace BSkyClone.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("[XrpcProxy] Remote error {Status} for {Url}: {Content}", response.StatusCode, finalUrl, content);
-                    
                 }
  
-                return new ProxyResponse
+                var proxyResponse = new ProxyResponse
                 {
                     Success = response.IsSuccessStatusCode,
                     StatusCode = (int)response.StatusCode,
                     Content = content,
                     ContentType = response.Content.Headers.ContentType?.ToString() ?? "application/json"
                 };
+
+                if (cacheKey != null && proxyResponse.Success)
+                {
+                    // Cache small responses for 3 minutes
+                    if (content.Length < 500000) // 0.5MB limit
+                    {
+                        var json = JsonSerializer.Serialize(proxyResponse);
+                        await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(3) });
+                    }
+                }
+
+                return proxyResponse;
             }
             catch (Exception ex)
             {
