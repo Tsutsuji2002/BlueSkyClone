@@ -69,13 +69,21 @@ const Dropdown: React.FC<DropdownProps> = ({
             updateCoords();
             window.addEventListener('resize', updateCoords);
             window.addEventListener('scroll', updateCoords, true);
+            
+            // Lock body scroll
+            const originalStyle = window.getComputedStyle(document.body).overflow;
+            document.body.style.overflow = 'hidden';
+            
+            return () => {
+                window.removeEventListener('resize', updateCoords);
+                window.removeEventListener('scroll', updateCoords, true);
+                document.body.style.overflow = originalStyle;
+            };
         }
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
-            window.removeEventListener('resize', updateCoords);
-            window.removeEventListener('scroll', updateCoords, true);
         };
     }, [isOpen, updateCoords]);
 
@@ -124,8 +132,8 @@ const Dropdown: React.FC<DropdownProps> = ({
                 <>
                     {/* Transparent backdrop to catch clicks and lock background UI */}
                     <div 
-                        className="fixed inset-0 z-[9998] bg-transparent cursor-default"
-                        onClick={(e) => {
+                        className="fixed inset-0 z-[9998] bg-transparent cursor-default pointer-events-auto touch-none"
+                        onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setIsOpen(false);
