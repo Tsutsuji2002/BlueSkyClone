@@ -520,7 +520,7 @@ namespace BSkyClone.Controllers
                 Guid? viewerId = User?.Identity?.IsAuthenticated == true ? Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString()) : (Guid?)null;
                 if (viewerId == Guid.Empty) viewerId = null;
                 
-                var totalUsers = await _unitOfWork.Users.GetAllQueryable().CountAsync();
+                var totalUsers = await _unitOfWork.Users.Query().CountAsync();
                 _logger.LogInformation("[GetSuggestions] Total users in DB: {Count}", totalUsers);
 
                 var suggestions = await _userService.GetSuggestedUsersAsync(limit, viewerId);
