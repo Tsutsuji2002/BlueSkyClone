@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace BSkyClone.Controllers;
 
@@ -17,6 +18,7 @@ public class TrendingController : ControllerBase
     private readonly IMemoryCache _cache;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
     private const string TrendingCacheKey = "trending_topics";
+    private static readonly SemaphoreSlim _cacheLock = new SemaphoreSlim(1, 1);
 
     public TrendingController(BSkyDbContext context, IMemoryCache cache)
     {
@@ -54,8 +56,19 @@ public class TrendingController : ControllerBase
             // Try to get cached trending topics (shared for all users)
             if (!_cache.TryGetValue(TrendingCacheKey, out TrendingCache? cached) || cached == null)
             {
-                cached = await ComputeTrendingAsync();
-                _cache.Set(TrendingCacheKey, cached, CacheDuration);
+                await _cacheLock.WaitAsync();
+                try
+                {
+                    if (!_cache.TryGetValue(TrendingCacheKey, out cached) || cached == null)
+                    {
+                        cached = await ComputeTrendingAsync();
+                        _cache.Set(TrendingCacheKey, cached, CacheDuration);
+                    }
+                }
+                finally
+                {
+                    _cacheLock.Release();
+                }
             }
 
             // Filter by muted words per-user
@@ -65,33 +78,6 @@ public class TrendingController : ControllerBase
                 .ToList();
 
             var accounts = cached.Accounts;
-
-            if (!topics.Any())
-            {
-                try
-                {
-                    // Fallback to DB hashtags if no computed topics
-                    var fallbackTags = await _context.Hashtags
-                        .AsNoTracking()
-                        .OrderByDescending(h => h.PostsCount)
-                        .Take(10)
-                        .ToListAsync();
-
-                    topics = fallbackTags
-                        .Where(t => !mutedWordsSet.Contains(t.Name))
-                        .Select(t => new TrendingTopic
-                        {
-                            Id = t.Id.ToString(),
-                            Hashtag = "#" + t.Name,
-                            PostsCount = t.PostsCount ?? 1,
-                            Category = "Global"
-                        }).ToList();
-                }
-                catch (Exception ex)
-                {
-                   System.Console.WriteLine($"[Trending] Fallback hashtags failed: {ex.Message}");
-                }
-            }
 
             return Ok(new { topics, accounts });
         }
@@ -141,18 +127,17 @@ public class TrendingController : ControllerBase
 
             try
             {
-                var hashtagCounts = await _context.Posts
+                var topHashtags = await _context.Hashtags
                     .AsNoTracking()
-                    .Where(p => p.CreatedAt >= since && p.IsDeleted != true)
-                    .SelectMany(p => p.Hashtags)
-                    .GroupBy(h => h.Name)
-                    .Select(g => new { Name = g.Key, Count = g.Count() })
+                    .OrderByDescending(h => h.PostsCount)
+                    .Take(20)
                     .ToListAsync();
 
-                foreach (var tag in hashtagCounts)
+                foreach (var tag in topHashtags)
                 {
                     var key = "#" + tag.Name;
-                    phraseCounts[key] = phraseCounts.GetValueOrDefault(key) + tag.Count * 2;
+                    var tagCount = tag.PostsCount ?? 1;
+                    phraseCounts[key] = phraseCounts.GetValueOrDefault(key) + tagCount * 2;
                 }
             }
             catch (Exception ex)
@@ -170,6 +155,24 @@ public class TrendingController : ControllerBase
                     PostsCount = kvp.Value,
                     Category = kvp.Key.StartsWith("#") ? "Trending" : "Topic"
                 }).ToList();
+
+            if (!result.Topics.Any())
+            {
+                // Fallback inside the cache generation!
+                var fallbackTags = await _context.Hashtags
+                    .AsNoTracking()
+                    .OrderByDescending(h => h.PostsCount)
+                    .Take(15)
+                    .ToListAsync();
+                
+                result.Topics = fallbackTags.Select(t => new TrendingTopic
+                {
+                    Id = t.Id.ToString(),
+                    Hashtag = "#" + t.Name,
+                    PostsCount = t.PostsCount ?? 1,
+                    Category = "Global"
+                }).ToList();
+            }
         }
         catch (Exception ex)
         {
