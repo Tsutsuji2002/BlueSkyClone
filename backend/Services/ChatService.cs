@@ -35,7 +35,7 @@ public class ChatService : IChatService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId)
+    public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId, int limit = 50, string? cursor = null)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return Enumerable.Empty<ConversationDto>();
@@ -50,8 +50,8 @@ public class ChatService : IChatService
             {
                 try 
                 { 
-                    var proxyConvos = await _chatProxy.GetConversationsAsync(token); 
-                    _logger.LogInformation("Fetched {Count} conversations from proxy for user {UserId}", proxyConvos.Count(), userId);
+                    var proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor); 
+                    _logger.LogInformation("Fetched {Count} conversations from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
                     return proxyConvos;
                 }
                 catch (Exception ex)
@@ -65,16 +65,34 @@ public class ChatService : IChatService
             }
             
             // For Bluesky users, we return empty if proxy is unavailable or token is missing.
-            // This prevents "local sns chats" from intermittently appearing.
             _logger.LogInformation("Returning empty conversations for Bluesky user {UserId} (No valid proxy results)", userId);
             return Enumerable.Empty<ConversationDto>();
         }
 
-        var cacheKey = $"user:{userId}:conversations";
+        var cacheKey = $"user:{userId}:conversations:{limit}:{cursor}";
         var cached = await _cacheService.GetAsync<IEnumerable<ConversationDto>>(cacheKey);
         if (cached != null) return cached;
 
-        var conversations = await _unitOfWork.Conversations.GetUserConversationsAsync(userId);
+        // Local DB pagination logic
+        IQueryable<Conversation> query = _unitOfWork.Conversations.Query()
+            .Include(c => c.ConversationParticipants).ThenInclude(p => p.User)
+            .Include(c => c.Messages)
+            .Where(c => c.ConversationParticipants.Any(p => p.UserId == userId) && (c.IsDeleted == false || c.IsDeleted == null));
+
+        if (!string.IsNullOrEmpty(cursor) && Guid.TryParse(cursor, out var cursorId))
+        {
+            var cursorConv = await _unitOfWork.Conversations.GetByIdAsync(cursorId);
+            if (cursorConv?.CreatedAt != null)
+            {
+                query = query.Where(c => c.CreatedAt < cursorConv.CreatedAt);
+            }
+        }
+
+        var conversations = await query
+            .OrderByDescending(c => c.CreatedAt)
+            .Take(limit)
+            .ToListAsync();
+
         var conversationIds = conversations.Select(c => c.Id).ToList();
         var unreadCounts = await _unitOfWork.Messages.GetUnreadCountsAsync(conversationIds, userId);
 
@@ -84,7 +102,7 @@ public class ChatService : IChatService
             return MapToConversationDto(c, userId, unreadCount);
         }).ToList();
 
-        await _cacheService.SetAsync(cacheKey, (IEnumerable<ConversationDto>)dtos, TimeSpan.FromMinutes(10));
+        await _cacheService.SetAsync(cacheKey, (IEnumerable<ConversationDto>)dtos, TimeSpan.FromMinutes(5));
         return dtos;
     }
 

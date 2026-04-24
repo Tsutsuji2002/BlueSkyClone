@@ -17,13 +17,34 @@ const MessagesPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { conversations, activeConversationId, isLoading } = useAppSelector((state: RootState) => state.messages);
+    const { conversations, activeConversationId, isLoading, hasMoreConversations, conversationsCursor, isLoadingMoreConversations } = useAppSelector((state: RootState) => state.messages);
     const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
     const [searchQuery, setSearchQuery] = useState('');
+    const loadMoreRef = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         dispatch(fetchConversations());
     }, [dispatch]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        if (!hasMoreConversations || isLoadingMoreConversations || isLoading || searchQuery) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    dispatch(fetchConversations({ cursor: conversationsCursor }));
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (loadMoreRef.current) {
+            observer.observe(loadMoreRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [dispatch, hasMoreConversations, isLoadingMoreConversations, isLoading, conversationsCursor, searchQuery]);
 
     const handleConversationClick = (id: string) => {
         navigate(`/messages/${id}`);
@@ -35,8 +56,8 @@ const MessagesPage: React.FC = () => {
         );
         const otherParticipant = otherParticipants[0] || c.participants[0];
         return (
-            otherParticipant.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            otherParticipant.handle.toLowerCase().includes(searchQuery.toLowerCase())
+            otherParticipant?.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            otherParticipant?.handle?.toLowerCase().includes(searchQuery.toLowerCase())
         );
     });
 
@@ -76,7 +97,7 @@ const MessagesPage: React.FC = () => {
                     {/* Search Bar */}
                     <div className="px-4 pb-2">
                         <div className="relative group">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-all" />
                             <input
                                 type="text"
                                 placeholder={t('messages.search_placeholder')}
@@ -94,21 +115,34 @@ const MessagesPage: React.FC = () => {
                         <div className="flex items-center justify-center p-20">
                             <LoadingIndicator size="lg" />
                         </div>
-                    ) : filteredConversations.length > 0 ? (
-                        filteredConversations.map((conv) => (
-                            <ConversationItem
-                                key={conv.id}
-                                conversation={conv}
-                                isActive={activeConversationId === conv.id}
-                                onClick={() => handleConversationClick(conv.id)}
-                            />
-                        ))
                     ) : (
-                        <div className="p-12 text-center">
-                            <p className="text-gray-500 dark:text-dark-text-secondary">
-                                {searchQuery ? t('messages.no_results') : t('messages.no_messages')}
-                            </p>
-                        </div>
+                        <>
+                            {filteredConversations.length > 0 ? (
+                                <>
+                                    {filteredConversations.map((conv) => (
+                                        <ConversationItem
+                                            key={conv.id}
+                                            conversation={conv}
+                                            isActive={activeConversationId === conv.id}
+                                            onClick={() => handleConversationClick(conv.id)}
+                                        />
+                                    ))}
+                                    
+                                    {/* Load More trigger */}
+                                    {!searchQuery && hasMoreConversations && (
+                                        <div ref={loadMoreRef} className="p-4 flex justify-center">
+                                            {isLoadingMoreConversations && <LoadingIndicator size="sm" />}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="p-12 text-center">
+                                    <p className="text-gray-500 dark:text-dark-text-secondary">
+                                        {searchQuery ? t('messages.no_results') : t('messages.no_messages')}
+                                    </p>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
         </div>

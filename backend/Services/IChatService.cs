@@ -7,7 +7,7 @@ namespace BSkyClone.Services;
 
 public interface IChatService
 {
-    Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId);
+    Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId, int limit = 50, string? cursor = null);
     Task<ConversationDto?> GetConversationAsync(Guid userId, string conversationId);
     Task<IEnumerable<MessageDto>> GetConversationMessagesAsync(Guid userId, string conversationId, int limit = 50, DateTimeOffset? before = null);
     Task<ConversationDto> GetOrCreateConversationAsync(Guid userId, List<string> participantIds);

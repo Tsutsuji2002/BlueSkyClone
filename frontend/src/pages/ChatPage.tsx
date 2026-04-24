@@ -230,8 +230,8 @@ const ChatPage: React.FC = () => {
     }, [activeConversationMessages, conversationId, dispatch, currentUser?.id]);
 
     // Scroll to bottom logic
-    const prevMessagesLength = useRef(activeConversationMessages.length);
-    const prevConversationId = useRef(conversationId);
+    const prevMessagesLength = useRef(0);
+    const prevConversationId = useRef<string | null>(null);
 
     React.useLayoutEffect(() => {
         if (!messagesContainerRef.current) return;
@@ -242,14 +242,19 @@ const ChatPage: React.FC = () => {
         const sentByMe = lastMessage?.senderId === currentUser?.id;
 
         const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-        const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < 150; // Increased threshold for reliability
 
-        if (isNewConversation || sentByMe || (hasNewMessages && isAtBottom)) {
+        // Scroll to bottom if:
+        // 1. It's a brand new conversation load
+        // 2. I just sent a message
+        // 3. New messages arrived while I was already near the bottom
+        // 4. This is the first time messages are populated in an existing view
+        if (isNewConversation || sentByMe || (hasNewMessages && isAtBottom) || (prevMessagesLength.current === 0 && activeConversationMessages.length > 0)) {
             messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
         }
 
         prevMessagesLength.current = activeConversationMessages.length;
-        prevConversationId.current = conversationId;
+        prevConversationId.current = conversationId || null;
     }, [activeConversationMessages, conversationId, currentUser?.id]);
 
     // Incremental Sync Polling

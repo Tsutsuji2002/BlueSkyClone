@@ -22,12 +22,12 @@ public class ChatController : ControllerBase
     }
 
     [HttpGet("conversations")]
-    public async Task<IActionResult> GetConversations()
+    public async Task<IActionResult> GetConversations([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
     {
         var userId = GetUserId();
         try 
         {
-            var conversations = await _chatService.GetConversationsAsync(userId);
+            var conversations = await _chatService.GetConversationsAsync(userId, limit, cursor);
             return Ok(conversations);
         }
         catch (Exception ex)

@@ -5,35 +5,44 @@ const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === '
 
 interface MessagesState {
     conversations: Conversation[];
+    conversationsCursor: string | null;
+    hasMoreConversations: boolean;
     activeConversationMessages: Message[];
     activeConversationId: string | null;
     isLoading: boolean;
     isLoadingMore: boolean;
+    isLoadingMoreConversations: boolean;
     hasMore: boolean;
     error: string | null;
 }
 
 const initialState: MessagesState = {
     conversations: [],
+    conversationsCursor: null,
+    hasMoreConversations: true,
     activeConversationMessages: [],
     activeConversationId: null,
     isLoading: false,
     isLoadingMore: false,
+    isLoadingMoreConversations: false,
     hasMore: true,
     error: null,
 };
 
 export const fetchConversations = createAsyncThunk(
     'messages/fetchConversations',
-    async (_, { rejectWithValue }) => {
+    async ({ limit = 50, cursor }: { limit?: number; cursor?: string | null } | undefined = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/chat/conversations`, {
+            let url = `${API_URL}/chat/conversations?limit=${limit}`;
+            if (cursor) url += `&cursor=${cursor}`;
+
+            const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch conversations');
-            return data;
+            return { conversations: data, isLoadMore: !!cursor };
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
         }
@@ -262,15 +271,30 @@ const messagesSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(fetchConversations.pending, (state) => {
-                state.isLoading = true;
+            .addCase(fetchConversations.pending, (state, action) => {
+                if (action.meta.arg?.cursor) {
+                    state.isLoadingMoreConversations = true;
+                } else {
+                    state.isLoading = true;
+                }
             })
-            .addCase(fetchConversations.fulfilled, (state, action: PayloadAction<Conversation[]>) => {
+            .addCase(fetchConversations.fulfilled, (state, action) => {
                 state.isLoading = false;
-                state.conversations = action.payload;
+                state.isLoadingMoreConversations = false;
+                const { conversations, isLoadMore } = action.payload;
+                
+                if (isLoadMore) {
+                    state.conversations = [...state.conversations, ...conversations];
+                } else {
+                    state.conversations = conversations;
+                }
+
+                state.hasMoreConversations = conversations.length >= (action.meta.arg?.limit || 50);
+                state.conversationsCursor = conversations.length > 0 ? conversations[conversations.length - 1].id : state.conversationsCursor;
             })
             .addCase(fetchConversations.rejected, (state, action) => {
                 state.isLoading = false;
+                state.isLoadingMoreConversations = false;
                 state.error = action.payload as string;
             })
             .addCase(fetchConversationById.fulfilled, (state, action: PayloadAction<Conversation>) => {
