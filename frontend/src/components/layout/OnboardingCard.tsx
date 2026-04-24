@@ -22,12 +22,23 @@ const OnboardingCard: React.FC = () => {
             if (!user) return;
 
             try {
-                // Use backend user search with a broad query to find people to follow
-                const response = await api.search.users('a', 0, 15);
-                const users: any[] = response.data || [];
+                // Fetch people the user already follows
+                const followingResponse = await api.get<{following: any[]}>(`/users/${user.id}/following?limit=10`).catch(() => ({ data: { following: [] } }));
+                const followedResults = followingResponse.data?.following || [];
 
-                if (users.length > 0) {
-                    setSuggestionData(users.slice(0, 10).map((u: any) => ({
+                let suggestedResults: any[] = [];
+                // Only fetch suggestions if they haven't followed enough people
+                if (followedResults.length < 10) {
+                    const searchResponse = await api.search.users('a', 0, 15).catch(() => ({ data: [] }));
+                    const actors = searchResponse.data || [];
+                    const followedDids = new Set(followedResults.map(u => u.did));
+                    suggestedResults = actors.filter((a: any) => a && !followedDids.has(a.did));
+                }
+
+                const combined = [...followedResults, ...suggestedResults].slice(0, 10);
+
+                if (combined.length > 0) {
+                    setSuggestionData(combined.map(u => ({
                         avatar: u.avatarUrl || u.avatar || '',
                         displayName: u.displayName || u.handle || '?'
                     })));
