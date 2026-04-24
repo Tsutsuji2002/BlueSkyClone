@@ -32,59 +32,18 @@ namespace BSkyClone.Services
 
         public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null)
         {
-            string did = didOrHandle;
             try
             {
-                if (!didOrHandle.StartsWith("did:"))
+                var baseUrl = await ResolvePdsUrlAsync(didOrHandle);
+                if (string.IsNullOrEmpty(baseUrl))
                 {
-                    // Resolve handle to DID first
-                    try
-                    {
-                        var client = _httpClientFactory.CreateClient();
-                        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                        
-                        var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
-                        if (idResponse.IsSuccessStatusCode)
-                        {
-                            var data = await idResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-                            if (data != null && data.TryGetValue("did", out var resolvedDid))
-                            {
-                                did = resolvedDid;
-                            }
-                        }
-                    }
-                    catch { /* Fallback to using it as-is */ }
-                }
-
-                // 1. Resolve the DID Document to find the service endpoint
-                _logger.LogInformation("[XrpcProxy] Resolving DID document for {Did}", did);
-                var doc = await _didResolver.ResolveToDocumentAsync(did);
-                if (doc == null)
-                {
-                    _logger.LogWarning("[XrpcProxy] DID Document not found for {Did}", did);
-                    return new ProxyResponse { Success = false, StatusCode = 404, Content = "DID Document not found" };
-                }
- 
-                if (doc.Service == null || !doc.Service.Any())
-                {
-                    _logger.LogWarning("[XrpcProxy] DID {Did} has no service endpoints", did);
-                    return new ProxyResponse { Success = false, StatusCode = 404, Content = "DID Service endpoint not found" };
-                }
- 
-                // AT Protocol PDS service type is usually "AtprotoPds" or "#atproto_pds"
-                var service = doc.Service.FirstOrDefault(s => s.Type == "AtprotoPds") 
-                             ?? doc.Service.FirstOrDefault(); // Fallback to first if not explicitly typed correctly
- 
-                if (service == null || string.IsNullOrEmpty(service.ServiceEndpoint))
-                {
-                    _logger.LogWarning("[XrpcProxy] PDS endpoint not found in DID document for {Did}", did);
                     return new ProxyResponse { Success = false, StatusCode = 404, Content = "PDS endpoint not found" };
                 }
- 
-                _logger.LogInformation("[XrpcProxy] Resolved PDS endpoint: {Endpoint} for {Did}", service.ServiceEndpoint, did);
+
+                _logger.LogInformation("[XrpcProxy] Using PDS endpoint: {Endpoint} for {Did}", baseUrl, didOrHandle);
 
                 // 2. Construct the remote URL
-                var baseUrl = service.ServiceEndpoint.TrimEnd('/');
+                baseUrl = baseUrl.TrimEnd('/');
                 var htu = $"{baseUrl}/xrpc/{nsid}";
                 var finalUrl = htu;
 
@@ -133,7 +92,7 @@ namespace BSkyClone.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error proxying {method} XRPC request {nsid} for {did}");
+                _logger.LogError(ex, $"Error proxying {method} XRPC request {nsid} for {didOrHandle}");
                 return new ProxyResponse { Success = false, StatusCode = 500, Content = ex.Message };
             }
         }
@@ -208,25 +167,40 @@ namespace BSkyClone.Services
         {
             try
             {
+                var cacheKey = $"PdsUrl_{didOrHandle.ToLower()}";
+                var cachedUrl = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedUrl)) return cachedUrl;
+
                 string did = didOrHandle;
                 if (!didOrHandle.StartsWith("did:"))
                 {
-                    try
+                    var handleCacheKey = $"ResolvedHandle_{didOrHandle.ToLower()}";
+                    var cachedDid = await _cache.GetStringAsync(handleCacheKey);
+                    
+                    if (!string.IsNullOrEmpty(cachedDid))
                     {
-                        var client = _httpClientFactory.CreateClient();
-                        client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                        
-                        var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
-                        if (idResponse.IsSuccessStatusCode)
+                        did = cachedDid;
+                    }
+                    else
+                    {
+                        try
                         {
-                            var data = await idResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-                            if (data != null && data.TryGetValue("did", out var resolvedDid))
+                            var client = _httpClientFactory.CreateClient();
+                            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                            
+                            var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
+                            if (idResponse.IsSuccessStatusCode)
                             {
-                                did = resolvedDid;
+                                var data = await idResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                                if (data != null && data.TryGetValue("did", out var resolvedDid))
+                                {
+                                    did = resolvedDid;
+                                    await _cache.SetStringAsync(handleCacheKey, did, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
+                                }
                             }
                         }
+                        catch { /* Fallback to using it as-is */ }
                     }
-                    catch { /* Fallback to using it as-is */ }
                 }
 
                 var doc = await _didResolver.ResolveToDocumentAsync(did);
@@ -237,7 +211,10 @@ namespace BSkyClone.Services
 
                 if (service == null || string.IsNullOrEmpty(service.ServiceEndpoint)) return null;
 
-                return service.ServiceEndpoint;
+                var endpoint = service.ServiceEndpoint;
+                await _cache.SetStringAsync(cacheKey, endpoint, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
+                
+                return endpoint;
             }
             catch (Exception ex)
             {

@@ -125,7 +125,7 @@ public class PostService : IPostService
                     await _distributedCache.SetStringAsync(cacheKey,
                         System.Text.Json.JsonSerializer.Serialize(mappedPosts),
                         new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
-                        { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                        { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) });
                 }
             }
             
@@ -186,9 +186,9 @@ public class PostService : IPostService
 
             var feedChunks = new List<PostDto[]>();
             // Process actors in small parallel batches to avoid 504 timeouts and rate limits
-            for (int i = 0; i < distinctActors.Count; i += 4)
+            for (int i = 0; i < distinctActors.Count; i += 6)
             {
-                var chunk = distinctActors.Skip(i).Take(4);
+                var chunk = distinctActors.Skip(i).Take(6);
                 var chunkTasks = chunk.Select(async actor =>
                 {
                     try

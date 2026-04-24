@@ -78,7 +78,7 @@
         "car_note": "This feature is experimental. You can read more about exporting data in our blog.",
         "deactivate_account": "Deactivate account",
         "deactivate_account_title": "Deactivate your account",
-        "deactivate_account_desc": "Your profile, posts, feeds, and lists will no longer be visible to other BlueSky users. You can reactivate your account at any time by logging in.",
+        "deactivate_account_desc": "Your profile, posts, feeds, and lists will no longer be visible to other Bluesky users. You can reactivate your account at any time by logging in.",
         "deactivate_info": "Deactivating account does not delete your data. If you want to delete your account permanently, use the Delete Account option.",
         "deactivate_btn": "Yes, deactivate",
         "delete_account": "Delete account",
@@ -228,11 +228,11 @@
         "2fa_modal_desc": "Requires a code sent via email to login.",
         "enable": "Enable",
         "app_passwords": "App passwords",
-        "app_passwords_info": "Use app passwords to sign in to other BlueSky apps without giving them your full account password.",
+        "app_passwords_info": "Use app passwords to sign in to other Bluesky apps without giving them your full account password.",
         "add_app_password": "Add app password",
         "created_at": "Created {{date}}",
         "app_password_modal_title": "This is your app password!",
-        "app_password_modal_desc": "Use this to sign in to other BlueSky apps along with your username.",
+        "app_password_modal_desc": "Use this to sign in to other Bluesky apps along with your username.",
         "app_password_modal_warning": "Make sure to copy this password now. You won't be able to see it again. If you lose it, create a new one.",
         "app_password_input_title": "Add app password",
         "app_password_input_desc": "Please enter a name for this app password or use a randomly generated one.",
@@ -247,8 +247,8 @@
         "logout_visibility": "Logged-out visibility",
         "logout_visibility_label": "Discourage apps from showing my account to logged-out users",
         "logout_visibility_desc": "Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.",
-        "logout_visibility_note": "Note: Bluesky is an open and public network. This setting only limits the visibility of your content on the BlueSky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.",
-        "learn_more": "Learn more about what is public on BlueSky."
+        "logout_visibility_note": "Note: Bluesky is an open and public network. This setting only limits the visibility of your content on the Bluesky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.",
+        "learn_more": "Learn more about what is public on Bluesky."
     },
     "notifications": {
         "title": "Notifications",
@@ -535,7 +535,7 @@
     "auth": {
         "welcome": {
             "title": "See what's happening",
-            "description": "Join BlueSky today",
+            "description": "Join Bluesky today",
             "create_account": "Create account",
             "login": "Log in",
             "business": "Business",
@@ -644,13 +644,13 @@
         },
         "no_results_title": "No results found",
         "no_results_desc": "Try searching for something else, or check for typos.",
-        "start_searching": "Search BlueSky",
-        "start_desc": "Find posts and people on BlueSky.",
+        "start_searching": "Search Bluesky",
+        "start_desc": "Find posts and people on Bluesky.",
         "searching_for": "Search for \"{{query}}\"",
         "no_results": "No results found"
     },
     "common": {
-        "app_name": "BlueSky",
+        "app_name": "Bluesky",
         "go_back": "Go back",
         "post": "Post",
         "post_verb": "Post",

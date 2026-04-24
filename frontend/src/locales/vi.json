@@ -70,7 +70,7 @@
         "car_note": "Tính năng này đang ở phiên bản thử nghiệm. Bạn có thể đọc thêm về việc xuất kho dữ liệu trong bài đăng blog này.",
         "deactivate_account": "Vô hiệu hóa tài khoản",
         "deactivate_account_title": "Vô hiệu hóa tài khoản",
-        "deactivate_account_desc": "Hồ sơ, bài đăng, bảng tin, và danh sách của bạn sẽ không còn hiển thị cho người dùng BlueSky khác. Bạn có thể kích hoạt lại tài khoản bất kì lúc nào bằng cách đăng nhập.",
+        "deactivate_account_desc": "Hồ sơ, bài đăng, bảng tin, và danh sách của bạn sẽ không còn hiển thị cho người dùng Bluesky khác. Bạn có thể kích hoạt lại tài khoản bất kì lúc nào bằng cách đăng nhập.",
         "deactivate_info": "Không có giới hạn thời gian cho việc vô hiệu hóa tài khoản, hãy quay lại bất cứ lúc nào.",
         "deactivate_btn": "Có, vô hiệu hóa",
         "delete_account": "Xóa tài khoản",
@@ -183,7 +183,7 @@
         "2fa_modal_desc": "Yêu cầu mã gửi qua email để đăng nhập vào tài khoản của bạn.",
         "enable": "Bật",
         "app_passwords": "Mật khẩu ứng dụng",
-        "app_passwords_info": "Sử dụng mật khẩu ứng dụng để đăng nhập vào các ứng dụng BlueSky khác mà không cần cung cấp mật khẩu chính.",
+        "app_passwords_info": "Sử dụng mật khẩu ứng dụng để đăng nhập vào các ứng dụng Bluesky khác mà không cần cung cấp mật khẩu chính.",
         "add_app_password": "Thêm mật khẩu ứng dụng",
         "created_at": "Đã tạo {{date}}",
         "app_password_modal_title": "Đây là mật khẩu ứng dụng của bạn!",
@@ -201,9 +201,9 @@
         "no_one": "Không ai",
         "logout_visibility": "Trạng thái hiển thị sau đăng xuất",
         "logout_visibility_label": "Hạn chế các ứng dụng hiển thị tài khoản của tôi với người dùng chưa đăng nhập",
-        "logout_visibility_desc": "BlueSky sẽ không hiển thị hồ sơ và bài đăng của bạn với những người dùng chưa đăng nhập. Các ứng dụng khác có thể không tuân thủ yêu cầu này. Cài đặt này không làm cho tài khoản của bạn trở nên riêng tư.",
-        "logout_visibility_note": "Lưu ý: BlueSky là một mạng lưới mở và công khai. Cài đặt này chỉ giới hạn khả năng hiển thị nội dung của bạn trên ứng dụng và trang web BlueSky, còn các ứng dụng khác có thể không tôn trọng cài đặt này. Nội dung của bạn vẫn có thể được hiển thị cho người dùng chưa đăng nhập bởi các ứng dụng và trang web khác.",
-        "learn_more": "Tìm hiểu thêm về những gì công khai trên BlueSky."
+        "logout_visibility_desc": "Bluesky sẽ không hiển thị hồ sơ và bài đăng của bạn với những người dùng chưa đăng nhập. Các ứng dụng khác có thể không tuân thủ yêu cầu này. Cài đặt này không làm cho tài khoản của bạn trở nên riêng tư.",
+        "logout_visibility_note": "Lưu ý: Bluesky là một mạng lưới mở và công khai. Cài đặt này chỉ giới hạn khả năng hiển thị nội dung của bạn trên ứng dụng và trang web Bluesky, còn các ứng dụng khác có thể không tôn trọng cài đặt này. Nội dung của bạn vẫn có thể được hiển thị cho người dùng chưa đăng nhập bởi các ứng dụng và trang web khác.",
+        "learn_more": "Tìm hiểu thêm về những gì công khai trên Bluesky."
     },
     "notifications": {
         "title": "Thông báo",
@@ -477,7 +477,7 @@
     "auth": {
         "welcome": {
             "title": "Tham gia trò chuyện",
-            "description": "Tham gia BlueSky ngay hôm nay",
+            "description": "Tham gia Bluesky ngay hôm nay",
             "create_account": "Tạo tài khoản",
             "login": "Đăng nhập",
             "business": "Doanh nghiệp",
@@ -586,13 +586,13 @@
         },
         "no_results_title": "Không tìm thấy kết quả",
         "no_results_desc": "Hãy thử tìm nội dung khác, hoặc kiểm tra lỗi chính tả.",
-        "start_searching": "Tìm kiếm trên BlueSky",
-        "start_desc": "Tìm bài đăng và mọi người trên BlueSky.",
+        "start_searching": "Tìm kiếm trên Bluesky",
+        "start_desc": "Tìm bài đăng và mọi người trên Bluesky.",
         "searching_for": "Tìm kiếm \"{{query}}\"",
         "no_results": "Không tìm thấy kết quả"
     },
     "common": {
-        "app_name": "BlueSky",
+        "app_name": "Bluesky",
         "go_back": "Quay lại",
         "post": "Đăng",
         "post_verb": "Đăng",
