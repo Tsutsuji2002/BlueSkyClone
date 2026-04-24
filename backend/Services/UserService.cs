@@ -1379,7 +1379,7 @@ public class UserService : IUserService
         
         // 1. Get local users who have an avatar and a display name (higher quality suggestions)
         var localQualityUsers = await _unitOfWork.Users.Query()
-            .Where(u => !string.IsNullOrEmpty(u.AvatarUrl) && !string.IsNullOrEmpty(u.DisplayName) && u.IsBanned != true)
+            .Where(u => u.IsBanned == false && !string.IsNullOrEmpty(u.DisplayName))
             .OrderByDescending(u => u.FollowersCount)
             .Take(limit)
             .ToListAsync();
@@ -1438,12 +1438,19 @@ public class UserService : IUserService
         // 6. Last resort: if STILL empty, take some of the highest-follower users regardless of avatar
         if (combined.Count == 0)
         {
-            _logger.LogWarning("[GetSuggestions] Combined list is empty! Taking highest follower users as emergency fallback.");
+            _logger.LogWarning("[GetSuggestions] Combined list is empty! Taking any users as emergency fallback.");
             combined = await _unitOfWork.Users.Query()
-                .Where(u => u.IsBanned != true)
-                .OrderByDescending(u => u.FollowersCount)
+                .Where(u => u.IsBanned == false)
+                .OrderByDescending(u => u.CreatedAt)
                 .Take(limit)
                 .ToListAsync();
+        }
+
+        // ABSOLUTE FINAL FALLBACK: If combined is STILL empty, literally take the first few users
+        if (combined.Count == 0)
+        {
+            _logger.LogCritical("[GetSuggestions] ABSOLUTE EMERGENCY: No users found even with relaxed filters!");
+            combined = await _unitOfWork.Users.Query().Take(limit).ToListAsync();
         }
 
         return combined.Take(limit).ToList();

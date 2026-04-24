@@ -521,7 +521,13 @@ namespace BSkyClone.Controllers
                 if (viewerId == Guid.Empty) viewerId = null;
                 
                 var totalUsers = await _unitOfWork.Users.Query().CountAsync();
-                _logger.LogInformation("[GetSuggestions] Total users in DB: {Count}", totalUsers);
+                var nonBanned = await _unitOfWork.Users.Query().CountAsync(u => u.IsBanned != true);
+                var hasAvatar = await _unitOfWork.Users.Query().CountAsync(u => !string.IsNullOrEmpty(u.AvatarUrl));
+                var hasDid = await _unitOfWork.Users.Query().CountAsync(u => u.Did != null);
+                var viewerExists = viewerId.HasValue ? await _unitOfWork.Users.Query().AnyAsync(u => u.Id == viewerId.Value) : false;
+
+                _logger.LogInformation("[GetSuggestions] DB Diagnostics - Total: {Total}, NonBanned: {NonBanned}, HasAvatar: {HasAvatar}, HasDid: {HasDid}, ViewerExists: {ViewerExists}", 
+                    totalUsers, nonBanned, hasAvatar, hasDid, viewerExists);
 
                 var suggestions = await _userService.GetSuggestedUsersAsync(limit, viewerId);
                 var mappedActors = suggestions.Select(MapUserToProfileView).ToList();
