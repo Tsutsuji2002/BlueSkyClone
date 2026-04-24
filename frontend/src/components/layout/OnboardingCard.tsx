@@ -45,7 +45,7 @@ const OnboardingCard: React.FC = () => {
                     suggestedResults = actors.filter((a: any) => a && a.did && !followedDids.has(a.did));
                 }
 
-                setStatus(`fulfilled: follows=${followedResults.length}, suggestions=${suggestedResults.length}`);
+                setStatus(`actor=${actor.substring(0, 15)}... follows=${followedResults.length}, suggestions=${suggestedResults.length}`);
 
                 // 3. Combine: followers first, then suggestions
                 const combined = [...followedResults, ...suggestedResults].slice(0, 10);
