@@ -520,9 +520,12 @@ namespace BSkyClone.Controllers
                 Guid? viewerId = User?.Identity?.IsAuthenticated == true ? Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString()) : (Guid?)null;
                 if (viewerId == Guid.Empty) viewerId = null;
                 var suggestions = await _userService.GetSuggestedUsersAsync(limit, viewerId);
+                var mappedActors = suggestions.Select(MapUserToProfileView).ToList();
+                _logger.LogInformation("[GetSuggestions] Returning {Count} actors to frontend.", mappedActors.Count);
+
                 return Ok(new
                 {
-                    actors = suggestions.Select(MapUserToProfileView).ToList(),
+                    actors = mappedActors,
                     cursor = (string?)null
                 });
             }

@@ -31,25 +31,31 @@ const OnboardingCard: React.FC = () => {
                 ]);
 
                 let followedResults: any[] = [];
-                if (followingResult.status === 'fulfilled' && followingResult.value.success) {
-                    followedResults = (followingResult.value.data.follows || []);
+                if (followingResult.status === 'fulfilled') {
+                    const val = followingResult.value as any;
+                    followedResults = val.data?.follows || val.follows || [];
                 }
 
                 let suggestedResults: any[] = [];
-                if (suggestionsResult.status === 'fulfilled' && suggestionsResult.value.success) {
+                if (suggestionsResult.status === 'fulfilled') {
+                    const val = suggestionsResult.value as any;
+                    const actors = val.data?.actors || val.actors || [];
                     const followedDids = new Set(followedResults.map(u => u.did));
-                    suggestedResults = suggestionsResult.value.data.actors
-                        .filter((a: any) => !followedDids.has(a.did));
+                    suggestedResults = actors.filter((a: any) => a && a.did && !followedDids.has(a.did));
                 }
 
                 // 3. Combine: followers first, then suggestions
                 const combined = [...followedResults, ...suggestedResults].slice(0, 10);
                 
-                // Store objects so we have avatar AND alt text (handle/displayName)
-                setSuggestionData(combined.map(u => ({
-                    avatar: u.avatar || '',
-                    displayName: u.displayName || u.handle || '?'
-                })));
+                if (combined.length > 0) {
+                    setSuggestionData(combined.map(u => ({
+                        avatar: u.avatar || '',
+                        displayName: u.displayName || u.handle || '?'
+                    })));
+                } else {
+                    // Emergency local fallback if both remote calls return empty (though network says 200)
+                    console.warn('OnboardingCard: Both following and suggestions results were empty.');
+                }
             } catch (error) {
                 console.error('Failed to load avatars for onboarding card', error);
             }
@@ -110,13 +116,15 @@ const OnboardingCard: React.FC = () => {
                     )}
                 </div>
 
-                <Button
-                    variant="primary"
-                    fullWidth
-                    className="rounded-full font-bold text-[14.5px] py-2.5 bg-[#006aff] hover:bg-[#005cd9] border-none"
-                    onClick={() => navigate('/explore')}
+                <Button 
+                    variant="primary" 
+                    fullWidth 
+                    size="md" 
+                    onClick={() => navigate('/search')}
+                    className="mt-2 font-bold py-2.5 rounded-full"
                 >
-                    {t('sidebar.find_people', { defaultValue: 'Find people to follow' })}
+                    {t('onboarding.find_people', { defaultValue: 'Tìm người để theo dõi' })} 
+                    {suggestionData.length > 0 ? ` (${suggestionData.length})` : ''}
                 </Button>
             </div>
         </div>
