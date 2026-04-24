@@ -13,6 +13,7 @@ const OnboardingCard: React.FC = () => {
     const { t } = useTranslation();
     const { user } = useAppSelector((state: RootState) => state.auth);
     const [suggestionData, setSuggestionData] = useState<{avatar: string, displayName: string}[]>([]);
+    const [status, setStatus] = useState<string>('initializing...');
     const [isHidden, setIsHidden] = useState(false);
 
     const isGoalReached = user && user.followingCount >= 10;
@@ -43,6 +44,8 @@ const OnboardingCard: React.FC = () => {
                     const followedDids = new Set(followedResults.map(u => u.did));
                     suggestedResults = actors.filter((a: any) => a && a.did && !followedDids.has(a.did));
                 }
+
+                setStatus(`fulfilled: follows=${followedResults.length}, suggestions=${suggestedResults.length}`);
 
                 // 3. Combine: followers first, then suggestions
                 const combined = [...followedResults, ...suggestedResults].slice(0, 10);
@@ -80,6 +83,7 @@ const OnboardingCard: React.FC = () => {
                         : t('sidebar.follow_ten', { defaultValue: 'Follow 10 people to get started' })
                     }
                 </h3>
+                <div className="text-[9px] text-gray-400 font-mono ml-2 uppercase opacity-60">{status}</div>
                 <button 
                     onClick={() => setIsHidden(true)}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full text-gray-500 dark:text-[#8798b0] transition-colors"
