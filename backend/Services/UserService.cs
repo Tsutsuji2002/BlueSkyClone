@@ -475,7 +475,7 @@ public class UserService : IUserService
                 var profileHandle = root.GetProperty("handle").GetString();
                 
                 // Merge/Sync logic
-                await MergeDuplicateUsersAsync(did);
+                // await MergeDuplicateUsersAsync(did);
                 var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
                 if (user == null)
                 {
@@ -760,7 +760,7 @@ public class UserService : IUserService
         {
             try
             {
-                await MergeDuplicateUsersBatchAsync(actorDids);
+                // await MergeDuplicateUsersBatchAsync(actorDids);
             }
             catch (Exception ex)
             {
@@ -1071,7 +1071,7 @@ public class UserService : IUserService
 
                 if (actorDids.Count > 0)
                 {
-                    await MergeDuplicateUsersBatchAsync(actorDids);
+                    // await MergeDuplicateUsersBatchAsync(actorDids);
                 }
 
                 var users = new List<User>();
@@ -1175,7 +1175,7 @@ public class UserService : IUserService
 
                 if (actorDids.Count > 0)
                 {
-                    await MergeDuplicateUsersBatchAsync(actorDids);
+                    // await MergeDuplicateUsersBatchAsync(actorDids);
                 }
 
                 var users = new List<User>();
@@ -1258,7 +1258,7 @@ public class UserService : IUserService
 
         if (mergeDuplicates)
         {
-            await MergeDuplicateUsersAsync(did);
+            // await MergeDuplicateUsersAsync(did);
         }
         var user = await _unitOfWork.Users.Query()
             .Where(u => u.Did == did)
@@ -1375,12 +1375,16 @@ public class UserService : IUserService
     
     public async Task<List<User>> GetSuggestedUsersAsync(int limit = 15, Guid? viewerId = null)
     {
+        _logger.LogInformation("[GetSuggestions] Fetching suggestions. Limit: {Limit}, Viewer: {Viewer}", limit, viewerId);
+        
         // 1. Get local users who have an avatar and a display name (higher quality suggestions)
         var localQualityUsers = await _unitOfWork.Users.Query()
             .Where(u => !string.IsNullOrEmpty(u.AvatarUrl) && !string.IsNullOrEmpty(u.DisplayName) && u.IsBanned != true)
             .OrderByDescending(u => u.FollowersCount)
             .Take(limit)
             .ToListAsync();
+
+        _logger.LogInformation("[GetSuggestions] Found {Count} local quality users.", localQualityUsers.Count);
 
         // 2. If we have enough quality local users, we still might want some remote variety
         // but if we have very FEW, we definitely need remote ones.
@@ -1421,11 +1425,25 @@ public class UserService : IUserService
         if (combined.Count < limit)
         {
             var remaining = limit - combined.Count;
+            _logger.LogInformation("[GetSuggestions] Still need {Remaining} users. Taking any local users.", remaining);
+            
             var anyLocal = await _unitOfWork.Users.Query()
                 .Where(u => !seenDids.Contains(u.Did) && u.IsBanned != true)
+                .OrderByDescending(u => u.CreatedAt)
                 .Take(remaining)
                 .ToListAsync();
             combined.AddRange(anyLocal);
+        }
+
+        // 6. Last resort: if STILL empty, take some of the highest-follower users regardless of avatar
+        if (combined.Count == 0)
+        {
+            _logger.LogWarning("[GetSuggestions] Combined list is empty! Taking highest follower users as emergency fallback.");
+            combined = await _unitOfWork.Users.Query()
+                .Where(u => u.IsBanned != true)
+                .OrderByDescending(u => u.FollowersCount)
+                .Take(limit)
+                .ToListAsync();
         }
 
         return combined.Take(limit).ToList();
@@ -2613,7 +2631,7 @@ public class UserService : IUserService
 
             if (actorDids.Count > 0)
             {
-                await MergeDuplicateUsersBatchAsync(actorDids);
+                // await MergeDuplicateUsersBatchAsync(actorDids);
             }
 
             var users = new List<User>();

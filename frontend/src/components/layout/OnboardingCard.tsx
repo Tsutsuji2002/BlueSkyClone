@@ -12,7 +12,7 @@ const OnboardingCard: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const { user } = useAppSelector((state: RootState) => state.auth);
-    const [avatars, setAvatars] = useState<string[]>([]);
+    const [suggestionData, setSuggestionData] = useState<{avatar: string, displayName: string}[]>([]);
     const [isHidden, setIsHidden] = useState(false);
 
     const isGoalReached = user && user.followingCount >= 10;
@@ -30,24 +30,26 @@ const OnboardingCard: React.FC = () => {
                     agent.app.bsky.actor.getSuggestions({ limit: 15 })
                 ]);
 
-                let followedAvatars: string[] = [];
+                let followedResults: any[] = [];
                 if (followingResult.status === 'fulfilled' && followingResult.value.success) {
-                    followedAvatars = (followingResult.value.data.follows || [])
-                        .map((u: any) => u.avatar)
-                        .filter(Boolean) as string[];
+                    followedResults = (followingResult.value.data.follows || []);
                 }
 
-                let suggestedAvatars: string[] = [];
+                let suggestedResults: any[] = [];
                 if (suggestionsResult.status === 'fulfilled' && suggestionsResult.value.success) {
-                    suggestedAvatars = suggestionsResult.value.data.actors
-                        .map((a: any) => a.avatar)
-                        .filter(Boolean)
-                        .filter((avg: string) => !followedAvatars.includes(avg));
+                    const followedDids = new Set(followedResults.map(u => u.did));
+                    suggestedResults = suggestionsResult.value.data.actors
+                        .filter((a: any) => !followedDids.has(a.did));
                 }
 
                 // 3. Combine: followers first, then suggestions
-                const combined = [...followedAvatars, ...suggestedAvatars].slice(0, 10);
-                setAvatars(combined);
+                const combined = [...followedResults, ...suggestedResults].slice(0, 10);
+                
+                // Store objects so we have avatar AND alt text (handle/displayName)
+                setSuggestionData(combined.map(u => ({
+                    avatar: u.avatar || '',
+                    displayName: u.displayName || u.handle || '?'
+                })));
             } catch (error) {
                 console.error('Failed to load avatars for onboarding card', error);
             }
@@ -82,18 +84,18 @@ const OnboardingCard: React.FC = () => {
 
             <div className="flex flex-col gap-3">
                 <div className="flex items-center -space-x-2">
-                    {avatars.length > 0 ? (
+                    {suggestionData.length > 0 ? (
                         <>
-                            {avatars.map((avatar, i) => (
+                            {suggestionData.map((data, i) => (
                                 <Avatar
                                     key={i}
-                                    src={avatar}
-                                    alt=""
+                                    src={data.avatar}
+                                    alt={data.displayName}
                                     size="sm"
                                     className="ring-2 ring-gray-50 dark:ring-[#19222e] z-[10]"
                                 />
                             ))}
-                            {avatars.length < 10 && [...Array(10 - avatars.length)].map((_, i) => (
+                            {suggestionData.length < 10 && [...Array(10 - suggestionData.length)].map((_, i) => (
                                 <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-gray-50 dark:ring-[#19222e] bg-gray-100 dark:bg-[#232e3e] flex items-center justify-center border border-gray-200 dark:border-[#232e3e]">
                                     <FiUser className="text-gray-400 dark:text-[#526580]" size={16} />
                                 </div>
