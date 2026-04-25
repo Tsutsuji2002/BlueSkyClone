@@ -77,50 +77,66 @@ public class ElasticSearchService : ISearchService
 
     public async Task<IEnumerable<Guid>> SearchPostsAsync(string query, int skip = 0, int take = 20)
     {
-        var response = await _client.SearchAsync<PostIndex>(s => s
-            .Indices("posts")
-            .From(skip)
-            .Size(take)
-            .Query(q => q
-                .MultiMatch(mm => mm
-                    .Query(query)
-                    .Fields(new[] { "content", "hashtags" })
-                    .Fuzziness(new Fuzziness("AUTO"))
-                )
-            )
-        );
-
-        if (!response.IsValidResponse)
+        try
         {
-            _logger.LogError("Failed to search posts: {DebugInformation}", response.DebugInformation);
+            var response = await _client.SearchAsync<PostIndex>(s => s
+                .Indices("posts")
+                .From(skip)
+                .Size(take)
+                .Query(q => q
+                    .MultiMatch(mm => mm
+                        .Query(query)
+                        .Fields(new[] { "content", "hashtags" })
+                        .Fuzziness(new Fuzziness("AUTO"))
+                    )
+                )
+            );
+
+            if (!response.IsValidResponse)
+            {
+                _logger.LogError("Failed to search posts: {DebugInformation}", response.DebugInformation);
+                return Enumerable.Empty<Guid>();
+            }
+
+            return response.Documents.Select(d => d.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Elasticsearch offline/failed: {Message}", ex.Message);
             return Enumerable.Empty<Guid>();
         }
-
-        return response.Documents.Select(d => d.Id);
     }
 
     public async Task<IEnumerable<Guid>> SearchUsersAsync(string query, int skip = 0, int take = 20)
     {
-        var response = await _client.SearchAsync<UserIndex>(s => s
-            .Indices("users")
-            .From(skip)
-            .Size(take)
-            .Query(q => q
-                .MultiMatch(mm => mm
-                    .Query(query)
-                    .Fields(new[] { "handle", "username", "displayName", "bio" })
-                    .Fuzziness(new Fuzziness("AUTO"))
-                )
-            )
-        );
-
-        if (!response.IsValidResponse)
+        try
         {
-            _logger.LogError("Failed to search users: {DebugInformation}", response.DebugInformation);
+            var response = await _client.SearchAsync<UserIndex>(s => s
+                .Indices("users")
+                .From(skip)
+                .Size(take)
+                .Query(q => q
+                    .MultiMatch(mm => mm
+                        .Query(query)
+                        .Fields(new[] { "handle", "username", "displayName", "bio" })
+                        .Fuzziness(new Fuzziness("AUTO"))
+                    )
+                )
+            );
+
+            if (!response.IsValidResponse)
+            {
+                _logger.LogError("Failed to search users: {DebugInformation}", response.DebugInformation);
+                return Enumerable.Empty<Guid>();
+            }
+
+            return response.Documents.Select(d => d.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Elasticsearch offline/failed: {Message}", ex.Message);
             return Enumerable.Empty<Guid>();
         }
-
-        return response.Documents.Select(d => d.Id);
     }
 
     public Task ReindexAllAsync()
