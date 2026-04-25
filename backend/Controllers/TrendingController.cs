@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.AspNetCore.OutputCaching;
+using BSkyClone.Services;
 
 namespace BSkyClone.Controllers;
 
@@ -17,14 +18,20 @@ public class TrendingController : ControllerBase
 {
     private readonly BSkyDbContext _context;
     private readonly IMemoryCache _cache;
+    private readonly IXrpcProxyService _xrpcProxy;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<TrendingController> _logger;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
     private const string TrendingCacheKey = "trending_topics";
     private static readonly SemaphoreSlim _cacheLock = new SemaphoreSlim(1, 1);
 
-    public TrendingController(BSkyDbContext context, IMemoryCache cache)
+    public TrendingController(BSkyDbContext context, IMemoryCache cache, IXrpcProxyService xrpcProxy, IHttpClientFactory httpClientFactory, ILogger<TrendingController> logger)
     {
         _context = context;
         _cache = cache;
+        _xrpcProxy = xrpcProxy;
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -63,7 +70,7 @@ public class TrendingController : ControllerBase
                 {
                     if (!_cache.TryGetValue(TrendingCacheKey, out cached) || cached == null)
                     {
-                        cached = await ComputeTrendingAsync();
+                        cached = await ComputeTrendingFromAtprotoAsync();
                         _cache.Set(TrendingCacheKey, cached, CacheDuration);
                     }
                 }
@@ -89,7 +96,126 @@ public class TrendingController : ControllerBase
         }
     }
 
-    private async Task<TrendingCache> ComputeTrendingAsync()
+    private async Task<TrendingCache> ComputeTrendingFromAtprotoAsync()
+    {
+        var result = new TrendingCache();
+
+        try
+        {
+            // Use Bluesky's public API to get trending posts
+            // We'll use the "What's Hot" feed which shows trending content
+            using var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+
+            var url = "https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGeneratorFeed?feed=at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot&limit=100";
+
+            _logger.LogInformation("[Trending] Fetching trending from Bluesky API: {Url}", url);
+
+            var response = await client.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = System.Text.Json.JsonDocument.Parse(content);
+
+                if (doc.RootElement.TryGetProperty("feed", out var feedArray) && feedArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    var hashtagCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                    // Extract hashtags from trending posts
+                    foreach (var item in feedArray.EnumerateArray())
+                    {
+                        try
+                        {
+                            if (item.TryGetProperty("post", out var postEl))
+                            {
+                                var text = postEl.TryGetProperty("record", out var recordEl) &&
+                                          recordEl.TryGetProperty("text", out var textEl) ? textEl.GetString() : "";
+
+                                if (!string.IsNullOrEmpty(text))
+                                {
+                                    // Extract hashtags using regex
+                                    var hashtagRegex = new Regex(@"#(\w+)", RegexOptions.Compiled);
+                                    var matches = hashtagRegex.Matches(text);
+
+                                    foreach (Match match in matches)
+                                    {
+                                        var hashtag = match.Groups[1].Value.ToLower();
+                                        hashtagCounts[hashtag] = hashtagCounts.GetValueOrDefault(hashtag) + 1;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug(ex, "[Trending] Error processing feed item");
+                        }
+                    }
+
+                    // Convert to trending topics
+                    result.Topics = hashtagCounts
+                        .OrderByDescending(kvp => kvp.Value)
+                        .Take(15)
+                        .Select((kvp, index) => new TrendingTopic
+                        {
+                            Id = index.ToString(),
+                            Hashtag = "#" + kvp.Key,
+                            PostsCount = kvp.Value,
+                            Category = "Trending"
+                        })
+                        .ToList();
+                }
+            }
+            else
+            {
+                _logger.LogWarning("[Trending] Bluesky API request failed: {Status}", response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Trending] Error fetching trending from Bluesky API");
+        }
+
+        // Fallback to local database if atproto fails
+        if (result.Topics.Count == 0)
+        {
+            _logger.LogInformation("[Trending] Falling back to local database trending");
+            result = await ComputeTrendingFromLocalAsync();
+        }
+
+        // Get popular accounts from local database
+        try
+        {
+            var accounts = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.IsDeleted != true && u.IsBanned != true)
+                .OrderByDescending(u => u.FollowersCount)
+                .Take(5)
+                .Select(u => new
+                {
+                    Id = u.Id.ToString(),
+                    DisplayName = u.DisplayName ?? u.Username,
+                    Handle = u.Handle,
+                    Avatar = u.AvatarUrl,
+                    PostsCount = (u.PostsCount ?? 0),
+                    Category = "Popular",
+                    Type = "account",
+                    FollowersAvatars = new List<string> { u.AvatarUrl ?? "" }
+                })
+                .ToListAsync();
+
+            result.Accounts = accounts.Cast<object>().ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Trending] Error fetching popular accounts");
+        }
+
+        return result;
+    }
+
+    private async Task<TrendingCache> ComputeTrendingFromLocalAsync()
     {
         var result = new TrendingCache();
         var since = DateTime.UtcNow.AddDays(-3);
@@ -166,7 +292,7 @@ public class TrendingController : ControllerBase
                     .OrderByDescending(h => h.PostsCount)
                     .Take(15)
                     .ToListAsync();
-                
+
                 result.Topics = fallbackTags.Select(t => new TrendingTopic
                 {
                     Id = t.Id.ToString(),
@@ -179,33 +305,6 @@ public class TrendingController : ControllerBase
         catch (Exception ex)
         {
             System.Console.WriteLine($"[Trending] Compute topics failed: {ex.Message}");
-        }
-
-        try
-        {
-            var accounts = await _context.Users
-                .AsNoTracking()
-                .Where(u => u.IsDeleted != true && u.IsBanned != true)
-                .OrderByDescending(u => u.FollowersCount)
-                .Take(5)
-                .Select(u => new
-                {
-                    Id = u.Id.ToString(),
-                    DisplayName = u.DisplayName ?? u.Username,
-                    Handle = u.Handle,
-                    Avatar = u.AvatarUrl,
-                    PostsCount = (u.PostsCount ?? 0),
-                    Category = "Popular",
-                    Type = "account",
-                    FollowersAvatars = new List<string> { u.AvatarUrl ?? "" }
-                })
-                .ToListAsync();
-
-            result.Accounts = accounts.Cast<object>().ToList();
-        }
-        catch (Exception ex)
-        {
-            System.Console.WriteLine($"[Trending] Compute accounts failed: {ex.Message}");
         }
 
         return result;

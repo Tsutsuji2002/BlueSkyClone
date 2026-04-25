@@ -16,6 +16,7 @@ const OnboardingCard: React.FC = () => {
 
     const isGoalReached = user && user.followingCount >= 10;
 
+    // Move all hooks to the top before any early returns
     // Memoize the avatar display to avoid unnecessary re-renders
     const avatarDisplay = useMemo(() => {
         const totalSlots = 10;
@@ -107,11 +108,7 @@ const OnboardingCard: React.FC = () => {
         }
     }, [user, isHidden, loadAvatars]);
 
-    // Show suggestions for longer, or permanently
-    if (isHidden || !user || user.followingCount >= 50) {
-        return null;
-    }
-
+    // Memoized event handlers
     const handleDismiss = useCallback(() => {
         setIsHidden(true);
     }, []);
@@ -119,6 +116,11 @@ const OnboardingCard: React.FC = () => {
     const handleFindPeople = useCallback(() => {
         navigate('/search');
     }, [navigate]);
+
+    // Early return after all hooks are defined
+    if (isHidden || !user || user.followingCount >= 50) {
+        return null;
+    }
 
     return (
         <div className="flex flex-col gap-3 rounded-xl p-4 relative mb-3" style={{ backgroundColor: 'rgb(25, 34, 46)' }}>
