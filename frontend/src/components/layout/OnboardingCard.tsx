@@ -134,20 +134,13 @@ const OnboardingCard: React.FC = () => {
                 <button
                     onClick={handleDismiss}
                     aria-label="Dismiss getting started guide"
-                    className="flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                    className="flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-gray-400 dark:text-[#8798b0]"
                     style={{
                         height: '25px',
-                        width: '25px',
-                        backgroundColor: 'rgba(0, 0, 0, 0)'
+                        width: '25px'
                     }}
                 >
-                    <div style={{ zIndex: 20, width: '15px', height: '15px', marginLeft: '0px', marginRight: '0px' }}>
-                        <div style={{ position: 'absolute', width: '12px', height: '12px', top: '50%', left: '50%', transform: 'translateX(-6px) translateY(-6px)' }}>
-                            <svg fill="none" width="12" viewBox="0 0 24 24" height="12" style={{ color: 'rgb(135, 152, 176)', pointerEvents: 'none' }}>
-                                <path fill="#8798B0" d="M4.293 4.293a1 1 0 0 1 1.414 0L12 10.586l6.293-6.293a1 1 0 1 1 1.414 1.414L13.414 12l6.293 6.293a1 1 0 0 1-1.414 1.414L12 13.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L10.586 12 4.293 5.707a1 1 0 0 1 0-1.414Z" />
-                            </svg>
-                        </div>
-                    </div>
+                    <FiX size={15} />
                 </button>
             </div>
 

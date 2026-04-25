@@ -190,10 +190,9 @@ public class TrendingController : ControllerBase
         try
         {
             // Try to get trending posts from Bluesky's public API
-            // We'll use the search API to find trending content
-            var url = "https://public.api.bsky.app/xrpc/app.bsky.feed.getTimeline?limit=100";
+            var url = "https://public.api.bsky.app/xrpc/app.bsky.unspecced.getTrendingTopics";
 
-            _logger.LogInformation("[Trending] Trying to fetch trending from Bluesky timeline: {Url}", url);
+            _logger.LogInformation("[Trending] Trying to fetch trending from Bluesky API: {Url}", url);
 
             var response = await client.GetAsync(url);
 
@@ -202,78 +201,38 @@ public class TrendingController : ControllerBase
                 var content = await response.Content.ReadAsStringAsync();
                 using var doc = System.Text.Json.JsonDocument.Parse(content);
 
-                _logger.LogInformation("[Trending] Bluesky timeline response received, parsing feed data");
+                _logger.LogInformation("[Trending] Bluesky trending response received, parsing topics");
 
-                if (doc.RootElement.TryGetProperty("feed", out var feedArray) && feedArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                if (doc.RootElement.TryGetProperty("topics", out var topicsArray) && topicsArray.ValueKind == System.Text.Json.JsonValueKind.Array)
                 {
-                    var hashtagCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-                    // Extract hashtags from trending posts
-                    var feedItems = new List<System.Text.Json.JsonElement>();
-                    if (feedArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    var topics = new List<TrendingTopic>();
+                    
+                    foreach (var item in topicsArray.EnumerateArray())
                     {
-                        var itemsArray = feedArray.EnumerateArray().Take(50).ToList(); // Limit to first 50 posts for performance
-                        foreach (var item in itemsArray)
+                        var topicStr = item.TryGetProperty("topic", out var tEl) ? tEl.GetString() : "";
+                        if (!string.IsNullOrEmpty(topicStr))
                         {
-                            feedItems.Add(item);
-                        }
-                    }
-
-                    foreach (var item in feedItems) // Limit to first 50 posts for performance
-                    {
-                        try
-                        {
-                            if (item.TryGetProperty("post", out var postEl))
+                            var hashtag = topicStr.StartsWith("#") ? topicStr : "#" + topicStr.Replace(" ", "");
+                            topics.Add(new TrendingTopic
                             {
-                                var text = postEl.TryGetProperty("record", out var recordEl) &&
-                                          recordEl.TryGetProperty("text", out var textEl) ? textEl.GetString() : "";
-
-                                if (!string.IsNullOrEmpty(text))
-                                {
-                                    // Extract hashtags using regex
-                                    var hashtagRegex = new Regex(@"#(\w+)", RegexOptions.Compiled);
-                                    var matches = hashtagRegex.Matches(text);
-
-                                    foreach (Match match in matches)
-                                    {
-                                        var hashtag = match.Groups[1].Value.ToLower();
-                                        hashtagCounts[hashtag] = hashtagCounts.GetValueOrDefault(hashtag) + 1;
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogDebug(ex, "[Trending] Error processing feed item");
+                                Id = topics.Count.ToString(),
+                                Hashtag = hashtag,
+                                PostsCount = 1000 - topics.Count, // API doesn't provide count, visually sort by creating decaying dummy count
+                                Category = "Trending"
+                            });
                         }
                     }
 
-                    // Convert to trending topics
-                    var trendingTopicsList = hashtagCounts
-                        .OrderByDescending(kvp => kvp.Value)
-                        .Take(15)
-                        .Select((kvp, index) => new TrendingTopic
-                        {
-                            Id = index.ToString(),
-                            Hashtag = "#" + kvp.Key,
-                            PostsCount = kvp.Value,
-                            Category = "Trending"
-                        })
-                        .ToList();
-
-                    _logger.LogInformation("[Trending] Extracted {Count} trending hashtags from Bluesky timeline", trendingTopicsList.Count);
-                    return trendingTopicsList;
-                }
-                else
-                {
-                    _logger.LogWarning("[Trending] No feed data found in Bluesky timeline response");
+                    if (topics.Count > 0)
+                    {
+                        _logger.LogInformation("[Trending] Extracted {Count} trending topics from Bluesky", topics.Count);
+                        return topics;
+                    }
                 }
             }
             else
             {
-                _logger.LogWarning("[Trending] Bluesky timeline API request failed: {Status}", response.StatusCode);
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("[Trending] Error response: {Error}", errorContent);
+                _logger.LogWarning("[Trending] Bluesky trending API request failed: {Status}", response.StatusCode);
             }
         }
         catch (Exception ex)
