@@ -620,6 +620,8 @@ public class PostService : IPostService
         try
         {
             using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            
             if (!string.IsNullOrEmpty(token))
             {
                 httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -5987,24 +5989,32 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0)
     {
-        var lowerQuery = query.ToLower();
-        var posts = await _unitOfWork.Posts.Query()
-            .AsNoTracking()
-            .Include(p => p.Author)
-            .Include(p => p.PostMedia)
-            .Include(p => p.LinkPreview)
-            .Include(p => p.Hashtags)
-            .AsSplitQuery()
-            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
-                        (p.Content != null && p.Content.ToLower().Contains(lowerQuery) || 
-                         p.Hashtags.Any(h => h.Name != null && h.Name.ToLower().Contains(lowerQuery))))
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip(offset)
-            .Take(limit)
-            .ToListAsync();
+        try
+        {
+            var lowerQuery = query.ToLower();
+            var posts = await _unitOfWork.Posts.Query()
+                .AsNoTracking()
+                .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
+                .Include(p => p.Hashtags)
+                .AsSplitQuery()
+                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
+                            (p.Content != null && p.Content.ToLower().Contains(lowerQuery) || 
+                             p.Hashtags.Any(h => h.Name != null && h.Name.ToLower().Contains(lowerQuery))))
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip(offset)
+                .Take(limit)
+                .ToListAsync();
 
-        var postDtos = posts.Select(MapToDto).ToList();
-        return await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty);
+            var postDtos = posts.Select(MapToDto).ToList();
+            return await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[SearchPostsDBAsync] Database search failed or timed out for query: {Query}", query);
+            return new List<PostDto>();
+        }
     }
 
     public PostDto MapToDto(Post post)
