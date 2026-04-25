@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiX, FiUser } from 'react-icons/fi';
+import { FiX } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
-import Button from '../common/Button';
 import Avatar from '../common/Avatar';
 import api from '../../utils/api';
 
@@ -16,94 +15,161 @@ const OnboardingCard: React.FC = () => {
     const [isHidden, setIsHidden] = useState(false);
 
     const isGoalReached = user && user.followingCount >= 10;
-    
-    useEffect(() => {
-        const loadAvatars = async () => {
-            if (!user) return;
 
-            try {
-                // Fetch people the user already follows
-                const followingResponse = await api.get<{following: any[]}>(`/users/${user.id}/following?limit=10`).catch(() => ({ data: { following: [] } }));
-                const followedResults = followingResponse.data?.following || [];
+    // Memoize the avatar display to avoid unnecessary re-renders
+    const avatarDisplay = useMemo(() => {
+        const totalSlots = 10;
+        const filledSlots = Math.min(suggestionData.length, 3); // Show max 3 actual avatars
+        const emptySlots = totalSlots - filledSlots;
 
-                if (followedResults.length > 0) {
-                    setSuggestionData(followedResults.slice(0, 10).map((u: any) => ({
-                        avatar: u.avatarUrl || u.avatar || '',
-                        displayName: u.displayName || u.handle || '?'
-                    })));
-                } else {
-                    setSuggestionData([]);
-                }
-            } catch (error) {
-                console.error('Failed to load avatars for onboarding card', error);
+        return (
+            <div className="flex items-center">
+                {/* Actual avatars (max 3) */}
+                {suggestionData.slice(0, 3).map((data, i) => (
+                    <div
+                        key={`avatar-${i}`}
+                        className="relative rounded-full border border-[#232e3e]"
+                        style={{
+                            width: '31.4165px',
+                            height: '31.4165px',
+                            marginLeft: i === 0 ? '0px' : '-7.35162px',
+                            zIndex: 10 - i,
+                            backgroundColor: '#111822'
+                        }}
+                    >
+                        <Avatar
+                            src={data.avatar}
+                            alt={data.displayName}
+                            size="sm"
+                            className="!rounded-full !w-full !h-full"
+                        />
+                    </div>
+                ))}
+
+                {/* Placeholder avatars */}
+                {[...Array(emptySlots)].map((_, i) => {
+                    const zIndex = 7 - i;
+                    return (
+                        <div
+                            key={`placeholder-${i}`}
+                            className="flex items-center justify-center rounded-full border border-[#232e3e]"
+                            style={{
+                                width: '33.4165px',
+                                height: '33.4165px',
+                                marginLeft: '-7.35162px',
+                                zIndex,
+                                backgroundColor: '#405168'
+                            }}
+                        >
+                            <svg
+                                fill="none"
+                                width="16.708229426433917"
+                                height="16.708229426433917"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    fill="#19222E"
+                                    d="M12.233 2a4.433 4.433 0 1 0 0 8.867 4.433 4.433 0 0 0 0-8.867ZM12.233 12.133c-3.888 0-6.863 2.263-8.071 5.435-.346.906-.11 1.8.44 2.436.535.619 1.36.996 2.25.996h10.762c.89 0 1.716-.377 2.25-.996.55-.636.786-1.53.441-2.436-1.208-3.173-4.184-5.435-8.072-5.435Z"
+                                />
+                            </svg>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }, [suggestionData]);
+
+    // Optimized data loading with useCallback
+    const loadAvatars = useCallback(async () => {
+        if (!user) return;
+
+        try {
+            // Fetch people the user already follows
+            const followingResponse = await api.get<{following: any[]}>(`/users/${user.id}/following?limit=10`).catch(() => ({ data: { following: [] } }));
+            const followedResults = followingResponse.data?.following || [];
+
+            if (followedResults.length > 0) {
+                setSuggestionData(followedResults.slice(0, 10).map((u: any) => ({
+                    avatar: u.avatarUrl || u.avatar || '',
+                    displayName: u.displayName || u.handle || '?'
+                })));
+            } else {
+                setSuggestionData([]);
             }
-        };
+        } catch (error) {
+            console.error('Failed to load avatars for onboarding card', error);
+        }
+    }, [user]);
 
+    useEffect(() => {
         if (user && !isHidden) {
             loadAvatars();
         }
-    }, [user, isHidden]);
+    }, [user, isHidden, loadAvatars]);
 
     // Show suggestions for longer, or permanently
     if (isHidden || !user || user.followingCount >= 50) {
         return null;
     }
 
+    const handleDismiss = useCallback(() => {
+        setIsHidden(true);
+    }, []);
+
+    const handleFindPeople = useCallback(() => {
+        navigate('/search');
+    }, [navigate]);
+
     return (
-        <div className="bg-gray-50 dark:bg-[#19222e] rounded-xl p-4 relative mb-3 border border-gray-100 dark:border-transparent">
-            <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-[15px] text-gray-900 dark:text-white">
-                    {isGoalReached 
+        <div className="flex flex-col gap-3 rounded-xl p-4 relative mb-3" style={{ backgroundColor: 'rgb(25, 34, 46)' }}>
+            <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-[15px] text-white" style={{ letterSpacing: '0.25px', lineHeight: '15px' }}>
+                    {isGoalReached
                         ? t('sidebar.discover_people', { defaultValue: 'Discover people to follow' })
                         : t('sidebar.follow_ten', { defaultValue: 'Follow 10 people to get started' })
                     }
                 </h3>
-                <button 
-                    onClick={() => setIsHidden(true)}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full text-gray-500 dark:text-[#8798b0] transition-colors"
+                <button
+                    onClick={handleDismiss}
+                    aria-label="Dismiss getting started guide"
+                    className="flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                    style={{
+                        height: '25px',
+                        width: '25px',
+                        marginTop: '-6px',
+                        marginRight: '-6px',
+                        backgroundColor: 'rgba(0, 0, 0, 0)'
+                    }}
                 >
-                    <FiX size={15} />
+                    <div style={{ zIndex: 20, width: '15px', height: '15px', marginLeft: '0px', marginRight: '0px' }}>
+                        <div style={{ position: 'absolute', width: '12px', height: '12px', top: '50%', left: '50%', transform: 'translateX(-6px) translateY(-6px)' }}>
+                            <svg fill="none" width="12" viewBox="0 0 24 24" height="12" style={{ color: 'rgb(135, 152, 176)', pointerEvents: 'none' }}>
+                                <path fill="#8798B0" d="M4.293 4.293a1 1 0 0 1 1.414 0L12 10.586l6.293-6.293a1 1 0 1 1 1.414 1.414L13.414 12l6.293 6.293a1 1 0 0 1-1.414 1.414L12 13.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L10.586 12 4.293 5.707a1 1 0 0 1 0-1.414Z" />
+                            </svg>
+                        </div>
+                    </div>
                 </button>
             </div>
 
             <div className="flex flex-col gap-3">
-                <div className="flex items-center -space-x-2">
-                    {suggestionData.length > 0 ? (
-                        <>
-                            {suggestionData.map((data, i) => (
-                                <Avatar
-                                    key={i}
-                                    src={data.avatar}
-                                    alt={data.displayName}
-                                    size="sm"
-                                    className="ring-2 ring-gray-50 dark:ring-[#19222e] z-[10]"
-                                />
-                            ))}
-                            {suggestionData.length < 10 && [...Array(10 - suggestionData.length)].map((_, i) => (
-                                <div key={`empty-${i}`} className="h-[32px] w-[32px] rounded-full ring-2 ring-gray-50 dark:ring-[#19222e] bg-gray-100 dark:bg-[#232e3e] flex items-center justify-center border border-gray-200 dark:border-[#232e3e]">
-                                    <FiUser className="text-gray-400 dark:text-[#526580]" size={16} />
-                                </div>
-                            ))}
-                        </>
-                    ) : (
-                        [...Array(10)].map((_, i) => (
-                            <div key={i} className="h-[32px] w-[32px] rounded-full ring-2 ring-gray-50 dark:ring-[#19222e] bg-gray-100 dark:bg-[#232e3e] flex items-center justify-center border border-gray-200 dark:border-[#232e3e]">
-                                <FiUser className="text-gray-400 dark:text-[#526580]" size={16} />
-                            </div>
-                        ))
-                    )}
+                <div className="flex flex-row flex-1">
+                    {avatarDisplay}
                 </div>
 
-                <Button 
-                    variant="primary" 
-                    fullWidth 
-                    size="md" 
-                    onClick={() => navigate('/search')}
-                    className="mt-2 font-bold py-2.5 rounded-full"
+                <button
+                    onClick={handleFindPeople}
+                    aria-label="Find people to follow"
+                    className="flex items-center justify-center rounded-full transition-colors hover:opacity-90"
+                    style={{
+                        backgroundColor: 'rgb(0, 106, 255)',
+                        padding: '8px 14px',
+                        gap: '5px'
+                    }}
                 >
-                    {t('onboarding.find_people', { defaultValue: 'Tìm người để theo dõi' })} 
-                    {suggestionData.length > 0 ? ` (${suggestionData.length})` : ''}
-                </Button>
+                    <span className="text-[13.1px] font-medium text-white text-center" style={{ letterSpacing: '0.25px', lineHeight: '17px' }}>
+                        {t('onboarding.find_people', { defaultValue: 'Find people to follow' })}
+                    </span>
+                </button>
             </div>
         </div>
     );

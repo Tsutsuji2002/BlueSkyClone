@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiSearch, FiX, FiPlus, FiChevronRight } from 'react-icons/fi';
+import { FiSearch, FiX, FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
@@ -29,16 +29,13 @@ const RightSidebar: React.FC = () => {
     const { user, isAuthenticated } = useAppSelector((state: RootState) => state.auth);
     const dispatch = useAppDispatch();
 
-    useEffect(() => {
-        if (user) {
-            dispatch(fetchSubscribedFeeds());
-        }
-    }, [dispatch, user]);
+    // Memoize support link to avoid recalculation
+    const supportLink = useMemo(() => {
+        if (!user) return '/support';
+        return `/support?email=${encodeURIComponent(`${user.username}@gmail.com`)}&username=${encodeURIComponent(user.handle)}`;
+    }, [user]);
 
-    const supportLink = user
-        ? `/support?email=${encodeURIComponent(`${user.username}@gmail.com`)}&username=${encodeURIComponent(user.handle)}`
-        : '/support';
-
+    // Optimized search with useCallback
     const handleSearch = useCallback(async (query: string) => {
         if (!query.trim()) {
             setResults([]);
@@ -76,6 +73,7 @@ const RightSidebar: React.FC = () => {
         }
     }, []);
 
+    // Debounced search with proper cleanup
     useEffect(() => {
         const timer = setTimeout(() => {
             if (searchQuery.trim()) {
@@ -88,6 +86,7 @@ const RightSidebar: React.FC = () => {
         return () => clearTimeout(timer);
     }, [searchQuery, handleSearch]);
 
+    // Click outside handler with useCallback
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -99,7 +98,8 @@ const RightSidebar: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleResultClick = (result: any) => {
+    // Memoized result click handler
+    const handleResultClick = useCallback((result: any) => {
         if (result._type === 'feed') {
             navigate(`/feeds/${result.id}`);
         } else {
@@ -107,17 +107,19 @@ const RightSidebar: React.FC = () => {
         }
         setSearchQuery('');
         setShowResults(false);
-    };
+    }, [navigate]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Memoized keyboard handler
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && searchQuery.trim()) {
             navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
             setShowResults(false);
         }
-    };
+    }, [searchQuery, navigate]);
 
     const { feeds, subscribedFeeds, pinnedFeedIds } = useAppSelector((state: RootState) => state.feeds);
 
+    // Memoized pinned feeds calculation
     const pinnedFeeds = useMemo(() => {
         if (!isAuthenticated) {
             return [
@@ -139,19 +141,97 @@ const RightSidebar: React.FC = () => {
             .slice(0, 10);
     }, [feeds, subscribedFeeds, pinnedFeedIds, t, isAuthenticated]);
 
-    const handleFeedClick = (feed: any) => {
+    // Memoized feed click handler
+    const handleFeedClick = useCallback((feed: any) => {
         if (feedActionKey(feed) === 'following') {
             navigate('/');
         } else {
             navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
         }
-    };
+    }, [navigate]);
 
-    const clearSearch = () => {
+    // Memoized clear search handler
+    const clearSearch = useCallback(() => {
         setSearchQuery('');
         setResults([]);
         setShowResults(false);
-    };
+    }, []);
+
+    // Memoized search results rendering
+    const searchResultsContent = useMemo(() => {
+        if (loading) {
+            return (
+                <div className="p-8 flex justify-center">
+                    <LoadingIndicator size="md" />
+                </div>
+            );
+        }
+
+        if (results.length > 0) {
+            return (
+                <div className="py-2">
+                    {results.map((result) => (
+                        <button
+                            key={result.id}
+                            onClick={() => handleResultClick(result)}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors text-left"
+                        >
+                            {result._type === 'feed' ? (
+                                <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xl">
+                                    {result.avatarUrl || result.avatar ? (
+                                        <img src={result.avatarUrl || result.avatar} alt="" className="w-full h-full rounded-lg object-cover" />
+                                    ) : (
+                                        result.name?.[0] || 'F'
+                                    )}
+                                </div>
+                            ) : (
+                                <UserHoverCard user={result}>
+                                    <div onClick={(e) => { e.stopPropagation(); handleResultClick(result); }}>
+                                        <Avatar
+                                            src={result.avatarUrl || result.avatar}
+                                            alt={result.displayName}
+                                            size="md"
+                                        />
+                                    </div>
+                                </UserHoverCard>
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                                <p className="font-bold text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
+                                    {result._type === 'feed' ? result.name : (
+                                        <UserHoverCard user={result}>
+                                            <span>{result.displayName}</span>
+                                        </UserHoverCard>
+                                    )}
+                                    {result.isVerified && (
+                                        <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
+                                    )}
+                                </p>
+                                <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary truncate">
+                                    {result._type === 'feed' ? (
+                                        <>Feed · @{result.handle}</>
+                                    ) : (
+                                        <>@{result.handle}</>
+                                    )}
+                                </p>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            );
+        }
+
+        if (searchQuery.trim()) {
+            return (
+                <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface"
+                    onClick={() => navigate(`/search?q=${encodeURIComponent(searchQuery)}`)}>
+                    <p className="font-medium text-primary-500">{t('search.goto_search', { defaultValue: 'Search all for "{{query}}"', query: searchQuery })}</p>
+                </div>
+            );
+        }
+
+        return null;
+    }, [loading, results, searchQuery, handleResultClick, navigate, t]);
 
     return (
         <div className="flex flex-col gap-4 w-[330px] h-screen sticky top-0 py-[20px] pr-[2px] pb-[20px] pl-[28px] overflow-y-auto no-scrollbar">
@@ -188,66 +268,7 @@ const RightSidebar: React.FC = () => {
                         </div>
 
                         <div className="overflow-y-auto flex-1">
-                            {loading ? (
-                                <div className="p-8 flex justify-center">
-                                    <LoadingIndicator size="md" />
-                                </div>
-                            ) : results.length > 0 ? (
-                                <div className="py-2">
-                                    {results.map((result) => (
-                                        <button
-                                            key={result.id}
-                                            onClick={() => handleResultClick(result)}
-                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors text-left"
-                                        >
-                                            {result._type === 'feed' ? (
-                                                <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xl">
-                                                    {result.avatarUrl || result.avatar ? (
-                                                        <img src={result.avatarUrl || result.avatar} alt="" className="w-full h-full rounded-lg object-cover" />
-                                                    ) : (
-                                                        result.name?.[0] || 'F'
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <UserHoverCard user={result}>
-                                                    <div onClick={(e) => { e.stopPropagation(); handleResultClick(result); }}>
-                                                        <Avatar
-                                                            src={result.avatarUrl || result.avatar}
-                                                            alt={result.displayName}
-                                                            size="md"
-                                                        />
-                                                    </div>
-                                                </UserHoverCard>
-                                            )}
-
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
-                                                    {result._type === 'feed' ? result.name : (
-                                                        <UserHoverCard user={result}>
-                                                            <span>{result.displayName}</span>
-                                                        </UserHoverCard>
-                                                    )}
-                                                    {result.isVerified && (
-                                                        <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
-                                                    )}
-                                                </p>
-                                                <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary truncate">
-                                                    {result._type === 'feed' ? (
-                                                        <>Feed · @{result.handle}</>
-                                                    ) : (
-                                                        <>@{result.handle}</>
-                                                    )}
-                                                </p>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : searchQuery.trim() ? (
-                                <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface"
-                                    onClick={() => navigate(`/search?q=${encodeURIComponent(searchQuery)}`)}>
-                                    <p className="font-medium text-primary-500">{t('search.goto_search', { defaultValue: 'Search all for "{{query}}"', query: searchQuery })}</p>
-                                </div>
-                            ) : null}
+                            {searchResultsContent}
                         </div>
                     </div>
                 )}
