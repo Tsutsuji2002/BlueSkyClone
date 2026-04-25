@@ -117,7 +117,14 @@ const RightSidebar: React.FC = () => {
         }
     }, [searchQuery, navigate]);
 
-    const { feeds, subscribedFeeds, pinnedFeedIds } = useAppSelector((state: RootState) => state.feeds);
+    const { feeds, subscribedFeeds, pinnedFeedIds, isLoading: feedsLoading } = useAppSelector((state: RootState) => state.feeds);
+
+    // Initial fetch for feeds if empty
+    useEffect(() => {
+        if (isAuthenticated && feeds.length === 0 && subscribedFeeds.length === 0 && !feedsLoading) {
+            dispatch(fetchSubscribedFeeds());
+        }
+    }, [isAuthenticated, dispatch, feeds.length, subscribedFeeds.length, feedsLoading]);
 
     // Memoized pinned feeds calculation
     const pinnedFeeds = useMemo(() => {
