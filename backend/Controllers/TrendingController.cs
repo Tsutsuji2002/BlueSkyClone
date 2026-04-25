@@ -8,6 +8,10 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.AspNetCore.OutputCaching;
 using BSkyClone.Services;
+using System.Linq;
+using System.Linq;
+using BSkyClone.Services;
+using System.Linq;
 
 namespace BSkyClone.Controllers;
 
@@ -43,6 +47,8 @@ public class TrendingController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? currentUserId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
+            _logger.LogInformation("[Trending] GetTrending called for user: {UserId}", currentUserId);
+
             // Load muted words for user (small query, fine to run per-user)
             var mutedWordsSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (currentUserId.HasValue)
@@ -55,6 +61,7 @@ public class TrendingController : ControllerBase
                         .Select(m => m.Word)
                         .ToListAsync();
                     foreach (var w in mutedWords) mutedWordsSet.Add(w);
+                    _logger.LogInformation("[Trending] Loaded {Count} muted words for user {UserId}", mutedWords.Count);
                 }
                 catch (Exception ex)
                 {
@@ -65,6 +72,7 @@ public class TrendingController : ControllerBase
             // Try to get cached trending topics (shared for all users)
             if (!_cache.TryGetValue(TrendingCacheKey, out TrendingCache? cached) || cached == null)
             {
+                _logger.LogInformation("[Trending] Cache miss, computing trending data");
                 await _cacheLock.WaitAsync();
                 try
                 {
@@ -72,12 +80,17 @@ public class TrendingController : ControllerBase
                     {
                         cached = await ComputeTrendingFromAtprotoAsync();
                         _cache.Set(TrendingCacheKey, cached, CacheDuration);
+                        _logger.LogInformation("[Trending] Computed and cached trending data: {Count} topics", cached.Topics.Count);
                     }
                 }
                 finally
                 {
                     _cacheLock.Release();
                 }
+            }
+            else
+            {
+                _logger.LogInformation("[Trending] Cache hit, returning cached data: {Count} topics", cached.Topics.Count);
             }
 
             // Filter by muted words per-user
@@ -88,10 +101,13 @@ public class TrendingController : ControllerBase
 
             var accounts = cached.Accounts;
 
+            _logger.LogInformation("[Trending] Returning {Count} topics and {Count} accounts", topics.Count, accounts.Count);
+
             return Ok(new { topics, accounts });
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "[Trending] Error fetching trending topics");
             return StatusCode(500, new { message = "Error fetching trending topics", details = ex.Message });
         }
     }
@@ -108,79 +124,33 @@ public class TrendingController : ControllerBase
             client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
 
-            var url = "https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGeneratorFeed?feed=at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot&limit=100";
+            // Try multiple approaches to get trending data
+            var trendingData = await TryGetTrendingFromBlueskyAsync(client);
 
-            _logger.LogInformation("[Trending] Fetching trending from Bluesky API: {Url}", url);
-
-            var response = await client.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
+            if (trendingData != null && trendingData.Count > 0)
             {
-                var content = await response.Content.ReadAsStringAsync();
-                using var doc = System.Text.Json.JsonDocument.Parse(content);
-
-                if (doc.RootElement.TryGetProperty("feed", out var feedArray) && feedArray.ValueKind == System.Text.Json.JsonValueKind.Array)
-                {
-                    var hashtagCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-                    // Extract hashtags from trending posts
-                    foreach (var item in feedArray.EnumerateArray())
+                result.Topics = trendingData
+                    .Take(15)
+                    .Select((item, index) => new TrendingTopic
                     {
-                        try
-                        {
-                            if (item.TryGetProperty("post", out var postEl))
-                            {
-                                var text = postEl.TryGetProperty("record", out var recordEl) &&
-                                          recordEl.TryGetProperty("text", out var textEl) ? textEl.GetString() : "";
+                        Id = index.ToString(),
+                        Hashtag = item.Hashtag,
+                        PostsCount = item.PostsCount,
+                        Category = "Trending"
+                    })
+                    .ToList();
 
-                                if (!string.IsNullOrEmpty(text))
-                                {
-                                    // Extract hashtags using regex
-                                    var hashtagRegex = new Regex(@"#(\w+)", RegexOptions.Compiled);
-                                    var matches = hashtagRegex.Matches(text);
-
-                                    foreach (Match match in matches)
-                                    {
-                                        var hashtag = match.Groups[1].Value.ToLower();
-                                        hashtagCounts[hashtag] = hashtagCounts.GetValueOrDefault(hashtag) + 1;
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogDebug(ex, "[Trending] Error processing feed item");
-                        }
-                    }
-
-                    // Convert to trending topics
-                    result.Topics = hashtagCounts
-                        .OrderByDescending(kvp => kvp.Value)
-                        .Take(15)
-                        .Select((kvp, index) => new TrendingTopic
-                        {
-                            Id = index.ToString(),
-                            Hashtag = "#" + kvp.Key,
-                            PostsCount = kvp.Value,
-                            Category = "Trending"
-                        })
-                        .ToList();
-                }
+                _logger.LogInformation("[Trending] Successfully fetched {Count} trending topics from Bluesky", result.Topics.Count);
             }
             else
             {
-                _logger.LogWarning("[Trending] Bluesky API request failed: {Status}", response.StatusCode);
+                _logger.LogWarning("[Trending] No trending data from Bluesky, falling back to local");
+                result = await ComputeTrendingFromLocalAsync();
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[Trending] Error fetching trending from Bluesky API");
-        }
-
-        // Fallback to local database if atproto fails
-        if (result.Topics.Count == 0)
-        {
-            _logger.LogInformation("[Trending] Falling back to local database trending");
             result = await ComputeTrendingFromLocalAsync();
         }
 
@@ -213,6 +183,105 @@ public class TrendingController : ControllerBase
         }
 
         return result;
+    }
+
+    private async Task<List<TrendingTopic>> TryGetTrendingFromBlueskyAsync(HttpClient client)
+    {
+        try
+        {
+            // Try to get trending posts from Bluesky's public API
+            // We'll use the search API to find trending content
+            var url = "https://public.api.bsky.app/xrpc/app.bsky.feed.getTimeline?limit=100";
+
+            _logger.LogInformation("[Trending] Trying to fetch trending from Bluesky timeline: {Url}", url);
+
+            var response = await client.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = System.Text.Json.JsonDocument.Parse(content);
+
+                _logger.LogInformation("[Trending] Bluesky timeline response received, parsing feed data");
+
+                if (doc.RootElement.TryGetProperty("feed", out var feedArray) && feedArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    var hashtagCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                    // Extract hashtags from trending posts
+                    var feedItems = new List<System.Text.Json.JsonElement>();
+                    if (feedArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        var itemsArray = feedArray.EnumerateArray().Take(50).ToList(); // Limit to first 50 posts for performance
+                        foreach (var item in itemsArray)
+                        {
+                            feedItems.Add(item);
+                        }
+                    }
+
+                    foreach (var item in feedItems) // Limit to first 50 posts for performance
+                    {
+                        try
+                        {
+                            if (item.TryGetProperty("post", out var postEl))
+                            {
+                                var text = postEl.TryGetProperty("record", out var recordEl) &&
+                                          recordEl.TryGetProperty("text", out var textEl) ? textEl.GetString() : "";
+
+                                if (!string.IsNullOrEmpty(text))
+                                {
+                                    // Extract hashtags using regex
+                                    var hashtagRegex = new Regex(@"#(\w+)", RegexOptions.Compiled);
+                                    var matches = hashtagRegex.Matches(text);
+
+                                    foreach (Match match in matches)
+                                    {
+                                        var hashtag = match.Groups[1].Value.ToLower();
+                                        hashtagCounts[hashtag] = hashtagCounts.GetValueOrDefault(hashtag) + 1;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug(ex, "[Trending] Error processing feed item");
+                        }
+                    }
+
+                    // Convert to trending topics
+                    var trendingTopicsList = hashtagCounts
+                        .OrderByDescending(kvp => kvp.Value)
+                        .Take(15)
+                        .Select((kvp, index) => new TrendingTopic
+                        {
+                            Id = index.ToString(),
+                            Hashtag = "#" + kvp.Key,
+                            PostsCount = kvp.Value,
+                            Category = "Trending"
+                        })
+                        .ToList();
+
+                    _logger.LogInformation("[Trending] Extracted {Count} trending hashtags from Bluesky timeline", trendingTopicsList.Count);
+                    return trendingTopicsList;
+                }
+                else
+                {
+                    _logger.LogWarning("[Trending] No feed data found in Bluesky timeline response");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("[Trending] Bluesky timeline API request failed: {Status}", response.StatusCode);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("[Trending] Error response: {Error}", errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Trending] Error fetching trending from Bluesky timeline");
+        }
+
+        return null;
     }
 
     private async Task<TrendingCache> ComputeTrendingFromLocalAsync()
@@ -333,5 +402,49 @@ public class TrendingController : ControllerBase
         public string Hashtag { get; set; } = "";
         public int PostsCount { get; set; }
         public string Category { get; set; } = "";
+    }
+
+    [HttpGet("debug")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetTrendingDebug()
+    {
+        try
+        {
+            _logger.LogInformation("[Trending] GetTrendingDebug called");
+
+            // Check cache status
+            var cacheExists = _cache.TryGetValue(TrendingCacheKey, out TrendingCache? cached);
+            _logger.LogInformation("[Trending] Cache exists: {Exists}, Topics count: {Count}", cacheExists, cached?.Topics?.Count ?? 0);
+
+            // Get fresh data without cache
+            var freshData = await ComputeTrendingFromAtprotoAsync();
+            _logger.LogInformation("[Trending] Fresh data computed: {Count} topics", freshData.Topics.Count);
+
+            // Get local data
+            var localData = await ComputeTrendingFromLocalAsync();
+            _logger.LogInformation("[Trending] Local data computed: {Count} topics", localData.Topics.Count);
+
+            // Convert to lists for JSON serialization
+            var freshTopicsList = freshData.Topics.Take(5).Select(t => new { t.Hashtag, t.PostsCount, t.Category }).ToList();
+            var localTopicsList = localData.Topics.Take(5).Select(t => new { t.Hashtag, t.PostsCount, t.Category }).ToList());
+
+            var freshTopicsListResult = freshTopicsList;
+            var localTopicsListResult = localTopicsList;
+
+            return Ok(new
+            {
+                cacheExists,
+                cachedTopics = cached?.Topics?.Count ?? 0,
+                freshTopicsCount = freshData.Topics.Count,
+                localTopicsCount = localData.Topics.Count,
+                freshTopics = freshTopicsListResult,
+                localTopics = localTopicsListResult
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Trending] Error in GetTrendingDebug");
+            return StatusCode(500, new { message = "Error in debug endpoint", details = ex.Message });
+        }
     }
 }

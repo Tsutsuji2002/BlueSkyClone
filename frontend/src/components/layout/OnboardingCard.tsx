@@ -138,8 +138,6 @@ const OnboardingCard: React.FC = () => {
                     style={{
                         height: '25px',
                         width: '25px',
-                        marginTop: '-6px',
-                        marginRight: '-6px',
                         backgroundColor: 'rgba(0, 0, 0, 0)'
                     }}
                 >
