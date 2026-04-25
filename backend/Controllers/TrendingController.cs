@@ -6,6 +6,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace BSkyClone.Controllers;
 
@@ -27,6 +28,7 @@ public class TrendingController : ControllerBase
     }
 
     [HttpGet]
+    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
     public async Task<IActionResult> GetTrending()
     {
         try

@@ -115,4 +115,114 @@ public class CacheService : ICacheService
             _logger.LogError(ex, "Error releasing lock for key: {Key}", key);
         }
     }
+
+    /// <summary>
+    /// Get value from cache or create it using the factory function
+    /// </summary>
+    public async Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null)
+    {
+        try
+        {
+            var cached = await GetAsync<T>(key);
+            if (cached != null)
+            {
+                _logger.LogDebug("Cache hit for key: {Key}", key);
+                return cached;
+            }
+
+            _logger.LogDebug("Cache miss for key: {Key}, creating value", key);
+            var value = await factory();
+            if (value != null)
+            {
+                await SetAsync(key, value, expiration);
+            }
+            return value;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetOrCreateAsync for key: {Key}", key);
+            return await factory(); // Fallback to factory if cache fails
+        }
+    }
+
+    /// <summary>
+    /// Get multiple values from cache by keys
+    /// </summary>
+    public async Task<Dictionary<string, T>> GetManyAsync<T>(IEnumerable<string> keys)
+    {
+        var result = new Dictionary<string, T>();
+        var tasks = keys.Select(async key =>
+        {
+            var value = await GetAsync<T>(key);
+            return new { Key = key, Value = value };
+        });
+
+        var results = await Task.WhenAll(tasks);
+        foreach (var item in results)
+        {
+            if (item.Value != null)
+            {
+                result[item.Key] = item.Value;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Set multiple values in cache
+    /// </summary>
+    public async Task SetManyAsync<T>(Dictionary<string, T> items, TimeSpan? expiration = null)
+    {
+        var tasks = items.Select(async item =>
+        {
+            try
+            {
+                await SetAsync(item.Key, item.Value, expiration);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting cache for key: {Key}", item.Key);
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// Remove multiple keys from cache
+    /// </summary>
+    public async Task RemoveManyAsync(IEnumerable<string> keys)
+    {
+        var tasks = keys.Select(async key =>
+        {
+            try
+            {
+                await RemoveAsync(key);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing cache for key: {Key}", key);
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// Check if key exists in cache
+    /// </summary>
+    public async Task<bool> ExistsAsync(string key)
+    {
+        try
+        {
+            var cached = await _cache.GetStringAsync(key);
+            return !string.IsNullOrEmpty(cached);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking cache existence for key: {Key}", key);
+            return false;
+        }
+    }
 }

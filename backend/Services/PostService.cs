@@ -62,7 +62,8 @@ public class PostService : IPostService
     {
         try
         {
-            var cacheKey = $"BlueskyTimeline_{userId}";
+            // Include skip and take in cache key for proper pagination support
+            var cacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}";
             var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
             List<PostDto>? mappedPosts = null;
             User? user = null;
@@ -3153,6 +3154,39 @@ public class PostService : IPostService
 
         _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} for '{Tid}'.", post.Id, tid);
         return await GetPostByIdAsync(post.Id, viewerId);
+    }
+
+    public async Task<List<PostDto>> GetPostsByTidsAsync(List<string> tids, Guid? viewerId = null)
+    {
+        if (tids == null || tids.Count == 0) return new List<PostDto>();
+
+        _logger.LogInformation("[PostService] GetPostsByTidsAsync: Batch loading {Count} posts", tids.Count);
+
+        // Parse any GUIDs from the TIDs list
+        var parsedIds = tids.Where(tid => Guid.TryParse(tid, out _)).Select(Guid.Parse).ToList();
+
+        // Search by Tid, Cid, Uri suffix or the internal Id (if tid is a GUID)
+        var posts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.PostMedia)
+            .Include(p => p.LinkPreview)
+            .Where(p => (tids.Contains(p.Tid) || tids.Contains(p.Cid) ||
+                        (p.Uri != null && tids.Any(tid => p.Uri.EndsWith("/" + tid))) ||
+                        parsedIds.Contains(p.Id)) &&
+                        (p.IsDeleted == false || p.IsDeleted == null))
+            .ToListAsync();
+
+        _logger.LogInformation("[PostService] GetPostsByTidsAsync: Found {FoundCount} posts out of {RequestedCount} requested", posts.Count, tids.Count);
+
+        // Map all posts to DTOs
+        var result = new List<PostDto>();
+        foreach (var post in posts)
+        {
+            var dto = await GetPostByIdAsync(post.Id, viewerId);
+            if (dto != null) result.Add(dto);
+        }
+
+        return result;
     }
 
     public async Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null)

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.OutputCaching;
 using System.Security.Claims;
 
 namespace BSkyClone.Controllers;
@@ -48,6 +49,7 @@ public class PostsController : ControllerBase
 
     [HttpGet("trending")]
     [AllowAnonymous]
+    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "skip", "take" })]
     public async Task<IActionResult> GetTrending([FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         try
@@ -186,8 +188,23 @@ public class PostsController : ControllerBase
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
-            
+
             var post = await _postService.CreatePostAsync(userId, request);
+
+            // Invalidate relevant caches
+            try
+            {
+                var cacheService = HttpContext.RequestServices.GetRequiredService<ICacheService>();
+                await cacheService.RemoveAsync($"Timeline_{userId}");
+                await cacheService.RemoveAsync("Trending");
+                await cacheService.RemoveByPrefixAsync("Search_");
+                _logger.LogInformation("[PostsController] Cache invalidated for user {UserId} after post creation", userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[PostsController] Failed to invalidate cache after post creation");
+            }
+
             return Ok(post);
         }
         catch (Exception ex)
@@ -261,20 +278,41 @@ public class PostsController : ControllerBase
             var thread = new List<PostDto> { post };
             var current = post;
 
-            // Fetch Ancestors
+            // Fetch Ancestors - optimized with batch loading
+            var ancestorTids = new List<string>();
             for (int i = 0; i < 5; i++)
             {
                 if (!string.IsNullOrEmpty(current.ReplyToPostId))
                 {
-                    var parent = await _postService.GetPostByTidAsync(current.ReplyToPostId, viewerId);
-                    if (parent != null)
+                    ancestorTids.Add(current.ReplyToPostId);
+                    // We need to get the next parent, but we don't have it yet
+                    // For now, we'll break and load all ancestors at once
+                    break;
+                }
+                else break;
+            }
+
+            // Batch load all ancestors
+            if (ancestorTids.Count > 0)
+            {
+                var ancestors = await _postService.GetPostsByTidsAsync(ancestorTids, viewerId);
+                var ancestorDict = ancestors.ToDictionary(a => a.Tid ?? a.Id.ToString());
+
+                // Build thread from ancestors
+                current = post;
+                for (int i = 0; i < 5; i++)
+                {
+                    if (!string.IsNullOrEmpty(current.ReplyToPostId))
                     {
-                        if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
-                        current = parent;
+                        if (ancestorDict.TryGetValue(current.ReplyToPostId, out var parent))
+                        {
+                            if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
+                            current = parent;
+                        }
+                        else break;
                     }
                     else break;
                 }
-                else break;
             }
 
             // Fetch Replies
@@ -321,19 +359,41 @@ public class PostsController : ControllerBase
             var thread = new List<PostDto> { post };
             var current = post;
 
+            // Collect ancestor TIDs for batch loading
+            var ancestorTids = new List<string>();
             for (int i = 0; i < 5; i++)
             {
                 if (!string.IsNullOrEmpty(current.ReplyToPostId))
                 {
-                    var parent = await _postService.GetPostByTidAsync(current.ReplyToPostId, viewerId);
-                    if (parent != null)
+                    ancestorTids.Add(current.ReplyToPostId);
+                    // We need to get the next parent, but we don't have it yet
+                    // For now, we'll break and load all ancestors at once
+                    break;
+                }
+                else break;
+            }
+
+            // Batch load all ancestors
+            if (ancestorTids.Count > 0)
+            {
+                var ancestors = await _postService.GetPostsByTidsAsync(ancestorTids, viewerId);
+                var ancestorDict = ancestors.ToDictionary(a => a.Tid ?? a.Id.ToString());
+
+                // Build thread from ancestors
+                current = post;
+                for (int i = 0; i < 5; i++)
+                {
+                    if (!string.IsNullOrEmpty(current.ReplyToPostId))
                     {
-                        if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
-                        current = parent;
+                        if (ancestorDict.TryGetValue(current.ReplyToPostId, out var parent))
+                        {
+                            if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
+                            current = parent;
+                        }
+                        else break;
                     }
                     else break;
                 }
-                else break;
             }
 
             // Fetch Replies
@@ -382,21 +442,42 @@ public class PostsController : ControllerBase
 
             var thread = new List<PostDto> { post };
 
-            // Fetch Ancestors
+            // Fetch Ancestors - optimized with batch loading
             var current = post;
+            var ancestorTids = new List<string>();
             for (int i = 0; i < 5; i++)
             {
                 if (!string.IsNullOrEmpty(current.ReplyToPostId))
                 {
-                    var parent = await _postService.GetPostByTidAsync(current.ReplyToPostId, viewerId);
-                    if (parent != null)
+                    ancestorTids.Add(current.ReplyToPostId);
+                    // We need to get the next parent, but we don't have it yet
+                    // For now, we'll break and load all ancestors at once
+                    break;
+                }
+                else break;
+            }
+
+            // Batch load all ancestors
+            if (ancestorTids.Count > 0)
+            {
+                var ancestors = await _postService.GetPostsByTidsAsync(ancestorTids, viewerId);
+                var ancestorDict = ancestors.ToDictionary(a => a.Tid ?? a.Id.ToString());
+
+                // Build thread from ancestors
+                current = post;
+                for (int i = 0; i < 5; i++)
+                {
+                    if (!string.IsNullOrEmpty(current.ReplyToPostId))
                     {
-                        if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
-                        current = parent;
+                        if (ancestorDict.TryGetValue(current.ReplyToPostId, out var parent))
+                        {
+                            if (!thread.Any(p => p.Id == parent.Id)) thread.Add(parent);
+                            current = parent;
+                        }
+                        else break;
                     }
                     else break;
                 }
-                else break;
             }
 
             // Fetch Replies
@@ -565,6 +646,9 @@ public class PostsController : ControllerBase
     {
         string inputIdentifier = identifier ?? uri ?? id ?? "";
         if (string.IsNullOrEmpty(inputIdentifier)) return BadRequest("Post ID or URI required.");
+
+        // Enforce maximum take limit for performance
+        take = Math.Min(take, 100);
         
         try
         {

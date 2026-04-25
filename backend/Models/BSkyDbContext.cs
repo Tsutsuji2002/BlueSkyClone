@@ -310,6 +310,9 @@ public partial class BSkyDbContext : DbContext
 
             entity.HasIndex(e => e.RecipientId, "IX_Notifications_RecipientId");
 
+            // Performance optimization index
+            entity.HasIndex(e => new { e.RecipientId, e.IsRead, e.CreatedAt }, "IX_Notifications_RecipientId_IsRead_CreatedAt");
+
             entity.HasIndex(e => e.Tid, "UQ__Notifica__C451DB3001D0607B").IsUnique();
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
@@ -349,6 +352,12 @@ public partial class BSkyDbContext : DbContext
 
             entity.HasIndex(e => e.CreatedAt, "IX_Posts_CreatedAt");
             entity.HasIndex(e => e.LikesCount, "IX_Posts_LikesCount");
+
+            // Performance optimization indexes
+            entity.HasIndex(e => new { e.AuthorId, e.CreatedAt }, "IX_Posts_AuthorId_CreatedAt");
+            entity.HasIndex(e => new { e.AuthorId, e.IsDeleted, e.CreatedAt }, "IX_Posts_AuthorId_Active_CreatedAt");
+            entity.HasIndex(e => new { e.LikesCount, e.CreatedAt }, "IX_Posts_LikesCount_CreatedAt");
+            entity.HasIndex(e => new { e.ReplyToPostId, e.CreatedAt }, "IX_Posts_ReplyToPostId_CreatedAt");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.AllowQuotes).HasDefaultValue(true);
@@ -464,6 +473,10 @@ public partial class BSkyDbContext : DbContext
             entity.HasIndex(e => e.Did, "UQ__Users__C0312219EBC0F5F8").IsUnique();
 
             entity.HasIndex(e => e.Handle, "UQ__Users__FE5BB31A92C6FE6D").IsUnique();
+
+            // Performance optimization indexes
+            entity.HasIndex(e => new { e.FollowersCount, e.CreatedAt }, "IX_Users_FollowersCount_CreatedAt");
+            entity.HasIndex(e => new { e.IsDeleted, e.CreatedAt }, "IX_Users_Active_CreatedAt");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");

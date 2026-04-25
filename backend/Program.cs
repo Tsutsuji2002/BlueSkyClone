@@ -66,6 +66,17 @@ builder.Services.AddDbContext<BSkyDbContext>(options =>
         sqlOptions => sqlOptions.EnableRetryOnFailure().CommandTimeout(300))
         .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
+// Enable detailed logging for database queries in development
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDbContext<BSkyDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+            sqlOptions => sqlOptions.EnableRetryOnFailure().CommandTimeout(300))
+            .EnableSensitiveDataLogging()
+            .EnableDetailedErrors()
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+}
+
 // Repository and Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -74,9 +85,31 @@ builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IFeedService, FeedService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddHttpClient(Microsoft.Extensions.Options.Options.DefaultName, client => 
+builder.Services.AddHttpClient(Microsoft.Extensions.Options.Options.DefaultName, client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(10);
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+    client.DefaultRequestHeaders.ConnectionClose = false;
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+    PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
+    MaxConnectionsPerServer = 100
+});
+
+// Dedicated Bluesky API client with circuit breaker
+builder.Services.AddHttpClient("BlueskyClient", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+    client.DefaultRequestHeaders.ConnectionClose = false;
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+    PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
+    MaxConnectionsPerServer = 100
 });
 builder.Services.AddScoped<ILinkService, LinkService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
@@ -98,6 +131,7 @@ builder.Services.AddScoped<ICryptoService, CryptoService>();
 builder.Services.AddScoped<IXrpcProxyService, XrpcProxyService>();
 builder.Services.AddScoped<IChatProxyService, ChatProxyService>();
 builder.Services.AddScoped<ILabelingService, LabelingService>();
+builder.Services.AddSingleton<PerformanceMonitoringService>();
 builder.Services.AddHostedService<FirehoseService>();
 
 // Redis Caching
