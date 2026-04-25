@@ -36,6 +36,7 @@ public class PostService : IPostService
     private readonly string _localDomain;
     private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
     private readonly IHttpClientFactory _httpClientFactory;
+    private static readonly SemaphoreSlim _resolutionSemaphore = new SemaphoreSlim(10, 10);
 
     public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, IHttpClientFactory httpClientFactory)
     {
@@ -1024,12 +1025,17 @@ public class PostService : IPostService
         foreach (var did in stubAuthors)
         {
             resolveTasks.Add(Task.Run(async () => {
+                await _resolutionSemaphore.WaitAsync();
                 try {
                     using var scope = _scopeFactory.CreateScope();
                     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
                     var user = await userService.ResolveRemoteProfileAsync(did, viewerId: viewerId);
                     if (user != null) resolvedAuthors[did] = user;
-                } catch { }
+                } catch (Exception ex) {
+                    _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to resolve stub author {Did}", did);
+                } finally {
+                    _resolutionSemaphore.Release();
+                }
             }));
         }
 
@@ -1037,14 +1043,22 @@ public class PostService : IPostService
         foreach (var uri in stubPosts)
         {
             resolveTasks.Add(Task.Run(async () => {
+                await _resolutionSemaphore.WaitAsync();
                 try {
-                    var ingestedPost = await IngestRemotePostAsync(uri);
+                    // [FIX] Use a fresh scope for post ingestion to avoid thread-safety issues with the shared request-scoped UnitOfWork
+                    using var scope = _scopeFactory.CreateScope();
+                    var scopedPostService = (PostService)scope.ServiceProvider.GetRequiredService<IPostService>();
+                    var ingestedPost = await scopedPostService.IngestRemotePostAsync(uri);
                     if (ingestedPost != null)
                     {
                         var ingestedDto = MapToDto(ingestedPost);
                         resolvedPosts[uri] = ingestedDto;
                     }
-                } catch { }
+                } catch (Exception ex) {
+                    _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to ingest stub post {Uri}", uri);
+                } finally {
+                    _resolutionSemaphore.Release();
+                }
             }));
         }
 
