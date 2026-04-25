@@ -426,7 +426,7 @@ public class TrendingController : ControllerBase
 
             // Convert to lists for JSON serialization
             var freshTopicsList = freshData.Topics.Take(5).Select(t => new { t.Hashtag, t.PostsCount, t.Category }).ToList();
-            var localTopicsList = localData.Topics.Take(5).Select(t => new { t.Hashtag, t.PostsCount, t.Category }).ToList());
+            var localTopicsList = localData.Topics.Take(5).Select(t => new { t.Hashtag, t.PostsCount, t.Category }).ToList();
 
             var freshTopicsListResult = freshTopicsList;
             var localTopicsListResult = localTopicsList;
