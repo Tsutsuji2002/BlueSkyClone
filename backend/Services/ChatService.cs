@@ -211,16 +211,20 @@ public class ChatService : IChatService
         {
             // For proxy, we need the participant IDs to be DIDs or handles
             // Assume the frontend sends DIDs/handles for remote users
-            try 
+            try
             {
+                _logger.LogInformation("[GetOrCreateConversationAsync] Using proxy for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", participantIds));
                 return await _chatProxy.GetOrCreateConversationAsync(token, participantIds);
             }
             catch (Exception ex)
             {
-                // Fallback to local or log error
-                System.Diagnostics.Debug.WriteLine($"Proxy GetOrCreateConversation failed: {ex.Message}");
+                _logger.LogError(ex, "[GetOrCreateConversationAsync] Proxy GetOrCreateConversation failed for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", participantIds));
+                // Don't fall back to local for Bluesky users - throw the error
+                throw new Exception("Failed to create conversation with Bluesky. Please try again later.");
             }
         }
+
+        _logger.LogInformation("[GetOrCreateConversationAsync] Using local chat for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", participantIds));
 
         var ids = new List<Guid>();
         foreach (var id in participantIds)
@@ -238,7 +242,7 @@ public class ChatService : IChatService
             .Where(c => c.ConversationParticipants.Count == ids.Count)
             .ToListAsync();
 
-        var existing = existingConversations.FirstOrDefault(c => 
+        var existing = existingConversations.FirstOrDefault(c =>
             c.ConversationParticipants.All(p => ids.Contains(p.UserId)));
 
         if (existing != null)

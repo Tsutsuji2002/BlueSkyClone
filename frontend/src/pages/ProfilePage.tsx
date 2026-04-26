@@ -236,7 +236,9 @@ const ProfilePage: React.FC = () => {
         ensureAuth(async () => {
             if (!profileUser) return;
             try {
-                const conversation = await dispatch(startConversation([profileUser.id])).unwrap();
+                // Use DID for remote users, fallback to ID for local users
+                const participantId = profileUser.did || profileUser.id;
+                const conversation = await dispatch(startConversation([participantId])).unwrap();
                 navigate(`/messages/${conversation.id}`);
             } catch (error: any) {
                 dispatch(showToast({ message: error || 'Failed to start conversation', type: 'error' }));
