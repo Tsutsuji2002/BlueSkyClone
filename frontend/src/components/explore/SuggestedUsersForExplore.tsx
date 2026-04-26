@@ -24,7 +24,7 @@ const categories = [
     { id: 'all', name: 'For You', term: '' },
     { id: 'art', name: 'Art', term: 'art' },
     { id: 'comics', name: 'Comics', term: 'comics' },
-    { id: 'videogames', name: 'Video Games', term: 'gaming' },
+    { id: 'gaming', name: 'Video Games', term: 'gaming' },
     { id: 'sports', name: 'Sports', term: 'sports' },
     { id: 'music', name: 'Music', term: 'music' },
     { id: 'photography', name: 'Photography', term: 'photography' },

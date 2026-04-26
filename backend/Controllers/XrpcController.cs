@@ -522,7 +522,7 @@ namespace BSkyClone.Controllers
             {
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
-                var url = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
+                var url = $"https://api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
                 if (!string.IsNullOrEmpty(term)) url += $"&term={Uri.EscapeDataString(term)}";
                 if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
@@ -551,7 +551,7 @@ namespace BSkyClone.Controllers
             {
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
-                var url = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore?limit={limit}";
+                var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore?limit={limit}";
                 if (!string.IsNullOrEmpty(category)) url += $"&category={Uri.EscapeDataString(category)}";
                 if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
