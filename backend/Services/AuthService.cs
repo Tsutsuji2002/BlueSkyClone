@@ -96,7 +96,7 @@ public class AuthService : IAuthService
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync();
-            throw new Exception($"Bluesky Registration Failed: {errorBody}");
+            throw new Exception(ParseBlueskyError("Bluesky Registration Failed", errorBody));
         }
 
         var bskySession = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
@@ -168,7 +168,7 @@ public class AuthService : IAuthService
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync();
-            throw new UnauthorizedAccessException($"Bluesky Login Failed: {errorBody}");
+            throw new UnauthorizedAccessException(ParseBlueskyError("Bluesky Login Failed", errorBody));
         }
 
         var bskySession = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
@@ -511,6 +511,23 @@ public class AuthService : IAuthService
         };
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
+    }
+
+    private string ParseBlueskyError(string prefix, string errorBody)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(errorBody);
+            if (doc.RootElement.TryGetProperty("message", out var message))
+            {
+                return $"{prefix}: {message.GetString()}";
+            }
+        }
+        catch
+        {
+            // Fallback if not valid JSON or doesn't have message
+        }
+        return $"{prefix}: {errorBody}";
     }
 
 }

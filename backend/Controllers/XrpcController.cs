@@ -29,6 +29,7 @@ namespace BSkyClone.Controllers
         private readonly IRepoManager _repoManager;
         private readonly ILabelingService _labelingService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<XrpcController> _logger;
 
         public XrpcController(
@@ -40,6 +41,7 @@ namespace BSkyClone.Controllers
             IRepoManager repoManager,
             ILabelingService labelingService,
             IUnitOfWork unitOfWork,
+            IHttpClientFactory httpClientFactory,
             ILogger<XrpcController> logger)
         {
             _authService = authService;
@@ -50,6 +52,7 @@ namespace BSkyClone.Controllers
             _repoManager = repoManager;
             _labelingService = labelingService;
             _unitOfWork = unitOfWork;
+            _httpClientFactory = httpClientFactory;
             _logger = logger;
         }
 
@@ -508,6 +511,35 @@ namespace BSkyClone.Controllers
             {
                 _logger.LogError(ex, "Error in putPreferences XRPC");
                 return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("app.bsky.unspecced.getSuggestedAccounts")]
+        public async Task<IActionResult> GetSuggestedAccounts([FromQuery] string? term = null, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                using var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
+                var url = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
+                if (!string.IsNullOrEmpty(term)) url += $"&term={Uri.EscapeDataString(term)}";
+                if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+                var response = await client.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    return Content(content, "application/json");
+                }
+                
+                _logger.LogWarning("[GetSuggestedAccounts] Proxy failed with {Status}, falling back to getSuggestions", response.StatusCode);
+                return await GetSuggestions(limit, cursor);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error proxying getSuggestedAccounts");
+                return await GetSuggestions(limit, cursor);
             }
         }
 

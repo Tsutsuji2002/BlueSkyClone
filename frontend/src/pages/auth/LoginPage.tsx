@@ -19,6 +19,23 @@ const LoginPage: React.FC = () => {
     useDocumentTitle(t('auth.login.title'));
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
     const { isLoading, error } = useAppSelector((state) => state.auth);
+    
+    const formatErrorMessage = (err: string | null) => {
+        if (!err) return null;
+        // If it's a JSON string disguised as a message, try to extract the inner message
+        if (err.includes('{') && err.includes('}')) {
+            try {
+                const jsonPart = err.substring(err.indexOf('{'), err.lastIndexOf('}') + 1);
+                const parsed = JSON.parse(jsonPart);
+                if (parsed.message) {
+                    return err.replace(jsonPart, parsed.message);
+                }
+            } catch (e) {
+                // Not valid JSON or no message field, return as is
+            }
+        }
+        return err;
+    };
 
     const handleLanguageChange = (lang: string) => {
         dispatch(setAppLanguage(lang));
@@ -38,7 +55,7 @@ const LoginPage: React.FC = () => {
             navigate('/');
         } else if (login.rejected.match(resultAction)) {
             dispatch(showToast({
-                message: resultAction.payload as string || t('auth.login.error_generic'),
+                message: formatErrorMessage(resultAction.payload as string) || t('auth.login.error_generic'),
                 type: 'error'
             }));
         }
@@ -80,7 +97,7 @@ const LoginPage: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {error && (
                             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-                                {error}
+                                {formatErrorMessage(error)}
                             </div>
                         )}
                         <Input

@@ -19,6 +19,7 @@ import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds } from '..
 import { fetchDiscoverPosts } from '../redux/slices/postsSlice';
 import PostCard from '../components/feed/PostCard';
 import PostSkeleton from '../components/feed/PostSkeleton';
+import SuggestedUsersForExplore from '../components/explore/SuggestedUsersForExplore';
 import api from '../utils/api';
 import InterestsEditor from '../components/feed/InterestsEditor';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -514,7 +515,7 @@ const ExplorePage: React.FC = () => {
                         <div className="flex items-center justify-between px-2">
                             <div className="flex items-center gap-2 text-primary-600 dark:text-primary-400">
                                 <span className="p-1 px-2 border-2 border-primary-500 rounded text-xs font-bold">Ξ</span>
-                                <h2 className="text-lg font-bold">{t('feeds.discover_new')}</h2>
+                                <h2 className="text-lg font-bold">{t('feeds.discover_new_feeds')}</h2>
                             </div>
                             <button 
                                 onClick={() => setIsSearchUIActive(true)}
@@ -582,6 +583,8 @@ const ExplorePage: React.FC = () => {
                             ))}
                         </div>
                     </section>
+                    
+                    <SuggestedUsersForExplore />
 
                     {/* Discover Posts Section */}
                     <section className="flex flex-col mt-4">
