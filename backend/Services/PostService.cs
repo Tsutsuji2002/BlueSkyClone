@@ -863,36 +863,44 @@ public class PostService : IPostService
                     remotePostsByRkey[rk] = kvp.Value;
             }
 
-            var usersFollowingViewerIds = await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync();
+            var usersFollowingViewerIds = viewerId != Guid.Empty
+                ? await _unitOfWork.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync()
+                : new List<Guid>();
             // postRkeys already collected recursively above
-            
+
             // Collect Likes joined with Post Uri or Tid
-            var likedItems = await _unitOfWork.Likes.Query()
-                .Where(l => l.UserId == viewerId && (
-                    postIdsList.Contains(l.PostId) ||
-                    (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri.ToLower())) ||
-                    (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid.ToLower()))
-                ))
-                .Select(l => new { l.PostId, Uri = l.Post.Uri, SubjectTid = l.Post.Tid, LikeUri = l.Uri ?? "" })
-                .ToListAsync();
+            var likedItems = viewerId != Guid.Empty
+                ? await _unitOfWork.Likes.Query()
+                    .Where(l => l.UserId == viewerId && (
+                        postIdsList.Contains(l.PostId) ||
+                        (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri.ToLower())) ||
+                        (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid.ToLower()))
+                    ))
+                    .Select(l => new { l.PostId, Uri = l.Post.Uri, SubjectTid = l.Post.Tid, LikeUri = l.Uri ?? "" })
+                    .ToListAsync()
+                : Enumerable.Empty<object>().Select(_ => new { PostId = Guid.Empty, Uri = (string?)null, SubjectTid = (string?)null, LikeUri = (string?)null }).ToList();
             var likedPostUrisByUri = likedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).ToDictionary(x => x.Uri!.ToLower(), x => x.LikeUri);
             var likedPostUrisById = likedItems.GroupBy(x => x.PostId).ToDictionary(g => g.Key, g => g.First().LikeUri);
             var rkeyToLikedUri = likedItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).ToDictionary(x => x.SubjectTid!.ToLower(), x => x.LikeUri);
 
             // Collect Reposts joined with Post Uri or Tid
-            var repostItems = await _unitOfWork.Reposts.Query()
-                .Where(r => r.UserId == viewerId && (
-                    postIdsList.Contains(r.PostId) ||
-                    (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri.ToLower())) ||
-                    (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid.ToLower()))
-                ))
-                .Select(r => new { r.PostId, Uri = r.Post.Uri, SubjectTid = r.Post.Tid, RepostUri = r.Uri ?? "" })
-                .ToListAsync();
+            var repostItems = viewerId != Guid.Empty
+                ? await _unitOfWork.Reposts.Query()
+                    .Where(r => r.UserId == viewerId && (
+                        postIdsList.Contains(r.PostId) ||
+                        (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri.ToLower())) ||
+                        (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid.ToLower()))
+                    ))
+                    .Select(r => new { r.PostId, Uri = r.Post.Uri, SubjectTid = r.Post.Tid, RepostUri = r.Uri ?? "" })
+                    .ToListAsync()
+                : Enumerable.Empty<object>().Select(_ => new { PostId = Guid.Empty, Uri = (string?)null, SubjectTid = (string?)null, RepostUri = (string?)null }).ToList();
             var repostPostUrisByUri = repostItems.Where(x => !string.IsNullOrEmpty(x.Uri)).ToDictionary(x => x.Uri!.ToLower(), x => x.RepostUri);
             var repostPostUrisById = repostItems.GroupBy(x => x.PostId).ToDictionary(g => g.Key, g => g.First().RepostUri);
             var rkeyToRepostUri = repostItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).ToDictionary(x => x.SubjectTid!.ToLower(), x => x.RepostUri);
 
-            var followingUris = await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "");
+            var followingUris = viewerId != Guid.Empty
+                ? await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "")
+                : new Dictionary<Guid, string>();
             
             // [NEW] Fetch followed DIDs to support ExcludeFollowing in muted words
             var followedDids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -906,20 +914,30 @@ public class PostService : IPostService
                 followedDids = new HashSet<string>(followList, StringComparer.OrdinalIgnoreCase);
             }
 
-            var mutedWords = await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync();
+            var mutedWords = viewerId != Guid.Empty
+                ? await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync()
+                : new List<MutedWord>();
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: MutedWords count={Count} for ViewerId={ViewerId}", mutedWords.Count, viewerId);
-            var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId);
+            var mutedAccounts = viewerId != Guid.Empty
+                ? await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId)
+                : new List<MutedAccount>();
             var mutedUserIds = mutedAccounts.Select(m => m.MutedUserId).ToList();
-            var blockedUserIds = await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId);
-            var blockedByUserIds = await _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync();
-            
+            var blockedUserIds = viewerId != Guid.Empty
+                ? await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId)
+                : new List<Guid>();
+            var blockedByUserIds = viewerId != Guid.Empty
+                ? await _unitOfWork.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync()
+                : new List<Guid>();
+
             // Moderation Lists Filtering: Identify lists where Purpose is 'modlist' (mute/block) that viewer is subscribed to
-            var subscribedModListIdRows = await _unitOfWork.UserListSubscriptions.Query()
-                .Where(uls => uls.UserId == viewerId)
-                .Join(_unitOfWork.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
-                .Where(x => x.Purpose == "app.bsky.graph.defs#modlist" || x.Purpose == "mod")
-                .Select(x => x.Id)
-                .ToListAsync();
+            var subscribedModListIdRows = viewerId != Guid.Empty
+                ? await _unitOfWork.UserListSubscriptions.Query()
+                    .Where(uls => uls.UserId == viewerId)
+                    .Join(_unitOfWork.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
+                    .Where(x => x.Purpose == "app.bsky.graph.defs#modlist" || x.Purpose == "mod")
+                    .Select(x => x.Id)
+                    .ToListAsync()
+                : new List<Guid>();
 
             var listMutedUserIds = new HashSet<Guid>();
             if (subscribedModListIdRows.Any())
@@ -931,12 +949,14 @@ public class PostService : IPostService
             }
 
             // Collect ALL Bookmarks for the user to evaluate in-memory, bypassing SQLite's EF Core translation bugs with ToLower()
-            var allUserBookmarks = await _unitOfWork.Bookmarks.Query()
-                .Where(b => b.UserId == viewerId)
-                .Select(b => new { b.PostId, Uri = b.Post.Uri ?? b.Tid, SubjectTid = b.Post.Tid ?? b.Tid }) // Provide robust fallback to Tid if Uri is null to avoid null refs
-                .ToListAsync();
+            var allUserBookmarks = viewerId != Guid.Empty
+                ? await _unitOfWork.Bookmarks.Query()
+                    .Where(b => b.UserId == viewerId)
+                    .Select(b => new { b.PostId, Uri = b.Post.Uri ?? b.Tid, SubjectTid = b.Post.Tid ?? b.Tid }) // Provide robust fallback to Tid if Uri is null to avoid null refs
+                    .ToListAsync()
+                : Enumerable.Empty<object>().Select(_ => new { PostId = Guid.Empty, Uri = (string?)null, SubjectTid = (string?)null }).ToList();
 
-            var bookmarkedItems = allUserBookmarks.Where(b => 
+            var bookmarkedItems = allUserBookmarks.Where(b =>
                 postIdsList.Contains(b.PostId) ||
                 (b.Uri != null && postUrisList.Contains(b.Uri.ToLower())) ||
                 (b.SubjectTid != null && postRkeysList.Contains(b.SubjectTid.ToLower()))
@@ -945,8 +965,10 @@ public class PostService : IPostService
             var bookmarkedIds = bookmarkedItems.Select(x => x.PostId).ToHashSet();
             var bookmarkedRkeys = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).Select(x => x.SubjectTid!.ToLower()).ToHashSet();
 
-            var blockingUris = await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}");
-            var viewerUser = await _unitOfWork.Users.GetByIdAsync(viewerId);
+            var blockingUris = viewerId != Guid.Empty
+                ? await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}")
+                : new Dictionary<Guid, string>();
+            var viewerUser = viewerId != Guid.Empty ? await _unitOfWork.Users.GetByIdAsync(viewerId) : null;
             var viewerHandle = viewerUser?.Handle?.ToLower();
             
             var localLikesCounts = await _unitOfWork.Likes.Query().Where(l => postIdsList.Contains(l.PostId)).GroupBy(l => l.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);

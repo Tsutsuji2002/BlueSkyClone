@@ -26,7 +26,6 @@ public class SearchController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("posts")]
-    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "q", "skip", "take" })]
     public async Task<IActionResult> SearchPosts([FromQuery] string q, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
@@ -79,7 +78,6 @@ public class SearchController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("users")]
-    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "q", "skip", "take" })]
     public async Task<IActionResult> SearchUsers([FromQuery] string q, [FromQuery] int skip = 0, [FromQuery] int take = 20)
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
