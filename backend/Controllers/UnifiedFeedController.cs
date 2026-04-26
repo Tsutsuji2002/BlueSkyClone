@@ -23,30 +23,32 @@ public class UnifiedFeedController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 5, [FromQuery] int skip = 0)
+    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 5, [FromQuery] int skip = 0, [FromQuery] string? cursor = null)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
-            _logger.LogInformation("[UnifiedFeed] Request for FeedId: {FeedId}, ViewerId: {ViewerId}", feedId, viewerId);
+            _logger.LogInformation("[UnifiedFeed] Request for FeedId: {FeedId}, ViewerId: {ViewerId}, Cursor: {Cursor}", feedId, viewerId, cursor);
 
             if (!string.IsNullOrEmpty(feedId) &&
                 (feedId.StartsWith("at://", StringComparison.OrdinalIgnoreCase) ||
                  feedId.Equals("following", StringComparison.OrdinalIgnoreCase)))
             {
-                var uriPosts = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId);
+                var pagedResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId, cursor);
                 return Ok(new
                 {
                     feedId = feedId,
-                    posts = uriPosts,
+                    posts = pagedResult.Posts,
                     skip = skip,
-                    hasMore = (uriPosts?.Count() ?? 0) >= take
+                    cursor = pagedResult.Cursor,
+                    hasMore = !string.IsNullOrEmpty(pagedResult.Cursor) || (pagedResult.Posts?.Count() ?? 0) >= take
                 });
             }
 
             IEnumerable<PostDto> posts = new List<PostDto>();
+            string? outCursor = null;
 
             switch (feedId.ToLower())
             {
@@ -65,7 +67,9 @@ public class UnifiedFeedController : ControllerBase
                     if (viewerId == null)
                     {
                         // Guests get the official "What's Hot" Discover feed
-                        posts = await feedService.GetFeedPostsAsync(Guid.Empty, null, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot");
+                        var guestResult = await feedService.GetFeedPostsAsync(Guid.Empty, null, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor);
+                        posts = guestResult.Posts;
+                        outCursor = guestResult.Cursor;
                     }
                     else
                     {
@@ -80,7 +84,9 @@ public class UnifiedFeedController : ControllerBase
                     _logger.LogInformation("[UnifiedFeed] Default case for FeedId: {FeedId}", feedId);
                     if (Guid.TryParse(feedId, out var fGuid))
                     {
-                        posts = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take);
+                        var guidResult = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take, null, cursor);
+                        posts = guidResult.Posts;
+                        outCursor = guidResult.Cursor;
                         _logger.LogInformation("[UnifiedFeed] Custom GUID feed returned {Count} posts", posts?.Count() ?? 0);
                     }
                     else if (feedId.StartsWith("tag-"))
@@ -107,7 +113,8 @@ public class UnifiedFeedController : ControllerBase
                 feedId = feedId,
                 posts = posts,
                 skip = skip,
-                hasMore = (posts?.Count() ?? 0) >= take
+                cursor = outCursor,
+                hasMore = !string.IsNullOrEmpty(outCursor) || (posts?.Count() ?? 0) >= take
             });
         }
         catch (Exception ex)

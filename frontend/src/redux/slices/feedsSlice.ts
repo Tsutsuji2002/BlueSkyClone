@@ -106,6 +106,7 @@ interface FeedsState {
     hasMoreSearch: boolean;
     actionLoading: Record<string, boolean>;
     feedHasMore: Record<string, boolean>;
+    feedCursors: Record<string, string | null>;
     feedLastFetch: Record<string, number>;
     infoLoading: Record<string, boolean>;
     infoError: Record<string, string | null>;
@@ -130,6 +131,7 @@ const initialState: FeedsState = {
     hasMoreSearch: true,
     actionLoading: {},
     feedHasMore: {},
+    feedCursors: {},
     feedLastFetch: {},
     infoLoading: {},
     infoError: {},
@@ -443,27 +445,32 @@ export const searchFeeds = createAsyncThunk<
 );
 
 export const fetchFeedPosts = createAsyncThunk<
-    { feedId: string; posts: Post[]; isMore: boolean },
-    { feedId: string; skip: number; take?: number },
+    { feedId: string; posts: Post[]; isMore: boolean; cursor: string | null },
+    { feedId: string; skip: number; take?: number; cursor?: string | null },
     { rejectValue: string }
 >(
     'feeds/fetchPosts',
-    async ({ feedId, skip, take = 5 }: { feedId: string; skip: number; take?: number }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async ({ feedId, skip, take = 5, cursor }: { feedId: string; skip: number; take?: number, cursor?: string | null }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const response = await fetch(`${API_BASE_URL}/unified-feed?feedId=${encodeURIComponent(feedId)}&skip=${skip}&take=${take}`, {
+            let url = `${API_BASE_URL}/unified-feed?feedId=${encodeURIComponent(feedId)}&skip=${skip}&take=${take}`;
+            if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+
+            const response = await fetch(url, {
                 headers
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
-            const rawPosts = Array.isArray(data) ? data : (data.posts || []);
+            
+            const rawPosts = data.posts || (Array.isArray(data) ? data : []);
             return {
                 feedId,
                 posts: rawPosts,
-                isMore: Array.isArray(data) ? rawPosts.length >= take : (data.hasMore ?? rawPosts.length >= take),
+                isMore: data.hasMore ?? (Array.isArray(data) ? rawPosts.length >= take : rawPosts.length >= take),
+                cursor: data.cursor || null
             };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -728,7 +735,7 @@ const feedsSlice = createSlice({
                 state.feedLoading[feedId] = true;
             })
             .addCase(fetchFeedPosts.fulfilled, (state: FeedsState, action: any) => {
-                const { feedId, posts, isMore } = action.payload;
+                const { feedId, posts, isMore, cursor } = action.payload;
                 state.isLoading = false;
                 state.feedLoading[feedId] = false;
                 const existingPosts = state.feedPosts[feedId] || [];
@@ -739,6 +746,7 @@ const feedsSlice = createSlice({
                     state.feedPosts[feedId] = normalizeFeedPosts(posts || [], existingPosts);
                 }
                 state.feedHasMore[feedId] = isMore !== undefined ? isMore : posts.length > 0;
+                state.feedCursors[feedId] = cursor || null;
             })
             .addCase(fetchFeedPosts.rejected, (state: FeedsState, action: any) => {
                 const feedId = action.meta.arg.feedId;

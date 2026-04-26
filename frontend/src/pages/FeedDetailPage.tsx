@@ -20,7 +20,7 @@ const FeedDetailPage: React.FC = () => {
     const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { subscribedFeeds, feedPosts, isLoading, feedLoading, feedHasMore, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading, infoLoading, infoError } = useAppSelector((state: RootState) => state.feeds);
+    const { subscribedFeeds, feedPosts, isLoading, feedLoading, feedHasMore, feedCursors, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading, infoLoading, infoError } = useAppSelector((state: RootState) => state.feeds);
 
     const take = 20;
 
@@ -55,7 +55,8 @@ const FeedDetailPage: React.FC = () => {
 
     const handleLoadMore = () => {
         if (routeKey) {
-            dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take }));
+            const cursor = feedCursors[routeKey];
+            dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take, cursor }));
         }
     };
 

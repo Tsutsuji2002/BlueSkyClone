@@ -1135,7 +1135,7 @@ public class FeedService : IFeedService
     }
 
 
-    public async Task<IEnumerable<PostDto>> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take, string? uri = null)
+    public async Task<PagedPostDto> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take, string? uri = null, string? cursor = null)
     {
         try
         {
@@ -1144,22 +1144,24 @@ public class FeedService : IFeedService
             {
                 if (uri == FollowingFeedKey && userId.HasValue)
                 {
-                    return await _postService.GetTimelineAsync(userId.Value, skip, take);
+                    var timelinePosts = await _postService.GetTimelineAsync(userId.Value, skip, take);
+                    return new PagedPostDto { Posts = timelinePosts };
                 }
 
                 if (uri == DiscoverFeedKey)
                 {
                     if (userId.HasValue)
                     {
-                        return await _postService.GetDiscoverPostsAsync(userId.Value, take, skip);
+                        var discoverPosts = await _postService.GetDiscoverPostsAsync(userId.Value, take, skip);
+                        return new PagedPostDto { Posts = discoverPosts };
                     }
 
                     // For guests, use official Bluesky "What's Hot" instead of local trending
                     _logger.LogInformation("[FeedService] Guest Discover: Fetching remote 'What's Hot' feed for unauthenticated user.");
-                    return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", null, skip, take);
+                    return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", null, skip, take, cursor);
                 }
 
-                return await GetRemoteFeedPostsAsync(uri, userId, skip, take);
+                return await GetRemoteFeedPostsAsync(uri, userId, skip, take, cursor);
             }
             
             // 2. Legacy/Local feed resolution
@@ -1167,16 +1169,16 @@ public class FeedService : IFeedService
 
             // Redirect all local/official legacy feeds to "What's Hot" in Bluesky
             _logger.LogInformation("[FeedService] Redirecting legacy/local feed '{Name}' to remote 'What's Hot' discovering.", feed?.Name ?? "Unknown");
-            return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", userId, skip, take);
+            return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", userId, skip, take, cursor);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[FeedService] GetFeedPostsAsync: Outer error");
-            return new List<PostDto>();
+            return new PagedPostDto();
         }
     }
 
-    private async Task<IEnumerable<PostDto>> GetRemoteFeedPostsAsync(string uri, Guid? userId, int skip, int take)
+    private async Task<PagedPostDto> GetRemoteFeedPostsAsync(string uri, Guid? userId, int skip, int take, string? cursor = null)
     {
         try
         {
@@ -1194,15 +1196,18 @@ public class FeedService : IFeedService
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
 
-            var fetchLimit = Math.Clamp(take + skip, Math.Max(take, 1), 100);
+            var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(take + skip, Math.Max(take, 1), 100) : take;
             List<PostDto>? fallback = null;
+            string? fallbackCursor = null;
 
             foreach (var host in new[] { "https://api.bsky.app", "https://public.api.bsky.app" })
             {
                 try
                 {
-                    var response = await httpClient.GetAsync(
-                        $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}");
+                    var url = $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}";
+                    if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+                    var response = await httpClient.GetAsync(url);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -1216,12 +1221,21 @@ public class FeedService : IFeedService
                         continue;
 
                     var posts = _postService.MapBlueskyFeed(feedArray);
-                    fallback ??= posts;
+                    var outCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+
                     if (posts.Count > 0)
                     {
                         _logger.LogInformation("[FeedService] getFeed returned {Count} posts from {Host} for {Uri}", posts.Count, host, uri);
-                        var paginatedPosts = posts.Skip(skip).Take(take).ToList();
-                        return await _postService.EnrichAndFilterPostsAsync(paginatedPosts, userId ?? Guid.Empty);
+                        
+                        // If we have a cursor, we don't skip (cursor handles pagination)
+                        // If we don't have a cursor, we skip for offset-based pagination
+                        var paginatedPosts = string.IsNullOrEmpty(cursor) ? posts.Skip(skip).Take(take).ToList() : posts.Take(take).ToList();
+                        var enriched = await _postService.EnrichAndFilterPostsAsync(paginatedPosts, userId ?? Guid.Empty);
+                        return new PagedPostDto { Posts = enriched, Cursor = outCursor };
+                    }
+                    else
+                    {
+                        fallbackCursor = outCursor;
                     }
                 }
                 catch (Exception ex)
@@ -1231,13 +1245,15 @@ public class FeedService : IFeedService
             }
 
             _logger.LogInformation("[FeedService] getFeed returned no posts for {Uri} (both app views).", uri);
-            var fallbackPaginated = (fallback ?? new List<PostDto>()).Skip(skip).Take(take).ToList();
-            return await _postService.EnrichAndFilterPostsAsync(fallbackPaginated, userId ?? Guid.Empty);
+            var fallbackPosts = (fallback ?? new List<PostDto>());
+            var fallbackPaginated = string.IsNullOrEmpty(cursor) ? fallbackPosts.Skip(skip).Take(take).ToList() : fallbackPosts.Take(take).ToList();
+            var enrichedFallback = await _postService.EnrichAndFilterPostsAsync(fallbackPaginated, userId ?? Guid.Empty);
+            return new PagedPostDto { Posts = enrichedFallback, Cursor = fallbackCursor };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[FeedService] Error fetching remote feed posts for {Uri}", uri);
-            return new List<PostDto>();
+            return new PagedPostDto();
         }
     }
 
