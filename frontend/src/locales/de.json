@@ -339,7 +339,8 @@
             "forgot_password": "Passwort vergessen?",
             "no_account": "Haben Sie noch kein Konto?",
             "signup_now": "Jetzt registrieren",
-            "back": "Zurück"
+            "back": "Zurück",
+            "error_generic": "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Daten und versuchen Sie es erneut."
         },
         "signup": {
             "title": "Konto erstellen",

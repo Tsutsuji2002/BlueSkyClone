@@ -8,6 +8,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
 import { login, clearError } from '../../redux/slices/authSlice';
+import { showToast } from '../../redux/slices/toastSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import ButterflyLogo from '../../components/common/ButterflyLogo';
 
@@ -35,6 +36,11 @@ const LoginPage: React.FC = () => {
         const resultAction = await dispatch(login(formData));
         if (login.fulfilled.match(resultAction)) {
             navigate('/');
+        } else if (login.rejected.match(resultAction)) {
+            dispatch(showToast({
+                message: resultAction.payload as string || t('auth.login.error_generic'),
+                type: 'error'
+            }));
         }
     };
 

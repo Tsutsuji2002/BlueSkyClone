@@ -554,7 +554,8 @@
             "forgot_password": "Forgot password?",
             "no_account": "Don't have an account?",
             "signup_now": "Sign up now",
-            "back": "Back"
+            "back": "Back",
+            "error_generic": "Login failed. Please check your credentials and try again."
         },
         "signup": {
             "title": "Create an account",

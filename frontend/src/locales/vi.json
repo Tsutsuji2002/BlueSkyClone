@@ -496,7 +496,8 @@
             "forgot_password": "Quên mật khẩu?",
             "no_account": "Chưa có tài khoản?",
             "signup_now": "Đăng ký ngay",
-            "back": "Quay lại"
+            "back": "Quay lại",
+            "error_generic": "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin và thử lại."
         },
         "signup": {
             "title": "Tạo tài khoản",
