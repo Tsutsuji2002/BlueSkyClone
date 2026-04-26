@@ -29,7 +29,7 @@ const HomePage: React.FC = () => {
     const lastTab = React.useRef<string>('');
     const hasRestoredScroll = React.useRef<Record<string, boolean>>({});
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
-    const { isAuthenticated, user } = useAppSelector((state: RootState) => state.auth);
+    const { isAuthenticated, user, isLoading: authLoading } = useAppSelector((state: RootState) => state.auth);
 
     const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
 
@@ -43,12 +43,14 @@ const HomePage: React.FC = () => {
     // Lists state
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
 
-    const isInitialLoading = feedsLoading && subscribedFeeds.length === 0 && pinnedLists.length === 0;
+    const isInitialLoading = (feedsLoading || authLoading) && subscribedFeeds.length === 0 && pinnedLists.length === 0;
 
     useEffect(() => {
-        dispatch(fetchSubscribedFeeds());
-        dispatch(fetchPinnedLists());
-    }, [dispatch]);
+        if (!authLoading) {
+            dispatch(fetchSubscribedFeeds());
+            dispatch(fetchPinnedLists());
+        }
+    }, [dispatch, authLoading]);
 
     useEffect(() => {
         if (!activeTab) return;

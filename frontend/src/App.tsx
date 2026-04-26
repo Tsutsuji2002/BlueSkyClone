@@ -42,6 +42,7 @@ const AppContent: React.FC = () => {
   const appLanguage = useAppSelector((state: RootState) => state.language.appLanguage);
   const { i18n } = useTranslation();
   const location = useLocation();
+  const isFirstRender = React.useRef(true);
 
   useEffect(() => {
     // Clear chunk reload count on successful mount
@@ -107,7 +108,10 @@ const AppContent: React.FC = () => {
       }
     };
 
-    checkAuth();
+    if (isFirstRender.current) {
+        isFirstRender.current = false;
+        checkAuth();
+    }
     
     // Safety fallback: Clear loading state if it's still true after 10 seconds
     const fallbackTimer = setTimeout(() => {
@@ -120,7 +124,7 @@ const AppContent: React.FC = () => {
         clearInterval(interval);
         clearTimeout(fallbackTimer);
     };
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch]);
 
   useEffect(() => {
     if (isAuthenticated) {

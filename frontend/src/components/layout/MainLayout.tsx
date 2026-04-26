@@ -26,7 +26,7 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, hideBottomNav = false, title }) => {
     useDocumentTitle(title || '');
     const dispatch = useAppDispatch();
-    const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
+    const { isAuthenticated, isLoading } = useAppSelector((state: RootState) => state.auth);
 
     // Load muted words on startup so client-side PostCard filtering works everywhere
     useEffect(() => {
@@ -44,7 +44,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                 <div className="flex w-full max-w-[1260px] justify-center px-4 lg:gap-x-8 xl:gap-x-12">
                     {/* Left Sidebar - Desktop only */}
                     <div className={cn("hidden lg:block flex-shrink-0", isAuthenticated ? "w-20 xl:w-[280px]" : "w-64 xl:w-[280px]")}>
-                        {isAuthenticated ? <Sidebar /> : <GuestSidebar />}
+                        {isAuthenticated ? (
+                            <Sidebar />
+                        ) : isLoading ? (
+                            <div className="w-full h-full" /> // Blank while loading session
+                        ) : (
+                            <GuestSidebar />
+                        )}
                     </div>
 
                     {/* Main Content */}
