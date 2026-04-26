@@ -516,15 +516,14 @@ namespace BSkyClone.Controllers
 
         [AllowAnonymous]
         [HttpGet("app.bsky.unspecced.getSuggestedAccounts")]
-        public async Task<IActionResult> GetSuggestedAccounts([FromQuery] string? term = null, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        public async Task<IActionResult> GetSuggestedAccounts()
         {
             try
             {
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
-                var url = $"https://api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
-                if (!string.IsNullOrEmpty(term)) url += $"&term={Uri.EscapeDataString(term)}";
-                if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+                var queryString = Request.QueryString.Value;
+                var url = $"https://api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts{queryString}";
 
                 var response = await client.GetAsync(url);
                 if (response.IsSuccessStatusCode)
@@ -534,26 +533,27 @@ namespace BSkyClone.Controllers
                 }
                 
                 _logger.LogWarning("[GetSuggestedAccounts] Proxy failed with {Status}, falling back to getSuggestions", response.StatusCode);
-                return await GetSuggestions(limit, cursor);
+                return await GetSuggestions(50, null);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error proxying getSuggestedAccounts");
-                return await GetSuggestions(limit, cursor);
+                return await GetSuggestions(50, null);
             }
         }
 
         [AllowAnonymous]
         [HttpGet("app.bsky.unspecced.getSuggestedUsersForExplore")]
-        public async Task<IActionResult> GetSuggestedUsersForExplore([FromQuery] string? category = null, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        public async Task<IActionResult> GetSuggestedUsersForExplore()
         {
             try
             {
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
-                var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore?limit={limit}";
-                if (!string.IsNullOrEmpty(category)) url += $"&category={Uri.EscapeDataString(category)}";
-                if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+                var queryString = Request.QueryString.Value;
+                var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore{queryString}";
+
+                _logger.LogInformation("[GetSuggestedUsersForExplore] Proxying request to: {Url}", url);
 
                 var response = await client.GetAsync(url);
                 if (response.IsSuccessStatusCode)
@@ -563,12 +563,12 @@ namespace BSkyClone.Controllers
                 }
                 
                 _logger.LogWarning("[GetSuggestedUsersForExplore] Proxy failed with {Status}, falling back to getSuggestions", response.StatusCode);
-                return await GetSuggestions(limit, cursor);
+                return await GetSuggestions(50, null);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error proxying getSuggestedUsersForExplore");
-                return await GetSuggestions(limit, cursor);
+                return await GetSuggestions(50, null);
             }
         }
 
