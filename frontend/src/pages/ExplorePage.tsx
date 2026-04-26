@@ -467,7 +467,7 @@ const ExplorePage: React.FC = () => {
 
                                     return (
                                         <div
-                                            key={item.did || item.id || index}
+                                            key={item.id || index}
                                             onClick={() => {
                                                 if (item.link) {
                                                     navigate(item.link);
