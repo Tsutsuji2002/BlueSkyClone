@@ -25,7 +25,7 @@ public class TrendingController : ControllerBase
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<TrendingController> _logger;
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
     private const string TrendingCacheKey = "trending_topics";
     private static readonly SemaphoreSlim _cacheLock = new SemaphoreSlim(1, 1);
 
@@ -121,7 +121,7 @@ public class TrendingController : ControllerBase
             // Use Bluesky's public API to get trending posts
             // We'll use the "What's Hot" feed which shows trending content
             using var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(30);
+            client.Timeout = TimeSpan.FromSeconds(10);
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
 
             // Try multiple approaches to get trending data
@@ -212,7 +212,7 @@ public class TrendingController : ControllerBase
                         var topicStr = item.TryGetProperty("topic", out var tEl) ? tEl.GetString() : "";
                         if (!string.IsNullOrEmpty(topicStr))
                         {
-                            var hashtag = topicStr.StartsWith("#") ? topicStr : "#" + topicStr.Replace(" ", "");
+                            var hashtag = topicStr.StartsWith("#") ? topicStr.Substring(1) : topicStr.Replace(" ", "");
                             topics.Add(new TrendingTopic
                             {
                                 Id = topics.Count.ToString(),
@@ -250,13 +250,13 @@ public class TrendingController : ControllerBase
 
         try
         {
-            // Limit to 100 top-liked recent posts for expensive phrase analysis (was 300)
+            // Limit to 50 top-liked recent posts for expensive phrase analysis (was 100)
             // This ensures we only scan high-engagement content for trending topics.
             var recentPosts = await _context.Posts
                 .AsNoTracking()
                 .Where(p => p.CreatedAt >= since && p.IsDeleted != true && p.Content != null && p.Content.Length > 5)
                 .OrderByDescending(p => p.LikesCount)
-                .Take(100)
+                .Take(50)
                 .Select(p => p.Content)
                 .ToListAsync();
 
@@ -286,12 +286,12 @@ public class TrendingController : ControllerBase
                 var topHashtags = await _context.Hashtags
                     .AsNoTracking()
                     .OrderByDescending(h => h.PostsCount)
-                    .Take(20)
+                    .Take(10)
                     .ToListAsync();
 
                 foreach (var tag in topHashtags)
                 {
-                    var key = "#" + tag.Name;
+                    var key = tag.Name;
                     var tagCount = tag.PostsCount ?? 1;
                     phraseCounts[key] = phraseCounts.GetValueOrDefault(key) + tagCount * 2;
                 }
@@ -324,7 +324,7 @@ public class TrendingController : ControllerBase
                 result.Topics = fallbackTags.Select(t => new TrendingTopic
                 {
                     Id = t.Id.ToString(),
-                    Hashtag = "#" + t.Name,
+                    Hashtag = t.Name,
                     PostsCount = t.PostsCount ?? 1,
                     Category = "Global"
                 }).ToList();
