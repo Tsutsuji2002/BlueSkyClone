@@ -47,10 +47,10 @@ const SuggestedUsersForExplore: React.FC = () => {
         const fetchUsers = async () => {
             setIsLoading(true);
             try {
-                const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.unspecced.getSuggestedAccounts`);
+                const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore`);
                 url.searchParams.append('limit', '6');
-                if (selectedCategory.term) {
-                    url.searchParams.append('term', selectedCategory.term);
+                if (selectedCategory.id !== 'all') {
+                    url.searchParams.append('category', selectedCategory.id);
                 }
 
                 const response = await fetch(url.toString(), {
@@ -101,7 +101,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                         key={cat.id}
                         onClick={() => setSelectedCategory(cat)}
                         className={cn(
-                            "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+                            "px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors",
                             selectedCategory.id === cat.id
                                 ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
                                 : "bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-dark-text-secondary hover:bg-gray-200 dark:hover:bg-dark-border"
@@ -116,8 +116,15 @@ const SuggestedUsersForExplore: React.FC = () => {
             <div className="flex flex-wrap gap-4 px-2">
                 {isLoading ? (
                     Array(6).fill(0).map((_, i) => (
-                        <div key={i} className="flex-1 min-w-[280px] h-20">
-                            <UserSkeleton />
+                        <div key={i} className="flex items-center justify-between gap-3 p-3 flex-1 min-w-[280px] h-[74px] rounded-xl border border-gray-100 dark:border-dark-border animate-pulse">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-dark-surface/50" />
+                                <div className="flex flex-col gap-2">
+                                    <div className="w-24 h-4 bg-gray-200 dark:bg-dark-surface/50 rounded" />
+                                    <div className="w-16 h-3 bg-gray-200 dark:bg-dark-surface/50 rounded" />
+                                </div>
+                            </div>
+                            <div className="w-20 h-8 bg-gray-200 dark:bg-dark-surface/50 rounded-full" />
                         </div>
                     ))
                 ) : (
