@@ -51,22 +51,33 @@ const SuggestedUsersForExplore: React.FC = () => {
     const { t } = useTranslation();
     const [selectedCategory, setSelectedCategory] = useState(categories[0]);
     const [users, setUsers] = useState<SuggestedUser[]>([]);
+    const [cachedUsers, setCachedUsers] = useState<Record<string, SuggestedUser[]>>({});
     const [isLoading, setIsLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const token = localStorage.getItem('token');
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
     useEffect(() => {
+        // If we have cached users for this category, use them and skip re-fetch
+        if (cachedUsers[selectedCategory.id]) {
+            setUsers(cachedUsers[selectedCategory.id]);
+            return;
+        }
+
         const fetchUsers = async () => {
             setIsLoading(true);
             try {
+                // Determine limit based on category (5 for For You, 10 for others)
+                const limit = selectedCategory.id === 'all' ? 5 : 10;
+                
                 const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore`);
-                url.searchParams.append('limit', '10');
+                url.searchParams.append('limit', limit.toString());
+                
                 if (selectedCategory.id !== 'all') {
                     url.searchParams.append('category', selectedCategory.id);
                 }
 
-                // Add a cache buster to ensure fresh results when category changes
+                // Add a cache buster to ensure fresh results for the FIRST fetch
                 url.searchParams.append('_t', Date.now().toString());
 
                 const response = await fetch(url.toString(), {
@@ -75,9 +86,9 @@ const SuggestedUsersForExplore: React.FC = () => {
 
                 if (response.ok) {
                     const data = await response.json();
-                    // Some endpoints might return 'suggestions' or 'actors' or 'users'
                     const suggestions = data.suggestions || data.actors || data.users || [];
                     setUsers(suggestions);
+                    setCachedUsers(prev => ({ ...prev, [selectedCategory.id]: suggestions }));
                 }
             } catch (error) {
                 console.error('Failed to fetch suggested users:', error);
@@ -87,15 +98,24 @@ const SuggestedUsersForExplore: React.FC = () => {
         };
 
         fetchUsers();
-    }, [selectedCategory, token]);
+    }, [selectedCategory, token, cachedUsers]);
 
     const handleFollow = async (did: string) => {
         if (!isAuthenticated) return;
-        setUsers(prev => prev.map(u => 
+        
+        // Update local state
+        const updatedUsers = users.map(u => 
             u.did === did 
                 ? { ...u, viewer: { ...u.viewer, following: 'pending' } } 
                 : u
-        ));
+        );
+        setUsers(updatedUsers);
+        
+        // Update cache as well to keep consistency
+        setCachedUsers(prev => ({
+            ...prev,
+            [selectedCategory.id]: updatedUsers
+        }));
     };
 
     const scrollRight = () => {
@@ -165,9 +185,9 @@ const SuggestedUsersForExplore: React.FC = () => {
             </div>
 
             {/* Users List */}
-            <div className="flex flex-wrap gap-4 px-4 pb-6 mt-2">
+            <div className="flex flex-wrap gap-4 px-4 pb-6 mt-2 min-h-[100px]">
                 {isLoading ? (
-                    Array(6).fill(0).map((_, i) => (
+                    Array(selectedCategory.id === 'all' ? 5 : 6).fill(0).map((_, i) => (
                         <div key={i} className="flex items-center justify-between gap-3 p-3 flex-1 min-w-[280px] h-[74px] rounded-xl border border-[#232e3e] animate-pulse">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-white/5" />
@@ -182,7 +202,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                 ) : (
                     users.map((user) => (
                         <div 
-                            key={user.did}
+                            key={`${selectedCategory.id}-${user.did}`}
                             className="flex items-center justify-between gap-3 p-3 flex-1 min-w-[280px] rounded-xl border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer group"
                         >
                             <div className="flex items-center gap-3 min-w-0">

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiTrendingUp, FiX, FiChevronRight, FiMoreHorizontal } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
@@ -18,6 +18,7 @@ const TrendingSection: React.FC = () => {
     const { topics: trendingTopics, isLoading } = useAppSelector((state: RootState) => state.trending);
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const location = useLocation();
 
     useEffect(() => {
         if (settings?.openTrendingTopics !== false) {
@@ -30,6 +31,10 @@ const TrendingSection: React.FC = () => {
     }
 
     if (!isLoading && trendingTopics.length === 0) {
+        return null;
+    }
+
+    if (location.pathname === '/explore') {
         return null;
     }
 

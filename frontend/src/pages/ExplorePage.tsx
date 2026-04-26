@@ -215,8 +215,7 @@ const ExplorePage: React.FC = () => {
                                     }}
                                     onFocus={() => {
                                         setShowResults(true);
-                                        // setIsSearchUIActive(true); // Don't auto-activate unless clicked from feeds? 
-                                        // Actually, let's make it consistent.
+                                        setIsSearchUIActive(true);
                                     }}
                                     onKeyDown={handleKeyDown}
                                     className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
@@ -241,7 +240,7 @@ const ExplorePage: React.FC = () => {
                         </div>
 
                         {/* Dropdown Results */}
-                        {showResults && !isSearchUIActive && (searchQuery.trim() || loading) && (
+                        {showResults && isSearchUIActive && (searchQuery.trim() || loading) && (
                             <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl shadow-xl z-50 overflow-hidden min-h-[100px] max-h-[80vh] flex flex-col">
                                 <div className="p-3 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50">
                                     <p className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
@@ -258,7 +257,7 @@ const ExplorePage: React.FC = () => {
                                         <div className="py-2">
                                             {results.map((result) => (
                                                 <button
-                                                    key={result.id}
+                                                    key={result.id || result.handle}
                                                     onClick={() => handleResultClick(result)}
                                                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors text-left"
                                                 >
@@ -411,221 +410,9 @@ const ExplorePage: React.FC = () => {
                             </div>
                         </section>
                     ) : (
-                        <>
-                    {/* Interests Section */}
-                    <section className="flex flex-col relative px-2">
-                        <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text transition-colors">
-                            <FiX size={20} />
-                        </button>
-
-                        <div className="flex items-center gap-2 mb-3 text-primary-500">
-                            <FiGrid size={18} />
-                            <h2 className="text-[17px] font-bold text-gray-900 dark:text-white">{t('explore.your_interests', { defaultValue: 'Your interests' })}</h2>
+                        <div className="p-12 text-center text-gray-500 dark:text-dark-text-secondary">
+                            {/* Empty as per pic 2 */}
                         </div>
-
-                        <div className="mb-4">
-                            <InterestsEditor variant="full" limit={18} />
-                        </div>
-
-                        <p className="text-[14px] text-gray-900 dark:text-gray-100 mb-4 font-medium">
-                            {t('explore.your_interests_desc', { defaultValue: 'Your interests help us find what you like!' })}
-                        </p>
-
-                        <button
-                            onClick={() => navigate('/interests')}
-                            className="w-full py-2.5 rounded-full bg-[#0085ff] hover:bg-[#0070d6] text-white font-bold text-[15px] transition-colors mb-2"
-                        >
-                            {t('explore.edit_interests', { defaultValue: 'Edit interests' })}
-                        </button>
-                    </section>
-
-                    {/* Trending Section */}
-                    <section className="flex flex-col border-b border-gray-200 dark:border-dark-border pb-4">
-                        {topics.length === 0 ? (
-                            <LoadingIndicator text={t('explore.loading_topics', { defaultValue: 'Loading trending topics...' })} />
-                        ) : topics.slice(0, 5).map((item, index) => {
-                            const hashtagStr = item.hashtag || (item as any).topic || item.id || '';
-                            // Generate stable mock values to match exact UI screenshot
-                            let hash = 0;
-                            for (let i = 0; i < hashtagStr.length; i++) hash = hashtagStr.charCodeAt(i) + ((hash << 5) - hash);
-                            const hours = (Math.abs(hash) % 12) + 1;
-                            const timeAgo = `${hours}h ago`;
-                            
-                            // Get some avatars from accounts to mock the overlap if available, otherwise fallback
-                            const mockAvatars = accounts.length >= 3 
-                                ? accounts.slice(index % accounts.length, (index % accounts.length) + 3).map((a: any) => a.avatar || `https://ui-avatars.com/api/?name=${a.displayName || 'U'}&background=random`)
-                                : [
-                                    `https://ui-avatars.com/api/?name=${hashtagStr.charAt(0) || 'A'}&background=random`,
-                                    `https://ui-avatars.com/api/?name=${hashtagStr.charAt(1) || 'B'}&background=random`,
-                                    `https://ui-avatars.com/api/?name=${hashtagStr.charAt(2) || 'C'}&background=random`
-                                  ];
-
-                            return (
-                                <div
-                                    key={item.id || index}
-                                    onClick={() => {
-                                        if (item.link) {
-                                            navigate(item.link);
-                                        } else {
-                                            navigate(`/search?q=${encodeURIComponent(hashtagStr)}`);
-                                        }
-                                    }}
-                                    className="flex items-start gap-3 py-3 px-4 hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer border-b border-gray-100 dark:border-dark-border last:border-0"
-                                >
-                                    <span className="text-[15px] font-bold text-gray-900 dark:text-white w-5 text-left mt-0.5">
-                                        {index + 1}.
-                                    </span>
-
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start gap-2">
-                                            <span className="font-bold text-[15px] text-gray-900 dark:text-white truncate">
-                                                {hashtagStr.replace('#', '')}
-                                            </span>
-                                            
-                                            {index === 0 ? (
-                                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3e141a] dark:bg-[#3e141a] text-[#ef4444] text-[11px] font-bold shrink-0 self-start">
-                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M12 2C12 2 12 10 18 13C22 15 23 20 20 23C17 26 12 25 10 21C8 17 9 14 9 14C9 14 6 17 5 19C4 21 0 17 2 12C4 7 12 2 12 2Z" />
-                                                    </svg>
-                                                    Hot
-                                                </span>
-                                            ) : (
-                                                <span className="px-2 py-[3px] rounded-full bg-gray-200 dark:bg-[#202E39] text-gray-600 dark:text-[#8b98a5] text-[12px] shrink-0 font-medium">
-                                                    {timeAgo}
-                                                </span>
-                                            )}
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-2 text-[13px] text-gray-500 dark:text-[#8b98a5] mt-1">
-                                            <div className="flex -space-x-1.5 grayscale shrink-0">
-                                                {mockAvatars.map((url, i) => (
-                                                    <img key={i} src={url} alt="" className="w-4 h-4 rounded-full border border-white dark:border-dark-bg object-cover" />
-                                                ))}
-                                            </div>
-                                            <span className="truncate">{item.category || 'Topic'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </section>
-
-                    {/* Discover Feeds Section */}
-                    <section className="flex flex-col gap-4 mt-2">
-                        <div className="flex items-center justify-between px-2">
-                            <div className="flex items-center gap-2 text-primary-600 dark:text-primary-400">
-                                <span className="p-1 px-2 border-2 border-primary-500 rounded text-xs font-bold">Ξ</span>
-                                <h2 className="text-lg font-bold">{t('feeds.discover_new_feeds')}</h2>
-                            </div>
-                            <button 
-                                onClick={() => setIsSearchUIActive(true)}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
-                            >
-                                <FiSearch className="text-gray-400" size={20} />
-                            </button>
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                             {feeds.map((feed: Feed) => (
-                                <div
-                                    key={feedActionKey(feed)}
-                                    onClick={() => {
-                                        navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
-                                    }}
-                                    className="flex flex-col gap-3 p-4 rounded-2xl border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-all cursor-pointer shadow-sm group"
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="flex gap-3 min-w-0">
-                                            <FeedAvatar
-                                                src={feed.avatarUrl || feed.avatar}
-                                                alt={feed.name}
-                                                size="lg"
-                                            />
-                                            <div className="flex flex-col min-w-0 mt-0.5">
-                                                <span className="font-bold text-gray-900 dark:text-dark-text hover:underline truncate">
-                                                    {feed.name}
-                                                </span>
-                                                <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate mt-0.5">
-                                                    {t('profile.feed_by')} @{feed.handle}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={(e) => handlePinToggle(e, feed)}
-                                            className={cn(
-                                                "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap shadow-md",
-                                                feed.isPinned
-                                                    ? "bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800 shadow-none"
-                                                    : "bg-primary-600 hover:bg-primary-700 text-white shadow-primary-500/20"
-                                            )}
-                                        >
-                                            {feed.isPinned ? (
-                                                <>
-                                                    <FiCheck size={16} />
-                                                    {t('feeds.pinned')}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <FiPlus size={16} />
-                                                    {t('feeds.pin_feed')}
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-
-                                    <p className="text-sm text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed">
-                                        {feed.description}
-                                    </p>
-                                    <span className="text-sm text-gray-500 dark:text-dark-text-secondary group-hover:text-gray-600 dark:group-hover:text-dark-text-secondary/80 transition-colors">
-                                        {t('feeds.liked_by', { count: feed.followersCount || 0 })}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                    
-                    <SuggestedUsersForExplore />
-
-                    {/* Discover Posts Section */}
-                    <section className="flex flex-col mt-4">
-                        <div className="flex items-center justify-between px-2 mb-4">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text">{t('explore.discover_posts', { defaultValue: 'Discover Posts' })}</h2>
-                            <button
-                                onClick={handleRefreshPosts}
-                                disabled={discoverLoading}
-                                className="p-2 text-gray-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors disabled:opacity-50"
-                                title={t('common.refresh', { defaultValue: 'Refresh' })}
-                            >
-                                <FiRefreshCw size={18} className={discoverLoading ? 'animate-spin' : ''} />
-                            </button>
-                        </div>
-                        
-                        <div className="flex flex-col border-t border-gray-100 dark:border-dark-border">
-                            {discoverPosts.map((post) => (
-                                <div key={post.uri} className="border-b border-gray-100 dark:border-dark-border last:border-0">
-                                    <PostCard post={post} />
-                                </div>
-                            ))}
-                            
-                            {discoverLoading && (
-                                <div className="py-4">
-                                    <PostSkeleton />
-                                    <PostSkeleton />
-                                </div>
-                            )}
-                            
-                            {discoverHasMore && !discoverLoading && (
-                                <div ref={observerTarget} className="h-10" />
-                            )}
-                            
-                            {!discoverHasMore && discoverPosts.length > 0 && (
-                                <div className="py-8 text-center text-gray-500 dark:text-dark-text-secondary text-sm font-medium">
-                                    {t('explore.no_more_posts', { defaultValue: 'No more posts to discover right now.' })}
-                                </div>
-                            )}
-                        </div>
-                    </section>
-                        </>
                     )}
                 </div>
             </div>
