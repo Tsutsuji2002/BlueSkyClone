@@ -118,7 +118,7 @@ const OnboardingCard: React.FC = () => {
     }, [navigate]);
 
     // Early return after all hooks are defined
-    if (isHidden || !user || user.followingCount >= 50) {
+    if (isHidden || !user || user.followingCount >= 10) {
         return null;
     }
 

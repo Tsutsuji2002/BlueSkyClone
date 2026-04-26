@@ -236,8 +236,15 @@ const ProfilePage: React.FC = () => {
         ensureAuth(async () => {
             if (!profileUser) return;
             try {
-                // Use DID for remote users, fallback to ID for local users
+                // For Bluesky (remote) users, we MUST use DID for the chat proxy to work.
+                // For local users, we use their ID (GUID).
                 const participantId = profileUser.did || profileUser.id;
+                
+                if (!participantId) {
+                    dispatch(showToast({ message: 'User identifier not found', type: 'error' }));
+                    return;
+                }
+
                 const conversation = await dispatch(startConversation([participantId])).unwrap();
                 navigate(`/messages/${conversation.id}`);
             } catch (error: any) {

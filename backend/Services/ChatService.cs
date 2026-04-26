@@ -209,17 +209,48 @@ public class ChatService : IChatService
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (!string.IsNullOrEmpty(token))
         {
-            // For proxy, we need the participant IDs to be DIDs or handles
-            // Assume the frontend sends DIDs/handles for remote users
+            // For proxy, we need the participant IDs to be DIDs or handles.
+            // We strip any local GUIDs that might have leaked from the frontend
+            // or resolve them if they refer to known users.
+            var proxyParticipants = new List<string>();
+            foreach (var pId in participantIds)
+            {
+                if (pId.StartsWith("did:"))
+                {
+                    proxyParticipants.Add(pId);
+                }
+                else if (Guid.TryParse(pId, out var guid))
+                {
+                    var pUser = await _unitOfWork.Users.GetByIdAsync(guid);
+                    if (pUser != null && !string.IsNullOrEmpty(pUser.Did))
+                    {
+                        proxyParticipants.Add(pUser.Did);
+                    }
+                    else if (pUser != null && !string.IsNullOrEmpty(pUser.Handle))
+                    {
+                        proxyParticipants.Add(pUser.Handle);
+                    }
+                }
+                else
+                {
+                    // Likely a handle
+                    proxyParticipants.Add(pId);
+                }
+            }
+
+            if (!proxyParticipants.Any())
+            {
+                 throw new Exception("No valid participants found for Bluesky conversation.");
+            }
+
             try
             {
-                _logger.LogInformation("[GetOrCreateConversationAsync] Using proxy for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", participantIds));
-                return await _chatProxy.GetOrCreateConversationAsync(token, participantIds);
+                _logger.LogInformation("[GetOrCreateConversationAsync] Using proxy for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", proxyParticipants));
+                return await _chatProxy.GetOrCreateConversationAsync(token, proxyParticipants);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[GetOrCreateConversationAsync] Proxy GetOrCreateConversation failed for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", participantIds));
-                // Don't fall back to local for Bluesky users - throw the error
+                _logger.LogError(ex, "[GetOrCreateConversationAsync] Proxy GetOrCreateConversation failed for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", proxyParticipants));
                 throw new Exception("Failed to create conversation with Bluesky. Please try again later.");
             }
         }
