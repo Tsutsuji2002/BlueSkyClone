@@ -14,7 +14,8 @@ import { Feed as FeedType } from '../types';
 import { feedsMatchRouteKey, feedActionKey } from '../utils/feedKeys';
 
 const FeedDetailPage: React.FC = () => {
-    const { feedId: id } = useParams<{ feedId: string }>();
+    const { feedId, handle, tid } = useParams<{ feedId?: string; handle?: string; tid?: string }>();
+    const id = feedId || (handle && tid ? `at://${handle}/app.bsky.feed.generator/${tid}` : '');
     const navigate = useNavigate();
     const navType = useNavigationType();
     const { t } = useTranslation();

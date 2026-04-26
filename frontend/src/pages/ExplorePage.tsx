@@ -462,7 +462,13 @@ const ExplorePage: React.FC = () => {
                             return (
                                 <div
                                     key={item.id || index}
-                                    onClick={() => navigate(`/search?q=${encodeURIComponent(hashtagStr)}`)}
+                                    onClick={() => {
+                                        if (item.link) {
+                                            navigate(item.link);
+                                        } else {
+                                            navigate(`/search?q=${encodeURIComponent(hashtagStr)}`);
+                                        }
+                                    }}
                                     className="flex items-start gap-3 py-3 px-4 hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer border-b border-gray-100 dark:border-dark-border last:border-0"
                                 >
                                     <span className="text-[15px] font-bold text-gray-900 dark:text-white w-5 text-left mt-0.5">

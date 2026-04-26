@@ -65,7 +65,13 @@ const TrendingSection: React.FC = () => {
                     trendingTopics.slice(0, 5).map((topic: TrendingTopic, index) => (
                         <button
                             key={topic.id}
-                            onClick={() => navigate(`/search?q=${encodeURIComponent(topic.hashtag)}`)}
+                            onClick={() => {
+                                if (topic.link) {
+                                    navigate(topic.link);
+                                } else {
+                                    navigate(`/search?q=${encodeURIComponent(topic.hashtag)}`);
+                                }
+                            }}
                             className="flex items-center gap-1 text-left group"
                         >
                             <span className="text-[13.1px] text-gray-500 min-w-[20px]">

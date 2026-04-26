@@ -136,7 +136,8 @@ public class TrendingController : ControllerBase
                         Id = index.ToString(),
                         Hashtag = item.Hashtag,
                         PostsCount = item.PostsCount,
-                        Category = "Trending"
+                        Category = "Trending",
+                        Link = item.Link
                     })
                     .ToList();
 
@@ -213,12 +214,15 @@ public class TrendingController : ControllerBase
                         if (!string.IsNullOrEmpty(topicStr))
                         {
                             var hashtag = topicStr.StartsWith("#") ? topicStr.Substring(1) : topicStr.Replace(" ", "");
+                            var link = item.TryGetProperty("link", out var lEl) ? lEl.GetString() : null;
+                            
                             topics.Add(new TrendingTopic
                             {
                                 Id = topics.Count.ToString(),
                                 Hashtag = hashtag,
                                 PostsCount = 1000 - topics.Count, // API doesn't provide count, visually sort by creating decaying dummy count
-                                Category = "Trending"
+                                Category = "Trending",
+                                Link = link
                             });
                         }
                     }
@@ -361,6 +365,7 @@ public class TrendingController : ControllerBase
         public string Hashtag { get; set; } = "";
         public int PostsCount { get; set; }
         public string Category { get; set; } = "";
+        public string? Link { get; set; }
     }
 
     [HttpGet("debug")]

@@ -280,6 +280,7 @@ export interface TrendingTopic {
     hashtag: string;
     postsCount: number;
     category?: string;
+    link?: string;
 }
 
 export interface TrendingAccount {

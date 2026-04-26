@@ -112,6 +112,7 @@ const AppRoutes: React.FC = () => {
                         </ProtectedRoute>
                     } />
                     <Route path="feeds/:feedId" element={<FeedDetailPage />} />
+                    <Route path="profile/:handle/feed/:tid" element={<FeedDetailPage />} />
                     <Route path="lists" element={<ListsPage />} />
                     <Route path="lists/:id" element={<ListDetailPage />} />
                     <Route path="saved" element={
