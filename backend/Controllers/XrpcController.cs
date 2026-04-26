@@ -544,31 +544,47 @@ namespace BSkyClone.Controllers
 
         [AllowAnonymous]
         [HttpGet("app.bsky.unspecced.getSuggestedUsersForExplore")]
-        public async Task<IActionResult> GetSuggestedUsersForExplore()
+        public async Task<IActionResult> GetSuggestedUsersForExplore([FromQuery] string? category = null, [FromQuery] int limit = 25, [FromQuery] string? cursor = null)
         {
             try
             {
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
                 var queryString = Request.QueryString.Value;
+                
+                // Attempt 1: proxy to stropharia (best quality, but needs auth usually)
                 var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore{queryString}";
-
-                _logger.LogInformation("[GetSuggestedUsersForExplore] Proxying request to: {Url}", url);
-
+                _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 1: {Url}", url);
+                
                 var response = await client.GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
                     return Content(content, "application/json");
                 }
+
+                // Attempt 2: If we have a category, use actor.searchActors as a high-quality fallback
+                if (!string.IsNullOrEmpty(category) && category != "all")
+                {
+                    var searchUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(category)}&limit={limit}";
+                    if (!string.IsNullOrEmpty(cursor)) searchUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                    
+                    _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Searching category): {Url}", searchUrl);
+                    var searchResponse = await client.GetAsync(searchUrl);
+                    if (searchResponse.IsSuccessStatusCode)
+                    {
+                        var content = await searchResponse.Content.ReadAsStringAsync();
+                        return Content(content, "application/json");
+                    }
+                }
                 
-                _logger.LogWarning("[GetSuggestedUsersForExplore] Proxy failed with {Status}, falling back to getSuggestions", response.StatusCode);
-                return await GetSuggestions(50, null);
+                _logger.LogWarning("[GetSuggestedUsersForExplore] All proxies failed, falling back to local suggestions with limit {Limit}", limit);
+                return await GetSuggestions(limit, cursor);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error proxying getSuggestedUsersForExplore");
-                return await GetSuggestions(50, null);
+                _logger.LogError(ex, "Error in GetSuggestedUsersForExplore");
+                return await GetSuggestions(limit, cursor);
             }
         }
 

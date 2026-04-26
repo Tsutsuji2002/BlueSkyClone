@@ -61,7 +61,7 @@ const SuggestedUsersForExplore: React.FC = () => {
             setIsLoading(true);
             try {
                 const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore`);
-                url.searchParams.append('limit', '8');
+                url.searchParams.append('limit', '10');
                 if (selectedCategory.id !== 'all') {
                     url.searchParams.append('category', selectedCategory.id);
                 }
