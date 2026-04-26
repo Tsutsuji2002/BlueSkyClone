@@ -24,6 +24,7 @@ public class FeedService : IFeedService
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly IDistributedCache _cache;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDidResolver _didResolver;
     private static bool _isSeeded = true;
     private static readonly SemaphoreSlim _seedSemaphore = new(1, 1);
     private const string FollowingFeedKey = "following";
@@ -39,7 +40,8 @@ public class FeedService : IFeedService
         ILogger<FeedService> logger,
         IXrpcProxyService xrpcProxy,
         IDistributedCache cache,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        IDidResolver didResolver)
     {
         _unitOfWork = unitOfWork;
         _postService = postService;
@@ -47,6 +49,7 @@ public class FeedService : IFeedService
         _xrpcProxy = xrpcProxy;
         _cache = cache;
         _httpClientFactory = httpClientFactory;
+        _didResolver = didResolver;
     }
 
     public async Task<PagedFeedsDto> GetTrendingFeedsAsync(Guid? userId, string? cursor = null, int limit = 10)
@@ -1040,6 +1043,9 @@ public class FeedService : IFeedService
 
         if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) return null;
 
+        // Resolve handles in ATURI to DIDs if possible (e.g. at://trending.bsky.app -> at://did:plc:...)
+        var resolvedUri = await ResolveAtUriAsync(uri);
+
         var noPrefs = new HashSet<string>();
         try
         {
@@ -1060,7 +1066,7 @@ public class FeedService : IFeedService
                     }
 
                     var one = await httpClient.GetAsync(
-                        $"{host}/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(uri)}");
+                        $"{host}/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(resolvedUri)}");
                     if (one.IsSuccessStatusCode)
                     {
                         using var doc = JsonDocument.Parse(await one.Content.ReadAsStringAsync());
@@ -1174,6 +1180,9 @@ public class FeedService : IFeedService
     {
         try
         {
+            // Resolve handles in ATURI to DIDs if possible
+            var resolvedUri = await ResolveAtUriAsync(uri);
+
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
 
@@ -1193,7 +1202,7 @@ public class FeedService : IFeedService
                 try
                 {
                     var response = await httpClient.GetAsync(
-                        $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(uri)}&limit={fetchLimit}");
+                        $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}");
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -1300,6 +1309,37 @@ public class FeedService : IFeedService
     public Task PreSeedFeedsAsync()
     {
         return Task.CompletedTask;
+    }
+
+    private async Task<string> ResolveAtUriAsync(string uri)
+    {
+        if (string.IsNullOrWhiteSpace(uri) || !uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase))
+            return uri;
+
+        try
+        {
+            var uriCore = uri.Substring(5); // skip "at://"
+            var slashIdx = uriCore.IndexOf('/');
+            var host = slashIdx >= 0 ? uriCore.Substring(0, slashIdx) : uriCore;
+
+            if (!host.StartsWith("did:", StringComparison.OrdinalIgnoreCase))
+            {
+                var resolvedUser = await _didResolver.ResolveHandleAsync(host);
+                if (resolvedUser != null && !string.IsNullOrEmpty(resolvedUser.Did))
+                {
+                    var path = slashIdx >= 0 ? uriCore.Substring(slashIdx) : "";
+                    var finalUri = $"at://{resolvedUser.Did}{path}";
+                    _logger.LogInformation("[FeedService] Resolved handle '{Handle}' to '{Did}' in ATURI. Final URI: {FinalUri}", host, resolvedUser.Did, finalUri);
+                    return finalUri;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[FeedService] Failed to resolve handle in ATURI: {Uri}", uri);
+        }
+
+        return uri;
     }
 }
 
