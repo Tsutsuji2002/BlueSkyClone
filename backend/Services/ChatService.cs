@@ -210,57 +210,63 @@ public class ChatService : IChatService
         if (!string.IsNullOrEmpty(token))
         {
             // For proxy, we need the participant IDs to be DIDs or handles.
-            // We strip any local GUIDs that might have leaked from the frontend
-            // or resolve them if they refer to known users.
-            var proxyParticipants = new List<string>();
-            foreach (var pId in participantIds)
-            {
-                if (pId.StartsWith("did:"))
+            // We strip any local GUIDs and ensure only valid strings are passed.
+            var proxyParticipantsTasks = participantIds
+                .Where(pId => !string.IsNullOrWhiteSpace(pId))
+                .Select(async pId =>
                 {
-                    proxyParticipants.Add(pId);
-                }
-                else if (Guid.TryParse(pId, out var guid))
-                {
-                    var pUser = await _unitOfWork.Users.GetByIdAsync(guid);
-                    if (pUser != null && !string.IsNullOrEmpty(pUser.Did))
+                    if (pId.StartsWith("did:")) return pId;
+                    if (Guid.TryParse(pId, out var guid))
                     {
-                        proxyParticipants.Add(pUser.Did);
+                        var pUser = await _unitOfWork.Users.GetByIdAsync(guid);
+                        return pUser?.Did ?? pUser?.Handle;
                     }
-                    else if (pUser != null && !string.IsNullOrEmpty(pUser.Handle))
-                    {
-                        proxyParticipants.Add(pUser.Handle);
-                    }
-                }
-                else
+                    return pId; // Handle or other string
+                });
+            
+            var proxyParticipantsResults = await Task.WhenAll(proxyParticipantsTasks);
+            var proxyParticipants = proxyParticipantsResults
+                .Where(res => !string.IsNullOrEmpty(res))
+                .Cast<string>()
+                .ToList();
+
+            if (proxyParticipants.Any())
+            {
+                try
                 {
-                    // Likely a handle
-                    proxyParticipants.Add(pId);
+                    _logger.LogInformation("[GetOrCreateConversationAsync] Using proxy for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", proxyParticipants));
+                    return await _chatProxy.GetOrCreateConversationAsync(token, proxyParticipants);
                 }
-            }
-
-            if (!proxyParticipants.Any())
-            {
-                 throw new Exception("No valid participants found for Bluesky conversation.");
-            }
-
-            try
-            {
-                _logger.LogInformation("[GetOrCreateConversationAsync] Using proxy for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", proxyParticipants));
-                return await _chatProxy.GetOrCreateConversationAsync(token, proxyParticipants);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetOrCreateConversationAsync] Proxy GetOrCreateConversation failed for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", proxyParticipants));
-                throw new Exception("Failed to create conversation with Bluesky. Please try again later.");
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[GetOrCreateConversationAsync] Proxy GetOrCreateConversation failed for user {UserId}", userId);
+                    // If proxy fails, don't fall back to local if we have a token - it might create a duplicate or inconsistent state
+                    throw new Exception($"Failed to create conversation with Bluesky: {ex.Message}");
+                }
             }
         }
 
-        _logger.LogInformation("[GetOrCreateConversationAsync] Using local chat for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", participantIds));
-
+        // 2. Fallback to Local Conversation
         var ids = new List<Guid>();
         foreach (var id in participantIds)
         {
-            if (Guid.TryParse(id, out var g)) ids.Add(g);
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            if (Guid.TryParse(id, out var g))
+            {
+                ids.Add(g);
+            }
+            else if (id.StartsWith("did:"))
+            {
+                // Try to resolve DID to local user
+                var pUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == id);
+                if (pUser != null) ids.Add(pUser.Id);
+            }
+            else
+            {
+                // Try to resolve handle to local user
+                var pUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == id);
+                if (pUser != null) ids.Add(pUser.Id);
+            }
         }
 
         if (!ids.Contains(userId))

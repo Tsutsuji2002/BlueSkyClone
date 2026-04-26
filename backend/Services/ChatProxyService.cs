@@ -168,11 +168,17 @@ namespace BSkyClone.Services
 
         public async Task<ConversationDto> GetOrCreateConversationAsync(string token, List<string> members)
         {
-            var url = $"{ChatEndpoint}/chat.bsky.convo.getConvoForMembers";
-            var body = new { members = members };
+            // chat.bsky.convo.getConvoForMembers is an XRPC query (GET)
+            var queryString = string.Join("&", members.Select(m => $"members={Uri.EscapeDataString(m)}"));
+            var url = $"{ChatEndpoint}/chat.bsky.convo.getConvoForMembers?{queryString}";
             
-            var response = await CallAsync(token, url, "POST", body);
-            if (!response.IsSuccessStatusCode) throw new Exception($"Failed to get/create conversation: {response.StatusCode}");
+            var response = await CallAsync(token, url, "GET");
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("getConvoForMembers failed: {StatusCode} - {Error} for {Url}", response.StatusCode, error, url);
+                throw new Exception($"Failed to get/create conversation: {response.StatusCode}");
+            }
 
             var json = await response.Content.ReadAsStringAsync();
             var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

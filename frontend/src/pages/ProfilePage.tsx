@@ -241,7 +241,7 @@ const ProfilePage: React.FC = () => {
                 const participantId = profileUser.did || profileUser.id;
                 
                 if (!participantId) {
-                    dispatch(showToast({ message: 'User identifier not found', type: 'error' }));
+                    dispatch(showToast({ message: 'User profile not fully loaded. Please wait.', type: 'error' }));
                     return;
                 }
 
