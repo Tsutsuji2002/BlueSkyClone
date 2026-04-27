@@ -9,6 +9,9 @@
         "saved": "Guardado",
         "profile": "Perfil",
         "settings": "Configuración",
+        "note": "Nota",
+        "chat_settings": "Ajustes de chat",
+        "add_account": "Añadir otra cuenta",
         "posts": "Posts",
         "replies": "Respuestas",
         "media": "Multimedia",
@@ -98,7 +101,13 @@
         "send_email": "Enviar correo",
         "cancel": "Cancelar",
         "save": "Guardar",
-        "done": "Hecho"
+        "done": "Hecho",
+        "actions": {
+            "back": "Atrás",
+            "next": "Siguiente",
+            "done": "Hecho",
+            "logout_full": "Cerrar sesión"
+        }
     },
     "privacy": {
         "title": "Privacidad y seguridad",
@@ -187,7 +196,12 @@
         "subscribed": "Suscrito",
         "not_found": "Feed no encontrado",
         "no_posts": "Aún no hay publicaciones",
-        "no_posts_desc": "Este feed no tiene publicaciones en este momento."
+        "no_posts_desc": "Este feed no tiene publicaciones en este momento.",
+        "end": "Fin del feed",
+        "discover_empty": "Aún no hay nada nuevo que descubrir.",
+        "following_empty_recent": "No hay publicaciones recientes de las personas que sigues en este momento.",
+        "follow_more_cta": "Sigue a más cuentas para ver más contenido.",
+        "home_order_settings": "Orden de feeds y pines"
     },
     "explore": {
         "search_placeholder": "Buscar posts, usuarios o feeds",
@@ -206,7 +220,10 @@
         "es": "Español",
         "fr": "Francés",
         "de": "Alemán",
-        "ko": "Coreano"
+        "ko": "Coreano",
+        "admin": "Admin",
+        "search": "Buscar",
+        "go_profile": "Ir al perfil"
     },
     "messages": {
         "title": "Mensajes",
@@ -264,6 +281,8 @@
         "share": "Compartir",
         "whats_new": "¿Qué está pasando?",
         "create_post": "Crear publicación",
+        "new_post": "Nueva publicación",
+        "unknown": "Desconocido",
         "close": "Cerrar",
         "cancel": "Cancelar",
         "save": "Guardar",
@@ -276,7 +295,13 @@
         "show_more": "Mostrar más",
         "show_less": "Mostrar menos",
         "adding": "Añadiendo...",
-        "loading": "Cargando..."
+        "loading": "Cargando...",
+        "saving": "Guardando...",
+        "gif": "GIF",
+        "signalr": {
+            "disconnected": "SignalR desconectado. Las actualizaciones en tiempo real pueden retrasarse.",
+            "reconnecting": "SignalR reconectando..."
+        }
     },
     "lists": {
         "title": "Listas",
@@ -326,7 +351,9 @@
         "list_by": "Lista de @{{handle}}",
         "members_count": "{{count}} miembros",
         "posts_count": "{{count}} publicaciones",
-        "confirm_delete": "¿Estás seguro de que quieres eliminar esta lista?"
+        "confirm_delete": "¿Estás seguro de que quieres eliminar esta lista?",
+        "feed_end": "No hay más publicaciones en esta lista...",
+        "feed_empty": "Aún no hay publicaciones en esta lista."
     },
     "saved": {
         "title": "Guardado",

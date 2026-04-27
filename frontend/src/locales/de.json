@@ -14,7 +14,8 @@
         "media": "Medien",
         "video": "Video",
         "likes": "Gefällt mir",
-        "bookmarks": "Lesezeichen"
+        "bookmarks": "Lesezeichen",
+        "go_profile": "Zum Profil gehen"
     },
     "settings": {
         "title": "Einstellungen",
@@ -229,7 +230,12 @@
         "add_to_lists": "Zu Listen hinzufügen",
         "no_replies": "Noch keine Antworten",
         "no_media": "Noch keine Medien",
-        "no_videos": "Noch keine Videos"
+        "no_videos": "Noch keine Videos",
+        "follow_back": "Zurückfolgen",
+        "follows_you": "Folgt dir",
+        "unfollow": "Entfolgen",
+        "missing_follow_ref": "Fehlende Follow-Referenz",
+        "failed_follow_update": "Follow-Status konnte nicht aktualisiert werden"
     },
     "home": {
         "title": "Startseite",
@@ -254,7 +260,12 @@
         "subscribed": "Abonniert",
         "not_found": "Feed nicht gefunden",
         "no_posts": "Noch keine Beiträge",
-        "no_posts_desc": "Dieser Feed hat momentan keine Beiträge."
+        "no_posts_desc": "Dieser Feed hat momentan keine Beiträge.",
+        "end": "Ende des Feeds",
+        "discover_empty": "Noch nichts Neues zu entdecken.",
+        "following_empty_recent": "Zurzeit gibt es keine aktuellen Beiträge von Personen, denen Sie folgen.",
+        "follow_more_cta": "Folgen Sie weiteren Konten, um mehr Inhalte zu sehen.",
+        "home_order_settings": "Feed-Reihenfolge & Pins"
     },
     "explore": {
         "search_placeholder": "Suche nach Beiträgen, Benutzern oder Feeds",
@@ -311,7 +322,9 @@
         "list_by": "Liste von @{{handle}}",
         "members_count": "{{count}} Mitglieder",
         "posts_count": "{{count}} Beiträge",
-        "confirm_delete": "Sind Sie sicher, dass Sie diese Liste löschen möchten?"
+        "confirm_delete": "Sind Sie sicher, dass Sie diese Liste löschen möchten?",
+        "feed_end": "Keine weiteren Beiträge in dieser Liste...",
+        "feed_empty": "Noch keine Beiträge in dieser Liste."
     },
     "saved": {
         "title": "Gespeichert",
@@ -366,7 +379,8 @@
             "contact_support": "Support kontaktieren",
             "back": "Zurück",
             "next": "Weiter",
-            "done": "Fertig"
+            "done": "Fertig",
+            "logout_full": "Abmelden"
         }
     },
     "common": {
@@ -394,7 +408,13 @@
         "show_more": "Mehr anzeigen",
         "show_less": "Weniger anzeigen",
         "adding": "Wird hinzugefügt...",
-        "loading": "Laden..."
+        "loading": "Laden...",
+        "new_post": "Neuer Beitrag",
+        "unknown": "Unbekannt",
+        "signalr": {
+            "disconnected": "SignalR getrennt. Echtzeit-Updates können verzögert sein.",
+            "reconnecting": "SignalR Verbindung wird wiederhergestellt..."
+        }
     },
     "post": {
         "title": "Beitrag",

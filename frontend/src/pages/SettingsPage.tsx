@@ -12,6 +12,7 @@ import {
     FiBell, FiMonitor, FiLayout, FiMaximize, FiGlobe,
     FiHelpCircle, FiInfo, FiChevronRight, FiMenu, FiMessageSquare
 } from 'react-icons/fi';
+import { APP_LANGUAGES } from '../constants/languages';
 import { cn } from '../utils/classNames';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -23,18 +24,7 @@ const SettingsPage: React.FC = () => {
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
-    const languages = [
-        { code: 'vi', name: 'Tiếng Việt' },
-        { code: 'en', name: 'English' },
-        { code: 'ja', name: '日本語' },
-        { code: 'zh', name: '简体中文' },
-        { code: 'es', name: 'Español' },
-        { code: 'fr', name: 'Français' },
-        { code: 'de', name: 'Deutsch' },
-        { code: 'ko', name: '한국어' },
-    ];
-
-    const currentLanguageName = languages.find(l => l.code === settings?.appLanguage)?.name || settings?.appLanguage || 'English';
+    const currentLanguageName = APP_LANGUAGES.find(l => l.code === settings?.appLanguage)?.nativeName || settings?.appLanguage || 'English';
     const currentThemeName = settings?.themeMode === 'dark' ? t('settings.dark_mode') : settings?.themeMode === 'light' ? t('settings.light_mode') : t('settings.system_mode', 'System');
 
     const handleLogout = async () => {

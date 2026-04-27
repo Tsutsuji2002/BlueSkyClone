@@ -14,7 +14,8 @@
         "media": "Médias",
         "video": "Vidéo",
         "likes": "J'aime",
-        "bookmarks": "Signets"
+        "bookmarks": "Signets",
+        "go_profile": "Aller au profil"
     },
     "profile": {
         "edit_profile": "Modifier le profil",
@@ -39,7 +40,12 @@
         "add_to_lists": "Ajouter aux listes",
         "no_replies": "Pas encore de réponses",
         "no_media": "Pas encore de médias",
-        "no_videos": "Pas encore de vidéos"
+        "no_videos": "Pas encore de vidéos",
+        "follow_back": "Suivre en retour",
+        "follows_you": "Vous suit",
+        "unfollow": "Ne plus suivre",
+        "missing_follow_ref": "Référence de suivi manquante",
+        "failed_follow_update": "Échec de la mise à jour du suivi"
     },
     "settings": {
         "title": "Paramètres",
@@ -130,7 +136,10 @@
         "title": "Notifications",
         "tabs": {
             "all": "Tout",
-            "mentions": "Mentions"
+            "mentions": "Mentions",
+            "next": "Suivant",
+            "done": "Terminé",
+            "logout_full": "Se déconnecter"
         },
         "mark_all_read": "Marquer tout como lu",
         "no_notifications": "Pas encore de notifications",
@@ -185,7 +194,12 @@
         "subscribed": "Abonné",
         "not_found": "Flux non trouvé",
         "no_posts": "Pas encore de publications",
-        "no_posts_desc": "Ce flux n'a pas de publications pour le moment."
+        "no_posts_desc": "Ce flux n'a pas de publications pour le moment.",
+        "end": "Fin du flux",
+        "discover_empty": "Rien de nouveau à découvrir pour le moment.",
+        "following_empty_recent": "Aucun message récent des personnes que vous suivez pour l'instant.",
+        "follow_more_cta": "Suivez plus de comptes pour voir plus de contenu.",
+        "home_order_settings": "Ordre des flux et épingles"
     },
     "explore": {
         "search_placeholder": "Rechercher des posts, des utilisateurs ou des flux",
@@ -274,7 +288,13 @@
         "show_more": "Voir plus",
         "show_less": "Voir moins",
         "adding": "Ajout en cours...",
-        "loading": "Chargement..."
+        "loading": "Chargement...",
+        "new_post": "Nouveau Post",
+        "unknown": "Inconnu",
+        "signalr": {
+            "disconnected": "SignalR déconnecté. Les mises à jour peuvent être retardées.",
+            "reconnecting": "Reconnexion à SignalR..."
+        }
     },
     "lists": {
         "title": "Listes",
@@ -324,7 +344,9 @@
         "list_by": "Liste par @{{handle}}",
         "members_count": "{{count}} membres",
         "posts_count": "{{count}} posts",
-        "confirm_delete": "Êtes-vous sûr de vouloir supprimer cette liste ?"
+        "confirm_delete": "Êtes-vous sûr de vouloir supprimer cette liste?",
+        "feed_end": "Plus de messages dans cette liste...",
+        "feed_empty": "Pas encore de messages dans cette liste."
     },
     "saved": {
         "title": "Enregistré",

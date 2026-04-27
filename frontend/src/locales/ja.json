@@ -15,7 +15,8 @@
         "video": "ビデオ",
         "likes": "いいね",
         "bookmarks": "ブックマーク",
-        "link_preview": "リンクプレビュー"
+        "link_preview": "リンクプレビュー",
+        "go_profile": "プロフィールへ"
     },
     "common": {
         "app_name": "BlueSky",
@@ -50,7 +51,13 @@
         "show_more": "さらに表示",
         "show_less": "表示を減らす",
         "adding": "追加中...",
-        "loading": "読み込み中..."
+        "loading": "読み込み中...",
+        "new_post": "新規投稿",
+        "unknown": "不明",
+        "signalr": {
+            "disconnected": "SignalR が切断されました。リアルタイムの更新が遅れる可能性があります。",
+            "reconnecting": "SignalR に再接続中..."
+        }
     },
     "settings": {
         "title": "設定",
@@ -244,7 +251,12 @@
         "no_likes": "まだ「いいね」した投稿はありません",
         "no_feeds": "まだフィードはありません",
         "no_lists": "まだリストはありません",
-        "no_bookmarks": "まだブックマークはありません"
+        "no_bookmarks": "まだブックマークはありません",
+        "follow_back": "フォローバック",
+        "follows_you": "フォローされています",
+        "unfollow": "フォロー解除",
+        "missing_follow_ref": "フォロー参照が見つかりません",
+        "failed_follow_update": "フォロー状態の更新に失敗しました"
     },
     "home": {
         "title": "ホーム",
@@ -269,7 +281,12 @@
         "subscribed": "購読中",
         "not_found": "フィードが見つかりません",
         "no_posts": "投稿はありません",
-        "no_posts_desc": "現在、このフィードには投稿がありません。"
+        "no_posts_desc": "現在、このフィードには投稿がありません。",
+        "end": "フィードの終わり",
+        "discover_empty": "まだ新しい発見はありません。",
+        "following_empty_recent": "現在、フォローしている人からの最近の投稿はありません。",
+        "follow_more_cta": "より多くのコンテンツを表示するには、さらにアカウントをフォローしてください。",
+        "home_order_settings": "フィードの順序とピン留め"
     },
     "explore": {
         "search_placeholder": "投稿、ユーザー、またはフィードを検索",
@@ -326,7 +343,9 @@
         "list_by": "@{{handle}} によるリスト",
         "members_count": "{{count}} 人のメンバー",
         "posts_count": "{{count}} 件の投稿",
-        "confirm_delete": "このリストを削除してもよろしいですか？"
+        "confirm_delete": "このリストを削除してもよろしいですか？",
+        "feed_end": "このリストにはこれ以上の投稿はありません...",
+        "feed_empty": "このリストにはまだ投稿がありません。"
     },
     "saved": {
         "title": "保存済み",
@@ -377,7 +396,8 @@
             "contact_support": "サポートに問い合わせる",
             "back": "戻る",
             "next": "次へ",
-            "done": "完了"
+            "done": "完了",
+            "logout_full": "ログアウト"
         }
     },
     "messages": {

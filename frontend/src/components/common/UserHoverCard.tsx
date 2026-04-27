@@ -7,6 +7,7 @@ import { RootState } from '../../redux/store';
 import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice';
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { showToast } from '../../redux/slices/toastSlice';
+import { useTranslation } from 'react-i18next';
 import Avatar from './Avatar';
 import RichText from './RichText';
 import { BsPatchCheckFill } from 'react-icons/bs';
@@ -65,6 +66,7 @@ const LEAVE_CLOSE_DELAY_MS = 200;
 const profileCache = new Map<string, FullProfile>();
 
 const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled = false }) => {
+    const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
@@ -206,7 +208,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
         try {
             if (displayProfile?.isFollowing) {
                 if (!displayProfile.followingReference) {
-                    dispatch(showToast({ message: 'Missing follow reference', type: 'error' }));
+                    dispatch(showToast({ message: t('profile.missing_follow_ref'), type: 'error' }));
                     return;
                 }
                 dispatch(unfollowUserAsync({
@@ -228,7 +230,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                 }
             }
         } catch (err: any) {
-            dispatch(showToast({ message: err || 'Failed to update follow status', type: 'error' }));
+            dispatch(showToast({ message: err || t('profile.failed_follow_update'), type: 'error' }));
         }
     };
 
@@ -240,7 +242,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
     };
 
     // Use fetched profile if available, otherwise fall back to passed-in user prop
-    const displayName = profile?.displayName || user.displayName || user.handle || 'Unknown';
+    const displayName = profile?.displayName || user.displayName || user.handle || t('common.unknown');
     const handle = profile?.handle || user.handle;
     const avatarSrc = profile?.avatarUrl || profile?.avatar || user.avatarUrl || user.avatar;
     const bio = profile?.bio;
@@ -302,13 +304,13 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                                     <>
                                         <FiUserCheck size={14} className="group-hover:hidden" />
                                         <FiUserPlus size={14} className="hidden group-hover:block" />
-                                        <span className="group-hover:hidden">Following</span>
-                                        <span className="hidden group-hover:inline">Unfollow</span>
+                                        <span className="group-hover:hidden">{t('profile.following_btn')}</span>
+                                        <span className="hidden group-hover:inline">{t('profile.unfollow')}</span>
                                     </>
                                 ) : (
                                     <>
                                         <FiUserPlus size={14} />
-                                        <span>{isFollowedBy ? 'Follow back' : 'Follow'}</span>
+                                        <span>{isFollowedBy ? t('profile.follow_back') : t('profile.follow')}</span>
                                     </>
                                 )}
                             </button>
@@ -337,7 +339,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                                     </div>
                                     {isFollowedBy && (
                                         <span className="bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded text-[11px] font-bold">
-                                            Follows you
+                                            {t('profile.follows_you')}
                                         </span>
                                     )}
                                 </div>
@@ -374,14 +376,14 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                                     className="hover:underline"
                                 >
                                     <span className="font-bold text-gray-900 dark:text-dark-text">{formatCount(followersCount)}</span>{' '}
-                                    <span className="text-gray-500 dark:text-dark-text-secondary">followers</span>
+                                    <span className="text-gray-500 dark:text-dark-text-secondary">{t('profile.followers')}</span>
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); navigate(`/profile/${handle}/following`); setVisible(false); }}
                                     className="hover:underline"
                                 >
                                     <span className="font-bold text-gray-900 dark:text-dark-text">{formatCount(followingCount)}</span>{' '}
-                                    <span className="text-gray-500 dark:text-dark-text-secondary">following</span>
+                                    <span className="text-gray-500 dark:text-dark-text-secondary">{t('profile.following')}</span>
                                 </button>
                             </>
                         )}

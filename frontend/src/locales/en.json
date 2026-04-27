@@ -21,7 +21,8 @@
         "bookmarks": "Bookmarks",
         "link_preview": "Link preview",
         "admin": "Admin",
-        "search": "Search"
+        "search": "Search",
+        "go_profile": "Go to profile"
     },
     "settings": {
         "title": "Settings",
@@ -421,7 +422,12 @@
         "unblock_to_see": "Unblock to see posts",
         "verified_account": "Verified account",
         "muted_by_list": "Muted by list",
-        "view_list": "View list"
+        "view_list": "View list",
+        "follow_back": "Follow back",
+        "follows_you": "Follows you",
+        "unfollow": "Unfollow",
+        "missing_follow_ref": "Missing follow reference",
+        "failed_follow_update": "Failed to update follow status"
     },
     "home": {
         "title": "Home",
@@ -453,7 +459,11 @@
         "search_results": "Search Results",
         "recommended_for_you": "Recommended for you",
         "following_end": "Follow more people to get more content...",
-        "end": "No more posts to load.",
+        "end": "End of feed",
+        "discover_empty": "Nothing new to discover yet.",
+        "following_empty_recent": "No recent posts from people you follow right now.",
+        "follow_more_cta": "Follow more accounts to see more content.",
+        "home_order_settings": "Feed order & pins",
         "pin_feed": "Pin Feed",
         "pin": "Pin",
         "unpin": "Unpin",
@@ -525,7 +535,9 @@
         "invitation_accepted": "Invitation accepted",
         "invitation_rejected": "Invitation declined",
         "join": "Join",
-        "join_request_sent": "Join request sent"
+        "join_request_sent": "Join request sent",
+        "feed_end": "No more posts in this list...",
+        "feed_empty": "No posts in this list yet."
     },
     "saved": {
         "title": "Saved",
@@ -583,7 +595,8 @@
             "contact_support": "Contact support",
             "back": "Back",
             "next": "Next",
-            "done": "Done"
+            "done": "Done",
+            "logout_full": "Sign out"
         }
     },
     "messages": {
@@ -671,6 +684,8 @@
         "share": "Share",
         "whats_new": "What's new?",
         "create_post": "Create Post",
+        "new_post": "New Post",
+        "unknown": "Unknown",
         "close": "Close",
         "cancel": "Cancel",
         "save": "Save",
@@ -685,7 +700,11 @@
         "show_less": "Show less",
         "adding": "Adding...",
         "saving": "Saving...",
-        "gif": "GIF"
+        "gif": "GIF",
+        "signalr": {
+            "disconnected": "SignalR Disconnected. Real-time updates may be delayed.",
+            "reconnecting": "SignalR Reconnecting..."
+        }
     },
     "post": {
         "title": "Post",

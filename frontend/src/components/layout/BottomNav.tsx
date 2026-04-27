@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { FiHome, FiSearch, FiBell, FiMail, FiUser, FiMessageCircle } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 
 // Map icon names to actual icon components
 const getIcon = (iconName: string) => {
@@ -16,6 +17,7 @@ const getIcon = (iconName: string) => {
 };
 
 const BottomNav: React.FC = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const user = useAppSelector((state) => state.auth.user);
@@ -42,6 +44,7 @@ const BottomNav: React.FC = () => {
                     return (
                         <button
                             key={item.id}
+                            aria-label={t(`nav.${item.id}`)}
                             onClick={() => navigate(item.path)}
                             className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${isActive
                                 ? 'text-primary-500'

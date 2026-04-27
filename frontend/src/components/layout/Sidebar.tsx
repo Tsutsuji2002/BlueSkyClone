@@ -82,13 +82,13 @@ const Sidebar: React.FC = () => {
                         items={[
                             {
                                 id: 'go-profile',
-                                label: 'Go to profile',
+                                label: t('nav.go_profile'),
                                 icon: <FiUser />,
                                 onClick: () => navigate(`/profile/${user.handle}`),
                             },
                             {
                                 id: 'add-account',
-                                label: 'Add another account',
+                                label: t('settings.add_account'),
                                 icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" /></svg>,
                                 onClick: () => {},
                             },
@@ -100,7 +100,7 @@ const Sidebar: React.FC = () => {
                             },
                             {
                                 id: 'logout',
-                                label: 'Sign out',
+                                label: t('auth.signup.logout_full'),
                                 icon: <FiLogOut />,
                                 onClick: handleLogout,
                             },
@@ -175,7 +175,7 @@ const Sidebar: React.FC = () => {
             {/* Post Button */}
             <div className="mt-1 mb-4 flex justify-center xl:justify-start w-full">
                 <button
-                    aria-label="Compose new post"
+                    aria-label={t('common.create_post')}
                     onClick={() => dispatch(openCreatePost())}
                     className="flex items-center justify-center bg-[#0085FF] hover:bg-[#0070DF] text-white transition-colors rounded-full xl:w-fit xl:py-[10px] xl:pl-[12px] xl:pr-[24px] w-[52px] h-[52px] shadow-md gap-3"
                 >
@@ -183,7 +183,7 @@ const Sidebar: React.FC = () => {
                         <svg fill="none" width="16" viewBox="0 0 24 24" height="16" style={{color: 'rgb(255, 255, 255)'}}><path fill="#FFFFFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M17.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1 0 1.414l-9 9A1 1 0 0 1 12 16H9a1 1 0 0 1-1-1v-3a1 1 0 0 1 .293-.707l9-9ZM10 12.414V14h1.586l8-8L18 4.414l-8 8ZM3 4a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2H5v14h14v-6a1 1 0 1 1 2 0v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Z"></path></svg>
                     </div>
                     <span className="hidden xl:inline text-[15px] font-bold tracking-wide">
-                        New Post
+                        {t('common.new_post')}
                     </span>
                 </button>
             </div>

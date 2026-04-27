@@ -21,7 +21,8 @@
         "bookmarks": "Đã lưu",
         "link_preview": "Xem trước liên kết",
         "admin": "Quản trị",
-        "search": "Tìm kiếm"
+        "search": "Tìm kiếm",
+        "go_profile": "Đi đến hồ sơ"
     },
     "settings": {
         "title": "Cài đặt",
@@ -366,7 +367,12 @@
         "blocked_by_desc": "Bạn không thể theo dõi hoặc xem các bài đăng của người dùng này.",
         "is_blocking_title": "Bạn đã chặn người dùng này",
         "is_blocking_desc": "Bạn không thể xem các bài đăng hoặc tương tác với họ.",
-        "unblock_to_see": "Bỏ chặn để xem bài đăng"
+        "unblock_to_see": "Bỏ chặn để xem bài đăng",
+        "follow_back": "Theo dõi lại",
+        "follows_you": "Đang theo dõi bạn",
+        "unfollow": "Hủy theo dõi",
+        "missing_follow_ref": "Thiếu tham chiếu theo dõi",
+        "failed_follow_update": "Cập nhật trạng thái theo dõi thất bại"
     },
     "home": {
         "title": "Trang chủ",
@@ -398,7 +404,11 @@
         "search_results": "Kết quả tìm kiếm",
         "recommended_for_you": "Gợi ý cho bạn",
         "following_end": "Theo dõi thêm nhiều người để nhận thêm nội dung mới...",
-        "end": "Không còn bài viết nào để tải.",
+        "end": "Hết bảng tin",
+        "discover_empty": "Chưa có gì mới để khám phá.",
+        "following_empty_recent": "Hiện không có bài đăng mới nào từ những người bạn theo dõi.",
+        "follow_more_cta": "Theo dõi thêm nhiều tài khoản để xem thêm nội dung.",
+        "home_order_settings": "Thứ tự bảng tin & ghim",
         "pin_feed": "Ghim bảng tin",
         "pin": "Ghim",
         "unpin": "Bỏ ghim",
@@ -467,7 +477,9 @@
         "invited": "Đã mời",
         "member": "Thành viên",
         "invitation_accepted": "Đã chấp nhận lời mời",
-        "invitation_rejected": "Đã từ chối lời mời"
+        "invitation_rejected": "Đã từ chối lời mời",
+        "feed_end": "Hết bài viết trong danh sách này...",
+        "feed_empty": "Chưa có bài viết nào trong danh sách này."
     },
     "saved": {
         "title": "Đã lưu",
@@ -525,7 +537,8 @@
             "contact_support": "Liên hệ hỗ trợ",
             "back": "Trở lại",
             "next": "Tiếp theo",
-            "done": "Hoàn tất"
+            "done": "Hoàn tất",
+            "logout_full": "Đăng xuất"
         }
     },
     "messages": {
@@ -626,7 +639,12 @@
         "show_less": "Xem bớt",
         "adding": "Đang thêm...",
         "loading": "Đang tải...",
-        "gif": "GIF"
+        "new_post": "Bài đăng mới",
+        "unknown": "Không xác định",
+        "signalr": {
+            "disconnected": "SignalR đã ngắt kết nối. Cập nhật thời gian thực có thể bị trễ.",
+            "reconnecting": "Đang kết nối lại SignalR..."
+        }
     },
     "post": {
         "title": "Đăng",

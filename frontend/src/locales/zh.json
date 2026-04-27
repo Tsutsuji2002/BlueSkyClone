@@ -188,7 +188,12 @@
         "subscribed": "已订阅",
         "not_found": "未找到动态源",
         "no_posts": "暂无动态",
-        "no_posts_desc": "该动态源目前没有任何内容。"
+        "no_posts_desc": "该动态源目前没有任何内容。",
+        "end": "End of feed",
+        "discover_empty": "Nothing new to discover yet.",
+        "following_empty_recent": "No recent posts from people you follow right now.",
+        "follow_more_cta": "Follow more accounts to see more content.",
+        "home_order_settings": "Feed Order & Pins"
     },
     "explore": {
         "search_placeholder": "搜索动态、用户或动态源",
@@ -327,7 +332,9 @@
         "list_by": "由 @{{handle}} 创建的列表",
         "members_count": "{{count}} 位成员",
         "posts_count": "{{count}} 条动态",
-        "confirm_delete": "你确定要删除此列表吗？"
+        "confirm_delete": "你确定要删除此列表吗？",
+        "feed_end": "No more posts in this list...",
+        "feed_empty": "No posts in this list yet."
     },
     "saved": {
         "title": "已保存",

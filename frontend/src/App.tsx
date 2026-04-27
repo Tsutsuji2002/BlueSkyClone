@@ -40,7 +40,7 @@ const AppContent: React.FC = () => {
   const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated);
   const isLoading = useAppSelector((state: RootState) => state.auth.isLoading);
   const appLanguage = useAppSelector((state: RootState) => state.language.appLanguage);
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const isFirstRender = React.useRef(true);
 
@@ -137,7 +137,7 @@ const AppContent: React.FC = () => {
           dispatch({
             type: 'toast/showToast',
             payload: {
-              message: 'SignalR Disconnected. Real-time updates may be delayed.',
+              message: t('common.signalr.disconnected'),
               type: 'error'
             }
           });
@@ -145,7 +145,7 @@ const AppContent: React.FC = () => {
           dispatch({
             type: 'toast/showToast',
             payload: {
-              message: 'SignalR Reconnecting...',
+              message: t('common.signalr.reconnecting'),
               type: 'info'
             }
           });
