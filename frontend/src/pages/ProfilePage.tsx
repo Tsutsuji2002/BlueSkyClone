@@ -407,7 +407,7 @@ const ProfilePage: React.FC = () => {
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <div className="w-full h-full bg-blue-100 dark:bg-dark-surface" />
+                            <div className="w-full h-full bg-gray-200 dark:bg-dark-surface animate-pulse" />
                         )}
                     </div>
 

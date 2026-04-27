@@ -56,11 +56,19 @@ const Avatar: React.FC<AvatarProps> = ({
                 <div
                     className={cn(
                         sizeStyles[size],
-                        'rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold border-2 border-white dark:border-dark-bg',
+                        'rounded-full bg-gray-100 dark:bg-dark-surface-hover flex items-center justify-center text-gray-400 dark:text-dark-text-secondary border-2 border-white dark:border-dark-bg',
                         className
                     )}
                 >
-                    {(alt || '?').charAt(0).toUpperCase()}
+                    <svg 
+                        viewBox="0 0 24 24" 
+                        fill="currentColor" 
+                        className={cn(
+                            size === 'xs' || size === 'sm' ? 'w-4 h-4' : 'w-1/2 h-1/2'
+                        )}
+                    >
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
                 </div>
             )}
             {online && (
