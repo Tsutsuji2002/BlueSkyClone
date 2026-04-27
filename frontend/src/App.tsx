@@ -25,6 +25,7 @@ import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
 import { getMe, logoutAsync } from './redux/slices/authSlice';
+import { setAppLanguage } from './redux/slices/languageSlice';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
 import { isTokenExpired } from './utils/authUtils';
@@ -40,6 +41,7 @@ const AppContent: React.FC = () => {
   const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated);
   const isLoading = useAppSelector((state: RootState) => state.auth.isLoading);
   const appLanguage = useAppSelector((state: RootState) => state.language.appLanguage);
+  const authSettings = useAppSelector((state: RootState) => state.auth.settings);
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const isFirstRender = React.useRef(true);
@@ -189,6 +191,12 @@ const AppContent: React.FC = () => {
       i18n.changeLanguage(appLanguage);
     }
   }, [appLanguage, i18n]);
+
+  useEffect(() => {
+    if (isAuthenticated && authSettings?.appLanguage && authSettings.appLanguage !== appLanguage) {
+      dispatch(setAppLanguage(authSettings.appLanguage));
+    }
+  }, [isAuthenticated, authSettings?.appLanguage, appLanguage, dispatch]);
 
   // Close all modals on navigation
   useEffect(() => {

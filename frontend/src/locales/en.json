@@ -220,7 +220,9 @@
         "content_hidden_desc": "This content is hidden by your settings",
         "content_warn_desc": "This content may be sensitive",
         "sensitive_content": "Sensitive Content",
-        "muted_word": "Muted Word"
+        "muted_word": "Muted Word",
+        "bsky_moderation_service": "Bluesky Moderation Service",
+        "bsky_moderation_service_desc": "Official Bluesky moderation service."
     },
     "privacy": {
         "title": "Privacy and Security",
@@ -465,10 +467,11 @@
         "follow_more_cta": "Follow more accounts to see more content.",
         "home_order_settings": "Feed order & pins",
         "pin_feed": "Pin Feed",
-        "pin": "Pin",
-        "unpin": "Unpin",
         "pinned": "Pinned",
-        "feeds_guide": "Feeds are custom algorithms that users build with a little coding expertise. See this guide for more information."
+        "feeds_guide": "Feeds are custom algorithms that users build with a little coding expertise. See this guide for more information.",
+        "hot": "Hot",
+        "science": "Science",
+        "news": "News"
     },
     "explore": {
         "search_placeholder": "Search for posts, users or feeds",
@@ -661,7 +664,8 @@
         "start_searching": "Search Bluesky",
         "start_desc": "Find posts and people on Bluesky.",
         "searching_for": "Search for \"{{query}}\"",
-        "no_results": "No results found"
+        "no_results": "No results found",
+        "goto_search": "Search all for \"{{query}}\""
     },
     "common": {
         "app_name": "Bluesky",
@@ -788,7 +792,8 @@
         "other_feeds": "Other feeds",
         "feedback": "Feedback",
         "help": "Help",
-        "trending_header": "Trending"
+        "trending_header": "Trending",
+        "more_feeds": "More feeds"
     },
     "about": {
         "title": "About",

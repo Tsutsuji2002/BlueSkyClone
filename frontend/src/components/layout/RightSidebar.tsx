@@ -131,8 +131,8 @@ const RightSidebar: React.FC = () => {
         if (!isAuthenticated) {
             return [
                 { id: 'discover', uri: 'discover', name: t('nav.discover', { defaultValue: 'Discover' }), isPinned: true },
-                { id: 'hot', uri: 'hot', name: 'Hot', isPinned: true },
-                { id: 'science', uri: 'science', name: 'Science', isPinned: true }
+                { id: 'hot', uri: 'hot', name: t('feeds.hot', { defaultValue: 'Hot' }), isPinned: true },
+                { id: 'science', uri: 'science', name: t('feeds.science', { defaultValue: 'Science' }), isPinned: true }
             ];
         }
         const allFeeds = [...feeds, ...subscribedFeeds];
@@ -356,11 +356,11 @@ const RightSidebar: React.FC = () => {
 
             {/* Footer Links */}
             <div className="px-2 mt-auto flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-dark-text-secondary">
-                <a href="#" className="text-[13.1px] hover:underline">Privacy</a>
+                <a href="#" className="text-[13.1px] hover:underline" onClick={(e) => { e.preventDefault(); navigate('/settings/privacy'); }}>{t('sidebar.privacy')}</a>
                 <span className="text-[13.1px]">·</span>
-                <a href="#" className="text-[13.1px] hover:underline">Terms</a>
+                <a href="#" className="text-[13.1px] hover:underline" onClick={(e) => { e.preventDefault(); navigate('/about?tab=terms'); }}>{t('sidebar.terms')}</a>
                 <span className="text-[13.1px]">·</span>
-                <a href="#" className="text-[13.1px] hover:underline">Help</a>
+                <a href="#" className="text-[13.1px] hover:underline" onClick={(e) => { e.preventDefault(); navigate('/support'); }}>{t('sidebar.help')}</a>
             </div>
         </div>
     );

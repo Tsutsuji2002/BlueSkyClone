@@ -88,7 +88,24 @@
         "handle_cannot_be_blank": "Handle không được để trống",
         "birthdate_future_error": "Ngày sinh không được ở tương lai",
         "note": "Lưu ý",
-        "chat_settings": "Cài đặt trò chuyện"
+        "chat_settings": "Cài đặt trò chuyện",
+        "following_feed_settings": "Following feed settings",
+        "following_settings_info": "These settings only apply to the Following feed.",
+        "show_replies": "Show replies",
+        "show_reposts": "Show reposts",
+        "show_quote_posts": "Show quote posts",
+        "experimental": "Experimental",
+        "show_sample_saved_feeds": "Show samples from saved feeds",
+        "feed_visibility": "Feed visibility",
+        "password_required": "Current password is required",
+        "new_email_placeholder": "Enter new email",
+        "current_password_placeholder": "Current password",
+        "confirm_new_password": "Confirm new password",
+        "passwords_dont_match": "Passwords do not match",
+        "not_set": "Not set",
+        "new_password": "New password",
+        "muted_success": "User muted successfully",
+        "blocked_success": "User blocked successfully"
     },
     "moderation": {
         "title": "Kiểm duyệt",
@@ -175,7 +192,37 @@
         "non_sexual_nudity": "Khỏa thân không khiêu dâm",
         "non_sexual_nudity_desc": "vd: khóa thân nghệ thuật.",
         "advanced": "Nâng cao",
-        "muted_word": "Từ bị ẩn"
+        "muted_word": "Từ bị ẩn",
+        "verification_method_dns": "DNS TXT Record",
+        "verification_method_http": "HTTP File",
+        "verification_dns_instruction": "Add a TXT record to your domain's DNS configuration with the following name and value:",
+        "verification_dns_name": "Domain / Name:",
+        "verification_dns_value": "Value:",
+        "verification_http_instruction": "Upload a file to your website at the following path with your DID as the content:",
+        "verification_http_path": "Path:",
+        "verification_http_content": "Content (Your DID):",
+        "verification_verify_btn": "Verify Domain",
+        "verification_success": "Domain verified successfully!",
+        "verification_failed": "Verification failed. Please check your settings and try again.",
+        "report_title": "Report Content",
+        "report_notice": "Reports help us maintain a safe community. Our moderators will review this content.",
+        "select_reason": "Why are you reporting this?",
+        "reason_spam": "Spam",
+        "reason_violation": "Violation",
+        "reason_misleading": "Misleading",
+        "reason_sexual": "Sexual Content",
+        "reason_rude": "Rude/Harassment",
+        "reason_other": "Other",
+        "additional_details": "Additional details (optional)",
+        "details_placeholder": "Tell us more about the issue...",
+        "submit_report": "Submit Report",
+        "report_success": "Report submitted. Thank you!",
+        "muted_by_list": "Muted by list:",
+        "content_hidden_desc": "This content is hidden by your settings",
+        "content_warn_desc": "This content may be sensitive",
+        "sensitive_content": "Sensitive Content",
+        "bsky_moderation_service": "Bluesky Moderation Service",
+        "bsky_moderation_service_desc": "Official Bluesky moderation service."
     },
     "privacy": {
         "title": "Quyền riêng tư và bảo mật",
@@ -372,7 +419,17 @@
         "follows_you": "Đang theo dõi bạn",
         "unfollow": "Hủy theo dõi",
         "missing_follow_ref": "Thiếu tham chiếu theo dõi",
-        "failed_follow_update": "Cập nhật trạng thái theo dõi thất bại"
+        "failed_follow_update": "Cập nhật trạng thái theo dõi thất bại",
+        "feeds_coming_soon": "Feeds coming soon",
+        "user_not_found": "User not found",
+        "user_not_found_desc": "The user you're looking for doesn't exist or has been removed.",
+        "blocked_success": "User blocked",
+        "unblocked_success": "User unblocked",
+        "muted_success": "User muted",
+        "unmuted_success": "User unmuted",
+        "verified_account": "Verified account",
+        "muted_by_list": "Muted by list",
+        "view_list": "View list"
     },
     "home": {
         "title": "Trang chủ",
@@ -413,7 +470,10 @@
         "pin": "Ghim",
         "unpin": "Bỏ ghim",
         "pinned": "Đã ghim",
-        "feeds_guide": "Bảng tin là các thuật toán tùy chỉnh mà người dùng xây dựng với một chút kiến thức lập trình. Xem hướng dẫn này để biết thêm thông tin."
+        "feeds_guide": "Bảng tin là các thuật toán tùy chỉnh mà người dùng xây dựng với một chút kiến thức lập trình. Xem hướng dẫn này để biết thêm thông tin.",
+        "hot": "Hot",
+        "science": "Science",
+        "news": "News"
     },
     "explore": {
         "search_placeholder": "Tìm kiếm bài đăng, người dùng hoặc bảng tin",
@@ -479,7 +539,10 @@
         "invitation_accepted": "Đã chấp nhận lời mời",
         "invitation_rejected": "Đã từ chối lời mời",
         "feed_end": "Hết bài viết trong danh sách này...",
-        "feed_empty": "Chưa có bài viết nào trong danh sách này."
+        "feed_empty": "Chưa có bài viết nào trong danh sách này.",
+        "view_list": "View list",
+        "join": "Join",
+        "join_request_sent": "Join request sent"
     },
     "saved": {
         "title": "Đã lưu",
@@ -603,7 +666,8 @@
         "start_searching": "Tìm kiếm trên Bluesky",
         "start_desc": "Tìm bài đăng và mọi người trên Bluesky.",
         "searching_for": "Tìm kiếm \"{{query}}\"",
-        "no_results": "Không tìm thấy kết quả"
+        "no_results": "Không tìm thấy kết quả",
+        "goto_search": "Search all for \"{{query}}\""
     },
     "common": {
         "app_name": "Bluesky",
@@ -644,7 +708,10 @@
         "signalr": {
             "disconnected": "SignalR đã ngắt kết nối. Cập nhật thời gian thực có thể bị trễ.",
             "reconnecting": "Đang kết nối lại SignalR..."
-        }
+        },
+        "edit_post": "Edit post",
+        "saving": "Saving...",
+        "gif": "GIF"
     },
     "post": {
         "title": "Đăng",
@@ -706,7 +773,13 @@
         "trending_gifs": "GIF xu hướng",
         "no_gifs_found": "Không tìm thấy GIF nào",
         "giphy_key_missing": "Thiếu mã API GIPHY. Vui lòng thiết lập REACT_APP_GIPHY_API_KEY trong tệp .env của bạn.",
-        "giphy_key_invalid": "Mã API GIPHY không hợp lệ. Vui lòng kiểm tra lại REACT_APP_GIPHY_API_KEY."
+        "giphy_key_invalid": "Mã API GIPHY không hợp lệ. Vui lòng kiểm tra lại REACT_APP_GIPHY_API_KEY.",
+        "updated_success": "Post updated successfully",
+        "replies_disabled": "Replies are disabled for this post",
+        "removed_post_notice": "Post removed",
+        "not_found": "Post not found",
+        "not_found_desc": "This post doesn't exist or is unavailable.",
+        "not_found_sub": "It might have been deleted or the link is incorrect."
     },
     "sidebar": {
         "trending": "Chủ đề nổi bật",
@@ -723,7 +796,8 @@
         "feedback": "Phản hồi",
         "help": "Giúp đỡ",
         "trending_header": "Chủ đề nổi trội",
-        "trending_handle": "@trending.bsky.app"
+        "trending_handle": "@trending.bsky.app",
+        "more_feeds": "More feeds"
     },
     "about": {
         "title": "Giới thiệu",
@@ -938,7 +1012,8 @@
             "last_message_header": "Tin nhắn cuối",
             "updated_at_header": "Cập nhật",
             "actions_header": "Hành động",
-            "delete_confirm": "Bạn có chắc chắn muốn xóa cuộc trò chuyện này không?"
+            "delete_confirm": "Bạn có chắc chắn muốn xóa cuộc trò chuyện này không?",
+            "showing_range": "Showing {{start}} to {{end}} of {{total}} conversations"
         },
         "moderation": {
             "title": "Kiểm duyệt nội dung",
@@ -975,7 +1050,32 @@
             ]
         },
         "back_to_app": "Quay lại ứng dụng",
-        "panel": "Bảng điều khiển"
+        "panel": "Bảng điều khiển",
+        "support": {
+            "title": "Support Management",
+            "desc": "Manage user feedback and support requests",
+            "search_placeholder": "Search by email or description...",
+            "table_user": "User/Email",
+            "table_category": "Category",
+            "table_device": "Device",
+            "table_status": "Status",
+            "table_created": "Date",
+            "table_actions": "Actions",
+            "status_pending": "Pending",
+            "status_replied": "Replied",
+            "status_closed": "Closed",
+            "no_requests": "No support requests found",
+            "showing_info": "Showing {{count}} of {{total}} requests",
+            "request_details": "Request Details",
+            "view_details": "View details",
+            "update_status": "Update status",
+            "description": "Description",
+            "contact_email": "Contact Email",
+            "category": "Category",
+            "device": "Device Type",
+            "status": "Status",
+            "date": "Submitted Date"
+        }
     },
     "tag": {
         "exploring_tagged": "Khám phá các bài đăng được gắn thẻ #{{tag}}",
@@ -1010,6 +1110,9 @@
         "drag_drop": "hoặc kéo và thả vào đây",
         "files_skipped_size": "Một số tệp đã bị bỏ qua vì chúng vượt quá giới hạn {{size}}MB.",
         "submit": "Gửi",
-        "powered_by": "Cung cấp bởi"
+        "powered_by": "Cung cấp bởi",
+        "submitting": "Submitting...",
+        "submit_success": "Your request has been submitted successfully.",
+        "fill_required": "Please fill in all required fields."
     }
 }

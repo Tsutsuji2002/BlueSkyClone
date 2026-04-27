@@ -456,7 +456,7 @@ const AccountSettingsPage: React.FC = () => {
                             >
                                 <div className="flex items-center gap-4">
                                     <FiAtSign size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">Change Handle</span>
+                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.change_username')}</span>
                                 </div>
                                 <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
                             </button>

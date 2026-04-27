@@ -271,10 +271,10 @@ const ModerationSettingsPage: React.FC = () => {
                             </div>
                             <div className="flex-1">
                                 <h3 className="font-bold text-gray-900 dark:text-dark-text text-[15px]">
-                                    Bluesky Moderation Service
+                                    {t('moderation.bsky_moderation_service')}
                                 </h3>
                                 <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                    Official Bluesky moderation service.
+                                    {t('moderation.bsky_moderation_service_desc')}
                                 </p>
                                 <p className="text-xs text-gray-400 mt-1 truncate">
                                     https://bsky.social/about/support/community-guidelines

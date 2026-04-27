@@ -81,7 +81,7 @@ const AppearancePage: React.FC = () => {
             </div>
 
                 <div className="p-4 space-y-8">
-                    {/* Chế độ màu */}
+                    {/* Color Mode */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-2 text-gray-900 dark:text-dark-text font-bold">
                             <FiTablet size={18} />
@@ -98,7 +98,7 @@ const AppearancePage: React.FC = () => {
                         />
                     </section>
 
-                    {/* Chế độ tối */}
+                    {/* Dark Mode */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-2 text-gray-900 dark:text-dark-text font-bold">
                             <FiMoon size={18} />
@@ -116,7 +116,7 @@ const AppearancePage: React.FC = () => {
 
                     <div className="h-px bg-gray-100 dark:bg-dark-border my-6" />
 
-                    {/* Phông chữ */}
+                    {/* Font Family */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-2 text-gray-900 dark:text-dark-text font-bold">
                             <FiType size={18} />
@@ -135,7 +135,7 @@ const AppearancePage: React.FC = () => {
                         />
                     </section>
 
-                    {/* Kích cỡ phông chữ */}
+                    {/* Font Size */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-2 text-gray-900 dark:text-dark-text font-bold">
                             <FiMaximize2 size={18} />

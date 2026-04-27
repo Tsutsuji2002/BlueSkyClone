@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -19,12 +20,27 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const user = useAppSelector((state: RootState) => state.auth.user);
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
-    const currentLanguageName = APP_LANGUAGES.find(l => l.code === settings?.appLanguage)?.nativeName || settings?.appLanguage || 'English';
+    const currentLanguageName = useMemo(() => {
+        const langCode = settings?.appLanguage || i18n.language || 'en';
+        try {
+            const displayNames = new Intl.DisplayNames([i18n.language], { type: 'language' });
+            const localizedName = displayNames.of(langCode);
+            const nativeName = APP_LANGUAGES.find(l => l.code === langCode)?.nativeName || langCode;
+            
+            if (localizedName && localizedName.toLowerCase() !== nativeName.toLowerCase()) {
+                return `${localizedName.charAt(0).toUpperCase() + localizedName.slice(1)} (${nativeName})`;
+            }
+            return nativeName;
+        } catch (e) {
+            return APP_LANGUAGES.find(l => l.code === langCode)?.nativeName || langCode;
+        }
+    }, [settings?.appLanguage, i18n.language]);
+
     const currentThemeName = settings?.themeMode === 'dark' ? t('settings.dark_mode') : settings?.themeMode === 'light' ? t('settings.light_mode') : t('settings.system_mode', 'System');
 
     const handleLogout = async () => {
