@@ -159,7 +159,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                                         setTimeout(() => setIsOpen(false), 10);
                                     }}
                                     className={cn(
-                                        'w-full px-4 py-3 text-left flex items-center justify-between transition-colors font-semibold text-[15px]',
+                                        'w-full px-4 py-2 text-left flex items-center justify-between transition-colors font-semibold text-[15px]',
                                         'hover:bg-gray-50 dark:hover:bg-dark-hover',
                                         item.danger
                                             ? 'text-red-500'

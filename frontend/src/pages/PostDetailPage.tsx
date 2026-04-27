@@ -542,12 +542,6 @@ const PostDetailPage: React.FC = () => {
         ...(isOwnPost ? [
             { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
             {
-                id: 'edit',
-                label: t('common.edit_post', 'Edit Post'),
-                icon: <FiType />,
-                onClick: () => dispatch(openEditPost(post)),
-            },
-            {
                 id: 'delete',
                 label: t('common.delete_post', 'Delete Post'),
                 icon: <FiTrash2 />,
