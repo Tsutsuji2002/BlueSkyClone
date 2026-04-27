@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useNavigationType } from 'react-router-dom';
+import Skeleton from '../components/common/Skeleton';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -314,7 +315,9 @@ const ProfilePage: React.FC = () => {
 
     const isStale = profileUser && handle && !profileMatchesIdentifier(profileUser, handle);
 
-    if ((isProfileLoading && !profileUser) || isStale) {
+    // We no longer block on ProfileSkeleton here to allow ProfileTabContent to mount and fetch in parallel.
+    // Instead, we will render skeletons for header elements inside the main return.
+    if (isStale) {
         return <ProfileSkeleton />;
     }
 
@@ -396,14 +399,15 @@ const ProfilePage: React.FC = () => {
             <div className="flex flex-col bg-white dark:bg-dark-bg">
                 {/* Header/Cover Section */}
                 <div className="relative w-full">
-                    {/* Cover Image */}
-                    <div className="h-40 lg:h-48 w-full bg-blue-100 dark:bg-dark-surface overflow-hidden">
-                        {coverImage && (
+                    <div className="h-40 lg:h-48 w-full bg-gray-200 dark:bg-dark-surface overflow-hidden">
+                        {(coverImage || profileUser?.coverImage) ? (
                             <img
-                                src={coverImage}
+                                src={coverImage || profileUser?.coverImage}
                                 alt="Cover"
                                 className="w-full h-full object-cover"
                             />
+                        ) : (
+                            <div className="w-full h-full bg-blue-100 dark:bg-dark-surface" />
                         )}
                     </div>
 
@@ -504,25 +508,32 @@ const ProfilePage: React.FC = () => {
                         />
                     </div>
 
-                    {/* Identity Section */}
                     <div className="mt-4 lg:mt-6 mb-1 min-w-0">
                         <div className="flex items-center gap-1.5 min-w-0">
-                            <h1
-                                className="min-w-0 max-w-full truncate text-[24px] lg:text-[28px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight"
-                                title={profileUser?.displayName || profileUser?.handle || ''}
-                            >
-                                {profileUser?.displayName || profileUser?.handle}
-                            </h1>
+                            {profileUser ? (
+                                <h1
+                                    className="min-w-0 max-w-full truncate text-[24px] lg:text-[28px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight"
+                                    title={profileUser?.displayName || profileUser?.handle || ''}
+                                >
+                                    {profileUser?.displayName || profileUser?.handle}
+                                </h1>
+                            ) : (
+                                <Skeleton variant="text" width={200} height={32} />
+                            )}
                             {profileUser?.isVerified && (
                                 <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={20} />
                             )}
                         </div>
-                        <p
-                            className="mt-0.5 max-w-full truncate text-[15px] text-gray-500 dark:text-dark-text-secondary"
-                            title={profileUser?.handle || ''}
-                        >
-                            {formatHandleText(profileUser?.handle)}
-                        </p>
+                        {profileUser ? (
+                            <p
+                                className="mt-0.5 max-w-full truncate text-[15px] text-gray-500 dark:text-dark-text-secondary"
+                                title={profileUser?.handle || ''}
+                            >
+                                {formatHandleText(profileUser?.handle)}
+                            </p>
+                        ) : (
+                            <Skeleton variant="text" width={120} height={20} className="mt-1" />
+                        )}
                     </div>
 
                     {!profileUser?.isBlockedBy && (
@@ -624,7 +635,7 @@ const ProfilePage: React.FC = () => {
                                     style={{ display: activeTab === tab.id ? 'block' : 'none' }}
                                 >
                                     <ProfileTabContent 
-                                        userId={profileUser!.handle || profileUser!.did || profileUser!.id}
+                                        userId={profileUser?.handle || profileUser?.did || profileUser?.id || handle!}
                                         type={tab.id}
                                         isOwnProfile={isOwnProfile}
                                         isActive={activeTab === tab.id}

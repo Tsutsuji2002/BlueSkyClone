@@ -75,15 +75,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 nextCursor = null;
             }
 
-            // Authoritatively hydrate isLiked/isReposted/isBookmarked from the
-            // dedicated interactions/status endpoint (queries local DB directly).
-            // Must run before any forced overrides so the likes/saves tab can supplement.
-            if (fetchedPosts.length > 0) {
-                fetchedPosts = await hydratePostsWithInteractionStatus(fetchedPosts, token || null);
-            }
-
-            // If we are in the likes tab, these posts are inherently liked by the user —
-            // force isLiked:true even for natively-liked posts not yet in the local DB.
             if (type === 'likes') {
                 fetchedPosts.forEach(p => { p.isLiked = true; });
             }
@@ -108,8 +99,26 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         }
     }, [userId, type, cursor, hasMore, loading, t, dispatch]);
 
+    const prevUserIdRef = useRef<string | null>(null);
+
     useEffect(() => {
+        // Only clear and re-fetch if the userId has TRULY changed.
+        // We allow handle -> handle or handle -> DID transitions if they likely refer to the same user.
+        // In this app, userId is often the handle initially and then potentially the DID.
+        if (prevUserIdRef.current && prevUserIdRef.current !== userId) {
+            // Check if it's just a handle-to-identity resolution (e.g. "user.bsky.social" -> "did:plc:...")
+            // Usually, if we already have posts and we're just resolving, we don't want to clear.
+            if (posts.length > 0 && (userId.startsWith('did:') || prevUserIdRef.current.startsWith('did:'))) {
+                 // Potentially the same user. For now, let's just avoid the clear if we have posts.
+                 // A more robust check might involve the actual profile handle.
+            } else {
+                setPosts([]);
+                setInitialLoading(true);
+            }
+        }
+        
         fetchBatch(true);
+        prevUserIdRef.current = userId;
     }, [userId, type]);
 
     // Infinite scroll for MediaGrid
@@ -126,13 +135,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         return () => observer.disconnect();
     }, [type, hasMore, loading, isActive, fetchBatch]);
 
-    if (initialLoading && posts.length === 0) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <LoadingIndicator size="lg" />
-            </div>
-        );
-    }
+
 
     if (type === 'lists') {
         return (
