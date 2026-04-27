@@ -24,7 +24,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
     if (!atPost) return atPost;
 
     // If it's already mapped (has content and createdAt at top level), return it
-    if (atPost.content && atPost.createdAt && atPost.author?.id) {
+    if (atPost.content !== undefined && atPost.createdAt && atPost.author?.id) {
         return {
             ...atPost,
             author: atPost.author
