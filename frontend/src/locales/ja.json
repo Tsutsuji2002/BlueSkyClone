@@ -135,7 +135,7 @@
         "experimental": "Experimental",
         "show_sample_saved_feeds": "Show samples from saved feeds",
         "feed_visibility": "Feed visibility",
-        "system_mode": "System",
+        "system_mode": "システム",
         "password_required": "Current password is required",
         "new_email_placeholder": "Enter new email",
         "current_password_placeholder": "Current password",
@@ -594,7 +594,7 @@
         "confirm_delete_for_me": "Are you sure you want to delete this message for yourself? It will remain visible to other participants.",
         "delete_success": "Message deleted for you",
         "delete_error": "Failed to delete message",
-        "chat_settings_link": "Chat settings"
+        "chat_settings_link": "チャット設定"
     },
     "post": {
         "title": "投稿",
@@ -680,8 +680,8 @@
         "help": "ヘルプ",
         "trending_header": "トレンドトピック",
         "trending_handle": "@trending.bsky.app",
-        "more_feeds": "More feeds",
-        "search_placeholder": "Search"
+        "more_feeds": "もっと見る",
+        "search_placeholder": "検索"
     },
     "about": {
         "title": "About",
@@ -850,13 +850,13 @@
         "bsky_moderation_service_desc": "Official Bluesky moderation service."
     },
     "chat_settings": {
-        "title": "Chat settings",
-        "allow_messages_from": "Allow new messages from",
-        "everyone": "Everyone",
-        "followers": "Users I follow",
-        "none": "No one",
-        "allow_messages_from_desc": "Select who can start a direct message conversation with you.",
-        "allow_ongoing_desc": "You can continue ongoing conversations regardless of which setting you choose."
+        "title": "チャット設定",
+        "allow_messages_from": "新しいメッセージを許可するユーザー",
+        "everyone": "全員",
+        "followers": "フォローしているユーザーのみ",
+        "none": "誰にも許可しない",
+        "allow_messages_from_desc": "ダイレクトメッセージの開始を許可するユーザーを選択してください。",
+        "allow_ongoing_desc": "どちらの設定を選択しても、進行中の会話は継続できます。"
     },
     "search": {
         "title": "Search",

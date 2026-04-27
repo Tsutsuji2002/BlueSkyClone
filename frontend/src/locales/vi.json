@@ -661,7 +661,7 @@
         "confirm_delete_for_me": "Bạn có chắc chắn muốn xóa tin nhắn này đối với bạn không? Những người khác vẫn sẽ thấy nó.",
         "delete_success": "Đã xóa tin nhắn cho bạn",
         "delete_error": "Xóa tin nhắn thất bại",
-        "chat_settings_link": "Chat settings"
+        "chat_settings_link": "Cài đặt chat"
     },
     "chat_settings": {
         "title": "Cài đặt trò chuyện",
@@ -817,8 +817,8 @@
         "help": "Giúp đỡ",
         "trending_header": "Chủ đề nổi trội",
         "trending_handle": "@trending.bsky.app",
-        "more_feeds": "More feeds",
-        "search_placeholder": "Search"
+        "more_feeds": "Thêm feed",
+        "search_placeholder": "Tìm kiếm"
     },
     "about": {
         "title": "Giới thiệu",

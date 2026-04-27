@@ -148,7 +148,7 @@
         "experimental": "Experimental",
         "show_sample_saved_feeds": "Show samples from saved feeds",
         "feed_visibility": "Feed visibility",
-        "system_mode": "System",
+        "system_mode": "系统",
         "logout_label": "Log out",
         "password_required": "Current password is required",
         "new_email_placeholder": "Enter new email",
@@ -271,7 +271,7 @@
         "following_empty_recent": "No recent posts from people you follow right now.",
         "follow_more_cta": "Follow more accounts to see more content.",
         "home_order_settings": "Feed Order & Pins",
-        "liked_by_users": "Liked by {{count}} users",
+        "liked_by_users": "被 {{count}} 位用户点赞",
         "discover_new_feeds": "Discover New Feeds",
         "discover_new_feeds_desc": "Pick your own feeds! Community-built feeds help you find the content you love.",
         "search_feeds": "Search feeds",
@@ -280,7 +280,7 @@
         "no_saved_feeds": "You don't have any saved feeds.",
         "no_pinned": "You don't have any pinned feeds.",
         "search_results": "Search Results",
-        "recommended_for_you": "Recommended for you",
+        "recommended_for_you": "为您推荐",
         "following_end": "Follow more people to get more content...",
         "pin": "Pin",
         "unpin": "Unpin",
@@ -289,8 +289,8 @@
         "science": "Science",
         "news": "News",
         "discover_description": "Pick your own feeds! Community-built feeds help you find the content you love.",
-        "search_feeds_placeholder": "Search feeds...",
-        "my_feeds_hint": "Pin feeds to add them to Home. Use settings for order on Home.",
+        "search_feeds_placeholder": "搜索源...",
+        "my_feeds_hint": "固定提要以将其添加到主页。使用主页上的订单设置。",
         "no_recommendations": "No recommendations found."
     },
     "explore": {
@@ -356,15 +356,15 @@
         "km": "ภาษาเขมร – Khmer",
         "ne": "नेपाली – Nepali",
         "yue": "粵文 – Cantonese",
-        "add_more": "Add more languages...",
-        "search_languages": "Search languages",
-        "search_languages_placeholder": "Search languages...",
-        "recently_used": "Recently used",
-        "all_languages": "All languages",
-        "no_results": "No languages found matching \"{{query}}\"",
-        "modal_title": "Select content languages",
-        "modal_desc": "If none are selected, all languages will be shown in your feeds.",
-        "done": "Done"
+        "add_more": "添加更多语言...",
+        "search_languages": "搜索语言",
+        "search_languages_placeholder": "搜索语言...",
+        "recently_used": "最近使用过",
+        "all_languages": "所有语言",
+        "no_results": "未找到与“{{query}}”匹配的语言",
+        "modal_title": "选择内容语言",
+        "modal_desc": "如果未选择任何语言，则所有语言都将显示在您的源中。",
+        "done": "完毕"
     },
     "messages": {
         "title": "消息",
@@ -406,7 +406,7 @@
         "confirm_delete_for_me": "Are you sure you want to delete this message for yourself? It will remain visible to other participants.",
         "delete_success": "Message deleted for you",
         "delete_error": "Failed to delete message",
-        "chat_settings_link": "Chat settings"
+        "chat_settings_link": "聊天设置"
     },
     "home": {
         "title": "首页",
@@ -609,8 +609,8 @@
         "help": "帮助",
         "trending_header": "热门话题",
         "trending_handle": "@trending.bsky.app",
-        "more_feeds": "More feeds",
-        "search_placeholder": "Search"
+        "more_feeds": "更多动态",
+        "search_placeholder": "搜索"
     },
     "about": {
         "title": "关于",
@@ -851,13 +851,13 @@
         }
     },
     "chat_settings": {
-        "title": "Chat settings",
-        "allow_messages_from": "Allow new messages from",
-        "everyone": "Everyone",
-        "followers": "Users I follow",
-        "none": "No one",
-        "allow_messages_from_desc": "Select who can start a direct message conversation with you.",
-        "allow_ongoing_desc": "You can continue ongoing conversations regardless of which setting you choose."
+        "title": "聊天设置",
+        "allow_messages_from": "允许来自以下位置的新消息",
+        "everyone": "每个人",
+        "followers": "我关注的用户",
+        "none": "没有人",
+        "allow_messages_from_desc": "选择谁可以与您发起直接消息对话。",
+        "allow_ongoing_desc": "无论您选择哪种设置，您都可以继续正在进行的对话。"
     },
     "search": {
         "title": "Search",

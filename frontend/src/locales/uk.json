@@ -157,14 +157,14 @@
         "km": "ภาษาเขมร – Khmer",
         "ne": "नेपाली – Nepali",
         "yue": "粵文 – Cantonese",
-        "search_languages": "Search languages",
-        "search_languages_placeholder": "Search languages...",
-        "recently_used": "Recently used",
-        "all_languages": "All languages",
-        "no_results": "No languages found matching \"{{query}}\"",
-        "modal_title": "Select content languages",
-        "modal_desc": "If none are selected, all languages will be shown in your feeds.",
-        "done": "Done"
+        "search_languages": "Пошук мов",
+        "search_languages_placeholder": "Пошук мов...",
+        "recently_used": "Нещодавно використаний",
+        "all_languages": "Всі мови",
+        "no_results": "Не знайдено мов, що відповідають \"{{query}}\"",
+        "modal_title": "Виберіть мови вмісту",
+        "modal_desc": "Якщо жоден не вибраний, усі мови відображатимуться у ваших стрічках.",
+        "done": "Готово"
     },
     "profile": {
         "edit_profile": "Змінити профіль",
@@ -292,7 +292,7 @@
         "following_empty_recent": "No recent posts from people you follow right now.",
         "follow_more_cta": "Follow more accounts to see more content.",
         "home_order_settings": "Feed Order & Pins",
-        "liked_by_users": "Liked by {{count}} users",
+        "liked_by_users": "Подобається {{count}} користувачам",
         "discover_new_feeds": "Discover New Feeds",
         "discover_new_feeds_desc": "Pick your own feeds! Community-built feeds help you find the content you love.",
         "search_feeds": "Search feeds",
@@ -301,7 +301,7 @@
         "no_saved_feeds": "You don't have any saved feeds.",
         "no_pinned": "You don't have any pinned feeds.",
         "search_results": "Search Results",
-        "recommended_for_you": "Recommended for you",
+        "recommended_for_you": "Рекомендовано для вас",
         "following_end": "Follow more people to get more content...",
         "pin": "Pin",
         "unpin": "Unpin",
@@ -310,8 +310,8 @@
         "science": "Science",
         "news": "News",
         "discover_description": "Pick your own feeds! Community-built feeds help you find the content you love.",
-        "search_feeds_placeholder": "Search feeds...",
-        "my_feeds_hint": "Pin feeds to add them to Home. Use settings for order on Home.",
+        "search_feeds_placeholder": "Пошук каналів...",
+        "my_feeds_hint": "Закріпіть канали, щоб додати їх на головну сторінку. Використовуйте налаштування для замовлення на Home.",
         "no_recommendations": "No recommendations found."
     },
     "lists": {
@@ -709,16 +709,16 @@
         "confirm_delete_for_me": "Are you sure you want to delete this message for yourself? It will remain visible to other participants.",
         "delete_success": "Message deleted for you",
         "delete_error": "Failed to delete message",
-        "chat_settings_link": "Chat settings"
+        "chat_settings_link": "Налаштування чату"
     },
     "chat_settings": {
-        "title": "Chat settings",
-        "allow_messages_from": "Allow new messages from",
-        "everyone": "Everyone",
-        "followers": "Users I follow",
-        "none": "No one",
-        "allow_messages_from_desc": "Select who can start a direct message conversation with you.",
-        "allow_ongoing_desc": "You can continue ongoing conversations regardless of which setting you choose."
+        "title": "Налаштування чату",
+        "allow_messages_from": "Дозволити нові повідомлення від",
+        "everyone": "Всі",
+        "followers": "Користувачі, за якими я стежу",
+        "none": "ніхто",
+        "allow_messages_from_desc": "Виберіть, хто може розпочати з вами розмову в прямому ефірі.",
+        "allow_ongoing_desc": "Ви можете продовжувати поточні розмови незалежно від вибраного параметра."
     },
     "search": {
         "title": "Search",
@@ -818,8 +818,8 @@
         "feedback": "Feedback",
         "help": "Help",
         "trending_header": "Trending",
-        "more_feeds": "More feeds",
-        "search_placeholder": "Search"
+        "more_feeds": "Більше каналів",
+        "search_placeholder": "Пошук"
     },
     "about": {
         "title": "About",

@@ -156,7 +156,7 @@
         "experimental": "Experimental",
         "show_sample_saved_feeds": "Show samples from saved feeds",
         "feed_visibility": "Feed visibility",
-        "system_mode": "System",
+        "system_mode": "Sistema",
         "logout_label": "Log out",
         "password_required": "Current password is required",
         "new_email_placeholder": "Enter new email",
@@ -279,7 +279,7 @@
         "following_empty_recent": "No hay publicaciones recientes de las personas que sigues en este momento.",
         "follow_more_cta": "Sigue a más cuentas para ver más contenido.",
         "home_order_settings": "Orden de feeds y pines",
-        "liked_by_users": "Liked by {{count}} users",
+        "liked_by_users": "Me gustaron {{count}} usuarios",
         "discover_new_feeds": "Discover New Feeds",
         "discover_new_feeds_desc": "Pick your own feeds! Community-built feeds help you find the content you love.",
         "search_feeds": "Search feeds",
@@ -288,7 +288,7 @@
         "no_saved_feeds": "You don't have any saved feeds.",
         "no_pinned": "You don't have any pinned feeds.",
         "search_results": "Search Results",
-        "recommended_for_you": "Recommended for you",
+        "recommended_for_you": "Recomendado para ti",
         "following_end": "Follow more people to get more content...",
         "pin": "Pin",
         "unpin": "Unpin",
@@ -297,8 +297,8 @@
         "science": "Science",
         "news": "News",
         "discover_description": "Pick your own feeds! Community-built feeds help you find the content you love.",
-        "search_feeds_placeholder": "Search feeds...",
-        "my_feeds_hint": "Pin feeds to add them to Home. Use settings for order on Home.",
+        "search_feeds_placeholder": "Buscar canales...",
+        "my_feeds_hint": "Anclar feeds para agregarlos a Inicio. Utilice la configuración para realizar pedidos en Inicio.",
         "no_recommendations": "No recommendations found."
     },
     "explore": {
@@ -367,15 +367,15 @@
         "km": "ภาษาเขมร – Khmer",
         "ne": "नेपाली – Nepali",
         "yue": "粵文 – Cantonese",
-        "add_more": "Add more languages...",
-        "search_languages": "Search languages",
-        "search_languages_placeholder": "Search languages...",
-        "recently_used": "Recently used",
-        "all_languages": "All languages",
-        "no_results": "No languages found matching \"{{query}}\"",
-        "modal_title": "Select content languages",
-        "modal_desc": "If none are selected, all languages will be shown in your feeds.",
-        "done": "Done"
+        "add_more": "Añadir más idiomas...",
+        "search_languages": "Idiomas de búsqueda",
+        "search_languages_placeholder": "Buscar idiomas...",
+        "recently_used": "Usado recientemente",
+        "all_languages": "Todos los idiomas",
+        "no_results": "No se encontraron idiomas que coincidan con \"{{query}}\"",
+        "modal_title": "Seleccionar idiomas de contenido",
+        "modal_desc": "Si no se selecciona ninguno, todos los idiomas se mostrarán en sus feeds.",
+        "done": "Hecho"
     },
     "messages": {
         "title": "Mensajes",
@@ -417,7 +417,7 @@
         "confirm_delete_for_me": "Are you sure you want to delete this message for yourself? It will remain visible to other participants.",
         "delete_success": "Message deleted for you",
         "delete_error": "Failed to delete message",
-        "chat_settings_link": "Chat settings"
+        "chat_settings_link": "Configuración de chat"
     },
     "home": {
         "title": "Inicio",
@@ -620,8 +620,8 @@
         "help": "Ayuda",
         "trending_header": "Temas de tendencia",
         "trending_handle": "@trending.bsky.app",
-        "more_feeds": "More feeds",
-        "search_placeholder": "Search"
+        "more_feeds": "Más feeds",
+        "search_placeholder": "Buscar"
     },
     "about": {
         "title": "Acerca de",
@@ -862,13 +862,13 @@
         }
     },
     "chat_settings": {
-        "title": "Chat settings",
-        "allow_messages_from": "Allow new messages from",
-        "everyone": "Everyone",
-        "followers": "Users I follow",
-        "none": "No one",
-        "allow_messages_from_desc": "Select who can start a direct message conversation with you.",
-        "allow_ongoing_desc": "You can continue ongoing conversations regardless of which setting you choose."
+        "title": "Configuración de chat",
+        "allow_messages_from": "Permitir nuevos mensajes de",
+        "everyone": "Todos",
+        "followers": "Usuarios que sigo",
+        "none": "Nadie",
+        "allow_messages_from_desc": "Seleccione quién puede iniciar una conversación de mensaje directo con usted.",
+        "allow_ongoing_desc": "Puede continuar las conversaciones en curso independientemente de la configuración que elija."
     },
     "search": {
         "title": "Search",
