@@ -30,15 +30,23 @@ public class ProfileController : ControllerBase
     [HttpGet("profile/{*handle}")]
     public async Task<IActionResult> GetProfile(string handle)
     {
-        User? user;
-        if (Guid.TryParse(handle, out var userId))
+        User? user = null;
+        try
         {
-            user = await _userService.GetUserByIdAsync(userId);
+            if (Guid.TryParse(handle, out var userId))
+            {
+                user = await _userService.GetUserByIdAsync(userId);
+            }
+            else
+            {
+                user = await _userService.GetUserByHandleAsync(handle) 
+                       ?? await _userService.GetUserByUsernameAsync(handle);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            user = await _userService.GetUserByHandleAsync(handle) 
-                   ?? await _userService.GetUserByUsernameAsync(handle);
+            _logger.LogError(ex, "Local profile lookup failed for {Handle}. Falling back to remote resolution.", handle);
+            user = null;
         }
                    
         // Enforce guest visibility setting: if the profile owner requires login to view, block unauthenticated callers
@@ -59,8 +67,15 @@ public class ProfileController : ControllerBase
         else if (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
         {
             // Federating user: trigger a refresh to sync latest network stats (followers/following/posts)
-            var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did, token, currentUserIdGuid);
-            if (refreshed != null) user = refreshed;
+            try
+            {
+                var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did, token, currentUserIdGuid);
+                if (refreshed != null) user = refreshed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Remote profile refresh failed for {Did}. Using local data.", user.Did);
+            }
         }
         bool isGuest = string.IsNullOrEmpty(currentUserIdString);
         if (isGuest && user.Id != Guid.Empty)

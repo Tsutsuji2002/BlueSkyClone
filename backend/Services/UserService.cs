@@ -472,53 +472,103 @@ public class UserService : IUserService
                 var did = root.GetProperty("did").GetString();
                 if (string.IsNullOrEmpty(did)) return null;
 
-                var profileHandle = root.GetProperty("handle").GetString();
-                
-                // Merge/Sync logic
-                // await MergeDuplicateUsersAsync(did);
-                var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
-                if (user == null)
+                var profileHandle = root.TryGetProperty("handle", out var hp) ? hp.GetString() : null;
+
+                // Build a transient User from the API response so we always have something to return
+                // even if the local DB persistence fails (e.g. SQL page corruption)
+                var transientUser = new User
                 {
-                    var username = profileHandle?.Split('.')[0] ?? did;
-                    user = new User
+                    Id = Guid.NewGuid(),
+                    Did = did,
+                    Handle = profileHandle,
+                    Username = profileHandle?.Split('.')[0] ?? did,
+                    DisplayName = root.TryGetProperty("displayName", out var dn0) ? dn0.GetString() : null,
+                    AvatarUrl = root.TryGetProperty("avatar", out var av0) ? av0.GetString() : null,
+                    CoverImageUrl = root.TryGetProperty("banner", out var bn0) ? bn0.GetString() : null,
+                    Bio = root.TryGetProperty("description", out var ds0) ? ds0.GetString() : null,
+                    FollowersCount = root.TryGetProperty("followersCount", out var fc0) && fc0.TryGetInt32(out var fct0) ? fct0 : 0,
+                    FollowingCount = root.TryGetProperty("followsCount", out var fw0) && fw0.TryGetInt32(out var fwt0) ? fwt0 : 0,
+                    PostsCount = root.TryGetProperty("postsCount", out var pc0) && pc0.TryGetInt32(out var pct0) ? pct0 : 0,
+                    IsVerified = true,
+                    CreatedAt = DateTime.UtcNow,
+                    PasswordHash = "REMOTE_USER",
+                    Salt = "REMOTE_USER",
+                    Email = $"{did}@remote.bsky.social"
+                };
+
+                // Try to persist to local DB for caching — but don't fail if the DB is having issues
+                try
+                {
+                    var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+                    if (user == null)
                     {
-                        Id = Guid.NewGuid(),
-                        Did = did,
-                        Username = username,
-                        CreatedAt = DateTime.UtcNow,
-                        PasswordHash = "REMOTE_USER",
-                        Salt = "REMOTE_USER",
-                        Email = $"{did}@remote.bsky.social"
-                    };
-                    await _unitOfWork.Users.AddAsync(user);
+                        if (!string.IsNullOrEmpty(profileHandle))
+                        {
+                            var existingWithHandle = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Did != did);
+                            if (existingWithHandle != null)
+                            {
+                                existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
+                                _unitOfWork.Users.Update(existingWithHandle);
+                            }
+                        }
+
+                        var baseUsername = profileHandle?.Split('.')[0] ?? did.Replace("did:plc:", "").Replace("did:", "");
+                        var username = $"{baseUsername}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+                        if (username.Length > 250) username = username.Substring(0, 250);
+
+                        user = new User
+                        {
+                            Id = Guid.NewGuid(),
+                            Did = did,
+                            Username = username,
+                            CreatedAt = DateTime.UtcNow,
+                            PasswordHash = "REMOTE_USER",
+                            Salt = "REMOTE_USER",
+                            Email = $"{did}@remote.bsky.social"
+                        };
+                        await _unitOfWork.Users.AddAsync(user);
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(profileHandle) && user.Handle != profileHandle)
+                        {
+                            var existingWithHandle = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Id != user.Id);
+                            if (existingWithHandle != null)
+                            {
+                                existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
+                                _unitOfWork.Users.Update(existingWithHandle);
+                            }
+                        }
+                    }
+
+                    user.Handle = profileHandle;
+                    user.DisplayName = transientUser.DisplayName;
+                    user.AvatarUrl = transientUser.AvatarUrl;
+                    user.CoverImageUrl = transientUser.CoverImageUrl;
+                    user.Bio = transientUser.Bio;
+                    user.FollowersCount = transientUser.FollowersCount;
+                    user.FollowingCount = transientUser.FollowingCount;
+                    user.PostsCount = transientUser.PostsCount;
+                    user.IsVerified = true;
+
+                    _unitOfWork.Users.Update(user);
+
+                    // Interactions (Mute/Block/Follow)
+                    if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
+                    {
+                        await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
+                    }
+
+                    await _unitOfWork.CompleteAsync();
+                    await _cacheService.SetAsync(cacheKey, user, TimeSpan.FromMinutes(30));
+                    return user;
                 }
-
-                user.Handle = profileHandle;
-                user.DisplayName = root.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
-                user.AvatarUrl = root.TryGetProperty("avatar", out var av) ? av.GetString() : null;
-                user.CoverImageUrl = root.TryGetProperty("banner", out var bn) ? bn.GetString() : null;
-                user.Bio = root.TryGetProperty("description", out var ds) ? ds.GetString() : null;
-                user.FollowersCount = root.TryGetProperty("followersCount", out var fc) && fc.TryGetInt32(out var followersCount) ? followersCount : (user.FollowersCount ?? 0);
-                user.FollowingCount =
-                    root.TryGetProperty("followsCount", out var followsCountProp) && followsCountProp.TryGetInt32(out var followsCount)
-                        ? followsCount
-                        : (root.TryGetProperty("followingCount", out var fgc) && fgc.TryGetInt32(out var followingCount)
-                            ? followingCount
-                            : (user.FollowingCount ?? 0));
-                user.PostsCount = root.TryGetProperty("postsCount", out var pc) && pc.TryGetInt32(out var postsCount) ? postsCount : (user.PostsCount ?? 0);
-                user.IsVerified = true;
-
-                _unitOfWork.Users.Update(user);
-
-                // Interactions (Mute/Block/Follow)
-                if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
+                catch (Exception dbEx)
                 {
-                    await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
+                    _logger.LogWarning(dbEx, "[ResolveRemoteProfileAsync] DB persistence failed for {Actor}. Returning transient profile.", identifier);
+                    // Return the transient user built from the API response so the caller still gets valid data
+                    return transientUser;
                 }
-
-                await _unitOfWork.CompleteAsync();
-                await _cacheService.SetAsync(cacheKey, user, TimeSpan.FromMinutes(30));
-                return user;
             }
         }
         catch (Exception ex)
