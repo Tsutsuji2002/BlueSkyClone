@@ -74,9 +74,9 @@ const PrivacySettingsPage: React.FC = () => {
                         >
                             <div className="flex items-center gap-4">
                                 <FiShield size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.2fa_title', 'Two-factor authentication (2FA)')}</span>
+                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.2fa_title')}</span>
                             </div>
-                            <span className="text-blue-500 font-medium text-sm">{t('privacy.enable', 'Enable')}</span>
+                            <span className="text-blue-500 font-medium text-sm">{t('privacy.enable')}</span>
                         </button>
 
                         <button
@@ -85,7 +85,7 @@ const PrivacySettingsPage: React.FC = () => {
                         >
                             <div className="flex items-center gap-4">
                                 <FiKey size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.app_passwords', 'App passwords')}</span>
+                                <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.app_passwords')}</span>
                             </div>
                             <FiChevronRight className="text-gray-300 dark:text-dark-text-secondary" />
                         </button>
@@ -97,13 +97,13 @@ const PrivacySettingsPage: React.FC = () => {
                             <div className="flex items-center gap-4">
                                 <FiBell size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
                                 <div className="flex flex-col items-start text-left">
-                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.notify_posts', 'Allow others to be notified of your posts')}</span>
+                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('privacy.notify_posts')}</span>
                                     <span className="text-sm text-gray-500 dark:text-dark-text-secondary">
                                         {settings?.defaultReplyRestriction === 'followers' 
-                                            ? t('privacy.followers_i_follow', 'Only followers who I follow')
+                                            ? t('privacy.followers_i_follow')
                                             : settings?.defaultReplyRestriction === 'none'
-                                                ? t('privacy.no_one', 'No one')
-                                                : t('privacy.anyone_follows', 'Anyone who follows me')}
+                                                ? t('privacy.no_one')
+                                                : t('privacy.anyone_follows')}
                                     </span>
                                 </div>
                             </div>
@@ -116,13 +116,13 @@ const PrivacySettingsPage: React.FC = () => {
                         <div className="flex items-center gap-3 mb-4">
                             <FiEyeOff size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
                             <h3 className="text-[17px] font-bold text-gray-900 dark:text-dark-text">
-                                {t('privacy.logout_visibility', 'Logged-out visibility')}
+                                {t('privacy.logout_visibility')}
                             </h3>
                         </div>
                         
                         <div className="flex items-start justify-between gap-4 mb-2">
                             <h4 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
-                                {t('privacy.logout_visibility_label', 'Discourage apps from showing my account to logged-out users')}
+                                {t('privacy.logout_visibility_label')}
                             </h4>
                             <label className="relative inline-flex items-center cursor-pointer ml-auto shrink-0 mt-0.5">
                                 <input
@@ -136,7 +136,7 @@ const PrivacySettingsPage: React.FC = () => {
                         </div>
 
                         <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary mb-4 leading-relaxed">
-                            {t('privacy.logout_visibility_desc', 'Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.')}
+                            {t('privacy.logout_visibility_desc')}
                         </p>
 
                         <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-4 rounded-xl">
@@ -144,10 +144,10 @@ const PrivacySettingsPage: React.FC = () => {
                                 <span className="text-blue-500 mt-0.5 text-lg">ⓘ</span>
                                 <div className="flex flex-col gap-1">
                                     <p className="text-[14px] text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                                        <span className="font-bold">{t('settings.note', 'Note')}:</span> {t('privacy.logout_visibility_note', 'Bluesky is an open and public network. This setting only limits the visibility of your content on the BlueSky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.')}
+                                        <span className="font-bold">{t('settings.note', 'Note')}:</span> {t('privacy.logout_visibility_note')}
                                     </p>
                                     <a href="#" className="text-blue-500 hover:underline text-[14px] font-medium inline-block transition-colors">
-                                        {t('privacy.learn_more', 'Learn more about what is public on BlueSky.')}
+                                        {t('privacy.learn_more')}
                                     </a>
                                 </div>
                             </div>

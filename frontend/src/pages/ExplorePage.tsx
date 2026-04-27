@@ -209,6 +209,7 @@ const ExplorePage: React.FC = () => {
                                     ref={searchInputRef}
                                     type="text"
                                     placeholder={t('explore.search_placeholder')}
+                                    className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(e.target.value);
@@ -219,7 +220,6 @@ const ExplorePage: React.FC = () => {
                                         setIsSearchUIActive(true);
                                     }}
                                     onKeyDown={handleKeyDown}
-                                    className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
                                 />
                                 {searchQuery && (
                                     <button
@@ -235,7 +235,7 @@ const ExplorePage: React.FC = () => {
                                     onClick={handleCancelSearch}
                                     className="text-primary-500 font-medium hover:underline px-1"
                                 >
-                                    {t('common.cancel', { defaultValue: 'Cancel' })}
+                                    {t('common.cancel')}
                                 </button>
                             )}
                         </div>
@@ -245,7 +245,7 @@ const ExplorePage: React.FC = () => {
                             <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl shadow-xl z-50 overflow-hidden min-h-[100px] max-h-[80vh] flex flex-col">
                                 <div className="p-3 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50">
                                     <p className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
-                                        {t('search.searching_for', { defaultValue: 'Searching for "{{query}}"', query: searchQuery })}
+                                        {t('search.searching_for', { query: searchQuery })}
                                     </p>
                                 </div>
 
@@ -303,7 +303,7 @@ const ExplorePage: React.FC = () => {
                                     ) : searchQuery.trim() ? (
                                         <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface"
                                             onClick={() => navigate(`/search?q=${encodeURIComponent(searchQuery)}`)}>
-                                            <p className="font-medium text-primary-500">{t('search.goto_search', { defaultValue: 'Search all for "{{query}}"', query: searchQuery })}</p>
+                                            <p className="font-medium text-primary-500">{t('search.goto_search', { query: searchQuery })}</p>
                                         </div>
                                     ) : null}
                                 </div>
@@ -318,7 +318,7 @@ const ExplorePage: React.FC = () => {
                             {searchQuery.trim() && (
                                 <div className="mb-4">
                                     <h3 className="text-sm font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider px-2">
-                                        {t('search.results_for', { defaultValue: 'Search for "{{query}}"', query: searchQuery })}
+                                        {t('search.searching_for', { query: searchQuery })}
                                     </h3>
                                 </div>
                             )}
@@ -401,13 +401,13 @@ const ExplorePage: React.FC = () => {
                                     </div>
                                 ) : searchQuery.trim() ? (
                                     <div className="p-12 text-center text-gray-500 dark:text-dark-text-secondary">
-                                        <p>{t('search.no_results', { defaultValue: 'No results found for "{{query}}"', query: searchQuery })}</p>
+                                        <p>{t('search.no_results', { query: searchQuery })}</p>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-6">
                                         <SuggestedUsersForExplore />
                                         <div className="p-12 text-center text-gray-500 dark:text-dark-text-secondary">
-                                            <p>{t('search.start_typing', { defaultValue: 'Search for posts, users, or feeds' })}</p>
+                                            <p>{t('common.start_typing')}</p>
                                         </div>
                                     </div>
                                 )}
@@ -423,7 +423,7 @@ const ExplorePage: React.FC = () => {
 
                                 <div className="flex items-center gap-2 mb-3 text-primary-500">
                                     <FiGrid size={18} />
-                                    <h2 className="text-[17px] font-bold text-gray-900 dark:text-white">{t('explore.your_interests', { defaultValue: 'Your interests' })}</h2>
+                                    <h2 className="text-[17px] font-bold text-gray-900 dark:text-white">{t('explore.interests')}</h2>
                                 </div>
 
                                 <div className="mb-4">
@@ -431,14 +431,14 @@ const ExplorePage: React.FC = () => {
                                 </div>
 
                                 <p className="text-[14px] text-gray-900 dark:text-gray-100 mb-4 font-medium">
-                                    {t('explore.your_interests_desc', { defaultValue: 'Your interests help us find what you like!' })}
+                                    {t('explore.interests_desc')}
                                 </p>
 
                                 <button
                                     onClick={() => navigate('/interests')}
                                     className="w-full py-2.5 rounded-full bg-[#0085ff] hover:bg-[#0070d6] text-white font-bold text-[15px] transition-colors mb-2"
                                 >
-                                    {t('explore.edit_interests', { defaultValue: 'Edit interests' })}
+                                    {t('explore.edit_interests')}
                                 </button>
                             </section>
 
@@ -446,7 +446,7 @@ const ExplorePage: React.FC = () => {
                             <section className="flex flex-col border-b border-gray-200 dark:border-dark-border pb-4">
                                 {topics.length === 0 ? (
                                     <div className="p-8 flex justify-center">
-                                        <LoadingIndicator text={t('explore.loading_topics', { defaultValue: 'Loading trending topics...' })} />
+                                        <LoadingIndicator text={t('explore.loading_topics')} />
                                     </div>
                                 ) : topics.slice(0, 5).map((item, index) => {
                                     const hashtagStr = item.hashtag || (item as any).topic || item.id || '';
@@ -594,12 +594,12 @@ const ExplorePage: React.FC = () => {
                             {/* Discover Posts Section */}
                             <section className="flex flex-col mt-4">
                                 <div className="flex items-center justify-between px-2 mb-4">
-                                    <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text">{t('explore.discover_posts', { defaultValue: 'Discover Posts' })}</h2>
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text">{t('explore.discover_posts')}</h2>
                                     <button
                                         onClick={handleRefreshPosts}
                                         disabled={discoverLoading}
                                         className="p-2 text-gray-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors disabled:opacity-50"
-                                        title={t('common.refresh', { defaultValue: 'Refresh' })}
+                                        title={t('common.refresh')}
                                     >
                                         <FiRefreshCw size={18} className={discoverLoading ? 'animate-spin' : ''} />
                                     </button>
@@ -625,7 +625,7 @@ const ExplorePage: React.FC = () => {
                                     
                                     {!discoverHasMore && discoverPosts.length > 0 && (
                                         <div className="py-8 text-center text-gray-500 dark:text-dark-text-secondary text-sm font-medium">
-                                            {t('explore.no_more_posts', { defaultValue: 'No more posts to discover right now.' })}
+                                            {t('explore.no_more_posts')}
                                         </div>
                                     )}
                                 </div>

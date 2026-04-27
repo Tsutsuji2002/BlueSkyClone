@@ -232,7 +232,7 @@ const RightSidebar: React.FC = () => {
             return (
                 <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface"
                     onClick={() => navigate(`/search?q=${encodeURIComponent(searchQuery)}`)}>
-                    <p className="font-medium text-primary-500">{t('search.goto_search', { defaultValue: 'Search all for "{{query}}"', query: searchQuery })}</p>
+                    <p className="font-medium text-primary-500">{t('search.goto_search', { query: searchQuery })}</p>
                 </div>
             );
         }
@@ -248,7 +248,7 @@ const RightSidebar: React.FC = () => {
                     <FiSearch className="text-gray-400 dark:text-[#667b99] flex-shrink-0" size={18} />
                     <input
                         type="text"
-                        placeholder={t('sidebar.search_placeholder', { defaultValue: 'Search' })}
+                        placeholder={t('sidebar.search_placeholder')}
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
@@ -270,7 +270,7 @@ const RightSidebar: React.FC = () => {
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-2xl shadow-xl z-50 overflow-hidden min-h-[100px] max-h-[80vh] flex flex-col">
                         <div className="p-3 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50">
                             <p className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
-                                {t('search.searching_for', { defaultValue: 'Search for "{{query}}"', query: searchQuery })}
+                                {t('search.searching_for', { query: searchQuery })}
                             </p>
                         </div>
 
@@ -342,7 +342,7 @@ const RightSidebar: React.FC = () => {
                             <FiPlus size={16} className="text-gray-500 dark:text-[#a5b2c5]" />
                         </div>
                         <span className="text-[15px] font-normal text-gray-500 dark:text-[#a5b2c5] group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
-                            {t('sidebar.more_feeds', { defaultValue: 'More feeds' })}
+                            {t('sidebar.more_feeds')}
                         </span>
                     </button>
                 </div>

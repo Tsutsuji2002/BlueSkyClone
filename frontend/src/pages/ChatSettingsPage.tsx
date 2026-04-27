@@ -128,7 +128,7 @@ const ChatSettingsPage: React.FC = () => {
                 {isSaving && (
                     <div className="text-center pt-2">
                         <span className="text-sm text-gray-500 dark:text-dark-text-secondary animate-pulse">
-                            {t('common.saving', 'Saving...')}
+                            {t('common.saving')}
                         </span>
                     </div>
                 )}

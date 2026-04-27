@@ -156,7 +156,15 @@
         "ia": "Interlingua – Interlingua",
         "km": "ภาษาเขมร – Khmer",
         "ne": "नेपाली – Nepali",
-        "yue": "粵文 – Cantonese"
+        "yue": "粵文 – Cantonese",
+        "search_languages": "Search languages",
+        "search_languages_placeholder": "Search languages...",
+        "recently_used": "Recently used",
+        "all_languages": "All languages",
+        "no_results": "No languages found matching \"{{query}}\"",
+        "modal_title": "Select content languages",
+        "modal_desc": "If none are selected, all languages will be shown in your feeds.",
+        "done": "Done"
     },
     "profile": {
         "edit_profile": "Profyl bewurkje",
@@ -258,7 +266,9 @@
         "signalr": {
             "disconnected": "SignalR Disconnected. Real-time updates may be delayed.",
             "reconnecting": "SignalR Reconnecting..."
-        }
+        },
+        "refresh": "Refresh",
+        "start_typing": "Search for posts, users, or feeds"
     },
     "feeds": {
         "title": "Feeds",
@@ -298,7 +308,11 @@
         "feeds_guide": "Feeds are custom algorithms that users build with a little coding expertise. See this guide for more information.",
         "hot": "Hot",
         "science": "Science",
-        "news": "News"
+        "news": "News",
+        "discover_description": "Pick your own feeds! Community-built feeds help you find the content you love.",
+        "search_feeds_placeholder": "Search feeds...",
+        "my_feeds_hint": "Pin feeds to add them to Home. Use settings for order on Home.",
+        "no_recommendations": "No recommendations found."
     },
     "lists": {
         "title": "Lists",
@@ -503,7 +517,8 @@
         "logout_visibility_label": "Discourage apps from showing my account to logged-out users",
         "logout_visibility_desc": "Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.",
         "logout_visibility_note": "Note: Bluesky is an open and public network. This setting only limits the visibility of your content on the Bluesky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.",
-        "learn_more": "Learn more about what is public on Bluesky."
+        "learn_more": "Learn more about what is public on Bluesky.",
+        "learn_more_public": "Learn more about what is public on Bluesky."
     },
     "notifications": {
         "title": "Notifications",
@@ -589,7 +604,10 @@
         "promoted": "Promoted",
         "no_posts_found": "No trending posts found in the last 24 hours.",
         "trending_posts": "Trending posts",
-        "loading_accounts": "Loading trending accounts..."
+        "loading_accounts": "Loading trending accounts...",
+        "loading_topics": "Loading trending topics...",
+        "discover_posts": "Discover Posts",
+        "no_more_posts": "No more posts to discover right now."
     },
     "saved": {
         "title": "Saved",
@@ -690,7 +708,8 @@
         "delete_for_me": "Delete for me",
         "confirm_delete_for_me": "Are you sure you want to delete this message for yourself? It will remain visible to other participants.",
         "delete_success": "Message deleted for you",
-        "delete_error": "Failed to delete message"
+        "delete_error": "Failed to delete message",
+        "chat_settings_link": "Chat settings"
     },
     "chat_settings": {
         "title": "Chat settings",
@@ -799,7 +818,8 @@
         "feedback": "Feedback",
         "help": "Help",
         "trending_header": "Trending",
-        "more_feeds": "More feeds"
+        "more_feeds": "More feeds",
+        "search_placeholder": "Search"
     },
     "about": {
         "title": "About",
@@ -876,7 +896,10 @@
         "external_media_title": "Customize external media",
         "external_media_info": "External media may allow websites to collect information about you and your device. No information is sent or requested until you press the \"play\" button.",
         "enable_embed_for": "Enable media players for",
-        "my_interests_desc": "The topics you choose help us bring you content you're interested in."
+        "my_interests_desc": "The topics you choose help us bring you content you're interested in.",
+        "add_more_languages": "Add more languages",
+        "select_content_languages": "Select content languages",
+        "my_interests_title": "Your interests"
     },
     "accessibility": {
         "title": "Accessibility",

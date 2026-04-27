@@ -53,7 +53,7 @@ const SettingsPage: React.FC = () => {
         { id: 'privacy', label: t('settings.privacy'), icon: <FiLock size={20} /> },
         { id: 'moderation', label: t('settings.moderation'), icon: <FiShield size={20} /> },
         { id: 'notifications', label: t('settings.notifications'), icon: <FiBell size={20} /> },
-        { id: 'chat', label: t('settings.chat_settings'), icon: <FiMessageSquare size={20} /> },
+        { id: 'chat', label: t('chat_settings.title'), icon: <FiMessageSquare size={20} /> },
         { id: 'content', label: t('settings.content'), icon: <FiMonitor size={20} /> },
         { id: 'appearance', label: t('settings.appearance'), icon: <FiLayout size={20} />, value: currentThemeName, active: true },
         { id: 'accessibility', label: t('settings.accessibility'), icon: <FiMaximize size={20} /> },

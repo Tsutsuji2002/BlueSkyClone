@@ -137,7 +137,7 @@ const LanguagePage: React.FC = () => {
                                             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                             <input
                                                 type="text"
-                                                placeholder="Search languages..."
+                                                placeholder={t('language.search_languages_placeholder')}
                                                 className="w-full bg-gray-50 dark:bg-dark-bg border border-transparent rounded-lg pl-9 pr-4 py-2 text-sm dark:text-dark-text focus:outline-none"
                                                 onClick={(e) => e.stopPropagation()}
                                             />
@@ -204,7 +204,7 @@ const LanguagePage: React.FC = () => {
                                 )}
                             >
                                 <FiPlus size={20} />
-                                {t('language.add_more', { defaultValue: 'Add more languages...' })}
+                                {t('language.add_more')}
                             </button>
                         </div>
                     </section>

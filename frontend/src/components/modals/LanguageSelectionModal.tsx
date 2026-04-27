@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FiX, FiSearch, FiCheck } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import { ALL_LANGUAGES, LanguageMetadata } from '../../constants/languages';
 import { cn } from '../../utils/classNames';
 
@@ -10,6 +11,7 @@ interface LanguageSelectionModalProps {
 }
 
 const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose, selectedCodes, onToggle }) => {
+    const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredLanguages = useMemo(() => {
@@ -35,8 +37,8 @@ const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose
                 {/* Header */}
                 <div className="p-5 border-b border-gray-100 dark:border-dark-border flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text">Select content languages</h2>
-                        <p className="text-sm text-gray-500 dark:text-dark-text-secondary mt-1">If none are selected, all languages will be shown in your feeds.</p>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text">{t('language.modal_title')}</h2>
+                        <p className="text-sm text-gray-500 dark:text-dark-text-secondary mt-1">{t('language.modal_desc')}</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -52,7 +54,7 @@ const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose
                         <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input
                             type="text"
-                            placeholder="Search languages"
+                            placeholder={t('language.search_languages')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-gray-100 dark:bg-dark-surface border-none rounded-2xl pl-11 pr-4 py-3 text-[15px] dark:text-dark-text focus:ring-2 focus:ring-primary-500/20 transition-all outline-none"
@@ -65,7 +67,7 @@ const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose
                 <div className="flex-1 overflow-y-auto p-2 space-y-4">
                     {!searchQuery && recentlyUsed.length > 0 && (
                         <div>
-                            <h3 className="px-4 py-2 text-xs font-bold text-gray-400 dark:text-dark-text-secondary uppercase tracking-wider">Recently used</h3>
+                            <h3 className="px-4 py-2 text-xs font-bold text-gray-400 dark:text-dark-text-secondary uppercase tracking-wider">{t('language.recently_used')}</h3>
                             <div className="space-y-0.5">
                                 {recentlyUsed.map(lang => (
                                     <button
@@ -89,7 +91,7 @@ const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose
                     )}
 
                     <div>
-                        {!searchQuery && <h3 className="px-4 py-2 text-xs font-bold text-gray-400 dark:text-dark-text-secondary uppercase tracking-wider">All languages</h3>}
+                        {!searchQuery && <h3 className="px-4 py-2 text-xs font-bold text-gray-400 dark:text-dark-text-secondary uppercase tracking-wider">{t('language.all_languages')}</h3>}
                         <div className="space-y-0.5">
                             {filteredLanguages.map(lang => (
                                 <button
@@ -111,7 +113,7 @@ const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose
                         </div>
                         {filteredLanguages.length === 0 && (
                             <div className="p-8 text-center text-gray-500 dark:text-dark-text-secondary">
-                                No languages found matching "{searchQuery}"
+                                {t('language.no_results', { query: searchQuery })}
                             </div>
                         )}
                     </div>
@@ -123,7 +125,7 @@ const LanguageSelectionModal: React.FC<LanguageSelectionModalProps> = ({ onClose
                         onClick={onClose}
                         className="w-full bg-primary-500 hover:bg-primary-600 active:scale-[0.98] text-white font-bold py-4 rounded-full transition-all shadow-lg shadow-primary-500/20"
                     >
-                        Done
+                        {t('language.done')}
                     </button>
                 </div>
             </div>

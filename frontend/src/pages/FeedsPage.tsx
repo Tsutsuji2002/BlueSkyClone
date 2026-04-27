@@ -185,12 +185,10 @@ const FeedsPage: React.FC = () => {
                             </div>
                             <div className="flex flex-col gap-1">
                                 <h1 className="text-2xl font-black text-gray-900 dark:text-dark-text leading-tight">
-                                    {t('feeds.discover_new_feeds', { defaultValue: 'Khám phá bảng tin mới' })}
+                                    {t('feeds.discover_new_feeds')}
                                 </h1>
                                 <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary leading-normal">
-                                    {t('feeds.discover_description', { 
-                                        defaultValue: 'Chọn bảng tin của riêng bạn! Các bảng tin được xây dựng bởi cộng đồng giúp bạn tìm nội dung bạn yêu thích.' 
-                                    })}
+                                    {t('feeds.discover_description')}
                                 </p>
                             </div>
                         </div>
@@ -199,7 +197,7 @@ const FeedsPage: React.FC = () => {
                             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type="text"
-                                placeholder={t('feeds.search_feeds_placeholder', { defaultValue: 'Tìm bảng tin' })}
+                                placeholder={t('feeds.search_feeds_placeholder')}
                                 className="w-full bg-gray-100 dark:bg-dark-surface-secondary border-none rounded-2xl py-3 pl-12 pr-4 text-[16px] focus:ring-2 focus:ring-primary-500 outline-none transition-colors dark:text-dark-text placeholder-gray-500"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -241,7 +239,7 @@ const FeedsPage: React.FC = () => {
                             <div>
                                 <h2 className="font-bold text-gray-900 dark:text-dark-text">{t('feeds.my_feeds')}</h2>
                                 <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-0.5">
-                                    {t('feeds.my_feeds_hint', { defaultValue: 'Pin feeds to add them to Home. Use settings for order on Home.' })}
+                                    {t('feeds.my_feeds_hint')}
                                 </p>
                             </div>
                         </div>
@@ -313,7 +311,7 @@ const FeedsPage: React.FC = () => {
                             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
                             <input
                                 type="text"
-                                placeholder={t('feeds.search_feeds_placeholder', { defaultValue: 'Search feeds...' })}
+                                placeholder={t('feeds.search_feeds_placeholder')}
                                 className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -376,7 +374,7 @@ const FeedsPage: React.FC = () => {
                                                 {feed.name}
                                             </span>
                                             <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
-                                                {t('profile.feed_by', { defaultValue: 'Feed by' })} @{feed.handle}
+                                                {t('profile.feed_by')} @{feed.handle}
                                             </span>
                                         </div>
                                     </div>
@@ -403,8 +401,7 @@ const FeedsPage: React.FC = () => {
                                     ) : (
                                         <span className="text-[13px] font-medium text-gray-500 dark:text-dark-text-secondary">
                                             {t('feeds.liked_by_users', { 
-                                                count: feed.subscribersCount || feed.followersCount || 0,
-                                                defaultValue: `Liked by ${feed.subscribersCount || feed.followersCount || 0} users` 
+                                                count: feed.subscribersCount || feed.followersCount || 0
                                             })}
                                         </span>
                                     )}

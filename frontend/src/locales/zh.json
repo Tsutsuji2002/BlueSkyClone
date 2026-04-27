@@ -194,7 +194,8 @@
         "logout_visibility_desc": "阻止应用向已注销的用户显示您的帐户。",
         "logout_visibility_note": "注意：BlueSky 是一个开放的公共网络。此设置仅限制在应用上的可见性。",
         "learn_more": "了解更多。",
-        "logout_visibility_label": "Discourage apps from showing my account to logged-out users"
+        "logout_visibility_label": "Discourage apps from showing my account to logged-out users",
+        "learn_more_public": "Learn more about what is public on Bluesky."
     },
     "notifications": {
         "title": "通知",
@@ -286,7 +287,11 @@
         "feeds_guide": "Feeds are custom algorithms that users build with a little coding expertise. See this guide for more information.",
         "hot": "Hot",
         "science": "Science",
-        "news": "News"
+        "news": "News",
+        "discover_description": "Pick your own feeds! Community-built feeds help you find the content you love.",
+        "search_feeds_placeholder": "Search feeds...",
+        "my_feeds_hint": "Pin feeds to add them to Home. Use settings for order on Home.",
+        "no_recommendations": "No recommendations found."
     },
     "explore": {
         "search_placeholder": "搜索动态、用户或动态源",
@@ -296,7 +301,10 @@
         "promoted": "推荐",
         "no_posts_found": "No trending posts found in the last 24 hours.",
         "trending_posts": "Trending posts",
-        "loading_accounts": "Loading trending accounts..."
+        "loading_accounts": "Loading trending accounts...",
+        "loading_topics": "Loading trending topics...",
+        "discover_posts": "Discover Posts",
+        "no_more_posts": "No more posts to discover right now."
     },
     "language": {
         "title": "语言",
@@ -347,7 +355,16 @@
         "ia": "Interlingua – Interlingua",
         "km": "ภาษาเขมร – Khmer",
         "ne": "नेपाली – Nepali",
-        "yue": "粵文 – Cantonese"
+        "yue": "粵文 – Cantonese",
+        "add_more": "Add more languages...",
+        "search_languages": "Search languages",
+        "search_languages_placeholder": "Search languages...",
+        "recently_used": "Recently used",
+        "all_languages": "All languages",
+        "no_results": "No languages found matching \"{{query}}\"",
+        "modal_title": "Select content languages",
+        "modal_desc": "If none are selected, all languages will be shown in your feeds.",
+        "done": "Done"
     },
     "messages": {
         "title": "消息",
@@ -388,7 +405,8 @@
         "delete_for_me": "Delete for me",
         "confirm_delete_for_me": "Are you sure you want to delete this message for yourself? It will remain visible to other participants.",
         "delete_success": "Message deleted for you",
-        "delete_error": "Failed to delete message"
+        "delete_error": "Failed to delete message",
+        "chat_settings_link": "Chat settings"
     },
     "home": {
         "title": "首页",
@@ -439,7 +457,9 @@
         "signalr": {
             "disconnected": "SignalR Disconnected. Real-time updates may be delayed.",
             "reconnecting": "SignalR Reconnecting..."
-        }
+        },
+        "refresh": "Refresh",
+        "start_typing": "Search for posts, users, or feeds"
     },
     "lists": {
         "title": "列表",
@@ -589,7 +609,8 @@
         "help": "帮助",
         "trending_header": "热门话题",
         "trending_handle": "@trending.bsky.app",
-        "more_feeds": "More feeds"
+        "more_feeds": "More feeds",
+        "search_placeholder": "Search"
     },
     "about": {
         "title": "关于",
@@ -879,7 +900,10 @@
         "external_media_title": "Customize external media",
         "external_media_info": "External media may allow websites to collect information about you and your device. No information is sent or requested until you press the \"play\" button.",
         "enable_embed_for": "Enable media players for",
-        "my_interests_desc": "The topics you choose help us bring you content you're interested in."
+        "my_interests_desc": "The topics you choose help us bring you content you're interested in.",
+        "add_more_languages": "Add more languages",
+        "select_content_languages": "Select content languages",
+        "my_interests_title": "Your interests"
     },
     "accessibility": {
         "title": "Accessibility",

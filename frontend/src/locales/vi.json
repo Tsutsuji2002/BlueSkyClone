@@ -251,7 +251,8 @@
         "logout_visibility_label": "Hạn chế các ứng dụng hiển thị tài khoản của tôi với người dùng chưa đăng nhập",
         "logout_visibility_desc": "Bluesky sẽ không hiển thị hồ sơ và bài đăng của bạn với những người dùng chưa đăng nhập. Các ứng dụng khác có thể không tuân thủ yêu cầu này. Cài đặt này không làm cho tài khoản của bạn trở nên riêng tư.",
         "logout_visibility_note": "Lưu ý: Bluesky là một mạng lưới mở và công khai. Cài đặt này chỉ giới hạn khả năng hiển thị nội dung của bạn trên ứng dụng và trang web Bluesky, còn các ứng dụng khác có thể không tôn trọng cài đặt này. Nội dung của bạn vẫn có thể được hiển thị cho người dùng chưa đăng nhập bởi các ứng dụng và trang web khác.",
-        "learn_more": "Tìm hiểu thêm về những gì công khai trên Bluesky."
+        "learn_more": "Tìm hiểu thêm về những gì công khai trên Bluesky.",
+        "learn_more_public": "Learn more about what is public on Bluesky."
     },
     "notifications": {
         "title": "Thông báo",
@@ -370,7 +371,16 @@
         "ia": "Interlingua – Interlingua",
         "km": "ภาษาเขมร – Khmer",
         "ne": "नेपाली – Nepali",
-        "yue": "粵文 – Cantonese"
+        "yue": "粵文 – Cantonese",
+        "add_more": "Add more languages...",
+        "search_languages": "Search languages",
+        "search_languages_placeholder": "Search languages...",
+        "recently_used": "Recently used",
+        "all_languages": "All languages",
+        "no_results": "No languages found matching \"{{query}}\"",
+        "modal_title": "Select content languages",
+        "modal_desc": "If none are selected, all languages will be shown in your feeds.",
+        "done": "Done"
     },
     "profile": {
         "edit_profile": "Chỉnh sửa hồ sơ",
@@ -473,7 +483,11 @@
         "feeds_guide": "Bảng tin là các thuật toán tùy chỉnh mà người dùng xây dựng với một chút kiến thức lập trình. Xem hướng dẫn này để biết thêm thông tin.",
         "hot": "Hot",
         "science": "Science",
-        "news": "News"
+        "news": "News",
+        "discover_description": "Pick your own feeds! Community-built feeds help you find the content you love.",
+        "search_feeds_placeholder": "Search feeds...",
+        "my_feeds_hint": "Pin feeds to add them to Home. Use settings for order on Home.",
+        "no_recommendations": "No recommendations found."
     },
     "explore": {
         "search_placeholder": "Tìm kiếm bài đăng, người dùng hoặc bảng tin",
@@ -483,7 +497,10 @@
         "promoted": "Được tài trợ",
         "no_posts_found": "Không tìm thấy bài đăng xu hướng nào trong 24 giờ qua.",
         "trending_posts": "Bài đăng xu hướng",
-        "loading_accounts": "Đang tải các tài khoản xu hướng..."
+        "loading_accounts": "Đang tải các tài khoản xu hướng...",
+        "loading_topics": "Loading trending topics...",
+        "discover_posts": "Discover Posts",
+        "no_more_posts": "No more posts to discover right now."
     },
     "lists": {
         "title": "Danh sách",
@@ -643,7 +660,8 @@
         "delete_for_me": "Xóa đối với tôi",
         "confirm_delete_for_me": "Bạn có chắc chắn muốn xóa tin nhắn này đối với bạn không? Những người khác vẫn sẽ thấy nó.",
         "delete_success": "Đã xóa tin nhắn cho bạn",
-        "delete_error": "Xóa tin nhắn thất bại"
+        "delete_error": "Xóa tin nhắn thất bại",
+        "chat_settings_link": "Chat settings"
     },
     "chat_settings": {
         "title": "Cài đặt trò chuyện",
@@ -711,7 +729,9 @@
         },
         "edit_post": "Edit post",
         "saving": "Saving...",
-        "gif": "GIF"
+        "gif": "GIF",
+        "refresh": "Refresh",
+        "start_typing": "Search for posts, users, or feeds"
     },
     "post": {
         "title": "Đăng",
@@ -797,7 +817,8 @@
         "help": "Giúp đỡ",
         "trending_header": "Chủ đề nổi trội",
         "trending_handle": "@trending.bsky.app",
-        "more_feeds": "More feeds"
+        "more_feeds": "More feeds",
+        "search_placeholder": "Search"
     },
     "about": {
         "title": "Giới thiệu",
@@ -874,7 +895,10 @@
         "external_media_title": "Tùy chỉnh phương tiện ngoại vi",
         "external_media_info": "Phương tiện ngoại vi có thể cho phép trang web thu thập thông tin về bạn và thiết bị của bạn. Thông tin không được gửi đi hoặc yêu cầu cho đến khi bạn nhấn nút \"phát\".",
         "enable_embed_for": "Bật trình phát phương tiện cho",
-        "my_interests_desc": "Mục quan tâm mà bạn chọn giúp chúng tôi đưa nội dung mà bạn quan tâm đến."
+        "my_interests_desc": "Mục quan tâm mà bạn chọn giúp chúng tôi đưa nội dung mà bạn quan tâm đến.",
+        "add_more_languages": "Add more languages",
+        "select_content_languages": "Select content languages",
+        "my_interests_title": "Your interests"
     },
     "accessibility": {
         "title": "Trợ năng",
