@@ -374,11 +374,14 @@ const PostDetailPage: React.FC = () => {
                     <IconButton icon={<FiArrowLeft size={20} />} onClick={() => navigate(-1)} />
                     <h1 className="ml-4 font-bold text-gray-900 dark:text-dark-text">{t('post.not_found', 'Post not found')}</h1>
                 </div>
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-500">
-                    <FiFrown size={48} className="mb-4 opacity-20" />
-                    <p className="text-gray-900 dark:text-dark-text font-medium mb-1">{t('post.not_found_desc', "This post doesn't exist or is unavailable.")}</p>
-                    <p className="text-sm text-gray-400">{t('post.not_found_sub', "It might have been deleted or the link is incorrect.")}</p>
-                    <button onClick={() => navigate(-1)} className="mt-6 px-6 py-2 bg-primary-500 text-white rounded-full font-bold hover:bg-primary-600 transition-colors">
+                <div className="flex flex-col items-center justify-center min-h-[600px] p-8 text-center">
+                    <h2 className="text-2xl font-bold mb-2">{t('post.not_found', 'Post not found')}</h2>
+                    <p className="text-gray-500 mb-6">{t('post.not_found_desc', "This post doesn't exist or is unavailable.")}</p>
+                    <p className="text-sm text-gray-400 mb-8">{t('post.not_found_sub', 'It might have been deleted or the link is incorrect.')}</p>
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="px-6 py-2 bg-primary text-white rounded-full font-bold hover:bg-opacity-90 transition-all"
+                    >
                         {t('common.go_back', 'Go back')}
                     </button>
                 </div>
@@ -461,6 +464,12 @@ const PostDetailPage: React.FC = () => {
             hasDivider: true,
         },
         {
+            id: 'loading',
+            label: t('post.loading', 'Loading post...'),
+            onClick: () => { },
+            type: 'default',
+        },
+        {
             id: 'section-sorting',
             label: t('post.reply_sorting', 'Reply sorting'),
             onClick: () => { },
@@ -512,7 +521,7 @@ const PostDetailPage: React.FC = () => {
         },
         {
             id: 'sort-replies-shortcut',
-            label: t('post.sort_replies'),
+            label: t('post.sort_replies', 'Sort replies'),
             icon: <FiSliders />,
             onClick: () => {
                 const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];

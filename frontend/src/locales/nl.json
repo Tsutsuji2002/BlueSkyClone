@@ -268,7 +268,9 @@
         "saving": "Saving...",
         "gif": "GIF",
         "refresh": "Refresh",
-        "start_typing": "Search for posts, users, or feeds"
+        "start_typing": "Search for posts, users, or feeds",
+        "loading": "Loading...",
+        "done": "Done"
     },
     "feeds": {
         "title": "Feeds",
@@ -488,7 +490,14 @@
         "sensitive_content": "Gevoelige inhoud",
         "muted_word": "Gedempt woord",
         "bsky_moderation_service": "Bluesky-moderatieservice",
-        "bsky_moderation_service_desc": "Officiële moderatieservice van Bluesky."
+        "bsky_moderation_service_desc": "Officiële moderatieservice van Bluesky.",
+        "verification_desc": "Verifications on Bluesky work differently than on other platforms.",
+        "learn_more": "Learn more here.",
+        "quote_posts": "Quote posts",
+        "quote_posts_desc": "Other users can quote and react to your posts",
+        "days": "{{count}} days",
+        "expired": "Expired",
+        "exclude_following_label": "Following Excluded"
     },
     "privacy": {
         "title": "Privacy en veiligheid",
@@ -801,7 +810,24 @@
         "giphy_key_invalid": "Invalid GIPHY API Key. Please check your REACT_APP_GIPHY_API_KEY.",
         "not_found": "Post not found",
         "not_found_desc": "This post doesn't exist or is unavailable.",
-        "not_found_sub": "It might have been deleted or the link is incorrect."
+        "not_found_sub": "It might have been deleted or the link is incorrect.",
+        "show_replies_as": "Show replies as",
+        "linear": "Linear",
+        "threaded": "Threaded",
+        "reply_sorting": "Reply sorting",
+        "top_replies_first": "Top replies first",
+        "oldest_replies_first": "Oldest replies first",
+        "newest_replies_first": "Newest replies first",
+        "view_as_linear": "View as linear",
+        "view_as_threaded": "View as threaded",
+        "sort_replies": "Sort replies",
+        "sorted_by": "Sorted by {{order}}",
+        "reply_anyone": "Anyone",
+        "reply_nobody": "Nobody",
+        "reply_followers": "Your followers",
+        "reply_following": "People you follow",
+        "reply_mentioned": "People you mention",
+        "allow_quotes": "Allow quote posts"
     },
     "sidebar": {
         "trending": "Populaire onderwerpen",

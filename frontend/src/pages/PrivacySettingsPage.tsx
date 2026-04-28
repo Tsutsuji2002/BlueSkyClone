@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiChevronRight, FiShield, FiKey, FiBell, FiEyeOff, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronRight, FiShield, FiKey, FiBell, FiEyeOff, FiX, FiCheck } from 'react-icons/fi';
 import Button from '../components/common/Button';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
@@ -131,7 +131,9 @@ const PrivacySettingsPage: React.FC = () => {
                                     checked={settings?.logoutVisibility ?? false}
                                     onChange={() => handleToggle('logoutVisibility', !settings?.logoutVisibility)}
                                 />
-                                <div className="w-5 h-5 bg-white border-2 border-gray-300 rounded peer-focus:ring-2 peer-focus:ring-blue-500 dark:bg-dark-bg dark:border-gray-500 peer-checked:bg-blue-500 peer-checked:border-blue-500 after:content-['✓'] after:absolute after:text-white after:text-xs after:font-bold after:left-[4px] after:top-[1px] after:opacity-0 peer-checked:after:opacity-100 transition-all"></div>
+                                <div className="w-5 h-5 bg-white border-2 border-gray-300 rounded peer-focus:ring-2 peer-focus:ring-blue-500 dark:bg-dark-bg dark:border-gray-500 peer-checked:bg-blue-500 peer-checked:border-blue-500 transition-all flex items-center justify-center">
+                                    <FiCheck size={14} className="text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                </div>
                             </label>
                         </div>
 

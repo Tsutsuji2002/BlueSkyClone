@@ -348,7 +348,7 @@ const FeedsPage: React.FC = () => {
                                 </p>
                             </div>
                         ))}
-                        {searchLoading && <div className="p-4 text-center">Loading...</div>}
+                        {searchLoading && <div className="p-4 text-center">{t('common.loading')}</div>}
                     </div>
                 ) : (
                     <div className="flex flex-col">

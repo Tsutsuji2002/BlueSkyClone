@@ -28,17 +28,17 @@ const VerificationSettingsPage: React.FC = () => {
                 <div className="bg-blue-50/10 dark:bg-blue-900/10 border border-blue-500/50 rounded-xl p-4 mb-8 flex gap-4">
                     <FiInfo className="text-blue-500 shrink-0 mt-0.5" size={20} />
                     <p className="text-[15px] text-gray-900 dark:text-dark-text leading-snug">
-                        Verifications on Bluesky work differently than on other platforms. <a
+                        {t('moderation.verification_desc')} <a
                             href="https://bsky.social/about/blog/04-21-2025-verification"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:underline"
                         >
-                            Learn more here.
+                            {t('moderation.learn_more')}
                         </a>
                     </p>
                 </div>
-
+ 
                 {/* Settings Item */}
                 <div
                     className="flex items-center justify-between py-2 cursor-pointer transition-colors"
@@ -47,7 +47,7 @@ const VerificationSettingsPage: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <FiCheckCircle size={22} className="text-gray-900 dark:text-dark-text" />
                         <span className="text-[17px] font-medium text-gray-900 dark:text-dark-text">
-                            Hide verification badges
+                            {t('moderation.hide_verifications')}
                         </span>
                     </div>
                     <div className={`w-10 h-6 rounded-md flex items-center p-1 transition-colors ${hideBadges ? 'bg-blue-600' : 'bg-gray-300 dark:bg-dark-surface'}`}>

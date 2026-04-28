@@ -29,16 +29,15 @@ const MutedWordsPage: React.FC = () => {
     };
 
     const getExpiryLabel = (expiry?: string) => {
-        if (!expiry) return 'Forever';
+        if (!expiry) return t('moderation.forever');
         const date = new Date(expiry);
         const now = new Date();
         const diffMs = date.getTime() - now.getTime();
         const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
         
-        if (diffDays <= 0) return 'Expired';
-        if (diffDays === 1) return '24 hours';
-        if (diffDays <= 7) return `${diffDays} days`;
-        return `${diffDays} days`;
+        if (diffDays <= 0) return t('moderation.expired');
+        if (diffDays === 1) return t('moderation.24h');
+        return t('moderation.days', { count: diffDays });
     };
 
     return (
@@ -70,7 +69,7 @@ const MutedWordsPage: React.FC = () => {
             <div className="p-4">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="font-bold text-gray-900 dark:text-dark-text text-lg">
-                        Your muted words
+                        {t('moderation.your_muted_words')}
                     </h2>
                     <button
                         onClick={() => dispatch(openMutedWords())}
@@ -108,12 +107,14 @@ const MutedWordsPage: React.FC = () => {
                                         </div>
                                         <div className="w-1 h-1 bg-gray-200 dark:bg-dark-border rounded-full" />
                                         <span className="text-[11px] uppercase font-black text-gray-400 dark:text-dark-text-secondary/50 border border-gray-200 dark:border-dark-border/50 px-2 py-0.5 rounded-lg bg-gray-50 dark:bg-dark-bg">
-                                            {item.targets === 'tag' ? 'Tags only' : 'Text & tags'}
+                                            {item.targets === 'tag' ? t('moderation.tags_only') : t('moderation.text_and_tags')}
                                         </span>
                                         {item.excludeFollowing && (
                                             <>
                                                 <div className="w-1 h-1 bg-gray-200 dark:bg-dark-border rounded-full" />
-                                                <span className="text-[11px] font-bold text-primary px-2 py-0.5 rounded-lg bg-primary/10">Following Excluded</span>
+                                                <span className="text-[11px] font-bold text-primary px-2 py-0.5 rounded-lg bg-primary/10">
+                                                    {t('moderation.exclude_following_label')}
+                                                </span>
                                             </>
                                         )}
                                     </div>
