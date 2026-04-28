@@ -566,7 +566,9 @@
     "saved": {
         "title": "Saved",
         "posts_title": "Saved Posts",
-        "no_saved": "No saved items yet"
+        "no_saved": "No saved items yet",
+        "no_bookmarks": "No bookmarks yet",
+        "no_bookmarks_desc": "Posts you bookmark will appear here."
     },
     "auth": {
         "welcome": {
@@ -1138,5 +1140,10 @@
         "submit_success": "Your request has been submitted successfully.",
         "fill_required": "Please fill in all required fields.",
         "powered_by": "Powered by"
+    },
+    "post": {
+        "view_as_linear": "Show as List",
+        "view_as_threaded": "Show as Tree",
+        "sort_replies": "Sort replies"
     }
 }

@@ -297,7 +297,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
         ...(!isOwnPost ? [
             {
                 id: 'muted-words-tags',
-                label: 'Muted words & tags',
+                label: t('moderation.muted_words_tags', 'Muted words & tags'),
                 icon: <FiFilter />,
                 hasDivider: true,
                 onClick: () => dispatch(openMutedWords()),

@@ -11,6 +11,7 @@ import { login, clearError } from '../../redux/slices/authSlice';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import ButterflyLogo from '../../components/common/ButterflyLogo';
+import { APP_LANGUAGES } from '../../constants/languages';
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
@@ -174,9 +175,11 @@ const LoginPage: React.FC = () => {
                             onChange={(e) => handleLanguageChange(e.target.value)}
                             className="text-sm text-gray-600 dark:text-dark-text-secondary bg-transparent border-none cursor-pointer"
                         >
-                            <option value="vi">{t('language.vi')}</option>
-                            <option value="en">{t('language.en')}</option>
-                            <option value="de">{t('language.de')}</option>
+                            {APP_LANGUAGES.map((lang) => (
+                                <option key={lang.code} value={lang.code}>
+                                    {lang.nativeName}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>

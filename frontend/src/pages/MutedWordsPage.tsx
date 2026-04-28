@@ -53,7 +53,7 @@ const MutedWordsPage: React.FC = () => {
                         <FiArrowLeft size={20} className="dark:text-dark-text" />
                     </button>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">
-                        Muted words & tags
+                        {t('moderation.muted_words_tags', 'Muted words & tags')}
                     </h1>
                 </div>
 

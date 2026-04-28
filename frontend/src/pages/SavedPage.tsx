@@ -54,14 +54,14 @@ const SavedPage: React.FC = () => {
                 ) : bookmarkedError ? (
                     <div className="p-12 text-center text-red-500 flex flex-col items-center">
                         <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl mb-4">
-                            <p className="font-bold mb-2">{t('common.error_occurred', 'An error occurred')}</p>
+                            <p className="font-bold mb-2">{t('common.error_occurred')}</p>
                             <p className="text-sm opacity-80">{bookmarkedError}</p>
                         </div>
                         <button 
                             onClick={() => dispatch(fetchBookmarkedPosts({ skip: 0 }))}
                             className="text-primary-500 font-bold hover:underline"
                         >
-                            {t('common.retry', 'Try again')}
+                            {t('common.retry')}
                         </button>
                     </div>
                 ) : bookmarkedPosts.length === 0 ? (
@@ -69,8 +69,8 @@ const SavedPage: React.FC = () => {
                         <div className="mb-4 flex justify-center">
                             <FiBookmark size={48} className="text-gray-300" />
                         </div>
-                        <p className="text-lg font-bold mb-2">{t('saved.no_bookmarks', 'No bookmarks yet')}</p>
-                        <p>{t('saved.no_bookmarks_desc', 'Posts you bookmark will appear here.')}</p>
+                        <p className="text-lg font-bold mb-2">{t('saved.no_bookmarks')}</p>
+                        <p>{t('saved.no_bookmarks_desc')}</p>
                     </div>
                 ) : (
                     <Feed 
@@ -78,7 +78,7 @@ const SavedPage: React.FC = () => {
                         isLoading={bookmarkedLoading}
                         hasMore={hasMore}
                         onLoadMore={handleLoadMore}
-                        emptyMessage={t('saved.no_bookmarks_desc', 'Posts you bookmark will appear here.')}
+                        emptyMessage={t('saved.no_bookmarks_desc')}
                     />
                 )}
             </div>

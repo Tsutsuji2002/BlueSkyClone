@@ -6,34 +6,31 @@ from deep_translator import GoogleTranslator
 LOCALES_DIR = os.path.join(os.path.dirname(__file__), '..', 'src', 'locales')
 EN_JSON_PATH = os.path.join(LOCALES_DIR, 'en.json')
 
-# Flat list of keys we want to selectively target for auto-translation 
-# to save API limits and avoid touching existing unlocalized strings.
-TARGET_KEYS = [
-    'messages.chat_settings_link',
-    'chat_settings.title',
-    'chat_settings.allow_messages_from',
-    'chat_settings.everyone',
-    'chat_settings.followers',
-    'chat_settings.none',
-    'chat_settings.allow_messages_from_desc',
-    'chat_settings.allow_ongoing_desc',
-    'settings.system_mode',
-    'sidebar.more_feeds',
-    'sidebar.search_placeholder',
-    'feeds.my_feeds_hint',
-    'feeds.liked_by_users',
-    'feeds.recommended_for_you',
-    'feeds.search_feeds_placeholder',
-    'language.modal_title',
-    'language.modal_desc',
-    'language.add_more',
-    'language.search_languages',
-    'language.search_languages_placeholder',
-    'language.recently_used',
-    'language.all_languages',
-    'language.no_results',
-    'language.done'
+TARGET_PREFIXES = [
+    'privacy.',
+    'accessibility.',
+    'moderation.',
+    'content.',
+    'language.',
+    'feeds.',
+    'sidebar.',
+    'post.',
+    'saved.',
+    'chat_settings.',
+    'search.',
+    'messages.',
+    'settings.'
 ]
+
+def flatten_dict(d, parent_key='', sep='.'):
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 def load_json(path):
     with open(path, 'r', encoding='utf-8') as f:
@@ -114,9 +111,14 @@ def run_translation():
         texts_to_translate = []
         keys_to_update = []
 
-        for flat_key in TARGET_KEYS:
-            en_val = get_flat_val(en_data, flat_key)
-            lang_val = get_flat_val(lang_data, flat_key)
+        en_flat = flatten_dict(en_data)
+        lang_flat = flatten_dict(lang_data)
+        
+        target_keys = [k for k in en_flat.keys() if any(k.startswith(p) for p in TARGET_PREFIXES)]
+        
+        for flat_key in target_keys:
+            en_val = en_flat.get(flat_key)
+            lang_val = lang_flat.get(flat_key)
             
             if en_val and isinstance(en_val, str) and lang_val == en_val:
                 texts_to_translate.append(en_val)

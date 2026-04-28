@@ -7,6 +7,7 @@ import { setAppLanguage } from '../../redux/slices/languageSlice';
 import Button from '../../components/common/Button';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import ButterflyLogo from '../../components/common/ButterflyLogo';
+import { APP_LANGUAGES } from '../../constants/languages';
 
 const WelcomePage: React.FC = () => {
     const navigate = useNavigate();
@@ -32,9 +33,11 @@ const WelcomePage: React.FC = () => {
                     onChange={handleLanguageChange}
                     className="px-3 py-2 text-sm border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
                 >
-                    <option value="vi">{t('language.vi')}</option>
-                    <option value="en">{t('language.en')}</option>
-                    <option value="de">{t('language.de')}</option>
+                    {APP_LANGUAGES.map((lang) => (
+                        <option key={lang.code} value={lang.code}>
+                            {lang.nativeName}
+                        </option>
+                    ))}
                 </select>
             </div>
 

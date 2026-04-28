@@ -504,7 +504,7 @@ const PostDetailPage: React.FC = () => {
         },
         {
             id: 'toggle-view-shortcut',
-            label: treeViewEnabled ? t('post.view_as_linear', 'Show as List') : t('post.view_as_threaded', 'Show as Tree'),
+            label: treeViewEnabled ? t('post.view_as_linear') : t('post.view_as_threaded'),
             icon: <FiList />,
             onClick: () => {
                 dispatch(updateNotificationSettings({ treeView: !treeViewEnabled }));
@@ -512,7 +512,7 @@ const PostDetailPage: React.FC = () => {
         },
         {
             id: 'sort-replies-shortcut',
-            label: t('post.sort_replies', 'Sort replies'),
+            label: t('post.sort_replies'),
             icon: <FiSliders />,
             onClick: () => {
                 const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
