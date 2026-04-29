@@ -12,6 +12,10 @@ namespace BSkyClone.Services;
 
 public class ListService : IListService
 {
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> _hubContext;
+    private readonly IPostService _postService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IRepoManager _repoManager;
     private readonly IUserService _userService;
 
@@ -303,7 +307,9 @@ public class ListService : IListService
                 lm.User.IsVerified,
                 lm.User.Did
             ),
-            JoinedAt = lm.JoinedAt ?? DateTime.UtcNow
+            JoinedAt = lm.JoinedAt ?? DateTime.UtcNow,
+            Uri = lm.Uri,
+            Cid = lm.Cid
         });
     }
 

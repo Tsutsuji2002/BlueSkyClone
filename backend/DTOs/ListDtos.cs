@@ -50,6 +50,8 @@ public class ListItemDto
     public Guid UserId { get; set; }
     public UserDto User { get; set; } = null!;
     public DateTime JoinedAt { get; set; }
+    public string? Uri { get; set; }
+    public string? Cid { get; set; }
 }
 
 public class AddListMemberDto
