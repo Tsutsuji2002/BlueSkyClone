@@ -734,7 +734,7 @@ namespace BSkyClone.Controllers
 
         [AllowAnonymous]
         [HttpGet("app.bsky.graph.getLists")]
-        public async Task<IActionResult> GetLists([FromQuery] string? actor, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        public async Task<IActionResult> GetLists([FromQuery] string? actor = null, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
         {
             try
             {
@@ -744,18 +744,9 @@ namespace BSkyClone.Controllers
                     var authHandle = User.FindFirst("handle")?.Value;
                     var authUserIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
 
-                    if (!string.IsNullOrEmpty(authDid))
-                    {
-                        actor = authDid;
-                    }
-                    else if (!string.IsNullOrEmpty(authHandle))
-                    {
-                        actor = authHandle;
-                    }
-                    else if (!string.IsNullOrEmpty(authUserIdStr))
-                    {
-                        actor = authUserIdStr;
-                    }
+                    if (!string.IsNullOrEmpty(authDid)) actor = authDid;
+                    else if (!string.IsNullOrEmpty(authHandle)) actor = authHandle;
+                    else if (!string.IsNullOrEmpty(authUserIdStr)) actor = authUserIdStr;
                     else
                     {
                         return Ok(new GetListsResponse { Lists = new List<ListView>() });
@@ -764,17 +755,12 @@ namespace BSkyClone.Controllers
 
                 var viewerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
                 Guid viewerId = Guid.Empty;
-                if (!string.IsNullOrEmpty(viewerIdStr))
-                {
-                    Guid.TryParse(viewerIdStr, out viewerId);
-                }
+                if (!string.IsNullOrEmpty(viewerIdStr)) Guid.TryParse(viewerIdStr, out viewerId);
 
-                Guid actorId;
                 User? actorUser = null;
-
-                if (Guid.TryParse(actor, out actorId))
+                if (Guid.TryParse(actor, out var actorGuid))
                 {
-                    actorUser = await _userService.GetUserByIdAsync(actorId);
+                    actorUser = await _userService.GetUserByIdAsync(actorGuid);
                 }
                 else if (actor.StartsWith("did:"))
                 {
@@ -785,29 +771,45 @@ namespace BSkyClone.Controllers
                     actorUser = await _userService.GetUserByHandleAsync(actor);
                 }
 
-                if (actorUser == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
-                actorId = actorUser.Id;
+                if (actorUser == null)
+                {
+                    // Fallback: Proxy to real Bluesky for remote actors
+                    try
+                    {
+                        using var client = _httpClientFactory.CreateClient();
+                        client.Timeout = TimeSpan.FromSeconds(3);
+                        var bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor={Uri.EscapeDataString(actor)}&limit={limit}";
+                        if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                        
+                        var bskyResponse = await client.GetAsync(bskyUrl);
+                        if (bskyResponse.IsSuccessStatusCode)
+                        {
+                            var content = await bskyResponse.Content.ReadAsStringAsync();
+                            return Content(content, "application/json");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to proxy getLists to Bluesky for {actor}", actor);
+                    }
+                    return NotFound(new { error = "AccountNotFound", message = "Account not found" });
+                }
 
-                var lists = await _listService.GetUserListsAsync(actorId, viewerId);
-
+                var lists = await _listService.GetUserListsAsync(actorUser.Id, viewerId);
                 var response = new GetListsResponse
                 {
                     Lists = lists.Select(l => new ListView
                     {
                         Uri = l.Uri ?? $"at://{actorUser.Did}/app.bsky.graph.list/{l.Id}",
-                        Cid = l.Cid ?? l.Tid ?? l.Id.ToString(),
+                        Cid = l.Cid ?? l.Id.ToString(),
                         Name = l.Name,
                         Purpose = l.Purpose ?? "app.bsky.graph.defs#curatelist",
                         Description = l.Description,
                         Avatar = l.AvatarUrl,
                         ListItemCount = l.MembersCount,
                         IndexedAt = l.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                        Creator = actorUser != null ? MapUserToProfileView(actorUser) : new ProfileView(),
-                        Viewer = new ListViewerState
-                        {
-                            Muted = false,
-                            Blocked = null
-                        }
+                        Creator = MapUserToProfileView(actorUser),
+                        Viewer = new ListViewerState { Muted = false }
                     }).ToList(),
                     Cursor = null
                 };
@@ -817,9 +819,14 @@ namespace BSkyClone.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "XRPC GetLists error for actor {actor}", actor);
-                return StatusCode(500, new { error = "InternalServerError", message = ex.Message });
+                return StatusCode(500, new { 
+                    error = "InternalServerError", 
+                    message = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
             }
         }
+
 
         [AllowAnonymous]
         [HttpGet("app.bsky.graph.getList")]
