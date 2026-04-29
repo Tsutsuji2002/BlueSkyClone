@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -12,6 +12,9 @@ public partial class ListMember
     public DateTime? JoinedAt { get; set; }
     
     public int Status { get; set; } = 0; // 0=Pending, 1=Accepted, 2=Rejected
+    
+    public string? Uri { get; set; }
+    public string? Cid { get; set; }
 
     public virtual List List { get; set; } = null!;
 

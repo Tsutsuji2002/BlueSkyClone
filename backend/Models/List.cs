@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -20,6 +20,9 @@ public partial class List
     public DateTime? CreatedAt { get; set; }
 
     public bool? IsDeleted { get; set; }
+    
+    public string? Uri { get; set; }
+    public string? Cid { get; set; }
 
     public virtual ICollection<ListMember> ListMembers { get; set; } = new List<ListMember>();
 

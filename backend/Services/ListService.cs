@@ -12,31 +12,57 @@ namespace BSkyClone.Services;
 
 public class ListService : IListService
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> _hubContext;
-    private readonly IPostService _postService;
-    private readonly IServiceScopeFactory _scopeFactory; // Added
+    private readonly IRepoManager _repoManager;
+    private readonly IUserService _userService;
 
-    public ListService(IUnitOfWork unitOfWork, Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> hubContext, IPostService postService, IServiceScopeFactory scopeFactory) // Added scopeFactory
+    public ListService(
+        IUnitOfWork unitOfWork, 
+        Microsoft.AspNetCore.SignalR.IHubContext<BSkyClone.Hubs.ChatHub> hubContext, 
+        IPostService postService, 
+        IServiceScopeFactory scopeFactory,
+        IRepoManager repoManager,
+        IUserService userService) 
     {
         _unitOfWork = unitOfWork;
         _hubContext = hubContext;
         _postService = postService;
-        _scopeFactory = scopeFactory; // Initialized
+        _scopeFactory = scopeFactory;
+        _repoManager = repoManager;
+        _userService = userService;
     }
 
     public async Task<ListDto> CreateListAsync(Guid userId, CreateListDto dto)
     {
+        var user = await _userService.GetUserByIdAsync(userId);
+        if (user == null || string.IsNullOrEmpty(user.Did)) throw new Exception("User DID not found");
+
+        var rkey = Utilities.ProtocolUtils.GenerateTid();
+        var listRecord = new
+        {
+            name = dto.Name,
+            purpose = dto.Purpose ?? "app.bsky.graph.defs#curatelist",
+            description = dto.Description,
+            avatar = dto.Avatar,
+            createdAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        };
+
+        // 1. Create record in Repository
+        var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
+        var uri = $"at://{user.Did}/app.bsky.graph.list/{rkey}";
+
+        // 2. Mirror to Local Database
         var list = new List
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.NewGuid(), // Keep local ID for relational consistency
             OwnerId = userId,
             Name = dto.Name,
             Description = dto.Description,
-            Purpose = dto.Purpose,
+            Purpose = listRecord.purpose,
             AvatarUrl = dto.Avatar,
             CreatedAt = DateTime.UtcNow,
-            IsDeleted = false
+            IsDeleted = false,
+            Uri = uri,
+            Cid = cid
         };
 
         await _unitOfWork.Lists.AddAsync(list);
@@ -104,6 +130,28 @@ public class ListService : IListService
         if (dto.Description != null) list.Description = dto.Description;
         if (dto.Avatar != null) list.AvatarUrl = dto.Avatar;
 
+        // Sync with Repository
+        if (!string.IsNullOrEmpty(list.Uri))
+        {
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user != null && !string.IsNullOrEmpty(user.Did))
+            {
+                var rkey = list.Uri.Split('/').Last();
+                var listRecord = new
+                {
+                    name = list.Name,
+                    purpose = list.Purpose ?? "app.bsky.graph.defs#curatelist",
+                    description = list.Description,
+                    avatar = list.AvatarUrl,
+                    createdAt = list.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") ?? DateTime.UtcNow.ToString("o")
+                };
+                
+                //putRecord behavior
+                var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
+                list.Cid = cid;
+            }
+        }
+
         _unitOfWork.Lists.Update(list);
         await _unitOfWork.CompleteAsync();
 
@@ -115,7 +163,19 @@ public class ListService : IListService
         var list = await _unitOfWork.Lists.GetByIdAsync(listId);
         if (list == null || list.OwnerId != userId) return false;
 
-        list.IsDeleted = true; // Soft delete
+        // 1. Delete from Repository if it has a URI
+        if (!string.IsNullOrEmpty(list.Uri))
+        {
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user != null && !string.IsNullOrEmpty(user.Did))
+            {
+                var rkey = list.Uri.Split('/').Last();
+                await _repoManager.DeleteRecordAsync(user.Did, "app.bsky.graph.list", rkey);
+            }
+        }
+
+        // 2. Soft delete in local DB
+        list.IsDeleted = true;
         _unitOfWork.Lists.Update(list);
         await _unitOfWork.CompleteAsync();
         return true;
@@ -128,17 +188,37 @@ public class ListService : IListService
         var list = await _unitOfWork.Lists.GetByIdAsync(listId);
         if (list == null || list.OwnerId != ownerId) return false;
 
+        var targetUser = await _userService.GetUserByIdAsync(targetUserId);
+        if (targetUser == null || string.IsNullOrEmpty(targetUser.Did)) return false;
+
+        var owner = await _userService.GetUserByIdAsync(ownerId);
+        if (owner == null || string.IsNullOrEmpty(owner.Did)) return false;
+
+        // 1. Check if already member
         var existing = await _unitOfWork.ListMembers.Query()
             .FirstOrDefaultAsync(lm => lm.ListId == listId && lm.UserId == targetUserId);
         
-        if (existing != null) 
+        if (existing != null && !string.IsNullOrEmpty(existing.Uri)) return true; // Already exists in Repo
+
+        // 2. Create listitem Record in Repository
+        var rkey = Utilities.ProtocolUtils.GenerateTid();
+        var listItemRecord = new
         {
-            if (existing.Status == 1) return true; // Already member
-            if (existing.Status == 0) return true; // Already pending
-            
-            // If rejected, allow re-inviting
-            existing.Status = 0;
+            subject = targetUser.Did,
+            list = list.Uri,
+            createdAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        };
+
+        var cid = await _repoManager.CreateRecordAsync(owner.Did, "app.bsky.graph.listitem", listItemRecord, rkey);
+        var uri = $"at://{owner.Did}/app.bsky.graph.listitem/{rkey}";
+
+        // 3. Mirror to Local Database
+        if (existing != null)
+        {
+            existing.Status = 1; // Mark as accepted immediately for ATProto lists
             existing.JoinedAt = DateTime.UtcNow;
+            existing.Uri = uri;
+            existing.Cid = cid;
             _unitOfWork.ListMembers.Update(existing);
         }
         else
@@ -148,61 +228,16 @@ public class ListService : IListService
                 ListId = listId,
                 UserId = targetUserId,
                 JoinedAt = DateTime.UtcNow,
-                Status = 0 // Pending
+                Status = 1,
+                Uri = uri,
+                Cid = cid
             };
             await _unitOfWork.ListMembers.AddAsync(member);
         }
 
-        // Check if a pending notification already exists to avoid spamming
-        var existingNotification = await _unitOfWork.Notifications.Query()
-            .FirstOrDefaultAsync(n => n.RecipientId == targetUserId && n.ListId == listId && n.Type == "list_invitation" && n.IsRead == false);
-        
-        if (existingNotification != null) return true;
-
-        // Send Notification
-        var notification = new Notification
-        {
-            Id = Guid.NewGuid(),
-            Tid = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(),
-            Type = "list_invitation",
-            RecipientId = targetUserId,
-            SenderId = ownerId,
-            ListId = listId,
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow,
-            Title = "List Invitation",
-            Content = $"invited you to join the list: {list.Name}"
-        };
-
-        await _unitOfWork.Notifications.AddAsync(notification);
-        var success = await _unitOfWork.CompleteAsync() > 0;
-
-        if (success)
-        {
-            // Real-time SignalR notification
-            _ = Task.Run(async () => {
-                try {
-                    using var scope = _scopeFactory.CreateScope();
-                    var bgUnitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var sender = await bgUnitOfWork.Users.GetByIdAsync(ownerId);
-                    if (sender != null) {
-                        await _hubContext.Clients.Group($"user-{targetUserId}").SendAsync("ReceiveNotification", new {
-                            Id = notification.Id,
-                            Type = notification.Type,
-                            Sender = new { sender.Id, sender.Username, sender.Handle, sender.AvatarUrl, sender.DisplayName, sender.IsVerified, sender.Did },
-                            ListId = notification.ListId,
-                            CreatedAt = notification.CreatedAt,
-                            Title = notification.Title,
-                            Content = notification.Content,
-                            IsRead = false,
-                            InvitationStatus = 0
-                        });
-                    }
-                } catch { }
-            });
-        }
-
-        return success;
+        // Note: For ATProto-compliant lists, we skip the "invitation" flow and add directly.
+        await _unitOfWork.CompleteAsync();
+        return true;
     }
 
     public async Task<bool> RemoveMemberAsync(Guid requestingUserId, Guid listId, Guid targetUserId)
@@ -221,6 +256,18 @@ public class ListService : IListService
 
         if (existing == null) return false;
 
+        // 1. Delete from Repository
+        if (!string.IsNullOrEmpty(existing.Uri))
+        {
+            var owner = await _userService.GetUserByIdAsync(list.OwnerId);
+            if (owner != null && !string.IsNullOrEmpty(owner.Did))
+            {
+                var rkey = existing.Uri.Split('/').Last();
+                await _repoManager.DeleteRecordAsync(owner.Did, "app.bsky.graph.listitem", rkey);
+            }
+        }
+
+        // 2. Remove from local DB
         _unitOfWork.ListMembers.Remove(existing);
         return await _unitOfWork.CompleteAsync() > 0;
     }
@@ -376,6 +423,8 @@ public class ListService : IListService
             CreatedAt = list.CreatedAt ?? DateTime.UtcNow,
             IsPinned = pinned,
             IsOwner = list.OwnerId == currentUserId,
+            Uri = list.Uri,
+            Cid = list.Cid,
             Owner = list.Owner != null ? new UserDto(
                 list.Owner.Id,
                 list.Owner.Username,

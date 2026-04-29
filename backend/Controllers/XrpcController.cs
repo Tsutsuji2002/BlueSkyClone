@@ -775,8 +775,8 @@ namespace BSkyClone.Controllers
                 {
                     Lists = lists.Select(l => new ListView
                     {
-                        Uri = $"at://{actorUser.Did}/app.bsky.graph.list/{l.Id}",
-                        Cid = l.Tid ?? l.Id.ToString(),
+                        Uri = l.Uri ?? $"at://{actorUser.Did}/app.bsky.graph.list/{l.Id}",
+                        Cid = l.Cid ?? l.Tid ?? l.Id.ToString(),
                         Name = l.Name,
                         Purpose = l.Purpose ?? "app.bsky.graph.defs#curatelist",
                         Description = l.Description,
@@ -803,6 +803,73 @@ namespace BSkyClone.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "XRPC GetLists error");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("app.bsky.graph.getList")]
+        public async Task<IActionResult> GetList([FromQuery] string list, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                var viewerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid viewerId = Guid.Empty;
+                if (!string.IsNullOrEmpty(viewerIdStr)) Guid.TryParse(viewerIdStr, out viewerId);
+
+                // Find list by URI
+                var dbList = await _unitOfWork.Lists.Query()
+                    .Include(l => l.Owner)
+                    .FirstOrDefaultAsync(l => l.Uri == list);
+
+                // Fallback for local IDs
+                if (dbList == null && Guid.TryParse(list, out var listId))
+                {
+                    dbList = await _unitOfWork.Lists.Query().Include(l => l.Owner).FirstOrDefaultAsync(l => l.Id == listId);
+                }
+
+                if (dbList == null) return NotFound(new { error = "ListNotFound" });
+
+                var members = await _listService.GetListMembersAsync(dbList.Id);
+
+                var response = new GetListResponse
+                {
+                    List = new ListView
+                    {
+                        Uri = dbList.Uri ?? $"at://{dbList.Owner?.Did}/app.bsky.graph.list/{dbList.Id}",
+                        Cid = dbList.Cid ?? dbList.Id.ToString(),
+                        Name = dbList.Name,
+                        Purpose = dbList.Purpose ?? "app.bsky.graph.defs#curatelist",
+                        Description = dbList.Description,
+                        Avatar = dbList.AvatarUrl,
+                        IndexedAt = dbList.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") ?? DateTime.UtcNow.ToString("o"),
+                        Creator = new ProfileViewBasic
+                        {
+                            Did = dbList.Owner?.Did ?? "",
+                            Handle = dbList.Owner?.Handle ?? "unknown",
+                            DisplayName = dbList.Owner?.DisplayName,
+                            Avatar = dbList.Owner?.AvatarUrl
+                        }
+                    },
+                    Items = members.Select(m => new ListItemView
+                    {
+                        Uri = m.Uri ?? $"at://{dbList.Owner?.Did}/app.bsky.graph.listitem/{m.UserId}", // Placeholder if no repo record
+                        Subject = MapUserToProfileView(new User { 
+                            Id = m.UserId, 
+                            Username = m.User.Username, 
+                            Handle = m.User.Handle, 
+                            DisplayName = m.User.DisplayName, 
+                            AvatarUrl = m.User.AvatarUrl,
+                            Did = m.User.Did
+                        })
+                    }).ToList()
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetList error");
                 return StatusCode(500, new { error = "InternalError" });
             }
         }
@@ -1115,6 +1182,29 @@ namespace BSkyClone.Controllers
                         // If not in SQL, ensure it's removed from Repo at least
                         await _repoManager.DeleteRecordAsync(userDid ?? userHandle ?? userIdStr!, request.Collection, request.Rkey);
                     }
+                }
+                else if (request.Collection == "app.bsky.graph.list")
+                {
+                    var uri = $"at://{userDid ?? userIdStr!}/app.bsky.graph.list/{request.Rkey}";
+                    var list = await _unitOfWork.Lists.Query().FirstOrDefaultAsync(l => l.Uri == uri);
+                    if (list != null)
+                    {
+                        list.IsDeleted = true;
+                        _unitOfWork.Lists.Update(list);
+                        await _unitOfWork.CompleteAsync();
+                    }
+                    await _repoManager.DeleteRecordAsync(userDid ?? userHandle ?? userIdStr!, request.Collection, request.Rkey);
+                }
+                else if (request.Collection == "app.bsky.graph.listitem")
+                {
+                    var uri = $"at://{userDid ?? userIdStr!}/app.bsky.graph.listitem/{request.Rkey}";
+                    var member = await _unitOfWork.ListMembers.Query().FirstOrDefaultAsync(lm => lm.Uri == uri);
+                    if (member != null)
+                    {
+                        _unitOfWork.ListMembers.Remove(member);
+                        await _unitOfWork.CompleteAsync();
+                    }
+                    await _repoManager.DeleteRecordAsync(userDid ?? userHandle ?? userIdStr!, request.Collection, request.Rkey);
                 }
                 else
                 {
