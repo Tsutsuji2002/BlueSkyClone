@@ -10,11 +10,7 @@ import { openImageViewer } from '../redux/slices/modalsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import signalrService, { HubStatus } from '../services/signalrService';
 import LoadingIndicator from '../components/common/LoadingIndicator';
-
-// Lazy load heavy EmojiPicker
-const EmojiPicker = React.lazy(() => import('emoji-picker-react'));
 import { Theme as EmojiTheme, EmojiClickData } from 'emoji-picker-react';
-
 import { RootState, store } from '../redux/store';
 import { Message, Conversation, User } from '../types';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
@@ -23,7 +19,11 @@ import { formatChatMessageDate } from '../utils/formatDate';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
+
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+
+// Lazy load heavy EmojiPicker
+const EmojiPicker = React.lazy(() => import('emoji-picker-react'));
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
