@@ -50,72 +50,80 @@ const categories = [
 const SuggestedUsersForExplore: React.FC = () => {
     const { t } = useTranslation();
     const [selectedCategory, setSelectedCategory] = useState(categories[0]);
-    const [users, setUsers] = useState<SuggestedUser[]>([]);
-    const [cachedUsers, setCachedUsers] = useState<Record<string, SuggestedUser[]>>({});
-    const [isLoading, setIsLoading] = useState(false);
+    const [suggestions, setSuggestions] = useState<Record<string, SuggestedUser[]>>({});
+    const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
     const token = localStorage.getItem('token');
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
-    useEffect(() => {
-        // If we have cached users for this category, use them and skip re-fetch
-        if (cachedUsers[selectedCategory.id]) {
-            setUsers(cachedUsers[selectedCategory.id]);
-            return;
-        }
+    const fetchCategory = async (category: typeof categories[0]) => {
+        // Skip if already loading or already fetched
+        if (loadingStates[category.id] || suggestions[category.id]) return;
 
-        const fetchUsers = async () => {
-            setIsLoading(true);
-            try {
-                // Determine limit based on category (5 for For You, 10 for others)
-                const limit = selectedCategory.id === 'all' ? 5 : 10;
-                
-                const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore`);
-                url.searchParams.append('limit', limit.toString());
-                
-                if (selectedCategory.id !== 'all') {
-                    url.searchParams.append('category', selectedCategory.id);
-                }
-
-                // Add a cache buster to ensure fresh results for the FIRST fetch
-                url.searchParams.append('_t', Date.now().toString());
-
-                const response = await fetch(url.toString(), {
-                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    const suggestions = data.suggestions || data.actors || data.users || [];
-                    setUsers(suggestions);
-                    setCachedUsers(prev => ({ ...prev, [selectedCategory.id]: suggestions }));
-                }
-            } catch (error) {
-                console.error('Failed to fetch suggested users:', error);
-            } finally {
-                setIsLoading(false);
+        setLoadingStates(prev => ({ ...prev, [category.id]: true }));
+        try {
+            const limit = category.id === 'all' ? 5 : 10;
+            const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore`);
+            url.searchParams.append('limit', limit.toString());
+            
+            if (category.id !== 'all') {
+                url.searchParams.append('category', category.id);
             }
-        };
 
-        fetchUsers();
-    }, [selectedCategory, token, cachedUsers]);
+            url.searchParams.append('_t', Date.now().toString());
+
+            const response = await fetch(url.toString(), {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const items = data.suggestions || data.actors || data.users || [];
+                setSuggestions(prev => ({ ...prev, [category.id]: items }));
+            }
+        } catch (error) {
+            console.error(`Failed to fetch suggested users for ${category.id}:`, error);
+        } finally {
+            setLoadingStates(prev => ({ ...prev, [category.id]: false }));
+        }
+    };
+
+    // Initial fetch and pre-fetch top 5 categories
+    useEffect(() => {
+        // Fetch current selected immediately
+        fetchCategory(selectedCategory);
+
+        // Pre-fetch next 4 categories in parallel (like Bluesky)
+        const categoriesToPrefetch = categories.slice(0, 5);
+        categoriesToPrefetch.forEach(cat => {
+            if (cat.id !== selectedCategory.id) {
+                fetchCategory(cat);
+            }
+        });
+    }, []);
+
+    // Fetch when selected category changes if not already fetched
+    useEffect(() => {
+        if (!suggestions[selectedCategory.id]) {
+            fetchCategory(selectedCategory);
+        }
+    }, [selectedCategory.id]);
 
     const handleFollow = async (did: string) => {
         if (!isAuthenticated) return;
         
-        // Update local state
-        const updatedUsers = users.map(u => 
-            u.did === did 
-                ? { ...u, viewer: { ...u.viewer, following: 'pending' } } 
-                : u
-        );
-        setUsers(updatedUsers);
-        
-        // Update cache as well to keep consistency
-        setCachedUsers(prev => ({
-            ...prev,
-            [selectedCategory.id]: updatedUsers
-        }));
+        // Update local state for all categories where this user might appear
+        setSuggestions(prev => {
+            const newSuggestions = { ...prev };
+            Object.keys(newSuggestions).forEach(catId => {
+                newSuggestions[catId] = newSuggestions[catId].map(u => 
+                    u.did === did 
+                        ? { ...u, viewer: { ...u.viewer, following: 'pending' } } 
+                        : u
+                );
+            });
+            return newSuggestions;
+        });
     };
 
     const scrollRight = () => {
@@ -123,6 +131,9 @@ const SuggestedUsersForExplore: React.FC = () => {
             scrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
         }
     };
+
+    const currentUsers = suggestions[selectedCategory.id] || [];
+    const isLoading = loadingStates[selectedCategory.id];
 
     return (
         <section className="flex flex-col bg-white dark:bg-black border-y border-gray-100 dark:border-transparent mt-2">
@@ -200,7 +211,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                         </div>
                     ))
                 ) : (
-                    users.map((user) => (
+                    currentUsers.map((user) => (
                         <div 
                             key={`${selectedCategory.id}-${user.did}`}
                             className="flex items-center justify-between gap-3 p-3 flex-1 min-w-[280px] rounded-xl border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer group"
@@ -237,7 +248,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                         </div>
                     ))
                 )}
-                {users.length === 0 && !isLoading && (
+                {currentUsers.length === 0 && !isLoading && (
                     <div className="w-full text-center py-8 text-gray-500 dark:text-[#a5b2c5] text-sm">
                         No suggested accounts found for this category.
                     </div>
