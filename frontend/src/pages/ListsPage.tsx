@@ -107,14 +107,23 @@ const ListsPage: React.FC = () => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-start">
-                                                <h3 className="text-base font-bold text-gray-900 dark:text-dark-text truncate">
+                                                <h3 className="text-[17px] font-bold text-gray-900 dark:text-dark-text truncate leading-tight">
                                                     {list.name}
                                                 </h3>
                                             </div>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                                {list.description || (list.owner ? t('lists.list_by', { handle: list.owner.handle }) : '')}
-                                            </p>
+                                            <div className="text-[14px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                                {list.owner && (
+                                                    <span>
+                                                        {t('lists.list_by', { handle: list.owner.handle })}
+                                                    </span>
+                                                )}
                                             </div>
+                                            {list.description && (
+                                                <p className="text-[15px] text-gray-700 dark:text-gray-300 line-clamp-2 mt-1">
+                                                    {list.description}
+                                                </p>
+                                            )}
+                                        </div>
                                         </div>
                                     </Link>
                             ))}

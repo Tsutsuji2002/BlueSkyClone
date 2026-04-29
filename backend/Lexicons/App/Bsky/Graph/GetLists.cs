@@ -21,7 +21,7 @@ namespace BSkyClone.Lexicons.App.Bsky.Graph
         public string Cid { get; set; } = string.Empty;
 
         [JsonPropertyName("creator")]
-        public ProfileViewBasic Creator { get; set; } = new();
+        public ProfileView Creator { get; set; } = new();
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
@@ -34,6 +34,9 @@ namespace BSkyClone.Lexicons.App.Bsky.Graph
 
         [JsonPropertyName("avatar")]
         public string? Avatar { get; set; }
+
+        [JsonPropertyName("listItemCount")]
+        public int ListItemCount { get; set; }
 
         [JsonPropertyName("indexedAt")]
         public string IndexedAt { get; set; } = DateTime.UtcNow.ToString("o");

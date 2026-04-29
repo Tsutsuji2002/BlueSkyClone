@@ -740,7 +740,14 @@ namespace BSkyClone.Controllers
             {
                 if (string.IsNullOrEmpty(actor))
                 {
-                    return Ok(new GetListsResponse { Lists = new List<ListView>() });
+                    var authUserIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                    if (string.IsNullOrEmpty(authUserIdStr))
+                    {
+                        return Ok(new GetListsResponse { Lists = new List<ListView>() });
+                    }
+                    var authUser = await _userService.GetUserByIdAsync(Guid.Parse(authUserIdStr));
+                    if (authUser == null) return Ok(new GetListsResponse { Lists = new List<ListView>() });
+                    actor = authUser.Did ?? authUser.Handle ?? authUser.Username;
                 }
 
                 var viewerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
@@ -781,14 +788,9 @@ namespace BSkyClone.Controllers
                         Purpose = l.Purpose ?? "app.bsky.graph.defs#curatelist",
                         Description = l.Description,
                         Avatar = l.AvatarUrl,
+                        ListItemCount = l.MembersCount,
                         IndexedAt = l.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                        Creator = new ProfileViewBasic
-                        {
-                            Did = actorUser.Did ?? "",
-                            Handle = actorUser.Handle,
-                            DisplayName = actorUser.DisplayName,
-                            Avatar = actorUser.AvatarUrl
-                        },
+                        Creator = MapUserToProfileView(actorUser),
                         Viewer = new ListViewerState
                         {
                             Muted = false,

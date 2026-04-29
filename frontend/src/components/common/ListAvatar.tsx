@@ -42,7 +42,8 @@ const ListAvatar: React.FC<ListAvatarProps> = ({
 
     return (
         <div className={cn(
-            'relative flex-shrink-0 overflow-hidden bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center transition-all',
+            'relative flex-shrink-0 overflow-hidden flex items-center justify-center transition-all',
+            computedSrc && !hasError ? 'bg-gray-100 dark:bg-dark-surface' : 'bg-[#0085ff]',
             sizeStyles[size],
             className
         )}>
@@ -54,7 +55,7 @@ const ListAvatar: React.FC<ListAvatarProps> = ({
                     className="w-full h-full object-cover"
                 />
             ) : (
-                <FiList className="text-primary-500" size={iconSizes[size]} />
+                <FiList className="text-white" size={iconSizes[size]} />
             )}
         </div>
     );
