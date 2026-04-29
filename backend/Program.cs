@@ -205,6 +205,10 @@ builder.Services.AddAuthentication(x =>
             {
                 context.Token = accessToken;
             }
+            else if (string.IsNullOrEmpty(context.Token) && context.Request.Cookies.TryGetValue("access_token", out var cookieToken))
+            {
+                context.Token = cookieToken;
+            }
             return Task.CompletedTask;
         }
     };
