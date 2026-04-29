@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash, FiSettings, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash, FiSettings, FiX, FiRotateCcw, FiChevronDown, FiPlus, FiImage } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useAppSelector';
@@ -9,13 +9,17 @@ import { setActiveConversation, fetchMessages, fetchConversationById, markAsRead
 import { openImageViewer } from '../redux/slices/modalsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import signalrService, { HubStatus } from '../services/signalrService';
-import EmojiPicker, { Theme as EmojiTheme, EmojiClickData } from 'emoji-picker-react';
+import LoadingIndicator from '../components/common/LoadingIndicator';
+
+// Lazy load heavy EmojiPicker
+const EmojiPicker = React.lazy(() => import('emoji-picker-react'));
+import { Theme as EmojiTheme, EmojiClickData } from 'emoji-picker-react';
+
 import { RootState, store } from '../redux/store';
 import { Message, Conversation, User } from '../types';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
 import PostEmbed from '../components/messages/PostEmbed';
 import { formatChatMessageDate } from '../utils/formatDate';
-import LoadingIndicator from '../components/common/LoadingIndicator';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
@@ -259,9 +263,11 @@ const ChatPage: React.FC = () => {
 
     // Incremental Sync Polling
     useEffect(() => {
-        if (!conversationId || !activeConversationMessages.length) return;
+        // Incremental Sync Polling - ONLY fallback if SignalR is not connected
+        const isPollingNeeded = hubStatus !== HubStatus.Connected;
+        if (!conversationId || !activeConversationMessages.length || !isPollingNeeded) return;
 
-        const intervalTime = hubStatus === HubStatus.Connected ? 10000 : 5000;
+        const intervalTime = 5000;
         
         const pollInterval = setInterval(() => {
             const lastMessage = activeConversationMessages[activeConversationMessages.length - 1];
@@ -579,8 +585,11 @@ const ChatPage: React.FC = () => {
                     onScroll={handleScroll}
                 >
                     {isLoading && activeConversationMessages.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center">
+                        <div className="flex-1 flex flex-col items-center justify-center p-10">
                             <LoadingIndicator size="lg" />
+                            <p className="mt-4 text-gray-500 dark:text-dark-text-secondary animate-pulse text-sm">
+                                Loading conversation...
+                            </p>
                         </div>
                     ) : activeConversationMessages.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
@@ -781,13 +790,15 @@ const ChatPage: React.FC = () => {
                                                             style={{ position: 'fixed', top: pickerPosition.top, left: pickerPosition.left }}
                                                             className="z-[60] shadow-2xl animate-in fade-in zoom-in-95 duration-200"
                                                         >
-                                                            <EmojiPicker
-                                                                onEmojiClick={(emojiData) => handleAddReaction(msg.id, emojiData.emoji)}
-                                                                theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
-                                                                lazyLoadEmojis={true}
-                                                                skinTonesDisabled={true}
-                                                                searchPlaceHolder={t('common.search_emojis')}
-                                                            />
+                                                            <React.Suspense fallback={<div className="p-4 bg-white dark:bg-dark-surface rounded-lg shadow-xl"><LoadingIndicator size="sm" /></div>}>
+                                                                <EmojiPicker
+                                                                    onEmojiClick={(emojiData) => handleAddReaction(msg.id, emojiData.emoji)}
+                                                                    theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
+                                                                    lazyLoadEmojis={true}
+                                                                    skinTonesDisabled={true}
+                                                                    searchPlaceHolder={t('common.search_emojis')}
+                                                                />
+                                                            </React.Suspense>
                                                         </div>
                                                     )}
                                                 </div>
@@ -889,13 +900,15 @@ const ChatPage: React.FC = () => {
                                             ref={emojiPickerRef}
                                             className="absolute bottom-full left-0 mb-4 z-30 shadow-2xl animate-in fade-in zoom-in-95 duration-200"
                                         >
-                                            <EmojiPicker
-                                                onEmojiClick={handleEmojiClick}
-                                                theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
-                                                lazyLoadEmojis={true}
-                                                skinTonesDisabled={true}
-                                                searchPlaceHolder={t('common.search_emojis')}
-                                            />
+                                                <React.Suspense fallback={<div className="p-4 bg-white dark:bg-dark-surface rounded-lg shadow-xl"><LoadingIndicator size="sm" /></div>}>
+                                                    <EmojiPicker
+                                                        onEmojiClick={handleEmojiClick}
+                                                        theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
+                                                        lazyLoadEmojis={true}
+                                                        skinTonesDisabled={true}
+                                                        searchPlaceHolder={t('common.search_emojis')}
+                                                    />
+                                                </React.Suspense>
                                         </div>
                                     )}
                                 </div>

@@ -36,12 +36,21 @@ class SignalRService {
             .withUrl(HUB_URL, {
                 accessTokenFactory: () => localStorage.getItem('token') || ''
             })
-            .withAutomaticReconnect()
+            .withAutomaticReconnect([0, 2000, 5000, 10000, 30000]) // Custom retry intervals
             .build();
 
-        this.connection.onreconnecting(() => this.updateStatus(HubStatus.Reconnecting));
-        this.connection.onreconnected(() => this.updateStatus(HubStatus.Connected));
-        this.connection.onclose(() => this.updateStatus(HubStatus.Disconnected));
+        this.connection.onreconnecting((error) => {
+            console.warn('SignalR reconnecting due to error:', error);
+            this.updateStatus(HubStatus.Reconnecting);
+        });
+        this.connection.onreconnected((connectionId) => {
+            console.log('SignalR reconnected. New ConnectionId:', connectionId);
+            this.updateStatus(HubStatus.Connected);
+        });
+        this.connection.onclose((error) => {
+            console.error('SignalR connection closed:', error);
+            this.updateStatus(HubStatus.Disconnected);
+        });
 
         this.connection.on('ReceiveMessage', (message: Message) => {
             const state = store.getState();

@@ -110,15 +110,18 @@ const MessagesPage: React.FC = () => {
                 </div>
 
                 {/* Conversations List */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto bg-white dark:bg-dark-bg">
                     {isLoading && conversations.length === 0 ? (
-                        <div className="flex items-center justify-center p-20">
+                        <div className="flex flex-col items-center justify-center p-20">
                             <LoadingIndicator size="lg" />
+                            <p className="mt-4 text-gray-400 dark:text-dark-text-secondary animate-pulse text-sm">
+                                {t('messages.loading_conversations')}
+                            </p>
                         </div>
                     ) : (
                         <>
                             {filteredConversations.length > 0 ? (
-                                <>
+                                <div className="divide-y divide-gray-100 dark:divide-dark-border">
                                     {filteredConversations.map((conv) => (
                                         <ConversationItem
                                             key={conv.id}
@@ -130,11 +133,11 @@ const MessagesPage: React.FC = () => {
                                     
                                     {/* Load More trigger */}
                                     {!searchQuery && hasMoreConversations && (
-                                        <div ref={loadMoreRef} className="p-4 flex justify-center">
+                                        <div ref={loadMoreRef} className="p-8 flex justify-center border-t border-gray-50 dark:border-dark-border/50">
                                             {isLoadingMoreConversations && <LoadingIndicator size="sm" />}
                                         </div>
                                     )}
-                                </>
+                                </div>
                             ) : (
                                 <div className="p-12 text-center">
                                     <p className="text-gray-500 dark:text-dark-text-secondary">

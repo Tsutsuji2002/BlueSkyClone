@@ -16,7 +16,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+    options.HandshakeTimeout = TimeSpan.FromSeconds(30);
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+})
+.AddHubOptions<ChatHub>(options =>
+{
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+});
+
 builder.Services.AddMemoryCache();
 builder.Services.AddRateLimiter(options =>
 {

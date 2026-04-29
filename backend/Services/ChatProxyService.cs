@@ -83,11 +83,10 @@ namespace BSkyClone.Services
             // Order by CreatedAt to ensure chronological order (oldest first)
             var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
             
-            var enriched = new List<MessageDto>();
-            foreach (var m in messages)
-            {
-                enriched.Add(await EnrichMessageAsync(m));
-            }
+            // Parallelize enrichment to avoid sequential bottleneck
+            var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
+            var enriched = await Task.WhenAll(enrichmentTasks);
+            
             return enriched;
         }
 
@@ -104,15 +103,13 @@ namespace BSkyClone.Services
             
             if (data?.Logs == null) return Enumerable.Empty<MessageDto>();
 
-            var messages = new List<MessageDto>();
-            foreach (var log in data.Logs)
-            {
-                if (log.Type == "chat.bsky.convo.defs#logCreateMessage" && log.Message != null)
-                {
-                    messages.Add(await EnrichMessageAsync(MapToMessageDto(log.Message, log.ConvoId ?? "")));
-                }
-            }
+            // Parallelize enrichment
+            var enrichmentTasks = data.Logs
+                .Where(log => log.Type == "chat.bsky.convo.defs#logCreateMessage" && log.Message != null)
+                .Select(log => EnrichMessageAsync(MapToMessageDto(log.Message!, log.ConvoId ?? "")))
+                .ToList();
 
+            var messages = await Task.WhenAll(enrichmentTasks);
             return messages.OrderBy(m => m.CreatedAt);
         }
 
