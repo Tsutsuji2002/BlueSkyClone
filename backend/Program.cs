@@ -328,6 +328,36 @@ IF COL_LENGTH('MutedWords', 'ExcludeFollowing') IS NULL
 BEGIN
     ALTER TABLE [MutedWords] ADD [ExcludeFollowing] bit NOT NULL CONSTRAINT [DF_MutedWords_ExcludeFollowing] DEFAULT ((0));
 END
+
+-- Ensure Lists and ListMembers have ATProto columns
+IF COL_LENGTH('Lists', 'Uri') IS NULL
+BEGIN
+    ALTER TABLE [Lists] ADD [Uri] nvarchar(max) NULL;
+END
+IF COL_LENGTH('Lists', 'Cid') IS NULL
+BEGIN
+    ALTER TABLE [Lists] ADD [Cid] nvarchar(max) NULL;
+END
+IF COL_LENGTH('ListMembers', 'Uri') IS NULL
+BEGIN
+    ALTER TABLE [ListMembers] ADD [Uri] nvarchar(max) NULL;
+END
+IF COL_LENGTH('ListMembers', 'Cid') IS NULL
+BEGIN
+    ALTER TABLE [ListMembers] ADD [Cid] nvarchar(max) NULL;
+END
+IF COL_LENGTH('BlockedAccounts', 'Uri') IS NULL
+BEGIN
+    ALTER TABLE [BlockedAccounts] ADD [Uri] nvarchar(max) NULL;
+END
+IF COL_LENGTH('BlockedAccounts', 'Cid') IS NULL
+BEGIN
+    ALTER TABLE [BlockedAccounts] ADD [Cid] nvarchar(max) NULL;
+END
+IF COL_LENGTH('BlockedAccounts', 'Tid') IS NULL
+BEGIN
+    ALTER TABLE [BlockedAccounts] ADD [Tid] nvarchar(max) NULL;
+END
 ");
             logger.LogInformation("Verified muted word schema.");
         }
