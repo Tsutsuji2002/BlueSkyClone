@@ -763,9 +763,16 @@ namespace BSkyClone.Controllers
                 }
 
 
-                // ALWAYS Proxy to real Bluesky AppView
+                // Host provided by user for feed: entoloma.us-west.host.bsky.network
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
+                
+                // Forward the Authorization header from the request
+                if (Request.Headers.TryGetValue("Authorization", out var authHeader))
+                {
+                    client.DefaultRequestHeaders.Add("Authorization", authHeader.ToString());
+                }
+
                 var bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor={Uri.EscapeDataString(actor)}&limit={limit}";
                 if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
                 
@@ -800,10 +807,26 @@ namespace BSkyClone.Controllers
                 // ALWAYS Proxy to real Bluesky AppView
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
-                var bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list={Uri.EscapeDataString(list)}&limit={limit}";
+
+                // Forward the Authorization header from the request
+                if (Request.Headers.TryGetValue("Authorization", out var authHeader))
+                {
+                    client.DefaultRequestHeaders.Add("Authorization", authHeader.ToString());
+                }
+
+                // Use the specialized host provided by user if possible, fallback to public
+                var bskyUrl = $"https://entoloma.us-west.host.bsky.network/xrpc/app.bsky.graph.getList?list={Uri.EscapeDataString(list)}&limit={limit}";
                 if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
                 
                 var bskyResponse = await client.GetAsync(bskyUrl);
+                if (!bskyResponse.IsSuccessStatusCode)
+                {
+                    // Fallback to public API if specialized host fails (e.g. 404/401)
+                    bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list={Uri.EscapeDataString(list)}&limit={limit}";
+                    if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                    bskyResponse = await client.GetAsync(bskyUrl);
+                }
+
                 if (bskyResponse.IsSuccessStatusCode)
                 {
                     var content = await bskyResponse.Content.ReadAsStringAsync();
@@ -812,6 +835,7 @@ namespace BSkyClone.Controllers
                 else
                 {
                     var errorContent = await bskyResponse.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Bluesky Proxy getList failed for {list}: {status} {content}", list, bskyResponse.StatusCode, errorContent);
                     return StatusCode((int)bskyResponse.StatusCode, errorContent);
                 }
             }
@@ -832,10 +856,25 @@ namespace BSkyClone.Controllers
                 // Host provided by user: entoloma.us-west.host.bsky.network
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
+
+                // Forward the Authorization header from the request
+                if (Request.Headers.TryGetValue("Authorization", out var authHeader))
+                {
+                    client.DefaultRequestHeaders.Add("Authorization", authHeader.ToString());
+                }
+
                 var bskyUrl = $"https://entoloma.us-west.host.bsky.network/xrpc/app.bsky.feed.getListFeed?list={Uri.EscapeDataString(list)}&limit={limit}";
                 if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
 
                 var bskyResponse = await client.GetAsync(bskyUrl);
+                if (!bskyResponse.IsSuccessStatusCode)
+                {
+                    // Fallback to public API
+                    bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getListFeed?list={Uri.EscapeDataString(list)}&limit={limit}";
+                    if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                    bskyResponse = await client.GetAsync(bskyUrl);
+                }
+
                 if (bskyResponse.IsSuccessStatusCode)
                 {
                     var content = await bskyResponse.Content.ReadAsStringAsync();

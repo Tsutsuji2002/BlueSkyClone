@@ -48,11 +48,13 @@ const ListDetailPage: React.FC = () => {
 
     // Resolved URI state
     const [resolvedUri, setResolvedUri] = useState<string | null>(null);
+    const [isResolving, setIsResolving] = useState(false);
 
     useEffect(() => {
         const resolveAndFetch = async () => {
             if (!id) return;
 
+            setIsResolving(true);
             let finalId = id;
 
             // If we have a handle and id looks like an rkey (not a GUID), try to resolve DID
@@ -75,6 +77,7 @@ const ListDetailPage: React.FC = () => {
             if (currentUser) {
                 dispatch(fetchListsIAmOn());
             }
+            setIsResolving(false);
         };
 
         resolveAndFetch();
@@ -173,7 +176,7 @@ const ListDetailPage: React.FC = () => {
     const isMember = currentUser && activeList ? listsIAmOn.some(l => l.id === activeList.id) : false;
     const canAddPost = activeList?.isOwner || isMember;
 
-    if (isLoading && !activeList) {
+    if ((isLoading || isResolving) && !activeList) {
         return (
             <div className="p-8 text-center text-gray-500">{t('lists.loading')}</div>
         );

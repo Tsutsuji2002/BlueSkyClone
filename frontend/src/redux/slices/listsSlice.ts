@@ -67,7 +67,7 @@ const mapListFromXrpc = (list: any): ListDto => {
         description: list.description,
         purpose: list.purpose,
         avatarUrl: list.avatar || list.avatarUrl,
-        membersCount: list.membersCount || 0,
+        membersCount: list.listItemCount || list.membersCount || 0,
         postsCount: list.postsCount || 0,
         createdAt: list.indexedAt || list.createdAt,
         isPinned: list.isPinned || false,
