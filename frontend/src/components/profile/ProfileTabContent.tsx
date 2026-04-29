@@ -12,6 +12,8 @@ import MediaGrid from './MediaGrid';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { seedInteractionTruth } from '../../redux/slices/postsSlice';
 import { getDynamicBatchSize } from '../../utils/pagination';
+import { Link } from 'react-router-dom';
+import ListAvatar from '../common/ListAvatar';
 
 interface ProfileTabContentProps {
     userId: string;
@@ -21,7 +23,7 @@ interface ProfileTabContentProps {
 }
 
 const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isOwnProfile, isActive = true }) => {
-    const [posts, setPosts] = useState<Post[]>([]);
+    const [items, setItems] = useState<any[]>([]);
     const [cursor, setCursor] = useState<string | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -39,7 +41,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         isFetchingRef.current = true;
         if (isInitial) {
             setInitialLoading(true);
-            setPosts([]);
+            setItems([]);
         }
 
         try {
@@ -47,7 +49,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             const headers: Record<string, string> = {};
             if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
 
-            let fetchedPosts: Post[] = [];
+            let fetchedItems: any[] = [];
             let nextCursor: string | null = null;
 
             if (type === 'posts' || type === 'replies' || type === 'media' || type === 'video' || type === 'likes') {
@@ -62,33 +64,38 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 const response = await fetch(`${API_BASE_URL}/posts/user/${userId}?${params}`, { headers });
                 if (response.ok) {
                     const data = await response.json();
-                    fetchedPosts = Array.isArray(data) ? data : (data.posts || []);
+                    fetchedItems = Array.isArray(data) ? data : (data.posts || []);
                     if (type === 'video') {
-                        fetchedPosts = fetchedPosts.filter((p: Post) => 
+                        fetchedItems = fetchedItems.filter((p: Post) => 
                             !!p.videoUrl || !!p.video || (p.media && p.media.some(m => m.type === 'video'))
                         );
                     }
                     nextCursor = data.cursor || null;
                 }
             } else if (type === 'lists') {
-                fetchedPosts = [];
-                nextCursor = null;
+                // Use XRPD getLists which we know works and proxies to Bluesky
+                const response = await fetch(`/xrpc/app.bsky.graph.getLists?actor=${encodeURIComponent(userId)}&limit=50`, { headers });
+                if (response.ok) {
+                    const data = await response.json();
+                    fetchedItems = data.lists || [];
+                    nextCursor = data.cursor || null;
+                }
             }
 
             if (type === 'likes') {
-                fetchedPosts.forEach(p => { p.isLiked = true; });
+                fetchedItems.forEach(p => { p.isLiked = true; });
             }
 
             // Seed interactionTruth in Redux so PostCard reads the correct
             // isLiked / isReposted / isBookmarked from the backend-enriched data,
             // overwriting any stale entries from earlier timeline loads.
-            if (fetchedPosts.length > 0) {
-                dispatch(seedInteractionTruth(fetchedPosts));
+            if (type !== 'lists' && fetchedItems.length > 0) {
+                dispatch(seedInteractionTruth(fetchedItems));
             }
 
-            setPosts(prev => isInitial ? fetchedPosts : [...prev, ...fetchedPosts]);
+            setItems(prev => isInitial ? fetchedItems : [...prev, ...fetchedItems]);
             setCursor(nextCursor);
-            setHasMore(!!nextCursor && fetchedPosts.length > 0);
+            setHasMore(!!nextCursor && fetchedItems.length > 0);
         } catch (err) {
             console.error(`Failed to fetch profile ${type}:`, err);
             setHasMore(false);
@@ -103,16 +110,11 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
     useEffect(() => {
         // Only clear and re-fetch if the userId has TRULY changed.
-        // We allow handle -> handle or handle -> DID transitions if they likely refer to the same user.
-        // In this app, userId is often the handle initially and then potentially the DID.
         if (prevUserIdRef.current && prevUserIdRef.current !== userId) {
-            // Check if it's just a handle-to-identity resolution (e.g. "user.bsky.social" -> "did:plc:...")
-            // Usually, if we already have posts and we're just resolving, we don't want to clear.
-            if (posts.length > 0 && (userId.startsWith('did:') || prevUserIdRef.current.startsWith('did:'))) {
-                 // Potentially the same user. For now, let's just avoid the clear if we have posts.
-                 // A more robust check might involve the actual profile handle.
+            if (items.length > 0 && (userId.startsWith('did:') || prevUserIdRef.current.startsWith('did:'))) {
+                 // Potentially the same user.
             } else {
-                setPosts([]);
+                setItems([]);
                 setInitialLoading(true);
             }
         }
@@ -121,9 +123,9 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         prevUserIdRef.current = userId;
     }, [userId, type]);
 
-    // Infinite scroll for MediaGrid
+    // Infinite scroll
     useEffect(() => {
-        if (type !== 'media' || !hasMore || loading || !isActive) return;
+        if (!hasMore || loading || !isActive) return;
 
         const observer = new IntersectionObserver(([entry]) => {
             if (entry.isIntersecting) {
@@ -135,20 +137,63 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         return () => observer.disconnect();
     }, [type, hasMore, loading, isActive, fetchBatch]);
 
+    if (type === 'lists' && initialLoading) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <LoadingIndicator size="md" />
+            </div>
+        );
+    }
 
-
-    if (type === 'lists') {
+    if (type === 'lists' && items.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                 <FiList size={80} className="text-gray-300 dark:text-dark-border mb-4" strokeWidth={1.2} />
                 <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary">
-                    {t('profile.feeds_coming_soon', 'Coming soon')}
+                    {t('profile.no_lists', 'No lists found')}
                 </h3>
             </div>
         );
     }
 
-    if (type === 'media' && posts.length === 0) {
+    if (type === 'lists') {
+        return (
+            <div className="divide-y divide-gray-200 dark:divide-dark-border">
+                {items.map(list => {
+                    const rkey = list.uri?.split('/').pop();
+                    const creatorHandle = list.creator?.handle || userId;
+                    return (
+                        <Link
+                            key={list.uri}
+                            to={`/profile/${creatorHandle}/lists/${rkey}`}
+                            className="block p-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+                        >
+                            <div className="flex flex-row items-start gap-3">
+                                <div className="shrink-0" style={{ width: '40px', height: '40px' }}>
+                                    <ListAvatar src={list.avatar} alt={list.name} size="lg" />
+                                </div>
+                                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                    <h3 className="font-bold truncate text-[15px] text-gray-900 dark:text-white leading-[20px]">
+                                        {list.name}
+                                    </h3>
+                                    <div className="truncate text-[13.1px] text-gray-500 dark:text-gray-400 leading-[17px]">
+                                        {t('lists.list_by', { handle: creatorHandle })}
+                                    </div>
+                                    {list.description && (
+                                        <div className="mt-1 line-clamp-2 text-[15px] text-gray-900 dark:text-gray-200 leading-[20px]">
+                                            {list.description}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </Link>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    if (type === 'media' && items.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
                 <FiImage size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
@@ -159,7 +204,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         );
     }
 
-    if (type === 'video' && posts.length === 0) {
+    if (type === 'video' && items.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
                 <FiVideo size={80} className="text-gray-300 dark:text-dark-border" strokeWidth={1.2} />
@@ -173,12 +218,12 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     if (type === 'media') {
         return (
             <div className="min-h-screen">
-                <MediaGrid posts={posts} />
+                <MediaGrid posts={items} />
                 
                 {/* Sentinel */}
                 <div ref={sentinelRef} className="h-20 flex items-center justify-center">
                     {loading && <LoadingIndicator size="sm" />}
-                    {!hasMore && posts.length > 0 && (
+                    {!hasMore && items.length > 0 && (
                          <div className="text-gray-400 text-sm font-medium">{t('feeds.end')}</div>
                     )}
                 </div>
@@ -188,7 +233,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
     return (
         <Feed
-            posts={posts}
+            posts={items}
             isLoading={loading}
             hasMore={hasMore}
             onLoadMore={() => fetchBatch(false)}

@@ -55,18 +55,9 @@ const ListsPage: React.FC = () => {
                 </div>
 
                 <div className="flex border-b border-gray-200 dark:border-dark-border">
-                    <button
-                        onClick={() => setActiveTab('my')}
-                        className={`flex-1 py-4 text-center font-bold text-sm hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors ${activeTab === 'my' ? 'border-b-2 border-primary-500 text-gray-900 dark:text-white' : 'text-gray-500'}`}
-                    >
+                    <div className="flex-1 py-4 text-center font-bold text-sm text-gray-900 dark:text-white border-b-2 border-primary-500">
                         {t('lists.my_lists')}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('joined')}
-                        className={`flex-1 py-4 text-center font-bold text-sm hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors ${activeTab === 'joined' ? 'border-b-2 border-primary-500 text-gray-900 dark:text-white' : 'text-gray-500'}`}
-                    >
-                        {t('lists.joined_lists')}
-                    </button>
+                    </div>
                 </div>
 
                 {/* Debug Error Reporting */}
@@ -80,22 +71,22 @@ const ListsPage: React.FC = () => {
                 )}
 
                 {
-                    (isLoading && myLists.length === 0 && listsIAmOn.length === 0) ? (
+                    (isLoading && myLists.length === 0) ? (
                         <div className="flex items-center justify-center py-20">
                             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500"></div>
                         </div>
-                    ) : (activeTab === 'my' ? myLists : listsIAmOn).length === 0 ? (
+                    ) : myLists.length === 0 ? (
                         <div className="p-12 text-center flex flex-col items-center">
                             <p className="text-gray-500 max-w-xs mx-auto">
-                                {activeTab === 'my' ? "No lists found on your Bluesky account." : t('lists.no_joined_lists')}
+                                No lists found on your Bluesky account.
                             </p>
                         </div>
                     ) : (
                         <div className="divide-y divide-gray-200 dark:divide-dark-border">
-                            {(activeTab === 'my' ? myLists : listsIAmOn).map(list => (
+                            {myLists.map(list => (
                                 <Link
                                     key={list.uri || list.id}
-                                    to={list.uri ? `/lists/${encodeURIComponent(list.uri)}` : `/lists/${list.id}`}
+                                    to={list.uri ? `/profile/${list.creator?.handle || list.owner?.handle || 'me'}/lists/${encodeURIComponent(list.uri.split('/').pop() || '')}` : `/lists/${list.id}`}
                                     className="block p-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
                                 >
                                     <div className="flex flex-row items-start gap-3">

@@ -17,7 +17,7 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const ListDetailPage: React.FC = () => {
-    const { id } = useParams<{ id: string }>();
+    const { handle, id } = useParams<{ handle?: string, id: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
@@ -46,28 +46,59 @@ const ListDetailPage: React.FC = () => {
         onConfirm: () => { }
     });
 
+    // Resolved URI state
+    const [resolvedUri, setResolvedUri] = useState<string | null>(null);
+
     useEffect(() => {
-        if (id) {
-            dispatch(fetchListById(id));
+        const resolveAndFetch = async () => {
+            if (!id) return;
+
+            let finalId = id;
+
+            // If we have a handle and id looks like an rkey (not a GUID), try to resolve DID
+            if (handle && handle !== 'user' && !id.includes('-')) {
+                try {
+                    // Try to resolve DID for handle
+                    const response = await fetch(`/xrpc/com.atproto.identity.resolveHandle?handle=${handle}`);
+                    const data = await response.json();
+                    if (data.did) {
+                        const uri = `at://${data.did}/app.bsky.graph.list/${id}`;
+                        setResolvedUri(uri);
+                        finalId = uri;
+                    }
+                } catch (err) {
+                    console.error('Failed to resolve handle:', err);
+                }
+            }
+
+            dispatch(fetchListById(finalId));
             if (currentUser) {
                 dispatch(fetchListsIAmOn());
             }
-        }
-    }, [dispatch, id, currentUser]);
+        };
+
+        resolveAndFetch();
+    }, [dispatch, id, handle, currentUser]);
 
     useEffect(() => {
-        if (id) {
+        const fetchContent = () => {
+            const docId = resolvedUri || id;
+            if (!docId) return;
+
             if (activeTab === 'posts') {
-                dispatch(fetchListFeed({ id, skip: 0 }));
+                dispatch(fetchListFeed({ id: docId, skip: 0 }));
             } else if (activeTab === 'people') {
-                dispatch(fetchListMembers(id));
+                dispatch(fetchListMembers(docId));
             }
-        }
-    }, [dispatch, id, activeTab]);
+        };
+
+        fetchContent();
+    }, [dispatch, id, resolvedUri, activeTab]);
 
     const handleLoadMore = () => {
-        if (id && activeTab === 'posts') {
-            dispatch(fetchListFeed({ id, skip: activeListFeed.length }));
+        const docId = resolvedUri || id;
+        if (docId && activeTab === 'posts') {
+            dispatch(fetchListFeed({ id: docId, skip: activeListFeed.length }));
         }
     };
 
@@ -201,7 +232,14 @@ const ListDetailPage: React.FC = () => {
                                 </button>
                                 {isMenuOpen && (
                                     <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-dark-surface rounded-xl shadow-xl border border-gray-200 dark:border-dark-border py-2 z-20">
-                                        <button className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-hover flex items-center gap-3 text-gray-700 dark:text-gray-200">
+                                        <button 
+                                            onClick={() => {
+                                                const url = window.location.origin + `/profile/${activeList.owner?.handle || handle || 'me'}/lists/${activeList.uri?.split('/').pop() || id}`;
+                                                navigator.clipboard.writeText(url);
+                                                setIsMenuOpen(false);
+                                            }}
+                                            className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-hover flex items-center gap-3 text-gray-700 dark:text-gray-200"
+                                        >
                                             <FiCopy size={18} />
                                             {t('lists.copy_link')}
                                         </button>

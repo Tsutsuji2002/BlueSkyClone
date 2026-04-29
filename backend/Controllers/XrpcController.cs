@@ -823,6 +823,39 @@ namespace BSkyClone.Controllers
         }
 
         [AllowAnonymous]
+        [HttpGet("app.bsky.feed.getListFeed")]
+        public async Task<IActionResult> GetListFeed([FromQuery] string list, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                // ALWAYS Proxy to real Bluesky AppView
+                // Host provided by user: entoloma.us-west.host.bsky.network
+                using var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
+                var bskyUrl = $"https://entoloma.us-west.host.bsky.network/xrpc/app.bsky.feed.getListFeed?list={Uri.EscapeDataString(list)}&limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+                var bskyResponse = await client.GetAsync(bskyUrl);
+                if (bskyResponse.IsSuccessStatusCode)
+                {
+                    var content = await bskyResponse.Content.ReadAsStringAsync();
+                    return Content(content, "application/json");
+                }
+                else
+                {
+                    var errorContent = await bskyResponse.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Bluesky Proxy getListFeed failed for {list}: {status} {content}", list, bskyResponse.StatusCode, errorContent);
+                    return StatusCode((int)bskyResponse.StatusCode, errorContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetListFeed proxy error for {list}", list);
+                return StatusCode(500, new { error = "ProxyError", message = ex.Message });
+            }
+        }
+
+        [AllowAnonymous]
         [HttpGet("app.bsky.graph.getListMembers")]
         public async Task<IActionResult> GetListMembers([FromQuery] string list, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
         {
