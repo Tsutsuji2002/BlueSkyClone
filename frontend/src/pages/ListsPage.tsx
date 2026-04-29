@@ -16,11 +16,9 @@ const ListsPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { myLists, listsIAmOn, isLoading, error } = useAppSelector(state => state.lists);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'my' | 'joined'>('my');
 
     useEffect(() => {
         dispatch(fetchMyLists());
-        dispatch(fetchListsIAmOn());
     }, [dispatch]);
 
     const handleCreateList = async (data: CreateListDto) => {
@@ -54,11 +52,6 @@ const ListsPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex border-b border-gray-200 dark:border-dark-border">
-                    <div className="flex-1 py-4 text-center font-bold text-sm text-gray-900 dark:text-white border-b-2 border-primary-500">
-                        {t('lists.my_lists')}
-                    </div>
-                </div>
 
                 {/* Debug Error Reporting */}
                 {error && (

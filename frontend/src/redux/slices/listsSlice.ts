@@ -148,9 +148,17 @@ export const fetchListById = createAsyncThunk(
     'lists/fetchListById',
     async (id: string, { rejectWithValue }) => {
         try {
+            if (id.startsWith('at://')) {
+                const res = await fetch(`${getXrpcBase()}/app.bsky.graph.getList?list=${encodeURIComponent(id)}`, {
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) throw new Error('Failed to fetch list via XRPC');
+                const data = await res.json();
+                return mapListFromXrpc(data.list);
+            }
             return await listService.getList(id);
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch list');
+            return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch list');
         }
     }
 );
@@ -206,9 +214,30 @@ export const fetchListMembers = createAsyncThunk(
     'lists/fetchListMembers',
     async (id: string, { rejectWithValue }) => {
         try {
+            if (id.startsWith('at://')) {
+                const res = await fetch(`${getXrpcBase()}/app.bsky.graph.getList?list=${encodeURIComponent(id)}`, {
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) throw new Error('Failed to fetch member list via XRPC');
+                const data = await res.json();
+                // Map the items to ListItemDto
+                return (data.items || []).map((item: any) => ({
+                    userId: item.subject?.did || '',
+                    user: {
+                        id: item.subject?.did || '',
+                        did: item.subject?.did || '',
+                        handle: item.subject?.handle || '',
+                        displayName: item.subject?.displayName || '',
+                        avatar: item.subject?.avatar,
+                        avatarUrl: item.subject?.avatar,
+                        username: item.subject?.handle || '',
+                        bio: item.subject?.description || ''
+                    }
+                }));
+            }
             return await listService.getMembers(id);
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch members');
+            return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch members');
         }
     }
 );
@@ -217,9 +246,18 @@ export const fetchListFeed = createAsyncThunk(
     'lists/fetchListFeed',
     async ({ id, skip = 0, take = 5 }: { id: string; skip?: number; take?: number }, { rejectWithValue }) => {
         try {
+            if (id.startsWith('at://')) {
+                // app.bsky.feed.getListFeed
+                const res = await fetch(`${getXrpcBase()}/app.bsky.feed.getListFeed?list=${encodeURIComponent(id)}&limit=${take}`, {
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) throw new Error('Failed to fetch list feed via XRPC');
+                const data = await res.json();
+                return (data.feed || []).map((f: any) => f.post); // Feed expects Post[]
+            }
             return await listService.getListFeed(id, skip, take);
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch list feed');
+            return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch list feed');
         }
     }
 );
