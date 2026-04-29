@@ -88,21 +88,7 @@ const SuggestedUsersForExplore: React.FC = () => {
         }
     };
 
-    // Initial fetch and pre-fetch top 5 categories
-    useEffect(() => {
-        // Fetch current selected immediately
-        fetchCategory(selectedCategory);
-
-        // Pre-fetch next 4 categories in parallel (like Bluesky)
-        const categoriesToPrefetch = categories.slice(0, 5);
-        categoriesToPrefetch.forEach(cat => {
-            if (cat.id !== selectedCategory.id) {
-                fetchCategory(cat);
-            }
-        });
-    }, []);
-
-    // Fetch when selected category changes if not already fetched
+    // Fetch selected category immediately on mount or when it changes
     useEffect(() => {
         if (!suggestions[selectedCategory.id]) {
             fetchCategory(selectedCategory);
