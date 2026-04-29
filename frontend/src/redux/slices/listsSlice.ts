@@ -3,6 +3,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { ListDto, ListItemDto, CreateListDto, UpdateListDto, Post, UserDto } from '../../types';
 import listService from '../../services/listsService';
 import { API_BASE_URL } from '../../constants';
+import { mapAtProtoPostToPost } from '../../utils/postMapper';
 
 interface ListsState {
     myLists: ListDto[];
@@ -222,17 +223,20 @@ export const fetchListMembers = createAsyncThunk(
                 const data = await res.json();
                 // Map the items to ListItemDto
                 return (data.items || []).map((item: any) => ({
+                    id: item.uri,
+                    uri: item.uri,
                     userId: item.subject?.did || '',
                     user: {
                         id: item.subject?.did || '',
                         did: item.subject?.did || '',
                         handle: item.subject?.handle || '',
-                        displayName: item.subject?.displayName || '',
+                        displayName: item.subject?.displayName || item.subject?.handle || '',
                         avatar: item.subject?.avatar,
                         avatarUrl: item.subject?.avatar,
                         username: item.subject?.handle || '',
                         bio: item.subject?.description || ''
-                    }
+                    },
+                    joinedAt: item.indexedAt || new Date().toISOString()
                 }));
             }
             return await listService.getMembers(id);
@@ -253,7 +257,7 @@ export const fetchListFeed = createAsyncThunk(
                 });
                 if (!res.ok) throw new Error('Failed to fetch list feed via XRPC');
                 const data = await res.json();
-                return (data.feed || []).map((f: any) => f.post); // Feed expects Post[]
+                return (data.feed || []).map((f: any) => mapAtProtoPostToPost(f.post));
             }
             return await listService.getListFeed(id, skip, take);
         } catch (error: any) {
