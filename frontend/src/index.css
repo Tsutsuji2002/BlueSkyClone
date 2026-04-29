@@ -22,10 +22,11 @@
     --bg-primary: 21 32 43;
     --bg-secondary: 25 39 52;
     --bg-hover: 28 39 50;
-    --text-primary: 231 233 234;
+    --text-primary: 241 243 245;
     --text-secondary: 139 152 165;
     --border-color: 35 46 62;
   }
+
 
   /* Lights out (Pure black) override */
   .dark.lights-out {
