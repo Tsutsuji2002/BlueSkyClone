@@ -4,6 +4,7 @@ using BSkyClone.Services;
 using BSkyClone.Services.ML;
 using BSkyClone.UnitOfWork;
 using BSkyClone.Utilities;
+using BSkyClone.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
