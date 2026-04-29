@@ -741,94 +741,43 @@ namespace BSkyClone.Controllers
         {
             try
             {
+                // Resolve actor if missing
                 if (string.IsNullOrEmpty(actor))
                 {
-                    var authDid = User.FindFirst("did")?.Value;
-                    var authHandle = User.FindFirst("handle")?.Value;
-                    var authUserIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-
-                    if (!string.IsNullOrEmpty(authDid)) actor = authDid;
-                    else if (!string.IsNullOrEmpty(authHandle)) actor = authHandle;
-                    else if (!string.IsNullOrEmpty(authUserIdStr)) actor = authUserIdStr;
-                    else
-                    {
-                        return Ok(new GetListsResponse { Lists = new List<ListView>() });
-                    }
+                    actor = User.FindFirst("did")?.Value ?? User.FindFirst("handle")?.Value ?? User.FindFirst("sub")?.Value;
                 }
 
-                var viewerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                Guid viewerId = Guid.Empty;
-                if (!string.IsNullOrEmpty(viewerIdStr)) Guid.TryParse(viewerIdStr, out viewerId);
-
-                User? actorUser = null;
-                if (Guid.TryParse(actor, out var actorGuid))
+                if (string.IsNullOrEmpty(actor))
                 {
-                    actorUser = await _userService.GetUserByIdAsync(actorGuid);
+                    return Ok(new { lists = new List<object>(), cursor = (string?)null });
                 }
-                else if (actor.StartsWith("did:"))
+
+                // ALWAYS Proxy to real Bluesky AppView
+                using var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
+                var bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor={Uri.EscapeDataString(actor)}&limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                
+                var bskyResponse = await client.GetAsync(bskyUrl);
+                if (bskyResponse.IsSuccessStatusCode)
                 {
-                    actorUser = await _userService.GetUserByDidAsync(actor);
+                    var content = await bskyResponse.Content.ReadAsStringAsync();
+                    return Content(content, "application/json");
                 }
                 else
                 {
-                    actorUser = await _userService.GetUserByHandleAsync(actor);
+                    var errorContent = await bskyResponse.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Bluesky Proxy getLists failed for {actor}: {status} {content}", actor, bskyResponse.StatusCode, errorContent);
+                    return StatusCode((int)bskyResponse.StatusCode, errorContent);
                 }
-
-                if (actorUser == null)
-                {
-                    // Fallback: Proxy to real Bluesky for remote actors
-                    try
-                    {
-                        using var client = _httpClientFactory.CreateClient();
-                        client.Timeout = TimeSpan.FromSeconds(3);
-                        var bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor={Uri.EscapeDataString(actor)}&limit={limit}";
-                        if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
-                        
-                        var bskyResponse = await client.GetAsync(bskyUrl);
-                        if (bskyResponse.IsSuccessStatusCode)
-                        {
-                            var content = await bskyResponse.Content.ReadAsStringAsync();
-                            return Content(content, "application/json");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to proxy getLists to Bluesky for {actor}", actor);
-                    }
-                    return NotFound(new { error = "AccountNotFound", message = "Account not found" });
-                }
-
-                var lists = await _listService.GetUserListsAsync(actorUser.Id, viewerId);
-                var response = new GetListsResponse
-                {
-                    Lists = lists.Select(l => new ListView
-                    {
-                        Uri = l.Uri ?? $"at://{actorUser.Did}/app.bsky.graph.list/{l.Id}",
-                        Cid = l.Cid ?? l.Id.ToString(),
-                        Name = l.Name,
-                        Purpose = l.Purpose ?? "app.bsky.graph.defs#curatelist",
-                        Description = l.Description,
-                        Avatar = l.AvatarUrl,
-                        ListItemCount = l.MembersCount,
-                        IndexedAt = l.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                        Creator = MapUserToProfileView(actorUser),
-                        Viewer = new ListViewerState { Muted = false }
-                    }).ToList(),
-                    Cursor = null
-                };
-
-                return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "XRPC GetLists error for actor {actor}", actor);
-                return StatusCode(500, new { 
-                    error = "InternalServerError", 
-                    message = ex.Message,
-                    stackTrace = ex.StackTrace
-                });
+                _logger.LogError(ex, "XRPC GetLists proxy error for actor {actor}", actor);
+                return StatusCode(500, new { error = "ProxyError", message = ex.Message });
             }
         }
+
 
 
         [AllowAnonymous]
@@ -837,61 +786,62 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var viewerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                Guid viewerId = Guid.Empty;
-                if (!string.IsNullOrEmpty(viewerIdStr)) Guid.TryParse(viewerIdStr, out viewerId);
-
-                // Find list by URI
-                var dbList = await _unitOfWork.Lists.Query()
-                    .Include(l => l.Owner)
-                    .FirstOrDefaultAsync(l => l.Uri == list);
-
-                // Fallback for local IDs
-                if (dbList == null && Guid.TryParse(list, out var listId))
+                // ALWAYS Proxy to real Bluesky AppView
+                using var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
+                var bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list={Uri.EscapeDataString(list)}&limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                
+                var bskyResponse = await client.GetAsync(bskyUrl);
+                if (bskyResponse.IsSuccessStatusCode)
                 {
-                    dbList = await _unitOfWork.Lists.Query().Include(l => l.Owner).FirstOrDefaultAsync(l => l.Id == listId);
+                    var content = await bskyResponse.Content.ReadAsStringAsync();
+                    return Content(content, "application/json");
                 }
-
-                if (dbList == null) return NotFound(new { error = "ListNotFound" });
-
-                var members = await _listService.GetListMembersAsync(dbList.Id);
-
-                var response = new GetListResponse
+                else
                 {
-                    List = new ListView
-                    {
-                        Uri = dbList.Uri ?? $"at://{dbList.Owner?.Did}/app.bsky.graph.list/{dbList.Id}",
-                        Cid = dbList.Cid ?? dbList.Id.ToString(),
-                        Name = dbList.Name,
-                        Purpose = dbList.Purpose ?? "app.bsky.graph.defs#curatelist",
-                        Description = dbList.Description,
-                        Avatar = dbList.AvatarUrl,
-                        ListItemCount = members.Count(),
-                        IndexedAt = dbList.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") ?? DateTime.UtcNow.ToString("o"),
-                        Creator = dbList.Owner != null ? MapUserToProfileView(dbList.Owner) : new ProfileView()
-                    },
-                    Items = members.Select(m => new ListItemView
-                    {
-                        Uri = m.Uri ?? $"at://{dbList.Owner?.Did}/app.bsky.graph.listitem/{m.UserId}", // Placeholder if no repo record
-                        Subject = MapUserToProfileView(new User { 
-                            Id = m.UserId, 
-                            Username = m.User.Username, 
-                            Handle = m.User.Handle, 
-                            DisplayName = m.User.DisplayName, 
-                            AvatarUrl = m.User.AvatarUrl,
-                            Did = m.User.Did
-                        })
-                    }).ToList()
-                };
-
-                return Ok(response);
+                    var errorContent = await bskyResponse.Content.ReadAsStringAsync();
+                    return StatusCode((int)bskyResponse.StatusCode, errorContent);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "XRPC GetList error for list {list}", list);
-                return StatusCode(500, new { error = "InternalServerError", message = ex.Message });
+                _logger.LogError(ex, "XRPC GetList proxy error for {list}", list);
+                return StatusCode(500, new { error = "ProxyError", message = ex.Message });
             }
         }
+
+        [AllowAnonymous]
+        [HttpGet("app.bsky.graph.getListMembers")]
+        public async Task<IActionResult> GetListMembers([FromQuery] string list, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+        {
+            try
+            {
+                // ALWAYS Proxy to real Bluesky AppView
+                using var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
+                var bskyUrl = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getListMembers?list={Uri.EscapeDataString(list)}&limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) bskyUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                
+                var bskyResponse = await client.GetAsync(bskyUrl);
+                if (bskyResponse.IsSuccessStatusCode)
+                {
+                    var content = await bskyResponse.Content.ReadAsStringAsync();
+                    return Content(content, "application/json");
+                }
+                else
+                {
+                    var errorContent = await bskyResponse.Content.ReadAsStringAsync();
+                    return StatusCode((int)bskyResponse.StatusCode, errorContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetListMembers proxy error for {list}", list);
+                return StatusCode(500, new { error = "ProxyError", message = ex.Message });
+            }
+        }
+
 
         [Authorize]
         [HttpGet("app.bsky.notification.getUnreadCount")]
