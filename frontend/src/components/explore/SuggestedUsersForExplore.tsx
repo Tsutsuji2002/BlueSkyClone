@@ -125,7 +125,7 @@ const SuggestedUsersForExplore: React.FC = () => {
     };
 
     return (
-        <section className="flex flex-col bg-black dark:bg-black">
+        <section className="flex flex-col bg-white dark:bg-black border-y border-gray-100 dark:border-transparent mt-2">
             {/* Header Area */}
             <div className="flex flex-row items-center px-4 pt-6 pb-1 gap-2">
                 <div className="z-20 w-6 h-6 -ml-0.5">
@@ -133,12 +133,12 @@ const SuggestedUsersForExplore: React.FC = () => {
                         <path fill="#006AFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M12 4a8 8 0 0 0-5.935 13.365C7.56 15.895 9.612 15 12 15c2.388 0 4.44.894 5.935 2.365A8 8 0 0 0 12 4Zm4.412 14.675C15.298 17.636 13.792 17 12 17c-1.791 0-3.298.636-4.412 1.675A7.96 7.96 0 0 0 12 20a7.96 7.96 0 0 0 4.412-1.325ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10a9.98 9.98 0 0 1-3.462 7.567A9.965 9.965 0 0 1 12 22a9.965 9.965 0 0 1-6.538-2.433A9.98 9.98 0 0 1 2 12Zm10-4a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm-4 2a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z"></path>
                     </svg>
                 </div>
-                <h2 className="text-[18.8px] tracking-[0.25px] font-bold text-white flex-1 leading-[18.8px] font-sans">
+                <h2 className="text-[18.8px] tracking-[0.25px] font-bold text-gray-900 dark:text-white flex-1 leading-[18.8px] font-sans">
                     {t('explore.suggested_accounts', { defaultValue: 'Suggested accounts' })}
                 </h2>
                 <button 
                     aria-label="Search for more accounts" 
-                    className="flex items-center justify-center bg-black h-[33px] w-[33px] rounded-full hover:bg-white/10 transition-colors"
+                    className="flex items-center justify-center bg-gray-100 dark:bg-black h-[33px] w-[33px] rounded-full hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                 >
                     <div className="w-[17px] h-[17px]">
                         <svg fill="none" width="24" viewBox="0 0 24 24" height="24" style={{color: '#8798B0'}}>
@@ -161,8 +161,8 @@ const SuggestedUsersForExplore: React.FC = () => {
                             className={cn(
                                 "flex flex-row items-center justify-center rounded-full px-4 py-2 border transition-all outline-none",
                                 selectedCategory.id === cat.id
-                                    ? "bg-[#111822] border-[#313f54] text-white"
-                                    : "bg-black border-[#232e3e] text-[#a5b2c5] hover:bg-white/5"
+                                    ? "bg-gray-900 dark:bg-[#111822] border-gray-900 dark:border-[#313f54] text-white"
+                                    : "bg-white dark:bg-black border-gray-200 dark:border-[#232e3e] text-gray-600 dark:text-[#a5b2c5] hover:bg-gray-50 dark:hover:bg-white/5"
                             )}
                         >
                             <span className="text-[13.1px] tracking-[0.25px] font-medium leading-[13.1px] whitespace-nowrap">
@@ -173,10 +173,10 @@ const SuggestedUsersForExplore: React.FC = () => {
                 </div>
                 
                 {/* Scroll Button Overlay */}
-                <div className="absolute top-0 right-0 bottom-0 flex justify-center items-center pr-4 pl-3 z-10 bg-gradient-to-l from-black via-black to-transparent">
+                <div className="absolute top-0 right-0 bottom-0 flex justify-center items-center pr-4 pl-3 z-10 bg-gradient-to-l from-white dark:from-black via-white dark:via-black to-transparent">
                     <button 
                         onClick={scrollRight}
-                        className="flex items-center justify-center p-2 border border-[#232e3e] bg-black rounded-full hover:bg-white/10 transition-colors"
+                        className="flex items-center justify-center p-2 border border-gray-200 dark:border-[#232e3e] bg-white dark:bg-black rounded-full hover:bg-gray-50 dark:hover:bg-white/10 transition-colors shadow-sm dark:shadow-none"
                         style={{ height: '36px', width: '36px' }}
                     >
                         <FiChevronRight size={18} color="#A5B2C5" />
@@ -188,15 +188,15 @@ const SuggestedUsersForExplore: React.FC = () => {
             <div className="flex flex-wrap gap-4 px-4 pb-6 mt-2 min-h-[100px]">
                 {isLoading ? (
                     Array(selectedCategory.id === 'all' ? 5 : 6).fill(0).map((_, i) => (
-                        <div key={i} className="flex items-center justify-between gap-3 p-3 flex-1 min-w-[280px] h-[74px] rounded-xl border border-[#232e3e] animate-pulse">
+                        <div key={i} className="flex items-center justify-between gap-3 p-3 flex-1 min-w-[280px] h-[74px] rounded-xl border border-gray-100 dark:border-[#232e3e] animate-pulse">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-white/5" />
+                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-white/5" />
                                 <div className="flex flex-col gap-2">
-                                    <div className="w-24 h-4 bg-white/5 rounded" />
-                                    <div className="w-16 h-3 bg-white/5 rounded" />
+                                    <div className="w-24 h-4 bg-gray-200 dark:bg-white/5 rounded" />
+                                    <div className="w-16 h-3 bg-gray-200 dark:bg-white/5 rounded" />
                                 </div>
                             </div>
-                            <div className="w-20 h-8 bg-white/5 rounded-full" />
+                            <div className="w-20 h-8 bg-gray-200 dark:bg-white/5 rounded-full" />
                         </div>
                     ))
                 ) : (
@@ -238,7 +238,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                     ))
                 )}
                 {users.length === 0 && !isLoading && (
-                    <div className="w-full text-center py-8 text-[#a5b2c5] text-sm">
+                    <div className="w-full text-center py-8 text-gray-500 dark:text-[#a5b2c5] text-sm">
                         No suggested accounts found for this category.
                     </div>
                 )}

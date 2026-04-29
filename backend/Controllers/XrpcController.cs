@@ -521,7 +521,7 @@ namespace BSkyClone.Controllers
             try
             {
                 using var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(10);
+                client.Timeout = TimeSpan.FromSeconds(1.5);
                 var queryString = Request.QueryString.Value;
                 var url = $"https://api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts{queryString}";
 
@@ -549,7 +549,7 @@ namespace BSkyClone.Controllers
             try
             {
                 using var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(10);
+                client.Timeout = TimeSpan.FromSeconds(1.5);
                 var queryString = Request.QueryString.Value;
                 
                 // Attempt 1: proxy to stropharia (best quality, but needs auth usually)
