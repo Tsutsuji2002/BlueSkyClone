@@ -740,14 +740,26 @@ namespace BSkyClone.Controllers
             {
                 if (string.IsNullOrEmpty(actor))
                 {
+                    var authDid = User.FindFirst("did")?.Value;
+                    var authHandle = User.FindFirst("handle")?.Value;
                     var authUserIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                    if (string.IsNullOrEmpty(authUserIdStr))
+
+                    if (!string.IsNullOrEmpty(authDid))
+                    {
+                        actor = authDid;
+                    }
+                    else if (!string.IsNullOrEmpty(authHandle))
+                    {
+                        actor = authHandle;
+                    }
+                    else if (!string.IsNullOrEmpty(authUserIdStr))
+                    {
+                        actor = authUserIdStr;
+                    }
+                    else
                     {
                         return Ok(new GetListsResponse { Lists = new List<ListView>() });
                     }
-                    var authUser = await _userService.GetUserByIdAsync(Guid.Parse(authUserIdStr));
-                    if (authUser == null) return Ok(new GetListsResponse { Lists = new List<ListView>() });
-                    actor = authUser.Did ?? authUser.Handle ?? authUser.Username;
                 }
 
                 var viewerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
@@ -790,7 +802,7 @@ namespace BSkyClone.Controllers
                         Avatar = l.AvatarUrl,
                         ListItemCount = l.MembersCount,
                         IndexedAt = l.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                        Creator = MapUserToProfileView(actorUser),
+                        Creator = actorUser != null ? MapUserToProfileView(actorUser) : new ProfileView(),
                         Viewer = new ListViewerState
                         {
                             Muted = false,
@@ -804,8 +816,8 @@ namespace BSkyClone.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "XRPC GetLists error");
-                return StatusCode(500, new { error = "InternalError" });
+                _logger.LogError(ex, "XRPC GetLists error for actor {actor}", actor);
+                return StatusCode(500, new { error = "InternalServerError", message = ex.Message });
             }
         }
 
@@ -866,8 +878,8 @@ namespace BSkyClone.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "XRPC GetList error");
-                return StatusCode(500, new { error = "InternalError" });
+                _logger.LogError(ex, "XRPC GetList error for list {list}", list);
+                return StatusCode(500, new { error = "InternalServerError", message = ex.Message });
             }
         }
 

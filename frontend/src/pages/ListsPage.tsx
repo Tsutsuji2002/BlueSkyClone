@@ -101,29 +101,29 @@ const ListsPage: React.FC = () => {
                                     to={`/lists/${list.id}`}
                                     className="block p-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
                                 >
-                                    <div className="flex gap-4">
-                                        <div className="shrink-0">
-                                            <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start">
-                                                <h3 className="text-[17px] font-bold text-gray-900 dark:text-dark-text truncate leading-tight">
-                                                    {list.name}
-                                                </h3>
-                                            </div>
-                                            <div className="text-[14px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                                {list.owner && (
-                                                    <span>
-                                                        {t('lists.list_by', { handle: list.owner.handle })}
-                                                    </span>
-                                                )}
+                                        <div className="flex flex-col gap-2 w-full">
+                                            <div className="flex flex-row items-center gap-2">
+                                                <div className="shrink-0">
+                                                    <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-[15px] font-semibold text-gray-900 dark:text-dark-text truncate leading-[20px]">
+                                                        {list.name}
+                                                    </h3>
+                                                    <div className="text-[13.1px] text-gray-500 dark:text-gray-400 truncate leading-[17px]">
+                                                        {list.owner && (
+                                                            <span>
+                                                                {t('lists.list_by', { handle: list.owner.handle })}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                             {list.description && (
-                                                <p className="text-[15px] text-gray-700 dark:text-gray-300 line-clamp-2 mt-1">
+                                                <p className="text-[13.1px] text-gray-900 dark:text-dark-text line-clamp-2 leading-[17px]">
                                                     {list.description}
                                                 </p>
                                             )}
-                                        </div>
                                         </div>
                                     </Link>
                             ))}

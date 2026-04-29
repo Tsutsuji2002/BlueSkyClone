@@ -19,10 +19,10 @@ const ListAvatar: React.FC<ListAvatarProps> = ({
     const [hasError, setHasError] = useState(false);
 
     const sizeStyles = {
-        sm: 'w-8 h-8 rounded-md',
-        md: 'w-10 h-10 rounded-lg',
-        lg: 'w-12 h-12 rounded-lg',
-        xl: 'w-16 h-16 rounded-xl',
+        sm: 'w-6 h-6 rounded-[4px]',
+        md: 'w-8 h-8 rounded-[6px]',
+        lg: 'w-10 h-10 rounded-[8px]',
+        xl: 'w-16 h-16 rounded-[12px]',
     };
 
     const iconSizes = {
@@ -43,7 +43,7 @@ const ListAvatar: React.FC<ListAvatarProps> = ({
     return (
         <div className={cn(
             'relative flex-shrink-0 overflow-hidden flex items-center justify-center transition-all',
-            computedSrc && !hasError ? 'bg-gray-100 dark:bg-dark-surface' : 'bg-[#0085ff]',
+            computedSrc && !hasError ? 'bg-gray-100 dark:bg-dark-surface' : 'bg-[#0070FF]',
             sizeStyles[size],
             className
         )}>
