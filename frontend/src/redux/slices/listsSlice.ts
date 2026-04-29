@@ -80,32 +80,36 @@ const mapListFromXrpc = (list: any): ListDto => {
 // fetchMyLists and fetchUserLists use XRPC direct fetch to bypass @atproto/api SDK schema validation
 export const fetchMyLists = createAsyncThunk(
     'lists/fetchMyLists',
-    async (_, { rejectWithValue }) => {
+    async (_, { rejectWithValue, getState }) => {
         try {
-            const res = await fetch(`${getXrpcBase()}/app.bsky.graph.getLists?limit=50`, {
+            const state = getState() as any;
+            const did = state.auth?.user?.did;
+            const actorParam = did ? `?actor=${encodeURIComponent(did)}&limit=50` : '?limit=50';
+            
+            const res = await fetch(`${getXrpcBase()}/app.bsky.graph.getLists${actorParam}`, {
                 headers: getAuthHeaders()
             });
             if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                console.error('XRPC getLists failed:', errorData);
                 // Fallback to internal REST API if XRPC fails
                 return await listService.getMyLists();
             }
             const data = await res.json();
             const lists: any[] = data.lists || data.items || [];
-            // If no results from XRPC (e.g. actor param missing), try REST
-            if (lists.length === 0) {
-                return await listService.getMyLists();
-            }
             return lists.map(mapListFromXrpc);
         } catch (error: any) {
+            console.error('Error in fetchMyLists:', error);
             // Fallback to internal REST API
             try {
                 return await listService.getMyLists();
             } catch {
-                return rejectWithValue(error.response?.data?.message || 'Failed to fetch lists');
+                return rejectWithValue(error.message || 'Failed to fetch lists');
             }
         }
     }
 );
+
 
 export const fetchUserLists = createAsyncThunk(
     'lists/fetchUserLists',
