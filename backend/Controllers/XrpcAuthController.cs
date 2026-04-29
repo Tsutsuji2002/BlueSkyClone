@@ -39,7 +39,7 @@ namespace BSkyClone.Controllers
             var serviceDid = $"did:web:{domain}";
             
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long");
+            var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT signing key (Jwt:Key) is not configured."));
             
             var expires = DateTime.UtcNow.AddMinutes(10); // Service tokens are usually short-lived
 

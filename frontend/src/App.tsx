@@ -28,7 +28,7 @@ import { getMe, logoutAsync } from './redux/slices/authSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
-import { isTokenExpired } from './utils/authUtils';
+// Token expiration is handled securely by backend API calls and cookies
 import signalrService, { HubStatus } from './services/signalrService';
 import postSignalrService from './services/postSignalrService';
 import { closeAllModals } from './redux/slices/modalsSlice';
@@ -51,62 +51,14 @@ const AppContent: React.FC = () => {
     sessionStorage.removeItem('chunk_reload_count');
 
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        if (isTokenExpired(token)) {
-          console.log('DEBUG: Access token expired. Attempting refresh...');
-          const refreshToken = localStorage.getItem('refreshToken');
-          if (refreshToken) {
-            try {
-              const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
-              const res = await fetch(`${API_BASE}/xrpc/com.atproto.server.refreshSession`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${refreshToken}`,
-                  'Content-Type': 'application/json'
-                }
-              });
-              
-              if (res.ok) {
-                const data = await res.json();
-                if (data.accessJwt) {
-                  localStorage.setItem('token', data.accessJwt);
-                  localStorage.setItem('refreshToken', data.refreshJwt);
-                  console.log('DEBUG: Token refreshed successfully');
-                  dispatch(getMe());
-                  return;
-                }
-              } else if (res.status === 401 || res.status === 400) {
-                console.warn('Refresh token rejected by server. Logging out.');
-                dispatch(logoutAsync());
-                return;
-              } else {
-                console.warn(`Token refresh encountered status ${res.status}. Falling back to logout.`);
-                dispatch(logoutAsync());
-                return;
-              }
-            } catch (e) {
-              console.warn('Token refresh network error:', e);
-              dispatch(stopLoading()); // Ensure we don't hang on network error
-              return;
-            }
-          }
-          // No refresh token or generic failure
-          dispatch(logoutAsync());
-          return;
+      // With HttpOnly cookies, we just try to fetch the current user profile.
+      // If the cookies are valid, it succeeds. If not, it fails and unsets auth state.
+      if (!isAuthenticated) {
+        const result = await dispatch(getMe());
+        if (getMe.rejected.match(result)) {
+           console.warn('Initial auth check failed. Requires login.');
+           dispatch(stopLoading());
         }
-
-        // Token technically not expired, but let's ensure session is valid
-        if (!isAuthenticated) {
-          const result = await dispatch(getMe());
-          if (getMe.rejected.match(result)) {
-             console.warn('getMe failed for initialized user. Logging out.');
-             dispatch(logoutAsync());
-          }
-        }
-      } else {
-        // No token at all - ensure we're not stuck in loading
-        dispatch(stopLoading());
       }
     };
 

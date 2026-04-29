@@ -250,6 +250,9 @@ public class AuthService : IAuthService
         var userIdString = await _cache.GetStringAsync($"RefreshToken_{refreshToken}");
         if (string.IsNullOrEmpty(userIdString)) return null;
 
+        // Invalidate the old token immediately (refresh token rotation)
+        await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
+
         var userId = Guid.Parse(userIdString.Split('|')[0]);
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
@@ -487,7 +490,7 @@ public class AuthService : IAuthService
     private string GenerateJwtToken(User user, bool rememberMe = false)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long");
+        var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT signing key (Jwt:Key) is not configured."));
         
         // If remember me is true, set a longer-lived JWT token (e.g., 7 days)
         // Otherwise, keep it short (e.g., 2 hours)

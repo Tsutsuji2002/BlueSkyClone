@@ -84,40 +84,13 @@ function normalizeSettings(raw: any): UserSettings {
     } as UserSettings;
 }
 
-/**
- * Ensures the AtpAgent session is hydrated from the current state/payload.
- */
-export async function hydrateAtpSession(user: User, token?: string, refreshToken?: string) {
-    const finalToken = token || localStorage.getItem('token');
-    const finalRefresh = refreshToken || localStorage.getItem('refreshToken');
-    
-    if (finalToken) {
-        try {
-            const userDid = user.did || user.handle;
-            console.log('DEBUG: Hydrating ATP session for', userDid);
-            await agent.resumeSession({
-                accessJwt: finalToken,
-                refreshJwt: finalRefresh || '',
-                handle: user.handle,
-                did: userDid || user.handle,
-                active: true
-            });
-            console.log('DEBUG: ATP session hydrated. agent.session:', (agent as any).session);
-        } catch (err) {
-            console.warn('Failed to hydrate ATP session:', err);
-            // If resumeSession fails (e.g. invalid token), we don't crash here.
-            // App.tsx or thunk catch blocks will handle logout if needed.
-        }
-    }
-}
-
-const token = localStorage.getItem('token');
+// Removed hydrateAtpSession because the backend handles session via HttpOnly cookies
 
 const initialState: AuthState = {
     user: null,
     settings: null,
     isAuthenticated: false,
-    isLoading: !!token, // Start loading if likely authenticated to prevent redirect
+    isLoading: true, // Start loading automatically to fetch the me endpoint via cookies
     error: null,
 };
 
@@ -125,27 +98,20 @@ export const login = createAsyncThunk(
     'auth/login',
     async (credentials: LoginFormData, { rejectWithValue }) => {
         try {
-            const { data } = await agent.login({
-                identifier: credentials.identifier,
-                password: credentials.password,
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(credentials),
             });
-
-            if (data.accessJwt) {
-                localStorage.setItem('token', data.accessJwt);
-                localStorage.setItem('refreshToken', data.refreshJwt);
+            const data = await response.json();
+            if (!response.ok) {
+                return rejectWithValue(data.message || 'Login failed');
             }
 
-            const payload = {
-                user: (data as any).user,
-                settings: (data as any).settings,
-                token: data.accessJwt,
-                refreshToken: data.refreshJwt
+            return {
+                user: data.user,
+                settings: data.settings
             };
-
-            // Hydrate session before returning to reducer
-            await hydrateAtpSession(payload.user, payload.token, payload.refreshToken);
-
-            return payload;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Login failed');
         }
@@ -186,9 +152,6 @@ export const signUp = createAsyncThunk(
                 return rejectWithValue(data.message || 'Registration failed');
             }
 
-            // Hydrate session before returning to reducer
-            await hydrateAtpSession(data.user, data.token, data.refreshToken);
-
             return data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
@@ -200,34 +163,23 @@ export const getMe = createAsyncThunk(
     'auth/getMe',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-
-            if (!token) return rejectWithValue('No session found');
-
             const response = await fetch(`${API_URL}/auth/me`, {
                 method: 'GET',
+                // Fetch will automatically send HttpOnly cookies from same-origin
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
             });
             const userData = await response.json();
+            
             if (!response.ok) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('refreshToken');
                 return rejectWithValue(userData.message || 'Failed to fetch user');
             }
 
-            // Return payload that matches the expected reducer type
-            const payload = {
+            return {
                 user: userData.user,
                 settings: userData.settings
             };
-
-            // Hydrate session before returning to reducer
-            await hydrateAtpSession(payload.user);
-
-            return payload;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
         }
@@ -238,27 +190,21 @@ export const logoutAsync = createAsyncThunk(
     'auth/logout',
     async (_, { rejectWithValue }) => {
         try {
-            // Logout with AtpAgent (clears local session and optionally remote)
-            agent.logout();
-
-            const refreshToken = localStorage.getItem('refreshToken');
-            // Fire and forget logout request
-            if (refreshToken) {
-                fetch(`${API_URL}/auth/logout`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(refreshToken),
-                    keepalive: true // Ensure request completes even if page unloads
-                }).catch(err => console.error('Logout failed', err));
+            // Unset session in frontend agent
+            if ((agent as any).session) {
+                (agent as any).session = undefined;
             }
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
+
+            // Fire and forget logout request
+            fetch(`${API_URL}/auth/logout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                keepalive: true // Ensure request completes even if page unloads
+            }).catch(err => console.error('Logout failed', err));
+
             localStorage.removeItem('home_active_tab');
             return null;
         } catch (error: any) {
-            // Even if logout fails on BE, we should clear local state
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
             localStorage.removeItem('home_active_tab');
             return null;
         }
@@ -269,12 +215,8 @@ export const updateUserProfile = createAsyncThunk(
     'auth/updateProfile',
     async (formData: FormData, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/user/profile`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
                 body: formData,
             });
             const data = await response.json();
@@ -292,11 +234,9 @@ export const updateUserAccount = createAsyncThunk(
     'auth/updateAccount',
     async (accountData: any, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/user/account`, {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(accountData),
@@ -316,7 +256,6 @@ export const updateNotificationSettings = createAsyncThunk(
     'auth/updateSettings',
     async (settings: Partial<UserSettings>, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const payload = {
                 ...settings,
                 enableTrending: settings.openTrendingTopics,
@@ -329,7 +268,6 @@ export const updateNotificationSettings = createAsyncThunk(
             const response = await fetch(`${API_URL}/user/settings`, {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload),
@@ -406,11 +344,9 @@ export const verifyDomain = createAsyncThunk(
     'auth/verifyDomain',
     async (handle: string | undefined, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/user/verify-domain`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ handle })
@@ -458,19 +394,12 @@ const authSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(login.fulfilled, (state, action: PayloadAction<{ user: User; settings: UserSettings; token?: string; refreshToken?: string }>) => {
+            .addCase(login.fulfilled, (state, action: PayloadAction<{ user: User; settings: UserSettings; }>) => {
                 state.isLoading = false;
                 state.isAuthenticated = true;
                 state.user = action.payload.user;
                 state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
-                if (action.payload.token) {
-                    localStorage.setItem('token', action.payload.token);
-                }
-                if (action.payload.refreshToken) {
-                    localStorage.setItem('refreshToken', action.payload.refreshToken);
-                }
-                // hydrateAtpSession moved to thunk
             })
             .addCase(login.rejected, (state, action) => {
                 state.isLoading = false;
@@ -481,19 +410,12 @@ const authSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(signUp.fulfilled, (state, action: PayloadAction<{ user: User; settings: UserSettings; token?: string; refreshToken?: string }>) => {
+            .addCase(signUp.fulfilled, (state, action: PayloadAction<{ user: User; settings: UserSettings }>) => {
                 state.isLoading = false;
                 state.isAuthenticated = true;
                 state.user = action.payload.user;
                 state.settings = normalizeSettings(action.payload.settings);
                 state.error = null;
-                if (action.payload.token) {
-                    localStorage.setItem('token', action.payload.token);
-                }
-                if (action.payload.refreshToken) {
-                    localStorage.setItem('refreshToken', action.payload.refreshToken);
-                }
-                // hydrateAtpSession moved to thunk
             })
             .addCase(signUp.rejected, (state, action) => {
                 state.isLoading = false;
@@ -513,13 +435,9 @@ const authSlice = createSlice({
             })
             .addCase(getMe.rejected, (state) => {
                 state.isLoading = false;
-                // Only clear auth state if the token was definitively removed (e.g., 401 response).
-                // If it's a network error, keep existing state to prevent authorized UI from disappearing.
-                if (!localStorage.getItem('token')) {
-                    state.isAuthenticated = false;
-                    state.user = null;
-                    state.settings = null;
-                }
+                state.isAuthenticated = false;
+                state.user = null;
+                state.settings = null;
             })
             // Logout
             .addCase(logoutAsync.fulfilled, (state) => {

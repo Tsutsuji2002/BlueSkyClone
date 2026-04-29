@@ -3,6 +3,7 @@ using BSkyClone.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BSkyClone.Controllers;
 
@@ -35,6 +36,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
         try
@@ -44,7 +46,8 @@ public class AuthController : ControllerBase
             {
                 return BadRequest(new { message = "User with this email or handle already exists." });
             }
-            return Ok(result);
+            SetTokenCookies(result.Token, result.RefreshToken);
+            return Ok(new { user = result.User, settings = result.Settings });
         }
         catch (Exception ex)
         {
@@ -54,6 +57,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("request-phone-verification")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> RequestPhoneVerification([FromBody] PhoneVerificationRequest request)
     {
         try
@@ -68,6 +72,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         try
@@ -77,7 +82,8 @@ public class AuthController : ControllerBase
             {
                 return Unauthorized(new { message = "Invalid email/handle or password." });
             }
-            return Ok(result);
+            SetTokenCookies(result.Token, result.RefreshToken);
+            return Ok(new { user = result.User, settings = result.Settings });
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -85,25 +91,51 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = ex.Message, inner = ex.InnerException?.Message });
+            // Log exception here in a real scenario
+            return StatusCode(500, new { message = "An unexpected error occurred. Please try again." });
         }
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh([FromBody] string refreshToken)
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> Refresh()
     {
+        var refreshToken = Request.Cookies["refresh_token"];
+        if (string.IsNullOrEmpty(refreshToken)) return Unauthorized(new { message = "No refresh token provided." });
+
         var result = await _authService.RefreshTokenAsync(refreshToken);
         if (result == null)
         {
             return Unauthorized(new { message = "Invalid refresh token." });
         }
-        return Ok(result);
+        SetTokenCookies(result.Token, result.RefreshToken);
+        return Ok(new { user = result.User, settings = result.Settings });
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout([FromBody] string refreshToken)
+    public async Task<IActionResult> Logout()
     {
-        await _authService.LogoutAsync(refreshToken);
+        var refreshToken = Request.Cookies["refresh_token"];
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            await _authService.LogoutAsync(refreshToken);
+        }
+        
+        Response.Cookies.Delete("access_token");
+        Response.Cookies.Delete("refresh_token");
         return Ok();
+    }
+
+    private void SetTokenCookies(string token, string refreshToken)
+    {
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true, // Ensure HTTPS is required
+            SameSite = SameSiteMode.Lax, // Allow some cross-site for SPA
+            Expires = DateTimeOffset.UtcNow.AddDays(7)
+        };
+        Response.Cookies.Append("access_token", token, cookieOptions);
+        Response.Cookies.Append("refresh_token", refreshToken, cookieOptions);
     }
 }

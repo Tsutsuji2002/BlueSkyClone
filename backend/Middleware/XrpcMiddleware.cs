@@ -21,13 +21,24 @@ namespace BSkyClone.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            if ((context.Request.Path.StartsWithSegments("/xrpc") || context.Request.Path.StartsWithSegments("/api/xrpc")) && 
-                context.Request.Headers.ContainsKey("Authorization"))
+            if (context.Request.Path.StartsWithSegments("/xrpc") || context.Request.Path.StartsWithSegments("/api/xrpc"))
             {
                 var authHeader = context.Request.Headers["Authorization"].ToString();
-                if (authHeader.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))
+                string? token = null;
+
+                if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    token = authHeader.Substring("Bearer ".Length).Trim();
+                }
+                else if (context.Request.Cookies.TryGetValue("access_token", out var cookieToken))
+                {
+                    token = cookieToken;
+                    // Mock the auth header for downstream controllers that might expect it
+                    context.Request.Headers["Authorization"] = $"Bearer {token}";
+                }
+
+                if (!string.IsNullOrEmpty(token))
+                {
                     await VerifyTokenAsync(context, token);
                 }
             }

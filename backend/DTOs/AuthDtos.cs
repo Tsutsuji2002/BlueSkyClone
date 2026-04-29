@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace BSkyClone.DTOs;
@@ -19,8 +20,8 @@ public record PhoneVerificationRequest(
 );
 
 public record LoginRequest(
-    string Identifier, // Email or Handle
-    string Password,
+    [Required, StringLength(256)] string Identifier, // Email or Handle
+    [Required, StringLength(128)] string Password,
     bool RememberMe = false
 );
 
