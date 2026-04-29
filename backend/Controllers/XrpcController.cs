@@ -752,6 +752,17 @@ namespace BSkyClone.Controllers
                     return Ok(new { lists = new List<object>(), cursor = (string?)null });
                 }
 
+                // IMPORTANT: If actor is a local GUID, resolve it to a DID/Handle for the proxy
+                if (Guid.TryParse(actor, out var actorGuid))
+                {
+                    var localUser = await _userService.GetUserByIdAsync(actorGuid);
+                    if (localUser != null)
+                    {
+                        actor = localUser.Did ?? localUser.Handle;
+                    }
+                }
+
+
                 // ALWAYS Proxy to real Bluesky AppView
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(10);

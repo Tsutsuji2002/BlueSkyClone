@@ -360,11 +360,13 @@ export interface ListDto {
     uri: string;
     cid: string;
     ownerId: string; // Creator DID
-    owner?: User; // Or creator: User
+    owner?: User; 
+    creator?: User; // ATProto native
     name: string;
     description?: string;
     purpose?: string; // e.g., "app.bsky.graph.defs#curatelist"
-    avatarUrl?: string;
+    avatarUrl?: string; // Local legacy
+    avatar?: string; // ATProto native
     membersCount: number;
     postsCount: number;
     createdAt: string;
