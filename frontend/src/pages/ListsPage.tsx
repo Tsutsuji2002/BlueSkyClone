@@ -14,7 +14,7 @@ const ListsPage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { myLists, listsIAmOn, isLoading } = useAppSelector(state => state.lists);
+    const { myLists, listsIAmOn, isLoading, error } = useAppSelector(state => state.lists);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'my' | 'joined'>('my');
 
@@ -55,8 +55,6 @@ const ListsPage: React.FC = () => {
                     </div>
                 </div>
 
-
-
                 <div className="flex border-b border-gray-200 dark:border-dark-border">
                     <button
                         onClick={() => setActiveTab('my')}
@@ -71,6 +69,16 @@ const ListsPage: React.FC = () => {
                         {t('lists.joined_lists')}
                     </button>
                 </div>
+
+                {/* Debug Error Reporting */}
+                {error && (
+                    <div className="m-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <h2 className="text-red-600 dark:text-red-400 font-bold mb-2">Backend Fetch Failed</h2>
+                        <pre className="text-xs text-red-500 dark:text-red-300 overflow-x-auto whitespace-pre-wrap">
+                            {error}
+                        </pre>
+                    </div>
+                )}
 
                 {
                     (isLoading && myLists.length === 0 && listsIAmOn.length === 0) ? (
@@ -101,36 +109,40 @@ const ListsPage: React.FC = () => {
                                     to={`/lists/${list.id}`}
                                     className="block p-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
                                 >
-                                        <div className="flex flex-col gap-2 w-full">
-                                            <div className="flex flex-row items-center gap-2">
-                                                <div className="shrink-0">
-                                                    <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="text-[15px] font-semibold text-gray-900 dark:text-dark-text truncate leading-[20px]">
-                                                        {list.name}
-                                                    </h3>
-                                                    <div className="text-[13.1px] text-gray-500 dark:text-gray-400 truncate leading-[17px]">
-                                                        {list.owner && (
-                                                            <span>
-                                                                {t('lists.list_by', { handle: list.owner.handle })}
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                    <div className="flex flex-col" style={{ gap: '8px', width: '100%' }}>
+                                        {/* Top Row: Avatar + Names */}
+                                        <div className="flex flex-row items-center" style={{ gap: '8px' }}>
+                                            <div className="shrink-0" style={{ width: '40px', height: '40px' }}>
+                                                <ListAvatar src={list.avatarUrl} alt={list.name} size="lg" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-semibold truncate" style={{ fontSize: '15px', color: 'var(--text-primary)', lineHeight: '20px' }}>
+                                                    {list.name}
+                                                </h3>
+                                                <div className="truncate" style={{ fontSize: '13.1px', color: 'var(--text-secondary)', lineHeight: '17px' }}>
+                                                    {list.owner && (
+                                                        <span>
+                                                            {t('lists.list_by', { handle: list.owner.handle })}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
-                                            {list.description && (
-                                                <p className="text-[13.1px] text-gray-900 dark:text-dark-text line-clamp-2 leading-[17px]">
-                                                    {list.description}
-                                                </p>
-                                            )}
                                         </div>
-                                    </Link>
+                                        
+                                        {/* Bottom Row: Description (Precisely like Pic 2) */}
+                                        {list.description && (
+                                            <div className="line-clamp-2" style={{ fontSize: '13.1px', color: 'var(--text-primary)', lineHeight: '17px' }}>
+                                                {list.description}
+                                            </div>
+                                        )}
+                                    </div>
+                                </Link>
                             ))}
                         </div>
                     )
                 }
             </div >
+
 
             <CreateListModal
                 isOpen={isCreateModalOpen}
