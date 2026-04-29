@@ -844,14 +844,9 @@ namespace BSkyClone.Controllers
                         Purpose = dbList.Purpose ?? "app.bsky.graph.defs#curatelist",
                         Description = dbList.Description,
                         Avatar = dbList.AvatarUrl,
+                        ListItemCount = members.Count,
                         IndexedAt = dbList.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") ?? DateTime.UtcNow.ToString("o"),
-                        Creator = new ProfileViewBasic
-                        {
-                            Did = dbList.Owner?.Did ?? "",
-                            Handle = dbList.Owner?.Handle ?? "unknown",
-                            DisplayName = dbList.Owner?.DisplayName,
-                            Avatar = dbList.Owner?.AvatarUrl
-                        }
+                        Creator = dbList.Owner != null ? MapUserToProfileView(dbList.Owner) : new ProfileView()
                     },
                     Items = members.Select(m => new ListItemView
                     {
