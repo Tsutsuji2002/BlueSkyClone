@@ -675,7 +675,11 @@ namespace BSkyClone.Controllers
                     suggestions = await _userService.GetProfilesAsync(seedActors, viewerId);
                 }
 
-                var mappedActors = (await Task.WhenAll(suggestions.Select(u => MapUserToProfileView(u, viewerId)))).ToList();
+                var mappedActors = new List<ProfileView>();
+                foreach (var u in suggestions)
+                {
+                    mappedActors.Add(await MapUserToProfileView(u, viewerId));
+                }
                 
                 Response.Headers.Append("X-Debug-Suggestions", "v3-fallback");
                 
@@ -1494,10 +1498,16 @@ namespace BSkyClone.Controllers
                 var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
                 Guid? viewerId = Guid.TryParse(userIdStr, out var vId) ? vId : null;
 
+                var mappedFollows = new List<ProfileView>();
+                foreach (var u in users)
+                {
+                    mappedFollows.Add(await MapUserToProfileView(u, viewerId));
+                }
+
                 var response = new GetFollowsResponse
                 {
                     Subject = await MapUserToProfileViewDetailed(subjectUser, viewerId),
-                    Follows = (await Task.WhenAll(users.Select(u => MapUserToProfileView(u, viewerId)))).ToList(),
+                    Follows = mappedFollows,
                     Cursor = nextCursor
                 };
 
@@ -1522,9 +1532,15 @@ namespace BSkyClone.Controllers
 
                 var (users, nextCursor) = await _userService.GetMutedUsersAsync(userId, limit, cursor);
                 
+                var mappedMutes = new List<ProfileView>();
+                foreach (var u in users)
+                {
+                    mappedMutes.Add(await MapUserToProfileView(u, userId));
+                }
+
                 var response = new GetMutesResponse
                 {
-                    Mutes = (await Task.WhenAll(users.Select(u => MapUserToProfileView(u, userId)))).ToList(),
+                    Mutes = mappedMutes,
                     Cursor = nextCursor
                 };
 
@@ -1549,9 +1565,15 @@ namespace BSkyClone.Controllers
 
                 var (users, nextCursor) = await _userService.GetBlockedUsersAsync(userId, limit, cursor);
                 
+                var mappedBlocks = new List<ProfileView>();
+                foreach (var u in users)
+                {
+                    mappedBlocks.Add(await MapUserToProfileView(u, userId));
+                }
+
                 var response = new GetBlocksResponse
                 {
-                    Blocks = (await Task.WhenAll(users.Select(u => MapUserToProfileView(u, userId)))).ToList(),
+                    Blocks = mappedBlocks,
                     Cursor = nextCursor
                 };
 
