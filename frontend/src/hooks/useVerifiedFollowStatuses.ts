@@ -61,7 +61,7 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
             const isCurrentUser = user.id === currentUser.id || (!!currentUser.did && user.did === currentUser.did);
 
             // Only verify if not already in flight or successfully verified in this session
-            return !isCurrentUser && !!actor && !inFlightKeys.current.has(statusKey);
+            return !isCurrentUser && !!actor && !inFlightKeys.current.has(statusKey) && !verifiedStatusesRef.current[statusKey];
         });
     }, [currentUser, users]);
 
