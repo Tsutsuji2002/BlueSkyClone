@@ -1121,6 +1121,55 @@ namespace BSkyClone.Controllers
         }
 
         [AllowAnonymous]
+        [HttpGet("app.bsky.actor.getProfiles")]
+        public async Task<IActionResult> GetProfiles([FromQuery] string[] actors)
+        {
+            try
+            {
+                var viewerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(viewerIdStr, out var vid) ? vid : null;
+
+                if (actors == null || actors.Length == 0)
+                {
+                    return Ok(new { profiles = new List<object>() });
+                }
+
+                var users = await _userService.GetProfilesAsync(actors, viewerId);
+                var profiles = new List<ProfileViewDetailed>();
+
+                foreach (var user in users)
+                {
+                    var profile = await MapUserToProfileViewDetailed(user, viewerId);
+                    
+                    // Refresh stats for non-local
+                    int followersCount = user.FollowersCount ?? 0;
+                    int followsCount = user.FollowingCount ?? 0;
+                    int pc = user.PostsCount ?? 0;
+
+                    profile.FollowersCount = followersCount;
+                    profile.FollowsCount = followsCount;
+                    profile.PostsCount = pc;
+                    profile.Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState
+                    {
+                        Muted = viewerId.HasValue && await _userService.IsMutedAsync(viewerId.Value, user.Id),
+                        BlockedBy = viewerId.HasValue && await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
+                        Blocking = viewerId.HasValue ? (await _userService.IsBlockedAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.block/self" : null) : null,
+                        Following = viewerId.HasValue ? (await _userService.IsFollowingAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.follow/self" : null) : null
+                    };
+
+                    profiles.Add(profile);
+                }
+
+                return Ok(new { profiles });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in getProfiles XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [AllowAnonymous]
         [HttpGet("app.bsky.feed.getAuthorFeed")]
         public async Task<IActionResult> GetAuthorFeed(
             [FromQuery] string actor,

@@ -2715,6 +2715,13 @@ public class UserService : IUserService
             return new List<User>();
         }
     }
+
+    public async Task<List<User>> GetProfilesAsync(IEnumerable<string> actors, Guid? viewerId = null)
+    {
+        var tasks = actors.Select(actor => ResolveRemoteProfileAsync(actor, viewerId: viewerId));
+        var results = await Task.WhenAll(tasks);
+        return results.Where(u => u != null).Cast<User>().ToList();
+    }
 }
 
 public class RemoteFollowsResult

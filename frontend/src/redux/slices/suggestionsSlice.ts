@@ -59,6 +59,16 @@ const suggestionsSlice = createSlice({
                         : u
                 );
             });
+        },
+        setVerifiedStatus: (state, action: PayloadAction<{ did: string; isFollowing: boolean; followUri?: string }>) => {
+            const { did, isFollowing, followUri } = action.payload;
+            Object.keys(state.suggestionsByCategory).forEach(catId => {
+                state.suggestionsByCategory[catId] = state.suggestionsByCategory[catId].map(u => 
+                    u.did === did 
+                        ? { ...u, viewer: { ...u.viewer, following: isFollowing ? (followUri || u.viewer?.following) : undefined } } 
+                        : u
+                );
+            });
         }
     },
     extraReducers: (builder) => {
@@ -78,5 +88,5 @@ const suggestionsSlice = createSlice({
     },
 });
 
-export const { updateFollowStatus } = suggestionsSlice.actions;
+export const { updateFollowStatus, setVerifiedStatus } = suggestionsSlice.actions;
 export default suggestionsSlice.reducer;

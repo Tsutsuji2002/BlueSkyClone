@@ -8,6 +8,7 @@ import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
+import { updateFollowStatus } from '../../redux/slices/suggestionsSlice';
 import Avatar from './Avatar';
 import RichText from './RichText';
 import { BsPatchCheckFill } from 'react-icons/bs';
@@ -59,7 +60,7 @@ interface UserHoverCardProps {
 }
 
 const CARD_WIDTH = 300;
-const HOVER_DELAY_MS = 800;
+const HOVER_DELAY_MS = 300;
 const LEAVE_CLOSE_DELAY_MS = 200;
 
 // Simple in-memory cache so we don't re-fetch for same handle
@@ -215,6 +216,13 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                     userId: followActor,
                     followUri: displayProfile.followingReference
                 }));
+
+                // Update global suggestions state to keep list in sync
+                dispatch(updateFollowStatus({ 
+                    did: user.did || '', 
+                    isFollowing: false 
+                }));
+
                 // Update local cache
                 const updated = { ...displayProfile, isFollowing: false, followingReference: undefined, followersCount: Math.max(0, displayProfile.followersCount - 1) };
                 setProfile(updated);
@@ -222,6 +230,13 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                 if (key) profileCache.set(key, updated);
             } else {
                 dispatch(followUserAsync(followActor));
+
+                // Update global suggestions state to keep list in sync
+                dispatch(updateFollowStatus({ 
+                    did: user.did || '', 
+                    isFollowing: true 
+                }));
+
                 if (displayProfile) {
                     const updated = { ...displayProfile, isFollowing: true, followersCount: displayProfile.followersCount + 1 };
                     setProfile(updated);
@@ -249,8 +264,14 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
     const followersCount = profile?.followersCount ?? user.followersCount ?? 0;
     const followingCount = profile?.followingCount ?? user.followingCount ?? 0;
 
-    // Prefer fetched profile state when available because it carries the freshest ATProto viewer relationship.
-    const isFollowing = profile?.isFollowing ?? user.isFollowing ?? false;
+    // Sync with Redux state if this user is in the suggestions list
+    const suggestionsByCategory = useAppSelector((state: RootState) => state.suggestions.suggestionsByCategory);
+    const reduxSuggestion = user.did 
+        ? Object.values(suggestionsByCategory).flat().find(u => u.did === user.did)
+        : null;
+
+    // Prefer fetched profile state, then Redux suggestion state, then passed-in user prop
+    const isFollowing = profile?.isFollowing ?? reduxSuggestion?.viewer?.following ?? user.isFollowing ?? false;
 
     const isFollowedBy = profile?.isFollowedBy ?? false;
     const followingReference = profile?.followingReference ?? user.followingReference;

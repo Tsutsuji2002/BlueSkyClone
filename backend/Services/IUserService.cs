@@ -45,6 +45,7 @@ public interface IUserService
     Task<Dictionary<Guid, UserRelationshipStatusDto>> GetInteractionStatusesAsync(Guid viewerId, IEnumerable<Guid> targetIds, bool refreshRemote = true);
     /// <summary>Looks up relationship status for a list of remote DIDs (used by reposted-by/liked-by endpoints).</summary>
     Task<Dictionary<string, UserRelationshipStatusDto>> GetInteractionStatusesByDidsAsync(Guid viewerId, IEnumerable<string> dids);
+    Task<List<User>> GetProfilesAsync(IEnumerable<string> actors, Guid? viewerId = null);
 
     Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowersDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);
     Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowingDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null);

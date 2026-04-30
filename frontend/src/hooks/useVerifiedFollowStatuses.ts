@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL } from '../constants';
 import { User } from '../types';
 import { useAppSelector } from './useAppSelector';
+import { useAppDispatch } from './useAppDispatch';
 import { RootState } from '../redux/store';
+import { setVerifiedStatus } from '../redux/slices/suggestionsSlice';
 
 type VerifiedFollowStatus = {
     isFollowing: boolean;
     followingReference?: string;
 };
-
-const PROFILE_STATUS_CONCURRENCY = 6;
 
 const getStatusKey = (user: Pick<User, 'id' | 'did'>) => user.did || user.id;
 const getStatusActor = (user: Pick<User, 'id' | 'did' | 'handle'>) => user.handle || user.did || user.id;
@@ -21,12 +21,26 @@ const buildStatusFromUser = (user: User): VerifiedFollowStatus => ({
 
 export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const dispatch = useAppDispatch();
     const [verifiedStatuses, setVerifiedStatuses] = useState<Record<string, VerifiedFollowStatus>>({});
     const [loadingStatuses, setLoadingStatuses] = useState<Record<string, boolean>>({});
     const requestGeneration = useRef(0);
     const inFlightKeys = useRef<Set<string>>(new Set());
     const verifiedStatusesRef = useRef<Record<string, VerifiedFollowStatus>>({});
     const viewerKey = currentUser?.did || currentUser?.id || '';
+
+    // Initialize/sync local state from props initially for immediate feedback
+    useEffect(() => {
+        const initial = { ...verifiedStatusesRef.current };
+        users.forEach(user => {
+            const key = getStatusKey(user);
+            if (!initial[key]) {
+                initial[key] = buildStatusFromUser(user);
+            }
+        });
+        setVerifiedStatuses(initial);
+        verifiedStatusesRef.current = initial;
+    }, [users]);
 
     useEffect(() => {
         requestGeneration.current += 1;
@@ -46,7 +60,8 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
             const actor = getStatusActor(user);
             const isCurrentUser = user.id === currentUser.id || (!!currentUser.did && user.did === currentUser.did);
 
-            return !isCurrentUser && !!actor && !verifiedStatusesRef.current[statusKey] && !inFlightKeys.current.has(statusKey);
+            // Only verify if not already in flight or successfully verified in this session
+            return !isCurrentUser && !!actor && !inFlightKeys.current.has(statusKey);
         });
     }, [currentUser, users]);
 
@@ -57,91 +72,103 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
 
         const generation = requestGeneration.current;
         const token = localStorage.getItem('token');
-        const headers: Record<string, string> = {};
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+        };
 
         if (token && token !== 'null') {
             headers.Authorization = `Bearer ${token}`;
         }
 
-        const queue = [...verificationTargets];
-        const workerCount = Math.min(PROFILE_STATUS_CONCURRENCY, queue.length);
+        // Batch processing: Process users in groups of 25 (BSky standard batch size)
+        const processBatch = async (batch: User[]) => {
+            const batchKeys = batch.map(getStatusKey);
+            const batchActors = batch.map(getStatusActor);
+            
+            batchKeys.forEach(k => inFlightKeys.current.add(k));
+            setLoadingStatuses(prev => {
+                const next = { ...prev };
+                batchKeys.forEach(k => next[k] = true);
+                return next;
+            });
 
-        const worker = async () => {
-            while (queue.length > 0) {
-                const user = queue.shift();
-                if (!user) {
+            try {
+                const actorsQuery = batchActors.map(a => `actors=${encodeURIComponent(a)}`).join('&');
+                const response = await fetch(
+                    `${API_BASE_URL}/xrpc/app.bsky.actor.getProfiles?${actorsQuery}`,
+                    { headers }
+                );
+
+                if (!response.ok || generation !== requestGeneration.current) {
                     return;
                 }
 
-                const statusKey = getStatusKey(user);
-                const actor = getStatusActor(user);
+                const data = await response.json();
+                const profiles = data.profiles || [];
+                const profileByActor = new Map();
+                
+                profiles.forEach((p: any) => {
+                    if (p.did) profileByActor.set(p.did, p);
+                    if (p.handle) profileByActor.set(p.handle, p);
+                });
 
-                inFlightKeys.current.add(statusKey);
-                setLoadingStatuses((prev) => prev[statusKey] ? prev : { ...prev, [statusKey]: true });
-
-                try {
-                    const response = await fetch(
-                        `${API_BASE_URL}/users/profile/${encodeURIComponent(actor)}`,
-                        { headers }
-                    );
-
-                    const data = await response.json();
-                    if (!response.ok || generation !== requestGeneration.current) {
-                        continue;
-                    }
-
-                    const profileUser = data?.user || {};
-                    const nextStatus: VerifiedFollowStatus = {
-                        isFollowing: Boolean(data?.isFollowing ?? profileUser?.isFollowing ?? profileUser?.viewer?.following),
-                        followingReference: profileUser?.followingReference || profileUser?.viewer?.following || undefined,
-                    };
-
-                    setVerifiedStatuses((prev) => {
-                        const next = {
-                            ...prev,
-                            [statusKey]: nextStatus,
+                const newStatuses: Record<string, VerifiedFollowStatus> = {};
+                
+                batch.forEach(user => {
+                    const actor = getStatusActor(user);
+                    const statusKey = getStatusKey(user);
+                    const profile = profileByActor.get(actor);
+                    
+                    if (profile) {
+                        const nextStatus: VerifiedFollowStatus = {
+                            isFollowing: Boolean(profile.viewer?.following || profile.isFollowing),
+                            followingReference: profile.viewer?.following || undefined,
                         };
-                        verifiedStatusesRef.current = next;
-                        return next;
-                    });
-                } catch {
-                    if (generation === requestGeneration.current) {
-                        const fallbackStatus = buildStatusFromUser(user);
-                        setVerifiedStatuses((prev) => {
-                            const next = {
-                                ...prev,
-                                [statusKey]: fallbackStatus,
-                            };
-                            verifiedStatusesRef.current = next;
-                            return next;
-                        });
+                        newStatuses[statusKey] = nextStatus;
+                        
+                        // Sync with Redux
+                        dispatch(setVerifiedStatus({
+                            did: profile.did,
+                            isFollowing: nextStatus.isFollowing,
+                            followUri: nextStatus.followingReference
+                        }));
                     }
-                } finally {
-                    inFlightKeys.current.delete(statusKey);
-                    setLoadingStatuses((prev) => {
-                        if (!prev[statusKey]) {
-                            return prev;
-                        }
+                });
 
-                        const next = { ...prev };
-                        delete next[statusKey];
-                        return next;
-                    });
-                }
+                setVerifiedStatuses((prev) => {
+                    const next = { ...prev, ...newStatuses };
+                    verifiedStatusesRef.current = next;
+                    return next;
+                });
+            } catch (err) {
+                console.error("Batch verification failed", err);
+            } finally {
+                batchKeys.forEach(k => inFlightKeys.current.delete(k));
+                setLoadingStatuses(prev => {
+                    const next = { ...prev };
+                    batchKeys.forEach(k => delete next[k]);
+                    return next;
+                });
             }
         };
 
-        void Promise.all(Array.from({ length: workerCount }, () => worker()));
-    }, [currentUser, verificationTargets]);
+        // Split targets into chunks of 25
+        const CHUNK_SIZE = 25;
+        const targetsToProcess = [...verificationTargets];
+        for (let i = 0; i < targetsToProcess.length; i += CHUNK_SIZE) {
+            const chunk = targetsToProcess.slice(i, i + CHUNK_SIZE);
+            void processBatch(chunk);
+        }
+    }, [currentUser, verificationTargets, dispatch]);
 
     const resolveIsFollowing = (user: User) => {
         const statusKey = getStatusKey(user);
-        return verifiedStatuses[statusKey]?.isFollowing ?? !!user.isFollowing;
+        return verifiedStatuses[statusKey]?.isFollowing ?? Boolean(user.isFollowing || user.viewer?.following);
     };
 
     const resolveFollowingReference = (user: User) => {
         const statusKey = getStatusKey(user);
-        return verifiedStatuses[statusKey]?.followingReference ?? user.followingReference;
+        return verifiedStatuses[statusKey]?.followingReference ?? user.followingReference ?? user.viewer?.following;
     };
 
     const isVerifying = (user: User) => {
@@ -169,6 +196,14 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
             verifiedStatusesRef.current = next;
             return next;
         });
+
+        if (user.did) {
+            dispatch(setVerifiedStatus({
+                did: user.did,
+                isFollowing: nextStatus.isFollowing,
+                followUri: nextStatus.followingReference
+            }));
+        }
     };
 
     const hasVerifiedStatus = (user: User) => {
