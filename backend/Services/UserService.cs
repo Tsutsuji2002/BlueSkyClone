@@ -436,8 +436,12 @@ public class UserService : IUserService
     {
         if (string.IsNullOrEmpty(identifier)) return null;
 
+        var cacheKey = $"remote_profile:{identifier}";
+        var cached = await _cacheService.GetAsync<User>(cacheKey);
+        if (cached != null) return cached;
+
         // Dedup ongoing requests to prevent thundering herd / deadlocks
-        var resolutionTask = _ongoingResolutions.GetOrAdd(identifier, id => ResolveRemoteProfileInternalAsync(id, token, viewerId));
+        var resolutionTask = _ongoingResolutions.GetOrAdd(identifier, id => ResolveRemoteProfileInternalAsync(id, token, viewerId, cacheKey));
         
         try {
             return await resolutionTask;
@@ -446,11 +450,8 @@ public class UserService : IUserService
         }
     }
 
-    private async Task<User?> ResolveRemoteProfileInternalAsync(string identifier, string? token = null, Guid? viewerId = null)
+    private async Task<User?> ResolveRemoteProfileInternalAsync(string identifier, string? token = null, Guid? viewerId = null, string? cacheKey = null)
     {
-        var cacheKey = $"remote_profile:{identifier}";
-        var cached = await _cacheService.GetAsync<User>(cacheKey);
-
         try
         {
             string baseApiUrl = "https://api.bsky.app";
@@ -469,8 +470,8 @@ public class UserService : IUserService
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && !string.IsNullOrEmpty(token))
             {
-                  // Try one more time with public if private failed
-                  return await ResolveRemoteProfileAsync(identifier, null, null);
+                  // Try one more time with public if private failed — but call Internal directly to avoid dedup deadlock
+                  return await ResolveRemoteProfileInternalAsync(identifier, null, null, cacheKey);
             }
             
             if (response.IsSuccessStatusCode)
