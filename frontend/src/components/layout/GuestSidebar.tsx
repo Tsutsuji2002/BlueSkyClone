@@ -10,6 +10,7 @@ import ButterflyLogo from '../common/ButterflyLogo';
 const GuestSidebar: React.FC = () => {
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
+    const dispatch = useAppDispatch();
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
 
     const handleLanguageChange = (lang: string) => {
