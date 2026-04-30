@@ -70,17 +70,10 @@ const SuggestedUsersForExplore: React.FC = () => {
         }));
     };
 
-    // Pre-fetch ONLY "For You" immediately on mount
+    // Ensure selected category is fetched on mount and when it changes
     useEffect(() => {
-        const allCategory = categories.find(c => c.id === 'all');
-        if (allCategory) fetchCategory(allCategory);
-    }, []);
-
-    // Ensure selected category is fetched if it changes
-    useEffect(() => {
-        if (!suggestionsByCategory[selectedCategory.id]) {
-            fetchCategory(selectedCategory);
-        }
+        // Initial fetch for the default category or when category changes
+        fetchCategory(selectedCategory);
     }, [selectedCategory.id]);
 
     const handleFollow = async (user: SuggestedUser) => {

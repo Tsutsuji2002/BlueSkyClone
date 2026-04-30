@@ -677,6 +677,8 @@ namespace BSkyClone.Controllers
 
                 var mappedActors = (await Task.WhenAll(suggestions.Select(u => MapUserToProfileView(u, viewerId)))).ToList();
                 
+                Response.Headers.Append("X-Debug-Suggestions", "v3-fallback");
+                
                 // ABSOLUTE EMERGENCY FALLBACK: If still empty, return a static system account
                 if (mappedActors.Count == 0)
                 {
