@@ -113,9 +113,21 @@ const AppRoutes: React.FC = () => {
                     } />
                     <Route path="feeds/:feedId" element={<FeedDetailPage />} />
                     <Route path="profile/:handle/feed/:tid" element={<FeedDetailPage />} />
-                    <Route path="lists" element={<ListsPage />} />
-                    <Route path="lists/:id" element={<ListDetailPage />} />
-                    <Route path="profile/:handle/lists/:id" element={<ListDetailPage />} />
+                    <Route path="lists" element={
+                        <ProtectedRoute>
+                            <ListsPage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="lists/:id" element={
+                        <ProtectedRoute>
+                            <ListDetailPage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="profile/:handle/lists/:id" element={
+                        <ProtectedRoute>
+                            <ListDetailPage />
+                        </ProtectedRoute>
+                    } />
                     <Route path="saved" element={
                         <ProtectedRoute>
                             <SavedPage />
@@ -284,7 +296,9 @@ const AppRoutes: React.FC = () => {
                 {/* Chat Page - No Bottom Nav on mobile */}
                 <Route path="/messages/:conversationId" element={
                     <MainLayout hideTopBar={true} hideBottomNav={true}>
-                        <ChatPage />
+                        <ProtectedRoute>
+                            <ChatPage />
+                        </ProtectedRoute>
                     </MainLayout>
                 } />
 

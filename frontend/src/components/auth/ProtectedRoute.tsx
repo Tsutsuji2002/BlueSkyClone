@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
+import AuthRequiredPage from '../../pages/auth/AuthRequiredPage';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -24,8 +25,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
 
     if (!isAuthenticated) {
-        // Redirect to welcome, but save the location they were trying to go to
-        return <Navigate to={redirectPath} state={{ from: location }} replace />;
+        // Render auth required placeholder inline
+        return <AuthRequiredPage />;
     }
 
     return <>{children}</>;
