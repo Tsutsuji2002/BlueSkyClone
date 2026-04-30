@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
+import { setAppLanguage } from '../../redux/slices/languageSlice';
 import { FiChevronDown } from 'react-icons/fi';
 import ButterflyLogo from '../common/ButterflyLogo';
 
@@ -13,6 +14,7 @@ const GuestSidebar: React.FC = () => {
 
     const handleLanguageChange = (lang: string) => {
         i18n.changeLanguage(lang);
+        dispatch(setAppLanguage(lang));
     };
 
     return (
@@ -62,49 +64,49 @@ const GuestSidebar: React.FC = () => {
                 <select
                     value={appLanguage}
                     onChange={(e) => handleLanguageChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full text-black bg-white dark:text-dark-text dark:bg-dark-bg"
                 >
-                    <option value="en">English – English</option>
-                    <option value="en-GB">English (UK)</option>
-                    <option value="es">español – Spanish</option>
-                    <option value="fr">français – French</option>
-                    <option value="de">Deutsch – German</option>
-                    <option value="ja">日本語 – Japanese</option>
-                    <option value="ko">한국어 – Korean</option>
-                    <option value="vi">Tiếng Việt – Vietnamese</option>
-                    <option value="zh-CN">简体中文 – Simplified Chinese</option>
-                    <option value="zh-TW">繁體中文 – Traditional Chinese</option>
-                    <option value="pt-BR">português do Brasil – Brazilian Portuguese</option>
-                    <option value="pt-PT">português europeu – European Portuguese</option>
-                    <option value="it">italiano – Italian</option>
-                    <option value="ru">русский – Russian</option>
-                    <option value="uk">українська – Ukrainian</option>
-                    <option value="hi">हिंदी – Hindi</option>
-                    <option value="id">Bahasa Indonesia – Indonesian</option>
-                    <option value="th">ภาษาไทย – Thai</option>
-                    <option value="tr">Türkçe – Turkish</option>
-                    <option value="pl">polski – Polish</option>
-                    <option value="nl">Nederlands – Dutch</option>
-                    <option value="sv">svenska – Swedish</option>
-                    <option value="fi">suomi – Finnish</option>
-                    <option value="el">Ελληνικά – Greek</option>
-                    <option value="hu">magyar – Hungarian</option>
-                    <option value="ro">română – Romanian</option>
-                    <option value="ca">català – Catalan</option>
-                    <option value="eu">euskara – Basque</option>
-                    <option value="gl">galego – Galician</option>
-                    <option value="ast">asturianu – Asturian</option>
-                    <option value="an">aragonés – Aragonese</option>
-                    <option value="cy">Cymraeg – Welsh</option>
-                    <option value="da">dansk – Danish</option>
-                    <option value="eo">Esperanto – Esperanto</option>
-                    <option value="fy">Frysk – West Frisian</option>
-                    <option value="ga">Gaeilge – Irish</option>
-                    <option value="gd">Gàidhlig – Scottish Gaelic</option>
-                    <option value="ia">Interlingua – Interlingua</option>
-                    <option value="km">ภาษาเขมร – Khmer</option>
-                    <option value="ne">नेपाली – Nepali</option>
-                    <option value="yue">粵文 – Cantonese</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="en">English – English</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="en-GB">English (UK)</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="es">español – Spanish</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="fr">français – French</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="de">Deutsch – German</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ja">日本語 – Japanese</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ko">한국어 – Korean</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="vi">Tiếng Việt – Vietnamese</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="zh-CN">简体中文 – Simplified Chinese</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="zh-TW">繁體中文 – Traditional Chinese</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="pt-BR">português do Brasil – Brazilian Portuguese</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="pt-PT">português europeu – European Portuguese</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="it">italiano – Italian</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ru">русский – Russian</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="uk">українська – Ukrainian</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="hi">हिंदी – Hindi</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="id">Bahasa Indonesia – Indonesian</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="th">ภาษาไทย – Thai</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="tr">Türkçe – Turkish</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="pl">polski – Polish</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="nl">Nederlands – Dutch</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="sv">svenska – Swedish</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="fi">suomi – Finnish</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="el">Ελληνικά – Greek</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="hu">magyar – Hungarian</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ro">română – Romanian</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ca">català – Catalan</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="eu">euskara – Basque</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="gl">galego – Galician</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ast">asturianu – Asturian</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="an">aragonés – Aragonese</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="cy">Cymraeg – Welsh</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="da">dansk – Danish</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="eo">Esperanto – Esperanto</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="fy">Frysk – West Frisian</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ga">Gaeilge – Irish</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="gd">Gàidhlig – Scottish Gaelic</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ia">Interlingua – Interlingua</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="km">ภาษาเขมร – Khmer</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="ne">नेपाली – Nepali</option>
+                    <option className="text-black bg-white dark:text-dark-text dark:bg-dark-bg" value="yue">粵文 – Cantonese</option>
                 </select>
             </div>
         </div>
