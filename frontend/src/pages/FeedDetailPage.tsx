@@ -9,6 +9,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed, pinFeed, unpinFeed } from '../redux/slices/feedsSlice';
+import { openAuthWall } from '../redux/slices/modalsSlice';
 import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
 import { feedsMatchRouteKey, feedActionKey } from '../utils/feedKeys';
@@ -20,6 +21,7 @@ const FeedDetailPage: React.FC = () => {
     const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated);
     const { subscribedFeeds, feedPosts, isLoading, feedLoading, feedHasMore, feedCursors, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading, infoLoading, infoError } = useAppSelector((state: RootState) => state.feeds);
 
     const take = 20;
@@ -154,6 +156,10 @@ const FeedDetailPage: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={async () => {
+                                    if (!isAuthenticated) {
+                                        dispatch(openAuthWall());
+                                        return;
+                                    }
                                     const fk = feedActionKey(feed);
                                     if (feed.isPinned) await dispatch(unpinFeed(fk));
                                     else await dispatch(pinFeed(fk));
@@ -191,6 +197,10 @@ const FeedDetailPage: React.FC = () => {
                                 </div>
                                 <button
                                     onClick={async () => {
+                                        if (!isAuthenticated) {
+                                            dispatch(openAuthWall());
+                                            return;
+                                        }
                                         const fk = feedActionKey(feed);
                                         if (feed.isSubscribed) {
                                             await dispatch(unsaveFeed(fk));
