@@ -30,17 +30,27 @@ public class ProfileController : ControllerBase
     [HttpGet("profile/{*handle}")]
     public async Task<IActionResult> GetProfile(string handle)
     {
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+        Guid? currentUserIdGuid = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
         User? user = null;
         try
         {
-            if (Guid.TryParse(handle, out var userId))
+            if (handle.StartsWith("did:"))
             {
-                user = await _userService.GetUserByIdAsync(userId);
+                user = await _userService.GetUserByDidAsync(handle);
             }
             else
             {
                 user = await _userService.GetUserByHandleAsync(handle) 
                        ?? await _userService.GetUserByUsernameAsync(handle);
+            }
+
+            if (user == null || (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))) 
+            {
+                 // Resolve remote profile if not found or if it's a remote user
+                 user = await _userService.ResolveRemoteProfileAsync(handle, token, currentUserIdGuid);
             }
         }
         catch (Exception ex)
@@ -49,34 +59,12 @@ public class ProfileController : ControllerBase
             user = null;
         }
                    
-        // Enforce guest visibility setting: if the profile owner requires login to view, block unauthenticated callers
-        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-        Guid? currentUserIdGuid = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+        if (user == null) return NotFound();
 
-        if (user == null) 
-        {
-            // If not found locally, and it looks like a remote handle (contains a dot or starts with did:), try resolving it.
-            if (!string.IsNullOrEmpty(handle) && (handle.Contains(".") || handle.StartsWith("did:")))
-            {
-                 user = await _userService.ResolveRemoteProfileAsync(handle, token, currentUserIdGuid);
-            }
-            
-            if (user == null) return NotFound();
-        }
-        else if (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
-        {
-            // Federating user: trigger a refresh to sync latest network stats (followers/following/posts)
-            try
-            {
-                var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did, token, currentUserIdGuid);
-                if (refreshed != null) user = refreshed;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Remote profile refresh failed for {Did}. Using local data.", user.Did);
-            }
-        }
+        // Federated user: Ensure we have latest basic stats if resolve was called (handled by ResolveRemoteProfileAsync)
+        // [OPTIMIZATION] Removed redundant GetUserPostsAsync call which was causing heavy blocking ingestion during profile load.
+        // The frontend will call the posts endpoint separately anyway.
+
         bool isGuest = string.IsNullOrEmpty(currentUserIdString);
         if (isGuest && user.Id != Guid.Empty)
         {
@@ -157,6 +145,7 @@ public class ProfileController : ControllerBase
             try
             {
                 var pinnedPost = await _postService.GetPostByUriAsync(user.PinnedPostUri);
+                
                 if (pinnedPost != null)
                 {
                     var enriched = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);

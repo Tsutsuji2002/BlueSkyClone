@@ -430,8 +430,23 @@ public class UserService : IUserService
             await _unitOfWork.CompleteAsync();
         }
     }
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<User?>> _ongoingResolutions = new();
 
     public async Task<User?> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null)
+    {
+        if (string.IsNullOrEmpty(identifier)) return null;
+
+        // Dedup ongoing requests to prevent thundering herd / deadlocks
+        var resolutionTask = _ongoingResolutions.GetOrAdd(identifier, id => ResolveRemoteProfileInternalAsync(id, token, viewerId));
+        
+        try {
+            return await resolutionTask;
+        } finally {
+            _ongoingResolutions.TryRemove(identifier, out _);
+        }
+    }
+
+    private async Task<User?> ResolveRemoteProfileInternalAsync(string identifier, string? token = null, Guid? viewerId = null)
     {
         var cacheKey = $"remote_profile:{identifier}";
         var cached = await _cacheService.GetAsync<User>(cacheKey);
@@ -439,10 +454,6 @@ public class UserService : IUserService
         try
         {
             string baseApiUrl = "https://api.bsky.app";
-            if (string.IsNullOrEmpty(token)) {
-                token = viewerId.HasValue ? await GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-            }
-            
             // Use public API for unauthenticated requests
             if (string.IsNullOrEmpty(token)) {
                 baseApiUrl = "https://public.api.bsky.app";
@@ -450,13 +461,12 @@ public class UserService : IUserService
 
             var url = $"{baseApiUrl}/xrpc/app.bsky.actor.getProfile?actor={Uri.EscapeDataString(identifier)}";
             using var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
             if (!string.IsNullOrEmpty(token))
             {
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
-
             var response = await client.GetAsync(url);
+
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && !string.IsNullOrEmpty(token))
             {
                   // Try one more time with public if private failed
