@@ -67,8 +67,9 @@ const HomePage: React.FC = () => {
             const neverFetched = lastFetch === 0;
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             if (neverFetched || isStale) {
-                const dynamicTake = getDynamicBatchSize(250);
-                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: dynamicTake }));
+                const isDiscover = activeTab === 'discover';
+                const initialTake = (isDiscover && (feedPosts[activeTab]?.length || 0) === 0) ? 6 : getDynamicBatchSize(250);
+                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake }));
             }
         }
 
@@ -152,8 +153,9 @@ const HomePage: React.FC = () => {
             const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             const currentFeedPosts = feedPosts[tabId] || [];
             if (currentFeedPosts.length === 0 || isStale) {
-                const dynamicTake = getDynamicBatchSize(250);
-                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: dynamicTake }));
+                const isDiscover = tabId === 'discover';
+                const initialTake = (isDiscover && currentFeedPosts.length === 0) ? 6 : getDynamicBatchSize(250);
+                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: initialTake }));
             }
         }
     };

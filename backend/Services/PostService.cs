@@ -5658,11 +5658,27 @@ public class PostService : IPostService
                 .Select(x => x.Post);
         }
 
-        var resultDtos = resultPool.Skip(skip).Take(take).ToList();
+        var resultDtos = new List<PostDto>();
+        int mediaCount = 0;
+        foreach (var p in resultPool.Skip(skip).Take(take))
+        {
+            resultDtos.Add(p);
+            bool hasMedia = (p.ImageUrls?.Any() == true) || 
+                            p.VideoUrl != null || 
+                            !string.IsNullOrWhiteSpace(p.VideoUrl) || 
+                            p.LinkPreview != null;
+                            
+            if (hasMedia) 
+                mediaCount++;
+                
+            if (mediaCount >= 3) 
+                break;
+        }
 
         if (resultDtos.Any())
         {
-            resultDtos = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty);
+            var enriched = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty);
+            return enriched.ToList();
         }
 
         return resultDtos;
@@ -5734,7 +5750,25 @@ public class PostService : IPostService
             // Shuffle to mix up accounts, then paginate
             var rng = new Random();
             var shuffled = allPosts.OrderBy(_ => rng.Next()).Skip(skip).Take(take).ToList();
-            return await EnrichAndFilterPostsAsync(shuffled, Guid.Empty);
+
+            var limitedPosts = new List<PostDto>();
+            int mediaCount = 0;
+            foreach (var p in shuffled)
+            {
+                limitedPosts.Add(p);
+                bool hasMedia = (p.ImageUrls?.Any() == true) || 
+                                p.VideoUrl != null || 
+                                !string.IsNullOrWhiteSpace(p.VideoUrl) || 
+                                p.LinkPreview != null;
+                                
+                if (hasMedia) 
+                    mediaCount++;
+                    
+                if (mediaCount >= 3) 
+                    break;
+            }
+
+            return await EnrichAndFilterPostsAsync(limitedPosts, Guid.Empty);
         }
         catch (Exception ex)
         {
