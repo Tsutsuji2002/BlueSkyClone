@@ -199,8 +199,8 @@ const HomePage: React.FC = () => {
 
         if (isAuthenticated) {
             return [
-                { id: 'following', handle: 'following', name: t('nav.following') } as FeedType,
-                { id: 'discover', handle: 'discover', name: t('nav.discover') } as FeedType,
+                { id: 'following', handle: 'following', name: 'Following' } as FeedType,
+                { id: 'discover', handle: 'discover', name: 'Discover' } as FeedType,
             ];
         }
 
@@ -221,8 +221,7 @@ const HomePage: React.FC = () => {
     const tabs = useMemo(() => {
         if (!isAuthenticated && subscribedFeeds.length === 0 && pinnedLists.length === 0) {
             return [
-                { id: 'discover', label: t('nav.discover') },
-                { id: 'feeds-discovery', label: t('nav.feeds_discovery', { defaultValue: 'Feeds ✨' }) },
+                { id: 'discover', label: 'Discover' },
             ];
         }
 
@@ -232,9 +231,9 @@ const HomePage: React.FC = () => {
                 return {
                     id: key,
                     label: key === 'discover'
-                        ? t('nav.discover')
+                        ? 'Discover'
                         : key === 'following'
-                            ? t('nav.following')
+                            ? 'Following'
                             : f.name
                 };
             }),
@@ -320,27 +319,29 @@ const HomePage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
-                        <div className="flex w-full">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => handleTabChange(tab.id)}
-                                    className={cn(
-                                        "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap flex-shrink-0",
-                                        activeTab === tab.id
-                                            ? "text-gray-900 dark:text-dark-text"
-                                            : "text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50"
-                                    )}
-                                >
-                                    {tab.label}
-                                    {activeTab === tab.id && (
-                                        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary-500 rounded-full mx-3" />
-                                    )}
-                                </button>
-                            ))}
+                    {tabs.length > 1 && (
+                        <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
+                            <div className="flex w-full">
+                                {tabs.map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => handleTabChange(tab.id)}
+                                        className={cn(
+                                            "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap flex-shrink-0",
+                                            activeTab === tab.id
+                                                ? "text-gray-900 dark:text-dark-text"
+                                                : "text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50"
+                                        )}
+                                    >
+                                        {tab.label}
+                                        {activeTab === tab.id && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary-500 rounded-full mx-3" />
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {visibleHomeFeeds.map((feed: any) => {

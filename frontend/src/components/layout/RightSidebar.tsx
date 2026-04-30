@@ -130,9 +130,9 @@ const RightSidebar: React.FC = () => {
     const pinnedFeeds = useMemo(() => {
         if (!isAuthenticated) {
             return [
-                { id: 'discover', uri: 'discover', name: t('nav.discover', { defaultValue: 'Discover' }), isPinned: true },
-                { id: 'hot', uri: 'hot', name: t('feeds.hot', { defaultValue: 'Hot' }), isPinned: true },
-                { id: 'science', uri: 'science', name: t('feeds.science', { defaultValue: 'Science' }), isPinned: true }
+                { id: 'discover', uri: 'discover', name: 'Discover', isPinned: true },
+                { id: 'hot', uri: 'hot', name: 'Hot', isPinned: true },
+                { id: 'science', uri: 'science', name: 'Science', isPinned: true }
             ];
         }
         const allFeeds = [...feeds, ...subscribedFeeds];
@@ -140,7 +140,7 @@ const RightSidebar: React.FC = () => {
             .map(id => {
                 // Special case for built-in feeds if they are in pinnedFeedIds but not in the lists
                 if (id === 'following') {
-                    return { id: 'following', uri: 'following', name: t('feeds.following', { defaultValue: 'Following' }), isPinned: true };
+                    return { id: 'following', uri: 'following', name: 'Following', isPinned: true };
                 }
                 return allFeeds.find(f => feedActionKey(f) === id || f.id === id || f.uri === id);
             })
