@@ -563,22 +563,31 @@ namespace BSkyClone.Controllers
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
-                    return Content(content, "application/json");
+                    // Ensure the response actually contains actors before returning it
+                    if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\""))
+                    {
+                        return Content(content, "application/json");
+                    }
+                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 1 returned empty actors, trying fallback.");
                 }
 
                 // Attempt 2: High-quality fallback using public endpoints
                 if (string.IsNullOrEmpty(category) || category == "all")
                 {
-                    // For "all", use actor.getSuggestions as it's the primary source for high-quality global suggestions
-                    var suggestionsUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.getSuggestions?limit={limit}";
-                    if (!string.IsNullOrEmpty(cursor)) suggestionsUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                    // For "all", use getSuggestedAccounts which is more reliable for anonymous global users
+                    var altUrl = $"https://api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
+                    _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Global Suggestions): {Url}", altUrl);
                     
-                    _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Global Suggestions): {Url}", suggestionsUrl);
-                    var searchResponse = await client.GetAsync(suggestionsUrl);
-                    if (searchResponse.IsSuccessStatusCode)
+                    var altResponse = await client.GetAsync(altUrl);
+                    if (altResponse.IsSuccessStatusCode)
                     {
-                        var content = await searchResponse.Content.ReadAsStringAsync();
-                        return Content(content, "application/json");
+                        var content = await altResponse.Content.ReadAsStringAsync();
+                        // getSuggestedAccounts returns "suggestions", getSuggestedUsersForExplore expects "actors"
+                        var transformed = content.Replace("\"suggestions\":", "\"actors\":");
+                        if (transformed.Contains("\"did\":\""))
+                        {
+                            return Content(transformed, "application/json");
+                        }
                     }
                 }
                 else
@@ -592,11 +601,14 @@ namespace BSkyClone.Controllers
                     if (searchResponse.IsSuccessStatusCode)
                     {
                         var content = await searchResponse.Content.ReadAsStringAsync();
-                        return Content(content, "application/json");
+                        if (content.Contains("\"did\":\""))
+                        {
+                            return Content(content, "application/json");
+                        }
                     }
                 }
                 
-                _logger.LogWarning("[GetSuggestedUsersForExplore] All proxies failed, falling back to local suggestions with limit {Limit}", limit);
+                _logger.LogWarning("[GetSuggestedUsersForExplore] All proxies failed or returned empty - falling back to local suggestions with limit {Limit}", limit);
                 return await GetSuggestions(limit, cursor);
             }
             catch (Exception ex)
