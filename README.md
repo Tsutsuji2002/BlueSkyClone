@@ -17,6 +17,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" /></a>
 </p>
 
+> **Disclaimer:** This project is an independent, open-source portfolio and educational project. It is **not affiliated with, endorsed by, or associated with Bluesky PBLLC**. For the official Bluesky client, visit [github.com/bluesky-social/social-app](https://github.com/bluesky-social/social-app).
+
 ---
 
 <h3 align="center">✨ What's Inside</h3>
@@ -620,5 +622,5 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 ---
 
 <p align="center">
-  Built with ❤️ by <a href="https://github.com/Tsutsuji2002">Tsutsuji2002</a>
+  Built by <a href="https://github.com/Tsutsuji2002">Tsutsuji2002</a>
 </p>
