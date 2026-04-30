@@ -11,6 +11,7 @@ import { RootState } from '../../redux/store';
 import UserHoverCard from '../common/UserHoverCard';
 import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice';
 import { openAuthWall } from '../../redux/slices/modalsSlice';
+import { useVerifiedFollowStatuses } from '../../hooks/useVerifiedFollowStatuses';
 
 interface SuggestedUser {
     did: string;
@@ -63,6 +64,12 @@ const SuggestedUsersForExplore: React.FC = () => {
     const token = localStorage.getItem('token');
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
+    const allSuggestions = React.useMemo(() => {
+        return Object.values(suggestions).flat();
+    }, [suggestions]);
+
+    const { resolveIsFollowing, resolveFollowingReference, updateVerifiedStatus } = useVerifiedFollowStatuses(allSuggestions as any[]);
+
     const fetchCategory = async (category: typeof categories[0]) => {
         // Skip if already loading or already fetched
         if (loadingStates[category.id] || suggestions[category.id]) return;
@@ -108,14 +115,20 @@ const SuggestedUsersForExplore: React.FC = () => {
             return;
         }
         
-        const isFollowing = !!user.viewer?.following;
+        const isFollowing = resolveIsFollowing(user as any);
         const did = user.did;
 
         try {
             if (isFollowing) {
                 // Unfollow
-                const followUri = user.viewer!.following!;
+                const followUri = resolveFollowingReference(user as any) || user.viewer?.following;
+                if (!followUri) {
+                    console.error('No follow URI found for unfollow');
+                    return;
+                }
+                
                 await dispatch(unfollowUserAsync({ userId: did, followUri })).unwrap();
+                updateVerifiedStatus(user as any, { isFollowing: false });
                 
                 setSuggestions(prev => {
                     const newSuggestions = { ...prev };
@@ -131,6 +144,7 @@ const SuggestedUsersForExplore: React.FC = () => {
             } else {
                 // Follow
                 const result = await dispatch(followUserAsync(did)).unwrap();
+                updateVerifiedStatus(user as any, { isFollowing: true, followingReference: result.uri });
                 
                 setSuggestions(prev => {
                     const newSuggestions = { ...prev };
@@ -268,14 +282,14 @@ const SuggestedUsersForExplore: React.FC = () => {
                                 disabled={user.viewer?.following === 'pending'}
                                 className={cn(
                                     "px-4 py-1.5 rounded-full text-sm font-bold transition-all",
-                                    user.viewer?.following 
+                                    resolveIsFollowing(user as any)
                                         ? "bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-white border border-gray-200 dark:border-dark-border"
                                         : "bg-primary-600 hover:bg-primary-700 text-white shadow-sm"
                                 )}
                             >
                                 {user.viewer?.following === 'pending' ? (
                                     <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                ) : user.viewer?.following ? (
+                                ) : resolveIsFollowing(user as any) ? (
                                     t('profile.following')
                                 ) : (
                                     t('profile.follow')
