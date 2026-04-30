@@ -60,8 +60,9 @@ const SuggestedUsersForExplore: React.FC = () => {
     const { resolveIsFollowing, resolveFollowingReference, updateVerifiedStatus } = useVerifiedFollowStatuses(allSuggestions as any[]);
 
     const fetchCategory = async (category: typeof categories[0]) => {
-        // Skip if already loading or already fetched in Redux
-        if (loadingStates[category.id] || suggestionsByCategory[category.id]) return;
+        // Skip if already loading or already fetched in Redux (unless it returned empty last time)
+        const hasResults = suggestionsByCategory[category.id] && suggestionsByCategory[category.id].length > 0;
+        if (loadingStates[category.id] || hasResults) return;
 
         dispatch(fetchSuggestedUsers({ 
             categoryId: category.id, 
@@ -69,20 +70,10 @@ const SuggestedUsersForExplore: React.FC = () => {
         }));
     };
 
-    // Pre-fetch categories immediately on mount, prioritizing "For You"
+    // Pre-fetch ONLY "For You" immediately on mount
     useEffect(() => {
-        // Fetch "For You" (all) immediately
         const allCategory = categories.find(c => c.id === 'all');
         if (allCategory) fetchCategory(allCategory);
-        
-        // Fetch next few categories after a short delay to give "For You" priority in network queue
-        const timer = setTimeout(() => {
-            categories.slice(1, 6).forEach(cat => {
-                fetchCategory(cat);
-            });
-        }, 50);
-
-        return () => clearTimeout(timer);
     }, []);
 
     // Ensure selected category is fetched if it changes

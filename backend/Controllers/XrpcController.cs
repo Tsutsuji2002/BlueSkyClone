@@ -596,9 +596,11 @@ namespace BSkyClone.Controllers
                         var transformed = content.Replace("\"suggestions\":", "\"actors\":");
                         if (transformed.Contains("\"did\":\""))
                         {
+                            _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Global) Succeeded.");
                             return Content(transformed, "application/json");
                         }
                     }
+                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 2 (Global) failed or returned empty actors.");
                 }
                 else
                 {
@@ -613,17 +615,19 @@ namespace BSkyClone.Controllers
                         var content = await searchResponse.Content.ReadAsStringAsync();
                         if (content.Contains("\"did\":\""))
                         {
+                            _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Search) Succeeded.");
                             return Content(content, "application/json");
                         }
                     }
+                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 2 (Search) failed or returned empty actors.");
                 }
                 
-                _logger.LogWarning("[GetSuggestedUsersForExplore] All proxies failed or returned empty - falling back to local suggestions with limit {Limit}", limit);
+                _logger.LogWarning("[GetSuggestedUsersForExplore] All proxies failed or returned empty - falling back to LOCAL suggestions with limit {Limit}", limit);
                 return await GetSuggestions(limit, cursor);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in GetSuggestedUsersForExplore");
+                _logger.LogError(ex, "Error in GetSuggestedUsersForExplore - falling back to local.");
                 return await GetSuggestions(limit, cursor);
             }
         }
