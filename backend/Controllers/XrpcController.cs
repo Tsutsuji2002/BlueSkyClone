@@ -647,7 +647,7 @@ namespace BSkyClone.Controllers
                     totalUsers, nonBanned, hasAvatar, hasDid, viewerExists);
 
                 var suggestions = await _userService.GetSuggestedUsersAsync(limit, viewerId);
-                var mappedActors = suggestions.Select(MapUserToProfileView).ToList();
+                var mappedActors = (await Task.WhenAll(suggestions.Select(u => MapUserToProfileView(u, viewerId)))).ToList();
                 _logger.LogInformation("[GetSuggestions] Returning {Count} actors to frontend.", mappedActors.Count);
 
                 return Ok(new
@@ -1410,7 +1410,7 @@ namespace BSkyClone.Controllers
                 if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
                 
                 var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                Guid? viewerId = Guid.TryParse(userIdStr, out var id) ? id : null;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var vId) ? vId : null;
 
                 var response = new GetFollowersResponse
                 {
@@ -1446,7 +1446,7 @@ namespace BSkyClone.Controllers
                 if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
 
                 var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                Guid? viewerId = Guid.TryParse(userIdStr, out var id) ? id : null;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var vId) ? vId : null;
 
                 var response = new GetFollowsResponse
                 {
@@ -1542,13 +1542,13 @@ namespace BSkyClone.Controllers
             if (viewerId.HasValue)
             {
                 var follow = await _userService.GetFollowAsync(viewerId.Value, user.Id);
-                profile.Viewer.Following = follow?.FollowUri;
+                profile.Viewer.Following = follow?.Uri;
                 
                 profile.Viewer.Muted = await _userService.IsMutedAsync(viewerId.Value, user.Id);
                 profile.Viewer.BlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id);
                 
                 var block = await _userService.GetBlockAsync(viewerId.Value, user.Id);
-                profile.Viewer.Blocking = block?.BlockUri;
+                profile.Viewer.Blocking = block?.Uri;
             }
 
             if (!string.IsNullOrEmpty(user.PinnedPostUri))
@@ -1600,13 +1600,13 @@ namespace BSkyClone.Controllers
             if (viewerId.HasValue)
             {
                 var follow = await _userService.GetFollowAsync(viewerId.Value, user.Id);
-                view.Viewer.Following = follow?.FollowUri;
+                view.Viewer.Following = follow?.Uri;
                 
                 view.Viewer.Muted = await _userService.IsMutedAsync(viewerId.Value, user.Id);
                 view.Viewer.BlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id);
                 
                 var block = await _userService.GetBlockAsync(viewerId.Value, user.Id);
-                view.Viewer.Blocking = block?.BlockUri;
+                view.Viewer.Blocking = block?.Uri;
             }
 
             return view;
