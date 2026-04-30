@@ -546,6 +546,28 @@ namespace BSkyClone.Controllers
         }
 
         [AllowAnonymous]
+        [HttpGet("app.bsky.actor.getProfiles")]
+        public async Task<IActionResult> GetProfiles([FromQuery] string[] actors)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var id) ? id : null;
+
+                var users = await _userService.GetProfilesAsync(actors, viewerId);
+                var profileTasks = users.Select(u => MapUserToProfileViewDetailed(u, viewerId));
+                var profiles = await Task.WhenAll(profileTasks);
+
+                return Ok(new { profiles = profiles.ToList() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "XRPC GetProfiles error");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [AllowAnonymous]
         [HttpGet("app.bsky.unspecced.getSuggestedUsersForExplore")]
         public async Task<IActionResult> GetSuggestedUsersForExplore([FromQuery] string? category = null, [FromQuery] int limit = 25, [FromQuery] string? cursor = null)
         {
@@ -1416,10 +1438,13 @@ namespace BSkyClone.Controllers
                 if (subjectUser == null) subjectUser = await _userService.ResolveRemoteProfileAsync(actor);
                 if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
                 
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var id) ? id : null;
+
                 var response = new GetFollowersResponse
                 {
-                    Subject = await MapUserToProfileViewDetailed(subjectUser),
-                    Followers = users.Select(u => MapUserToProfileView(u)).ToList(),
+                    Subject = await MapUserToProfileViewDetailed(subjectUser, viewerId),
+                    Followers = (await Task.WhenAll(users.Select(u => MapUserToProfileView(u, viewerId)))).ToList(),
                     Cursor = nextCursor
                 };
 
@@ -1449,10 +1474,13 @@ namespace BSkyClone.Controllers
                 if (subjectUser == null) subjectUser = await _userService.ResolveRemoteProfileAsync(actor);
                 if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
 
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var id) ? id : null;
+
                 var response = new GetFollowsResponse
                 {
-                    Subject = await MapUserToProfileViewDetailed(subjectUser),
-                    Follows = users.Select(u => MapUserToProfileView(u)).ToList(),
+                    Subject = await MapUserToProfileViewDetailed(subjectUser, viewerId),
+                    Follows = (await Task.WhenAll(users.Select(u => MapUserToProfileView(u, viewerId)))).ToList(),
                     Cursor = nextCursor
                 };
 
@@ -1479,7 +1507,7 @@ namespace BSkyClone.Controllers
                 
                 var response = new GetMutesResponse
                 {
-                    Mutes = users.Select(u => MapUserToProfileView(u)).ToList(),
+                    Mutes = (await Task.WhenAll(users.Select(u => MapUserToProfileView(u, userId)))).ToList(),
                     Cursor = nextCursor
                 };
 
@@ -1506,7 +1534,7 @@ namespace BSkyClone.Controllers
                 
                 var response = new GetBlocksResponse
                 {
-                    Blocks = users.Select(u => MapUserToProfileView(u)).ToList(),
+                    Blocks = (await Task.WhenAll(users.Select(u => MapUserToProfileView(u, userId)))).ToList(),
                     Cursor = nextCursor
                 };
 
@@ -1533,8 +1561,24 @@ namespace BSkyClone.Controllers
                 FollowsCount = user.FollowingCount ?? 0,
                 PostsCount = user.PostsCount ?? 0,
                 IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
-                Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
+                Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState 
+                { 
+                    Muted = false, 
+                    BlockedBy = false 
+                }
             };
+
+            if (viewerId.HasValue)
+            {
+                var follow = await _userService.GetFollowAsync(viewerId.Value, user.Id);
+                profile.Viewer.Following = follow?.FollowUri;
+                
+                profile.Viewer.Muted = await _userService.IsMutedAsync(viewerId.Value, user.Id);
+                profile.Viewer.BlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id);
+                
+                var block = await _userService.GetBlockAsync(viewerId.Value, user.Id);
+                profile.Viewer.Blocking = block?.BlockUri;
+            }
 
             if (!string.IsNullOrEmpty(user.PinnedPostUri))
             {
@@ -1559,7 +1603,7 @@ namespace BSkyClone.Controllers
             return profile;
         }
 
-        private ProfileView MapUserToProfileView(User user)
+        private async Task<ProfileView> MapUserToProfileView(User user, Guid? viewerId = null)
         {
             var avatar = user.AvatarUrl;
             if (!string.IsNullOrEmpty(avatar) && avatar.StartsWith("uploads/") && !avatar.StartsWith("/"))
@@ -1567,7 +1611,7 @@ namespace BSkyClone.Controllers
                 avatar = "/" + avatar;
             }
 
-            return new ProfileView
+            var view = new ProfileView
             {
                 Did = user.Did ?? "",
                 Handle = user.Handle ?? user.Did ?? "unknown",
@@ -1575,8 +1619,26 @@ namespace BSkyClone.Controllers
                 Description = user.Bio,
                 Avatar = avatar,
                 IndexedAt = user.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
-                Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
+                Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState 
+                { 
+                    Muted = false, 
+                    BlockedBy = false 
+                }
             };
+
+            if (viewerId.HasValue)
+            {
+                var follow = await _userService.GetFollowAsync(viewerId.Value, user.Id);
+                view.Viewer.Following = follow?.FollowUri;
+                
+                view.Viewer.Muted = await _userService.IsMutedAsync(viewerId.Value, user.Id);
+                view.Viewer.BlockedBy = await _userService.IsBlockedByAsync(viewerId.Value, user.Id);
+                
+                var block = await _userService.GetBlockAsync(viewerId.Value, user.Id);
+                view.Viewer.Blocking = block?.BlockUri;
+            }
+
+            return view;
         }
 
         [HttpGet("{*lexicon}")]
