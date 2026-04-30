@@ -12,6 +12,7 @@ import feedsReducer from './slices/feedsSlice';
 import trendingReducer from './slices/trendingSlice';
 import listsReducer from './slices/listsSlice';
 import supportReducer from './slices/supportSlice';
+import suggestionsReducer from './slices/suggestionsSlice';
 
 const appReducer = combineReducers({
     theme: themeReducer,
@@ -27,6 +28,7 @@ const appReducer = combineReducers({
     trending: trendingReducer,
     lists: listsReducer,
     support: supportReducer,
+    suggestions: suggestionsReducer,
 });
 
 const rootReducer = (state: ReturnType<typeof appReducer> | undefined, action: AnyAction) => {

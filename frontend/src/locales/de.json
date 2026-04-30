@@ -525,7 +525,9 @@
         "loading_accounts": "Trend-Konten werden geladen...",
         "loading_topics": "Trend-Themen werden geladen...",
         "discover_posts": "Beiträge entdecken",
-        "no_more_posts": "Derzeit keine weiteren Beiträge zu entdecken."
+        "no_more_posts": "Derzeit keine weiteren Beiträge zu entdecken.",
+        "suggested_accounts": "Vorgeschlagene Konten",
+        "no_suggested_accounts": "Keine vorgeschlagenen Konten für diese Kategorie gefunden."
     },
     "lists": {
         "title": "Listen",

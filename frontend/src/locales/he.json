@@ -524,6 +524,13 @@
         "trending_posts": "Trending posts",
         "loading_accounts": "Loading trending accounts...",
         "loading_topics": "Loading trending topics...",
+        "suggested_accounts": "חשבונות מוצעים",
+        "categories": {
+            "all": "בשבילך",
+            "news": "חדשות",
+            "tech": "טכנולוגיה",
+            "gaming": "משחקים"
+        },
         "discover_posts": "Discover Posts",
         "no_more_posts": "No more posts to discover right now."
     },
@@ -846,22 +853,22 @@
         "allow_quotes": "Allow quote posts"
     },
     "sidebar": {
-        "trending": "Trending Topics",
-        "who_to_follow": "Who to Follow",
-        "terms": "Terms",
-        "privacy": "Privacy",
-        "cookies": "Cookies",
-        "posts": "posts",
-        "start_header": "START",
-        "follow_ten": "Follow 10 people to get started",
-        "bluesky_better": "Bluesky is better with friends!",
-        "find_people": "Find people to follow",
-        "other_feeds": "Other feeds",
-        "feedback": "Feedback",
-        "help": "Help",
-        "trending_header": "Trending",
-        "more_feeds": "More feeds",
-        "search_placeholder": "Search"
+        "trending": "נושאים חמים",
+        "who_to_follow": "המלצות למעקב",
+        "terms": "תנאי שימוש",
+        "privacy": "פרטיות",
+        "cookies": "קוקיז",
+        "posts": "פוסטים",
+        "start_header": "התחלה",
+        "follow_ten": "עקבו אחר 10 אנשים כדי להתחיל",
+        "bluesky_better": "בלוסקיי טובה יותר עם חברים!",
+        "find_people": "מצאו אנשים לעקוב אחריהם",
+        "other_feeds": "פידים אחרים",
+        "feedback": "משוב",
+        "help": "עזרה",
+        "trending_header": "חם",
+        "more_feeds": "עוד פידים",
+        "search_placeholder": "חיפוש"
     },
     "about": {
         "title": "About",

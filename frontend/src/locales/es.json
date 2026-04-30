@@ -517,15 +517,22 @@
     "explore": {
         "search_placeholder": "Buscar posts, usuarios o feeds",
         "interests": "Tus intereses",
-        "interests_desc": "¡Tus intereses nos ayudan a encontrar lo que te gusta!",
+        "interests_desc": "¡Los intereses que selecciones nos ayudan a encontrar lo que te gusta!",
         "edit_interests": "Editar intereses",
         "promoted": "Promocionado",
-        "no_posts_found": "No se han encontrado posts de tendencia en las últimas 24 h.",
+        "no_posts_found": "No se encontraron posts de tendencia en las últimas 24 horas.",
         "trending_posts": "Posts de tendencia",
-        "loading_accounts": "Cargando cuentas de tendencia...",
-        "loading_topics": "Cargando temas de tendencia...",
+        "trending_topics": "Temas de tendencia",
+        "suggested_accounts": "Cuentas sugeridas",
+        "categories": {
+            "all": "Para ti",
+            "news": "Noticias",
+            "tech": "Tecnología",
+            "gaming": "Juegos"
+        },
         "discover_posts": "Descubrir posts",
-        "no_more_posts": "No hay más posts que descubrir ahora mismo."
+        "no_suggested_accounts": "No se encontraron cuentas sugeridas para esta categoría.",
+        "no_more_posts": "No hay más posts para descubrir en este momento."
     },
     "lists": {
         "title": "Listas",
@@ -890,9 +897,9 @@
         "education": "Educación",
         "finance": "Finanzas",
         "food": "Comida",
-        "gaming": "Videojuegos",
+        "gaming": "Juegos",
         "journalism": "Periodismo",
-        "movies": "Cine",
+        "movies": "Películas",
         "music": "Música",
         "nature": "Naturaleza",
         "news": "Noticias",

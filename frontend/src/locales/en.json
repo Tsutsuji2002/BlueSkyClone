@@ -522,9 +522,16 @@
         "promoted": "Promoted",
         "no_posts_found": "No trending posts found in the last 24 hours.",
         "trending_posts": "Trending posts",
-        "loading_accounts": "Loading trending accounts...",
-        "loading_topics": "Loading trending topics...",
+        "trending_topics": "Trending Topics",
+        "suggested_accounts": "Suggested accounts",
+        "categories": {
+            "all": "For You",
+            "news": "News",
+            "tech": "Tech",
+            "gaming": "Gaming"
+        },
         "discover_posts": "Discover Posts",
+        "no_suggested_accounts": "No suggested accounts found for this category.",
         "no_more_posts": "No more posts to discover right now."
     },
     "lists": {

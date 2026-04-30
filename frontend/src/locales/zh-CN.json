@@ -522,9 +522,16 @@
         "promoted": "赞助商",
         "no_posts_found": "过去 24 小时内未发现趋势帖子。",
         "trending_posts": "趋势帖子",
-        "loading_accounts": "正在加载趋势账户...",
-        "loading_topics": "正在加载趋势话题...",
+        "trending_topics": "趋势话题",
+        "suggested_accounts": "推荐账户",
+        "categories": {
+            "all": "为你推荐",
+            "news": "新闻",
+            "tech": "科技",
+            "gaming": "游戏"
+        },
         "discover_posts": "发现帖子",
+        "no_suggested_accounts": "未找到此类别的推荐账户。",
         "no_more_posts": "目前没有更多帖子可供发现。"
     },
     "lists": {

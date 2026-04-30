@@ -515,16 +515,23 @@
         "pin": "Fixar"
     },
     "explore": {
-        "search_placeholder": "Buscar posts, usuários ou feeds",
+        "search_placeholder": "Pesquisar posts, usuários ou feeds",
         "interests": "Seus interesses",
-        "interests_desc": "Seus interesses nos ajudam a encontrar o que você gosta!",
+        "interests_desc": "Os interesses que você seleciona nos ajudam a encontrar o que você gosta!",
         "edit_interests": "Editar interesses",
         "promoted": "Promovido",
-        "no_posts_found": "Nenhum post popular encontrado nas últimas 24h.",
-        "trending_posts": "Posts populares",
-        "loading_accounts": "Carregando contas populares...",
-        "loading_topics": "Carregando tópicos populares...",
+        "no_posts_found": "Nenhum post em alta encontrado nas últimas 24 horas.",
+        "trending_posts": "Posts em alta",
+        "trending_topics": "Tópicos recomendados",
+        "suggested_accounts": "Contas sugeridas",
+        "categories": {
+            "all": "Para você",
+            "news": "Notícias",
+            "tech": "Tecnologia",
+            "gaming": "Jogos"
+        },
         "discover_posts": "Descobrir posts",
+        "no_suggested_accounts": "Nenhuma conta sugerida encontrada para esta categoria.",
         "no_more_posts": "Não há mais posts para descobrir no momento."
     },
     "lists": {
@@ -889,7 +896,7 @@
         "developers": "Desenvolvedores",
         "education": "Educação",
         "finance": "Finanças",
-        "food": "Comida",
+        "food": "Culinária",
         "gaming": "Jogos",
         "journalism": "Jornalismo",
         "movies": "Filmes",

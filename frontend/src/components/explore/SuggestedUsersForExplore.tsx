@@ -9,6 +9,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
 import UserHoverCard from '../common/UserHoverCard';
+import { fetchSuggestedUsers, updateFollowStatus } from '../../redux/slices/suggestionsSlice';
 import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice';
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { useVerifiedFollowStatuses } from '../../hooks/useVerifiedFollowStatuses';
@@ -26,85 +27,69 @@ interface SuggestedUser {
 }
 
 const categories = [
-    { id: 'all', name: 'For You' },
-    { id: 'art', name: 'Art' },
-    { id: 'comics', name: 'Comics' },
-    { id: 'gaming', name: 'Video Games' },
-    { id: 'sports', name: 'Sports' },
-    { id: 'music', name: 'Music' },
-    { id: 'politics', name: 'Politics' },
-    { id: 'photography', name: 'Photography' },
-    { id: 'science', name: 'Science' },
-    { id: 'news', name: 'News' },
-    { id: 'animals', name: 'Animals' },
-    { id: 'books', name: 'Books' },
-    { id: 'comedy', name: 'Comedy' },
-    { id: 'culture', name: 'Culture' },
-    { id: 'software-dev', name: 'Software Dev' },
-    { id: 'education', name: 'Education' },
-    { id: 'finance', name: 'Finance' },
-    { id: 'food', name: 'Food' },
-    { id: 'journalism', name: 'Journalism' },
-    { id: 'movies', name: 'Movies' },
-    { id: 'nature', name: 'Nature' },
-    { id: 'pets', name: 'Pets' },
-    { id: 'tech', name: 'Tech' },
-    { id: 'tv', name: 'TV' },
-    { id: 'writers', name: 'Writers' },
+    { id: 'all', nameKey: 'explore.categories.all' },
+    { id: 'art', nameKey: 'interests_tags.art' },
+    { id: 'comics', nameKey: 'interests_tags.comics' },
+    { id: 'gaming', nameKey: 'interests_tags.gaming' },
+    { id: 'sports', nameKey: 'interests_tags.sports' },
+    { id: 'music', nameKey: 'interests_tags.music' },
+    { id: 'politics', nameKey: 'interests_tags.politics' },
+    { id: 'photography', nameKey: 'interests_tags.photography' },
+    { id: 'science', nameKey: 'interests_tags.science' },
+    { id: 'news', nameKey: 'interests_tags.news' },
+    { id: 'animals', nameKey: 'interests_tags.animals' },
+    { id: 'books', nameKey: 'interests_tags.books' },
+    { id: 'comedy', nameKey: 'interests_tags.comedy' },
+    { id: 'culture', nameKey: 'interests_tags.culture' },
+    { id: 'software-dev', nameKey: 'interests_tags.developers' },
+    { id: 'education', nameKey: 'interests_tags.education' },
+    { id: 'finance', nameKey: 'interests_tags.finance' },
+    { id: 'food', nameKey: 'interests_tags.food' },
+    { id: 'journalism', nameKey: 'interests_tags.journalism' },
+    { id: 'movies', nameKey: 'interests_tags.movies' },
+    { id: 'nature', nameKey: 'interests_tags.nature' },
+    { id: 'pets', nameKey: 'interests_tags.pets' },
+    { id: 'tech', nameKey: 'interests_tags.tech' },
+    { id: 'tv', nameKey: 'interests_tags.tv' },
+    { id: 'writers', nameKey: 'interests_tags.writers' },
 ];
 
 const SuggestedUsersForExplore: React.FC = () => {
     const { t } = useTranslation();
     const [selectedCategory, setSelectedCategory] = useState(categories[0]);
-    const [suggestions, setSuggestions] = useState<Record<string, SuggestedUser[]>>({});
-    const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const token = localStorage.getItem('token');
+    
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
+    const { suggestionsByCategory, loadingStates } = useAppSelector((state: RootState) => state.suggestions);
 
     const allSuggestions = React.useMemo(() => {
-        return Object.values(suggestions).flat();
-    }, [suggestions]);
+        return Object.values(suggestionsByCategory).flat();
+    }, [suggestionsByCategory]);
 
     const { resolveIsFollowing, resolveFollowingReference, updateVerifiedStatus } = useVerifiedFollowStatuses(allSuggestions as any[]);
 
     const fetchCategory = async (category: typeof categories[0]) => {
-        // Skip if already loading or already fetched
-        if (loadingStates[category.id] || suggestions[category.id]) return;
+        // Skip if already loading or already fetched in Redux
+        if (loadingStates[category.id] || suggestionsByCategory[category.id]) return;
 
-        setLoadingStates(prev => ({ ...prev, [category.id]: true }));
-        try {
-            const limit = category.id === 'all' ? 5 : 10;
-            const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore`);
-            url.searchParams.append('limit', limit.toString());
-            
-            if (category.id !== 'all') {
-                url.searchParams.append('category', category.id);
-            }
-
-            url.searchParams.append('_t', Date.now().toString());
-
-            const response = await fetch(url.toString(), {
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const items = data.suggestions || data.actors || data.users || [];
-                setSuggestions(prev => ({ ...prev, [category.id]: items }));
-            }
-        } catch (error) {
-            console.error(`Failed to fetch suggested users for ${category.id}:`, error);
-        } finally {
-            setLoadingStates(prev => ({ ...prev, [category.id]: false }));
-        }
+        dispatch(fetchSuggestedUsers({ 
+            categoryId: category.id, 
+            limit: category.id === 'all' ? 5 : 10 
+        }));
     };
 
-    // Fetch selected category immediately on mount or when it changes
+    // Pre-fetch first few categories immediately on mount
     useEffect(() => {
-        if (!suggestions[selectedCategory.id]) {
+        categories.slice(0, 6).forEach(cat => {
+            fetchCategory(cat);
+        });
+    }, []);
+
+    // Ensure selected category is fetched if it changes
+    useEffect(() => {
+        if (!suggestionsByCategory[selectedCategory.id]) {
             fetchCategory(selectedCategory);
         }
     }, [selectedCategory.id]);
@@ -120,7 +105,6 @@ const SuggestedUsersForExplore: React.FC = () => {
 
         try {
             if (isFollowing) {
-                // Unfollow
                 const followUri = resolveFollowingReference(user as any) || user.viewer?.following;
                 if (!followUri) {
                     console.error('No follow URI found for unfollow');
@@ -129,34 +113,11 @@ const SuggestedUsersForExplore: React.FC = () => {
                 
                 await dispatch(unfollowUserAsync({ userId: did, followUri })).unwrap();
                 updateVerifiedStatus(user as any, { isFollowing: false });
-                
-                setSuggestions(prev => {
-                    const newSuggestions = { ...prev };
-                    Object.keys(newSuggestions).forEach(catId => {
-                        newSuggestions[catId] = newSuggestions[catId].map(u => 
-                            u.did === did 
-                                ? { ...u, viewer: { ...u.viewer, following: undefined } } 
-                                : u
-                        );
-                    });
-                    return newSuggestions;
-                });
+                dispatch(updateFollowStatus({ did, isFollowing: false }));
             } else {
-                // Follow
                 const result = await dispatch(followUserAsync(did)).unwrap();
                 updateVerifiedStatus(user as any, { isFollowing: true, followingReference: result.uri });
-                
-                setSuggestions(prev => {
-                    const newSuggestions = { ...prev };
-                    Object.keys(newSuggestions).forEach(catId => {
-                        newSuggestions[catId] = newSuggestions[catId].map(u => 
-                            u.did === did 
-                                ? { ...u, viewer: { ...u.viewer, following: result.uri } } 
-                                : u
-                        );
-                    });
-                    return newSuggestions;
-                });
+                dispatch(updateFollowStatus({ did, isFollowing: true, followUri: result.uri }));
             }
         } catch (error) {
             console.error('Failed to follow/unfollow:', error);
@@ -169,7 +130,7 @@ const SuggestedUsersForExplore: React.FC = () => {
         }
     };
 
-    const currentUsers = suggestions[selectedCategory.id] || [];
+    const currentUsers = suggestionsByCategory[selectedCategory.id] || [];
     const isLoading = loadingStates[selectedCategory.id];
 
     return (
@@ -214,7 +175,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                             )}
                         >
                             <span className="text-[13.1px] tracking-[0.25px] font-medium leading-[13.1px] whitespace-nowrap">
-                                {cat.name}
+                                {t(cat.nameKey)}
                             </span>
                         </button>
                     ))}
@@ -300,7 +261,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                 )}
                 {currentUsers.length === 0 && !isLoading && (
                     <div className="w-full text-center py-8 text-gray-500 dark:text-[#a5b2c5] text-sm">
-                        No suggested accounts found for this category.
+                        {t('explore.no_suggested_accounts', { defaultValue: 'No suggested accounts found for this category.' })}
                     </div>
                 )}
             </div>
