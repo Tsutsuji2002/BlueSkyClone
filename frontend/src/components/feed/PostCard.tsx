@@ -100,9 +100,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
     const [isExpanded, setIsExpanded] = React.useState(false);
 
     const isOwnPost = isOwnPostProp ?? (
-        currentUser?.id === post.author.id ||
-        (currentUser?.did && post.author.did && currentUser.did === post.author.did) ||
-        (currentUser?.handle && post.author.handle && currentUser.handle === post.author.handle)
+        currentUser?.id === post.author?.id ||
+        (currentUser?.did && post.author?.did && currentUser.did === post.author.did) ||
+        (currentUser?.handle && post.author?.handle && currentUser.handle === post.author.handle)
     );
 
     const mutedWords = useAppSelector((state: RootState) => (state.user as any).mutedWords as MutedWord[] ?? []);
@@ -170,7 +170,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             if (mw.expiresAt && new Date(mw.expiresAt) < new Date()) continue;
 
             // Check follow exclusion
-            if (mw.excludeFollowing && (post.author.isFollowing || post.author.viewer?.following)) continue;
+            if (mw.excludeFollowing && (post.author?.isFollowing || post.author?.viewer?.following)) continue;
 
             const targets = (mw.targets || 'content').split(',').map((t: string) => t.trim()).filter(Boolean);
             const matchContent = targets.includes('content') && content.includes(word);
@@ -211,7 +211,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             id: 'copy-link',
             label: t('post.copy_link'),
             icon: <FiLink />,
-            onClick: () => handleCopyLink(post.author.handle, post.tid || post.id),
+            onClick: () => handleCopyLink(post.author?.handle || 'Unknown', post.tid || post.id),
         },
         {
             id: 'send-message',
@@ -223,7 +223,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             id: 'embed',
             label: t('post.embed_post'),
             icon: <FiCode />,
-            onClick: () => handleEmbedPost(post.author.handle, post.tid || post.id, post.content),
+            onClick: () => handleEmbedPost(post.author?.handle || 'Unknown', post.tid || post.id, post.content),
         },
     ];
 
@@ -314,8 +314,10 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                 label: t('post.mute_account'),
                 icon: <FiUserMinus />,
                 onClick: () => {
-                    dispatch(muteUserAsync(post.author.id));
-                    dispatch(showToast({ message: t('profile.muted_success'), type: 'success' }));
+                    if (post.author?.id) {
+                        dispatch(muteUserAsync(post.author.id));
+                        dispatch(showToast({ message: t('profile.muted_success'), type: 'success' }));
+                    }
                 },
             },
             {
@@ -323,8 +325,10 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                 label: t('post.block_account'),
                 icon: <FiUserX />,
                 onClick: () => {
-                    dispatch(blockUserAsync(post.author.id));
-                    dispatch(showToast({ message: t('profile.blocked_success'), type: 'success' }));
+                    if (post.author?.id) {
+                        dispatch(blockUserAsync(post.author.id));
+                        dispatch(showToast({ message: t('profile.blocked_success'), type: 'success' }));
+                    }
                 },
             },
             {
@@ -398,6 +402,10 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                 </div>
             </div>
         );
+    }
+
+    if (!post.author) {
+        return null;
     }
 
     return (
