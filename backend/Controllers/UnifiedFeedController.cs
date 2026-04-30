@@ -114,7 +114,7 @@ public class UnifiedFeedController : ControllerBase
                 posts = posts,
                 skip = skip,
                 cursor = outCursor,
-                hasMore = !string.IsNullOrEmpty(outCursor) || (posts?.Count() ?? 0) >= take
+                hasMore = !string.IsNullOrEmpty(outCursor) || (posts?.Count() ?? 0) > 0
             });
         }
         catch (Exception ex)
