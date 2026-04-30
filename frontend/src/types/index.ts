@@ -229,6 +229,18 @@ export interface Post {
     labels?: string[];
 }
 
+export interface SuggestedUser {
+    did: string;
+    handle: string;
+    displayName?: string;
+    description?: string;
+    avatar?: string;
+    viewer?: {
+        following?: string;
+        followedBy?: string;
+    };
+}
+
 // Comment/Reply types
 export interface Comment {
     id: string;

@@ -8,23 +8,12 @@ import { cn } from '../../utils/classNames';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
+import { SuggestedUser } from '../../types';
 import UserHoverCard from '../common/UserHoverCard';
 import { fetchSuggestedUsers, updateFollowStatus } from '../../redux/slices/suggestionsSlice';
 import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice';
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { useVerifiedFollowStatuses } from '../../hooks/useVerifiedFollowStatuses';
-
-interface SuggestedUser {
-    did: string;
-    handle: string;
-    displayName?: string;
-    description?: string;
-    avatar?: string;
-    viewer?: {
-        following?: string;
-        followedBy?: string;
-    };
-}
 
 const categories = [
     { id: 'all', nameKey: 'explore.categories.all' },
