@@ -546,28 +546,6 @@ namespace BSkyClone.Controllers
         }
 
         [AllowAnonymous]
-        [HttpGet("app.bsky.actor.getProfiles")]
-        public async Task<IActionResult> GetProfiles([FromQuery] string[] actors)
-        {
-            try
-            {
-                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                Guid? viewerId = Guid.TryParse(userIdStr, out var id) ? id : null;
-
-                var users = await _userService.GetProfilesAsync(actors, viewerId);
-                var profileTasks = users.Select(u => MapUserToProfileViewDetailed(u, viewerId));
-                var profiles = await Task.WhenAll(profileTasks);
-
-                return Ok(new { profiles = profiles.ToList() });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "XRPC GetProfiles error");
-                return StatusCode(500, new { error = "InternalError" });
-            }
-        }
-
-        [AllowAnonymous]
         [HttpGet("app.bsky.unspecced.getSuggestedUsersForExplore")]
         public async Task<IActionResult> GetSuggestedUsersForExplore([FromQuery] string? category = null, [FromQuery] int limit = 25, [FromQuery] string? cursor = null)
         {
@@ -1208,13 +1186,6 @@ namespace BSkyClone.Controllers
                     profile.FollowersCount = followersCount;
                     profile.FollowsCount = followsCount;
                     profile.PostsCount = pc;
-                    profile.Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState
-                    {
-                        Muted = viewerId.HasValue && await _userService.IsMutedAsync(viewerId.Value, user.Id),
-                        BlockedBy = viewerId.HasValue && await _userService.IsBlockedByAsync(viewerId.Value, user.Id),
-                        Blocking = viewerId.HasValue ? (await _userService.IsBlockedAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.block/self" : null) : null,
-                        Following = viewerId.HasValue ? (await _userService.IsFollowingAsync(viewerId.Value, user.Id) ? $"at://{user.Did}/app.bsky.graph.follow/self" : null) : null
-                    };
 
                     profiles.Add(profile);
                 }
