@@ -4,8 +4,10 @@ import { FiChevronRight, FiCheck } from 'react-icons/fi';
 import { API_BASE_URL } from '../../constants';
 import Avatar from '../common/Avatar';
 import { cn } from '../../utils/classNames';
+import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
+import UserHoverCard from '../common/UserHoverCard';
 
 interface SuggestedUser {
     did: string;
@@ -53,6 +55,7 @@ const SuggestedUsersForExplore: React.FC = () => {
     const [suggestions, setSuggestions] = useState<Record<string, SuggestedUser[]>>({});
     const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
+    const navigate = useNavigate();
     const token = localStorage.getItem('token');
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
@@ -200,14 +203,24 @@ const SuggestedUsersForExplore: React.FC = () => {
                     currentUsers.map((user) => (
                         <div 
                             key={`${selectedCategory.id}-${user.did}`}
+                            onClick={() => navigate(`/profile/${user.handle}`)}
                             className="flex items-center justify-between gap-3 p-3 flex-1 min-w-[280px] rounded-xl border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer group"
                         >
                             <div className="flex items-center gap-3 min-w-0">
-                                <Avatar src={user.avatar} alt={user.displayName || user.handle} size="md" />
+                                <UserHoverCard user={user as any}>
+                                    <div onClick={(e) => { e.stopPropagation(); navigate(`/profile/${user.handle}`); }}>
+                                        <Avatar src={user.avatar} alt={user.displayName || user.handle} size="md" />
+                                    </div>
+                                </UserHoverCard>
                                 <div className="flex flex-col min-w-0">
-                                    <span className="font-bold text-gray-900 dark:text-dark-text truncate">
-                                        {user.displayName || user.handle}
-                                    </span>
+                                    <UserHoverCard user={user as any}>
+                                        <span 
+                                            className="font-bold text-gray-900 dark:text-dark-text truncate hover:underline"
+                                            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${user.handle}`); }}
+                                        >
+                                            {user.displayName || user.handle}
+                                        </span>
+                                    </UserHoverCard>
                                     <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
                                         @{user.handle}
                                     </span>
