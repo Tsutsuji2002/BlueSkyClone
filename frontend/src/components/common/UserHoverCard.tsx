@@ -8,7 +8,7 @@ import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
-import { updateFollowStatus } from '../../redux/slices/suggestionsSlice';
+import { updateFollowStatus, setVerifiedStatus } from '../../redux/slices/suggestionsSlice';
 import Avatar from './Avatar';
 import RichText from './RichText';
 import { BsPatchCheckFill } from 'react-icons/bs';
@@ -152,6 +152,15 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                 };
                 profileCache.set(key, fp);
                 setProfile(fp);
+
+                // Broadcast verified status to sync with lists/other components
+                if (fp.did) {
+                    dispatch(setVerifiedStatus({
+                        did: fp.did,
+                        isFollowing: fp.isFollowing,
+                        followUri: fp.followingReference
+                    }));
+                }
             }
         } catch (_) {
             // Silently fail; card will show with limited data

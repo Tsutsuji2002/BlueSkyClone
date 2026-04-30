@@ -69,11 +69,20 @@ const SuggestedUsersForExplore: React.FC = () => {
         }));
     };
 
-    // Pre-fetch first few categories immediately on mount
+    // Pre-fetch categories immediately on mount, prioritizing "For You"
     useEffect(() => {
-        categories.slice(0, 6).forEach(cat => {
-            fetchCategory(cat);
-        });
+        // Fetch "For You" (all) immediately
+        const allCategory = categories.find(c => c.id === 'all');
+        if (allCategory) fetchCategory(allCategory);
+        
+        // Fetch next few categories after a short delay to give "For You" priority in network queue
+        const timer = setTimeout(() => {
+            categories.slice(1, 6).forEach(cat => {
+                fetchCategory(cat);
+            });
+        }, 50);
+
+        return () => clearTimeout(timer);
     }, []);
 
     // Ensure selected category is fetched if it changes

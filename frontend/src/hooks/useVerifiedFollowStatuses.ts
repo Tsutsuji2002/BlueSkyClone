@@ -21,6 +21,7 @@ const buildStatusFromUser = (user: User): VerifiedFollowStatus => ({
 
 export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const reduxFollowStatuses = useAppSelector((state: RootState) => state.suggestions.followStatuses);
     const dispatch = useAppDispatch();
     const [verifiedStatuses, setVerifiedStatuses] = useState<Record<string, VerifiedFollowStatus>>({});
     const [loadingStatuses, setLoadingStatuses] = useState<Record<string, boolean>>({});
@@ -166,11 +167,18 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
 
     const resolveIsFollowing = (user: User) => {
         const statusKey = getStatusKey(user);
+        // Prioritize Redux global state for synchronization between different lists/hovercards
+        if (reduxFollowStatuses[statusKey] !== undefined) {
+            return reduxFollowStatuses[statusKey].isFollowing;
+        }
         return verifiedStatuses[statusKey]?.isFollowing ?? Boolean(user.isFollowing || user.viewer?.following);
     };
 
     const resolveFollowingReference = (user: User) => {
         const statusKey = getStatusKey(user);
+        if (reduxFollowStatuses[statusKey]?.followUri !== undefined) {
+            return reduxFollowStatuses[statusKey].followUri;
+        }
         return verifiedStatuses[statusKey]?.followingReference ?? user.followingReference ?? user.viewer?.following;
     };
 

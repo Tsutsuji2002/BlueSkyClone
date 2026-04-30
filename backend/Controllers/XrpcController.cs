@@ -551,34 +551,44 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                using var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(1.5);
+                using var client1 = _httpClientFactory.CreateClient();
+                client1.Timeout = TimeSpan.FromMilliseconds(700);
                 var queryString = Request.QueryString.Value;
                 
                 // Attempt 1: proxy to stropharia (best quality, but needs auth usually)
                 var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore{queryString}";
                 _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 1: {Url}", url);
                 
-                var response = await client.GetAsync(url);
-                if (response.IsSuccessStatusCode)
+                try 
                 {
-                    var content = await response.Content.ReadAsStringAsync();
-                    // Ensure the response actually contains actors before returning it
-                    if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\""))
+                    var response = await client1.GetAsync(url);
+                    if (response.IsSuccessStatusCode)
                     {
-                        return Content(content, "application/json");
+                        var content = await response.Content.ReadAsStringAsync();
+                        // Ensure the response actually contains actors before returning it
+                        if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\""))
+                        {
+                            return Content(content, "application/json");
+                        }
+                        _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 1 returned empty actors, trying fallback.");
                     }
-                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 1 returned empty actors, trying fallback.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 1 failed or timed out: {Msg}", ex.Message);
                 }
 
                 // Attempt 2: High-quality fallback using public endpoints
+                using var client2 = _httpClientFactory.CreateClient();
+                client2.Timeout = TimeSpan.FromSeconds(5); // Fallback can take a bit longer if needed
+                
                 if (string.IsNullOrEmpty(category) || category == "all")
                 {
                     // For "all", use getSuggestedAccounts which is more reliable for anonymous global users
                     var altUrl = $"https://api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
                     _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Global Suggestions): {Url}", altUrl);
                     
-                    var altResponse = await client.GetAsync(altUrl);
+                    var altResponse = await client2.GetAsync(altUrl);
                     if (altResponse.IsSuccessStatusCode)
                     {
                         var content = await altResponse.Content.ReadAsStringAsync();
@@ -597,7 +607,7 @@ namespace BSkyClone.Controllers
                     if (!string.IsNullOrEmpty(cursor)) searchUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
                     
                     _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Searching category): {Url}", searchUrl);
-                    var searchResponse = await client.GetAsync(searchUrl);
+                    var searchResponse = await client2.GetAsync(searchUrl);
                     if (searchResponse.IsSuccessStatusCode)
                     {
                         var content = await searchResponse.Content.ReadAsStringAsync();

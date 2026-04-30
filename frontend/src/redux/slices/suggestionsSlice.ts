@@ -4,12 +4,14 @@ import { SuggestedUser } from '../../types';
 
 interface SuggestionsState {
     suggestionsByCategory: Record<string, SuggestedUser[]>;
+    followStatuses: Record<string, { isFollowing: boolean; followUri?: string }>;
     loadingStates: Record<string, boolean>;
     error: string | null;
 }
 
 const initialState: SuggestionsState = {
     suggestionsByCategory: {},
+    followStatuses: {},
     loadingStates: {},
     error: null,
 };
@@ -52,6 +54,10 @@ const suggestionsSlice = createSlice({
     reducers: {
         updateFollowStatus: (state, action: PayloadAction<{ did: string; isFollowing: boolean; followUri?: string }>) => {
             const { did, isFollowing, followUri } = action.payload;
+            
+            // Update central map
+            state.followStatuses[did] = { isFollowing, followUri };
+
             Object.keys(state.suggestionsByCategory).forEach(catId => {
                 state.suggestionsByCategory[catId] = state.suggestionsByCategory[catId].map(u => 
                     u.did === did 
@@ -62,6 +68,10 @@ const suggestionsSlice = createSlice({
         },
         setVerifiedStatus: (state, action: PayloadAction<{ did: string; isFollowing: boolean; followUri?: string }>) => {
             const { did, isFollowing, followUri } = action.payload;
+            
+            // Update central map
+            state.followStatuses[did] = { isFollowing, followUri: followUri || state.followStatuses[did]?.followUri };
+
             Object.keys(state.suggestionsByCategory).forEach(catId => {
                 state.suggestionsByCategory[catId] = state.suggestionsByCategory[catId].map(u => 
                     u.did === did 
