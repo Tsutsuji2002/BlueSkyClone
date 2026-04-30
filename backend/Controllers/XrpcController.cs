@@ -776,11 +776,11 @@ namespace BSkyClone.Controllers
                 var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
                 if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-                var notifications = await _notificationService.GetNotificationsAsync(userId, limit);
+                var notifications = await _notificationService.GetNotificationsAsync(userId, limit, cursor);
 
                 var response = new ListNotificationsResponse
                 {
-                    Notifications = notifications.Select(n => new NotificationView
+                    Notifications = notifications.Notifications.Select(n => new NotificationView
                     {
                         Uri = n.Uri,
                         Cid = n.Cid,
@@ -809,7 +809,7 @@ namespace BSkyClone.Controllers
                             { "createdAt", n.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") }
                         }
                     }).ToList(),
-                    Cursor = null
+                    Cursor = notifications.Cursor
                 };
 
 
