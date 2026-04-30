@@ -1,13 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { FiChevronRight, FiCheck } from 'react-icons/fi';
 import { API_BASE_URL } from '../../constants';
 import Avatar from '../common/Avatar';
 import { cn } from '../../utils/classNames';
-import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
 import UserHoverCard from '../common/UserHoverCard';
+import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice';
+import { openAuthWall } from '../../redux/slices/modalsSlice';
 
 interface SuggestedUser {
     did: string;
@@ -56,6 +59,7 @@ const SuggestedUsersForExplore: React.FC = () => {
     const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const dispatch = useAppDispatch();
     const token = localStorage.getItem('token');
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
@@ -98,21 +102,51 @@ const SuggestedUsersForExplore: React.FC = () => {
         }
     }, [selectedCategory.id]);
 
-    const handleFollow = async (did: string) => {
-        if (!isAuthenticated) return;
+    const handleFollow = async (user: SuggestedUser) => {
+        if (!isAuthenticated) {
+            dispatch(openAuthWall());
+            return;
+        }
         
-        // Update local state for all categories where this user might appear
-        setSuggestions(prev => {
-            const newSuggestions = { ...prev };
-            Object.keys(newSuggestions).forEach(catId => {
-                newSuggestions[catId] = newSuggestions[catId].map(u => 
-                    u.did === did 
-                        ? { ...u, viewer: { ...u.viewer, following: 'pending' } } 
-                        : u
-                );
-            });
-            return newSuggestions;
-        });
+        const isFollowing = !!user.viewer?.following;
+        const did = user.did;
+
+        try {
+            if (isFollowing) {
+                // Unfollow
+                const followUri = user.viewer!.following!;
+                await dispatch(unfollowUserAsync({ userId: did, followUri })).unwrap();
+                
+                setSuggestions(prev => {
+                    const newSuggestions = { ...prev };
+                    Object.keys(newSuggestions).forEach(catId => {
+                        newSuggestions[catId] = newSuggestions[catId].map(u => 
+                            u.did === did 
+                                ? { ...u, viewer: { ...u.viewer, following: undefined } } 
+                                : u
+                        );
+                    });
+                    return newSuggestions;
+                });
+            } else {
+                // Follow
+                const result = await dispatch(followUserAsync(did)).unwrap();
+                
+                setSuggestions(prev => {
+                    const newSuggestions = { ...prev };
+                    Object.keys(newSuggestions).forEach(catId => {
+                        newSuggestions[catId] = newSuggestions[catId].map(u => 
+                            u.did === did 
+                                ? { ...u, viewer: { ...u.viewer, following: result.uri } } 
+                                : u
+                        );
+                    });
+                    return newSuggestions;
+                });
+            }
+        } catch (error) {
+            console.error('Failed to follow/unfollow:', error);
+        }
     };
 
     const scrollRight = () => {
@@ -228,18 +262,21 @@ const SuggestedUsersForExplore: React.FC = () => {
                             </div>
                             <button
                                 onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleFollow(user.did);
+                                     e.stopPropagation();
+                                     handleFollow(user);
                                 }}
+                                disabled={user.viewer?.following === 'pending'}
                                 className={cn(
                                     "px-4 py-1.5 rounded-full text-sm font-bold transition-all",
                                     user.viewer?.following 
-                                        ? "bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-white"
+                                        ? "bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-white border border-gray-200 dark:border-dark-border"
                                         : "bg-primary-600 hover:bg-primary-700 text-white shadow-sm"
                                 )}
                             >
-                                {user.viewer?.following ? (
-                                    <FiCheck size={16} />
+                                {user.viewer?.following === 'pending' ? (
+                                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                ) : user.viewer?.following ? (
+                                    t('profile.following')
                                 ) : (
                                     t('profile.follow')
                                 )}
