@@ -26,6 +26,7 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
     const [loadingStatuses, setLoadingStatuses] = useState<Record<string, boolean>>({});
     const requestGeneration = useRef(0);
     const inFlightKeys = useRef<Set<string>>(new Set());
+    const verifiedKeysRef = useRef<Set<string>>(new Set());
     const verifiedStatusesRef = useRef<Record<string, VerifiedFollowStatus>>({});
     const viewerKey = currentUser?.did || currentUser?.id || '';
 
@@ -45,6 +46,7 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
     useEffect(() => {
         requestGeneration.current += 1;
         inFlightKeys.current.clear();
+        verifiedKeysRef.current.clear();
         verifiedStatusesRef.current = {};
         setVerifiedStatuses({});
         setLoadingStatuses({});
@@ -61,7 +63,7 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
             const isCurrentUser = user.id === currentUser.id || (!!currentUser.did && user.did === currentUser.did);
 
             // Only verify if not already in flight or successfully verified in this session
-            return !isCurrentUser && !!actor && !inFlightKeys.current.has(statusKey) && !verifiedStatusesRef.current[statusKey];
+            return !isCurrentUser && !!actor && !inFlightKeys.current.has(statusKey) && !verifiedKeysRef.current.has(statusKey);
         });
     }, [currentUser, users]);
 
@@ -138,6 +140,7 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
                 setVerifiedStatuses((prev) => {
                     const next = { ...prev, ...newStatuses };
                     verifiedStatusesRef.current = next;
+                    Object.keys(newStatuses).forEach(k => verifiedKeysRef.current.add(k));
                     return next;
                 });
             } catch (err) {

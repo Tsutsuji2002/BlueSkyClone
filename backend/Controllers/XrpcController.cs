@@ -566,9 +566,24 @@ namespace BSkyClone.Controllers
                     return Content(content, "application/json");
                 }
 
-                // Attempt 2: If we have a category, use actor.searchActors as a high-quality fallback
-                if (!string.IsNullOrEmpty(category) && category != "all")
+                // Attempt 2: High-quality fallback using public endpoints
+                if (string.IsNullOrEmpty(category) || category == "all")
                 {
+                    // For "all", use actor.getSuggestions as it's the primary source for high-quality global suggestions
+                    var suggestionsUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.getSuggestions?limit={limit}";
+                    if (!string.IsNullOrEmpty(cursor)) suggestionsUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+                    
+                    _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Global Suggestions): {Url}", suggestionsUrl);
+                    var searchResponse = await client.GetAsync(suggestionsUrl);
+                    if (searchResponse.IsSuccessStatusCode)
+                    {
+                        var content = await searchResponse.Content.ReadAsStringAsync();
+                        return Content(content, "application/json");
+                    }
+                }
+                else
+                {
+                    // For specific categories, use actor.searchActors as a high-quality keyword-based fallback
                     var searchUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(category)}&limit={limit}";
                     if (!string.IsNullOrEmpty(cursor)) searchUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
                     
