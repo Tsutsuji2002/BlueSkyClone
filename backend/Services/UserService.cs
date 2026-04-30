@@ -587,7 +587,7 @@ public class UserService : IUserService
             _logger.LogError(ex, "Error resolving remote profile for {Actor}", identifier);
         }
 
-        return cached;
+        return null;
     }
 
     public async Task<User?> GetProfileByDidAsync(string did)
