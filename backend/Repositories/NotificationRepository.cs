@@ -13,15 +13,22 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
     {
     }
 
-    public async Task<IEnumerable<Notification>> GetUserNotificationsAsync(Guid userId, int limit = 50)
+    public async Task<IEnumerable<Notification>> GetUserNotificationsAsync(Guid userId, int limit = 50, DateTime? cursor = null)
     {
-        return await _dbSet
+        var query = _dbSet
             .Include(n => n.Sender)
             .Include(n => n.Post)
                 .ThenInclude(p => p!.Author)
             .Where(n => n.RecipientId == userId 
                 && n.Type != "message"
-                && (n.IsDeleted == false || n.IsDeleted == null))
+                && (n.IsDeleted == false || n.IsDeleted == null));
+
+        if (cursor.HasValue)
+        {
+            query = query.Where(n => n.CreatedAt < cursor.Value);
+        }
+
+        return await query
             .OrderByDescending(n => n.CreatedAt)
             .Take(limit)
             .ToListAsync();

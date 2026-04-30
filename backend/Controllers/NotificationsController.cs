@@ -22,11 +22,11 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetNotifications([FromQuery] int limit = 50)
+    public async Task<IActionResult> GetNotifications([FromQuery] int limit = 40, [FromQuery] string? cursor = null)
     {
         var userId = GetUserId();
-        var notifications = await _notificationService.GetNotificationsAsync(userId, limit);
-        return Ok(notifications);
+        var pagedResult = await _notificationService.GetNotificationsAsync(userId, limit, cursor);
+        return Ok(pagedResult);
     }
 
     [HttpGet("unread-count")]

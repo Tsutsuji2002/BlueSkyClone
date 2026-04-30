@@ -7,7 +7,7 @@ namespace BSkyClone.Services;
 
 public interface INotificationService
 {
-    Task<IEnumerable<NotificationDto>> GetNotificationsAsync(Guid userId, int limit = 50);
+    Task<PagedNotificationsDto> GetNotificationsAsync(Guid userId, int limit = 50, string? cursor = null);
     Task<int> GetUnreadCountAsync(Guid userId);
     Task MarkAsReadAsync(Guid userId, Guid notificationId);
     Task MarkAllAsReadAsync(Guid userId);

@@ -24,3 +24,8 @@ public record NotificationDto(
 public record MarkNotificationAsReadRequest(
     Guid NotificationId
 );
+
+public record PagedNotificationsDto(
+    [property: JsonPropertyName("notifications")] IEnumerable<NotificationDto> Notifications,
+    [property: JsonPropertyName("cursor")] string? Cursor
+);

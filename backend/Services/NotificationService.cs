@@ -33,13 +33,33 @@ public class NotificationService : INotificationService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<NotificationDto>> GetNotificationsAsync(Guid userId, int limit = 50)
+    public async Task<PagedNotificationsDto> GetNotificationsAsync(Guid userId, int limit = 50, string? cursor = null)
     {
-        var localNotifications = await _unitOfWork.Notifications.GetUserNotificationsAsync(userId, limit);
+        string? remoteCursor = null;
+        DateTime? localCursor = null;
+
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            try
+            {
+                var decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(cursor));
+                var parts = decoded.Split('|');
+                if (parts.Length == 2)
+                {
+                    remoteCursor = string.IsNullOrEmpty(parts[0]) ? null : parts[0];
+                    if (DateTime.TryParse(parts[1], out var dt)) localCursor = dt;
+                }
+            }
+            catch { /* Invalid cursor, ignore */ }
+        }
+
+        var localNotifications = await _unitOfWork.Notifications.GetUserNotificationsAsync(userId, limit, localCursor);
         var resultList = new List<NotificationDto>();
 
         // 1. Fetch remote notifications if user is linked to Bluesky
         var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
+        string? nextRemoteCursor = null;
+
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
         {
             var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
@@ -47,10 +67,13 @@ public class NotificationService : INotificationService
             {
                 try
                 {
-                    var queryParams = new QueryCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+                    var queryDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
                     {
                         { "limit", limit.ToString() }
-                    });
+                    };
+                    if (!string.IsNullOrEmpty(remoteCursor)) queryDict["cursor"] = remoteCursor;
+                    
+                    var queryParams = new QueryCollection(queryDict);
 
                     var response = await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.listNotifications", queryParams, token);
                     if (response.Success)
@@ -62,6 +85,7 @@ public class NotificationService : INotificationService
                             {
                                 resultList.Add(MapRemoteToDto(remote));
                             }
+                            nextRemoteCursor = remoteResponse.Cursor;
                         }
                     }
                 }
@@ -72,7 +96,10 @@ public class NotificationService : INotificationService
             }
         }
 
-        // 2. Fetch membership statuses for local list invitations
+        // 2. Map local notifications
+        // ... (membership status logic omitted here for brevity in replacement, but kept in full file)
+        
+        // [RESTORED] Fetch membership statuses for local list invitations
         var invitationListIds = localNotifications
             .Where(n => n.Type == "list_invitation" && n.ListId.HasValue)
             .Select(n => n.ListId!.Value)
@@ -87,7 +114,6 @@ public class NotificationService : INotificationService
                 .ToDictionaryAsync(lm => lm.ListId, lm => lm.Status);
         }
 
-        // 3. Map local notifications
         foreach (var n in localNotifications)
         {
             int? status = null;
@@ -98,8 +124,21 @@ public class NotificationService : INotificationService
             resultList.Add(MapToDto(n, status));
         }
 
-        // 4. Return merged, sorted by date (newest first)
-        return resultList.OrderByDescending(n => n.CreatedAt).Take(limit);
+        // 3. Return merged, sorted by date (newest first)
+        var sorted = resultList.OrderByDescending(n => n.CreatedAt).Take(limit).ToList();
+        
+        string? nextCursor = null;
+        if (sorted.Any())
+        {
+            var oldest = sorted.Last();
+            var nextLocalCursor = oldest.CreatedAt.ToUniversalTime().ToString("O");
+            // If we have a remote cursor from the fetch, use it; otherwise reuse the current one if we still have remote items to fetch.
+            // Simplified: use nextRemoteCursor if available.
+            var composite = $"{(nextRemoteCursor ?? remoteCursor)}|{nextLocalCursor}";
+            nextCursor = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(composite));
+        }
+
+        return new PagedNotificationsDto(sorted, nextCursor);
     }
 
     public async Task<int> GetUnreadCountAsync(Guid userId)
