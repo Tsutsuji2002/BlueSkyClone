@@ -553,11 +553,12 @@ namespace BSkyClone.Controllers
             {
                 using var client1 = _httpClientFactory.CreateClient();
                 client1.Timeout = TimeSpan.FromMilliseconds(700);
-                var queryString = Request.QueryString.Value;
+                var queryParams = Request.Query.Where(q => q.Key != "_t").ToDictionary(x => x.Key, x => x.Value.ToString());
+                var cleanQuery = queryParams.Any() ? "?" + string.Join("&", queryParams.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value)}")) : "";
                 
                 // Attempt 1: proxy to stropharia (best quality, but needs auth usually)
-                var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore{queryString}";
-                _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 1: {Url}", url);
+                var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore{cleanQuery}";
+                _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 1 (Cleaned): {Url}", url);
                 
                 try 
                 {
@@ -584,23 +585,36 @@ namespace BSkyClone.Controllers
                 
                 if (string.IsNullOrEmpty(category) || category == "all")
                 {
-                    // For "all", use getSuggestedAccounts which is more reliable for anonymous global users
-                    var altUrl = $"https://api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
-                    _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Global Suggestions): {Url}", altUrl);
+                    // Attempt 2a: Use public global suggestions
+                    var altUrl = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
+                    _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2a (Public Global): {Url}", altUrl);
                     
                     var altResponse = await client2.GetAsync(altUrl);
                     if (altResponse.IsSuccessStatusCode)
                     {
                         var content = await altResponse.Content.ReadAsStringAsync();
-                        // getSuggestedAccounts returns "suggestions", getSuggestedUsersForExplore expects "actors"
                         var transformed = content.Replace("\"suggestions\":", "\"actors\":");
-                        if (transformed.Contains("\"did\":\""))
+                        if (transformed.Contains("\"did\":\"") || transformed.Contains("\"handle\":\""))
                         {
-                            _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Global) Succeeded.");
+                            _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2a (Public Global) Succeeded.");
                             return Content(transformed, "application/json");
                         }
                     }
-                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 2 (Global) failed or returned empty actors.");
+                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 2a failed, trying 2b.");
+
+                    // Attempt 2b: Try secondary public actor suggestions
+                    var altUrl2 = $"https://api.bsky.app/xrpc/app.bsky.actor.getSuggestions?limit={limit}";
+                    var altResponse2 = await client2.GetAsync(altUrl2);
+                    if (altResponse2.IsSuccessStatusCode)
+                    {
+                        var content = await altResponse2.Content.ReadAsStringAsync();
+                        if (content.Contains("\"did\":\""))
+                        {
+                            _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2b (Actor Suggestions) Succeeded.");
+                            return Content(content, "application/json");
+                        }
+                    }
+                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 2b failed or returned empty actors.");
                 }
                 else
                 {
@@ -638,8 +652,8 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                Guid? viewerId = User?.Identity?.IsAuthenticated == true ? Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString()) : (Guid?)null;
-                if (viewerId == Guid.Empty) viewerId = null;
+                var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var vid) ? vid : null;
                 
                 var totalUsers = await _unitOfWork.Users.Query().CountAsync();
                 var nonBanned = await _unitOfWork.Users.Query().CountAsync(u => u.IsBanned != true);
@@ -651,8 +665,34 @@ namespace BSkyClone.Controllers
                     totalUsers, nonBanned, hasAvatar, hasDid, viewerExists);
 
                 var suggestions = await _userService.GetSuggestedUsersAsync(limit, viewerId);
+                
+                // If STILL empty, try one last time with a generic remote fetch to guarantee data
+                if (suggestions.Count == 0)
+                {
+                    _logger.LogWarning("[GetSuggestions] Local suggests still empty, forcing a generic remote fetch.");
+                    // We'll call GetProfilesAsync with some known popular actors as a hard seed
+                    var seedActors = new[] { "bsky.app", "jay.bsky.team", "pfrazee.com", "why.bsky.team", "rose.bsky.team" };
+                    suggestions = await _userService.GetProfilesAsync(seedActors, viewerId);
+                }
+
                 var mappedActors = (await Task.WhenAll(suggestions.Select(u => MapUserToProfileView(u, viewerId)))).ToList();
-                _logger.LogInformation("[GetSuggestions] Returning {Count} actors to frontend.", mappedActors.Count);
+                
+                // ABSOLUTE EMERGENCY FALLBACK: If still empty, return a static system account
+                if (mappedActors.Count == 0)
+                {
+                    _logger.LogCritical("[GetSuggestions] TOTAL FAILURE - Returning emergency static account.");
+                    mappedActors.Add(new ProfileView
+                    {
+                        Did = "did:local:system",
+                        Handle = "system.bskyclone.site",
+                        DisplayName = "BlueSky Clone System",
+                        Description = "No discovery data could be fetched at this time. Please try again later.",
+                        IndexedAt = DateTime.UtcNow.ToString("o"),
+                        Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState { Muted = false, BlockedBy = false }
+                    });
+                }
+
+                _logger.LogInformation("[GetSuggestions] Final return count: {Count}", mappedActors.Count);
 
                 return Ok(new
                 {
