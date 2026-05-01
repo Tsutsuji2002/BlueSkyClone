@@ -581,18 +581,19 @@ public class UserService : IUserService
                 }
                 catch (Exception dbEx)
                 {
-                    _logger.LogWarning(dbEx, "[ResolveRemoteProfileAsync] DB persistence failed for {Actor}. Error: {Msg}", identifier, dbEx.Message);
+                    var fullDbEx = dbEx.Message;
+                    if (dbEx.InnerException != null) fullDbEx += " || " + dbEx.InnerException.Message;
                     
-                    // CRITICAL FIX: If we found an existing user in the DB but failed to update it, 
-                    // we MUST return that existing user object (with its correct DB Id) 
-                    // instead of a transient one with a random Guid.
+                    _logger.LogWarning(dbEx, "[ResolveRemoteProfileAsync] DB persistence failed for {Actor}. Error: {Msg}", identifier, dbEx.Message);
+
+                    transientUser.Bio = "DB ERROR: " + fullDbEx;
+                    
                     var existingUser = await _unitOfWork.Users.GetByDidAsync(did);
                     if (existingUser != null)
                     {
                         return existingUser;
                     }
 
-                    // Return the transient user built from the API response so the caller still gets valid data for display
                     return transientUser;
                 }
             }
