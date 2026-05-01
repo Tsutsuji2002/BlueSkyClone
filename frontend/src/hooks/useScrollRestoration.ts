@@ -27,6 +27,7 @@ export function useScrollRestoration() {
     useEffect(() => {
         const currentPath = pathname;
         const isPop = navigationType === 'POP';
+        console.log(`[ScrollRestoration] Path: ${currentPath}, NavType: ${navigationType}`);
 
         // 1. Mark this path as visited
         visitedPathsRef.current.add(currentPath);
@@ -38,6 +39,7 @@ export function useScrollRestoration() {
                 if (key.startsWith(STORAGE_PREFIX)) {
                     const data = JSON.parse(sessionStorage.getItem(key) || '{}');
                     if (data.ts && now - data.ts > SCROLL_TTL_MS) {
+                        console.log(`[ScrollRestoration] Pruning stale: ${key}`);
                         sessionStorage.removeItem(key);
                     }
                 }
@@ -52,9 +54,8 @@ export function useScrollRestoration() {
             if (saved) {
                 try {
                     const { y } = JSON.parse(saved);
+                    console.log(`[ScrollRestoration] Found saved pos for ${currentPath}: y=${y}`);
                     if (y > 0) {
-                        // Progressive retry strategy: 
-                        // Virtuoso takes time to measure and render. We probe at increasing intervals.
                         const delays = [50, 150, 300, 600, 1000];
                         let attempt = 0;
 
@@ -62,9 +63,10 @@ export function useScrollRestoration() {
                             const docHeight = document.documentElement.scrollHeight;
                             const viewHeight = window.innerHeight;
                             
-                            // Only scroll if the document has enough height to actually reach the target,
-                            // or if we've exhausted all retries.
+                            console.log(`[ScrollRestoration] Attempt ${attempt}: docHeight=${docHeight}, targetY=${y}`);
+                            
                             if (docHeight >= y + viewHeight || attempt >= delays.length - 1) {
+                                console.log(`[ScrollRestoration] Executing scroll to ${y}`);
                                 window.scrollTo({ top: y, behavior: 'instant' });
                                 return;
                             }
@@ -78,17 +80,18 @@ export function useScrollRestoration() {
                 } catch (e) {
                     console.error('ScrollRestoration: Failed to restore', e);
                 }
+            } else {
+                console.log(`[ScrollRestoration] No saved pos for ${currentPath}`);
             }
         } else {
-            // New navigation (PUSH/REPLACE): always start at top
+            console.log(`[ScrollRestoration] New navigation, scrolling to top.`);
             window.scrollTo(0, 0);
         }
 
         // 4. Save Logic (on cleanup/unmount)
         return () => {
             const currentY = window.scrollY;
-            // Closure fix: currentPath is captured from the outer scope of the effect setup,
-            // which corresponds to the pathname this specific effect instance was created for.
+            console.log(`[ScrollRestoration] Cleanup for ${currentPath}, scrollY=${currentY}`);
             if (currentY > 0) {
                 const entry: ScrollEntry = { y: currentY, ts: Date.now() };
                 sessionStorage.setItem(STORAGE_PREFIX + currentPath, JSON.stringify(entry));

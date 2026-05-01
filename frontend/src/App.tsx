@@ -46,6 +46,11 @@ const AppContent: React.FC = () => {
   const location = useLocation();
   const isFirstRender = React.useRef(true);
 
+  React.useLayoutEffect(() => {
+    console.log('%c[BlueSky-Deploy] Version: 1.0.8 (Scroll fix + Loop Guard v2 applied)', 'color: #00acee; font-weight: bold; font-size: 14px;');
+    console.log('[BlueSky-Deploy] Build Time: ' + new Date().toLocaleString());
+  }, []);
+
   useEffect(() => {
     // Clear chunk reload count on successful mount
     sessionStorage.removeItem('chunk_reload_count');
