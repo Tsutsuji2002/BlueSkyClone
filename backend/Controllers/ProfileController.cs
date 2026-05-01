@@ -289,6 +289,28 @@ public class ProfileController : ControllerBase
         var targetUser = await ResolveUserAsync(userIdOrDid, currentUserId);
         if (targetUser == null) return NotFound(new { message = "User not found or could not be resolved" });
 
+        // CRITICAL: ResolveRemoteProfileAsync may return a transient User with an unsaved Guid
+        // if DB persistence failed silently. Re-fetch by DID to ensure we use the real DB record.
+        if (!string.IsNullOrEmpty(targetUser.Did))
+        {
+            var dbUser = await _userService.GetUserByDidAsync(targetUser.Did);
+            if (dbUser != null)
+            {
+                targetUser = dbUser;
+            }
+            else
+            {
+                // Profile exists on ATProto but has no DB record yet — force a clean resolution
+                _logger.LogWarning("[Follow] No DB record found for DID {Did}. Forcing fresh resolution.", targetUser.Did);
+                var freshUser = await _userService.ResolveRemoteProfileAsync(targetUser.Did, viewerId: currentUserId);
+                if (freshUser == null) return NotFound(new { message = "Could not resolve remote profile." });
+                targetUser = freshUser;
+                // Re-check DB record
+                var retryDbUser = await _userService.GetUserByDidAsync(targetUser.Did);
+                if (retryDbUser != null) targetUser = retryDbUser;
+            }
+        }
+
         var result = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
         if (!result.Success) return BadRequest(new { message = result.ErrorMessage ?? "Could not follow user." });
         
