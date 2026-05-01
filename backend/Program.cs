@@ -142,6 +142,9 @@ builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ICategorizationService, CategorizationService>();
 builder.Services.AddScoped<ISearchService, ElasticSearchService>();
+builder.Services.AddSingleton<TrendingService>();
+builder.Services.AddSingleton<ITrendingService>(sp => sp.GetRequiredService<TrendingService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TrendingService>());
 builder.Services.AddSingleton<IMLModelService, MLModelService>();
 builder.Services.AddSingleton<ThreadReplyCacheService>();
 
