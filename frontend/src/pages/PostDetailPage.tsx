@@ -314,14 +314,23 @@ const PostDetailPage: React.FC = () => {
     }, [replyCount, post?.uri]);
 
     const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
+    const fetchedParentIdsRef = React.useRef<Set<string>>(new Set());
+
     React.useEffect(() => {
         if (oldestKnown?.replyToPostId) {
-            const hasParent = posts.some(p => p.id === oldestKnown?.replyToPostId || p.tid === oldestKnown?.replyToPostId);
-            if (!hasParent) {
-                dispatch(fetchPostById(oldestKnown.replyToPostId));
+            const parentId = oldestKnown.replyToPostId;
+            const hasParent = posts.some(p => p.id === parentId || p.tid === parentId || (p.uri && (p.uri === parentId || p.uri.endsWith('/' + parentId))));
+            
+            if (!hasParent && !fetchedParentIdsRef.current.has(parentId)) {
+                fetchedParentIdsRef.current.add(parentId);
+                dispatch(fetchPostById({ uri: parentId, take: INITIAL_REPLIES_TAKE }))
+                    .unwrap()
+                    .catch((err) => {
+                        console.warn(`[PostDetail] Failed to fetch ancestor ${parentId}:`, err);
+                    });
             }
         }
-    }, [dispatch, oldestKnown?.id, oldestKnown?.replyToPostId, posts]);
+    }, [dispatch, oldestKnown?.id, oldestKnown?.replyToPostId, posts, INITIAL_REPLIES_TAKE]);
 
     // Tracking the current thread state
 
