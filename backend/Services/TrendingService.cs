@@ -109,9 +109,16 @@ namespace BSkyClone.Services
                 // 4. Fetch Popular Accounts
                 newData.Accounts = await FetchPopularAccountsAsync();
 
-                _cachedData = newData;
-                _logger.LogInformation("Successfully updated trending cache with {TopicCount} topics and {AccountCount} accounts.", 
-                    newData.Topics.Count, newData.Accounts.Count);
+                if (newData.Topics.Any())
+                {
+                    _cachedData = newData;
+                    _logger.LogInformation("Successfully updated trending cache with {TopicCount} topics and {AccountCount} accounts.", 
+                        newData.Topics.Count, newData.Accounts.Count);
+                }
+                else
+                {
+                    _logger.LogWarning("Trending fresh data is empty, keeping old cache.");
+                }
             }
             catch (Exception ex)
             {

@@ -372,6 +372,22 @@ IF COL_LENGTH('BlockedAccounts', 'Tid') IS NULL
 BEGIN
     ALTER TABLE [BlockedAccounts] ADD [Tid] nvarchar(max) NULL;
 END
+
+-- Performance optimization indices for Firehose
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Posts_Uri' AND object_id = OBJECT_ID('Posts'))
+BEGIN CREATE INDEX [IX_Posts_Uri] ON [Posts] ([Uri]); END
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Likes_Uri' AND object_id = OBJECT_ID('Likes'))
+BEGIN CREATE INDEX [IX_Likes_Uri] ON [Likes] ([Uri]); END
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_UserFollows_Uri' AND object_id = OBJECT_ID('UserFollows'))
+BEGIN CREATE INDEX [IX_UserFollows_Uri] ON [UserFollows] ([Uri]); END
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Reposts_Uri' AND object_id = OBJECT_ID('Reposts'))
+BEGIN CREATE INDEX [IX_Reposts_Uri] ON [Reposts] ([Uri]); END
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BlockedAccounts_Uri' AND object_id = OBJECT_ID('BlockedAccounts'))
+BEGIN CREATE INDEX [IX_BlockedAccounts_Uri] ON [BlockedAccounts] ([Uri]); END
 ");
             logger.LogInformation("Verified muted word schema.");
         }

@@ -10,13 +10,14 @@ public class VersionController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        return Ok(new
+        var info = new
         {
-            Version = "1.0.5",
-            BuildDate = "2026-05-01 16:30 UTC",
-            Environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Unknown",
+            Version = "1.0.6",
+            BuildDate = "2026-05-01 17:30 UTC",
+            Environment = "Production",
             Status = "Live",
-            Features = new[] { "StructuredFollowResults", "AggressiveSync", "SingletonTrending", "RobustResolution" }
-        });
+            Features = new[] { "StructuredFollowResults", "AggressiveSync", "SingletonTrending", "RobustResolution", "PerformanceOptimized", "IndexedUri" }
+        };
+        return Ok(info);
     }
 }

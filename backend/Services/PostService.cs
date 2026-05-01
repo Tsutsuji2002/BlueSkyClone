@@ -6767,9 +6767,16 @@ public class PostService : IPostService
 
             // Only process URIs that reference local posts.
             // Local posts have URIs like: at://<localDid>/app.bsky.feed.post/<tid>
+            
+            // Optimization: Extract TID from URI if possible
+            string? tid = null;
+            if (subjectUri.Contains("/app.bsky.feed.post/"))
+            {
+                tid = subjectUri.Split('/').LastOrDefault();
+            }
+
             var post = await _unitOfWork.Posts.Query()
-                .FirstOrDefaultAsync(p => p.Uri == subjectUri || 
-                                          (p.Tid != null && subjectUri.EndsWith("/" + p.Tid)));
+                .FirstOrDefaultAsync(p => p.Uri == subjectUri || (tid != null && p.Tid == tid));
 
             if (post == null)
             {
