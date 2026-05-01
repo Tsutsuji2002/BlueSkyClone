@@ -92,7 +92,21 @@ namespace BSkyClone.Services
                     newData.Topics = await ComputeTrendingFromLocalAsync();
                 }
 
-                // 3. Fetch Popular Accounts
+                // 3. Last Respose Fallback: If still empty, use some static "interesting" topics
+                if (!newData.Topics.Any())
+                {
+                    _logger.LogWarning("Both ATProto and Local trending failed. Using hardcoded fallback topics.");
+                    newData.Topics = new List<TrendingTopicDto>
+                    {
+                        new() { Id = "f1", Hashtag = "Art", PostsCount = 500, Category = "Featured" },
+                        new() { Id = "f2", Hashtag = "Photography", PostsCount = 450, Category = "Featured" },
+                        new() { Id = "f3", Hashtag = "Tech", PostsCount = 400, Category = "Featured" },
+                        new() { Id = "f4", Hashtag = "Gaming", PostsCount = 350, Category = "Featured" },
+                        new() { Id = "f5", Hashtag = "Bluesky", PostsCount = 300, Category = "Featured" }
+                    };
+                }
+
+                // 4. Fetch Popular Accounts
                 newData.Accounts = await FetchPopularAccountsAsync();
 
                 _cachedData = newData;
