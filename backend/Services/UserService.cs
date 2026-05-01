@@ -507,12 +507,15 @@ public class UserService : IUserService
                     Email = $"{did}@remote.bsky.social"
                 };
 
+                bool isNewUser = false;
+                
                 // Try to persist to local DB for caching — but don't fail if the DB is having issues
                 try
                 {
                     var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
                     if (user == null)
                     {
+                        isNewUser = true;
                         if (!string.IsNullOrEmpty(profileHandle))
                         {
                             var existingWithHandle = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Did != did);
@@ -562,7 +565,10 @@ public class UserService : IUserService
                     user.PostsCount = transientUser.PostsCount;
                     user.IsVerified = true;
 
-                    _unitOfWork.Users.Update(user);
+                    if (!isNewUser)
+                    {
+                        _unitOfWork.Users.Update(user);
+                    }
 
                     // CRITICAL ORDER: Persist the user FIRST, then sync relationships.
                     // If SyncRelationship throws (expired token, network error), the user
