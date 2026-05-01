@@ -31,32 +31,42 @@ export function useScrollRestoration(subKey?: string) {
                 const { y } = JSON.parse(saved);
                 if (y > 0) {
                     console.log(`[ScrollRestoration] Attempting restoration to ${y} for ${storageKey}`);
-                    
                     let restorationDone = false;
                     const startTime = Date.now();
                     const MAX_WAIT = 3000; // Wait up to 3 seconds for content
 
                     const executeScroll = () => {
                         window.scrollTo({ top: y, behavior: 'instant' });
-                        restorationDone = true;
+                        // Only mark as done if we actually reached the target or the absolute bottom
+                        const reachedTarget = Math.abs(window.scrollY - y) < 5;
+                        const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 5;
+                        
+                        if (reachedTarget || isAtBottom) {
+                            if (reachedTarget) {
+                                console.log(`[ScrollRestoration] Successfully reached target ${y}`);
+                                restorationDone = true;
+                            } else if (isAtBottom && y > window.scrollY + 100) {
+                                // We are at bottom but still far from target, don't mark as done, wait for more content
+                            } else {
+                                restorationDone = true;
+                            }
+                        }
                     };
 
-                    // 1. Immediate attempt
-                    if (document.documentElement.scrollHeight >= y + window.innerHeight) {
-                        executeScroll();
-                        return;
-                    }
+                    // 1. Initial attempt
+                    executeScroll();
 
-                    // 2. Observer attempt (as content loads)
+                    // 2. Persistent Observer attempt (as content loads)
                     const observer = new ResizeObserver(() => {
                         if (restorationDone) return;
-                        if (document.documentElement.scrollHeight >= y + window.innerHeight) {
-                            console.log(`[ScrollRestoration] Observer triggered restoration to ${y}`);
-                            executeScroll();
+                        
+                        executeScroll();
+                        
+                        if (restorationDone) {
                             observer.disconnect();
                         } else if (Date.now() - startTime > MAX_WAIT) {
-                            console.warn(`[ScrollRestoration] Timeout waiting for height. Forcing scroll to ${y}`);
-                            executeScroll();
+                            console.warn(`[ScrollRestoration] Timeout waiting to reach ${y}. Current: ${window.scrollY}`);
+                            restorationDone = true;
                             observer.disconnect();
                         }
                     });
@@ -72,18 +82,16 @@ export function useScrollRestoration(subKey?: string) {
                 console.error('ScrollRestoration: Failed to restore', e);
             }
         } else if (navigationType === 'PUSH') {
-            // Only scroll to top on REAL new navigations, not subKey changes (which might be internal UI state)
+            // Only scroll to top on REAL new navigations, not subKey changes
             console.log(`[ScrollRestoration] PUSH navigation, scrolling to top.`);
             window.scrollTo(0, 0);
         }
 
-        // Cleanup: Save position when leaving OR when subKey changes
+        // Cleanup: Save position when leaving
         return () => {
             const currentY = window.scrollY;
-            if (currentY > 0) {
-                const entry: ScrollEntry = { y: currentY, ts: Date.now() };
-                sessionStorage.setItem(storageKey, JSON.stringify(entry));
-            }
+            const entry: ScrollEntry = { y: currentY, ts: Date.now() };
+            sessionStorage.setItem(storageKey, JSON.stringify(entry));
         };
     }, [pathname, navigationType, storageKey, subKey]);
 

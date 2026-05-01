@@ -19,6 +19,7 @@ import ProfileTabContent from '../components/profile/ProfileTabContent';
 import { clearPosts } from '../redux/slices/postsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import ProfileSkeleton from '../components/profile/ProfileSkeleton';
+import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -112,33 +113,10 @@ const ProfilePage: React.FC = () => {
         }
     }, [activeTab, visitedTabs]);
 
-    // Scroll Persistence Logic
-    useEffect(() => {
-        if (!profileUser?.id || navType !== 'POP') return;
-
-        const scrollKey = `profile_scroll_${profileUser.id}_${activeTab}`;
-
-        // Restoration
-        const savedScroll = sessionStorage.getItem(scrollKey);
-        if (savedScroll) {
-            setTimeout(() => {
-                window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'auto' });
-            }, 30);
-        }
-
-        // Saving
-        const handleScroll = () => {
-            sessionStorage.setItem(scrollKey, window.scrollY.toString());
-        };
-
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [profileUser?.id, activeTab, navType]);
+    // Use unified global scroll restoration for the current tab
+    useScrollRestoration(activeTab);
 
     const handleTabChange = (tabId: string) => {
-        if (profileUser?.id) {
-            sessionStorage.setItem(`profile_scroll_${profileUser.id}_${activeTab}`, window.scrollY.toString());
-        }
         dispatch(setActiveProfileTab(tabId));
     };
 
