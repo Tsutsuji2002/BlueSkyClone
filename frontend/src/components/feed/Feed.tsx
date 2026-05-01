@@ -6,7 +6,6 @@ import { Post } from '../../types';
 import { PostFeedSkeleton } from './PostSkeleton';
 import { FiBookmark } from 'react-icons/fi';
 import { detectLanguage } from '../../utils/languageDetector';
-import ScrollToTopButton from '../common/ScrollToTopButton';
 
 import postSignalrService from '../../services/postSignalrService';
 import { Virtuoso } from 'react-virtuoso';
@@ -163,53 +162,50 @@ const Feed: React.FC<FeedProps> = ({
     }
 
     return (
-        <>
-            <Virtuoso
-                useWindowScroll
-                data={localPosts}
-                overscan={1000} // Preload items within 1000px of the viewport
-                endReached={() => {
-                    if (hasMore && !isLoading && !isFetchingRef.current && onLoadMore) {
-                        isFetchingRef.current = true;
-                        onLoadMore();
-                    }
-                }}
-                itemContent={(index, post) => (
-                    <div className="relative z-10 bg-white dark:bg-dark-bg">
-                        {post.parentPost && (
-                            <PostCard
-                                post={post.parentPost}
-                                hasBottomLine={true}
-                                hideBorder={true}
-                            />
-                        )}
+        <Virtuoso
+            useWindowScroll
+            data={localPosts}
+            overscan={1000} // Preload items within 1000px of the viewport
+            endReached={() => {
+                if (hasMore && !isLoading && !isFetchingRef.current && onLoadMore) {
+                    isFetchingRef.current = true;
+                    onLoadMore();
+                }
+            }}
+            itemContent={(index, post) => (
+                <div className="relative z-10 bg-white dark:bg-dark-bg">
+                    {post.parentPost && (
                         <PostCard
-                            post={post}
-                            hasTopLine={!!post.parentPost}
+                            post={post.parentPost}
+                            hasBottomLine={true}
+                            hideBorder={true}
                         />
-                    </div>
-                )}
-                components={{
-                    Footer: () => (
-                        <div className="h-20 flex items-center justify-center border-t border-gray-100 dark:border-dark-border/30">
-                            {isLoading && (
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
-                            )}
-                            {!isLoading && !hasMore && (
-                                <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-dark-text-secondary select-none px-6 text-center">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
-                                        <span className="text-sm font-medium">{endMessage || t('feeds.end', 'End of feed')}</span>
-                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
-                                    </div>
+                    )}
+                    <PostCard
+                        post={post}
+                        hasTopLine={!!post.parentPost}
+                    />
+                </div>
+            )}
+            components={{
+                Footer: () => (
+                    <div className="h-20 flex items-center justify-center border-t border-gray-100 dark:border-dark-border/30">
+                        {isLoading && (
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+                        )}
+                        {!isLoading && !hasMore && (
+                            <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-dark-text-secondary select-none px-6 text-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
+                                    <span className="text-sm font-medium">{endMessage || t('feeds.end', 'End of feed')}</span>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
                                 </div>
-                            )}
-                        </div>
-                    )
-                }}
-            />
-            <ScrollToTopButton />
-        </>
+                            </div>
+                        )}
+                    </div>
+                )
+            }}
+        />
     );
 };
 

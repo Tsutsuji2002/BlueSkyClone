@@ -5,6 +5,7 @@ import {
     FiSun, FiMoon, FiLogOut, FiEdit, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle, FiUser
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
+import ScrollToTopButton from '../common/ScrollToTopButton';
 import { NAV_ITEMS } from '../../constants';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
@@ -189,6 +190,9 @@ const Sidebar: React.FC = () => {
             </div>
             </nav>
             </div>
+
+            {/* Scroll to top button - positioned at bottom-right of sidebar */}
+            <ScrollToTopButton />
             
         </div>
     );

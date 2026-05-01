@@ -34,7 +34,7 @@ const ScrollToTopButton: React.FC<ScrollToTopButtonProps> = ({ threshold = 300 }
             onClick={scrollToTop}
             aria-label="Scroll to top"
             className={`
-                fixed bottom-6 left-6 z-50
+                mt-auto ml-auto mr-0
                 w-10 h-10 rounded-full
                 bg-white dark:bg-dark-surface
                 border border-gray-200 dark:border-dark-border

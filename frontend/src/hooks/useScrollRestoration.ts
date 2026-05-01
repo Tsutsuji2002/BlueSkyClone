@@ -15,29 +15,16 @@ interface ScrollEntry {
  * - On PUSH navigation (clicking a link): saves the current scrollY for the
  *   pathname we are *leaving*.
  * - On POP navigation (browser back/forward): restores the saved position
- *   after a short delay so Virtuoso / DOM can re-render.
+ *   using progressive retries to wait for Virtuoso to render enough items.
  * - On fresh navigation or after TTL expiry: scrolls to top.
  */
 export function useScrollRestoration() {
-    const { pathname } = useLocation();
+    const { pathname, key } = useLocation();
     const navType = useNavigationType();
     const prevPathRef = useRef<string>(pathname);
 
     // Save scroll position when navigating AWAY from a page
     useEffect(() => {
-        const handleBeforeNavigate = () => {
-            const entry: ScrollEntry = { y: window.scrollY, ts: Date.now() };
-            sessionStorage.setItem(
-                STORAGE_PREFIX + prevPathRef.current,
-                JSON.stringify(entry)
-            );
-        };
-
-        // Capture scroll position right before the next route change.
-        // We use `beforeunload` for hard navigations and rely on the
-        // cleanup function + ref for SPA navigations.
-        window.addEventListener('beforeunload', handleBeforeNavigate);
-
         return () => {
             // When this effect cleans up (route is changing), save the position
             // of the page we are leaving.
@@ -47,7 +34,6 @@ export function useScrollRestoration() {
                 JSON.stringify(entry)
             );
             prevPathRef.current = pathname;
-            window.removeEventListener('beforeunload', handleBeforeNavigate);
         };
     }, [pathname]);
 
@@ -60,12 +46,19 @@ export function useScrollRestoration() {
                 try {
                     const entry: ScrollEntry = JSON.parse(raw);
                     const age = Date.now() - entry.ts;
-                    if (age < SCROLL_TTL_MS) {
-                        // Small delay to let React re-render + Virtuoso measure
-                        requestAnimationFrame(() => {
+                    if (age < SCROLL_TTL_MS && entry.y > 0) {
+                        // Progressive restore: try multiple times as Virtuoso
+                        // renders more items and the document height grows.
+                        const targetY = entry.y;
+                        const delays = [50, 150, 300, 600];
+                        delays.forEach(delay => {
                             setTimeout(() => {
-                                window.scrollTo({ top: entry.y, behavior: 'auto' });
-                            }, 50);
+                                // Only scroll if we haven't reached the target yet
+                                // and the document is tall enough
+                                if (document.documentElement.scrollHeight >= targetY + window.innerHeight * 0.5) {
+                                    window.scrollTo({ top: targetY, behavior: 'auto' });
+                                }
+                            }, delay);
                         });
                         return;
                     }
@@ -75,11 +68,11 @@ export function useScrollRestoration() {
                 // Expired or corrupt — clean it up
                 sessionStorage.removeItem(STORAGE_PREFIX + pathname);
             }
-            // No saved position — scroll to top
+            // No saved position or expired — scroll to top
             window.scrollTo(0, 0);
         } else {
             // PUSH or REPLACE — always start at top
             window.scrollTo(0, 0);
         }
-    }, [pathname, navType]);
+    }, [pathname, navType, key]);
 }
