@@ -24,17 +24,18 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { getMe, logoutAsync } from './redux/slices/authSlice';
+import { getMe, stopLoading } from './redux/slices/authSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
-// Token expiration is handled securely by backend API calls and cookies
 import signalrService, { HubStatus } from './services/signalrService';
 import postSignalrService from './services/postSignalrService';
 import { closeAllModals } from './redux/slices/modalsSlice';
-import { stopLoading } from './redux/slices/authSlice';
 
 import LoadingScreen from './components/common/LoadingScreen';
+
+const VERSION = '1.1.1';
+const BUILD_TIME = '23:45:00 1/5/2026';
 
 const AppContent: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -42,26 +43,25 @@ const AppContent: React.FC = () => {
   const isLoading = useAppSelector((state: RootState) => state.auth.isLoading);
   const appLanguage = useAppSelector((state: RootState) => state.language.appLanguage);
   const authSettings = useAppSelector((state: RootState) => state.auth.settings);
+  const theme = useAppSelector((state: RootState) => state.theme);
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const isFirstRender = React.useRef(true);
+  const signalrTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   React.useLayoutEffect(() => {
-    console.log('%c[BlueSky-Deploy] Version: 1.1.0 (Loop Harden + Unified Scroll)', 'color: #00acee; font-weight: bold; font-size: 14px;');
-    console.log('[BlueSky-Deploy] Build Time: ' + new Date().toLocaleString());
+    console.log(`%c[BlueSky-Deploy] Version: ${VERSION} (Stability + Interaction Sync)`, 'color: #00acee; font-weight: bold; font-size: 14px;');
+    console.log(`[BlueSky-Deploy] Build Time: ${BUILD_TIME}`);
   }, []);
 
   useEffect(() => {
-    // Clear chunk reload count on successful mount
     sessionStorage.removeItem('chunk_reload_count');
 
     const checkAuth = async () => {
-      // With HttpOnly cookies, we just try to fetch the current user profile.
-      // If the cookies are valid, it succeeds. If not, it fails and unsets auth state.
       if (!isAuthenticated) {
         const result = await dispatch(getMe());
         if (getMe.rejected.match(result)) {
-           console.warn('Initial auth check failed. Requires login.');
+           console.warn('[App] Initial auth check failed.');
            dispatch(stopLoading());
         }
       }
@@ -72,58 +72,67 @@ const AppContent: React.FC = () => {
         checkAuth();
     }
     
-    // Safety fallback: Clear loading state if it's still true after 10 seconds
     const fallbackTimer = setTimeout(() => {
         dispatch(stopLoading());
     }, 10000);
 
-    // Also check every minute for auto-logout
     const interval = setInterval(checkAuth, 60000);
     return () => {
         clearInterval(interval);
         clearTimeout(fallbackTimer);
     };
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
+  // Unified SignalR Lifecycle with Debouncing
   useEffect(() => {
-    if (isAuthenticated) {
-      signalrService.startConnection();
-      postSignalrService.startConnection();
-
-      // Monitor SignalR connection status
-      signalrService.onStatusChange((status) => {
-        if (status === HubStatus.Disconnected) {
-          dispatch({
-            type: 'toast/showToast',
-            payload: {
-              message: t('common.signalr.disconnected'),
-              type: 'error'
-            }
-          });
-        } else if (status === HubStatus.Reconnecting) {
-          dispatch({
-            type: 'toast/showToast',
-            payload: {
-              message: t('common.signalr.reconnecting'),
-              type: 'info'
-            }
-          });
-        }
-      });
-
-      dispatch(fetchUnreadCount());
-      dispatch(fetchConversations());
-    } else {
-      signalrService.stopConnection();
-      postSignalrService.stopConnection();
+    if (signalrTimerRef.current) {
+        clearTimeout(signalrTimerRef.current);
+        signalrTimerRef.current = null;
     }
-  }, [isAuthenticated, dispatch]);
 
-  const theme = useAppSelector((state: RootState) => state.theme);
+    if (isAuthenticated) {
+        console.log('[App] Authenticated: Starting SignalR...');
+        signalrService.startConnection();
+        postSignalrService.startConnection();
 
+        // Monitor SignalR connection status
+        const statusCallback = (status: HubStatus) => {
+            if (status === HubStatus.Disconnected) {
+                dispatch({
+                    type: 'toast/showToast',
+                    payload: { message: t('common.signalr.disconnected'), type: 'error' }
+                });
+            } else if (status === HubStatus.Reconnecting) {
+                dispatch({
+                    type: 'toast/showToast',
+                    payload: { message: t('common.signalr.reconnecting'), type: 'info' }
+                });
+            }
+        };
+
+        signalrService.onStatusChange(statusCallback);
+        dispatch(fetchUnreadCount());
+        dispatch(fetchConversations());
+    } else {
+        console.log('[App] Unauthenticated: Stopping SignalR in 1s grace period...');
+        signalrTimerRef.current = setTimeout(() => {
+            console.log('[App] Grace period expired: Stopping SignalR.');
+            signalrService.stopConnection();
+            postSignalrService.stopConnection();
+            signalrTimerRef.current = null;
+        }, 1000);
+    }
+
+    return () => {
+        if (signalrTimerRef.current) {
+            clearTimeout(signalrTimerRef.current);
+        }
+    };
+  }, [isAuthenticated, dispatch, t]);
+
+  // Theme Management
   useEffect(() => {
     const root = document.documentElement;
-    // Apply dark mode and variants
     if (theme.mode === 'dark') {
       root.classList.add('dark');
       if (theme.darkVariant === 'dark') {
@@ -138,11 +147,10 @@ const AppContent: React.FC = () => {
       root.classList.remove('lights-out');
       root.classList.remove('dim');
     }
-
-    // Apply font size
     root.setAttribute('data-font-size', theme.fontSize);
   }, [theme.mode, theme.darkVariant, theme.fontSize]);
 
+  // i18n Sync
   useEffect(() => {
     if (appLanguage) {
       i18n.changeLanguage(appLanguage);
@@ -155,7 +163,6 @@ const AppContent: React.FC = () => {
     }
   }, [isAuthenticated, authSettings?.appLanguage, appLanguage, dispatch]);
 
-  // Close all modals on navigation
   useEffect(() => {
     dispatch(closeAllModals());
   }, [location.pathname, dispatch]);
@@ -164,9 +171,9 @@ const AppContent: React.FC = () => {
     return <LoadingScreen />;
   }
 
-    return (
+  return (
     <>
-      <AppRoutes />
+      {isAuthenticated ? <AppRoutes /> : <AuthRoutes />}
       <CreatePostModal />
       <ReplyModal />
       <EditProfileModal />

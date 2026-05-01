@@ -9,7 +9,9 @@ class PostSignalRService {
     private connection: signalR.HubConnection | null = null;
     private listeners: Set<(type: string, data: any) => void> = new Set();
     private isConnecting: boolean = false;
+    private stopRequested: boolean = false;
     private retryCount: number = 0;
+    private retryTimer: NodeJS.Timeout | null = null;
 
     public onEvent(callback: (type: string, data: any) => void) {
         this.listeners.add(callback);
@@ -20,16 +22,8 @@ class PostSignalRService {
         this.listeners.forEach(l => l(type, data));
     }
 
-    public async startConnection() {
-        if (this.connection || this.isConnecting) return;
-        this.isConnecting = true;
-
-        this.connection = new signalR.HubConnectionBuilder()
-            .withUrl(HUB_URL, {
-                accessTokenFactory: () => localStorage.getItem('token') || ''
-            })
-            .withAutomaticReconnect()
-            .build();
+    private setupHandlers() {
+        if (!this.connection) return;
 
         this.connection.on('UpdatePostStats', (stats: any) => {
             const data = { ...stats, uri: stats.uri || stats.postId };
@@ -52,39 +46,85 @@ class PostSignalRService {
             store.dispatch(receiveNewPost(post));
             this.emit('created', post);
         });
+    }
+
+    private getRetryDelay(retryCount: number) {
+        return Math.min(1000 * Math.pow(2, retryCount), 30000);
+    }
+
+    public async startConnection() {
+        if (this.connection?.state === signalR.HubConnectionState.Connected) {
+            console.log('[PostSignalR] Already connected');
+            return;
+        }
+
+        if (this.isConnecting) {
+            console.log('[PostSignalR] Connection attempt already in progress');
+            return;
+        }
+
+        this.isConnecting = true;
+        this.stopRequested = false;
 
         try {
+            this.connection = new signalR.HubConnectionBuilder()
+                .withUrl(HUB_URL, {
+                    accessTokenFactory: () => {
+                        const token = localStorage.getItem('token');
+                        if (!token) throw new Error('No token');
+                        return token;
+                    }
+                })
+                .withAutomaticReconnect({
+                    nextRetryDelayInMilliseconds: retryContext => {
+                        if (retryContext.elapsedMilliseconds > 60000) return null;
+                        return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 30000);
+                    }
+                })
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            this.setupHandlers();
             await this.connection.start();
-            this.isConnecting = false;
+            console.log('[PostSignalR] Connected successfully');
             this.retryCount = 0;
-            console.log('PostSignalR connected');
         } catch (err: any) {
-            this.isConnecting = false;
-            console.error('PostSignalR connection error: ', err);
+            console.error('[PostSignalR] Connection failed:', err);
             
-            // If it's an auth error (401 or 403), don't spam retries as they will keep failing
             const errorMessage = err?.toString() || '';
             if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
-                console.warn('PostSignalR: Unauthorized (401/403). Stopping connection retries.');
-                this.retryCount = 0;
+                console.warn('[PostSignalR] Unauthorized. Stopping retries.');
+                this.isConnecting = false;
                 return;
             }
 
-            // Exponential backoff: 5s, 10s, 20s, 40s, max 60s
-            const delay = Math.min(5000 * Math.pow(2, this.retryCount), 60000);
-            this.retryCount++;
-            
-            console.log(`PostSignalR: Retrying in ${delay}ms... (attempt ${this.retryCount})`);
-            setTimeout(() => this.startConnection(), delay);
+            if (!this.stopRequested) {
+                this.retryCount++;
+                const delay = this.getRetryDelay(this.retryCount);
+                console.log(`[PostSignalR] Retrying in ${delay}ms... (attempt ${this.retryCount})`);
+                this.retryTimer = setTimeout(() => {
+                    this.isConnecting = false;
+                    this.startConnection();
+                }, delay);
+            }
+        } finally {
+            if (!this.retryTimer) {
+                this.isConnecting = false;
+            }
         }
     }
 
     public stopConnection() {
+        this.stopRequested = true;
+        this.isConnecting = false;
+        if (this.retryTimer) {
+            clearTimeout(this.retryTimer);
+            this.retryTimer = null;
+        }
         if (this.connection) {
             this.connection.stop();
             this.connection = null;
         }
-        this.isConnecting = false;
         this.retryCount = 0;
     }
 }

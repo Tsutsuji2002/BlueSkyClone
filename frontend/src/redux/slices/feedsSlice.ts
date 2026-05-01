@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
 import { Feed, Post } from '../../types';
+import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { feedActionKey } from '../../utils/feedKeys';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
@@ -797,34 +798,37 @@ const feedsSlice = createSlice({
             )
             // Synchronize interactions across feedPosts (Fulfilled/Final)
             .addMatcher(
-                (action) => action.type.endsWith('/toggleLike/fulfilled') ||
-                    action.type.endsWith('/repostPost/fulfilled') ||
-                    action.type.endsWith('/toggleBookmark/fulfilled'),
-                (state: FeedsState, action: any) => {
+                (action) => action.type.endsWith('/fulfilled') && (action.type.includes('toggleLike') || action.type.includes('repostPost') || action.type.includes('toggleBookmark')),
+                (state: FeedsState, action: PayloadAction<any>) => {
                     const payload = action.payload;
-                    const actionUri = payload.uri;
-                    if (!actionUri) return;
+                    if (!payload || !payload.uri) return;
 
+                    // Update interaction truth is not in this slice, but we sync the posts
                     Object.keys(state.feedPosts).forEach(feedId => {
-                        const posts = state.feedPosts[feedId];
-                        const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
-                        if (post) {
-                            if (payload.isLiked !== undefined) post.isLiked = payload.isLiked;
-                            if (payload.isReposted !== undefined) post.isReposted = payload.isReposted;
-                            if (payload.isBookmarked !== undefined) post.isBookmarked = payload.isBookmarked;
-                            if (payload.likesCount !== undefined) post.likesCount = payload.likesCount;
-                            if (payload.repostsCount !== undefined) post.repostsCount = payload.repostsCount;
-                            if (payload.bookmarksCount !== undefined) post.bookmarksCount = payload.bookmarksCount;
-                            if (payload.likeUri !== undefined) {
-                                if (!post.viewer) post.viewer = {};
-                                post.viewer.like = payload.likeUri;
-                            }
-                            if (payload.repostUri !== undefined) {
-                                if (!post.viewer) post.viewer = {};
-                                post.viewer.repost = payload.repostUri;
-                            }
-                            post.lastUpdated = new Date().toISOString();
-                        }
+                        state.feedPosts[feedId].forEach(post => {
+                            const updateRecursive = (p: Post) => {
+                                if (matchesPost(p, payload)) {
+                                    if (payload.isLiked !== undefined) p.isLiked = payload.isLiked;
+                                    if (payload.isReposted !== undefined) p.isReposted = payload.isReposted;
+                                    if (payload.isBookmarked !== undefined) p.isBookmarked = payload.isBookmarked;
+                                    if (payload.likesCount !== undefined) p.likesCount = payload.likesCount;
+                                    if (payload.repostsCount !== undefined) p.repostsCount = payload.repostsCount;
+                                    
+                                    if (payload.likeUri !== undefined) {
+                                        if (!p.viewer) p.viewer = {};
+                                        p.viewer.like = payload.likeUri;
+                                    }
+                                    if (payload.repostUri !== undefined) {
+                                        if (!p.viewer) p.viewer = {};
+                                        p.viewer.repost = payload.repostUri;
+                                    }
+                                    p.lastUpdated = new Date().toISOString();
+                                }
+                                if (p.quotePost) updateRecursive(p.quotePost);
+                                if (p.parentPost) updateRecursive(p.parentPost);
+                            };
+                            updateRecursive(post);
+                        });
                     });
                 }
             )

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { PostsState, Post } from '../../types';
+import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
 import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
@@ -144,15 +145,6 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
     return deduped;
 };
 
-const matchesPost = (post: Post, actionUri: string): boolean => {
-    if (!actionUri) return false;
-    return !!(
-        post.uri === actionUri ||
-        post.id === actionUri ||
-        post.tid === actionUri ||
-        (post.uri && post.uri.endsWith('/' + actionUri.split('/').pop()!))
-    );
-};
 
 const updateInteractionTruth = (state: PostsState, post: Post) => {
     if (!post.uri) return;
@@ -1286,15 +1278,15 @@ const postsSlice = createSlice({
                 const deletedUri = action.payload; // original postUri passed in
                 // Extract TID/ID from the URI for broader matching
                 const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop()! : deletedUri;
-                const matchesPost = (p: Post) =>
+                const isDeletedPost = (p: Post) =>
                     p.uri === deletedUri ||
                     (deletedId && (p.tid === deletedId || p.id === deletedId)) ||
                     (p.uri && p.uri.endsWith('/' + deletedId));
-                state.posts = state.posts.filter((p: Post) => !matchesPost(p));
-                state.discoverPosts = state.discoverPosts.filter((p: Post) => !matchesPost(p));
-                state.trendingPosts = state.trendingPosts.filter((p: Post) => !matchesPost(p));
-                state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => !matchesPost(p));
-                state.threadPosts = state.threadPosts.filter((p: Post) => !matchesPost(p));
+                state.posts = state.posts.filter((p: Post) => !isDeletedPost(p));
+                state.discoverPosts = state.discoverPosts.filter((p: Post) => !isDeletedPost(p));
+                state.trendingPosts = state.trendingPosts.filter((p: Post) => !isDeletedPost(p));
+                state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => !isDeletedPost(p));
+                state.threadPosts = state.threadPosts.filter((p: Post) => !isDeletedPost(p));
                 // Invalidate profile post cache so it re-fetches on next navigation
                 state.lastUserPostsFetch = 0;
             })
@@ -1749,6 +1741,42 @@ const postsSlice = createSlice({
                     applyFollowStateToPosts(state.discoverPosts, identifier, true);
                     applyFollowStateToPosts(state.trendingPosts, identifier, true);
                     applyFollowStateToPosts(state.bookmarkedPosts, identifier, true);
+                }
+            )
+            // Interaction Synchronization (Critical for interaction consistency)
+            .addMatcher(
+                (action) => action.type.endsWith('/fulfilled') && (action.type.includes('toggleLike') || action.type.includes('repostPost') || action.type.includes('toggleBookmark')),
+                (state, action: PayloadAction<any>) => {
+                    const payload = action.payload;
+                    if (!payload || !payload.uri) return;
+
+                    // Update interaction truth
+                    state.interactionTruth[payload.uri] = {
+                        isLiked: payload.isLiked,
+                        likesCount: payload.likesCount,
+                        isReposted: payload.isReposted,
+                        repostsCount: payload.repostsCount,
+                        isBookmarked: payload.isBookmarked
+                    };
+
+                    // Deep update all posts using unified matching
+                    const updateRecursive = (p: Post) => {
+                        if (matchesPost(p, payload)) {
+                            p.isLiked = payload.isLiked;
+                            p.likesCount = payload.likesCount;
+                            p.isReposted = payload.isReposted;
+                            p.repostsCount = payload.repostsCount;
+                            p.isBookmarked = payload.isBookmarked;
+                        }
+                        if (p.quotePost) updateRecursive(p.quotePost);
+                        if (p.parentPost) updateRecursive(p.parentPost);
+                    };
+
+                    state.posts.forEach(updateRecursive);
+                    state.threadPosts.forEach(updateRecursive);
+                    state.discoverPosts.forEach(updateRecursive);
+                    state.trendingPosts.forEach(updateRecursive);
+                    state.bookmarkedPosts.forEach(updateRecursive);
                 }
             );
     },

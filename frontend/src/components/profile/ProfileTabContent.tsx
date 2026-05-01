@@ -10,8 +10,11 @@ import LoadingIndicator from '../common/LoadingIndicator';
 import { FiList, FiImage, FiVideo } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { useAppSelector } from '../../hooks/useAppSelector';
+import { RootState } from '../../redux/store';
 import { seedInteractionTruth } from '../../redux/slices/postsSlice';
 import { getDynamicBatchSize } from '../../utils/pagination';
+import { matchesPost } from '../../utils/postUtils';
 import { Link } from 'react-router-dom';
 import ListAvatar from '../common/ListAvatar';
 
@@ -136,6 +139,44 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         if (sentinelRef.current) observer.observe(sentinelRef.current);
         return () => observer.disconnect();
     }, [type, hasMore, loading, isActive, fetchBatch]);
+
+    // Sync local items with interactionTruth from Redux
+    const interactionTruth = useAppSelector((state: RootState) => state.posts.interactionTruth);
+    useEffect(() => {
+        if (items.length === 0 || Object.keys(interactionTruth).length === 0) return;
+
+        let changed = false;
+        const newItems = items.map(item => {
+            // Only sync Post items
+            if (!item.author || !item.content) return item;
+            
+            const truth = Object.values(interactionTruth).find(t => matchesPost(item, t));
+            if (truth) {
+                // Check if truly changed to avoid infinite cycles
+                if (item.isLiked !== truth.isLiked || 
+                    item.isReposted !== truth.isReposted || 
+                    item.isBookmarked !== truth.isBookmarked ||
+                    item.likesCount !== truth.likesCount ||
+                    item.repostsCount !== truth.repostsCount) {
+                    changed = true;
+                    return {
+                        ...item,
+                        isLiked: truth.isLiked,
+                        isReposted: truth.isReposted,
+                        isBookmarked: truth.isBookmarked,
+                        likesCount: truth.likesCount,
+                        repostsCount: truth.repostsCount,
+                        viewer: truth.viewer || item.viewer
+                    };
+                }
+            }
+            return item;
+        });
+
+        if (changed) {
+            setItems(newItems);
+        }
+    }, [interactionTruth, items]);
 
     if (type === 'lists' && initialLoading) {
         return (

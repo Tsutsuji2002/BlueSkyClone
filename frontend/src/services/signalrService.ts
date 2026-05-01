@@ -18,7 +18,9 @@ class SignalRService {
     public hubStatus: HubStatus = HubStatus.Disconnected;
     private statusListeners: ((status: HubStatus) => void)[] = [];
     private isConnecting: boolean = false;
+    private stopRequested: boolean = false;
     private retryCount: number = 0;
+    private retryTimer: NodeJS.Timeout | null = null;
 
     public onStatusChange(callback: (status: HubStatus) => void) {
         this.statusListeners.push(callback);
@@ -29,29 +31,25 @@ class SignalRService {
         this.statusListeners.forEach(fn => fn(status));
     }
 
-    public async startConnection() {
-        if (this.connection || this.isConnecting) return;
-        this.isConnecting = true;
+    private getRetryDelay(retryCount: number): number {
+        return Math.min(1000 * Math.pow(2, retryCount), 30000);
+    }
 
-        this.updateStatus(HubStatus.Connecting);
-
-        this.connection = new signalR.HubConnectionBuilder()
-            .withUrl(HUB_URL, {
-                accessTokenFactory: () => localStorage.getItem('token') || ''
-            })
-            .withAutomaticReconnect([0, 2000, 5000, 10000, 30000]) // Custom retry intervals
-            .build();
+    private setupHandlers() {
+        if (!this.connection) return;
 
         this.connection.onreconnecting((error) => {
-            console.warn('SignalR reconnecting due to error:', error);
+            console.warn('[SignalR] reconnecting due to error:', error);
             this.updateStatus(HubStatus.Reconnecting);
         });
+
         this.connection.onreconnected((connectionId) => {
-            console.log('SignalR reconnected. New ConnectionId:', connectionId);
+            console.log('[SignalR] reconnected. New ConnectionId:', connectionId);
             this.updateStatus(HubStatus.Connected);
         });
+
         this.connection.onclose((error) => {
-            console.error('SignalR connection closed:', error);
+            console.error('[SignalR] connection closed:', error);
             this.updateStatus(HubStatus.Disconnected);
         });
 
@@ -80,13 +78,10 @@ class SignalRService {
             store.dispatch(removeMessageFromStore(messageId));
         });
 
-        // Add handler for notifications
         this.connection.on('ReceiveNotification', (notification) => {
-            // Chat messages should only be handled in the chat section, not in the general notification feed
             if (notification.type !== 'message') {
                 store.dispatch(addNotification(notification));
             }
-            // Show a toast for instant feedback
             const message = notification.title || 'New notification received';
             // @ts-ignore
             store.dispatch({
@@ -94,32 +89,70 @@ class SignalRService {
                 payload: { message, type: 'info' }
             });
         });
+    }
+
+    public async startConnection() {
+        if (this.connection?.state === signalR.HubConnectionState.Connected) {
+            console.log('[SignalR] Already connected');
+            return;
+        }
+
+        if (this.isConnecting) {
+            console.log('[SignalR] Connection attempt already in progress');
+            return;
+        }
+
+        this.isConnecting = true;
+        this.stopRequested = false;
+        this.updateStatus(HubStatus.Connecting);
 
         try {
+            this.connection = new signalR.HubConnectionBuilder()
+                .withUrl(HUB_URL, {
+                    accessTokenFactory: () => {
+                        const token = localStorage.getItem('token');
+                        if (!token) throw new Error('No token');
+                        return token;
+                    }
+                })
+                .withAutomaticReconnect({
+                    nextRetryDelayInMilliseconds: retryContext => {
+                        if (retryContext.elapsedMilliseconds > 60000) return null;
+                        return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 30000);
+                    }
+                })
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            this.setupHandlers();
             await this.connection.start();
             this.updateStatus(HubStatus.Connected);
-            this.isConnecting = false;
-            this.retryCount = 0; // Reset on success
-            console.log('SignalR connected');
+            this.retryCount = 0;
+            console.log('[SignalR] Connected successfully');
         } catch (err: any) {
-            this.isConnecting = false;
+            console.error('[SignalR] Connection failed:', err);
             this.updateStatus(HubStatus.Disconnected);
-            console.error('SignalR connection error: ', err);
-
-            // If it's an auth error (401 or 403), don't spam retries as they will keep failing
+            
             const errorMessage = err?.toString() || '';
             if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
-                console.warn('SignalR: Unauthorized (401/403). Stopping connection retries.');
-                this.retryCount = 0;
+                console.warn('[SignalR] Unauthorized. Stopping retries.');
+                this.isConnecting = false;
                 return;
             }
 
-            // Exponential backoff: 5s, 10s, 20s, 40s, max 60s
-            const delay = Math.min(5000 * Math.pow(2, this.retryCount), 60000);
-            this.retryCount++;
-            
-            console.log(`SignalR: Retrying in ${delay}ms... (attempt ${this.retryCount})`);
-            setTimeout(() => this.startConnection(), delay);
+            if (!this.stopRequested) {
+                this.retryCount++;
+                const delay = this.getRetryDelay(this.retryCount);
+                console.log(`[SignalR] Retrying in ${delay}ms... (attempt ${this.retryCount})`);
+                this.retryTimer = setTimeout(() => {
+                    this.isConnecting = false;
+                    this.startConnection();
+                }, delay);
+            }
+        } finally {
+            if (!this.retryTimer) {
+                this.isConnecting = false;
+            }
         }
     }
 
@@ -201,11 +234,18 @@ class SignalRService {
     }
 
     public stopConnection() {
+        this.stopRequested = true;
+        this.isConnecting = false;
+        if (this.retryTimer) {
+            clearTimeout(this.retryTimer);
+            this.retryTimer = null;
+        }
+        
         if (this.connection) {
             this.connection.stop();
             this.connection = null;
         }
-        this.isConnecting = false;
+        this.updateStatus(HubStatus.Disconnected);
         this.retryCount = 0;
     }
 }

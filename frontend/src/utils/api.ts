@@ -22,8 +22,23 @@ const handleResponse = async (response: Response) => {
     return { data };
 };
 
+// Throttling guard to prevent rapid redundant requests (Infinite Loops)
+const lastGets = new Map<string, number>();
+const RECENT_WINDOW_MS = 500;
+
 const api = {
     get: async <T>(url: string) => {
+        const now = Date.now();
+        const last = lastGets.get(url) || 0;
+        
+        if (now - last < RECENT_WINDOW_MS) {
+            console.warn(`[API] Throttling redundant request to: ${url}`);
+            // Return a dummy promise or try to wait? 
+            // For now, we wait to break the loop's tight cycle
+            await new Promise(resolve => setTimeout(resolve, RECENT_WINDOW_MS));
+        }
+        lastGets.set(url, Date.now());
+
         const response = await fetch(`${API_URL}${url}`, {
             method: 'GET',
             headers: getHeaders(),

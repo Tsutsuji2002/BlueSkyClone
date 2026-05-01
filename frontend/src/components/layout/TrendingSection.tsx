@@ -34,9 +34,6 @@ const TrendingSection: React.FC = () => {
         return null;
     }
 
-    if (location.pathname === '/explore') {
-        return null;
-    }
 
     const handleHideTrending = () => {
         dispatch(updateNotificationSettings({ openTrendingTopics: false }));
