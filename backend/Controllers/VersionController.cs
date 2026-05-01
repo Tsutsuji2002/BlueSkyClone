@@ -12,11 +12,11 @@ public class VersionController : ControllerBase
     {
         var info = new
         {
-            Version = "1.0.7",
-            BuildDate = "2026-05-01 11:38 UTC",
+            Version = "1.0.8",
+            BuildDate = "2026-05-01 12:14 UTC",
             Environment = "Production",
             Status = "Live",
-            Features = new[] { "StructuredFollowResults", "AggressiveSync", "SingletonTrending", "RobustResolution", "PerformanceOptimized", "IndexedUri", "GuestTrending", "StubPersistence" }
+            Features = new[] { "StructuredFollowResults", "AggressiveSync", "SingletonTrending", "RobustResolution", "PerformanceOptimized", "IndexedUri", "GuestTrending", "StubPersistence", "PersistBeforeSync" }
         };
         return Ok(info);
     }

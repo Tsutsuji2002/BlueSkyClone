@@ -564,14 +564,19 @@ public class UserService : IUserService
 
                     _unitOfWork.Users.Update(user);
 
-                    // Interactions (Mute/Block/Follow)
-                    if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
-                    {
-                        await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
-                    }
-
+                    // CRITICAL ORDER: Persist the user FIRST, then sync relationships.
+                    // If SyncRelationship throws (expired token, network error), the user
+                    // record must already be committed so follow operations can find it by ID.
                     await _unitOfWork.CompleteAsync();
                     await _cacheService.SetAsync(cacheKey, user, TimeSpan.FromMinutes(30));
+
+                    // Interactions (Mute/Block/Follow) — non-critical, run after persist
+                    if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
+                    {
+                        try { await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp); }
+                        catch (Exception syncEx) { _logger.LogWarning(syncEx, "[ResolveRemoteProfileAsync] Relationship sync failed for {Actor}, but user was persisted.", identifier); }
+                    }
+
                     return user;
                 }
                 catch (Exception dbEx)
