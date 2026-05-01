@@ -5,7 +5,6 @@ import { store } from './redux/store';
 import { useAppSelector } from './hooks/useAppSelector';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import AuthRoutes from './routes/AuthRoutes';
 import AppRoutes from './routes/AppRoutes';
 import CreatePostModal from './modals/CreatePostModal';
 import ReplyModal from './modals/ReplyModal';
@@ -173,7 +172,7 @@ const AppContent: React.FC = () => {
 
   return (
     <>
-      {isAuthenticated ? <AppRoutes /> : <AuthRoutes />}
+      <AppRoutes />
       <CreatePostModal />
       <ReplyModal />
       <EditProfileModal />
