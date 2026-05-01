@@ -16,10 +16,15 @@ class Program
 
         using (var context = new BSkyDbContext(optionsBuilder.Options))
         {
-            var feeds = await context.Feeds.Where(f => f.IsOfficial).Select(f => new { f.Id, f.Name, f.Handle }).ToListAsync();
-            var json = JsonSerializer.Serialize(feeds, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText("feeds.json", json);
-            Console.WriteLine("EXPORT_COMPLETE");
+            var hashtags = await context.Hashtags
+                .OrderByDescending(h => h.PostsCount)
+                .Take(10)
+                .ToListAsync();
+            
+            foreach (var h in hashtags)
+            {
+                Console.WriteLine($"Hashtag: {h.Name}, Count: {h.PostsCount}");
+            }
         }
     }
 }

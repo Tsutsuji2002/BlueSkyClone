@@ -1394,6 +1394,8 @@ public class UserService : IUserService
             await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp);
         }
 
+        if (complete) await _unitOfWork.CompleteAsync();
+
         cache[did] = user;
         return user;
     }

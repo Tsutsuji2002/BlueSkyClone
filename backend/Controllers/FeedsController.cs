@@ -102,7 +102,7 @@ public class FeedsController : ControllerBase
         }
     }
 
-    [Authorize]
+    [AllowAnonymous]
     [HttpGet("trending")]
     public async Task<IActionResult> GetTrending([FromQuery] string? cursor = null, [FromQuery] int limit = 10)
     {
