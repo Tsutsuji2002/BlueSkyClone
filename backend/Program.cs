@@ -273,6 +273,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseWebSockets(); // Required for SignalR to not fallback to Long Polling
+
 app.UseCors("AllowFrontend");
 app.UseRateLimiter(); // Apply rate limiting middleware
 
