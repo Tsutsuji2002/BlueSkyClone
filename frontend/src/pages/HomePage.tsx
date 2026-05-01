@@ -18,6 +18,7 @@ import ButterflyLogo from '../components/common/ButterflyLogo';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { feedActionKey } from '../utils/feedKeys';
 import { getDynamicBatchSize } from '../utils/pagination';
+import { useScrollRestoration } from '../hooks/useScrollRestoration';
 
 const RELOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
@@ -26,10 +27,11 @@ const HomePage: React.FC = () => {
     const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const lastTab = React.useRef<string>('');
-    const hasRestoredScroll = React.useRef<Record<string, boolean>>({});
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
     const { isAuthenticated, user, isLoading: authLoading } = useAppSelector((state: RootState) => state.auth);
+
+    // Use unified global scroll restoration for the current tab
+    useScrollRestoration(activeTab);
 
     const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
 
@@ -46,11 +48,11 @@ const HomePage: React.FC = () => {
     const isInitialLoading = (feedsLoading || authLoading) && subscribedFeeds.length === 0 && pinnedLists.length === 0;
 
     useEffect(() => {
-        if (!authLoading) {
+        if (!authLoading && subscribedFeeds.length === 0) {
             dispatch(fetchSubscribedFeeds());
             dispatch(fetchPinnedLists());
         }
-    }, [dispatch, authLoading]);
+    }, [dispatch, authLoading, subscribedFeeds.length]);
 
     useEffect(() => {
         if (!activeTab) return;
@@ -72,75 +74,15 @@ const HomePage: React.FC = () => {
                 dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake }));
             }
         }
-
-        lastTab.current = activeTab;
     }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading]);
 
-    // Independent Scroll Preservation Logic
-    useEffect(() => {
-        if (!activeTab) return;
-
-        const hasPosts = (
-            (activeTab.startsWith('list:') && activeListFeed.length > 0) ||
-            (!activeTab.startsWith('list:') && feedPosts[activeTab]?.length > 0)
-        );
-
-        // When switching tabs or when content becomes available for a tab that needs restoration
-        if (lastTab.current !== activeTab || (hasPosts && !hasRestoredScroll.current[activeTab])) {
-            const isTabSwitch = lastTab.current !== activeTab;
-            
-            if (isTabSwitch) {
-                // Sync the ref immediately so we don't double-trigger
-                lastTab.current = activeTab;
-            }
-
-            if (hasPosts) {
-                const scrollKey = `home_scroll_${activeTab}`;
-                const savedScroll = sessionStorage.getItem(scrollKey);
-                
-                if (savedScroll) {
-                    hasRestoredScroll.current[activeTab] = true;
-                    const scrollPos = parseInt(savedScroll, 10);
-                    
-                    // Use a small delay to ensure the DOM has rendered the list items at the correct heights
-                    setTimeout(() => {
-                        window.scrollTo({ top: scrollPos, behavior: 'auto' });
-                    }, 30);
-                } else if (isTabSwitch) {
-                    // New tab with posts but no saved scroll -> start at top
-                    hasRestoredScroll.current[activeTab] = true;
-                    window.scrollTo({ top: 0, behavior: 'auto' });
-                }
-            } else if (isTabSwitch) {
-                // Switching to a tab that's still loading -> reset scroll to top immediately for clean feel
-                window.scrollTo({ top: 0, behavior: 'auto' });
-            }
-        }
-
-        // Keep session storage updated as user scrolls for the CURRENT tab
-        const handleScroll = () => {
-            if (activeTab) {
-                sessionStorage.setItem(`home_scroll_${activeTab}`, window.scrollY.toString());
-            }
-        };
-
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [activeTab, feedPosts, activeListFeed.length]);
+    // Consolidated scroll management moved to global useScrollRestoration(activeTab)
 
     const handleTabChange = (tabId: string) => {
         if (tabId === 'feeds-discovery' && !isAuthenticated) {
             navigate('/feeds');
             return;
         }
-
-        // [SCROLL FIX] Save current position for the tab we are LEAVING
-        if (activeTab) {
-            sessionStorage.setItem(`home_scroll_${activeTab}`, window.scrollY.toString());
-        }
-
-        // Allow restoration to run again for the new tab
-        hasRestoredScroll.current[tabId] = false;
 
         dispatch(setActiveTab(tabId));
         const now = Date.now();

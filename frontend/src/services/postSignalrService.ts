@@ -8,6 +8,8 @@ const HUB_URL = API_BASE_URL.replace('/api', '/hubs/posts');
 class PostSignalRService {
     private connection: signalR.HubConnection | null = null;
     private listeners: Set<(type: string, data: any) => void> = new Set();
+    private isConnecting: boolean = false;
+    private retryCount: number = 0;
 
     public onEvent(callback: (type: string, data: any) => void) {
         this.listeners.add(callback);
@@ -19,7 +21,8 @@ class PostSignalRService {
     }
 
     public async startConnection() {
-        if (this.connection) return;
+        if (this.connection || this.isConnecting) return;
+        this.isConnecting = true;
 
         this.connection = new signalR.HubConnectionBuilder()
             .withUrl(HUB_URL, {
@@ -52,18 +55,27 @@ class PostSignalRService {
 
         try {
             await this.connection.start();
+            this.isConnecting = false;
+            this.retryCount = 0;
             console.log('PostSignalR connected');
         } catch (err: any) {
+            this.isConnecting = false;
             console.error('PostSignalR connection error: ', err);
             
             // If it's an auth error (401 or 403), don't spam retries as they will keep failing
             const errorMessage = err?.toString() || '';
             if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
                 console.warn('PostSignalR: Unauthorized (401/403). Stopping connection retries.');
+                this.retryCount = 0;
                 return;
             }
 
-            setTimeout(() => this.startConnection(), 10000); // Backoff bit more to 10s
+            // Exponential backoff: 5s, 10s, 20s, 40s, max 60s
+            const delay = Math.min(5000 * Math.pow(2, this.retryCount), 60000);
+            this.retryCount++;
+            
+            console.log(`PostSignalR: Retrying in ${delay}ms... (attempt ${this.retryCount})`);
+            setTimeout(() => this.startConnection(), delay);
         }
     }
 
@@ -72,6 +84,8 @@ class PostSignalRService {
             this.connection.stop();
             this.connection = null;
         }
+        this.isConnecting = false;
+        this.retryCount = 0;
     }
 }
 

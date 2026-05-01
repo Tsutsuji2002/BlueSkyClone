@@ -47,7 +47,7 @@ const AppContent: React.FC = () => {
   const isFirstRender = React.useRef(true);
 
   React.useLayoutEffect(() => {
-    console.log('%c[BlueSky-Deploy] Version: 1.0.9 (SignalR + Feeds loop fixes)', 'color: #00acee; font-weight: bold; font-size: 14px;');
+    console.log('%c[BlueSky-Deploy] Version: 1.1.0 (Loop Harden + Unified Scroll)', 'color: #00acee; font-weight: bold; font-size: 14px;');
     console.log('[BlueSky-Deploy] Build Time: ' + new Date().toLocaleString());
   }, []);
 

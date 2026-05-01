@@ -17,6 +17,8 @@ class SignalRService {
     private connection: signalR.HubConnection | null = null;
     public hubStatus: HubStatus = HubStatus.Disconnected;
     private statusListeners: ((status: HubStatus) => void)[] = [];
+    private isConnecting: boolean = false;
+    private retryCount: number = 0;
 
     public onStatusChange(callback: (status: HubStatus) => void) {
         this.statusListeners.push(callback);
@@ -28,7 +30,8 @@ class SignalRService {
     }
 
     public async startConnection() {
-        if (this.connection) return;
+        if (this.connection || this.isConnecting) return;
+        this.isConnecting = true;
 
         this.updateStatus(HubStatus.Connecting);
 
@@ -95,8 +98,11 @@ class SignalRService {
         try {
             await this.connection.start();
             this.updateStatus(HubStatus.Connected);
+            this.isConnecting = false;
+            this.retryCount = 0; // Reset on success
             console.log('SignalR connected');
         } catch (err: any) {
+            this.isConnecting = false;
             this.updateStatus(HubStatus.Disconnected);
             console.error('SignalR connection error: ', err);
 
@@ -104,10 +110,16 @@ class SignalRService {
             const errorMessage = err?.toString() || '';
             if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
                 console.warn('SignalR: Unauthorized (401/403). Stopping connection retries.');
+                this.retryCount = 0;
                 return;
             }
 
-            setTimeout(() => this.startConnection(), 10000);
+            // Exponential backoff: 5s, 10s, 20s, 40s, max 60s
+            const delay = Math.min(5000 * Math.pow(2, this.retryCount), 60000);
+            this.retryCount++;
+            
+            console.log(`SignalR: Retrying in ${delay}ms... (attempt ${this.retryCount})`);
+            setTimeout(() => this.startConnection(), delay);
         }
     }
 
@@ -193,6 +205,8 @@ class SignalRService {
             this.connection.stop();
             this.connection = null;
         }
+        this.isConnecting = false;
+        this.retryCount = 0;
     }
 }
 

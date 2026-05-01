@@ -11,93 +11,99 @@ interface ScrollEntry {
 
 /**
  * Global scroll-restoration hook.
- *
- * - On PUSH navigation (clicking a link): saves the current scrollY for the
- *   pathname we are *leaving*.
- * - On POP navigation (browser back/forward): restores the saved position
- *   using progressive retries to wait for Virtuoso to render enough items.
- * - On fresh navigation or after TTL expiry: scrolls to top.
+ * 
+ * @param subKey Optional additional key (e.g., active tab ID) to differentiate scroll positions on the same path.
  */
-export function useScrollRestoration() {
+export function useScrollRestoration(subKey?: string) {
     const location = useLocation();
     const { pathname } = location;
     const navigationType = useNavigationType();
-    const visitedPathsRef = useRef<Set<string>>(new Set());
+    
+    // The definitive key for this scroll position
+    const storageKey = STORAGE_PREFIX + pathname + (subKey ? `_${subKey}` : '');
 
     useEffect(() => {
-        const currentPath = pathname;
-        const isPop = navigationType === 'POP';
-        console.log(`[ScrollRestoration] Path: ${currentPath}, NavType: ${navigationType}`);
+        const isPop = navigationType === 'POP' || (subKey !== undefined); // Treat tab switches like POP if they have a saved pos
+        const saved = sessionStorage.getItem(storageKey);
 
-        // 1. Mark this path as visited
-        visitedPathsRef.current.add(currentPath);
+        if (isPop && saved) {
+            try {
+                const { y } = JSON.parse(saved);
+                if (y > 0) {
+                    console.log(`[ScrollRestoration] Attempting restoration to ${y} for ${storageKey}`);
+                    
+                    let restorationDone = false;
+                    const startTime = Date.now();
+                    const MAX_WAIT = 3000; // Wait up to 3 seconds for content
 
-        // 2. Clear stale positions (older than 10 mins)
+                    const executeScroll = () => {
+                        window.scrollTo({ top: y, behavior: 'instant' });
+                        restorationDone = true;
+                    };
+
+                    // 1. Immediate attempt
+                    if (document.documentElement.scrollHeight >= y + window.innerHeight) {
+                        executeScroll();
+                        return;
+                    }
+
+                    // 2. Observer attempt (as content loads)
+                    const observer = new ResizeObserver(() => {
+                        if (restorationDone) return;
+                        if (document.documentElement.scrollHeight >= y + window.innerHeight) {
+                            console.log(`[ScrollRestoration] Observer triggered restoration to ${y}`);
+                            executeScroll();
+                            observer.disconnect();
+                        } else if (Date.now() - startTime > MAX_WAIT) {
+                            console.warn(`[ScrollRestoration] Timeout waiting for height. Forcing scroll to ${y}`);
+                            executeScroll();
+                            observer.disconnect();
+                        }
+                    });
+
+                    observer.observe(document.body);
+
+                    return () => {
+                        observer.disconnect();
+                        restorationDone = true;
+                    };
+                }
+            } catch (e) {
+                console.error('ScrollRestoration: Failed to restore', e);
+            }
+        } else if (navigationType === 'PUSH') {
+            // Only scroll to top on REAL new navigations, not subKey changes (which might be internal UI state)
+            console.log(`[ScrollRestoration] PUSH navigation, scrolling to top.`);
+            window.scrollTo(0, 0);
+        }
+
+        // Cleanup: Save position when leaving OR when subKey changes
+        return () => {
+            const currentY = window.scrollY;
+            if (currentY > 0) {
+                const entry: ScrollEntry = { y: currentY, ts: Date.now() };
+                sessionStorage.setItem(storageKey, JSON.stringify(entry));
+            }
+        };
+    }, [pathname, navigationType, storageKey, subKey]);
+
+    // Background pruning of stale items
+    useEffect(() => {
         const now = Date.now();
         try {
             Object.keys(sessionStorage).forEach(key => {
                 if (key.startsWith(STORAGE_PREFIX)) {
-                    const data = JSON.parse(sessionStorage.getItem(key) || '{}');
-                    if (data.ts && now - data.ts > SCROLL_TTL_MS) {
-                        console.log(`[ScrollRestoration] Pruning stale: ${key}`);
-                        sessionStorage.removeItem(key);
+                    const val = sessionStorage.getItem(key);
+                    if (val) {
+                        const data = JSON.parse(val);
+                        if (data.ts && now - data.ts > SCROLL_TTL_MS) {
+                            sessionStorage.removeItem(key);
+                        }
                     }
                 }
             });
-        } catch (e) {
-            console.warn('ScrollRestoration: Failed to prune sessionStorage', e);
-        }
-
-        // 3. Restoration Logic (Browser Back/Forward only)
-        if (isPop) {
-            const saved = sessionStorage.getItem(STORAGE_PREFIX + currentPath);
-            if (saved) {
-                try {
-                    const { y } = JSON.parse(saved);
-                    console.log(`[ScrollRestoration] Found saved pos for ${currentPath}: y=${y}`);
-                    if (y > 0) {
-                        const delays = [50, 150, 300, 600, 1000];
-                        let attempt = 0;
-
-                        const tryScroll = () => {
-                            const docHeight = document.documentElement.scrollHeight;
-                            const viewHeight = window.innerHeight;
-                            
-                            console.log(`[ScrollRestoration] Attempt ${attempt}: docHeight=${docHeight}, targetY=${y}`);
-                            
-                            if (docHeight >= y + viewHeight || attempt >= delays.length - 1) {
-                                console.log(`[ScrollRestoration] Executing scroll to ${y}`);
-                                window.scrollTo({ top: y, behavior: 'instant' });
-                                return;
-                            }
-                            
-                            attempt++;
-                            setTimeout(tryScroll, delays[attempt]);
-                        };
-
-                        setTimeout(tryScroll, delays[0]);
-                    }
-                } catch (e) {
-                    console.error('ScrollRestoration: Failed to restore', e);
-                }
-            } else {
-                console.log(`[ScrollRestoration] No saved pos for ${currentPath}`);
-            }
-        } else {
-            console.log(`[ScrollRestoration] New navigation, scrolling to top.`);
-            window.scrollTo(0, 0);
-        }
-
-        // 4. Save Logic (on cleanup/unmount)
-        return () => {
-            const currentY = window.scrollY;
-            console.log(`[ScrollRestoration] Cleanup for ${currentPath}, scrollY=${currentY}`);
-            if (currentY > 0) {
-                const entry: ScrollEntry = { y: currentY, ts: Date.now() };
-                sessionStorage.setItem(STORAGE_PREFIX + currentPath, JSON.stringify(entry));
-            }
-        };
-    }, [pathname, navigationType]);
+        } catch (e) {}
+    }, []);
 
     return null;
 }
