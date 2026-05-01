@@ -1595,6 +1595,24 @@ public class UserService : IUserService
 
                 if (!result.Success)
                 {
+                    // Check for duplicate record - this happens if already followed on remote but not in local DB
+                    if (result.StatusCode == 400 && (result.Content?.Contains("Duplicate record", StringComparison.OrdinalIgnoreCase) ?? false))
+                    {
+                        _logger.LogInformation("[FollowUserAsync] Follow record already exists on remote for {FollowerDid} -> {TargetDid}. Attempting to resolve existing URI.", followerUser.Did, targetUser.Did);
+                        
+                        // Resolve the profile again to trigger SyncRelationshipStatusWithAtProtoAsync
+                        // which will populate the local Follows table with the correct remote URI
+                        var refreshedUser = await ResolveRemoteProfileInternalAsync(targetUser.Did, token, followerId);
+                        if (refreshedUser != null)
+                        {
+                            var syncedFollow = await _unitOfWork.Follows.GetAsync(followerId, followingId);
+                            if (syncedFollow != null && !string.IsNullOrWhiteSpace(syncedFollow.Uri))
+                            {
+                                return syncedFollow.Uri;
+                            }
+                        }
+                    }
+
                     _logger.LogWarning(
                         "[FollowUserAsync] Bluesky follow createRecord failed for follower {FollowerDid} -> target {TargetDid}. Status: {Status}, Body: {Body}",
                         followerUser.Did,

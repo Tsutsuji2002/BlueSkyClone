@@ -290,7 +290,7 @@ public class ProfileController : ControllerBase
         if (targetUser == null) return NotFound(new { message = "User not found or could not be resolved" });
 
         var followUri = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
-        if (followUri == null) return BadRequest(new { message = "Could not follow user. Your Bluesky session may have expired. Please log out and log back in." });
+        if (followUri == null) return BadRequest(new { message = "Could not follow user. This can happen if your Bluesky session expired, you were blocked by the target, or there was a network error. Please try logging out and back in if the issue persists." });
 
         // Re-fetch to get updated counters
         targetUser = await _userService.GetUserByIdAsync(targetUser.Id);
