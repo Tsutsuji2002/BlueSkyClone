@@ -1520,11 +1520,12 @@ public class UserService : IUserService
     public async Task SyncMutedWordsWithAtProtoAsync(Guid userId) { }
 
 
-    public async Task<string?> FollowUserAsync(Guid followerId, Guid followingId)
+    public async Task<FollowUserResultDto> FollowUserAsync(Guid followerId, Guid followingId)
     {
         var followerUser = await _unitOfWork.Users.GetByIdAsync(followerId);
         var targetUser = await _unitOfWork.Users.GetByIdAsync(followingId);
-        if (followerUser == null || targetUser == null) return null;
+        if (followerUser == null || targetUser == null) 
+            return new FollowUserResultDto(false, ErrorMessage: "User not found.");
 
         var existing = await _unitOfWork.Follows.GetAsync(followerId, followingId);
         if (existing != null)
@@ -1543,7 +1544,7 @@ public class UserService : IUserService
                 await _unitOfWork.CompleteAsync();
             }
 
-            return existing.Uri;
+            return new FollowUserResultDto(true, Uri: existing.Uri);
         }
 
         var follow = new UserFollow
@@ -1568,7 +1569,7 @@ public class UserService : IUserService
                 if (string.IsNullOrWhiteSpace(token))
                 {
                     _logger.LogWarning("[FollowUserAsync] Missing Bluesky token for follower {FollowerId}", followerId);
-                    return null;
+                    return new FollowUserResultDto(false, ErrorMessage: "Bluesky session expired. Please log out and back in.");
                 }
 
                 var requestBody = new Dictionary<string, object?>
@@ -1595,24 +1596,6 @@ public class UserService : IUserService
 
                 if (!result.Success)
                 {
-                    // Check for duplicate record - this happens if already followed on remote but not in local DB
-                    if (result.StatusCode == 400 && (result.Content?.Contains("Duplicate record", StringComparison.OrdinalIgnoreCase) ?? false))
-                    {
-                        _logger.LogInformation("[FollowUserAsync] Follow record already exists on remote for {FollowerDid} -> {TargetDid}. Attempting to resolve existing URI.", followerUser.Did, targetUser.Did);
-                        
-                        // Resolve the profile again to trigger SyncRelationshipStatusWithAtProtoAsync
-                        // which will populate the local Follows table with the correct remote URI
-                        var refreshedUser = await ResolveRemoteProfileInternalAsync(targetUser.Did, token, followerId);
-                        if (refreshedUser != null)
-                        {
-                            var syncedFollow = await _unitOfWork.Follows.GetAsync(followerId, followingId);
-                            if (syncedFollow != null && !string.IsNullOrWhiteSpace(syncedFollow.Uri))
-                            {
-                                return syncedFollow.Uri;
-                            }
-                        }
-                    }
-
                     _logger.LogWarning(
                         "[FollowUserAsync] Bluesky follow createRecord failed for follower {FollowerDid} -> target {TargetDid}. Status: {Status}, Body: {Body}",
                         followerUser.Did,
@@ -1620,7 +1603,27 @@ public class UserService : IUserService
                         result.StatusCode,
                         result.Content
                     );
-                    return null;
+
+                    // Aggressive sync: if any error occurs that might be a conflict or block, try to sync state
+                    if (result.StatusCode == 400 || result.StatusCode == 409 || result.StatusCode == 403)
+                    {
+                        _logger.LogInformation("[FollowUserAsync] Attempting state sync after remote failure {Status} for {TargetDid}", result.StatusCode, targetUser.Did);
+                        
+                        // Resolve the profile from remote without cache to get latest viewer state
+                        var refreshedUser = await ResolveRemoteProfileInternalAsync(targetUser.Did, token, followerId);
+                        if (refreshedUser != null)
+                        {
+                            var syncedFollow = await _unitOfWork.Follows.GetAsync(followerId, followingId);
+                            if (syncedFollow != null && !string.IsNullOrWhiteSpace(syncedFollow.Uri))
+                            {
+                                return new FollowUserResultDto(true, Uri: syncedFollow.Uri);
+                            }
+                        }
+                    }
+
+                    string errorMsg = "Could not follow user on Bluesky.";
+                    if (result.Content?.Contains("blocked") == true) errorMsg = "You are blocked by this user.";
+                    return new FollowUserResultDto(false, ErrorMessage: $"{errorMsg} (Status: {result.StatusCode})");
                 }
 
                 using var doc = JsonDocument.Parse(result.Content);
@@ -1631,7 +1634,7 @@ public class UserService : IUserService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[FollowUserAsync] Error creating Bluesky follow for follower {FollowerId} and target {TargetId}", followerId, followingId);
-                return null;
+                return new FollowUserResultDto(false, ErrorMessage: "An internal error occurred while following.");
             }
         }
         else if (!string.IsNullOrWhiteSpace(followerUser.Did))
@@ -1646,7 +1649,8 @@ public class UserService : IUserService
         targetUser.FollowersCount = (targetUser.FollowersCount ?? 0) + 1;
 
         await _unitOfWork.CompleteAsync();
-        return follow.Uri ?? (!string.IsNullOrWhiteSpace(followerUser.Did) ? $"at://{followerUser.Did}/app.bsky.graph.follow/{follow.Tid}" : null);
+        var finalUri = follow.Uri ?? (!string.IsNullOrWhiteSpace(followerUser.Did) ? $"at://{followerUser.Did}/app.bsky.graph.follow/{follow.Tid}" : null);
+        return new FollowUserResultDto(true, Uri: finalUri);
     }
 
     public async Task<bool> UnfollowUserAsync(Guid followerId, Guid followingId)

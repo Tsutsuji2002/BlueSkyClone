@@ -289,8 +289,10 @@ public class ProfileController : ControllerBase
         var targetUser = await ResolveUserAsync(userIdOrDid, currentUserId);
         if (targetUser == null) return NotFound(new { message = "User not found or could not be resolved" });
 
-        var followUri = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
-        if (followUri == null) return BadRequest(new { message = "Could not follow user. This can happen if your Bluesky session expired, you were blocked by the target, or there was a network error. Please try logging out and back in if the issue persists." });
+        var result = await _userService.FollowUserAsync(currentUserId, targetUser.Id);
+        if (!result.Success) return BadRequest(new { message = result.ErrorMessage ?? "Could not follow user." });
+        
+        var followUri = result.Uri;
 
         // Re-fetch to get updated counters
         targetUser = await _userService.GetUserByIdAsync(targetUser.Id);

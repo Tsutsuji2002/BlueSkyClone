@@ -159,3 +159,9 @@ public record MutedWordDto(
     DateTime? ExpiresAt = null,
     bool ExcludeFollowing = false
 );
+
+public record FollowUserResultDto(
+    bool Success,
+    string? Uri = null,
+    string? ErrorMessage = null
+);
