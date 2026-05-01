@@ -96,10 +96,18 @@ class SignalRService {
             await this.connection.start();
             this.updateStatus(HubStatus.Connected);
             console.log('SignalR connected');
-        } catch (err) {
+        } catch (err: any) {
             this.updateStatus(HubStatus.Disconnected);
             console.error('SignalR connection error: ', err);
-            setTimeout(() => this.startConnection(), 5000);
+
+            // If it's an auth error (401 or 403), don't spam retries as they will keep failing
+            const errorMessage = err?.toString() || '';
+            if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
+                console.warn('SignalR: Unauthorized (401/403). Stopping connection retries.');
+                return;
+            }
+
+            setTimeout(() => this.startConnection(), 10000);
         }
     }
 

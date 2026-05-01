@@ -53,9 +53,17 @@ class PostSignalRService {
         try {
             await this.connection.start();
             console.log('PostSignalR connected');
-        } catch (err) {
+        } catch (err: any) {
             console.error('PostSignalR connection error: ', err);
-            setTimeout(() => this.startConnection(), 5000);
+            
+            // If it's an auth error (401 or 403), don't spam retries as they will keep failing
+            const errorMessage = err?.toString() || '';
+            if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
+                console.warn('PostSignalR: Unauthorized (401/403). Stopping connection retries.');
+                return;
+            }
+
+            setTimeout(() => this.startConnection(), 10000); // Backoff bit more to 10s
         }
     }
 

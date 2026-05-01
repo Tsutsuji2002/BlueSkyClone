@@ -112,6 +112,7 @@ interface FeedsState {
     infoError: Record<string, string | null>;
     userFeeds: Feed[];
     userFeedsLoading: boolean;
+    lastSubscribedFeedsFetch: number;
 }
 
 const initialState: FeedsState = {
@@ -137,6 +138,7 @@ const initialState: FeedsState = {
     infoError: {},
     userFeeds: [],
     userFeedsLoading: false,
+    lastSubscribedFeedsFetch: 0,
 };
 
 export const fetchTrendingFeeds = createAsyncThunk<
@@ -204,8 +206,16 @@ export const fetchSubscribedFeeds = createAsyncThunk<
     { rejectValue: string }
 >(
     'feeds/fetchSubscribedFeeds',
-    async (_: void, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async (_: void, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
         try {
+            const state = getState() as { feeds: FeedsState };
+            const now = Date.now();
+            // Throttle: don't fetch more than once every 10 seconds unless it's the first time
+            if (state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000)) {
+                console.log('feedsSlice: fetchSubscribedFeeds throttled (called too recently)');
+                return state.feeds.subscribedFeeds;
+            }
+
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -542,6 +552,7 @@ const feedsSlice = createSlice({
                 });
             })
             .addCase(fetchSubscribedFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
+                state.lastSubscribedFeedsFetch = Date.now();
                 const cacheByKey = new Map<string, Feed>();
                 [...state.subscribedFeeds, ...state.recommendedFeeds, ...state.searchResults, ...state.feeds].forEach((feed) => {
                     cacheByKey.set(feedActionKey(feed), feed);
