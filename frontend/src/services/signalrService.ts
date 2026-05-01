@@ -32,7 +32,8 @@ class SignalRService {
     }
 
     private getRetryDelay(retryCount: number): number {
-        return Math.min(1000 * Math.pow(2, retryCount), 30000);
+        // More resilient exponential backoff: 2s, 4s, 8s, 15s, 30s
+        return Math.min(2000 * Math.pow(2, retryCount - 1), 30000);
     }
 
     private setupHandlers() {
@@ -111,8 +112,9 @@ class SignalRService {
                 .withUrl(HUB_URL, {
                     accessTokenFactory: () => {
                         const token = localStorage.getItem('token');
-                        if (!token) throw new Error('No token');
-                        return token;
+                        // Use token from localStorage if available, otherwise return empty string.
+                        // This allows the browser to use HttpOnly cookies if present.
+                        return token || '';
                     }
                 })
                 .withAutomaticReconnect({

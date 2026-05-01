@@ -49,7 +49,8 @@ class PostSignalRService {
     }
 
     private getRetryDelay(retryCount: number) {
-        return Math.min(1000 * Math.pow(2, retryCount), 30000);
+        // More resilient exponential backoff: 2s, 4s, 8s, 15s, 30s
+        return Math.min(2000 * Math.pow(2, retryCount - 1), 30000);
     }
 
     public async startConnection() {
@@ -71,8 +72,9 @@ class PostSignalRService {
                 .withUrl(HUB_URL, {
                     accessTokenFactory: () => {
                         const token = localStorage.getItem('token');
-                        if (!token) throw new Error('No token');
-                        return token;
+                        // Use token from localStorage if available, otherwise return empty string.
+                        // This allows the browser to use HttpOnly cookies if present.
+                        return token || '';
                     }
                 })
                 .withAutomaticReconnect({
@@ -110,6 +112,26 @@ class PostSignalRService {
         } finally {
             if (!this.retryTimer) {
                 this.isConnecting = false;
+            }
+        }
+    }
+
+    public async joinPost(postId: string) {
+        if (this.connection?.state === signalR.HubConnectionState.Connected) {
+            try {
+                await this.connection.invoke('JoinPost', postId);
+            } catch (err) {
+                console.error('Failed to join post group:', err);
+            }
+        }
+    }
+
+    public async leavePost(postId: string) {
+        if (this.connection?.state === signalR.HubConnectionState.Connected) {
+            try {
+                await this.connection.invoke('LeavePost', postId);
+            } catch (err) {
+                console.error('Failed to leave post group:', err);
             }
         }
     }

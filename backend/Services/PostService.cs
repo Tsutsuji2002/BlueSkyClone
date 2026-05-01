@@ -2611,9 +2611,10 @@ public class PostService : IPostService
                 var parent = await _unitOfWork.Posts.GetByIdAsync(replyToPostId.Value);
                 if (parent != null)
                 {
-                    await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+                    await _postHubContext.Clients.Group($"post-{parent.Id}").SendAsync("UpdatePostStats", new 
                     { 
                         postId = parent.Id, 
+                        uri = parent.Uri,
                         likesCount = parent.LikesCount,
                         repostsCount = parent.RepostsCount,
                         bookmarksCount = parent.BookmarksCount,
@@ -2628,9 +2629,10 @@ public class PostService : IPostService
                 var quoted = await _unitOfWork.Posts.GetByIdAsync(quotePostId.Value);
                 if (quoted != null)
                 {
-                    await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+                    await _postHubContext.Clients.Group($"post-{quoted.Id}").SendAsync("UpdatePostStats", new 
                     { 
                         postId = quoted.Id, 
+                        uri = quoted.Uri,
                         likesCount = quoted.LikesCount,
                         repostsCount = quoted.RepostsCount,
                         bookmarksCount = quoted.BookmarksCount,
@@ -5439,7 +5441,7 @@ public class PostService : IPostService
             }
         }
 
-        await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
+        await _postHubContext.Clients.Group($"post-{postId}").SendAsync("UpdatePostStats", new 
         { 
             postId, 
             uri = post.Uri,
@@ -6798,8 +6800,8 @@ public class PostService : IPostService
 
             _logger.LogInformation("[Firehose] Incremented {Type} by {Delta} for local post {PostId}", type, delta, post.Id);
 
-            // Broadcast the updated counts via SignalR for real-time UI sync
-            await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new
+            // Broadcast the updated counts to spectators of this post via SignalR
+            await _postHubContext.Clients.Group($"post-{post.Id}").SendAsync("UpdatePostStats", new
             {
                 postId = post.Id,
                 uri = post.Uri,

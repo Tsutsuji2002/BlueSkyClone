@@ -266,6 +266,20 @@ const PostDetailPage: React.FC = () => {
     const fetchedRepliesRef = React.useRef<Set<string>>(new Set());
 
     React.useEffect(() => {
+        if (postId && (post?.id || post?.uri)) {
+            const idToJoin = post?.uri || post?.id;
+            import('../services/postSignalrService').then(m => {
+                m.default.joinPost(idToJoin);
+            });
+            return () => {
+                import('../services/postSignalrService').then(m => {
+                    m.default.leavePost(idToJoin);
+                });
+            };
+        }
+    }, [postId, post?.id, post?.uri]);
+
+    React.useEffect(() => {
         if (postId) {
             dispatch(clearThreadPosts());
             lastSkipRef.current = -1;
