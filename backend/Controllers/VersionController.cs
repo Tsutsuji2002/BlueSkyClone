@@ -12,11 +12,11 @@ public class VersionController : ControllerBase
     {
         return Ok(new
         {
-            Version = "1.0.4",
-            BuildDate = "2026-05-01 15:55 UTC",
+            Version = "1.0.5",
+            BuildDate = "2026-05-01 16:30 UTC",
             Environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Unknown",
             Status = "Live",
-            Features = new[] { "StructuredFollowResults", "AggressiveSync", "SingletonTrending" }
+            Features = new[] { "StructuredFollowResults", "AggressiveSync", "SingletonTrending", "RobustResolution" }
         });
     }
 }

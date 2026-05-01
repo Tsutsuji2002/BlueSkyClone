@@ -576,8 +576,18 @@ public class UserService : IUserService
                 }
                 catch (Exception dbEx)
                 {
-                    _logger.LogWarning(dbEx, "[ResolveRemoteProfileAsync] DB persistence failed for {Actor}. Returning transient profile.", identifier);
-                    // Return the transient user built from the API response so the caller still gets valid data
+                    _logger.LogWarning(dbEx, "[ResolveRemoteProfileAsync] DB persistence failed for {Actor}. Error: {Msg}", identifier, dbEx.Message);
+                    
+                    // CRITICAL FIX: If we found an existing user in the DB but failed to update it, 
+                    // we MUST return that existing user object (with its correct DB Id) 
+                    // instead of a transient one with a random Guid.
+                    var existingUser = await _unitOfWork.Users.GetByDidAsync(did);
+                    if (existingUser != null)
+                    {
+                        return existingUser;
+                    }
+
+                    // Return the transient user built from the API response so the caller still gets valid data for display
                     return transientUser;
                 }
             }
@@ -1525,7 +1535,11 @@ public class UserService : IUserService
         var followerUser = await _unitOfWork.Users.GetByIdAsync(followerId);
         var targetUser = await _unitOfWork.Users.GetByIdAsync(followingId);
         if (followerUser == null || targetUser == null) 
+        {
+            _logger.LogWarning("[FollowUserAsync] User not found. FollowerId: {FollowerId} (Found: {FollowerFound}), FollowingId: {FollowingId} (Found: {FollowingFound})", 
+                followerId, followerUser != null, followingId, targetUser != null);
             return new FollowUserResultDto(false, ErrorMessage: "User not found.");
+        }
 
         var existing = await _unitOfWork.Follows.GetAsync(followerId, followingId);
         if (existing != null)
