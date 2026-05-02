@@ -48,9 +48,10 @@ class PostSignalRService {
         });
 
         this.connection.on('newGlobalPost', (post: any) => {
-            store.dispatch(receiveNewPost(post));
-            this.emit('created', post);
+            // No-op: Consume the signal to suppress warnings, but do not inject into chron feeds.
         });
+
+
     }
 
     private getRetryDelay(retryCount: number) {
