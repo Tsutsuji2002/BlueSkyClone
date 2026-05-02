@@ -644,7 +644,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                                             id: 'repost',
                                             label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
                                             icon: <FiRepeat />,
-                                            onClick: () => ensureAuth(() => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted })))
+                                            onClick: () => ensureAuth(() => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted, currentRepostsCount: post.repostsCount })))
                                         },
                                         {
                                             id: 'quote',
@@ -660,7 +660,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    ensureAuth(() => dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked })));
+                                    ensureAuth(() => dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked, currentLikesCount: post.likesCount })));
                                 }}
                                 className={cn(
                                     "flex items-center gap-1.5 group transition-colors p-2 rounded-full hover:bg-red-500/10",

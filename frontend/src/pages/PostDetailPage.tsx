@@ -418,12 +418,12 @@ const PostDetailPage: React.FC = () => {
 
     const handleLike = () => {
         if (!post.uri || !post.cid) return;
-        dispatch(toggleLike({ uri: post.uri, cid: post.cid, isLiked: !!post.isLiked }));
+        dispatch(toggleLike({ uri: post.uri, cid: post.cid, isLiked: !!post.isLiked, currentLikesCount: post.likesCount }));
     };
 
     const handleRepost = () => {
         if (!post.uri || !post.cid) return;
-        dispatch(repostPost({ uri: post.uri, cid: post.cid, isReposted: !!post.isReposted }));
+        dispatch(repostPost({ uri: post.uri, cid: post.cid, isReposted: !!post.isReposted, currentRepostsCount: post.repostsCount }));
     };
 
     const handleBookmark = () => {

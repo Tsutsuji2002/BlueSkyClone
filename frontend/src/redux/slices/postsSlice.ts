@@ -344,7 +344,7 @@ export const createPost = createAsyncThunk(
 
 export const toggleLike = createAsyncThunk(
     'posts/toggleLike',
-    async ({ uri, cid, isLiked }: { uri: string; cid: string; isLiked: boolean }, { rejectWithValue }) => {
+    async ({ uri, cid, isLiked, currentLikesCount }: { uri: string; cid: string; isLiked: boolean; currentLikesCount?: number }, { rejectWithValue }) => {
         try {
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
             const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
@@ -362,7 +362,7 @@ export const toggleLike = createAsyncThunk(
 
 export const repostPost = createAsyncThunk(
     'posts/repost',
-    async ({ uri, cid, isReposted }: { uri: string; cid: string; isReposted: boolean }, { rejectWithValue }) => {
+    async ({ uri, cid, isReposted, currentRepostsCount }: { uri: string; cid: string; isReposted: boolean; currentRepostsCount?: number }, { rejectWithValue }) => {
         try {
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
             const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
@@ -1057,16 +1057,19 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             .addCase(toggleLike.pending, (state: PostsState, action) => {
-                const { uri: actionUri } = action.meta.arg;
+                const { uri: actionUri, currentLikesCount } = action.meta.arg;
                 state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
+                const existingTruth = state.interactionTruth[actionUri];
+                const baseLikesCount = existingTruth?.likesCount ?? currentLikesCount ?? 0;
+                
                 state.interactionTruth[actionUri] = {
-                    ...state.interactionTruth[actionUri],
-                    isLiked: !state.interactionTruth[actionUri]?.isLiked,
-                    likesCount: state.interactionTruth[actionUri]?.isLiked 
-                        ? Math.max(0, (state.interactionTruth[actionUri]?.likesCount || 0) - 1) 
-                        : (state.interactionTruth[actionUri]?.likesCount || 0) + 1
+                    ...existingTruth,
+                    isLiked: !existingTruth?.isLiked,
+                    likesCount: existingTruth?.isLiked 
+                        ? Math.max(0, baseLikesCount - 1) 
+                        : baseLikesCount + 1
                 };
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
@@ -1143,16 +1146,18 @@ const postsSlice = createSlice({
                 state.error = action.payload as string;
             })
             .addCase(repostPost.pending, (state: PostsState, action) => {
-                const { uri: actionUri } = action.meta.arg;
+                const { uri: actionUri, currentRepostsCount } = action.meta.arg;
                 state.actionLoading[actionUri] = true;
 
-                // Optimistic Update
+                const existingTruth = state.interactionTruth[actionUri];
+                const baseRepostsCount = existingTruth?.repostsCount ?? currentRepostsCount ?? 0;
+
                 state.interactionTruth[actionUri] = {
-                    ...state.interactionTruth[actionUri],
-                    isReposted: !state.interactionTruth[actionUri]?.isReposted,
-                    repostsCount: state.interactionTruth[actionUri]?.isReposted 
-                        ? Math.max(0, (state.interactionTruth[actionUri]?.repostsCount || 0) - 1) 
-                        : (state.interactionTruth[actionUri]?.repostsCount || 0) + 1
+                    ...existingTruth,
+                    isReposted: !existingTruth?.isReposted,
+                    repostsCount: existingTruth?.isReposted 
+                        ? Math.max(0, baseRepostsCount - 1) 
+                        : baseRepostsCount + 1
                 };
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
