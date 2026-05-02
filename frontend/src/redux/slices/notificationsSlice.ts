@@ -3,12 +3,19 @@ import { NotificationsState, Notification } from '../../types';
 
 const getXrpcBase = () => '/xrpc';
 
+const getXrpcHeaders = (): Record<string, string> => {
+    const token = localStorage.getItem('token');
+    return (token && token !== 'null') ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
 
 export const fetchNotifications = createAsyncThunk<Notification[], void, { rejectValue: string }>(
     'notifications/fetchNotifications',
     async (_, { rejectWithValue }) => {
         try {
-            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=50`);
+            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=50`, {
+                headers: getXrpcHeaders()
+            });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 return rejectWithValue(err.message || `Error ${res.status}`);

@@ -45,7 +45,8 @@ const HomePage: React.FC = () => {
     // Lists state
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
 
-    const isInitialLoading = (feedsLoading || authLoading) && subscribedFeeds.length === 0 && pinnedLists.length === 0;
+    const hasAnyData = subscribedFeeds.length > 0 || pinnedLists.length > 0 || (activeTab && feedPosts[activeTab]?.length > 0);
+    const isInitialLoading = (feedsLoading || authLoading) && !hasAnyData;
 
     useEffect(() => {
         if (!authLoading && subscribedFeeds.length === 0) {

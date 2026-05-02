@@ -51,7 +51,9 @@ const trendingSlice = createSlice({
     extraReducers: (builder) => {
         builder
             .addCase(fetchTrending.pending, (state) => {
-                state.isLoading = true;
+                if (state.topics.length === 0) {
+                    state.isLoading = true;
+                }
             })
             .addCase(fetchTrending.fulfilled, (state, action: any) => {
                 state.isLoading = false;

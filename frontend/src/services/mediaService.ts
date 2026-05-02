@@ -4,12 +4,8 @@ export const uploadImage = async (file: File, folder: string = 'chat'): Promise<
     const formData = new FormData();
     formData.append('file', file);
 
-    const token = localStorage.getItem('token');
     const response = await fetch(`${API_URL}/media/upload?folder=${folder}`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        },
         body: formData
     });
 

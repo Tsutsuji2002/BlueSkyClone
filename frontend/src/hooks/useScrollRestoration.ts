@@ -33,7 +33,7 @@ export function useScrollRestoration(subKey?: string) {
                     console.log(`[ScrollRestoration] Attempting restoration to ${y} for ${storageKey}`);
                     let restorationDone = false;
                     const startTime = Date.now();
-                    const MAX_WAIT = 3000; // Wait up to 3 seconds for content
+                    const MAX_WAIT = 5000; // Wait up to 5 seconds for content
 
                     const executeScroll = () => {
                         window.scrollTo({ top: y, behavior: 'instant' });
@@ -90,6 +90,12 @@ export function useScrollRestoration(subKey?: string) {
         // Cleanup: Save position when leaving
         return () => {
             const currentY = window.scrollY;
+            // Prevent saving "0" if we are obviously in a collapsing/unmounting state with height
+            const currentHeight = document.documentElement.scrollHeight;
+            if (currentY === 0 && currentHeight < 500) {
+                 // Ignore 0-pos saves on collapsed pages to avoid overwriting real data
+                 return;
+            }
             const entry: ScrollEntry = { y: currentY, ts: Date.now() };
             sessionStorage.setItem(storageKey, JSON.stringify(entry));
         };

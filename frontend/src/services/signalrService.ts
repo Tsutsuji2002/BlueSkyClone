@@ -111,10 +111,8 @@ class SignalRService {
             this.connection = new signalR.HubConnectionBuilder()
                 .withUrl(HUB_URL, {
                     accessTokenFactory: () => {
-                        const token = localStorage.getItem('token');
-                        // Use token from localStorage if available, otherwise return empty string.
-                        // This allows the browser to use HttpOnly cookies if present.
-                        return token || '';
+                        // Rely on HttpOnly cookies instead of localStorage tokens
+                        return '';
                     }
                 })
                 .withAutomaticReconnect({

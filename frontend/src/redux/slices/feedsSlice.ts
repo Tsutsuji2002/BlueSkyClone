@@ -463,8 +463,9 @@ const feedsSlice = createSlice({
     extraReducers: (builder: ActionReducerMapBuilder<FeedsState>) => {
         builder
             .addCase(fetchTrendingFeeds.pending, (state: FeedsState) => {
-                state.isLoading = true;
-                state.feeds = [];
+                if (state.feeds.length === 0) {
+                    state.isLoading = true;
+                }
             })
             .addCase(fetchTrendingFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
                 state.isLoading = false;
@@ -686,10 +687,12 @@ const feedsSlice = createSlice({
             })
             .addCase(fetchFeedPosts.pending, (state: FeedsState, action) => {
                 const { feedId, skip } = action.meta.arg;
-                if (skip === 0) {
-                    // Initial load: clear posts and show full skeleton
-                    state.feedPosts[feedId] = [];
+                const existingPosts = state.feedPosts[feedId] || [];
+                
+                if (skip === 0 && existingPosts.length === 0) {
+                    // Only show skeleton on truly fresh load (first time)
                     state.isLoading = true;
+                    state.feedPosts[feedId] = [];
                 }
                 // Always mark per-feed as loading (for pagination spinner in footer)
                 state.feedLoading[feedId] = true;

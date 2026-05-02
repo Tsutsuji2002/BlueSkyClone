@@ -75,12 +75,10 @@ const AppContent: React.FC = () => {
         dispatch(stopLoading());
     }, 10000);
 
-    const interval = setInterval(checkAuth, 60000);
     return () => {
-        clearInterval(interval);
         clearTimeout(fallbackTimer);
     };
-  }, [dispatch, isAuthenticated]);
+}, [dispatch, isAuthenticated]);
 
   // Unified SignalR Lifecycle with Debouncing
   useEffect(() => {

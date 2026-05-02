@@ -316,12 +316,8 @@ export const fetchCandidatePosts = createAsyncThunk(
     'lists/fetchCandidatePosts',
     async ({ listId, userId, take = 20, skip = 0 }: { listId: string; userId: string; take?: number; skip?: number }, { rejectWithValue }) => {
         try {
-            const headers: Record<string, string> = {};
-            const token = localStorage.getItem('token');
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(`${API_BASE_URL}/lists/${listId}/candidate-posts?userId=${userId}&take=${take}&skip=${skip}`, {
-                headers
+                headers: { 'Content-Type': 'application/json' }
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch posts');
@@ -400,7 +396,9 @@ const listsSlice = createSlice({
     extraReducers: (builder) => {
         // Fetch My Lists
         builder.addCase(fetchMyLists.pending, (state) => {
-            state.isLoading = true;
+            if (state.myLists.length === 0) {
+                state.isLoading = true;
+            }
             state.error = null;
         });
         builder.addCase(fetchMyLists.fulfilled, (state, action) => {
@@ -476,7 +474,7 @@ const listsSlice = createSlice({
         // Feed
         builder.addCase(fetchListFeed.pending, (state, action: any) => {
             const { skip } = action.meta.arg || { skip: 0 };
-            if (skip === 0) {
+            if (skip === 0 && state.activeListFeed.length === 0) {
                 state.activeListFeed = [];
             }
         });
