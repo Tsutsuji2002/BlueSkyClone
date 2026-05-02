@@ -65,30 +65,18 @@ const Feed: React.FC<FeedProps> = ({
     const isFetchingRef = useRef(false);
 
     const virtuosoRef = useRef<VirtuosoHandle>(null);
-    const storageKey = feedId ? `virtuoso_state_${feedId}` : null;
+    const storageKey = feedId ? `virtuoso_state_idx_${feedId}` : null;
     
-    // Capture state to restore precise scroll positions for Virtuoso
-    const [savedState] = React.useState<any>(() => {
-        if (!storageKey) return undefined;
+    // Read the last known first visible index
+    const [savedIndex] = React.useState<number>(() => {
+        if (!storageKey) return 0;
         try {
             const cached = sessionStorage.getItem(storageKey);
-            return cached ? JSON.parse(cached) : undefined;
+            return cached ? parseInt(cached, 10) : 0;
         } catch (e) {
-            return undefined;
+            return 0;
         }
     });
-
-    // Save state on unmount
-    useEffect(() => {
-        return () => {
-            if (storageKey && virtuosoRef.current) {
-                // Determine current scroll position implicitly
-                virtuosoRef.current.getState((state) => {
-                    sessionStorage.setItem(storageKey, JSON.stringify(state));
-                });
-            }
-        };
-    }, [storageKey]);
 
     // Force localPosts to sync if it's the first time or if length changes significantly (re-fetch)
     useEffect(() => {
@@ -194,7 +182,12 @@ const Feed: React.FC<FeedProps> = ({
     return (
         <Virtuoso
             ref={virtuosoRef}
-            restoreStateFrom={savedState}
+            initialTopMostItemIndex={savedIndex > 0 ? savedIndex : 0}
+            rangeChanged={({ startIndex }) => {
+                if (storageKey) {
+                    sessionStorage.setItem(storageKey, startIndex.toString());
+                }
+            }}
             useWindowScroll
             data={localPosts}
             overscan={1000} // Preload items within 1000px of the viewport
