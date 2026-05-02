@@ -274,6 +274,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
     return (
         <Feed
+            feedId={`profile_${userId}_${type}`}
             posts={items}
             isLoading={loading}
             hasMore={hasMore}

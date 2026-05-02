@@ -329,6 +329,7 @@ const ListDetailPage: React.FC = () => {
                 <div className="min-h-[200px]">
                     {activeTab === 'posts' ? (
                         <Feed
+                            feedId={`list_detail_${id}`}
                             posts={activeListFeed}
                             isLoading={isLoading}
                             hasMore={hasMoreFeed}

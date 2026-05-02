@@ -276,6 +276,7 @@ const FeedDetailPage: React.FC = () => {
                     ) : (
                         <>
                             <Feed 
+                                feedId={`feed_detail_${id}`}
                                 posts={posts} 
                                 isLoading={isFeedLoading}
                                 hasMore={feedHasMore[id || ''] !== false}

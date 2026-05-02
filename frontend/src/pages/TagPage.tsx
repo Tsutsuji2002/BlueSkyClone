@@ -94,6 +94,7 @@ const TagPage: React.FC = () => {
                     ) : (
                         <>
                             <Feed 
+                                feedId={`tag_${tag}`}
                                 posts={posts} 
                                 isLoading={isLoading}
                                 hasMore={hasMore}

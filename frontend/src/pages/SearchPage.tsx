@@ -301,6 +301,7 @@ const SearchPage: React.FC = () => {
                                 </div>
                             ) : (
                                 <Feed 
+                                    feedId={`search_posts_${query}`}
                                     posts={posts} 
                                     isLoading={isLoading}
                                     hasMore={hasMore}

@@ -74,6 +74,7 @@ const SavedPage: React.FC = () => {
                     </div>
                 ) : (
                     <Feed 
+                        feedId="saved_posts"
                         posts={bookmarkedPosts} 
                         isLoading={bookmarkedLoading}
                         hasMore={hasMore}

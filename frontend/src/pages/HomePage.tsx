@@ -41,6 +41,17 @@ const HomePage: React.FC = () => {
         }
     }, [activeTab, visitedTabs]);
 
+    // Track scroll positions for tab separation
+    const scrollPositionsRef = React.useRef<Record<string, number>>({});
+    const prevActiveTab = React.useRef<string | null>(null);
+
+    React.useLayoutEffect(() => {
+        if (activeTab && activeTab !== prevActiveTab.current) {
+            const targetScroll = scrollPositionsRef.current[activeTab] || 0;
+            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+            prevActiveTab.current = activeTab;
+        }
+    }, [activeTab]);
     
     // Lists state
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
@@ -83,6 +94,10 @@ const HomePage: React.FC = () => {
         if (tabId === 'feeds-discovery' && !isAuthenticated) {
             navigate('/feeds');
             return;
+        }
+
+        if (activeTab) {
+            scrollPositionsRef.current[activeTab] = window.scrollY;
         }
 
         dispatch(setActiveTab(tabId));
