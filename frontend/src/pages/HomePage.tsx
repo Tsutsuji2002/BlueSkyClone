@@ -30,9 +30,6 @@ const HomePage: React.FC = () => {
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
     const { isAuthenticated, user, isLoading: authLoading } = useAppSelector((state: RootState) => state.auth);
 
-    // Use unified global scroll restoration for the current tab
-    useScrollRestoration(activeTab);
-
     const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
 
     useEffect(() => {
@@ -43,7 +40,23 @@ const HomePage: React.FC = () => {
 
     // Track scroll positions for tab separation
     const scrollPositionsRef = React.useRef<Record<string, number>>({});
-    const prevActiveTab = React.useRef<string | null>(null);
+    const prevActiveTab = React.useRef<string | null>(activeTab);
+
+    useEffect(() => {
+        // Hydrate entire tab scroll map on mount
+        try {
+            const cached = sessionStorage.getItem('home_tab_scrolls');
+            if (cached) scrollPositionsRef.current = JSON.parse(cached);
+        } catch(e) {}
+
+        // Persist on unmount (e.g., navigating to PostDetail)
+        return () => {
+            if (prevActiveTab.current) {
+                scrollPositionsRef.current[prevActiveTab.current] = window.scrollY;
+                sessionStorage.setItem('home_tab_scrolls', JSON.stringify(scrollPositionsRef.current));
+            }
+        };
+    }, []);
 
     React.useLayoutEffect(() => {
         if (activeTab && activeTab !== prevActiveTab.current) {
@@ -98,6 +111,7 @@ const HomePage: React.FC = () => {
 
         if (activeTab) {
             scrollPositionsRef.current[activeTab] = window.scrollY;
+            sessionStorage.setItem('home_tab_scrolls', JSON.stringify(scrollPositionsRef.current));
         }
 
         dispatch(setActiveTab(tabId));
