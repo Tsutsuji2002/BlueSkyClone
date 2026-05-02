@@ -208,7 +208,8 @@ export const fetchTimeline = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts = await response.json();
-            return { posts, skip, cursor: null };
+            const hydrated = await hydratePostsWithInteractionStatus(posts);
+            return { posts: hydrated, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

@@ -4,6 +4,7 @@ import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { feedActionKey } from '../../utils/feedKeys';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
+import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 
 const REMOTE_METADATA_FALLBACK_DESCRIPTION = 'Remote feed metadata is temporarily unavailable.';
 
@@ -425,9 +426,11 @@ export const fetchFeedPosts = createAsyncThunk<
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
             
             const rawPosts = data.posts || (Array.isArray(data) ? data : []);
+            // Hydrate interaction status (liked/reposted/bookmarked) using cookie auth
+            const hydratedPosts = await hydratePostsWithInteractionStatus(rawPosts);
             return {
                 feedId,
-                posts: rawPosts,
+                posts: hydratedPosts,
                 isMore: data.hasMore ?? (Array.isArray(data) ? rawPosts.length >= take : rawPosts.length >= take),
                 cursor: data.cursor || null
             };
