@@ -548,7 +548,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             return (
                                 <>
                                     <div className={cn(
-                                        "text-[15px] text-gray-900 dark:text-dark-text whitespace-pre-wrap break-words break-all leading-normal",
+                                        "text-[15px] text-gray-900 dark:text-dark-text whitespace-pre-wrap break-words leading-normal",
                                         !isExpanded && isLongContent ? "line-clamp-6" : "",
                                         isLongContent ? "mb-1" : "mb-3"
                                     )}>
