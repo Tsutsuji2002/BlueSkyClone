@@ -65,16 +65,16 @@ const Feed: React.FC<FeedProps> = ({
     const isFetchingRef = useRef(false);
 
     const virtuosoRef = useRef<VirtuosoHandle>(null);
-    const storageKey = feedId ? `virtuoso_state_idx_${feedId}` : null;
+    const storageKey = feedId ? `virtuoso_state_full_${feedId}` : null;
     
-    // Read the last known first visible index
-    const [savedIndex] = React.useState<number>(() => {
-        if (!storageKey) return 0;
+    // Capture state to restore precise scroll positions for Virtuoso
+    const [savedState] = React.useState<any>(() => {
+        if (!storageKey) return undefined;
         try {
             const cached = sessionStorage.getItem(storageKey);
-            return cached ? parseInt(cached, 10) : 0;
+            return cached ? JSON.parse(cached) : undefined;
         } catch (e) {
-            return 0;
+            return undefined;
         }
     });
 
@@ -182,13 +182,16 @@ const Feed: React.FC<FeedProps> = ({
     return (
         <Virtuoso
             ref={virtuosoRef}
-            initialTopMostItemIndex={savedIndex > 0 ? savedIndex : 0}
-            rangeChanged={({ startIndex }) => {
-                if (storageKey) {
-                    sessionStorage.setItem(storageKey, startIndex.toString());
+            restoreStateFrom={savedState}
+            useWindowScroll
+            isScrolling={(scrolling) => {
+                // Safely capture the extremely precise scroll layout state ONLY when the user pauses scrolling
+                if (!scrolling && virtuosoRef.current && storageKey) {
+                    virtuosoRef.current.getState((s) => {
+                        sessionStorage.setItem(storageKey, JSON.stringify(s));
+                    });
                 }
             }}
-            useWindowScroll
             data={localPosts}
             overscan={1000} // Preload items within 1000px of the viewport
             endReached={() => {
