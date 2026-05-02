@@ -16,7 +16,6 @@ import AuthWallModal from './modals/AuthWallModal';
 import AddToListModal from './components/modals/AddToListModal';
 import MutedWordsModal from './components/modals/MutedWordsModal';
 import Toast from './components/common/Toast';
-import ScrollToTop from './components/common/ScrollToTop';
 import GlobalDeleteConfirmModal from './components/common/GlobalDeleteConfirmModal';
 import './index.css';
 
@@ -51,6 +50,10 @@ const AppContent: React.FC = () => {
   React.useLayoutEffect(() => {
     console.log(`%c[BlueSky-Deploy] Version: ${VERSION} (Stability + Interaction Sync)`, 'color: #00acee; font-weight: bold; font-size: 14px;');
     console.log(`[BlueSky-Deploy] Build Time: ${BUILD_TIME}`);
+    
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
   }, []);
 
   useEffect(() => {
@@ -190,7 +193,6 @@ function App() {
   return (
     <Provider store={store}>
       <BrowserRouter>
-        <ScrollToTop />
         <AppContent />
       </BrowserRouter>
     </Provider>

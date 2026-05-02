@@ -296,6 +296,7 @@ const HomePage: React.FC = () => {
                     return (
                         <div key={tabId} hidden={activeTab !== tabId} style={{ display: activeTab === tabId ? 'block' : 'none' }}>
                             <Feed
+                                feedId={tabId}
                                 posts={feedPosts[tabId] || []}
                                 isLoading={!!(feedLoading[tabId] ?? (feedsLoading && activeTab === tabId))}
                                 hasMore={feedHasMore[tabId] !== false}
@@ -323,6 +324,7 @@ const HomePage: React.FC = () => {
                     return (
                         <div key={tabId} hidden={activeTab !== tabId} style={{ display: activeTab === tabId ? 'block' : 'none' }}>
                             <Feed
+                                feedId={tabId}
                                 posts={activeListFeed}
                                 isLoading={listsLoading && activeTab === tabId}
                                 hasMore={true} // Simplify list pagination for now

@@ -47,6 +47,8 @@ export function useScrollRestoration(subKey?: string) {
                                 restorationDone = true;
                             } else if (isAtBottom && y > window.scrollY + 100) {
                                 // We are at bottom but still far from target, don't mark as done, wait for more content
+                                // This happens when the container renders a skeleton or hasn't hydrated properly.
+                                console.log(`[ScrollRestoration] At bottom (${window.scrollY}) but waiting for target ${y}`);
                             } else {
                                 restorationDone = true;
                             }

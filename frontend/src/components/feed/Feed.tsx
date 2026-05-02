@@ -8,9 +8,10 @@ import { FiBookmark } from 'react-icons/fi';
 import { detectLanguage } from '../../utils/languageDetector';
 
 import postSignalrService from '../../services/postSignalrService';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 interface FeedProps {
+    feedId?: string; // Optional identifier to persist scroll state across unmounts
     posts?: Post[]; // Optional prop to override Redux posts
     isLoading?: boolean; // NEW: explicit loading state
     onLoadMore?: () => void; // Optional infinite scroll trigger
@@ -27,28 +28,22 @@ const Feed: React.FC<FeedProps> = ({
     hasMore = true,
     endMessage,
     emptyMessage,
-    isActive = true
+    isActive = true,
+    feedId
 }) => {
     const { t } = useTranslation();
     const reduxPosts = useAppSelector((state) => state.posts.posts);
     const reduxLoading = useAppSelector((state) => state.posts.isLoading);
     const contentLanguages = useAppSelector((state) => state.language.contentLanguages);
     
-    // SSE Queuing
-    const [localPosts, setLocalPosts] = React.useState<Post[]>([]);
-    const pendingRef = useRef<any[]>([]);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const sentinelRef = useRef<HTMLDivElement>(null);
-    const isFetchingRef = useRef(false);
-
     const isLoading = propLoading !== undefined ? propLoading : reduxLoading;
 
     // Initial load/Sync from props
     const allPosts = propPosts !== undefined ? propPosts : reduxPosts;
     
-    // Content filter logic
-    const filteredPosts = useMemo(() => {
-        const basePosts = allPosts.filter(post => !post.isDeleted);
+    // Content filter logic helper (moved out of useMemo to use as initial state)
+    const getFilteredPosts = (posts: Post[]) => {
+        const basePosts = posts.filter(post => !post.isDeleted);
         if (!contentLanguages || contentLanguages.length === 0) return basePosts;
         const matchingPosts: Post[] = [];
         const otherPosts: Post[] = [];
@@ -58,7 +53,42 @@ const Feed: React.FC<FeedProps> = ({
             else otherPosts.push(post);
         });
         return matchingPosts.length === 0 ? otherPosts : [...matchingPosts, ...otherPosts];
-    }, [allPosts, contentLanguages]);
+    };
+
+    const filteredPosts = useMemo(() => getFilteredPosts(allPosts), [allPosts, contentLanguages]);
+
+    // SSE Queuing - Initialize with filteredPosts to avoid flicker
+    const [localPosts, setLocalPosts] = React.useState<Post[]>(filteredPosts);
+    const pendingRef = useRef<any[]>([]);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const sentinelRef = useRef<HTMLDivElement>(null);
+    const isFetchingRef = useRef(false);
+
+    const virtuosoRef = useRef<VirtuosoHandle>(null);
+    const storageKey = feedId ? `virtuoso_state_${feedId}` : null;
+    
+    // Capture state to restore precise scroll positions for Virtuoso
+    const [savedState] = React.useState<any>(() => {
+        if (!storageKey) return undefined;
+        try {
+            const cached = sessionStorage.getItem(storageKey);
+            return cached ? JSON.parse(cached) : undefined;
+        } catch (e) {
+            return undefined;
+        }
+    });
+
+    // Save state on unmount
+    useEffect(() => {
+        return () => {
+            if (storageKey && virtuosoRef.current) {
+                // Determine current scroll position implicitly
+                virtuosoRef.current.getState((state) => {
+                    sessionStorage.setItem(storageKey, JSON.stringify(state));
+                });
+            }
+        };
+    }, [storageKey]);
 
     // Force localPosts to sync if it's the first time or if length changes significantly (re-fetch)
     useEffect(() => {
@@ -163,6 +193,8 @@ const Feed: React.FC<FeedProps> = ({
 
     return (
         <Virtuoso
+            ref={virtuosoRef}
+            restoreStateFrom={savedState}
             useWindowScroll
             data={localPosts}
             overscan={1000} // Preload items within 1000px of the viewport
