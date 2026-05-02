@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
     FiHome, FiSearch, FiBell, FiSettings,
     FiSun, FiMoon, FiLogOut, FiEdit, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle, FiUser
@@ -125,9 +125,9 @@ const Sidebar: React.FC = () => {
 
                     return (
                         <div key={item.id} className="flex justify-center xl:justify-start w-full">
-                            <button
+                            <Link
                                 aria-label={t(`nav.${item.id}`)!}
-                                onClick={() => navigate(item.id === 'profile' ? `/profile/${user?.handle}` : item.path)}
+                                to={item.id === 'profile' ? `/profile/${user?.handle}` : item.path}
                                 className={cn(
                                     'group flex items-center p-3 rounded-xl transition-none outline-none hover:bg-gray-200 dark:hover:bg-[#161e27]',
                                     isActive 
@@ -146,7 +146,7 @@ const Sidebar: React.FC = () => {
                                 <div className="hidden xl:block flex-shrink-0 xl:pr-5">
                                     <span className="text-[19px] truncate tracking-wide">{t(`nav.${item.id}`)}</span>
                                 </div>
-                            </button>
+                            </Link>
                         </div>
                     );
                 })}

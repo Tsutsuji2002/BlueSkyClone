@@ -294,23 +294,36 @@ const HomePage: React.FC = () => {
 
                     <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
                         <div className="flex w-full">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => handleTabChange(tab.id)}
-                                    className={cn(
-                                        "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap flex-shrink-0",
-                                        activeTab === tab.id
-                                            ? "text-gray-900 dark:text-dark-text"
-                                            : "text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50"
-                                    )}
-                                >
-                                    {tab.label}
-                                    {activeTab === tab.id && (
-                                        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary-500 rounded-full mx-3" />
-                                    )}
-                                </button>
-                            ))}
+                            {tabs.map((tab) => {
+                                let targetHref = '/';
+                                if (tab.id.startsWith('list:')) {
+                                    targetHref = `/lists/${tab.id.replace('list:', '')}`;
+                                } else if (tab.id !== 'discover' && tab.id !== 'following' && tab.id !== 'feeds-discovery') {
+                                    targetHref = `/feeds/${encodeURIComponent(tab.id)}`;
+                                }
+
+                                return (
+                                    <a
+                                        key={tab.id}
+                                        href={targetHref}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            handleTabChange(tab.id);
+                                        }}
+                                        className={cn(
+                                            "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap flex-shrink-0 cursor-pointer",
+                                            activeTab === tab.id
+                                                ? "text-gray-900 dark:text-dark-text"
+                                                : "text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50"
+                                        )}
+                                    >
+                                        {tab.label}
+                                        {activeTab === tab.id && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary-500 rounded-full mx-3" />
+                                        )}
+                                    </a>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
