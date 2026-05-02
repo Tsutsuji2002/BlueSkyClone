@@ -46,6 +46,11 @@ class PostSignalRService {
             store.dispatch(receiveNewPost(post));
             this.emit('created', post);
         });
+
+        this.connection.on('newGlobalPost', (post: any) => {
+            store.dispatch(receiveNewPost(post));
+            this.emit('created', post);
+        });
     }
 
     private getRetryDelay(retryCount: number) {
