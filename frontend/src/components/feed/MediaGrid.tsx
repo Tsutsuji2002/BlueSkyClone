@@ -90,7 +90,6 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
         const url = resolveUrl(rawUrl);
         let hlsInstance: any = null;
 
-        console.log('[MediaGrid] UseEffect running', { isVideo: item.isVideo, url });
 
         if (url.toLowerCase().includes('.m3u8')) {
             if (video.canPlayType('application/vnd.apple.mpegurl')) {

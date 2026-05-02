@@ -23,11 +23,15 @@ export const setupFetchInterceptor = () => {
         const isExternalRequest = url.startsWith('http') && !url.includes('/api/');
 
         if (response.status === 401 && !isLogoutRequest && !isExternalRequest) {
-            console.warn('Unauthorized detected by global interceptor');
-            // Check if we are already logging out to avoid loops
-            const state = store.getState();
-            if (state.auth.isAuthenticated) {
-                store.dispatch(logoutAsync());
+            // Avoid looping if we're already on welcome/login pages or if it's a silent background check
+            const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
+            
+            if (!isAuthPage) {
+                console.warn('Unauthorized detected by global interceptor. Triggering logout.');
+                const state = store.getState();
+                if (state.auth.isAuthenticated) {
+                    store.dispatch(logoutAsync());
+                }
             }
         }
 

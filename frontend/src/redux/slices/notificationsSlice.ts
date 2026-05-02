@@ -3,18 +3,12 @@ import { NotificationsState, Notification } from '../../types';
 
 const getXrpcBase = () => '/xrpc';
 
-const getAuthHeaders = (): Record<string, string> => {
-    const token = localStorage.getItem('token');
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
-};
 
 export const fetchNotifications = createAsyncThunk<Notification[], void, { rejectValue: string }>(
     'notifications/fetchNotifications',
     async (_, { rejectWithValue }) => {
         try {
-            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=50`, {
-                headers: getAuthHeaders()
-            });
+            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=50`);
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 return rejectWithValue(err.message || `Error ${res.status}`);
@@ -66,7 +60,7 @@ export const markNotificationAsRead = createAsyncThunk<string, string, { rejectV
         try {
             await fetch(`${getXrpcBase()}/app.bsky.notification.updateSeen`, {
                 method: 'POST',
-                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ seenAt: new Date().toISOString() })
             });
             return id;
@@ -82,7 +76,7 @@ export const markAllNotificationsAsRead = createAsyncThunk<void, void, { rejectV
         try {
             await fetch(`${getXrpcBase()}/app.bsky.notification.updateSeen`, {
                 method: 'POST',
-                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ seenAt: new Date().toISOString() })
             });
         } catch (error: any) {
@@ -95,9 +89,7 @@ export const fetchUnreadCount = createAsyncThunk<number, void, { rejectValue: st
     'notifications/fetchUnreadCount',
     async (_, { rejectWithValue }) => {
         try {
-            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.getUnreadCount`, {
-                headers: getAuthHeaders()
-            });
+            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.getUnreadCount`);
             if (!res.ok) return rejectWithValue('Failed to fetch unread count');
             const data = await res.json();
             return data.count ?? 0;

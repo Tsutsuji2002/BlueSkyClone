@@ -45,10 +45,7 @@ export const fetchAllSupportRequests = createAsyncThunk(
     'support/fetchAll',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/SupportRequest`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await axios.get(`${API_URL}/SupportRequest`);
             return response.data;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Failed to fetch requests');
@@ -60,10 +57,7 @@ export const updateSupportStatus = createAsyncThunk(
     'support/updateStatus',
     async ({ id, status }: { id: string; status: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.patch(`${API_URL}/SupportRequest/${id}/status`, { status }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await axios.patch(`${API_URL}/SupportRequest/${id}/status`, { status });
             return { id, status };
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Failed to update status');

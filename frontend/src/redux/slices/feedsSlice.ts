@@ -150,13 +150,7 @@ export const fetchTrendingFeeds = createAsyncThunk<
     'feeds/fetchTrendingFeeds',
     async (_: void, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(`${API_BASE_URL}/feeds/trending`, {
-                headers
-            });
+            const response = await fetch(`${API_BASE_URL}/feeds/trending`);
             const data = await response.json();
             console.log('feedsSlice: fetchTrendingFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch trending feeds');
@@ -178,14 +172,10 @@ export const fetchRecommendedFeeds = createAsyncThunk<
             const cursor = params && typeof params === 'object' ? params.cursor : null;
             const limit = (params && typeof params === 'object' && typeof params.limit === 'number') ? params.limit : 10;
 
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
-
             let url = `${API_BASE_URL}/feeds/recommended?limit=${limit}`;
             if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
 
-            const response = await fetch(url, { headers });
+            const response = await fetch(url);
             const data = await response.json();
             
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch recommended feeds');
@@ -217,13 +207,7 @@ export const fetchSubscribedFeeds = createAsyncThunk<
                 return state.feeds.subscribedFeeds;
             }
 
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(`${API_BASE_URL}/feeds/subscribed`, {
-                headers
-            });
+            const response = await fetch(`${API_BASE_URL}/feeds/subscribed`);
             const data = await response.json();
             console.log('feedsSlice: fetchSubscribedFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch subscribed feeds');
@@ -242,13 +226,7 @@ export const fetchUserFeeds = createAsyncThunk<
     'feeds/fetchUserFeeds',
     async (actor: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(`${API_BASE_URL}/feeds/actor/${actor}`, {
-                headers
-            });
+            const response = await fetch(`${API_BASE_URL}/feeds/actor/${actor}`);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch user feeds');
             return data;
@@ -267,10 +245,8 @@ export const saveFeed = createAsyncThunk<
     async (feedId: string, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
         console.log('saveFeed thunk started for:', feedId);
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/save/${encodeURIComponent(feedId)}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to save feed');
@@ -290,10 +266,8 @@ export const unsaveFeed = createAsyncThunk<
     async (feedId: string, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
         console.log('unsaveFeed thunk started for:', feedId);
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/unsave/${encodeURIComponent(feedId)}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'DELETE'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to unsave feed');
@@ -313,10 +287,8 @@ export const pinFeed = createAsyncThunk<
     async (feedId: string, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
         console.log('pinFeed thunk started for:', feedId);
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/pin/${encodeURIComponent(feedId)}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to pin feed');
@@ -336,10 +308,8 @@ export const unpinFeed = createAsyncThunk<
     async (feedId: string, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
         console.log('unpinFeed thunk started for:', feedId);
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/unpin/${encodeURIComponent(feedId)}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'DELETE'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to unpin feed');
@@ -358,11 +328,9 @@ export const reorderFeeds = createAsyncThunk<
     'feeds/reorder',
     async (feedIds: string[], { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/reorder`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(feedIds)
@@ -384,11 +352,9 @@ export const reorderPinnedFeeds = createAsyncThunk<
     'feeds/reorderPinned',
     async (orderedKeys: string[], { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/feeds/reorder-pinned`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(orderedKeys)
@@ -410,17 +376,11 @@ export const fetchFeedInfo = createAsyncThunk<
     'feeds/fetchInfo',
     async (feedId: string, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const isRemoteKey = feedId.startsWith('at://') || feedId === 'following' || feedId === 'discover';
             const url = isRemoteKey
                 ? `${API_BASE_URL}/feeds/resolve?uri=${encodeURIComponent(feedId)}`
                 : `${API_BASE_URL}/feeds/info/${feedId}`;
-            const response = await fetch(url, {
-                headers
-            });
+            const response = await fetch(url);
             const data = await response.json();
             console.log('feedsSlice: fetchFeedInfo returned for ID', feedId, ':', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch feed info');
@@ -439,13 +399,7 @@ export const searchFeeds = createAsyncThunk<
     'feeds/search',
     async ({ query, skip, take }: { query: string, skip: number, take: number }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(`${API_BASE_URL}/feeds/search?query=${encodeURIComponent(query)}&skip=${skip}&take=${take}`, {
-                headers
-            });
+            const response = await fetch(`${API_BASE_URL}/feeds/search?query=${encodeURIComponent(query)}&skip=${skip}&take=${take}`);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to search feeds');
             return data;
@@ -463,16 +417,10 @@ export const fetchFeedPosts = createAsyncThunk<
     'feeds/fetchPosts',
     async ({ feedId, skip, take = 5, cursor }: { feedId: string; skip: number; take?: number, cursor?: string | null }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             let url = `${API_BASE_URL}/unified-feed?feedId=${encodeURIComponent(feedId)}&skip=${skip}&take=${take}`;
             if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
 
-            const response = await fetch(url, {
-                headers
-            });
+            const response = await fetch(url);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
             

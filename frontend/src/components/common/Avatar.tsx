@@ -35,7 +35,6 @@ const Avatar: React.FC<AvatarProps> = ({
         setHasError(false);
     }, [src]);
 
-    console.log('Avatar Debug:', { originalSrc: src, computedSrc, hasError, API_BASE_URL });
 
     return (
         <div className={cn('relative inline-block', className)}>

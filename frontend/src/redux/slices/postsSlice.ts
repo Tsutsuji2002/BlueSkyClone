@@ -203,13 +203,8 @@ export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(
-                `${API_BASE_URL}/posts/timeline?skip=${skip}&take=${take}`,
-                { headers }
+                `${API_BASE_URL}/posts/timeline?skip=${skip}&take=${take}`
             );
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts = await response.json();
@@ -224,16 +219,11 @@ export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
     async ({ userId, type, take = 20, skip = 0, cursor }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const params = new URLSearchParams({ take: String(take), skip: String(skip) });
             if (type) params.set('type', type);
             if (cursor) params.set('cursor', cursor);
             const response = await fetch(
-                `${API_BASE_URL}/posts/user/${userId}?${params}`,
-                { headers }
+                `${API_BASE_URL}/posts/user/${userId}?${params}`
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
@@ -285,7 +275,6 @@ export const updatePost = createAsyncThunk(
 
             const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
                 method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
             });
 
@@ -338,7 +327,6 @@ export const createPost = createAsyncThunk(
 
             const response = await fetch(`${API_BASE_URL}/posts`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
             });
 
@@ -358,12 +346,10 @@ export const toggleLike = createAsyncThunk(
     'posts/toggleLike',
     async ({ uri, cid, isLiked }: { uri: string; cid: string; isLiked: boolean }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
             const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/like${queryParam}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             if (!response.ok) return rejectWithValue('Failed to toggle like');
             const data = await response.json();
@@ -378,12 +364,10 @@ export const repostPost = createAsyncThunk(
     'posts/repost',
     async ({ uri, cid, isReposted }: { uri: string; cid: string; isReposted: boolean }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
             const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost${queryParam}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             if (!response.ok) return rejectWithValue('Failed to toggle repost');
             const data = await response.json();
@@ -398,12 +382,10 @@ export const deletePost = createAsyncThunk(
     'posts/delete',
     async (postUri: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             // Extract GUID from URI
             const postId = postUri.includes('/') ? postUri.split('/').pop()! : postUri;
             const response = await fetch(`${API_BASE_URL}/posts/${postId}?uri=${encodeURIComponent(postUri)}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'DELETE'
             });
             if (!response.ok) return rejectWithValue('Failed to delete post');
             return postUri;
@@ -417,12 +399,10 @@ export const updateInteractionSettings = createAsyncThunk(
     'posts/updateInteractionSettings',
     async ({ postUri, replyRestriction, allowQuotes }: { postUri: string, replyRestriction: string, allowQuotes: boolean }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const postId = postUri.includes('/') ? postUri.split('/').pop()! : postUri;
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/interaction-settings`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ replyRestriction, allowQuotes })

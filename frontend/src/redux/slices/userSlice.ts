@@ -130,15 +130,8 @@ export const searchUsers = createAsyncThunk<
     'user/search',
     async ({ query, skip, take }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
             const response = await fetch(
-                `${API_BASE_URL}/search/users?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`,
-                { headers }
+                `${API_BASE_URL}/search/users?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Search failed');
@@ -168,16 +161,8 @@ export const fetchUserProfile = createAsyncThunk<
     'user/fetchProfile',
     async (actor: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            // Send token if available (authenticated); otherwise request as guest
-            if (token && token !== 'null') {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
             const response = await fetch(
-                `${API_BASE_URL}/users/profile/${encodeURIComponent(actor)}`,
-                { headers }
+                `${API_BASE_URL}/users/profile/${encodeURIComponent(actor)}`
             );
 
             if (response.status === 403) {
@@ -235,16 +220,11 @@ export const fetchFollowers = createAsyncThunk<
     'user/fetchFollowers',
     async ({ actor, cursor, limit = 25 }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
-
             const params = new URLSearchParams({ limit: String(limit) });
             if (cursor) params.append('cursor', cursor);
 
             const response = await fetch(
-                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/followers?${params.toString()}`,
-                { headers }
+                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/followers?${params.toString()}`
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch followers');
@@ -281,16 +261,11 @@ export const fetchFollowing = createAsyncThunk<
     'user/fetchFollowing',
     async ({ actor, cursor, limit = 25 }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
-
             const params = new URLSearchParams({ limit: String(limit) });
             if (cursor) params.append('cursor', cursor);
 
             const response = await fetch(
-                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/following?${params.toString()}`,
-                { headers }
+                `${API_BASE_URL}/users/${encodeURIComponent(actor)}/following?${params.toString()}`
             );
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch following');
@@ -328,14 +303,10 @@ export const fetchPostRepostedBy = createAsyncThunk<
     'user/fetchPostRepostedBy',
     async ({ postUri, cursor, limit = 50 }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
-
             const params = new URLSearchParams({ uri: postUri, limit: String(limit) });
             if (cursor) params.append('cursor', cursor);
 
-            const response = await fetch(`${API_BASE_URL}/posts/reposted-by?${params}`, { headers });
+            const response = await fetch(`${API_BASE_URL}/posts/reposted-by?${params}`);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch');
 
@@ -370,14 +341,10 @@ export const fetchPostLikedBy = createAsyncThunk<
     'user/fetchPostLikedBy',
     async ({ postUri, cursor, limit = 50 }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
-
             const params = new URLSearchParams({ uri: postUri, limit: String(limit) });
             if (cursor) params.append('cursor', cursor);
 
-            const response = await fetch(`${API_BASE_URL}/posts/liked-by?${params}`, { headers });
+            const response = await fetch(`${API_BASE_URL}/posts/liked-by?${params}`);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch');
 
@@ -413,10 +380,8 @@ export const followUserAsync = createAsyncThunk<
     'user/follow',
     async (userId: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/follow/${userId}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to follow');
@@ -435,10 +400,8 @@ export const unfollowUserAsync = createAsyncThunk<
     'user/unfollow',
     async ({ userId }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/unfollow/${userId}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to unfollow');
@@ -457,10 +420,8 @@ export const blockUserAsync = createAsyncThunk<
     'user/block',
     async (userId: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/block/${userId}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to block');
@@ -479,10 +440,8 @@ export const unblockUserAsync = createAsyncThunk<
     'user/unblock',
     async ({ userId }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/unblock/${userId}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             if (!response.ok) {
                 const data = await response.json();
@@ -501,14 +460,11 @@ export const fetchMutedAccounts = createAsyncThunk<{ users: User[], cursor: stri
         try {
             const limit = params && 'limit' in params ? params.limit : 50;
             const cursor = params && 'cursor' in params ? params.cursor : '';
-            const token = localStorage.getItem('token');
             const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.graph.getMutes`);
             url.searchParams.append('limit', String(limit));
             if (cursor) url.searchParams.append('cursor', cursor);
 
-            const response = await fetch(url.toString(), {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch(url.toString());
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted accounts');
             // - [ ] Fix Moderation List Data Integrity (Data Leakage)
@@ -540,14 +496,11 @@ export const fetchBlockedAccounts = createAsyncThunk<{ users: User[], cursor: st
         try {
             const limit = params && 'limit' in params ? params.limit : 50;
             const cursor = params && 'cursor' in params ? params.cursor : '';
-            const token = localStorage.getItem('token');
             const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.graph.getBlocks`);
             url.searchParams.append('limit', String(limit));
             if (cursor) url.searchParams.append('cursor', cursor);
 
-            const response = await fetch(url.toString(), {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch(url.toString());
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch blocked accounts');
 
@@ -573,10 +526,7 @@ export const fetchMutedWords = createAsyncThunk<MutedWord[], void, { rejectValue
     'user/fetchMutedWords',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch(`${API_BASE_URL}/users/muted-words`);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch muted words');
             return data;
@@ -590,10 +540,9 @@ export const addMutedWordAsync = createAsyncThunk<MutedWord, { word: string, mut
     'user/addMutedWord',
     async (data, { rejectWithValue, dispatch }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/muted-words`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             const result = await response.json();
@@ -610,10 +559,8 @@ export const syncMutedWords = createAsyncThunk<void, void, { rejectValue: string
     'user/syncMutedWords',
     async (_, { rejectWithValue, dispatch }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/muted-words/sync`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             if (!response.ok) {
                 const data = await response.json();
@@ -631,10 +578,8 @@ export const deleteMutedWordAsync = createAsyncThunk<number, number, { rejectVal
     'user/deleteMutedWord',
     async (id, { rejectWithValue, dispatch }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/muted-words/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'DELETE'
             });
             if (!response.ok) {
                 const data = await response.json();
@@ -656,10 +601,8 @@ export const muteUserAsync = createAsyncThunk<
     'user/mute',
     async (userId: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/mute/${userId}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             if (!response.ok) {
                 const data = await response.json();
@@ -680,10 +623,8 @@ export const unmuteUserAsync = createAsyncThunk<
     'user/unmute',
     async (userId: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/users/unmute/${userId}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'POST'
             });
             if (!response.ok) {
                 const data = await response.json();
@@ -704,10 +645,7 @@ export const fetchSelectedInterests = createAsyncThunk<
     'user/fetchInterests',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/User/interests`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch(`${API_BASE_URL}/User/interests`);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch interests');
             return data;
@@ -725,11 +663,9 @@ export const saveSelectedInterests = createAsyncThunk<
     'user/saveInterests',
     async (interests: string[], { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/User/interests`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(interests)

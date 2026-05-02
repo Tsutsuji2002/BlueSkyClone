@@ -14,10 +14,7 @@ export const fetchTrending = createAsyncThunk(
     'trending/fetchAll',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/trending`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch(`${API_BASE_URL}/trending`);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch trending');
             return data;
@@ -31,10 +28,7 @@ export const fetchInterestsList = createAsyncThunk(
     'trending/fetchInterests',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/Interests`, {
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-            });
+            const response = await fetch(`${API_BASE_URL}/Interests`);
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch interests');
             // Assuming data is an array of interest objects with a 'name' property
