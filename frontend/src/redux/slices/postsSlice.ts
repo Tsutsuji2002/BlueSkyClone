@@ -1737,23 +1737,26 @@ const postsSlice = createSlice({
                     const payload = action.payload;
                     if (!payload || !payload.uri) return;
 
-                    // Update interaction truth
+                    const existing = state.interactionTruth[payload.uri] || {};
+
+                    // Update interaction truth - use ?? to never overwrite a known count with undefined
                     state.interactionTruth[payload.uri] = {
-                        isLiked: payload.isLiked,
-                        likesCount: payload.likesCount,
-                        isReposted: payload.isReposted,
-                        repostsCount: payload.repostsCount,
-                        isBookmarked: payload.isBookmarked
+                        ...existing,
+                        isLiked: payload.isLiked ?? existing.isLiked,
+                        likesCount: payload.likesCount ?? existing.likesCount,
+                        isReposted: payload.isReposted ?? existing.isReposted,
+                        repostsCount: payload.repostsCount ?? existing.repostsCount,
+                        isBookmarked: payload.isBookmarked ?? existing.isBookmarked,
                     };
 
-                    // Deep update all posts using unified matching
+                    // Deep update all posts — only update defined fields from payload
                     const updateRecursive = (p: Post) => {
                         if (matchesPost(p, payload)) {
-                            p.isLiked = payload.isLiked;
-                            p.likesCount = payload.likesCount;
-                            p.isReposted = payload.isReposted;
-                            p.repostsCount = payload.repostsCount;
-                            p.isBookmarked = payload.isBookmarked;
+                            if (payload.isLiked !== undefined) p.isLiked = payload.isLiked;
+                            if (payload.likesCount !== undefined) p.likesCount = payload.likesCount;
+                            if (payload.isReposted !== undefined) p.isReposted = payload.isReposted;
+                            if (payload.repostsCount !== undefined) p.repostsCount = payload.repostsCount;
+                            if (payload.isBookmarked !== undefined) p.isBookmarked = payload.isBookmarked;
                         }
                         if (p.quotePost) updateRecursive(p.quotePost);
                         if (p.parentPost) updateRecursive(p.parentPost);
