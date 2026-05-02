@@ -17,6 +17,7 @@ import AddToListModal from './components/modals/AddToListModal';
 import MutedWordsModal from './components/modals/MutedWordsModal';
 import Toast from './components/common/Toast';
 import GlobalDeleteConfirmModal from './components/common/GlobalDeleteConfirmModal';
+import ScrollToTop from './components/common/ScrollToTop';
 import './index.css';
 
 import { RootState } from './redux/store';
@@ -173,6 +174,7 @@ const AppContent: React.FC = () => {
 
   return (
     <>
+      <ScrollToTop />
       <AppRoutes />
       <CreatePostModal />
       <ReplyModal />

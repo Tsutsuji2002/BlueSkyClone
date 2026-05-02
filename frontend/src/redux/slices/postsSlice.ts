@@ -1094,7 +1094,8 @@ const postsSlice = createSlice({
                 state.interactionTruth[actionUri] = {
                     ...state.interactionTruth[actionUri],
                     isLiked: action.payload.isLiked,
-                    likesCount: action.payload.likesCount,
+                    // Only overwrite likesCount if the server actually returned one; otherwise keep the optimistic value
+                    likesCount: action.payload.likesCount ?? state.interactionTruth[actionUri]?.likesCount,
                     viewer: { ...state.interactionTruth[actionUri]?.viewer, like: action.payload.likeUri }
                 };
 
@@ -1182,7 +1183,8 @@ const postsSlice = createSlice({
                 state.interactionTruth[actionUri] = {
                     ...state.interactionTruth[actionUri],
                     isReposted: action.payload.isReposted,
-                    repostsCount: action.payload.repostsCount,
+                    // Only overwrite repostsCount if the server actually returned one; otherwise keep the optimistic value
+                    repostsCount: action.payload.repostsCount ?? state.interactionTruth[actionUri]?.repostsCount,
                     viewer: { ...state.interactionTruth[actionUri]?.viewer, repost: action.payload.repostUri }
                 };
 

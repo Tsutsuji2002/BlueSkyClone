@@ -72,8 +72,8 @@ export const applyInteractionStatuses = (posts: Post[], statuses: InteractionSta
     return posts.map((post) => patchPost(post) ?? post);
 };
 
-export const hydratePostsWithInteractionStatus = async (posts: Post[], token: string | null): Promise<Post[]> => {
-    if (!token || !posts.length) return posts;
+export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: string | null): Promise<Post[]> => {
+    if (!posts.length) return posts;
 
     const collectUris = (post?: Post | null, set: Set<string> = new Set()): Set<string> => {
         if (!post || !post.uri) return set;
@@ -97,9 +97,9 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token: st
                 const response = await fetch(`${API_BASE_URL}/posts/interactions/status`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ uris })
                 });
                 if (!response.ok) return [];
@@ -116,9 +116,9 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token: st
                 const response = await fetch(`${API_BASE_URL}/posts/interactions/viewer-state`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ uris: remoteUris })
                 });
                 if (!response.ok) return [];
