@@ -426,14 +426,32 @@ export const fetchFeedPosts = createAsyncThunk<
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
             
             const rawPosts = data.posts || (Array.isArray(data) ? data : []);
-            // Hydrate interaction status (liked/reposted/bookmarked) using cookie auth
-            const hydratedPosts = await hydratePostsWithInteractionStatus(rawPosts);
+            // Return posts immediately for fast render — interaction status (isLiked etc.)
+            // is hydrated asynchronously via hydrateInteractionStatusForFeed dispatched separately.
             return {
                 feedId,
-                posts: hydratedPosts,
+                posts: rawPosts,
                 isMore: data.hasMore ?? (Array.isArray(data) ? rawPosts.length >= take : rawPosts.length >= take),
                 cursor: data.cursor || null
             };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+// Background hydration thunk — dispatched after posts are rendered to overlay isLiked/isReposted/isBookmarked
+// without blocking the initial render. Uses cookie auth via credentials: 'include'.
+export const hydrateInteractionStatusForFeed = createAsyncThunk<
+    { feedId: string; posts: Post[] },
+    { feedId: string; posts: Post[] },
+    { rejectValue: string }
+>(
+    'feeds/hydratePosts',
+    async ({ feedId, posts }: { feedId: string; posts: Post[] }, { rejectWithValue }) => {
+        try {
+            const hydrated = await hydratePostsWithInteractionStatus(posts);
+            return { feedId, posts: hydrated };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -719,6 +737,27 @@ const feedsSlice = createSlice({
                 state.isLoading = false;
                 state.feedLoading[feedId] = false;
                 state.error = action.payload as string;
+            })
+            .addCase(hydrateInteractionStatusForFeed.fulfilled, (state: FeedsState, action: any) => {
+                const { feedId, posts: hydratedPosts } = action.payload;
+                const existing = state.feedPosts[feedId];
+                if (!existing || !hydratedPosts?.length) return;
+                // Build a lookup map from hydrated posts to efficiently patch existing posts
+                const hydratedMap = new Map<string, { isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean }>();
+                hydratedPosts.forEach((p: Post) => {
+                    if (p.uri) hydratedMap.set(p.uri, { isLiked: p.isLiked, isReposted: p.isReposted, isBookmarked: p.isBookmarked });
+                });
+                // Apply hydrated status without touching counts or other fields
+                state.feedPosts[feedId] = existing.map((p: Post) => {
+                    const hydrated = p.uri ? hydratedMap.get(p.uri) : undefined;
+                    if (!hydrated) return p;
+                    return {
+                        ...p,
+                        isLiked: hydrated.isLiked ?? p.isLiked,
+                        isReposted: hydrated.isReposted ?? p.isReposted,
+                        isBookmarked: hydrated.isBookmarked ?? p.isBookmarked,
+                    };
+                });
             })
             // Synchronize interactions across feedPosts (Optimistic)
             .addMatcher(

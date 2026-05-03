@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts } from '../redux/slices/feedsSlice';
+import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts, hydrateInteractionStatusForFeed } from '../redux/slices/feedsSlice';
 
 import { fetchPinnedLists, fetchListFeed } from '../redux/slices/listsSlice';
 import { RootState } from '../redux/store';
@@ -96,7 +96,15 @@ const HomePage: React.FC = () => {
             if (neverFetched || isStale) {
                 const isDiscover = activeTab === 'discover';
                 const initialTake = (isDiscover && (feedPosts[activeTab]?.length || 0) === 0) ? 6 : getDynamicBatchSize(250);
-                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake }));
+                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake }) as any)
+                    .unwrap()
+                    .then((result: { feedId: string; posts: any[] }) => {
+                        // Background hydration: overlay isLiked/isReposted/isBookmarked without blocking render
+                        if (result?.posts?.length) {
+                            dispatch(hydrateInteractionStatusForFeed({ feedId: result.feedId, posts: result.posts }) as any);
+                        }
+                    })
+                    .catch(() => {});
             }
         }
     }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading]);
@@ -127,7 +135,14 @@ const HomePage: React.FC = () => {
             if (currentFeedPosts.length === 0 || isStale) {
                 const isDiscover = tabId === 'discover';
                 const initialTake = (isDiscover && currentFeedPosts.length === 0) ? 6 : getDynamicBatchSize(250);
-                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: initialTake }));
+                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: initialTake }) as any)
+                    .unwrap()
+                    .then((result: { feedId: string; posts: any[] }) => {
+                        if (result?.posts?.length) {
+                            dispatch(hydrateInteractionStatusForFeed({ feedId: result.feedId, posts: result.posts }) as any);
+                        }
+                    })
+                    .catch(() => {});
             }
         }
     };

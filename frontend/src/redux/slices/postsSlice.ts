@@ -208,8 +208,10 @@ export const fetchTimeline = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts = await response.json();
-            const hydrated = await hydratePostsWithInteractionStatus(posts);
-            return { posts: hydrated, skip, cursor: null };
+            // Note: backend EnrichAndFilterPostsAsync already sets isLiked/isReposted/isBookmarked
+            // from the local DB, so we do NOT need to await hydratePostsWithInteractionStatus here.
+            // That would add 2 extra blocking network round-trips before the feed can render.
+            return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

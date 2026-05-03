@@ -747,7 +747,11 @@ public class PostService : IPostService
 
             var remoteInteractionCache = new Dictionary<string, JsonElement>();
             
-            if (remoteUrisList.Any())
+            // PERFORMANCE: Skip expensive AppView remote fetch for timeline requests.
+            // Timeline posts already have LikesCount/RepostsCount populated from the local DB
+            // (incremented by ToggleLikeAsync etc.), so stale counts from AppView are not needed.
+            // Also skip when there's nothing to fetch.
+            if (remoteUrisList.Any() && !isTimeline)
             {
                 try
                 {
@@ -756,29 +760,48 @@ public class PostService : IPostService
                     // Split into chunks if there are too many (limit is 25)
                     foreach (var chunk in remoteUrisList.Chunk(25))
                     {
-                        // Use HttpClient with Bearer token if available to get viewer interaction state
-                        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-                        if (!string.IsNullOrEmpty(token))
+                        // Cache key includes viewerId — AppView responses contain user-specific viewer.like/repost state
+                        var cacheKey = $"appview:posts:{viewerId}:{string.Join(",", chunk.OrderBy(u => u)).GetHashCode()}";
+                        var cachedJson = await _cacheService.GetAsync<string>(cacheKey);
+
+                        string? rawJson = null;
+                        if (!string.IsNullOrEmpty(cachedJson))
                         {
-                            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                            rawJson = cachedJson;
                         }
-                        
-                        var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                        var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
-                        var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
-                        
-                        // [NEW] Fallback to public AppView if authenticated fetch fails (e.g. 401 Unauthorized)
-                        if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+                        else
                         {
-                            _logger.LogWarning("[EnrichAndFilterPostsAsync] Authenticated ATProto fetch failed with {Status}. Falling back to public API.", response.StatusCode);
-                            client.DefaultRequestHeaders.Authorization = null;
-                            response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                            // Use HttpClient with Bearer token if available to get viewer interaction state
+                            // Reduce timeout: 5s is plenty; 10s stacks up badly with 20 posts = 8 chunks
+                            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                            if (!string.IsNullOrEmpty(token))
+                            {
+                                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                            }
+                            
+                            var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+                            var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+                            var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                            
+                            // [NEW] Fallback to public AppView if authenticated fetch fails (e.g. 401 Unauthorized)
+                            if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+                            {
+                                _logger.LogWarning("[EnrichAndFilterPostsAsync] Authenticated ATProto fetch failed with {Status}. Falling back to public API.", response.StatusCode);
+                                client.DefaultRequestHeaders.Authorization = null;
+                                response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                            }
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                rawJson = await response.Content.ReadAsStringAsync();
+                                // Cache for 2 minutes so repeated navigations reuse the result
+                                await _cacheService.SetAsync(cacheKey, rawJson, TimeSpan.FromMinutes(2));
+                            }
                         }
 
-                        if (response.IsSuccessStatusCode)
+                        if (!string.IsNullOrEmpty(rawJson))
                         {
-                            var json = await response.Content.ReadAsStringAsync();
-                            using var doc = JsonDocument.Parse(json);
+                            using var doc = JsonDocument.Parse(rawJson);
                             if (doc.RootElement.TryGetProperty("posts", out var remotePostsList))
                             {
                                 foreach (var rp in remotePostsList.EnumerateArray())
@@ -852,6 +875,7 @@ public class PostService : IPostService
                 {
                     _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to fetch remote counts for timeline posts");
                 }
+
             }
 
             // [NEW] Index remote cache by rkey for robust cross-URI lookups (DID vs Handle)

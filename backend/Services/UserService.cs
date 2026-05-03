@@ -29,6 +29,8 @@ public class UserService : IUserService
     private readonly ILogger<UserService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
+    // Per-user semaphores to prevent thundering-herd when token expires (e.g. ~3 AM)
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _tokenRefreshLocks = new();
 
     public UserService(
         IUnitOfWork unitOfWork, 
@@ -2651,48 +2653,66 @@ public class UserService : IUserService
 
     public async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId)
     {
+        // Fast path: token is still cached
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (!string.IsNullOrEmpty(token)) return token;
 
-        var refreshToken = await _distributedCache.GetStringAsync($"BlueskyRefreshToken_{userId}");
-        if (string.IsNullOrEmpty(refreshToken)) return null;
-
+        // Slow path: we need to refresh. Use a per-user semaphore to avoid thundering herd.
+        // When many requests hit simultaneously (e.g. after token expiry at night),
+        // only ONE of them does the refresh; the rest wait and then reuse the result.
+        var semaphore = _tokenRefreshLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync();
         try
         {
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
+            // Double-check inside the lock — another waiter may have refreshed already
+            token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token)) return token;
 
-            var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.refreshSession", null);
-            if (!response.IsSuccessStatusCode)
+            var refreshToken = await _distributedCache.GetStringAsync($"BlueskyRefreshToken_{userId}");
+            if (string.IsNullOrEmpty(refreshToken)) return null;
+
+            try
             {
-                var errorBody = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Failed to refresh Bluesky token for {UserId}. Status: {Status}. Body: {Body}", userId, response.StatusCode, errorBody);
+                using var httpClient = _httpClientFactory.CreateClient();
+                httpClient.Timeout = TimeSpan.FromSeconds(10); // Hard cap — don't hang forever
+                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
+
+                var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.refreshSession", null);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Failed to refresh Bluesky token for {UserId}. Status: {Status}. Body: {Body}", userId, response.StatusCode, errorBody);
+                    return null;
+                }
+
+                await using var stream = await response.Content.ReadAsStreamAsync();
+                var session = await JsonSerializer.DeserializeAsync<JsonElement>(stream);
+                var nextAccessJwt = session.GetProperty("accessJwt").GetString();
+                var nextRefreshJwt = session.GetProperty("refreshJwt").GetString();
+
+                if (string.IsNullOrEmpty(nextAccessJwt) || string.IsNullOrEmpty(nextRefreshJwt))
+                {
+                    return null;
+                }
+
+                var cacheOptions = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                };
+
+                await _distributedCache.SetStringAsync($"BlueskyToken_{userId}", nextAccessJwt, cacheOptions);
+                await _distributedCache.SetStringAsync($"BlueskyRefreshToken_{userId}", nextRefreshJwt, cacheOptions);
+                return nextAccessJwt;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetOrRefreshBlueskyTokenAsync] Error refreshing Bluesky token for {UserId}", userId);
                 return null;
             }
-
-            await using var stream = await response.Content.ReadAsStreamAsync();
-            var session = await JsonSerializer.DeserializeAsync<JsonElement>(stream);
-            var nextAccessJwt = session.GetProperty("accessJwt").GetString();
-            var nextRefreshJwt = session.GetProperty("refreshJwt").GetString();
-
-            if (string.IsNullOrEmpty(nextAccessJwt) || string.IsNullOrEmpty(nextRefreshJwt))
-            {
-                return null;
-            }
-
-            var cacheOptions = new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
-            };
-
-            await _distributedCache.SetStringAsync($"BlueskyToken_{userId}", nextAccessJwt, cacheOptions);
-            await _distributedCache.SetStringAsync($"BlueskyRefreshToken_{userId}", nextRefreshJwt, cacheOptions);
-            return nextAccessJwt;
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "[GetOrRefreshBlueskyTokenAsync] Error refreshing Bluesky token for {UserId}", userId);
-            return null;
+            semaphore.Release();
         }
     }
 
