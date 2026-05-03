@@ -87,26 +87,58 @@ public class ProfileController : ControllerBase
         bool isBlockedBy = false;
         bool isBlocking = false;
         bool isMuted = false;
-
         MutedByListDto? mutedBy = null;
-        if (Guid.TryParse(currentUserIdString, out var currentUserId))
+        PostMuteDto? muteInfo = null;
+
+        // [OPTIMIZATION] Parallelize relationship lookups, mute info, and pinned post enrichment
+        var relationshipTasks = new List<Task>();
+        PostDto? pinnedPostDto = null;
+        
+        if (currentUserIdGuid.HasValue)
         {
-            isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
-            isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
-            isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId);
-            isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
-            isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
-            
-            if (isMuted)
-            {
-                mutedBy = await _userService.GetMutingListAsync(currentUserId, user.Id);
-            }
+            var currentUserId = currentUserIdGuid.Value;
+            relationshipTasks.Add(Task.Run(async () => isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id)));
+            relationshipTasks.Add(Task.Run(async () => isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id)));
+            relationshipTasks.Add(Task.Run(async () => isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId)));
+            relationshipTasks.Add(Task.Run(async () => isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id)));
+            relationshipTasks.Add(Task.Run(async () => {
+                isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+                if (isMuted)
+                {
+                    mutedBy = await _userService.GetMutingListAsync(currentUserId, user.Id);
+                }
+            }));
         }
 
-        var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 
-            ? await _userService.GetFollowAsync(cid1, user.Id) : null;
-        var block = (Guid.TryParse(currentUserIdString, out var cid2) && isBlocking)
-            ? await _userService.GetBlockAsync(cid2, user.Id) : null;
+        relationshipTasks.Add(Task.Run(async () => muteInfo = await EvaluateProfileMuteInfo(user, currentUserIdGuid)));
+
+        if (!string.IsNullOrEmpty(user.PinnedPostUri))
+        {
+            relationshipTasks.Add(Task.Run(async () => {
+                try
+                {
+                    var pinnedPost = await _postService.GetPostByUriAsync(user.PinnedPostUri);
+                    if (pinnedPost != null)
+                    {
+                        var enriched = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
+                        if (enriched.Any())
+                        {
+                            var pinned = enriched.First();
+                            pinned.IsPinned = true;
+                            pinnedPostDto = pinned;
+                        }
+                    }
+                }
+                catch (Exception) { /* Ignore */ }
+            }));
+        }
+
+        await Task.WhenAll(relationshipTasks);
+
+        var follow = (currentUserIdGuid.HasValue && isFollowing) 
+            ? await _userService.GetFollowAsync(currentUserIdGuid.Value, user.Id) : null;
+        var block = (currentUserIdGuid.HasValue && isBlocking)
+            ? await _userService.GetBlockAsync(currentUserIdGuid.Value, user.Id) : null;
 
         var userDto = new UserDto(
             user.Id,
@@ -137,31 +169,9 @@ public class ProfileController : ControllerBase
             IsFollowedBy = isFollowedBy,
             BlockingReference = block?.Uri,
             MutedBy = mutedBy,
-            MuteInfo = await EvaluateProfileMuteInfo(user, currentUserIdGuid)
+            MuteInfo = muteInfo,
+            PinnedPost = pinnedPostDto
         };
-
-        if (!string.IsNullOrEmpty(user.PinnedPostUri))
-        {
-            try
-            {
-                var pinnedPost = await _postService.GetPostByUriAsync(user.PinnedPostUri);
-                
-                if (pinnedPost != null)
-                {
-                    var enriched = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
-                    if (enriched.Any())
-                    {
-                        var pinned = enriched.First();
-                        pinned.IsPinned = true;
-                        userDto.PinnedPost = pinned;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Ignore pinned post errors
-            }
-        }
 
         return Ok(new { 
             user = userDto,
@@ -217,25 +227,58 @@ public class ProfileController : ControllerBase
         bool isBlocking = false;
         bool isMuted = false;
 
+        Guid? currentUserIdGuid = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
         MutedByListDto? mutedById = null;
-        if (Guid.TryParse(currentUserIdString, out var currentUserId))
-        {
-            isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
-            isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id);
-            isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId);
-            isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id);
-            isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+        PostMuteDto? muteInfo = null;
+        PostDto? pinnedPostDto = null;
 
-            if (isMuted)
-            {
-                mutedById = await _userService.GetMutingListAsync(currentUserId, user.Id);
-            }
+        var relationshipTasks = new List<Task>();
+
+        if (currentUserIdGuid.HasValue)
+        {
+            var currentUserId = currentUserIdGuid.Value;
+            relationshipTasks.Add(Task.Run(async () => isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id)));
+            relationshipTasks.Add(Task.Run(async () => isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id)));
+            relationshipTasks.Add(Task.Run(async () => isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId)));
+            relationshipTasks.Add(Task.Run(async () => isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id)));
+            relationshipTasks.Add(Task.Run(async () => {
+                isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+                if (isMuted)
+                {
+                    mutedById = await _userService.GetMutingListAsync(currentUserId, user.Id);
+                }
+            }));
         }
 
-        var follow = (Guid.TryParse(currentUserIdString, out var cid1) && isFollowing) 
-            ? await _userService.GetFollowAsync(cid1, user.Id) : null;
-        var block = (Guid.TryParse(currentUserIdString, out var cid2) && isBlocking)
-            ? await _userService.GetBlockAsync(cid2, user.Id) : null;
+        relationshipTasks.Add(Task.Run(async () => muteInfo = await EvaluateProfileMuteInfo(user, currentUserIdGuid)));
+
+        if (!string.IsNullOrEmpty(user.PinnedPostUri))
+        {
+            relationshipTasks.Add(Task.Run(async () => {
+                try
+                {
+                    var pinnedPost = await _postService.GetPostByUriAsync(user.PinnedPostUri);
+                    if (pinnedPost != null)
+                    {
+                        var enriched = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
+                        if (enriched.Any())
+                        {
+                            var pinned = enriched.First();
+                            pinned.IsPinned = true;
+                            pinnedPostDto = pinned;
+                        }
+                    }
+                }
+                catch (Exception) { /* Ignore */ }
+            }));
+        }
+
+        await Task.WhenAll(relationshipTasks);
+
+        var follow = (currentUserIdGuid.HasValue && isFollowing) 
+            ? await _userService.GetFollowAsync(currentUserIdGuid.Value, user.Id) : null;
+        var block = (currentUserIdGuid.HasValue && isBlocking)
+            ? await _userService.GetBlockAsync(currentUserIdGuid.Value, user.Id) : null;
 
         var userDto = new UserDto(
             user.Id,
@@ -266,7 +309,8 @@ public class ProfileController : ControllerBase
             IsMuted = isMuted,
             BlockingReference = block?.Uri,
             MutedBy = mutedById,
-            MuteInfo = await EvaluateProfileMuteInfo(user, Guid.TryParse(currentUserIdString, out var cid) ? cid : null)
+            MuteInfo = muteInfo,
+            PinnedPost = pinnedPostDto
         };
 
         return Ok(new { 
