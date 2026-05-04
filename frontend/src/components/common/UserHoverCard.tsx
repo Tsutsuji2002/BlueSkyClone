@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
-import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice';
+import { followUserAsync, unfollowUserAsync, isProfileFetching, registerProfileFetch, unregisterProfileFetch, normalizeIdentifier, profileMatchesIdentifier } from '../../redux/slices/userSlice';
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
@@ -75,6 +75,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
 
     const [visible, setVisible] = useState(false);
     const [cardStyle, setCardStyle] = useState<React.CSSProperties>({});
+    const globalProfile = useAppSelector((state: RootState) => state.user.profile);
     const [profile, setProfile] = useState<FullProfile | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -116,12 +117,44 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
         const key = user.handle || user.did || user.id;
         if (!key) return;
 
-        // Check cache
+        // 1. Check global state first (ProfilePage might have it)
+        if (profileMatchesIdentifier(globalProfile, key)) {
+            const fp: FullProfile = {
+                id: globalProfile!.id,
+                handle: globalProfile!.handle,
+                displayName: globalProfile!.displayName || '',
+                avatar: globalProfile!.avatarUrl || globalProfile!.avatar,
+                avatarUrl: globalProfile!.avatarUrl || globalProfile!.avatar,
+                bio: globalProfile!.bio,
+                followersCount: globalProfile!.followersCount ?? 0,
+                followingCount: globalProfile!.followingCount ?? 0,
+                isFollowing: !!globalProfile!.isFollowing,
+                isFollowedBy: !!globalProfile!.isFollowedBy,
+                followingReference: globalProfile!.followingReference,
+                isVerified: !!globalProfile!.isVerified,
+                did: globalProfile!.did,
+                isBlocking: !!globalProfile!.isBlocking,
+                isBlockedBy: !!globalProfile!.isBlockedBy,
+            };
+            setProfile(fp);
+            return;
+        }
+
+        // 2. Check local cache
         const cached = profileCache.get(key);
         if (cached) {
             setProfile(cached);
             return;
         }
+
+        // 3. Check if ALREADY fetching (Redux or another HoverCard)
+        if (isProfileFetching(key)) {
+            setIsLoading(true);
+            return;
+        }
+
+        // 4. Register our fetch in the global lock
+        registerProfileFetch(key);
 
         setIsLoading(true);
         try {
@@ -166,8 +199,9 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
             // Silently fail; card will show with limited data
         } finally {
             setIsLoading(false);
+            unregisterProfileFetch(key);
         }
-    }, [user]);
+    }, [user, globalProfile, dispatch]);
 
     const showCard = useCallback(() => {
         if (disabled || isOwnProfile) return;

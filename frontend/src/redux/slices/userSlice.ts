@@ -156,6 +156,10 @@ export const searchUsers = createAsyncThunk<
 
 const inFlightProfiles = new Set<string>();
 
+export const isProfileFetching = (actor: string) => inFlightProfiles.has(normalizeIdentifier(actor));
+export const registerProfileFetch = (actor: string) => inFlightProfiles.add(normalizeIdentifier(actor));
+export const unregisterProfileFetch = (actor: string) => inFlightProfiles.delete(normalizeIdentifier(actor));
+
 export const fetchUserProfile = createAsyncThunk<
     { user: User, isFollowing: boolean, isFollowedBy: boolean, isBlockedBy: boolean, isBlocking: boolean, isMuted: boolean },
     string,
@@ -215,18 +219,14 @@ export const fetchUserProfile = createAsyncThunk<
         }
     },
     {
-        condition: (actor, { getState }) => {
-            if (inFlightProfiles.has(actor)) {
-                return false;
-            }
-            
-            const { user } = getState() as any;
-            if (profileMatchesIdentifier(user.profile, actor)) {
+        condition: (actor) => {
+            const normalized = normalizeIdentifier(actor);
+            if (inFlightProfiles.has(normalized)) {
                 return false;
             }
             
             // Critical: Add to lock immediately and synchronously
-            inFlightProfiles.add(actor);
+            inFlightProfiles.add(normalized);
             return true;
         }
     }
