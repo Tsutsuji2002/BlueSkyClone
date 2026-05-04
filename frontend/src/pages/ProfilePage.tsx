@@ -302,10 +302,14 @@ const ProfilePage: React.FC = () => {
 
     const isStale = profileUser && handle && !profileMatchesIdentifier(profileUser, handle);
 
-    // 1. Check if we are currently loading or if a fetch for this specific handle is registered
-    const isActuallyLoading = isProfileLoading || (profileIdentifier === handle && !profileError);
+    // Logic:
+    // 1. If we have a profileUser, render the page.
+    // 2. If we have an explicit error (and aren't trying to reload/fetch), render the error UI.
+    // 3. Otherwise, render the loading skeleton.
 
-    // 2. Private profile state (RequireLogoutVisibility is on and user is a guest)
+    const isActuallyLoading = isProfileLoading || profileIdentifier === handle;
+
+    // Private profile state
     if (!currentUser && profileError === 'PROFILE_PRIVATE') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
@@ -325,29 +329,19 @@ const ProfilePage: React.FC = () => {
         );
     }
 
-    // 3. If we have no user yet, wait for loading or error
     if (!profileUser) {
-        if (isActuallyLoading) {
-            return <ProfileSkeleton />;
-        }
-        
-        // ONLY show "not found" if we have no user AND we are definitely NOT loading AND (we have an error OR we tried already)
-        if (!isActuallyLoading && (profileError || lastFetchedHandle.current === handle)) {
+        // Only show "not found" if we have an explicit error and are NOT in a loading/pending state
+        if (profileError && !isActuallyLoading) {
             return (
                 <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 text-center">
                     <h2 className="text-2xl font-bold mb-2">{t('profile.user_not_found')}</h2>
                     <p className="text-gray-500 mb-6">{t('profile.user_not_found_desc')}</p>
-                    <button 
-                        onClick={() => navigate('/')}
-                        className="px-6 py-2 bg-blue-500 text-white rounded-full font-medium active:scale-95 transition-transform"
-                    >
-                        {t('common.go_home')}
-                    </button>
+                    <Button onClick={() => navigate('/')}>{t('common.go_home')}</Button>
                 </div>
             );
         }
 
-        // Default to skeleton while we wait for the effect to kick in
+        // DEFAULT case: Show loading skeleton (covers mount, navigation, and pending states)
         return <ProfileSkeleton />;
     }
 
