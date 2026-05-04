@@ -40,25 +40,27 @@ public class ProfileController : ControllerBase
         UserRelationshipStatusDto? resolvedStatus = null;
         try
         {
-            if (handle.StartsWith("did:"))
-            {
-                user = await _userService.GetUserByDidAsync(handle);
-            }
-            else
-            {
-                user = await _userService.GetUserByHandleAsync(handle) 
-                       ?? await _userService.GetUserByUsernameAsync(handle);
-            }
+            // REMOTE-FIRST OPTIMIZATION: In this app, we assume users are remote ATProto accounts.
+            // Directly resolve remote profile first, which handles ingestion and local caching.
+            (user, resolvedStatus) = await _userService.ResolveRemoteProfileAsync(handle, token, currentUserIdGuid);
 
-            if (user == null || (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))) 
+            // ONLY check local DB if remote resolution returned nothing (e.g. invalid actor)
+            if (user == null)
             {
-                 // Resolve remote profile if not found or if it's a remote user
-                 (user, resolvedStatus) = await _userService.ResolveRemoteProfileAsync(handle, token, currentUserIdGuid);
+                if (handle.StartsWith("did:"))
+                {
+                    user = await _userService.GetUserByDidAsync(handle);
+                }
+                else
+                {
+                    user = await _userService.GetUserByHandleAsync(handle) 
+                           ?? await _userService.GetUserByUsernameAsync(handle);
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Local profile lookup failed for {Handle}. Falling back to remote resolution.", handle);
+            _logger.LogError(ex, "Profile resolution failed for {Handle}.", handle);
             user = null;
         }
                    

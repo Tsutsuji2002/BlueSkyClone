@@ -528,98 +528,91 @@ public class UserService : IUserService
 
                 bool isNewUser = false;
                 
-                // Try to persist to local DB for caching — but don't fail if the DB is having issues
                 try
                 {
-                    var userTask = _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
-                    var handleTask = !string.IsNullOrEmpty(profileHandle)
-                        ? _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Did != did)
-                        : Task.FromResult<User?>(null);
-
-                    await Task.WhenAll(userTask, handleTask);
-                    var user = await userTask;
-                    var existingWithHandle = await handleTask;
-
-                    if (user == null)
+                    // FIRE AND FORGET: Persist to DB and Cache in the background 
+                    // This allows the profile to return to the UI INSTANTLY after receiving the network JSON.
+                    _ = Task.Run(async () => 
                     {
-                        isNewUser = true;
-
-                        if (existingWithHandle != null)
+                        try 
                         {
-                            existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
-                            _unitOfWork.Users.Update(existingWithHandle);
-                        }
+                            using var scope = _scopeFactory.CreateScope();
+                            var db = scope.ServiceProvider.GetRequiredService<BSkyDbContext>();
+                            var cache = scope.ServiceProvider.GetRequiredService<ICacheService>();
+                            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                            var logger = scope.ServiceProvider.GetRequiredService<ILogger<UserService>>();
 
-                        var baseUsername = profileHandle?.Split('.')[0] ?? did.Replace("did:plc:", "").Replace("did:", "");
-                        var username = $"{baseUsername}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
-                        if (username.Length > 250) username = username.Substring(0, 250);
+                            var user = await db.Users.FirstOrDefaultAsync(u => u.Did == did);
+                            var existingWithHandle = !string.IsNullOrEmpty(profileHandle)
+                                ? await db.Users.FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Did != did)
+                                : null;
 
-                        user = new User
-                        {
-                            Id = deterministicId,
-                            Did = did,
-                            Username = username,
-                            CreatedAt = DateTime.UtcNow,
-                            PasswordHash = "REMOTE_USER",
-                            Salt = "REMOTE_USER",
-                            Email = $"{did}@remote.bsky.social"
-                        };
-                        await _unitOfWork.Users.AddAsync(user);
-                    }
-                    else
-                    {
-                        if (existingWithHandle != null && existingWithHandle.Id != user.Id)
-                        {
-                            existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
-                            _unitOfWork.Users.Update(existingWithHandle);
-                        }
-                    }
+                            bool isNew = (user == null);
+                            if (isNew)
+                            {
+                                if (existingWithHandle != null)
+                                {
+                                    existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
+                                    db.Users.Update(existingWithHandle);
+                                }
 
-                    user.Handle = profileHandle;
-                    user.DisplayName = transientUser.DisplayName;
-                    user.AvatarUrl = transientUser.AvatarUrl;
-                    user.CoverImageUrl = transientUser.CoverImageUrl;
-                    user.Bio = transientUser.Bio;
-                    user.FollowersCount = transientUser.FollowersCount;
-                    user.FollowingCount = transientUser.FollowingCount;
-                    user.PostsCount = transientUser.PostsCount;
-                    user.IsVerified = true;
+                                var baseUsername = profileHandle?.Split('.')[0] ?? did.Replace("did:plc:", "").Replace("did:", "");
+                                var username = $"{baseUsername}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+                                if (username.Length > 250) username = username.Substring(0, 250);
 
-                    if (!isNewUser)
-                    {
-                        _unitOfWork.Users.Update(user);
-                    }
+                                user = new User
+                                {
+                                    Id = deterministicId,
+                                    Did = did,
+                                    Username = username,
+                                    CreatedAt = DateTime.UtcNow,
+                                    PasswordHash = "REMOTE_USER",
+                                    Salt = "REMOTE_USER",
+                                    Email = $"{did}@remote.bsky.social"
+                                };
+                                await db.Users.AddAsync(user);
+                            }
+                            else if (existingWithHandle != null && existingWithHandle.Id != user.Id)
+                            {
+                                existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
+                                db.Users.Update(existingWithHandle);
+                            }
 
-                    // CRITICAL ORDER: Persist the user FIRST, then sync relationships.
-                    // If SyncRelationship throws (expired token, network error), the user
-                    // record must already be committed so follow operations can find it by ID.
-                    await _unitOfWork.CompleteAsync();
-                    await _cacheService.SetAsync(cacheKey, user, TimeSpan.FromMinutes(30));
+                            user.Handle = profileHandle;
+                            user.DisplayName = transientUser.DisplayName;
+                            user.AvatarUrl = transientUser.AvatarUrl;
+                            user.CoverImageUrl = transientUser.CoverImageUrl;
+                            user.Bio = transientUser.Bio;
+                            user.FollowersCount = transientUser.FollowersCount;
+                            user.FollowingCount = transientUser.FollowingCount;
+                            user.PostsCount = transientUser.PostsCount;
+                            user.IsVerified = true;
 
-                    // Interactions (Mute/Block/Follow) — background sync to avoid latency
-                    if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
-                    {
-                        var viewerPropClone = viewerProp.Clone();
-                        _ = Task.Run(async () => {
-                            try 
-                            { 
-                                using var scope = _scopeFactory.CreateScope();
+                            if (!isNew) db.Users.Update(user);
+
+                            await db.SaveChangesAsync();
+                            await cache.SetAsync(cacheKey!, user, TimeSpan.FromMinutes(30));
+
+                            // Sync relationships in background if needed
+                            if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
+                            {
                                 var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                                await userService.SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerPropClone); 
+                                await userService.SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp.Clone());
                             }
-                            catch (Exception syncEx) 
-                            { 
-                                _logger.LogWarning(syncEx, "[ResolveRemoteProfileAsync] Background relationship sync failed for {Actor}", identifier); 
-                            }
-                        });
-                    }
+                        }
+                        catch (Exception ex)
+                        {
+                             // Log and ignore background persistence errors to prevent request crashes
+                             using var errScope = _scopeFactory.CreateScope();
+                             var logger = errScope.ServiceProvider.GetRequiredService<ILogger<UserService>>();
+                             logger.LogWarning(ex, "[BackgroundPersist] Failed to save remote profile {Actor}", identifier);
+                        }
+                    });
 
+                    // RETURN INSTANTLY
                     UserRelationshipStatusDto? status = null;
-                    if (root.TryGetProperty("viewer", out var vProp))
-                    {
-                        status = BuildInteractionStatusFromViewer(vProp);
-                    }
-                    return (user, status);
+                    if (root.TryGetProperty("viewer", out var vProp)) status = BuildInteractionStatusFromViewer(vProp);
+                    return (transientUser, status);
                 }
                 catch (Exception dbEx)
                 {

@@ -58,6 +58,7 @@ const ProfilePage: React.FC = () => {
         hasMore,
         cursor: postCursor
     } = useAppSelector((state: RootState) => state.posts);
+    const profileIdentifier = useAppSelector((state: RootState) => state.user.profileIdentifier);
 
     const activeTab = activeProfileTab || 'posts';
 
@@ -327,7 +328,7 @@ const ProfilePage: React.FC = () => {
         );
     }
 
-    if (!profileUser && !isProfileLoading) {
+    if (!profileUser && !isProfileLoading && !profileIdentifier) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 text-center">
                 <h2 className="text-2xl font-bold mb-2">{t('profile.user_not_found')}</h2>
