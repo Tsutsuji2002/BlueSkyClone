@@ -81,20 +81,18 @@ const ProfilePage: React.FC = () => {
     useEffect(() => {
         if (!handle) return;
 
-        // Only clear and fetch if we are switching to a DIFFERENT profile.
-        // This preserves scroll position and content when navigating back.
+        // Skip if we are already loading this exact profile
         const isSameProfile = profileMatchesIdentifier(profileUser, handle);
-
+        
         if (!isSameProfile) {
+            // Only clear and fetch if we are switching to a DIFFERENT profile.
+            // This preserves scroll position and content when navigating back.
             dispatch(clearProfile());
             dispatch(clearPosts());
             setShowWarn(true);
             dispatch(fetchUserProfile(handle));
-        } else if (isProfileLoading === false && !profileUser) {
-            // Safety fetch if we think we are on the same profile but have no data
-            dispatch(fetchUserProfile(handle));
         }
-    }, [dispatch, handle]); // Keep handle as the primary trigger
+    }, [dispatch, handle, profileUser]); // Add profileUser to safely track changes
 
     useEffect(() => {
         if (handle && profileUser?.handle && handle !== profileUser.handle) {

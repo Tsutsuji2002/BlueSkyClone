@@ -477,6 +477,7 @@ export interface UserState {
     selectedInterests: string[];
     searchResults: User[];
     activeProfileTab?: string;
+    profileIdentifier: string | null;
     isLoading: boolean;
     searchLoading: boolean;
     interestsLoading: boolean;

@@ -35,6 +35,7 @@ const initialState: UserState = {
     error: null,
     actionLoading: {},
     cursor: null,
+    profileIdentifier: null,
     hasMore: true,
 };
 
@@ -207,6 +208,14 @@ export const fetchUserProfile = createAsyncThunk<
             };
         } catch (error: any) {
             return rejectWithValue(error.message);
+        }
+    },
+    {
+        condition: (actor, { getState }) => {
+            const { user } = getState() as any;
+            if (user.isLoading && user.profileIdentifier === actor) return false;
+            if (profileMatchesIdentifier(user.profile, actor)) return false;
+            return true;
         }
     }
 );
@@ -772,6 +781,7 @@ const userSlice = createSlice({
             .addCase(fetchUserProfile.pending, (state: UserState, action) => {
                 state.isLoading = true;
                 state.error = null;
+                state.profileIdentifier = action.meta.arg;
                 // Only clear if we're switching to a DIFFERENT profile
                 if (state.profile && !profileMatchesIdentifier(state.profile, action.meta.arg)) {
                     state.profile = null;
@@ -779,6 +789,7 @@ const userSlice = createSlice({
             })
             .addCase(fetchUserProfile.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
+                state.profileIdentifier = null;
                 const user = action.payload.user;
                 state.profile = user;
 
@@ -812,6 +823,7 @@ const userSlice = createSlice({
             })
             .addCase(fetchUserProfile.rejected, (state: UserState, action) => {
                 state.isLoading = false;
+                state.profileIdentifier = null;
                 state.error = action.payload as string;
             })
             // Follow User
