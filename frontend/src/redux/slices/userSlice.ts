@@ -154,12 +154,6 @@ export const searchUsers = createAsyncThunk<
     }
 );
 
-const inFlightProfiles = new Set<string>();
-
-export const isProfileFetching = (actor: string) => inFlightProfiles.has(normalizeIdentifier(actor));
-export const registerProfileFetch = (actor: string) => inFlightProfiles.add(normalizeIdentifier(actor));
-export const unregisterProfileFetch = (actor: string) => inFlightProfiles.delete(normalizeIdentifier(actor));
-
 export const fetchUserProfile = createAsyncThunk<
     { user: User, isFollowing: boolean, isFollowedBy: boolean, isBlockedBy: boolean, isBlocking: boolean, isMuted: boolean },
     string,
@@ -168,7 +162,6 @@ export const fetchUserProfile = createAsyncThunk<
     'user/fetchProfile',
     async (actor: string, { rejectWithValue }) => {
         try {
-            registerProfileFetch(actor);
             const response = await fetch(
                 `${API_BASE_URL}/users/profile/${encodeURIComponent(actor)}`
             );
@@ -205,8 +198,6 @@ export const fetchUserProfile = createAsyncThunk<
                 mutedBy: u.mutedBy,
             } as any;
 
-            unregisterProfileFetch(actor);
-
             return {
                 user,
                 isFollowing: data.isFollowing,
@@ -216,22 +207,7 @@ export const fetchUserProfile = createAsyncThunk<
                 isMuted: data.isMuted,
             };
         } catch (error: any) {
-            unregisterProfileFetch(actor);
             return rejectWithValue(error.message);
-        } finally {
-            inFlightProfiles.delete(normalizeIdentifier(actor));
-        }
-    },
-    {
-        condition: (actor) => {
-            const normalized = normalizeIdentifier(actor);
-            if (inFlightProfiles.has(normalized)) {
-                return false;
-            }
-            
-            // Critical: Add to lock immediately and synchronously
-            inFlightProfiles.add(normalized);
-            return true;
         }
     }
 );

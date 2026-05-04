@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
-import { followUserAsync, unfollowUserAsync, isProfileFetching, registerProfileFetch, unregisterProfileFetch, normalizeIdentifier, profileMatchesIdentifier } from '../../redux/slices/userSlice';
+import { followUserAsync, unfollowUserAsync, normalizeIdentifier, profileMatchesIdentifier } from '../../redux/slices/userSlice';
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
@@ -147,15 +147,6 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
             return;
         }
 
-        // 3. Check if ALREADY fetching (Redux or another HoverCard)
-        if (isProfileFetching(key)) {
-            setIsLoading(true);
-            return;
-        }
-
-        // 4. Register our fetch in the global lock
-        registerProfileFetch(key);
-
         setIsLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -199,7 +190,6 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
             // Silently fail; card will show with limited data
         } finally {
             setIsLoading(false);
-            unregisterProfileFetch(key);
         }
     }, [user, globalProfile, dispatch]);
 
