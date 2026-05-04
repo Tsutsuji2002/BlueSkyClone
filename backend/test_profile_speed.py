@@ -23,10 +23,13 @@ def test_profile(handle):
         print(f"Error for {handle}: {e}")
 
 if __name__ == "__main__":
-    handles = [
-        "thedeerwhisperer.bsky.social",
-        "bluesky.app",
-        "did:plc:jrwqqeyrvd3sl4hxv7lqaarh" # Official Bluesky
-    ]
+    if len(sys.argv) > 1:
+        handles = sys.argv[1:]
+    else:
+        handles = [
+            "thedeerwhisperer.bsky.social",
+            "bluesky.app",
+            "did:plc:jrwqqeyrvd3sl4hxv7lqaarh" # Official Bluesky
+        ]
     for h in handles:
         test_profile(h)

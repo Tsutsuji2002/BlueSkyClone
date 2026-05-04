@@ -52,6 +52,7 @@ public interface IUserService
     Task<User?> ResolveStubRemoteProfileAsync(System.Text.Json.JsonElement profileElement, Dictionary<string, User> existingUsers, bool complete = true, Guid? viewerId = null, bool mergeDuplicates = true);
     Task<List<User>> GetSuggestedUsersAsync(int limit = 10, Guid? viewerId = null);
     Task SyncMutedWordsWithAtProtoAsync(Guid userId);
+    Task SyncRelationshipStatusWithAtProtoAsync(Guid viewerId, User targetUser, System.Text.Json.JsonElement viewerProp);
     Task<bool> MergeDuplicateUsersAsync(string did);
     Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids);
     Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId);

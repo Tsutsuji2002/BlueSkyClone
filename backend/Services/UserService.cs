@@ -516,13 +516,13 @@ public class UserService : IUserService
                 try
                 {
                     var userTask = _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
-                    var existingWithHandleTask = !string.IsNullOrEmpty(profileHandle)
+                    var handleTask = !string.IsNullOrEmpty(profileHandle)
                         ? _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Did != did)
                         : Task.FromResult<User?>(null);
 
-                    await Task.WhenAll(userTask, existingWithHandleTask);
-                    var user = userTask.Result;
-                    var existingWithHandle = existingWithHandleTask.Result;
+                    await Task.WhenAll(userTask, handleTask);
+                    var user = await userTask;
+                    var existingWithHandle = await handleTask;
 
                     if (user == null)
                     {
@@ -595,7 +595,7 @@ public class UserService : IUserService
                                 // but better to just call a helper.
                                 // Actually, I'll make a public helper or just pass the logic here.
                                 // Let's stick to calling it on the current instance but inside the Task.Run.
-                                await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp); 
+                                await userService.SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp); 
                             }
                             catch (Exception syncEx) 
                             { 
@@ -2499,7 +2499,7 @@ public class UserService : IUserService
         }
     }
 
-    private async Task SyncRelationshipStatusWithAtProtoAsync(Guid viewerId, User targetUser, JsonElement viewerProp)
+    public async Task SyncRelationshipStatusWithAtProtoAsync(Guid viewerId, User targetUser, JsonElement viewerProp)
     {
         try
         {
@@ -2866,9 +2866,14 @@ public class UserService : IUserService
 
     public async Task<List<User>> GetProfilesAsync(IEnumerable<string> actors, Guid? viewerId = null)
     {
-        var tasks = actors.Select(actor => ResolveRemoteProfileAsync(actor, viewerId: viewerId));
+        var tasks = actors.Select(async actor => {
+            using var scope = _scopeFactory.CreateScope();
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            var (user, _) = await userService.ResolveRemoteProfileAsync(actor, viewerId: viewerId);
+            return user;
+        });
         var results = await Task.WhenAll(tasks);
-        return results.Where(r => r.Item1 != null).Select(r => r.Item1!).ToList();
+        return results.Where(r => r != null).Select(r => r!).ToList();
     }
 }
 

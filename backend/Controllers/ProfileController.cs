@@ -17,13 +17,15 @@ public class ProfileController : ControllerBase
     private readonly IPostService _postService;
     private readonly BSkyClone.Models.BSkyDbContext _db;
     private readonly ILogger<ProfileController> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public ProfileController(IUserService userService, IPostService postService, BSkyClone.Models.BSkyDbContext db, ILogger<ProfileController> logger)
+    public ProfileController(IUserService userService, IPostService postService, BSkyClone.Models.BSkyDbContext db, ILogger<ProfileController> logger, IServiceScopeFactory scopeFactory)
     {
         _userService = userService;
         _postService = postService;
         _db = db;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     [AllowAnonymous]
@@ -112,49 +114,84 @@ public class ProfileController : ControllerBase
                 isMuted = resolvedStatus.IsMuted;
                 
                 if (isFollowing) {
-                    relationshipTasks.Add(Task.Run(async () => follow = await _userService.GetFollowAsync(currentUserId, user.Id)));
+                    relationshipTasks.Add(Task.Run(async () => {
+                        using var scope = _scopeFactory.CreateScope();
+                        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        follow = await userService.GetFollowAsync(currentUserId, user.Id);
+                    }));
                 }
                 if (isBlocking) {
-                    relationshipTasks.Add(Task.Run(async () => block = await _userService.GetBlockAsync(currentUserId, user.Id)));
+                    relationshipTasks.Add(Task.Run(async () => {
+                        using var scope = _scopeFactory.CreateScope();
+                        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        block = await userService.GetBlockAsync(currentUserId, user.Id);
+                    }));
                 }
             }
             else
             {
-                relationshipTasks.Add(Task.Run(async () => isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id)));
-                relationshipTasks.Add(Task.Run(async () => isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id)));
-                relationshipTasks.Add(Task.Run(async () => isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId)));
-                relationshipTasks.Add(Task.Run(async () => isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id)));
+                relationshipTasks.Add(Task.Run(async () => {
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    isBlockedBy = await userService.IsBlockedByAsync(currentUserId, user.Id);
+                }));
+                relationshipTasks.Add(Task.Run(async () => {
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    isFollowing = await userService.IsFollowingAsync(currentUserId, user.Id);
+                }));
+                relationshipTasks.Add(Task.Run(async () => {
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    isFollowedBy = await userService.IsFollowingAsync(user.Id, currentUserId);
+                }));
+                relationshipTasks.Add(Task.Run(async () => {
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    isBlocking = await userService.IsBlockedAsync(currentUserId, user.Id);
+                }));
                 
                 relationshipTasks.Add(Task.Run(async () => {
-                    isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    isMuted = await userService.IsMutedAsync(currentUserId, user.Id);
                     if (isMuted)
                     {
-                        mutedBy = await _userService.GetMutingListAsync(currentUserId, user.Id);
+                        mutedBy = await userService.GetMutingListAsync(currentUserId, user.Id);
                     }
                 }));
                 
                 relationshipTasks.Add(Task.Run(async () => {
-                    if (await _userService.IsFollowingAsync(currentUserId, user.Id))
-                        follow = await _userService.GetFollowAsync(currentUserId, user.Id);
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    if (await userService.IsFollowingAsync(currentUserId, user.Id))
+                        follow = await userService.GetFollowAsync(currentUserId, user.Id);
                 }));
                 relationshipTasks.Add(Task.Run(async () => {
-                    if (await _userService.IsBlockedAsync(currentUserId, user.Id))
-                        block = await _userService.GetBlockAsync(currentUserId, user.Id);
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    if (await userService.IsBlockedAsync(currentUserId, user.Id))
+                        block = await userService.GetBlockAsync(currentUserId, user.Id);
                 }));
             }
         }
 
-        relationshipTasks.Add(Task.Run(async () => muteInfo = await EvaluateProfileMuteInfo(user, currentUserIdGuid)));
+        relationshipTasks.Add(Task.Run(async () => {
+            using var scope = _scopeFactory.CreateScope();
+            muteInfo = await EvaluateProfileMuteInfoScoped(user, currentUserIdGuid, scope);
+        }));
 
         if (!string.IsNullOrEmpty(user.PinnedPostUri))
         {
             relationshipTasks.Add(Task.Run(async () => {
                 try
                 {
-                    var pinnedPost = await _postService.GetPostByUriAsync(user.PinnedPostUri);
+                    using var scope = _scopeFactory.CreateScope();
+                    var postService = scope.ServiceProvider.GetRequiredService<IPostService>();
+                    var pinnedPost = await postService.GetPostByUriAsync(user.PinnedPostUri);
                     if (pinnedPost != null)
                     {
-                        var enriched = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
+                        var enriched = await postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
                         if (enriched.Any())
                         {
                             var pinned = enriched.First();
@@ -270,40 +307,67 @@ public class ProfileController : ControllerBase
         if (currentUserIdGuid.HasValue)
         {
             var currentUserId = currentUserIdGuid.Value;
-            relationshipTasks.Add(Task.Run(async () => isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id)));
-            relationshipTasks.Add(Task.Run(async () => isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id)));
-            relationshipTasks.Add(Task.Run(async () => isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId)));
-            relationshipTasks.Add(Task.Run(async () => isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id)));
             relationshipTasks.Add(Task.Run(async () => {
-                isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                isBlockedBy = await userService.IsBlockedByAsync(currentUserId, user.Id);
+            }));
+            relationshipTasks.Add(Task.Run(async () => {
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                isFollowing = await userService.IsFollowingAsync(currentUserId, user.Id);
+            }));
+            relationshipTasks.Add(Task.Run(async () => {
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                isFollowedBy = await userService.IsFollowingAsync(user.Id, currentUserId);
+            }));
+            relationshipTasks.Add(Task.Run(async () => {
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                isBlocking = await userService.IsBlockedAsync(currentUserId, user.Id);
+            }));
+            relationshipTasks.Add(Task.Run(async () => {
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                isMuted = await userService.IsMutedAsync(currentUserId, user.Id);
                 if (isMuted)
                 {
-                    mutedById = await _userService.GetMutingListAsync(currentUserId, user.Id);
+                    mutedById = await userService.GetMutingListAsync(currentUserId, user.Id);
                 }
             }));
 
             // Add follow and block entity fetching tasks
             relationshipTasks.Add(Task.Run(async () => {
-                if (await _userService.IsFollowingAsync(currentUserId, user.Id))
-                    follow = await _userService.GetFollowAsync(currentUserId, user.Id);
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                if (await userService.IsFollowingAsync(currentUserId, user.Id))
+                    follow = await userService.GetFollowAsync(currentUserId, user.Id);
             }));
             relationshipTasks.Add(Task.Run(async () => {
-                if (await _userService.IsBlockedAsync(currentUserId, user.Id))
-                    block = await _userService.GetBlockAsync(currentUserId, user.Id);
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                if (await userService.IsBlockedAsync(currentUserId, user.Id))
+                    block = await userService.GetBlockAsync(currentUserId, user.Id);
             }));
         }
 
-        relationshipTasks.Add(Task.Run(async () => muteInfo = await EvaluateProfileMuteInfo(user, currentUserIdGuid)));
+        relationshipTasks.Add(Task.Run(async () => {
+            using var scope = _scopeFactory.CreateScope();
+            muteInfo = await EvaluateProfileMuteInfoScoped(user, currentUserIdGuid, scope);
+        }));
 
         if (!string.IsNullOrEmpty(user.PinnedPostUri))
         {
             relationshipTasks.Add(Task.Run(async () => {
                 try
                 {
-                    var pinnedPost = await _postService.GetPostByUriAsync(user.PinnedPostUri);
+                    using var scope = _scopeFactory.CreateScope();
+                    var postService = scope.ServiceProvider.GetRequiredService<IPostService>();
+                    var pinnedPost = await postService.GetPostByUriAsync(user.PinnedPostUri);
                     if (pinnedPost != null)
                     {
-                        var enriched = await _postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
+                        var enriched = await postService.EnrichAndFilterPostsAsync(new List<PostDto> { pinnedPost }, currentUserIdGuid ?? Guid.Empty);
                         if (enriched.Any())
                         {
                             var pinned = enriched.First();
@@ -780,12 +844,19 @@ public class ProfileController : ControllerBase
 
     private async Task<PostMuteDto?> EvaluateProfileMuteInfo(User user, Guid? viewerId)
     {
+        using var scope = _scopeFactory.CreateScope();
+        return await EvaluateProfileMuteInfoScoped(user, viewerId, scope);
+    }
+
+    private async Task<PostMuteDto?> EvaluateProfileMuteInfoScoped(User user, Guid? viewerId, IServiceScope scope)
+    {
         if (string.IsNullOrWhiteSpace(user.Labels)) return null;
 
         UserSetting? viewerSettings = null;
         if (viewerId.HasValue)
         {
-            viewerSettings = await _db.UserSettings.FirstOrDefaultAsync(s => s.UserId == viewerId.Value);
+            var db = scope.ServiceProvider.GetRequiredService<BSkyClone.Models.BSkyDbContext>();
+            viewerSettings = await db.UserSettings.FirstOrDefaultAsync(s => s.UserId == viewerId.Value);
         }
 
         bool shouldHide = false;
