@@ -154,6 +154,8 @@ export const searchUsers = createAsyncThunk<
     }
 );
 
+const inFlightProfiles = new Set<string>();
+
 export const fetchUserProfile = createAsyncThunk<
     { user: User, isFollowing: boolean, isFollowedBy: boolean, isBlockedBy: boolean, isBlocking: boolean, isMuted: boolean },
     string,
@@ -208,13 +210,23 @@ export const fetchUserProfile = createAsyncThunk<
             };
         } catch (error: any) {
             return rejectWithValue(error.message);
+        } finally {
+            inFlightProfiles.delete(actor);
         }
     },
     {
         condition: (actor, { getState }) => {
+            if (inFlightProfiles.has(actor)) {
+                return false;
+            }
+            
             const { user } = getState() as any;
-            if (user.isLoading && user.profileIdentifier === actor) return false;
-            if (profileMatchesIdentifier(user.profile, actor)) return false;
+            if (profileMatchesIdentifier(user.profile, actor)) {
+                return false;
+            }
+            
+            // Critical: Add to lock immediately and synchronously
+            inFlightProfiles.add(actor);
             return true;
         }
     }
