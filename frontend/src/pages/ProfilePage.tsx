@@ -302,13 +302,10 @@ const ProfilePage: React.FC = () => {
 
     const isStale = profileUser && handle && !profileMatchesIdentifier(profileUser, handle);
 
-    // We no longer block on ProfileSkeleton here to allow ProfileTabContent to mount and fetch in parallel.
-    // Instead, we will render skeletons for header elements inside the main return.
-    if (isStale) {
-        return <ProfileSkeleton />;
-    }
+    // 1. Check if we are currently loading or if a fetch for this specific handle is registered
+    const isActuallyLoading = isProfileLoading || (profileIdentifier === handle && !profileError);
 
-    // Private profile state (RequireLogoutVisibility is on and user is a guest)
+    // 2. Private profile state (RequireLogoutVisibility is on and user is a guest)
     if (!currentUser && profileError === 'PROFILE_PRIVATE') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
@@ -328,14 +325,30 @@ const ProfilePage: React.FC = () => {
         );
     }
 
-    if (!profileUser && !isProfileLoading && !profileIdentifier) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 text-center">
-                <h2 className="text-2xl font-bold mb-2">{t('profile.user_not_found')}</h2>
-                <p className="text-gray-500 mb-6">{t('profile.user_not_found_desc')}</p>
-                <Button onClick={() => navigate('/')}>{t('common.go_home')}</Button>
-            </div>
-        );
+    // 3. If we have no user yet, wait for loading or error
+    if (!profileUser) {
+        if (isActuallyLoading) {
+            return <ProfileSkeleton />;
+        }
+        
+        // ONLY show "not found" if we have no user AND we are definitely NOT loading AND (we have an error OR we tried already)
+        if (!isActuallyLoading && (profileError || lastFetchedHandle.current === handle)) {
+            return (
+                <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 text-center">
+                    <h2 className="text-2xl font-bold mb-2">{t('profile.user_not_found')}</h2>
+                    <p className="text-gray-500 mb-6">{t('profile.user_not_found_desc')}</p>
+                    <button 
+                        onClick={() => navigate('/')}
+                        className="px-6 py-2 bg-blue-500 text-white rounded-full font-medium active:scale-95 transition-transform"
+                    >
+                        {t('common.go_home')}
+                    </button>
+                </div>
+            );
+        }
+
+        // Default to skeleton while we wait for the effect to kick in
+        return <ProfileSkeleton />;
     }
 
     if (profileUser?.muteInfo?.behavior === 'hide') {
