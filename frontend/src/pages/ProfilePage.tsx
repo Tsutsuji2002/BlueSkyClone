@@ -83,26 +83,26 @@ const ProfilePage: React.FC = () => {
     useEffect(() => {
         if (!handle) return;
 
+        // Ensure we only fetch if the handle has TRULY changed from what we last requested
+        if (lastFetchedHandle.current === handle) {
+            return;
+        }
+
         const isSameProfile = profileMatchesIdentifier(profileUser, handle);
         
-        // 1. Skip if already loaded in Redux
+        // Skip if already loaded in Redux (e.g. from a previous visit or background fetch)
         if (isSameProfile) {
             lastFetchedHandle.current = handle;
             return;
         }
-
-        // 2. Skip if we already dispatched a request for this handle in this component mount
-        if (lastFetchedHandle.current === handle) {
-            return;
-        }
         
-        // 3. Trigger fresh fetch
+        // Trigger fresh fetch
         lastFetchedHandle.current = handle;
         dispatch(clearProfile());
         dispatch(clearPosts());
         setShowWarn(true);
         dispatch(fetchUserProfile(handle));
-    }, [dispatch, handle, profileUser]); 
+    }, [dispatch, handle]); 
 
     useEffect(() => {
         if (handle && profileUser?.handle && handle !== profileUser.handle) {

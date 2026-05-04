@@ -168,6 +168,7 @@ export const fetchUserProfile = createAsyncThunk<
     'user/fetchProfile',
     async (actor: string, { rejectWithValue }) => {
         try {
+            registerProfileFetch(actor);
             const response = await fetch(
                 `${API_BASE_URL}/users/profile/${encodeURIComponent(actor)}`
             );
@@ -204,6 +205,8 @@ export const fetchUserProfile = createAsyncThunk<
                 mutedBy: u.mutedBy,
             } as any;
 
+            unregisterProfileFetch(actor);
+
             return {
                 user,
                 isFollowing: data.isFollowing,
@@ -213,9 +216,10 @@ export const fetchUserProfile = createAsyncThunk<
                 isMuted: data.isMuted,
             };
         } catch (error: any) {
+            unregisterProfileFetch(actor);
             return rejectWithValue(error.message);
         } finally {
-            inFlightProfiles.delete(actor);
+            inFlightProfiles.delete(normalizeIdentifier(actor));
         }
     },
     {

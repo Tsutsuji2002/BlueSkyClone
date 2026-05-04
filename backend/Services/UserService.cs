@@ -468,7 +468,23 @@ public class UserService : IUserService
             {
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
-            var response = await client.GetAsync(url);
+            
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            HttpResponseMessage response;
+            try
+            {
+                response = await client.GetAsync(url, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("[ResolveRemoteProfileInternalAsync] Timeout (10s) reached fetching profile for {Actor}.", identifier);
+                return (null, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ResolveRemoteProfileInternalAsync] Error fetching profile for {Actor}.", identifier);
+                return (null, null);
+            }
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && !string.IsNullOrEmpty(token))
             {
@@ -580,22 +596,16 @@ public class UserService : IUserService
                     await _unitOfWork.CompleteAsync();
                     await _cacheService.SetAsync(cacheKey, user, TimeSpan.FromMinutes(30));
 
-                    // Interactions (Mute/Block/Follow) — non-critical, run after persist
+                    // Interactions (Mute/Block/Follow) — background sync to avoid latency
                     if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
                     {
-                        // Fire and forget to avoid blocking the profile return
+                        var viewerPropClone = viewerProp.Clone();
                         _ = Task.Run(async () => {
                             try 
                             { 
-                                // Create a new scope for the background sync since the current scope/UoW might be disposed
                                 using var scope = _scopeFactory.CreateScope();
                                 var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                                // We need a way to call the sync method which might be private. 
-                                // For now, we'll keep it simple and just call the public ResolveRemoteProfileAsync if needed, 
-                                // but better to just call a helper.
-                                // Actually, I'll make a public helper or just pass the logic here.
-                                // Let's stick to calling it on the current instance but inside the Task.Run.
-                                await userService.SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp); 
+                                await userService.SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerPropClone); 
                             }
                             catch (Exception syncEx) 
                             { 
