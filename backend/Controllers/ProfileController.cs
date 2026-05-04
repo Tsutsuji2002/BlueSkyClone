@@ -1,4 +1,4 @@
-using BSkyClone.DTOs;
+﻿using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -94,6 +94,9 @@ public class ProfileController : ControllerBase
         var relationshipTasks = new List<Task>();
         PostDto? pinnedPostDto = null;
         
+        UserFollow? follow = null;
+        BlockedAccount? block = null;
+
         if (currentUserIdGuid.HasValue)
         {
             var currentUserId = currentUserIdGuid.Value;
@@ -107,6 +110,16 @@ public class ProfileController : ControllerBase
                 {
                     mutedBy = await _userService.GetMutingListAsync(currentUserId, user.Id);
                 }
+            }));
+            
+            // Add follow and block entity fetching tasks
+            relationshipTasks.Add(Task.Run(async () => {
+                if (await _userService.IsFollowingAsync(currentUserId, user.Id))
+                    follow = await _userService.GetFollowAsync(currentUserId, user.Id);
+            }));
+            relationshipTasks.Add(Task.Run(async () => {
+                if (await _userService.IsBlockedAsync(currentUserId, user.Id))
+                    block = await _userService.GetBlockAsync(currentUserId, user.Id);
             }));
         }
 
@@ -135,10 +148,6 @@ public class ProfileController : ControllerBase
 
         await Task.WhenAll(relationshipTasks);
 
-        var follow = (currentUserIdGuid.HasValue && isFollowing) 
-            ? await _userService.GetFollowAsync(currentUserIdGuid.Value, user.Id) : null;
-        var block = (currentUserIdGuid.HasValue && isBlocking)
-            ? await _userService.GetBlockAsync(currentUserIdGuid.Value, user.Id) : null;
 
         var userDto = new UserDto(
             user.Id,
@@ -234,6 +243,9 @@ public class ProfileController : ControllerBase
 
         var relationshipTasks = new List<Task>();
 
+        UserFollow? follow = null;
+        BlockedAccount? block = null;
+
         if (currentUserIdGuid.HasValue)
         {
             var currentUserId = currentUserIdGuid.Value;
@@ -247,6 +259,16 @@ public class ProfileController : ControllerBase
                 {
                     mutedById = await _userService.GetMutingListAsync(currentUserId, user.Id);
                 }
+            }));
+
+            // Add follow and block entity fetching tasks
+            relationshipTasks.Add(Task.Run(async () => {
+                if (await _userService.IsFollowingAsync(currentUserId, user.Id))
+                    follow = await _userService.GetFollowAsync(currentUserId, user.Id);
+            }));
+            relationshipTasks.Add(Task.Run(async () => {
+                if (await _userService.IsBlockedAsync(currentUserId, user.Id))
+                    block = await _userService.GetBlockAsync(currentUserId, user.Id);
             }));
         }
 
@@ -275,10 +297,6 @@ public class ProfileController : ControllerBase
 
         await Task.WhenAll(relationshipTasks);
 
-        var follow = (currentUserIdGuid.HasValue && isFollowing) 
-            ? await _userService.GetFollowAsync(currentUserIdGuid.Value, user.Id) : null;
-        var block = (currentUserIdGuid.HasValue && isBlocking)
-            ? await _userService.GetBlockAsync(currentUserIdGuid.Value, user.Id) : null;
 
         var userDto = new UserDto(
             user.Id,
@@ -344,7 +362,7 @@ public class ProfileController : ControllerBase
             }
             else
             {
-                // Profile exists on ATProto but has no DB record yet — force a clean resolution
+                // Profile exists on ATProto but has no DB record yet â€” force a clean resolution
                 _logger.LogWarning("[Follow] No DB record found for DID {Did}. Forcing fresh resolution.", targetUser.Did);
                 var freshUser = await _userService.ResolveRemoteProfileAsync(targetUser.Did, viewerId: currentUserId);
                 if (freshUser == null) return NotFound(new { message = "Could not resolve remote profile." });

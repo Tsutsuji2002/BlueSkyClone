@@ -486,12 +486,13 @@ public class UserService : IUserService
                 if (string.IsNullOrEmpty(did)) return null;
 
                 var profileHandle = root.TryGetProperty("handle", out var hp) ? hp.GetString() : null;
+                var deterministicId = CreateDeterministicGuid(did);
 
                 // Build a transient User from the API response so we always have something to return
-                // even if the local DB persistence fails (e.g. SQL page corruption)
+                // even if the local DB persistence fails
                 var transientUser = new User
                 {
-                    Id = Guid.NewGuid(),
+                    Id = deterministicId,
                     Did = did,
                     Handle = profileHandle,
                     Username = profileHandle?.Split('.')[0] ?? did,
@@ -514,18 +515,23 @@ public class UserService : IUserService
                 // Try to persist to local DB for caching — but don't fail if the DB is having issues
                 try
                 {
-                    var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+                    var userTask = _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+                    var existingWithHandleTask = !string.IsNullOrEmpty(profileHandle)
+                        ? _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Did != did)
+                        : Task.FromResult<User?>(null);
+
+                    await Task.WhenAll(userTask, existingWithHandleTask);
+                    var user = userTask.Result;
+                    var existingWithHandle = existingWithHandleTask.Result;
+
                     if (user == null)
                     {
                         isNewUser = true;
-                        if (!string.IsNullOrEmpty(profileHandle))
+
+                        if (existingWithHandle != null)
                         {
-                            var existingWithHandle = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Did != did);
-                            if (existingWithHandle != null)
-                            {
-                                existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
-                                _unitOfWork.Users.Update(existingWithHandle);
-                            }
+                            existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
+                            _unitOfWork.Users.Update(existingWithHandle);
                         }
 
                         var baseUsername = profileHandle?.Split('.')[0] ?? did.Replace("did:plc:", "").Replace("did:", "");
@@ -534,7 +540,7 @@ public class UserService : IUserService
 
                         user = new User
                         {
-                            Id = Guid.NewGuid(),
+                            Id = deterministicId,
                             Did = did,
                             Username = username,
                             CreatedAt = DateTime.UtcNow,
@@ -546,14 +552,10 @@ public class UserService : IUserService
                     }
                     else
                     {
-                        if (!string.IsNullOrEmpty(profileHandle) && user.Handle != profileHandle)
+                        if (existingWithHandle != null && existingWithHandle.Id != user.Id)
                         {
-                            var existingWithHandle = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == profileHandle && u.Id != user.Id);
-                            if (existingWithHandle != null)
-                            {
-                                existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
-                                _unitOfWork.Users.Update(existingWithHandle);
-                            }
+                            existingWithHandle.Handle = $"{existingWithHandle.Handle}_{Guid.NewGuid():N}_old";
+                            _unitOfWork.Users.Update(existingWithHandle);
                         }
                     }
 
@@ -1359,7 +1361,7 @@ public class UserService : IUserService
             var username = handle?.Split('.')[0] ?? did;
             user = new User
             {
-                Id = Guid.NewGuid(),
+                Id = CreateDeterministicGuid(did),
                 Did = did,
                 Username = username,
                 CreatedAt = DateTime.UtcNow,
@@ -2479,61 +2481,78 @@ public class UserService : IUserService
     {
         try
         {
+            var tasks = new List<Task>();
+
             // 1. Sync Follow Status
             if (viewerProp.TryGetProperty("following", out var followingProp) && followingProp.ValueKind == JsonValueKind.String)
             {
                 var followingUri = followingProp.GetString();
                 if (!string.IsNullOrEmpty(followingUri))
                 {
-                    var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
-                    if (existingFollow == null)
+                    tasks.Add(Task.Run(async () =>
                     {
-                        await _unitOfWork.Follows.AddAsync(new UserFollow
+                        var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
+                        if (existingFollow == null)
                         {
-                            FollowerId = viewerId,
-                            FollowingId = targetUser.Id,
-                            Uri = followingUri,
-                            CreatedAt = DateTime.UtcNow,
-                            Tid = followingUri.Split('/').Last()
-                        });
-                    }
-                    else if (existingFollow.Uri != followingUri)
-                    {
-                        existingFollow.Uri = followingUri;
-                        existingFollow.Tid = followingUri.Split('/').Last();
-                        _unitOfWork.Follows.Update(existingFollow);
-                    }
+                            await _unitOfWork.Follows.AddAsync(new UserFollow
+                            {
+                                FollowerId = viewerId,
+                                FollowingId = targetUser.Id,
+                                Uri = followingUri,
+                                CreatedAt = DateTime.UtcNow,
+                                Tid = followingUri.Split('/').Last()
+                            });
+                        }
+                        else if (existingFollow.Uri != followingUri)
+                        {
+                            existingFollow.Uri = followingUri;
+                            existingFollow.Tid = followingUri.Split('/').Last();
+                            _unitOfWork.Follows.Update(existingFollow);
+                        }
+                    }));
                 }
                 else
                 {
-                    var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
-                    if (existingFollow != null && !string.IsNullOrEmpty(existingFollow.Uri) && (existingFollow.Uri.Contains(".bsky.") || existingFollow.Uri.Contains("at://")))
+                    tasks.Add(Task.Run(async () =>
                     {
-                        _unitOfWork.Follows.Remove(existingFollow);
-                    }
+                        var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
+                        if (existingFollow != null && !string.IsNullOrEmpty(existingFollow.Uri) && (existingFollow.Uri.Contains(".bsky.") || existingFollow.Uri.Contains("at://")))
+                        {
+                            _unitOfWork.Follows.Remove(existingFollow);
+                        }
+                    }));
                 }
             }
 
             // 2. Sync Mute Status
-            if (viewerProp.TryGetProperty("muted", out var mutedProp) && mutedProp.ValueKind == JsonValueKind.True)
+            if (viewerProp.TryGetProperty("muted", out var mutedProp))
             {
-                if (!await _unitOfWork.Mutes.IsMutedAsync(viewerId, targetUser.Id))
+                if (mutedProp.ValueKind == JsonValueKind.True)
                 {
-                    await _unitOfWork.Mutes.AddAsync(new MutedAccount
+                    tasks.Add(Task.Run(async () =>
                     {
-                        UserId = viewerId,
-                        MutedUserId = targetUser.Id,
-                        CreatedAt = DateTime.UtcNow
-                    });
+                        if (!await _unitOfWork.Mutes.IsMutedAsync(viewerId, targetUser.Id))
+                        {
+                            await _unitOfWork.Mutes.AddAsync(new MutedAccount
+                            {
+                                UserId = viewerId,
+                                MutedUserId = targetUser.Id,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }));
                 }
-            }
-            else
-            {
-                var existingMute = await _unitOfWork.Mutes.Query()
-                    .FirstOrDefaultAsync(m => m.UserId == viewerId && m.MutedUserId == targetUser.Id);
-                if (existingMute != null)
+                else
                 {
-                    _unitOfWork.Mutes.Remove(existingMute);
+                    tasks.Add(Task.Run(async () =>
+                    {
+                        var existingMute = await _unitOfWork.Mutes.Query()
+                            .FirstOrDefaultAsync(m => m.UserId == viewerId && m.MutedUserId == targetUser.Id);
+                        if (existingMute != null)
+                        {
+                            _unitOfWork.Mutes.Remove(existingMute);
+                        }
+                    }));
                 }
             }
 
@@ -2543,34 +2562,42 @@ public class UserService : IUserService
                 var blockingUri = blockingProp.GetString();
                 if (!string.IsNullOrEmpty(blockingUri))
                 {
-                    var existingBlock = await _unitOfWork.Blocks.Query()
-                        .FirstOrDefaultAsync(b => b.UserId == viewerId && b.BlockedUserId == targetUser.Id);
-                    if (existingBlock == null)
+                    tasks.Add(Task.Run(async () =>
                     {
-                        await _unitOfWork.Blocks.AddAsync(new BlockedAccount
+                        var existingBlock = await _unitOfWork.Blocks.Query()
+                            .FirstOrDefaultAsync(b => b.UserId == viewerId && b.BlockedUserId == targetUser.Id);
+                        if (existingBlock == null)
                         {
-                            UserId = viewerId,
-                            BlockedUserId = targetUser.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            Uri = blockingUri
-                        });
-                    }
-                    else if (existingBlock.Uri != blockingUri)
-                    {
-                        existingBlock.Uri = blockingUri;
-                        _unitOfWork.Blocks.Update(existingBlock);
-                    }
+                            await _unitOfWork.Blocks.AddAsync(new BlockedAccount
+                            {
+                                UserId = viewerId,
+                                BlockedUserId = targetUser.Id,
+                                CreatedAt = DateTime.UtcNow,
+                                Uri = blockingUri
+                            });
+                        }
+                        else if (existingBlock.Uri != blockingUri)
+                        {
+                            existingBlock.Uri = blockingUri;
+                            _unitOfWork.Blocks.Update(existingBlock);
+                        }
+                    }));
                 }
             }
             else
             {
-                var existingBlock = await _unitOfWork.Blocks.Query()
-                    .FirstOrDefaultAsync(b => b.UserId == viewerId && b.BlockedUserId == targetUser.Id);
-                if (existingBlock != null)
+                tasks.Add(Task.Run(async () =>
                 {
-                    _unitOfWork.Blocks.Remove(existingBlock);
-                }
+                    var existingBlock = await _unitOfWork.Blocks.Query()
+                        .FirstOrDefaultAsync(b => b.UserId == viewerId && b.BlockedUserId == targetUser.Id);
+                    if (existingBlock != null)
+                    {
+                        _unitOfWork.Blocks.Remove(existingBlock);
+                    }
+                }));
             }
+
+            await Task.WhenAll(tasks);
         }
         catch (Exception ex)
         {
