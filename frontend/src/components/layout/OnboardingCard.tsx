@@ -29,13 +29,12 @@ const OnboardingCard: React.FC = () => {
                 {suggestionData.slice(0, 3).map((data, i) => (
                     <div
                         key={`avatar-${i}`}
-                        className="relative rounded-full border border-[#232e3e]"
+                        className="relative rounded-full border border-gray-100 dark:border-[#232e3e] bg-gray-200 dark:bg-[#111822]"
                         style={{
                             width: '31.4165px',
                             height: '31.4165px',
                             marginLeft: i === 0 ? '0px' : '-7.35162px',
-                            zIndex: 10 - i,
-                            backgroundColor: '#111822'
+                            zIndex: 10 - i
                         }}
                     >
                         <Avatar
@@ -53,13 +52,12 @@ const OnboardingCard: React.FC = () => {
                     return (
                         <div
                             key={`placeholder-${i}`}
-                            className="flex items-center justify-center rounded-full border border-[#232e3e]"
+                            className="flex items-center justify-center rounded-full border border-gray-100 dark:border-[#232e3e] bg-gray-300 dark:bg-[#405168]"
                             style={{
                                 width: '33.4165px',
                                 height: '33.4165px',
                                 marginLeft: '-7.35162px',
-                                zIndex,
-                                backgroundColor: '#405168'
+                                zIndex
                             }}
                         >
                             <svg
@@ -69,7 +67,7 @@ const OnboardingCard: React.FC = () => {
                                 viewBox="0 0 24 24"
                             >
                                 <path
-                                    fill="#19222E"
+                                    className="fill-gray-100 dark:fill-[#19222E]"
                                     d="M12.233 2a4.433 4.433 0 1 0 0 8.867 4.433 4.433 0 0 0 0-8.867ZM12.233 12.133c-3.888 0-6.863 2.263-8.071 5.435-.346.906-.11 1.8.44 2.436.535.619 1.36.996 2.25.996h10.762c.89 0 1.716-.377 2.25-.996.55-.636.786-1.53.441-2.436-1.208-3.173-4.184-5.435-8.072-5.435Z"
                                 />
                             </svg>
@@ -123,9 +121,9 @@ const OnboardingCard: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col gap-3 rounded-xl p-4 relative mb-3" style={{ backgroundColor: 'rgb(25, 34, 46)' }}>
+        <div className="flex flex-col gap-3 rounded-xl p-4 relative mb-3 bg-gray-100 dark:bg-[#19222e]">
             <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-[15px] text-white" style={{ letterSpacing: '0.25px', lineHeight: '15px' }}>
+                <h3 className="font-semibold text-[15px] text-gray-900 dark:text-white" style={{ letterSpacing: '0.25px', lineHeight: '15px' }}>
                     {isGoalReached
                         ? t('sidebar.discover_people', { defaultValue: 'Discover people to follow' })
                         : t('sidebar.follow_ten', { defaultValue: 'Follow 10 people to get started' })
@@ -134,7 +132,7 @@ const OnboardingCard: React.FC = () => {
                 <button
                     onClick={handleDismiss}
                     aria-label="Dismiss getting started guide"
-                    className="flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-gray-400 dark:text-[#8798b0]"
+                    className="flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-[#8798b0]"
                     style={{
                         height: '25px',
                         width: '25px'

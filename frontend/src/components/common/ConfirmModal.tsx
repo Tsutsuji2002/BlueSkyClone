@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../utils/classNames';
 
@@ -45,7 +46,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
             <div
                 className="bg-white dark:bg-[#000000] border border-transparent dark:border-gray-800 rounded-[32px] w-full max-w-[340px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
@@ -83,7 +84,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             </div>
             {/* Backdrop click listener */}
             <div className="absolute inset-0 -z-10" onClick={onClose} />
-        </div>
+        </div>,
+        document.body
     );
 };
 
