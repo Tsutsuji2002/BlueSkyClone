@@ -26,7 +26,7 @@ public class VersionController : ControllerBase
     {
         try
         {
-            var user = await userService.ResolveRemoteProfileAsync(did);
+            var (user, _) = await userService.ResolveRemoteProfileAsync(did);
             return Ok(new { success = true, user = user });
         }
         catch (Exception ex)

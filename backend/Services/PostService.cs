@@ -1077,7 +1077,7 @@ public class PostService : IPostService
                 try {
                     using var scope = _scopeFactory.CreateScope();
                     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                    var user = await userService.ResolveRemoteProfileAsync(did, viewerId: viewerId);
+                    var (user, _) = await userService.ResolveRemoteProfileAsync(did, viewerId: viewerId);
                     if (user != null) resolvedAuthors[did] = user;
                 } catch (Exception ex) {
                     _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to resolve stub author {Did}", did);
@@ -3378,7 +3378,7 @@ public class PostService : IPostService
             var rkey = parts[2];
 
             // 1. Resolve author
-            var author = await _userService.ResolveRemoteProfileAsync(didOrHandle);
+            var (author, _) = await _userService.ResolveRemoteProfileAsync(didOrHandle);
             if (author == null) return null;
 
             // 2. Fetch post thread (depth 0) to get record data and GLOBAL counts
@@ -3834,7 +3834,7 @@ public class PostService : IPostService
                     // Sync resolution for single-thread view to avoid raw handle/DID display if not yet resolved
                     if (post.Author != null && post.Author.Did == post.Author.Handle && !string.IsNullOrEmpty(post.Author.Did))
                     {
-                        await _userService.ResolveRemoteProfileAsync(post.Author.Did!);
+                        _ = await _userService.ResolveRemoteProfileAsync(post.Author.Did!);
                     }
 
                     var postDto = MapToDto(post);
@@ -4223,7 +4223,7 @@ public class PostService : IPostService
                         type ?? "posts",
                         remoteFilter ?? "<default>");
 
-                    await _userService.ResolveRemoteProfileAsync(did);
+                    _ = await _userService.ResolveRemoteProfileAsync(did);
                     return;
                 }
 
@@ -4608,7 +4608,7 @@ public class PostService : IPostService
                     try {
                         using var scope = _scopeFactory.CreateScope();
                         var backgroundUserService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                        await backgroundUserService.ResolveRemoteProfileAsync(did);
+                        _ = await backgroundUserService.ResolveRemoteProfileAsync(did);
                     } catch (Exception ex) {
                         _logger.LogWarning(ex, "Firehose: Failed to proactively resolve profile for {Did}", did);
                     }
@@ -4621,7 +4621,7 @@ public class PostService : IPostService
                     try {
                         using var scope = _scopeFactory.CreateScope();
                         var backgroundUserService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                        await backgroundUserService.ResolveRemoteProfileAsync(did);
+                        _ = await backgroundUserService.ResolveRemoteProfileAsync(did);
                     } catch { }
                 });
             }

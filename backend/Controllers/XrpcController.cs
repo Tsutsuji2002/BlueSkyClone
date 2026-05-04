@@ -1162,7 +1162,7 @@ namespace BSkyClone.Controllers
                 if (user == null && !string.IsNullOrEmpty(actor))
                 {
                     // Try to resolve remote profile if not found locally
-                    user = await _userService.ResolveRemoteProfileAsync(actor);
+                    (user, _) = await _userService.ResolveRemoteProfileAsync(actor);
                 }
 
                 if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
@@ -1175,7 +1175,7 @@ namespace BSkyClone.Controllers
                 {
                     try
                     {
-                        var resolved = await _userService.ResolveRemoteProfileAsync(user.Did);
+                        var (resolved, _) = await _userService.ResolveRemoteProfileAsync(user.Did);
                         if (resolved != null) user = resolved;
                     }
                     catch { /* Best effort */ }
@@ -1273,7 +1273,7 @@ namespace BSkyClone.Controllers
                 if (user == null && !string.IsNullOrEmpty(actor))
                 {
                     // Try to resolve remote profile if not found locally
-                    user = await _userService.ResolveRemoteProfileAsync(actor);
+                    (user, _) = await _userService.ResolveRemoteProfileAsync(actor);
                 }
 
                 if (user == null) return NotFound(new { error = "AccountNotFound", message = "Account not found" });
@@ -1456,7 +1456,7 @@ namespace BSkyClone.Controllers
                 else if (actor.StartsWith("did:")) subjectUser = await _userService.GetUserByDidAsync(actor);
                 else subjectUser = await _userService.GetUserByHandleAsync(actor);
 
-                if (subjectUser == null) subjectUser = await _userService.ResolveRemoteProfileAsync(actor);
+                if (subjectUser == null) (subjectUser, _) = await _userService.ResolveRemoteProfileAsync(actor);
                 if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
                 
                 var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
@@ -1492,7 +1492,7 @@ namespace BSkyClone.Controllers
                 else if (actor.StartsWith("did:")) subjectUser = await _userService.GetUserByDidAsync(actor);
                 else subjectUser = await _userService.GetUserByHandleAsync(actor);
 
-                if (subjectUser == null) subjectUser = await _userService.ResolveRemoteProfileAsync(actor);
+                if (subjectUser == null) (subjectUser, _) = await _userService.ResolveRemoteProfileAsync(actor);
                 if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
 
                 var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;

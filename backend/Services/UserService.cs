@@ -432,15 +432,15 @@ public class UserService : IUserService
             await _unitOfWork.CompleteAsync();
         }
     }
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<User?>> _ongoingResolutions = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<(User?, UserRelationshipStatusDto?)>> _ongoingResolutions = new();
 
-    public async Task<User?> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null)
+    public async Task<(User?, UserRelationshipStatusDto?)> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null)
     {
-        if (string.IsNullOrEmpty(identifier)) return null;
+        if (string.IsNullOrEmpty(identifier)) return (null, null);
 
         var cacheKey = $"remote_profile:{identifier}";
         var cached = await _cacheService.GetAsync<User>(cacheKey);
-        if (cached != null) return cached;
+        if (cached != null) return (cached, null);
 
         // Dedup ongoing requests to prevent thundering herd / deadlocks
         var resolutionTask = _ongoingResolutions.GetOrAdd(identifier, id => ResolveRemoteProfileInternalAsync(id, token, viewerId, cacheKey));
@@ -452,7 +452,7 @@ public class UserService : IUserService
         }
     }
 
-    private async Task<User?> ResolveRemoteProfileInternalAsync(string identifier, string? token = null, Guid? viewerId = null, string? cacheKey = null)
+    private async Task<(User?, UserRelationshipStatusDto?)> ResolveRemoteProfileInternalAsync(string identifier, string? token = null, Guid? viewerId = null, string? cacheKey = null)
     {
         try
         {
@@ -483,7 +483,7 @@ public class UserService : IUserService
                 var root = doc.RootElement;
 
                 var did = root.GetProperty("did").GetString();
-                if (string.IsNullOrEmpty(did)) return null;
+                if (string.IsNullOrEmpty(did)) return (null, null);
 
                 var profileHandle = root.TryGetProperty("handle", out var hp) ? hp.GetString() : null;
                 var deterministicId = CreateDeterministicGuid(did);
@@ -583,11 +583,33 @@ public class UserService : IUserService
                     // Interactions (Mute/Block/Follow) — non-critical, run after persist
                     if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
                     {
-                        try { await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp); }
-                        catch (Exception syncEx) { _logger.LogWarning(syncEx, "[ResolveRemoteProfileAsync] Relationship sync failed for {Actor}, but user was persisted.", identifier); }
+                        // Fire and forget to avoid blocking the profile return
+                        _ = Task.Run(async () => {
+                            try 
+                            { 
+                                // Create a new scope for the background sync since the current scope/UoW might be disposed
+                                using var scope = _scopeFactory.CreateScope();
+                                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                                // We need a way to call the sync method which might be private. 
+                                // For now, we'll keep it simple and just call the public ResolveRemoteProfileAsync if needed, 
+                                // but better to just call a helper.
+                                // Actually, I'll make a public helper or just pass the logic here.
+                                // Let's stick to calling it on the current instance but inside the Task.Run.
+                                await SyncRelationshipStatusWithAtProtoAsync(viewerId.Value, user, viewerProp); 
+                            }
+                            catch (Exception syncEx) 
+                            { 
+                                _logger.LogWarning(syncEx, "[ResolveRemoteProfileAsync] Background relationship sync failed for {Actor}", identifier); 
+                            }
+                        });
                     }
 
-                    return user;
+                    UserRelationshipStatusDto? status = null;
+                    if (root.TryGetProperty("viewer", out var vProp))
+                    {
+                        status = BuildInteractionStatusFromViewer(vProp);
+                    }
+                    return (user, status);
                 }
                 catch (Exception dbEx)
                 {
@@ -601,19 +623,19 @@ public class UserService : IUserService
                     var existingUser = await _unitOfWork.Users.GetByDidAsync(did);
                     if (existingUser != null)
                     {
-                        return existingUser;
+                        return (existingUser, null);
                     }
 
-                    return transientUser;
+                    return (transientUser, null);
                 }
             }
+            return (null, null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error resolving remote profile for {Actor}", identifier);
+            return (null, null);
         }
-
-        return null;
     }
 
     public async Task<User?> GetProfileByDidAsync(string did)
@@ -637,7 +659,7 @@ public class UserService : IUserService
             user = await GetUserByHandleAsync(actor);
 
         if (user == null)
-            user = await ResolveRemoteProfileAsync(actor, viewerId: viewerId);
+            user = (await ResolveRemoteProfileAsync(actor, viewerId: viewerId)).Item1;
 
         if (user == null) return (new List<User>(), null);
 
@@ -669,7 +691,7 @@ public class UserService : IUserService
             user = await GetUserByHandleAsync(actor);
 
         if (user == null)
-            user = await ResolveRemoteProfileAsync(actor, viewerId: viewerId);
+            user = (await ResolveRemoteProfileAsync(actor, viewerId: viewerId)).Item1;
 
         if (user == null) return (new List<User>(), null);
 
@@ -749,9 +771,9 @@ public class UserService : IUserService
         string endpoint,
         string arrayProperty)
     {
-        var targetUser = await ResolveRemoteProfileAsync(actor, viewerId: viewerId)
-            ?? await GetUserByHandleAsync(actor)
-            ?? await GetUserByDidAsync(actor);
+        var (targetUser, _) = await ResolveRemoteProfileAsync(actor, viewerId: viewerId);
+        if (targetUser == null) targetUser = await GetUserByHandleAsync(actor);
+        if (targetUser == null) targetUser = await GetUserByDidAsync(actor);
 
         var targetDid = targetUser?.Did ?? actor;
         if (string.IsNullOrWhiteSpace(targetDid))
@@ -1642,7 +1664,7 @@ public class UserService : IUserService
                         _logger.LogInformation("[FollowUserAsync] Attempting state sync after remote failure {Status} for {TargetDid}", result.StatusCode, targetUser.Did);
                         
                         // Resolve the profile from remote without cache to get latest viewer state
-                        var refreshedUser = await ResolveRemoteProfileInternalAsync(targetUser.Did, token, followerId);
+                        var (refreshedUser, _) = await ResolveRemoteProfileInternalAsync(targetUser.Did, token, followerId);
                         if (refreshedUser != null)
                         {
                             var syncedFollow = await _unitOfWork.Follows.GetAsync(followerId, followingId);
@@ -2491,10 +2513,12 @@ public class UserService : IUserService
                 {
                     tasks.Add(Task.Run(async () =>
                     {
-                        var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
+                        using var scope = _scopeFactory.CreateScope();
+                        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        var existingFollow = await uow.Follows.GetAsync(viewerId, targetUser.Id);
                         if (existingFollow == null)
                         {
-                            await _unitOfWork.Follows.AddAsync(new UserFollow
+                            await uow.Follows.AddAsync(new UserFollow
                             {
                                 FollowerId = viewerId,
                                 FollowingId = targetUser.Id,
@@ -2507,18 +2531,22 @@ public class UserService : IUserService
                         {
                             existingFollow.Uri = followingUri;
                             existingFollow.Tid = followingUri.Split('/').Last();
-                            _unitOfWork.Follows.Update(existingFollow);
+                            uow.Follows.Update(existingFollow);
                         }
+                        await uow.CompleteAsync();
                     }));
                 }
                 else
                 {
                     tasks.Add(Task.Run(async () =>
                     {
-                        var existingFollow = await _unitOfWork.Follows.GetAsync(viewerId, targetUser.Id);
+                        using var scope = _scopeFactory.CreateScope();
+                        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        var existingFollow = await uow.Follows.GetAsync(viewerId, targetUser.Id);
                         if (existingFollow != null && !string.IsNullOrEmpty(existingFollow.Uri) && (existingFollow.Uri.Contains(".bsky.") || existingFollow.Uri.Contains("at://")))
                         {
-                            _unitOfWork.Follows.Remove(existingFollow);
+                            uow.Follows.Remove(existingFollow);
+                            await uow.CompleteAsync();
                         }
                     }));
                 }
@@ -2531,14 +2559,17 @@ public class UserService : IUserService
                 {
                     tasks.Add(Task.Run(async () =>
                     {
-                        if (!await _unitOfWork.Mutes.IsMutedAsync(viewerId, targetUser.Id))
+                        using var scope = _scopeFactory.CreateScope();
+                        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        if (!await uow.Mutes.IsMutedAsync(viewerId, targetUser.Id))
                         {
-                            await _unitOfWork.Mutes.AddAsync(new MutedAccount
+                            await uow.Mutes.AddAsync(new MutedAccount
                             {
                                 UserId = viewerId,
                                 MutedUserId = targetUser.Id,
                                 CreatedAt = DateTime.UtcNow
                             });
+                            await uow.CompleteAsync();
                         }
                     }));
                 }
@@ -2546,11 +2577,14 @@ public class UserService : IUserService
                 {
                     tasks.Add(Task.Run(async () =>
                     {
-                        var existingMute = await _unitOfWork.Mutes.Query()
+                        using var scope = _scopeFactory.CreateScope();
+                        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        var existingMute = await uow.Mutes.Query()
                             .FirstOrDefaultAsync(m => m.UserId == viewerId && m.MutedUserId == targetUser.Id);
                         if (existingMute != null)
                         {
-                            _unitOfWork.Mutes.Remove(existingMute);
+                            uow.Mutes.Remove(existingMute);
+                            await uow.CompleteAsync();
                         }
                     }));
                 }
@@ -2564,11 +2598,13 @@ public class UserService : IUserService
                 {
                     tasks.Add(Task.Run(async () =>
                     {
-                        var existingBlock = await _unitOfWork.Blocks.Query()
+                        using var scope = _scopeFactory.CreateScope();
+                        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        var existingBlock = await uow.Blocks.Query()
                             .FirstOrDefaultAsync(b => b.UserId == viewerId && b.BlockedUserId == targetUser.Id);
                         if (existingBlock == null)
                         {
-                            await _unitOfWork.Blocks.AddAsync(new BlockedAccount
+                            await uow.Blocks.AddAsync(new BlockedAccount
                             {
                                 UserId = viewerId,
                                 BlockedUserId = targetUser.Id,
@@ -2579,8 +2615,9 @@ public class UserService : IUserService
                         else if (existingBlock.Uri != blockingUri)
                         {
                             existingBlock.Uri = blockingUri;
-                            _unitOfWork.Blocks.Update(existingBlock);
+                            uow.Blocks.Update(existingBlock);
                         }
+                        await uow.CompleteAsync();
                     }));
                 }
             }
@@ -2588,11 +2625,14 @@ public class UserService : IUserService
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    var existingBlock = await _unitOfWork.Blocks.Query()
+                    using var scope = _scopeFactory.CreateScope();
+                    var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var existingBlock = await uow.Blocks.Query()
                         .FirstOrDefaultAsync(b => b.UserId == viewerId && b.BlockedUserId == targetUser.Id);
                     if (existingBlock != null)
                     {
-                        _unitOfWork.Blocks.Remove(existingBlock);
+                        uow.Blocks.Remove(existingBlock);
+                        await uow.CompleteAsync();
                     }
                 }));
             }
@@ -2828,7 +2868,7 @@ public class UserService : IUserService
     {
         var tasks = actors.Select(actor => ResolveRemoteProfileAsync(actor, viewerId: viewerId));
         var results = await Task.WhenAll(tasks);
-        return results.Where(u => u != null).Cast<User>().ToList();
+        return results.Where(r => r.Item1 != null).Select(r => r.Item1!).ToList();
     }
 }
 

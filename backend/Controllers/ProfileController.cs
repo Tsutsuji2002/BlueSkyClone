@@ -1,4 +1,4 @@
-﻿using BSkyClone.DTOs;
+using BSkyClone.DTOs;
 using BSkyClone.Models;
 using BSkyClone.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -33,8 +33,9 @@ public class ProfileController : ControllerBase
         var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
         Guid? currentUserIdGuid = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
-
         User? user = null;
+
+        UserRelationshipStatusDto? resolvedStatus = null;
         try
         {
             if (handle.StartsWith("did:"))
@@ -50,7 +51,7 @@ public class ProfileController : ControllerBase
             if (user == null || (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))) 
             {
                  // Resolve remote profile if not found or if it's a remote user
-                 user = await _userService.ResolveRemoteProfileAsync(handle, token, currentUserIdGuid);
+                 (user, resolvedStatus) = await _userService.ResolveRemoteProfileAsync(handle, token, currentUserIdGuid);
             }
         }
         catch (Exception ex)
@@ -100,27 +101,47 @@ public class ProfileController : ControllerBase
         if (currentUserIdGuid.HasValue)
         {
             var currentUserId = currentUserIdGuid.Value;
-            relationshipTasks.Add(Task.Run(async () => isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id)));
-            relationshipTasks.Add(Task.Run(async () => isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id)));
-            relationshipTasks.Add(Task.Run(async () => isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId)));
-            relationshipTasks.Add(Task.Run(async () => isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id)));
-            relationshipTasks.Add(Task.Run(async () => {
-                isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
-                if (isMuted)
-                {
-                    mutedBy = await _userService.GetMutingListAsync(currentUserId, user.Id);
-                }
-            }));
             
-            // Add follow and block entity fetching tasks
-            relationshipTasks.Add(Task.Run(async () => {
-                if (await _userService.IsFollowingAsync(currentUserId, user.Id))
-                    follow = await _userService.GetFollowAsync(currentUserId, user.Id);
-            }));
-            relationshipTasks.Add(Task.Run(async () => {
-                if (await _userService.IsBlockedAsync(currentUserId, user.Id))
-                    block = await _userService.GetBlockAsync(currentUserId, user.Id);
-            }));
+            // Optimization: If we already resolved the status from remote API, use it
+            if (resolvedStatus != null)
+            {
+                isFollowing = resolvedStatus.IsFollowing;
+                isFollowedBy = resolvedStatus.IsFollowedBy;
+                isBlocking = resolvedStatus.IsBlocking;
+                isBlockedBy = resolvedStatus.IsBlockedBy;
+                isMuted = resolvedStatus.IsMuted;
+                
+                if (isFollowing) {
+                    relationshipTasks.Add(Task.Run(async () => follow = await _userService.GetFollowAsync(currentUserId, user.Id)));
+                }
+                if (isBlocking) {
+                    relationshipTasks.Add(Task.Run(async () => block = await _userService.GetBlockAsync(currentUserId, user.Id)));
+                }
+            }
+            else
+            {
+                relationshipTasks.Add(Task.Run(async () => isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id)));
+                relationshipTasks.Add(Task.Run(async () => isFollowing = await _userService.IsFollowingAsync(currentUserId, user.Id)));
+                relationshipTasks.Add(Task.Run(async () => isFollowedBy = await _userService.IsFollowingAsync(user.Id, currentUserId)));
+                relationshipTasks.Add(Task.Run(async () => isBlocking = await _userService.IsBlockedAsync(currentUserId, user.Id)));
+                
+                relationshipTasks.Add(Task.Run(async () => {
+                    isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+                    if (isMuted)
+                    {
+                        mutedBy = await _userService.GetMutingListAsync(currentUserId, user.Id);
+                    }
+                }));
+                
+                relationshipTasks.Add(Task.Run(async () => {
+                    if (await _userService.IsFollowingAsync(currentUserId, user.Id))
+                        follow = await _userService.GetFollowAsync(currentUserId, user.Id);
+                }));
+                relationshipTasks.Add(Task.Run(async () => {
+                    if (await _userService.IsBlockedAsync(currentUserId, user.Id))
+                        block = await _userService.GetBlockAsync(currentUserId, user.Id);
+                }));
+            }
         }
 
         relationshipTasks.Add(Task.Run(async () => muteInfo = await EvaluateProfileMuteInfo(user, currentUserIdGuid)));
@@ -202,7 +223,7 @@ public class ProfileController : ControllerBase
         // THIN-CLIENT: Refresh remote profile to sync counts/metadata
         if (!string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:"))
         {
-            var refreshed = await _userService.ResolveRemoteProfileAsync(user.Did);
+            var (refreshed, _) = await _userService.ResolveRemoteProfileAsync(user.Did);
             if (refreshed != null) user = refreshed;
         }
 
@@ -364,7 +385,7 @@ public class ProfileController : ControllerBase
             {
                 // Profile exists on ATProto but has no DB record yet â€” force a clean resolution
                 _logger.LogWarning("[Follow] No DB record found for DID {Did}. Forcing fresh resolution.", targetUser.Did);
-                var freshUser = await _userService.ResolveRemoteProfileAsync(targetUser.Did, viewerId: currentUserId);
+                var (freshUser, _) = await _userService.ResolveRemoteProfileAsync(targetUser.Did, viewerId: currentUserId);
                 if (freshUser == null) return NotFound(new { message = "Could not resolve remote profile." });
                 targetUser = freshUser;
                 // Re-check DB record
@@ -403,7 +424,8 @@ public class ProfileController : ControllerBase
         }
 
         // Try remote resolution (for remote ATProto users)
-        return await _userService.ResolveRemoteProfileAsync(identifier, viewerId: viewerId);
+        var (result, _) = await _userService.ResolveRemoteProfileAsync(identifier, viewerId: viewerId);
+        return result;
     }
 
     [HttpPost("unfollow/{userIdOrDid}")]
