@@ -63,6 +63,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     type: type,
                 });
                 if (!isInitial && cursor) params.set('cursor', cursor);
+                if (isInitial) params.set('refresh', 'true');
 
                 const response = await fetch(`${API_BASE_URL}/posts/user/${userId}?${params}`, { headers });
                 if (response.ok) {

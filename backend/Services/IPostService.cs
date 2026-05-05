@@ -5,8 +5,8 @@ namespace BSkyClone.Services;
 
 public interface IPostService
 {
-    Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20);
-    Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null);
+    Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, bool bypassCache = false);
+    Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null, bool bypassCache = false);
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
 
@@ -22,13 +22,13 @@ public interface IPostService
     Task<object> ToggleBookmarkAsync(Guid userId, Guid postId);
     Task<object> ToggleRepostAsync(Guid userId, Guid postId);
     Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null, int skip = 0, int take = 20);
-    Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null);
-    Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0);
+    Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false);
+    Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false);
     Task<IEnumerable<PostDto>> GetGuestDiscoverPostsAsync(int take = 20, int skip = 0);
     Task<PagedPostDto> GetBookmarkedPostsAsync(Guid userId, int skip = 0, int take = 20);
 
     Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0);
-    Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0);
+    Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0, bool bypassCache = false);
     Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0);
     Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20);
     Task<IEnumerable<PostInteractionStatusDto>> GetInteractionStatusesAsync(Guid userId, IEnumerable<string> uris);

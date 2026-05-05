@@ -154,7 +154,7 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0, [FromQuery] string? cursor = null)
+    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false)
     {
         try
         {
@@ -171,7 +171,7 @@ public class PostsController : ControllerBase
                 }
             }
 
-            var result = await _postService.GetUserPostsAsync(handleOrDid, viewerId, skip, take, type, cursor);
+            var result = await _postService.GetUserPostsAsync(handleOrDid, viewerId, skip, take, type, cursor, refresh);
             return Ok(result);
         }
         catch (Exception ex)

@@ -674,7 +674,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    ensureAuth(() => dispatch(toggleBookmark({ uri: post.uri!, isBookmarked: !!post.isBookmarked })));
+                                    ensureAuth(() => dispatch(toggleBookmark({ post })));
                                 }}
                                 className={cn(
                                     "flex items-center group transition-colors p-2 rounded-full hover:bg-yellow-500/10",

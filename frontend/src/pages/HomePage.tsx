@@ -96,7 +96,7 @@ const HomePage: React.FC = () => {
             if (neverFetched || isStale) {
                 const isDiscover = activeTab === 'discover';
                 const initialTake = (isDiscover && (feedPosts[activeTab]?.length || 0) === 0) ? 6 : getDynamicBatchSize(250);
-                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake }) as any)
+                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake, refresh: true }) as any)
                     .unwrap()
                     .then((result: { feedId: string; posts: any[] }) => {
                         // Background hydration: overlay isLiked/isReposted/isBookmarked without blocking render
@@ -135,7 +135,7 @@ const HomePage: React.FC = () => {
             if (currentFeedPosts.length === 0 || isStale) {
                 const isDiscover = tabId === 'discover';
                 const initialTake = (isDiscover && currentFeedPosts.length === 0) ? 6 : getDynamicBatchSize(250);
-                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: initialTake }) as any)
+                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: initialTake, refresh: true }) as any)
                     .unwrap()
                     .then((result: { feedId: string; posts: any[] }) => {
                         if (result?.posts?.length) {

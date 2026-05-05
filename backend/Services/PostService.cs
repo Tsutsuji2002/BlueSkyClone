@@ -59,19 +59,22 @@ public class PostService : IPostService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20)
+    public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, bool bypassCache = false)
     {
         try
         {
             // Include skip and take in cache key for proper pagination support
             var cacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}";
-            var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
             List<PostDto>? mappedPosts = null;
             User? user = null;
 
-            if (!string.IsNullOrEmpty(cachedJson))
+            if (!bypassCache)
             {
-                try { mappedPosts = System.Text.Json.JsonSerializer.Deserialize<List<PostDto>>(cachedJson); } catch { }
+                var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedJson))
+                {
+                    try { mappedPosts = System.Text.Json.JsonSerializer.Deserialize<List<PostDto>>(cachedJson); } catch { }
+                }
             }
 
             if (mappedPosts == null)
@@ -229,17 +232,20 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null)
+    public async Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null, bool bypassCache = false)
     {
         try
         {
             var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}";
-            var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
             PagedPostDto? result = null;
 
-            if (!string.IsNullOrEmpty(cachedJson))
+            if (!bypassCache)
             {
-                try { result = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson); } catch {}
+                var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedJson))
+                {
+                    try { result = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson); } catch {}
+                }
             }
 
             if (result == null)
@@ -5608,13 +5614,17 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null)
+    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false)
     {
         var cacheKey = $"posts:trending:v3";
         var now = DateTime.UtcNow;
 
         // 1. Get the "Global Trending Pool" (1000 posts)
-        var globalPool = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
+        List<PostDto>? globalPool = null;
+        if (!bypassCache)
+        {
+            globalPool = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
+        }
 
         if (globalPool == null)
         {
@@ -5709,14 +5719,26 @@ public class PostService : IPostService
 
         return resultDtos;
     }
-    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0)
+    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false)
     {
         try
         {
+            var cacheKey = $"posts:trending:24h:{limit}:{skip}";
+            if (!bypassCache)
+            {
+                var cached = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
+                if (cached != null) return cached;
+            }
+
             var posts = await _unitOfWork.Posts.GetTrendingPosts24hAsync(limit, skip);
             var postDtos = posts.Select(MapToDto).ToList();
 
             postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty);
+
+            if (postDtos.Any())
+            {
+                await _cacheService.SetAsync(cacheKey, postDtos, TimeSpan.FromMinutes(5));
+            }
 
             return postDtos;
         }
@@ -6482,11 +6504,14 @@ public class PostService : IPostService
         return await EnrichAndFilterPostsAsync(dtos, viewerId ?? Guid.Empty);
     }
 
-    public async Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0)
+    public async Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0, bool bypassCache = false)
     {
         var cacheKey = $"posts:discover:{userId}:{limit}:{skip}";
-        var cachedResult = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
-        if (cachedResult != null) return cachedResult;
+        if (!bypassCache)
+        {
+            var cachedResult = await _cacheService.GetAsync<IEnumerable<PostDto>>(cacheKey);
+            if (cachedResult != null) return cachedResult;
+        }
 
         // 1. Get user interests
         List<string> userInterests = new();
@@ -6510,7 +6535,7 @@ public class PostService : IPostService
         // Fallback: If no interests, just show trending
         if (!userInterests.Any())
         {
-            return await GetTrendingPosts24hAsync(userId, limit, skip);
+            return await GetTrendingPosts24hAsync(userId, limit, skip, bypassCache);
         }
 
         var mutedAccounts = await _unitOfWork.Mutes.GetMutedAccountsAsync(userId);

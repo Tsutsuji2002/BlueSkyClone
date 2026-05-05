@@ -103,7 +103,17 @@ const PostDetailPage: React.FC = () => {
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
-    const post = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post;
+    const postData = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post;
+    const interactionTruth = useAppSelector((state: RootState) => (postData?.uri ? state.posts.interactionTruth[postData.uri] : null) || null);
+
+    const post = React.useMemo(() => {
+        if (!postData) return null;
+        if (!interactionTruth) return postData;
+        return {
+            ...postData,
+            ...interactionTruth
+        };
+    }, [postData, interactionTruth]) as Post;
 
     const pageTitle = post?.content
         ? (post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content)
@@ -427,8 +437,8 @@ const PostDetailPage: React.FC = () => {
     };
 
     const handleBookmark = () => {
-        if (!post.uri) return;
-        dispatch(toggleBookmark({ uri: post.uri, isBookmarked: !!post.isBookmarked }));
+        if (!post) return;
+        dispatch(toggleBookmark({ post }));
     };
 
     const handleDelete = async () => {

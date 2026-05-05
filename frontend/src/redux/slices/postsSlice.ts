@@ -164,18 +164,21 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
         const existing = state.interactionTruth[post.uri];
         if ((post.likesCount ?? 0) > (existing.likesCount ?? 0)) existing.likesCount = post.likesCount;
         if ((post.repostsCount ?? 0) > (existing.repostsCount ?? 0)) existing.repostsCount = post.repostsCount;
-        if ((post.bookmarksCount ?? 0) > (existing.bookmarksCount ?? 0)) existing.bookmarksCount = post.bookmarksCount;
+        
+        // repliesCount and quotesCount are handled by the server or optimistic updates
         if ((post.repliesCount ?? 0) > (existing.repliesCount ?? 0)) existing.repliesCount = post.repliesCount;
+        if ((post.quotesCount ?? 0) > (existing.quotesCount ?? 0)) existing.quotesCount = post.quotesCount;
         
         // Boolean interaction flags: prefer "true" (confirmed state) over "false" (possibly stale).
-        // A feed refresh might return isLiked:false because the AppView cache hasn't caught up yet,
-        // but we should never reset a confirmed interaction back to false via a background reload.
-        // The only authoritative source of a "false" is an explicit user action, which goes through
-        // dedicated Redux cases (toggleLike.fulfilled etc.) that bypass this function entirely.
         if (post.isLiked === true) existing.isLiked = true;
         if (post.isReposted === true) existing.isReposted = true;
-        if (post.isBookmarked === true) existing.isBookmarked = true;
-        // Only propagate false when we have no existing truth (handled above in the !existing branch)
+        
+        // Bookmarks are local-only now, handled via localStorage
+        const saved = JSON.parse(localStorage.getItem('saved_posts') || '[]');
+        if (saved.includes(post.uri)) {
+            existing.isBookmarked = true;
+        }
+
         if (post.viewer !== undefined) existing.viewer = post.viewer;
     }
 };
@@ -201,11 +204,14 @@ const syncPostsWithTruth = (state: PostsState, posts: Post[]) => {
 
 export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
-    async ({ skip = 0, take = 20 }: { skip?: number; take?: number; cursor?: string } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20, refresh = false }: { skip?: number; take?: number; cursor?: string; refresh?: boolean } = {}, { rejectWithValue }) => {
         try {
-            const response = await fetch(
-                `${API_BASE_URL}/posts/timeline?skip=${skip}&take=${take}`
-            );
+            const url = new URL(`${API_BASE_URL}/posts/timeline`);
+            url.searchParams.set('skip', String(skip));
+            url.searchParams.set('take', String(take));
+            if (refresh) url.searchParams.set('refresh', 'true');
+            
+            const response = await fetch(url.toString());
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts = await response.json();
             // Note: backend EnrichAndFilterPostsAsync already sets isLiked/isReposted/isBookmarked
@@ -220,11 +226,12 @@ export const fetchTimeline = createAsyncThunk(
 
 export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
-    async ({ userId, type, take = 20, skip = 0, cursor }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ userId, type, take = 20, skip = 0, cursor, refresh = false }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string; refresh?: boolean }, { rejectWithValue }) => {
         try {
             const params = new URLSearchParams({ take: String(take), skip: String(skip) });
             if (type) params.set('type', type);
             if (cursor) params.set('cursor', cursor);
+            if (refresh) params.set('refresh', 'true');
             const response = await fetch(
                 `${API_BASE_URL}/posts/user/${userId}?${params}`
             );
@@ -630,18 +637,23 @@ export const fetchTrendingPosts = createAsyncThunk(
 
 export const toggleBookmark = createAsyncThunk(
     'posts/toggleBookmark',
-    async ({ uri, isBookmarked }: { uri: string; isBookmarked: boolean }, { rejectWithValue }) => {
+    async ({ post }: { post: Post }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
-            const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/bookmark${queryParam}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) return rejectWithValue('Failed to toggle bookmark');
-            const data = await response.json();
-            return { uri, isBookmarked: data.isBookmarked, bookmarksCount: data.bookmarksCount };
+            const uri = post.uri!;
+            let saved = JSON.parse(localStorage.getItem('saved_posts') || '[]');
+            const isBookmarked = saved.includes(uri);
+            
+            if (isBookmarked) {
+                saved = saved.filter((u: string) => u !== uri);
+                // Also remove the full post object if we store it for offline view
+                localStorage.removeItem(`saved_post_data_${uri}`);
+            } else {
+                saved.push(uri);
+                localStorage.setItem(`saved_post_data_${uri}`, JSON.stringify(post));
+            }
+            
+            localStorage.setItem('saved_posts', JSON.stringify(saved));
+            return { uri, isBookmarked: !isBookmarked, post: post };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -684,26 +696,20 @@ export const unpinPost = createAsyncThunk(
 
 export const fetchBookmarkedPosts = createAsyncThunk(
     'posts/fetchBookmarks',
-    async ({ skip = 0, take = 5 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
+    async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${API_BASE_URL}/posts/bookmarks?skip=${skip}&take=${take}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
-            );
-            if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
+            const savedUris = JSON.parse(localStorage.getItem('saved_posts') || '[]');
+            const paginatedUris = savedUris.slice(skip, skip + take);
             
-            interface BookmarksResponse {
-                posts: Post[];
-                cursor: string | null;
-            }
-            const data = await response.json() as BookmarksResponse;
-            
-            // Authoritatively hydrate isLiked / isReposted / isBookmarked from the
-            // dedicated interactions/status endpoint (queries local DB directly),
-            // bypassing any AppView timing / token issues in EnrichAndFilterPostsAsync.
-            const hydratedPosts = await hydratePostsWithInteractionStatus(data.posts || [], token);
-            return { posts: hydratedPosts, cursor: data.cursor };
+            const posts: Post[] = paginatedUris.map((uri: string) => {
+                const data = localStorage.getItem(`saved_post_data_${uri}`);
+                return data ? JSON.parse(data) : { uri, isBookmarked: true };
+            });
+
+            return { 
+                posts, 
+                cursor: (skip + take < savedUris.length) ? String(skip + take) : null 
+            };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -1320,16 +1326,18 @@ const postsSlice = createSlice({
             })
             // toggleBookmark
             .addCase(toggleBookmark.pending, (state: PostsState, action) => {
-                const { uri: actionUri } = action.meta.arg;
+                const { post: actionPost } = action.meta.arg;
+                const actionUri = actionPost.uri!;
                 state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
+                const existingTruth = state.interactionTruth[actionUri];
                 state.interactionTruth[actionUri] = {
-                    ...state.interactionTruth[actionUri],
-                    isBookmarked: !state.interactionTruth[actionUri]?.isBookmarked,
-                    bookmarksCount: state.interactionTruth[actionUri]?.isBookmarked 
-                        ? Math.max(0, (state.interactionTruth[actionUri]?.bookmarksCount || 0) - 1) 
-                        : (state.interactionTruth[actionUri]?.bookmarksCount || 0) + 1
+                    ...existingTruth,
+                    isBookmarked: !existingTruth?.isBookmarked,
+                    bookmarksCount: existingTruth?.isBookmarked 
+                        ? Math.max(0, (existingTruth?.bookmarksCount || 0) - 1) 
+                        : (existingTruth?.bookmarksCount || 0) + 1
                 };
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
@@ -1346,22 +1354,22 @@ const postsSlice = createSlice({
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
             })
-            .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, bookmarksCount?: number }>) => {
+            .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, post: Post }>) => {
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
                 
-                // Ensure global truth is updated even if not in any tracked array
+                // Ensure global truth is updated
                 state.interactionTruth[actionUri] = {
                     ...state.interactionTruth[actionUri],
                     isBookmarked: action.payload.isBookmarked,
-                    bookmarksCount: action.payload.bookmarksCount
+                    // Note: bookmarksCount is tricky for local-only bookmarks. 
+                    // We either keep it as is or handle it via optimistic counter.
                 };
 
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             post.isBookmarked = action.payload.isBookmarked;
-                            if (action.payload.bookmarksCount !== undefined) post.bookmarksCount = action.payload.bookmarksCount;
                             post.lastUpdated = new Date().toISOString();
                         }, state);
                     });
@@ -1378,7 +1386,8 @@ const postsSlice = createSlice({
                 }
             })
             .addCase(toggleBookmark.rejected, (state: PostsState, action) => {
-                const { uri: actionUri } = action.meta.arg;
+                const { post: actionPost } = action.meta.arg;
+                const actionUri = actionPost.uri!;
                 state.actionLoading[actionUri] = false;
 
                 // Rollback global truth

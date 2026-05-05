@@ -412,14 +412,15 @@ export const searchFeeds = createAsyncThunk<
 
 export const fetchFeedPosts = createAsyncThunk<
     { feedId: string; posts: Post[]; isMore: boolean; cursor: string | null },
-    { feedId: string; skip: number; take?: number; cursor?: string | null },
+    { feedId: string; skip: number; take?: number; cursor?: string | null; refresh?: boolean },
     { rejectValue: string }
 >(
     'feeds/fetchPosts',
-    async ({ feedId, skip, take = 5, cursor }: { feedId: string; skip: number; take?: number, cursor?: string | null }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async ({ feedId, skip, take = 5, cursor, refresh = false }: { feedId: string; skip: number; take?: number, cursor?: string | null, refresh?: boolean }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             let url = `${API_BASE_URL}/unified-feed?feedId=${encodeURIComponent(feedId)}&skip=${skip}&take=${take}`;
             if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+            if (refresh) url += `&refresh=true`;
 
             const response = await fetch(url);
             const data = await response.json();

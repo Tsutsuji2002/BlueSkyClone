@@ -23,7 +23,7 @@ public class UnifiedFeedController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 5, [FromQuery] int skip = 0, [FromQuery] string? cursor = null)
+    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 5, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false)
     {
         try
         {
@@ -56,11 +56,11 @@ public class UnifiedFeedController : ControllerBase
                 case "following":
                     if (viewerId == null)
                     {
-                        posts = await _postService.GetTrendingPosts24hAsync(null, take, skip);
+                        posts = await _postService.GetTrendingPosts24hAsync(null, take, skip, refresh);
                     }
                     else
                     {
-                        posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take);
+                        posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take, refresh);
                     }
                     break;
                 case "discover":
@@ -74,7 +74,7 @@ public class UnifiedFeedController : ControllerBase
                     else
                     {
                         var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
-                        posts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests);
+                        posts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh);
                     }
                     break;
                 case "internal-music":
@@ -98,11 +98,11 @@ public class UnifiedFeedController : ControllerBase
                     {
                         if (viewerId == null)
                         {
-                            posts = await _postService.GetTrendingPosts24hAsync(null, take, skip);
+                            posts = await _postService.GetTrendingPosts24hAsync(null, take, skip, refresh);
                         }
                         else
                         {
-                            posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take);
+                            posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take, refresh);
                         }
                     }
                     break;
