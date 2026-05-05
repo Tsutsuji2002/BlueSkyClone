@@ -1441,11 +1441,31 @@ const postsSlice = createSlice({
                 state.bookmarkedError = null;
                 const { skip } = action.meta.arg || { skip: 0 };
 
+                // Apply existing interactionTruth to posts before storing them
+                const postsWithTruth = action.payload.posts.map((post: Post) => {
+                    const truth = state.interactionTruth[post.uri!];
+                    if (truth) {
+                        return {
+                            ...post,
+                            isLiked: truth.isLiked ?? post.isLiked,
+                            isReposted: truth.isReposted ?? post.isReposted,
+                            isBookmarked: truth.isBookmarked ?? post.isBookmarked,
+                            likesCount: truth.likesCount ?? post.likesCount,
+                            repostsCount: truth.repostsCount ?? post.repostsCount,
+                            bookmarksCount: truth.bookmarksCount ?? post.bookmarksCount,
+                            repliesCount: truth.repliesCount ?? post.repliesCount,
+                            quotesCount: truth.quotesCount ?? post.quotesCount,
+                            viewer: truth.viewer ?? post.viewer,
+                        };
+                    }
+                    return post;
+                });
+
                 if (skip === 0) {
-                    state.bookmarkedPosts = action.payload.posts;
+                    state.bookmarkedPosts = postsWithTruth;
                 } else {
                     const existingUris = new Set(state.bookmarkedPosts.map((p: Post) => p.uri));
-                    const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
+                    const newPosts = postsWithTruth.filter((p: Post) => !existingUris.has(p.uri));
                     state.bookmarkedPosts = [...state.bookmarkedPosts, ...newPosts];
                 }
                 syncPostsWithTruth(state, action.payload.posts);
