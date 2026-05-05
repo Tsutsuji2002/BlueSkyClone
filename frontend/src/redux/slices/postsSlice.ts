@@ -349,11 +349,16 @@ export const createPost = createAsyncThunk(
 
 export const toggleLike = createAsyncThunk(
     'posts/toggleLike',
-    async ({ uri, cid, isLiked, currentLikesCount }: { uri: string; cid: string; isLiked: boolean; currentLikesCount?: number }, { rejectWithValue }) => {
+    async ({ uri, cid, isLiked, likeUri, currentLikesCount }: { uri: string; cid: string; isLiked: boolean; likeUri?: string; currentLikesCount?: number }, { rejectWithValue }) => {
         try {
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
-            const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/like${queryParam}`, {
+            const params = new URLSearchParams();
+            if (uri.startsWith('at://')) params.set('uri', uri);
+            // Pass client-known state so backend can reliably determine like vs unlike
+            params.set('isLiked', String(isLiked));
+            if (likeUri) params.set('likeUri', likeUri);
+            const queryString = params.toString() ? `?${params.toString()}` : '';
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/like${queryString}`, {
                 method: 'POST'
             });
             if (!response.ok) return rejectWithValue('Failed to toggle like');

@@ -428,7 +428,7 @@ const PostDetailPage: React.FC = () => {
 
     const handleLike = () => {
         if (!post.uri || !post.cid) return;
-        dispatch(toggleLike({ uri: post.uri, cid: post.cid, isLiked: !!post.isLiked, currentLikesCount: post.likesCount }));
+        dispatch(toggleLike({ uri: post.uri, cid: post.cid, isLiked: !!post.isLiked, likeUri: post.viewer?.like ?? post.likeUri, currentLikesCount: post.likesCount }));
     };
 
     const handleRepost = () => {

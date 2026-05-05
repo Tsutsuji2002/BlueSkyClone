@@ -18,7 +18,7 @@ public interface IPostService
     Task FetchRemoteAuthorFeedAsync(string did, string? type = null, string? cursor = null);
     Task ProcessRemotePostAsync(string did, string path, string cid, byte[] recordData);
     Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId);
-    Task<object> ToggleLikeAsync(Guid userId, Guid postId);
+    Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null);
     Task<object> ToggleBookmarkAsync(Guid userId, Guid postId);
     Task<object> ToggleRepostAsync(Guid userId, Guid postId);
     Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null, int skip = 0, int take = 20);

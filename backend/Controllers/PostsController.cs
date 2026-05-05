@@ -548,7 +548,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost("{id}/like")]
-    public async Task<IActionResult> LikePost(string id, [FromQuery] string? uri = null)
+    public async Task<IActionResult> LikePost(string id, [FromQuery] string? uri = null, [FromQuery] bool? isLiked = null, [FromQuery] string? likeUri = null)
     {
         try
         {
@@ -568,7 +568,7 @@ public class PostsController : ControllerBase
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
-            var result = await _postService.ToggleLikeAsync(userId, postId);
+            var result = await _postService.ToggleLikeAsync(userId, postId, isLiked, likeUri);
             return Ok(result);
         }
         catch (Exception ex)

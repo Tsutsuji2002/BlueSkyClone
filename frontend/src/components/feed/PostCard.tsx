@@ -660,7 +660,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    ensureAuth(() => dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked, currentLikesCount: post.likesCount })));
+                                    ensureAuth(() => dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked, likeUri: post.viewer?.like ?? post.likeUri, currentLikesCount: post.likesCount })));
                                 }}
                                 className={cn(
                                     "flex items-center gap-1.5 group transition-colors p-2 rounded-full hover:bg-red-500/10",

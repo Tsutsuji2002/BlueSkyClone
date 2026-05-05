@@ -192,6 +192,7 @@ export interface Post {
     repliesCount: number;
     quotesCount: number;
     isLiked?: boolean; isReposted?: boolean;
+    likeUri?: string;
     isBookmarked?: boolean;
     listCaption?: string; // For curated lists
     isDeleted?: boolean;

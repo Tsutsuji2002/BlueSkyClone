@@ -182,7 +182,7 @@ const MediaViewerPage: React.FC = () => {
     const handleLike = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         console.log('MediaViewerPage handleLike clicked for:', currentPost.id);
-        dispatch(toggleLike({ uri: currentPost.uri!, cid: currentPost.cid!, isLiked: !!currentPost.isLiked }));
+        dispatch(toggleLike({ uri: currentPost.uri!, cid: currentPost.cid!, isLiked: !!currentPost.isLiked, likeUri: currentPost.viewer?.like ?? currentPost.likeUri }));
     };
 
     const handleRepost = (e: React.MouseEvent | React.TouchEvent) => {

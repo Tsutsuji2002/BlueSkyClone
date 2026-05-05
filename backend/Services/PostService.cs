@@ -5025,7 +5025,7 @@ public class PostService : IPostService
         return affectedIds;
     }
 
-    public async Task<object> ToggleLikeAsync(Guid userId, Guid postId)
+    public async Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null)
     {
         var lockKey = $"lock:like:{userId}:{postId}";
         if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
@@ -5042,8 +5042,11 @@ public class PostService : IPostService
             var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
             if (freshPost == null) return new { isLiked = false, error = "Post not found" };
 
-            bool isCurrentlyLiked = freshPost.Viewer?.Like != null;
-            string? currentLikeUri = freshPost.Viewer?.Like;
+            // Prefer viewer state from AppView (remote truth), fall back to client-provided state
+            bool isCurrentlyLiked = freshPost.Viewer?.Like != null
+                ? true
+                : (clientIsLiked ?? false);
+            string? currentLikeUri = freshPost.Viewer?.Like ?? clientLikeUri;
 
             _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. FreshPost State: Uri={Uri}, Tid={Tid}, LikeUri={Like}, isCurrentlyLiked={IsLiked}", 
                 userId, postId, freshPost.Uri, freshPost.Tid, currentLikeUri ?? "null", isCurrentlyLiked);
