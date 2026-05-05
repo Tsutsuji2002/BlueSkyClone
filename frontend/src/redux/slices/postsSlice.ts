@@ -1380,6 +1380,7 @@ const postsSlice = createSlice({
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             post.isBookmarked = action.payload.isBookmarked;
+                            if (action.payload.bookmarksCount !== undefined) post.bookmarksCount = action.payload.bookmarksCount;
                             post.lastUpdated = new Date().toISOString();
                         }, state);
                     });
