@@ -195,6 +195,7 @@ public class PostInteractionStatusDto
     public bool IsBookmarked { get; set; }
     public string? LikeUri { get; set; }
     public string? RepostUri { get; set; }
+    public string? Cid { get; set; }
 }
 
 public class PagedFeedsDto

@@ -5762,9 +5762,11 @@ public class PostService : IPostService
                     result.Add(new PostInteractionStatusDto
                     {
                         Uri = uri,
+                        Cid = post.TryGetProperty("cid", out var cp) ? cp.GetString() : null,
+                        Tid = uri.Split('/').LastOrDefault(),
                         IsLiked = !string.IsNullOrEmpty(likeUri),
                         IsReposted = !string.IsNullOrEmpty(repostUri),
-                        IsBookmarked = false, // Not available from AppView; use GetInteractionStatusesAsync for bookmarks
+                        IsBookmarked = false, 
                         LikeUri = likeUri,
                         RepostUri = repostUri
                     });
