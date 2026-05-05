@@ -12,9 +12,9 @@ public interface IPostService
 
     Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null, bool bypassCache = false);
     Task<IEnumerable<PostDto>> GetPostsByIdsAsync(IEnumerable<Guid> postIds, Guid? viewerId = null);
-    Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null);
+    Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null, bool bypassCache = false);
     Task<List<PostDto>> GetPostsByTidsAsync(List<string> tids, Guid? viewerId = null);
-    Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null);
+    Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null, bool bypassCache = false);
     Task FetchRemoteAuthorFeedAsync(string did, string? type = null, string? cursor = null);
     Task ProcessRemotePostAsync(string did, string path, string cid, byte[] recordData);
     Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId);

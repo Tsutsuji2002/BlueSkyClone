@@ -3231,7 +3231,7 @@ public class PostService : IPostService
 
         return resultsList;
     }
-    public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null)
+    public async Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null, bool bypassCache = false)
     {
         _logger.LogInformation("[PostService] GetPostByTidAsync: Searching for Tid/Cid/Id='{Tid}'", tid);
         
@@ -3250,7 +3250,7 @@ public class PostService : IPostService
             // If it looks like a CID or URI, try to resolve and ingest it
             if (tid.StartsWith("at://") || tid.StartsWith("bafy"))
             {
-                var ingested = await GetPostByUriAsync(tid.StartsWith("at://") ? tid : $"at://{tid}", viewerId); // This method handles ingestion
+                var ingested = await GetPostByUriAsync(tid.StartsWith("at://") ? tid : $"at://{tid}", viewerId, bypassCache); // This method handles ingestion
                 if (ingested != null) return ingested;
             }
             
@@ -3258,7 +3258,7 @@ public class PostService : IPostService
         }
 
         _logger.LogInformation("[PostService] GetPostByTidAsync: Found post {PostId} for '{Tid}'.", post.Id, tid);
-        return await GetPostByIdAsync(post.Id, viewerId);
+        return await GetPostByIdAsync(post.Id, viewerId, bypassCache);
     }
 
     public async Task<List<PostDto>> GetPostsByTidsAsync(List<string> tids, Guid? viewerId = null)
@@ -3294,7 +3294,7 @@ public class PostService : IPostService
         return result;
     }
 
-    public async Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null)
+    public async Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null, bool bypassCache = false)
     {
         if (string.IsNullOrEmpty(uri)) return null;
 
@@ -3315,7 +3315,7 @@ public class PostService : IPostService
                 var ingested = await IngestRemotePostAsync(uri);
                 if (ingested != null)
                 {
-                    return await GetPostByIdAsync(ingested.Id, viewerId);
+                    return await GetPostByIdAsync(ingested.Id, viewerId, bypassCache);
                 }
             }
 
@@ -3350,7 +3350,7 @@ public class PostService : IPostService
 
             if (existing != null)
             {
-                return await GetPostByIdAsync(existing.Id, viewerId);
+                return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
             }
 
             return null;

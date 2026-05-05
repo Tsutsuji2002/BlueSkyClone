@@ -558,13 +558,13 @@ public class PostsController : ControllerBase
             Guid postId;
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByUriAsync(uri ?? id, userId);
+                var post = await _postService.GetPostByUriAsync(uri ?? id, userId, bypassCache: true);
                 if (post == null) return NotFound("Remote post could not be resolved or ingested.");
                 postId = post.Id;
             }
             else if (!Guid.TryParse(id, out postId))
             {
-                var post = await _postService.GetPostByTidAsync(id, userId);
+                var post = await _postService.GetPostByTidAsync(id, userId, bypassCache: true);
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
@@ -589,13 +589,13 @@ public class PostsController : ControllerBase
             Guid postId;
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByUriAsync(uri ?? id, userId);
+                var post = await _postService.GetPostByUriAsync(uri ?? id, userId, bypassCache: true);
                 if (post == null) return NotFound("Remote post could not be resolved or ingested.");
                 postId = post.Id;
             }
             else if (!Guid.TryParse(id, out postId))
             {
-                var post = await _postService.GetPostByTidAsync(id, userId);
+                var post = await _postService.GetPostByTidAsync(id, userId, bypassCache: true);
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
@@ -620,13 +620,13 @@ public class PostsController : ControllerBase
             Guid postId;
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByUriAsync(uri ?? id, userId);
+                var post = await _postService.GetPostByUriAsync(uri ?? id, userId, bypassCache: true);
                 if (post == null) return NotFound("Remote post could not be resolved or ingested.");
                 postId = post.Id;
             }
             else if (!Guid.TryParse(id, out postId))
             {
-                var post = await _postService.GetPostByTidAsync(id, userId);
+                var post = await _postService.GetPostByTidAsync(id, userId, bypassCache: true);
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
