@@ -1414,7 +1414,10 @@ public class PostService : IPostService
                     bool isRemote = !string.IsNullOrEmpty(post.Uri) && !post.Uri.Contains(_localDomain); 
                     if (isRemote)
                     {
-                        // Sync Author metadata if missing
+                        // Sync Author metadata and Post identifiers from AppView
+                        if (remotePost.TryGetProperty("uri", out var uriProp)) post.Uri = uriProp.GetString();
+                        if (remotePost.TryGetProperty("cid", out var cidProp)) post.Cid = cidProp.GetString();
+
                         if (remotePost.TryGetProperty("author", out var remAuth) && post.Author != null)
                         {
                             if (string.IsNullOrEmpty(post.Author.DisplayName) && remAuth.TryGetProperty("displayName", out var dn)) post.Author.DisplayName = dn.GetString();
