@@ -201,18 +201,20 @@ export const fetchTimeline = createAsyncThunk(
     'posts/fetchTimeline',
     async ({ skip = 0, take = 20, refresh = false }: { skip?: number; take?: number; cursor?: string; refresh?: boolean } = {}, { rejectWithValue }) => {
         try {
+            const token = localStorage.getItem('token');
             const url = new URL(`${API_BASE_URL}/posts/timeline`);
             url.searchParams.set('skip', String(skip));
             url.searchParams.set('take', String(take));
             if (refresh) url.searchParams.set('refresh', 'true');
-            
-            const response = await fetch(url.toString());
+
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers.Authorization = `Bearer ${token}`;
+
+            const response = await fetch(url.toString(), { headers });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
-            const posts = await response.json();
-            // Note: backend EnrichAndFilterPostsAsync already sets isLiked/isReposted/isBookmarked
-            // from the local DB, so we do NOT need to await hydratePostsWithInteractionStatus here.
-            // That would add 2 extra blocking network round-trips before the feed can render.
-            return { posts, skip, cursor: null };
+            const posts = await response.json() as Post[];
+            const hydratedPosts = await hydratePostsWithInteractionStatus(posts, token);
+            return { posts: hydratedPosts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -223,18 +225,23 @@ export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
     async ({ userId, type, take = 20, skip = 0, cursor, refresh = false }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string; refresh?: boolean }, { rejectWithValue }) => {
         try {
+            const token = localStorage.getItem('token');
             const params = new URLSearchParams({ take: String(take), skip: String(skip) });
             if (type) params.set('type', type);
             if (cursor) params.set('cursor', cursor);
             if (refresh) params.set('refresh', 'true');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers.Authorization = `Bearer ${token}`;
             const response = await fetch(
-                `${API_BASE_URL}/posts/user/${userId}?${params}`
+                `${API_BASE_URL}/posts/user/${userId}?${params}`,
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const hydratedPosts = await hydratePostsWithInteractionStatus(posts, token);
             const cursorVal = data.cursor || null;
-            return { posts, userId, cursor: cursorVal, type };
+            return { posts: hydratedPosts, userId, cursor: cursorVal, type };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -620,7 +627,7 @@ export const fetchTrendingPosts = createAsyncThunk(
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
 
             const response = await fetch(
                 `${API_BASE_URL}/posts/trending`,
@@ -628,7 +635,7 @@ export const fetchTrendingPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch trending');
             const posts = await response.json() as Post[];
-            return posts;
+            return await hydratePostsWithInteractionStatus(posts, token);
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -747,7 +754,7 @@ export const fetchDiscoverPosts = createAsyncThunk(
         try {
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
 
             const response = await fetch(
                 `${API_BASE_URL}/posts/discover?skip=${skip}&take=${take}`,
@@ -758,7 +765,8 @@ export const fetchDiscoverPosts = createAsyncThunk(
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
-            return { posts, skip, hasMore };
+            const hydratedPosts = await hydratePostsWithInteractionStatus(posts, token);
+            return { posts: hydratedPosts, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

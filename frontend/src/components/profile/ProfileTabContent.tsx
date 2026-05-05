@@ -90,6 +90,13 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 fetchedItems.forEach(p => { p.isLiked = true; });
             }
 
+            if (type !== 'lists' && fetchedItems.length > 0) {
+                fetchedItems = await hydratePostsWithInteractionStatus(fetchedItems, token);
+                if (type === 'likes') {
+                    fetchedItems.forEach((p) => { p.isLiked = true; });
+                }
+            }
+
             // Seed interactionTruth in Redux so PostCard reads the correct
             // isLiked / isReposted / isBookmarked from the backend-enriched data,
             // overwriting any stale entries from earlier timeline loads.

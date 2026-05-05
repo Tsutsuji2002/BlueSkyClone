@@ -418,20 +418,23 @@ export const fetchFeedPosts = createAsyncThunk<
     'feeds/fetchPosts',
     async ({ feedId, skip, take = 5, cursor, refresh = false }: { feedId: string; skip: number; take?: number, cursor?: string | null, refresh?: boolean }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
+            const token = localStorage.getItem('token');
             let url = `${API_BASE_URL}/unified-feed?feedId=${encodeURIComponent(feedId)}&skip=${skip}&take=${take}`;
             if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
             if (refresh) url += `&refresh=true`;
 
-            const response = await fetch(url);
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers.Authorization = `Bearer ${token}`;
+
+            const response = await fetch(url, { headers });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
             
             const rawPosts = data.posts || (Array.isArray(data) ? data : []);
-            // Return posts immediately for fast render — interaction status (isLiked etc.)
-            // is hydrated asynchronously via hydrateInteractionStatusForFeed dispatched separately.
+            const hydratedPosts = await hydratePostsWithInteractionStatus(rawPosts, token);
             return {
                 feedId,
-                posts: rawPosts,
+                posts: hydratedPosts,
                 isMore: data.hasMore ?? (Array.isArray(data) ? rawPosts.length >= take : rawPosts.length >= take),
                 cursor: data.cursor || null
             };
@@ -441,8 +444,8 @@ export const fetchFeedPosts = createAsyncThunk<
     }
 );
 
-// Background hydration thunk — dispatched after posts are rendered to overlay isLiked/isReposted/isBookmarked
-// without blocking the initial render. Uses cookie auth via credentials: 'include'.
+// Legacy follow-up hydration thunk. Main feed fetches now hydrate before render, but this remains
+// available for any future incremental patch flows that need to re-check interaction state.
 export const hydrateInteractionStatusForFeed = createAsyncThunk<
     { feedId: string; posts: Post[] },
     { feedId: string; posts: Post[] },
@@ -953,4 +956,3 @@ const feedsSlice = createSlice({
 
 export const { setActiveFeed, setActiveTab, setPinnedFeedIds } = feedsSlice.actions;
 export default feedsSlice.reducer;
-
