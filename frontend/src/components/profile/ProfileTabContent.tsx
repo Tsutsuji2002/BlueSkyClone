@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import Feed from '../feed/Feed';
-import { mapAtProtoPostToPost } from '../../utils/postMapper';
 import { API_BASE_URL } from '../../constants';
-import { agent } from '../../services/atpAgent';
 import { Post } from '../../types';
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 import LoadingIndicator from '../common/LoadingIndicator';
 import { FiList, FiImage, FiVideo } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
@@ -88,13 +85,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
             if (type === 'likes') {
                 fetchedItems.forEach(p => { p.isLiked = true; });
-            }
-
-            if (type !== 'lists' && fetchedItems.length > 0) {
-                fetchedItems = await hydratePostsWithInteractionStatus(fetchedItems, token);
-                if (type === 'likes') {
-                    fetchedItems.forEach((p) => { p.isLiked = true; });
-                }
             }
 
             // Seed interactionTruth in Redux so PostCard reads the correct

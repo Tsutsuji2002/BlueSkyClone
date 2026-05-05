@@ -257,7 +257,14 @@ export const fetchListFeed = createAsyncThunk(
                 });
                 if (!res.ok) throw new Error('Failed to fetch list feed via XRPC');
                 const data = await res.json();
-                return (data.feed || []).map((f: any) => mapAtProtoPostToPost(f.post));
+                return (data.feed || []).map((f: any) => {
+                    const post = mapAtProtoPostToPost(f.post);
+                    if (post.viewer) {
+                        post.isLiked = !!post.viewer.like;
+                        post.isReposted = !!post.viewer.repost;
+                    }
+                    return post;
+                });
             }
             return await listService.getListFeed(id, skip, take);
         } catch (error: any) {

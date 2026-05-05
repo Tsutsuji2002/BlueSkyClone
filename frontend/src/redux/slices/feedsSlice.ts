@@ -4,7 +4,6 @@ import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { feedActionKey } from '../../utils/feedKeys';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 
 const REMOTE_METADATA_FALLBACK_DESCRIPTION = 'Remote feed metadata is temporarily unavailable.';
 
@@ -431,31 +430,12 @@ export const fetchFeedPosts = createAsyncThunk<
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
             
             const rawPosts = data.posts || (Array.isArray(data) ? data : []);
-            const hydratedPosts = await hydratePostsWithInteractionStatus(rawPosts, token);
             return {
                 feedId,
-                posts: hydratedPosts,
+                posts: rawPosts,
                 isMore: data.hasMore ?? (Array.isArray(data) ? rawPosts.length >= take : rawPosts.length >= take),
                 cursor: data.cursor || null
             };
-        } catch (error: any) {
-            return rejectWithValue(error.message);
-        }
-    }
-);
-
-// Legacy follow-up hydration thunk. Main feed fetches now hydrate before render, but this remains
-// available for any future incremental patch flows that need to re-check interaction state.
-export const hydrateInteractionStatusForFeed = createAsyncThunk<
-    { feedId: string; posts: Post[] },
-    { feedId: string; posts: Post[] },
-    { rejectValue: string }
->(
-    'feeds/hydratePosts',
-    async ({ feedId, posts }: { feedId: string; posts: Post[] }, { rejectWithValue }) => {
-        try {
-            const hydrated = await hydratePostsWithInteractionStatus(posts);
-            return { feedId, posts: hydrated };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -741,27 +721,6 @@ const feedsSlice = createSlice({
                 state.isLoading = false;
                 state.feedLoading[feedId] = false;
                 state.error = action.payload as string;
-            })
-            .addCase(hydrateInteractionStatusForFeed.fulfilled, (state: FeedsState, action: any) => {
-                const { feedId, posts: hydratedPosts } = action.payload;
-                const existing = state.feedPosts[feedId];
-                if (!existing || !hydratedPosts?.length) return;
-                // Build a lookup map from hydrated posts to efficiently patch existing posts
-                const hydratedMap = new Map<string, { isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean }>();
-                hydratedPosts.forEach((p: Post) => {
-                    if (p.uri) hydratedMap.set(p.uri, { isLiked: p.isLiked, isReposted: p.isReposted, isBookmarked: p.isBookmarked });
-                });
-                // Apply hydrated status without touching counts or other fields
-                state.feedPosts[feedId] = existing.map((p: Post) => {
-                    const hydrated = p.uri ? hydratedMap.get(p.uri) : undefined;
-                    if (!hydrated) return p;
-                    return {
-                        ...p,
-                        isLiked: hydrated.isLiked ?? p.isLiked,
-                        isReposted: hydrated.isReposted ?? p.isReposted,
-                        isBookmarked: hydrated.isBookmarked ?? p.isBookmarked,
-                    };
-                });
             })
             // Synchronize interactions across feedPosts (Optimistic)
             .addMatcher(

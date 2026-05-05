@@ -3,7 +3,6 @@ import { PostsState, Post } from '../../types';
 import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 
 const initialState: PostsState = {
     posts: [],
@@ -213,8 +212,7 @@ export const fetchTimeline = createAsyncThunk(
             const response = await fetch(url.toString(), { headers });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts = await response.json() as Post[];
-            const hydratedPosts = await hydratePostsWithInteractionStatus(posts, token);
-            return { posts: hydratedPosts, skip, cursor: null };
+            return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -239,9 +237,8 @@ export const fetchUserPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
-            const hydratedPosts = await hydratePostsWithInteractionStatus(posts, token);
             const cursorVal = data.cursor || null;
-            return { posts: hydratedPosts, userId, cursor: cursorVal, type };
+            return { posts, userId, cursor: cursorVal, type };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -571,8 +568,8 @@ export const fetchPostById = createAsyncThunk(
                     });
                     return posts;
                 }
-                
-                return await hydratePostsWithInteractionStatus(posts, token);
+
+                return posts;
             }
 
             const mappedPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
@@ -587,8 +584,8 @@ export const fetchPostById = createAsyncThunk(
                 });
                 return mappedPosts;
             }
-            
-            return await hydratePostsWithInteractionStatus(mappedPosts, token);
+
+            return mappedPosts;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -612,9 +609,8 @@ export const fetchPostReplies = createAsyncThunk(
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
-            
-            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
-            return { posts: hydrated, postId, skip, hasMore };
+
+            return { posts, postId, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -635,7 +631,7 @@ export const fetchTrendingPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch trending');
             const posts = await response.json() as Post[];
-            return await hydratePostsWithInteractionStatus(posts, token);
+            return posts;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -718,28 +714,15 @@ export const fetchBookmarkedPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
             const data = await response.json();
             const posts: Post[] = data.posts || [];
-
-            if (token && posts.length > 0 && posts.every((p) => p.viewer !== undefined)) {
-                posts.forEach((p) => {
-                    if (p.viewer) {
-                        p.isLiked = !!p.viewer.like;
-                        p.isReposted = !!p.viewer.repost;
-                    }
-                    p.isBookmarked = true;
-                });
-                return {
-                    posts,
-                    cursor: data.cursor || null
-                };
-            }
-
-            const hydratedPosts = await hydratePostsWithInteractionStatus(posts, token);
-            hydratedPosts.forEach((p) => {
+            posts.forEach((p) => {
+                if (p.viewer) {
+                    p.isLiked = !!p.viewer.like;
+                    p.isReposted = !!p.viewer.repost;
+                }
                 p.isBookmarked = true;
             });
-
             return { 
-                posts: hydratedPosts, 
+                posts, 
                 cursor: data.cursor || null 
             };
         } catch (error: any) {
@@ -765,8 +748,7 @@ export const fetchDiscoverPosts = createAsyncThunk(
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
-            const hydratedPosts = await hydratePostsWithInteractionStatus(posts, token);
-            return { posts: hydratedPosts, skip, hasMore };
+            return { posts, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -1473,35 +1455,16 @@ const postsSlice = createSlice({
                 state.bookmarkedLoading = false;
                 state.bookmarkedError = null;
                 const { skip } = action.meta.arg || { skip: 0 };
-
-                // Apply existing interactionTruth to posts before storing them
-                const postsWithTruth = action.payload.posts.map((post: Post) => {
-                    const truth = state.interactionTruth[post.uri!];
-                    if (truth) {
-                        return {
-                            ...post,
-                            isLiked: truth.isLiked ?? post.isLiked,
-                            isReposted: truth.isReposted ?? post.isReposted,
-                            isBookmarked: truth.isBookmarked ?? post.isBookmarked,
-                            likesCount: truth.likesCount ?? post.likesCount,
-                            repostsCount: truth.repostsCount ?? post.repostsCount,
-                            bookmarksCount: truth.bookmarksCount ?? post.bookmarksCount,
-                            repliesCount: truth.repliesCount ?? post.repliesCount,
-                            quotesCount: truth.quotesCount ?? post.quotesCount,
-                            viewer: truth.viewer ?? post.viewer,
-                        };
-                    }
-                    return post;
-                });
+                const fetchedPosts: Post[] = action.payload.posts;
 
                 if (skip === 0) {
-                    state.bookmarkedPosts = postsWithTruth;
+                    state.bookmarkedPosts = fetchedPosts;
                 } else {
                     const existingUris = new Set(state.bookmarkedPosts.map((p: Post) => p.uri));
-                    const newPosts = postsWithTruth.filter((p: Post) => !existingUris.has(p.uri));
+                    const newPosts = fetchedPosts.filter((p: Post) => !existingUris.has(p.uri));
                     state.bookmarkedPosts = [...state.bookmarkedPosts, ...newPosts];
                 }
-                syncPostsWithTruth(state, action.payload.posts);
+                syncPostsWithTruth(state, fetchedPosts);
                 state.hasMore = action.payload.cursor !== null;
             })
             .addCase(fetchBookmarkedPosts.rejected, (state: PostsState, action) => {

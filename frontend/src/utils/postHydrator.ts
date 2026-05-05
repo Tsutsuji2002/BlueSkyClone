@@ -12,6 +12,28 @@ export type InteractionStatus = {
 };
 
 const normalizeUri = (value?: string | null): string => value?.trim().toLowerCase() ?? '';
+const INTERACTION_STATUS_TIMEOUT_MS = 1200;
+
+const fetchStatusesWithTimeout = async (url: string, headers: Record<string, string>, body: unknown): Promise<InteractionStatus[]> => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), INTERACTION_STATUS_TIMEOUT_MS);
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            credentials: 'include',
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+        if (!response.ok) return [];
+        return await response.json() as InteractionStatus[];
+    } catch {
+        return [];
+    } finally {
+        window.clearTimeout(timeoutId);
+    }
+};
 
 export const applyInteractionStatuses = (posts: Post[], statuses: InteractionStatus[]): Post[] => {
     if (!posts.length || !statuses.length) return posts;
@@ -101,35 +123,13 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: s
     const [localStatuses, viewerStatuses] = await Promise.all([
         // (1) Local DB: authoritative for interactions done through this app
         (async (): Promise<InteractionStatus[]> => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/posts/interactions/status`, {
-                    method: 'POST',
-                    headers: requestHeaders,
-                    credentials: 'include',
-                    body: JSON.stringify({ uris })
-                });
-                if (!response.ok) return [];
-                return await response.json() as InteractionStatus[];
-            } catch {
-                return [];
-            }
+            return fetchStatusesWithTimeout(`${API_BASE_URL}/posts/interactions/status`, requestHeaders, { uris });
         })(),
         // (2) Bluesky AppView: authoritative for native Bluesky likes/reposts
         (async (): Promise<InteractionStatus[]> => {
             const remoteUris = uris.filter(u => u.startsWith('at://') && !u.includes('local'));
             if (!remoteUris.length) return [];
-            try {
-                const response = await fetch(`${API_BASE_URL}/posts/interactions/viewer-state`, {
-                    method: 'POST',
-                    headers: requestHeaders,
-                    credentials: 'include',
-                    body: JSON.stringify({ uris: remoteUris })
-                });
-                if (!response.ok) return [];
-                return await response.json() as InteractionStatus[];
-            } catch {
-                return [];
-            }
+            return fetchStatusesWithTimeout(`${API_BASE_URL}/posts/interactions/viewer-state`, requestHeaders, { uris: remoteUris });
         })(),
     ]);
 
