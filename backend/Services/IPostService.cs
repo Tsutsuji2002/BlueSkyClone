@@ -10,7 +10,7 @@ public interface IPostService
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
 
-    Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null);
+    Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null, bool bypassCache = false);
     Task<IEnumerable<PostDto>> GetPostsByIdsAsync(IEnumerable<Guid> postIds, Guid? viewerId = null);
     Task<PostDto?> GetPostByTidAsync(string tid, Guid? viewerId = null);
     Task<List<PostDto>> GetPostsByTidsAsync(List<string> tids, Guid? viewerId = null);
@@ -41,7 +41,7 @@ public interface IPostService
     PostDto MapToDto(Post post);
     List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray);
     PostDto? MapBlueskyPost(System.Text.Json.JsonElement postObj);
-    Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false, bool forceDropHidden = true);
+    Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false);
     Task<(string path, string cid, string? thumbnail)> SaveBlobAsync(Stream stream, string contentType, string folder);
     public string GenerateTid();
     /// <summary>
