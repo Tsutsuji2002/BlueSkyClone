@@ -1418,18 +1418,24 @@ public class PostService : IPostService
                 bool hasRemotePost = (pUriKey != null && remoteInteractionCache.TryGetValue(pUriKey, out remotePost)) ||
                                      (rkey != null && remotePostsByRkey.TryGetValue(rkey, out remotePost));
 
+                if (bypassRemoteCache)
+                {
+                    _logger.LogInformation("[EnrichAndFilterPostsAsync] RECONCILE: Post={PostId}, pUriKey={pUriKey}, rkey={rkey}, hasInCache={InCache}, hasInRkeyCache={InRkeyCache}",
+                        post.Id, pUriKey ?? "null", rkey ?? "null", pUriKey != null && remoteInteractionCache.ContainsKey(pUriKey), rkey != null && remotePostsByRkey.ContainsKey(rkey));
+                }
+
                 if (hasRemotePost)
                 {
                     if (remotePost.TryGetProperty("viewer", out var v))
                     {
-                        if (v.TryGetProperty("like", out var vl))
-                        {
-                            post.Viewer.Like = vl.ValueKind != JsonValueKind.Null ? vl.GetString() : null; // AUTHENTIC TRUTH
-                        }
-                        else 
-                        {
-                            post.Viewer.Like = null;
-                        }
+                         if (v.TryGetProperty("like", out var vl))
+                         {
+                             post.Viewer.Like = vl.ValueKind != JsonValueKind.Null ? vl.GetString() : null; // AUTHENTIC TRUTH
+                         }
+                         else 
+                         {
+                             post.Viewer.Like = null;
+                         }
 
                         if (v.TryGetProperty("repost", out var vr))
                         {
@@ -3501,15 +3507,29 @@ public class PostService : IPostService
             var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
             if (existing != null)
             {
-                // If the post exists but has no content, update it with fetched data
-                if (string.IsNullOrEmpty(existing.Content))
+                // If the post exists but is a stub (missing Tid or Content), update it with authoritative data
+                bool isStub = string.IsNullOrEmpty(existing.Tid) || string.IsNullOrEmpty(existing.Content);
+                if (isStub)
                 {
+                    _logger.LogInformation("[IngestRemotePostAsync] Enriching existing stub post {PostId} (Uri: {Uri}) with authoritative metadata", existing.Id, uri);
                     existing.Content = record.GetProperty("text").GetString();
+                    existing.Tid = rkey;
+                    existing.Cid = cid;
                     existing.LikesCount = postData.TryGetProperty("likeCount", out var ulc) ? ulc.GetInt32() : existing.LikesCount;
                     existing.RepostsCount = postData.TryGetProperty("repostCount", out var urc) ? urc.GetInt32() : existing.RepostsCount;
                     existing.RepliesCount = postData.TryGetProperty("replyCount", out var urpc) ? urpc.GetInt32() : existing.RepliesCount;
+                    
+                    if (record.TryGetProperty("createdAt", out var caProp))
+                        existing.CreatedAt = DateTime.Parse(caProp.GetString() ?? DateTime.UtcNow.ToString());
+
                     _unitOfWork.Posts.Update(existing);
                     await _unitOfWork.CompleteAsync();
+                    
+                    // Also ingest embeds for the newly enriched stub
+                    if (postData.TryGetProperty("embed", out var embedStub))
+                    {
+                        await IngestEmbedsAsync(existing, embedStub, autoSave: true);
+                    }
                 }
                 return existing;
             }
@@ -3687,11 +3707,26 @@ public class PostService : IPostService
             var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || (cid != null && p.Cid == cid));
             if (existing != null)
             {
-                if (string.IsNullOrEmpty(existing.Content))
+                // If the post exists but is a stub (missing Tid or Content), update it with authoritative data
+                bool isStub = string.IsNullOrEmpty(existing.Tid) || string.IsNullOrEmpty(existing.Content);
+                if (isStub)
                 {
+                    _logger.LogInformation("[IngestViaGetRecordAsync] Enriching existing stub post {PostId} (Uri: {Uri}) with authoritative metadata", existing.Id, uri);
                     existing.Content = record.GetProperty("text").GetString();
+                    existing.Tid = rkey;
+                    existing.Cid = cid;
+                    
+                    if (record.TryGetProperty("createdAt", out var caProp))
+                        existing.CreatedAt = DateTime.Parse(caProp.GetString() ?? DateTime.UtcNow.ToString());
+
                     _unitOfWork.Posts.Update(existing);
                     await _unitOfWork.CompleteAsync();
+                    
+                    // Also ingest embeds for the newly enriched stub
+                    if (record.TryGetProperty("embed", out var embedStub))
+                    {
+                        await IngestEmbedsAsync(existing, embedStub, autoSave: true);
+                    }
                 }
                 return existing;
             }
@@ -5009,6 +5044,9 @@ public class PostService : IPostService
 
             bool isCurrentlyLiked = freshPost.Viewer?.Like != null;
             string? currentLikeUri = freshPost.Viewer?.Like;
+
+            _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. FreshPost State: Uri={Uri}, Tid={Tid}, LikeUri={Like}, isCurrentlyLiked={IsLiked}", 
+                userId, postId, freshPost.Uri, freshPost.Tid, currentLikeUri ?? "null", isCurrentlyLiked);
             bool isLiking = !isCurrentlyLiked;
             
             _logger.LogInformation("[ToggleLikeAsync] User {UserId} attempting {Action} on Post {PostId} (Uri: {Uri}, Cid: {Cid}). Current state: isLiked={IsLiked}", 

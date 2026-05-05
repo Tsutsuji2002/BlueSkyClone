@@ -2765,13 +2765,17 @@ public class UserService : IUserService
                     return null;
                 }
 
-                var cacheOptions = new DistributedCacheEntryOptions
+                var accessCacheOptions = new DistributedCacheEntryOptions
                 {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2) // Access tokens expire in 2h
+                };
+                var refreshCacheOptions = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) // Refresh tokens last longer
                 };
 
-                await _distributedCache.SetStringAsync($"BlueskyToken_{userId}", nextAccessJwt, cacheOptions);
-                await _distributedCache.SetStringAsync($"BlueskyRefreshToken_{userId}", nextRefreshJwt, cacheOptions);
+                await _distributedCache.SetStringAsync($"BlueskyToken_{userId}", nextAccessJwt, accessCacheOptions);
+                await _distributedCache.SetStringAsync($"BlueskyRefreshToken_{userId}", nextRefreshJwt, refreshCacheOptions);
                 return nextAccessJwt;
             }
             catch (Exception ex)
