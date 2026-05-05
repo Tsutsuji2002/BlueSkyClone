@@ -5116,9 +5116,17 @@ public class PostService : IPostService
 
         // Broadcast Real-time Updates
         var timestamp = DateTime.UtcNow;
-        int actLikes = post.LikesCount ?? 0;
-        int actReposts = post.RepostsCount ?? 0;
-        int actBookmarks = post.BookmarksCount ?? 0;
+        
+        // RE-CALCULATE ACTUAL COUNTS FOR ACCURACY
+        // For local acts, we must trust our DB records. 
+        // For remote posts, we merge local DB count with the remote baseline.
+        int localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == postId);
+        int localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == postId);
+        int localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == postId);
+        
+        int actLikes = localLikes;
+        int actReposts = localReposts;
+        int actBookmarks = localBookmarks;
         int actReplies = post.RepliesCount ?? 0;
         int actQuotes = post.QuotesCount ?? 0;
 
@@ -5128,13 +5136,21 @@ public class PostService : IPostService
             var postDto = await GetPostByIdAsync(postId, userId);
             if (postDto != null)
             {
+                // AppView count is authoritative for global stats on remote posts
                 actLikes = postDto.LikesCount;
                 actReposts = postDto.RepostsCount;
-                actBookmarks = postDto.BookmarksCount;
+                actBookmarks = localBookmarks; // Bookmarks are always local-only
                 actReplies = postDto.RepliesCount;
                 actQuotes = postDto.QuotesCount;
             }
         }
+        
+        // Sync the post record itself to avoid drift
+        post.LikesCount = actLikes;
+        post.RepostsCount = actReposts;
+        post.BookmarksCount = actBookmarks;
+        _unitOfWork.Posts.Update(post);
+        await _unitOfWork.CompleteAsync();
 
         await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
         { 
@@ -5217,9 +5233,14 @@ public class PostService : IPostService
 
         // Broadcast Real-time Updates
         var timestamp = DateTime.UtcNow;
-        int actLikes = post.LikesCount ?? 0;
-        int actReposts = post.RepostsCount ?? 0;
-        int actBookmarks = post.BookmarksCount ?? 0;
+
+        int localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == postId);
+        int localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == postId);
+        int localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == postId);
+
+        int actLikes = localLikes;
+        int actReposts = localReposts;
+        int actBookmarks = localBookmarks;
         int actReplies = post.RepliesCount ?? 0;
         int actQuotes = post.QuotesCount ?? 0;
 
@@ -5231,11 +5252,17 @@ public class PostService : IPostService
             {
                 actLikes = postDto.LikesCount;
                 actReposts = postDto.RepostsCount;
-                actBookmarks = postDto.BookmarksCount;
+                actBookmarks = localBookmarks;
                 actReplies = postDto.RepliesCount;
                 actQuotes = postDto.QuotesCount;
             }
         }
+        
+        post.LikesCount = actLikes;
+        post.RepostsCount = actReposts;
+        post.BookmarksCount = actBookmarks;
+        _unitOfWork.Posts.Update(post);
+        await _unitOfWork.CompleteAsync();
 
         await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
         { 
@@ -5451,9 +5478,14 @@ public class PostService : IPostService
 
         // Broadcast Real-time Updates
         var timestamp = DateTime.UtcNow;
-        int actLikes = post.LikesCount ?? 0;
-        int actReposts = post.RepostsCount ?? 0;
-        int actBookmarks = post.BookmarksCount ?? 0;
+
+        int localLikes = await _unitOfWork.Likes.Query().CountAsync(l => l.PostId == postId);
+        int localReposts = await _unitOfWork.Reposts.Query().CountAsync(r => r.PostId == postId);
+        int localBookmarks = await _unitOfWork.Bookmarks.Query().CountAsync(b => b.PostId == postId);
+
+        int actLikes = localLikes;
+        int actReposts = localReposts;
+        int actBookmarks = localBookmarks;
         int actReplies = post.RepliesCount ?? 0;
         int actQuotes = post.QuotesCount ?? 0;
 
@@ -5465,11 +5497,17 @@ public class PostService : IPostService
             {
                 actLikes = postDto.LikesCount;
                 actReposts = postDto.RepostsCount;
-                actBookmarks = postDto.BookmarksCount;
+                actBookmarks = localBookmarks;
                 actReplies = postDto.RepliesCount;
                 actQuotes = postDto.QuotesCount;
             }
         }
+        
+        post.LikesCount = actLikes;
+        post.RepostsCount = actReposts;
+        post.BookmarksCount = actBookmarks;
+        _unitOfWork.Posts.Update(post);
+        await _unitOfWork.CompleteAsync();
 
         await _postHubContext.Clients.Group($"post-{postId}").SendAsync("UpdatePostStats", new 
         { 

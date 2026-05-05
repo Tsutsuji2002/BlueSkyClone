@@ -172,12 +172,7 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
         // Boolean interaction flags: prefer "true" (confirmed state) over "false" (possibly stale).
         if (post.isLiked === true) existing.isLiked = true;
         if (post.isReposted === true) existing.isReposted = true;
-        
-        // Bookmarks are local-only now, handled via localStorage
-        const saved = JSON.parse(localStorage.getItem('saved_posts') || '[]');
-        if (saved.includes(post.uri)) {
-            existing.isBookmarked = true;
-        }
+        if (post.isBookmarked === true) existing.isBookmarked = true;
 
         if (post.viewer !== undefined) existing.viewer = post.viewer;
     }
@@ -639,21 +634,23 @@ export const toggleBookmark = createAsyncThunk(
     'posts/toggleBookmark',
     async ({ post }: { post: Post }, { rejectWithValue }) => {
         try {
-            const uri = post.uri!;
-            let saved = JSON.parse(localStorage.getItem('saved_posts') || '[]');
-            const isBookmarked = saved.includes(uri);
+            const token = localStorage.getItem('token');
+            const postId = post.id;
+            const uri = post.uri;
+
+            // Support both ID and URI for remote/local posts
+            const identifier = uri || postId;
+            const url = new URL(`${API_BASE_URL}/posts/${encodeURIComponent(identifier!)}/bookmark`);
+            if (uri && uri.startsWith('at://')) url.searchParams.set('uri', uri);
+
+            const response = await fetch(url.toString(), {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             
-            if (isBookmarked) {
-                saved = saved.filter((u: string) => u !== uri);
-                // Also remove the full post object if we store it for offline view
-                localStorage.removeItem(`saved_post_data_${uri}`);
-            } else {
-                saved.push(uri);
-                localStorage.setItem(`saved_post_data_${uri}`, JSON.stringify(post));
-            }
-            
-            localStorage.setItem('saved_posts', JSON.stringify(saved));
-            return { uri, isBookmarked: !isBookmarked, post: post };
+            if (!response.ok) return rejectWithValue('Failed to toggle bookmark');
+            const data = await response.json();
+            return { uri: uri || postId, isBookmarked: data.isBookmarked, bookmarksCount: data.bookmarksCount, post: post };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -698,17 +695,15 @@ export const fetchBookmarkedPosts = createAsyncThunk(
     'posts/fetchBookmarks',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
-            const savedUris = JSON.parse(localStorage.getItem('saved_posts') || '[]');
-            const paginatedUris = savedUris.slice(skip, skip + take);
-            
-            const posts: Post[] = paginatedUris.map((uri: string) => {
-                const data = localStorage.getItem(`saved_post_data_${uri}`);
-                return data ? JSON.parse(data) : { uri, isBookmarked: true };
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/posts/bookmarks?skip=${skip}&take=${take}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-
+            if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
+            const data = await response.json();
             return { 
-                posts, 
-                cursor: (skip + take < savedUris.length) ? String(skip + take) : null 
+                posts: data.posts || [], 
+                cursor: data.cursor || null 
             };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -1099,13 +1094,20 @@ const postsSlice = createSlice({
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
                 
-                // Ensure global truth is updated
+                const serverIsLiked = action.payload.isLiked;
+                const existing = state.interactionTruth[actionUri];
+                
+                // Better Way: Only trust server count if it reflects our intended status
+                // If we are LIKED but server says UNLIKED, the server count is definitely stale.
+                const shouldTrustServerCount = serverIsLiked === existing?.isLiked;
+
                 state.interactionTruth[actionUri] = {
-                    ...state.interactionTruth[actionUri],
-                    isLiked: action.payload.isLiked,
-                    // Only overwrite likesCount if the server actually returned one; otherwise keep the optimistic value
-                    likesCount: action.payload.likesCount ?? state.interactionTruth[actionUri]?.likesCount,
-                    viewer: { ...state.interactionTruth[actionUri]?.viewer, like: action.payload.likeUri }
+                    ...existing,
+                    isLiked: serverIsLiked,
+                    likesCount: (shouldTrustServerCount && action.payload.likesCount !== undefined) 
+                        ? action.payload.likesCount 
+                        : existing?.likesCount,
+                    viewer: { ...existing?.viewer, like: action.payload.likeUri }
                 };
 
                 const updateInArray = (arr: Post[]) => {
@@ -1188,13 +1190,17 @@ const postsSlice = createSlice({
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
 
-                // Ensure global truth is updated
+                const serverIsReposted = action.payload.isReposted;
+                const existing = state.interactionTruth[actionUri];
+                const shouldTrustServerCount = serverIsReposted === existing?.isReposted;
+
                 state.interactionTruth[actionUri] = {
-                    ...state.interactionTruth[actionUri],
-                    isReposted: action.payload.isReposted,
-                    // Only overwrite repostsCount if the server actually returned one; otherwise keep the optimistic value
-                    repostsCount: action.payload.repostsCount ?? state.interactionTruth[actionUri]?.repostsCount,
-                    viewer: { ...state.interactionTruth[actionUri]?.viewer, repost: action.payload.repostUri }
+                    ...existing,
+                    isReposted: serverIsReposted,
+                    repostsCount: (shouldTrustServerCount && action.payload.repostsCount !== undefined) 
+                        ? action.payload.repostsCount 
+                        : existing?.repostsCount,
+                    viewer: { ...existing?.viewer, repost: action.payload.repostUri }
                 };
 
                 const updateInArray = (arr: Post[]) => {
@@ -1354,16 +1360,20 @@ const postsSlice = createSlice({
                 updateInArray(state.bookmarkedPosts);
                 updateInArray(state.threadPosts);
             })
-            .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, post: Post }>) => {
+            .addCase(toggleBookmark.fulfilled, (state: PostsState, action: PayloadAction<{ uri: string, isBookmarked: boolean, post: Post, bookmarksCount?: number }>) => {
                 const actionUri = action.payload.uri;
                 state.actionLoading[actionUri] = false;
                 
-                // Ensure global truth is updated
+                const serverIsBookmarked = action.payload.isBookmarked;
+                const existing = state.interactionTruth[actionUri];
+                const shouldTrustServerCount = serverIsBookmarked === existing?.isBookmarked;
+
                 state.interactionTruth[actionUri] = {
-                    ...state.interactionTruth[actionUri],
-                    isBookmarked: action.payload.isBookmarked,
-                    // Note: bookmarksCount is tricky for local-only bookmarks. 
-                    // We either keep it as is or handle it via optimistic counter.
+                    ...existing,
+                    isBookmarked: serverIsBookmarked,
+                    bookmarksCount: (shouldTrustServerCount && action.payload.bookmarksCount !== undefined)
+                        ? action.payload.bookmarksCount
+                        : existing?.bookmarksCount
                 };
 
                 const updateInArray = (arr: Post[]) => {
