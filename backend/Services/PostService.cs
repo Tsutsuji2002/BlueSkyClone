@@ -669,7 +669,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false, bool forceDropHidden = true)
+    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false)
     {
         try
         {
@@ -797,7 +797,7 @@ public class PostService : IPostService
                     {
                         // Cache key includes viewerId — AppView responses contain user-specific viewer.like/repost state
                         var cacheKey = $"appview:posts:{viewerId}:{string.Join(",", chunk.OrderBy(u => u)).GetHashCode()}";
-                        var cachedJson = await _cacheService.GetAsync<string>(cacheKey);
+                        var cachedJson = !bypassRemoteCache ? await _cacheService.GetAsync<string>(cacheKey) : null;
 
                         string? rawJson = null;
                         if (!string.IsNullOrEmpty(cachedJson))
@@ -3153,12 +3153,15 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null)
+    public async Task<PostDto?> GetPostByIdAsync(Guid postId, Guid? viewerId = null, bool bypassCache = false)
     {
         var cacheKey = $"post:{postId}";
-        var cachedPost = await _cacheService.GetAsync<PostDto>(cacheKey);
+        PostDto? postDto = null;
 
-        PostDto? postDto = cachedPost;
+        if (!bypassCache)
+        {
+            postDto = await _cacheService.GetAsync<PostDto>(cacheKey);
+        }
 
         if (postDto == null)
         {
@@ -3179,7 +3182,7 @@ public class PostService : IPostService
             await _cacheService.SetAsync(cacheKey, postDto, TimeSpan.FromMinutes(30));
         }
 
-        return (await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty, forceDropHidden: false)).FirstOrDefault() ?? postDto;
+        return (await EnrichAndFilterPostsAsync(new List<PostDto> { postDto }, viewerId ?? Guid.Empty, forceDropHidden: false, bypassRemoteCache: bypassCache)).FirstOrDefault() ?? postDto;
     }
 
     public async Task<IEnumerable<PostDto>> GetPostsByIdsAsync(IEnumerable<Guid> postIds, Guid? viewerId = null)
@@ -4986,7 +4989,7 @@ public class PostService : IPostService
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isLiked = false, error = "User not found or missing DID" };
 
             // 1. Fetch Remote Truth (Status & Subject Info)
-            var freshPost = await GetPostByIdAsync(postId, userId);
+            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
             if (freshPost == null) return new { isLiked = false, error = "Post not found" };
 
             bool isCurrentlyLiked = freshPost.Viewer?.Like != null;
@@ -5078,7 +5081,7 @@ public class PostService : IPostService
 
             // 3. Post-Action Data Sync
             int finalLikesCount = freshPost.LikesCount;
-            var finalRefresh = await GetPostByIdAsync(postId, userId);
+            var finalRefresh = await GetPostByIdAsync(postId, userId, bypassCache: true);
             if (finalRefresh != null)
             {
                 finalLikesCount = finalRefresh.LikesCount;
@@ -5200,7 +5203,7 @@ public class PostService : IPostService
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isReposted = false, error = "User not found or missing DID" };
 
             // 1. Fetch Remote Truth
-            var freshPost = await GetPostByIdAsync(postId, userId);
+            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
             if (freshPost == null) return new { isReposted = false, error = "Post not found" };
 
             bool isCurrentlyReposted = freshPost.Viewer?.Repost != null;
@@ -5292,7 +5295,7 @@ public class PostService : IPostService
 
             // 3. Post-Action Data Sync
             int finalRepostsCount = freshPost.RepostsCount;
-            var finalRefresh = await GetPostByIdAsync(postId, userId);
+            var finalRefresh = await GetPostByIdAsync(postId, userId, bypassCache: true);
             if (finalRefresh != null)
             {
                 finalRepostsCount = finalRefresh.RepostsCount;
