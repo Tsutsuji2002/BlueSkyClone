@@ -1383,7 +1383,7 @@ public class PostService : IPostService
                     post.Author.FollowingReference = post.Author.Viewer.Following;
                 }
 
-                rkey = pUriKey?.Split('/').LastOrDefault()?.ToLower();
+                rkey = !string.IsNullOrEmpty(post.Tid) ? post.Tid.ToLower() : pUriKey?.Split('/').LastOrDefault()?.ToLower();
                 post.Viewer = new PostViewerDto
                 {
                     Like = (pUriKey != null && likedPostUrisByUri.TryGetValue(pUriKey, out var lu)) ? lu : 
@@ -4996,6 +4996,9 @@ public class PostService : IPostService
             string? currentLikeUri = freshPost.Viewer?.Like;
             bool isLiking = !isCurrentlyLiked;
             
+            _logger.LogInformation("[ToggleLikeAsync] User {UserId} attempting {Action} on Post {PostId} (Uri: {Uri}, Cid: {Cid}). Current state: isLiked={IsLiked}", 
+                userId, isLiking ? "LIKE" : "UNLIKE", postId, freshPost.Uri, freshPost.Cid, isCurrentlyLiked);
+
             bool proxySuccess = false;
             string? newLikeUri = null;
             string? errorMessage = null;
@@ -5209,6 +5212,9 @@ public class PostService : IPostService
             bool isCurrentlyReposted = freshPost.Viewer?.Repost != null;
             string? currentRepostUri = freshPost.Viewer?.Repost;
             bool isReposting = !isCurrentlyReposted;
+            
+            _logger.LogInformation("[ToggleRepostAsync] User {UserId} attempting {Action} on Post {PostId} (Uri: {Uri}, Cid: {Cid}). Current state: isReposted={IsReposted}", 
+                userId, isReposting ? "REPOST" : "UNREPOST", postId, freshPost.Uri, freshPost.Cid, isCurrentlyReposted);
 
             bool proxySuccess = false;
             string? newRepostUri = null;
