@@ -89,6 +89,14 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: s
 
     if (uris.length === 0) return posts;
 
+    const authToken = token && token !== 'null' ? token : localStorage.getItem('token');
+    const requestHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    if (authToken && authToken !== 'null') {
+        requestHeaders.Authorization = `Bearer ${authToken}`;
+    }
+
     // Run local-DB status and remote AppView viewer-state in parallel
     const [localStatuses, viewerStatuses] = await Promise.all([
         // (1) Local DB: authoritative for interactions done through this app
@@ -96,9 +104,7 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: s
             try {
                 const response = await fetch(`${API_BASE_URL}/posts/interactions/status`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: requestHeaders,
                     credentials: 'include',
                     body: JSON.stringify({ uris })
                 });
@@ -115,9 +121,7 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: s
             try {
                 const response = await fetch(`${API_BASE_URL}/posts/interactions/viewer-state`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: requestHeaders,
                     credentials: 'include',
                     body: JSON.stringify({ uris: remoteUris })
                 });

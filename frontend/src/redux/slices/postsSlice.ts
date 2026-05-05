@@ -640,12 +640,13 @@ export const toggleBookmark = createAsyncThunk(
     async ({ post }: { post: Post }, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
-            const postId = post.id;
             const uri = post.uri;
+            const postId = post.id || post.tid || (uri?.includes('/') ? uri.split('/').pop()! : uri);
 
-            // Support both ID and URI for remote/local posts
-            const identifier = uri || postId;
-            const url = new URL(`${API_BASE_URL}/posts/${encodeURIComponent(identifier!)}/bookmark`);
+            if (!postId) return rejectWithValue('Missing post identifier');
+
+            // Match the like/repost pattern so remote AT-URIs do not break route parsing.
+            const url = new URL(`${API_BASE_URL}/posts/${encodeURIComponent(postId)}/bookmark`);
             if (uri && uri.startsWith('at://')) url.searchParams.set('uri', uri);
 
             const response = await fetch(url.toString(), {
@@ -701,13 +702,37 @@ export const fetchBookmarkedPosts = createAsyncThunk(
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
             const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token && token !== 'null') headers.Authorization = `Bearer ${token}`;
+
             const response = await fetch(`${API_BASE_URL}/posts/bookmarks?skip=${skip}&take=${take}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers
             });
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
             const data = await response.json();
+            const posts: Post[] = data.posts || [];
+
+            if (token && posts.length > 0 && posts.every((p) => p.viewer !== undefined)) {
+                posts.forEach((p) => {
+                    if (p.viewer) {
+                        p.isLiked = !!p.viewer.like;
+                        p.isReposted = !!p.viewer.repost;
+                    }
+                    p.isBookmarked = true;
+                });
+                return {
+                    posts,
+                    cursor: data.cursor || null
+                };
+            }
+
+            const hydratedPosts = await hydratePostsWithInteractionStatus(posts, token);
+            hydratedPosts.forEach((p) => {
+                p.isBookmarked = true;
+            });
+
             return { 
-                posts: data.posts || [], 
+                posts: hydratedPosts, 
                 cursor: data.cursor || null 
             };
         } catch (error: any) {
