@@ -1422,14 +1422,29 @@ public class PostService : IPostService
                 {
                     if (remotePost.TryGetProperty("viewer", out var v))
                     {
-                        // AppView viewer state is authoritative for remote posts (it reflects the
-                        // user's actual like/repost status from Bluesky). Prefer it over the local
-                        // DB value to avoid showing stale interaction flags. Fall back to local only
-                        // when the AppView response has no viewer data at all.
                         if (v.TryGetProperty("like", out var vl))
-                            post.Viewer.Like = vl.ValueKind != JsonValueKind.Null ? vl.GetString() : post.Viewer.Like;
+                        {
+                            post.Viewer.Like = vl.ValueKind != JsonValueKind.Null ? vl.GetString() : null; // AUTHENTIC TRUTH
+                        }
+                        else 
+                        {
+                            post.Viewer.Like = null;
+                        }
+
                         if (v.TryGetProperty("repost", out var vr))
-                            post.Viewer.Repost = vr.ValueKind != JsonValueKind.Null ? vr.GetString() : post.Viewer.Repost;
+                        {
+                            post.Viewer.Repost = vr.ValueKind != JsonValueKind.Null ? vr.GetString() : null; // AUTHENTIC TRUTH
+                        }
+                        else
+                        {
+                            post.Viewer.Repost = null;
+                        }
+                    }
+                    else
+                    {
+                        // No viewer state in AppView at all? Then it's not liked/reposted.
+                        post.Viewer.Like = null;
+                        post.Viewer.Repost = null;
                     }
                     
                     // Always refresh media/embed from AppView for remote posts — local DB may have
