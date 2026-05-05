@@ -6039,13 +6039,13 @@ public class PostService : IPostService
             // AT-Protocol URI and authoritative CID.
             // If the post has a DID and Tid, we construct a canonical AT-URI.
             // Otherwise we fall back to a local synthetic URI based on the ID.
-            dto.Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
+            Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
                 ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}"
-                : post.Uri ?? $"at://local/app.bsky.feed.post/{post.Id}";
+                : post.Uri ?? $"at://local/app.bsky.feed.post/{post.Id}",
             
             // CID: If stored in DB, use it; otherwise use GUID (to be refreshed by EnrichAndFilter)
-            dto.Cid = post.Cid ?? post.Id.ToString();
-            dto.Viewer = new PostViewerDto();
+            Cid = post.Cid ?? post.Id.ToString(),
+            Viewer = new PostViewerDto()
         };
 
         dto.IsLinkPreviewPending = dto.LinkPreview == null && 
