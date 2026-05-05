@@ -742,12 +742,41 @@ public class PostService : IPostService
             var remoteUris = new HashSet<string>();
             foreach (var p in posts)
             {
-                if (!string.IsNullOrEmpty(p.Uri) && !p.Uri.Contains(_localDomain))
-                    remoteUris.Add(p.Uri);
-                if (p.ParentPost != null && !string.IsNullOrEmpty(p.ParentPost.Uri) && !p.ParentPost.Uri.Contains(_localDomain))
-                    remoteUris.Add(p.ParentPost.Uri);
-                if (p.QuotePost != null && !string.IsNullOrEmpty(p.QuotePost.Uri) && !p.QuotePost.Uri.Contains(_localDomain))
-                    remoteUris.Add(p.QuotePost.Uri);
+                // [NEW] Use canonical remote URI for fetch if possible, even if local URI is present.
+                // This ensures we get the authoritative Cid from AppView instead of our local GUID.
+                string canonicalUri = p.Uri ?? "";
+                if (p.Author != null && !string.IsNullOrEmpty(p.Author.Did) && !string.IsNullOrEmpty(p.Tid))
+                {
+                    canonicalUri = $"at://{p.Author.Did}/app.bsky.feed.post/{p.Tid}";
+                }
+
+                if (!string.IsNullOrEmpty(canonicalUri) && !canonicalUri.Contains(_localDomain) && !canonicalUri.StartsWith("at://local/"))
+                {
+                    remoteUris.Add(canonicalUri);
+                }
+                
+                // Also check Parent and Quote posts to ensure they get fresh CIDs
+                if (p.ParentPost != null)
+                {
+                    string pUri = p.ParentPost.Uri ?? "";
+                    if (p.ParentPost.Author != null && !string.IsNullOrEmpty(p.ParentPost.Author.Did) && !string.IsNullOrEmpty(p.ParentPost.Tid))
+                    {
+                        pUri = $"at://{p.ParentPost.Author.Did}/app.bsky.feed.post/{p.ParentPost.Tid}";
+                    }
+                    if (!string.IsNullOrEmpty(pUri) && !pUri.Contains(_localDomain) && !pUri.StartsWith("at://local/"))
+                        remoteUris.Add(pUri);
+                }
+
+                if (p.QuotePost != null)
+                {
+                    string qUri = p.QuotePost.Uri ?? "";
+                    if (p.QuotePost.Author != null && !string.IsNullOrEmpty(p.QuotePost.Author.Did) && !string.IsNullOrEmpty(p.QuotePost.Tid))
+                    {
+                        qUri = $"at://{p.QuotePost.Author.Did}/app.bsky.feed.post/{p.QuotePost.Tid}";
+                    }
+                    if (!string.IsNullOrEmpty(qUri) && !qUri.Contains(_localDomain) && !qUri.StartsWith("at://local/"))
+                        remoteUris.Add(qUri);
+                }
             }
             var remoteUrisList = remoteUris.ToList();
 
@@ -4982,7 +5011,9 @@ public class PostService : IPostService
                             { "subject", new Dictionary<string, object> 
                                 { 
                                     { "uri", freshPost.Uri! }, 
-                                    { "cid", freshPost.Cid ?? "" } 
+                                    { "cid", (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy")) 
+                                        ? (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault()?.Cid ?? freshPost.Cid ?? ""
+                                        : freshPost.Cid ?? "" } 
                                 } 
                             },
                             { "createdAt", DateTime.UtcNow.ToString("O") }
@@ -5194,7 +5225,9 @@ public class PostService : IPostService
                             { "subject", new Dictionary<string, object> 
                                 { 
                                     { "uri", freshPost.Uri! }, 
-                                    { "cid", freshPost.Cid ?? "" } 
+                                    { "cid", (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy")) 
+                                        ? (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault()?.Cid ?? freshPost.Cid ?? ""
+                                        : freshPost.Cid ?? "" } 
                                 } 
                             },
                             { "createdAt", DateTime.UtcNow.ToString("O") }
@@ -6003,12 +6036,16 @@ public class PostService : IPostService
             ParentPost = (includeParent && post.ReplyToPost != null) ? MapToDto(post.ReplyToPost, false, false) : null,
             CanReply = true, // Default
             Labels = !string.IsNullOrEmpty(post.Labels) ? post.Labels.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() : new List<string>(),
-            // AT-Protocol URI and synthetic CID
-            Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
+            // AT-Protocol URI and authoritative CID.
+            // If the post has a DID and Tid, we construct a canonical AT-URI.
+            // Otherwise we fall back to a local synthetic URI based on the ID.
+            dto.Uri = !string.IsNullOrEmpty(post.Author?.Did) && !string.IsNullOrEmpty(post.Tid)
                 ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}"
-                : $"at://local/app.bsky.feed.post/{post.Id}",
-            Cid = post.Cid ?? post.Id.ToString(),
-            Viewer = new PostViewerDto()
+                : post.Uri ?? $"at://local/app.bsky.feed.post/{post.Id}";
+            
+            // CID: If stored in DB, use it; otherwise use GUID (to be refreshed by EnrichAndFilter)
+            dto.Cid = post.Cid ?? post.Id.ToString();
+            dto.Viewer = new PostViewerDto();
         };
 
         dto.IsLinkPreviewPending = dto.LinkPreview == null && 
