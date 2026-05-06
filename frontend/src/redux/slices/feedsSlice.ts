@@ -431,9 +431,11 @@ export const fetchFeedPosts = createAsyncThunk<
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
             
             const rawPosts = data.posts || (Array.isArray(data) ? data : []);
+            const posts = rawPosts.map(mapAtProtoPostToPost);
+            
             return {
                 feedId,
-                posts: rawPosts,
+                posts,
                 isMore: data.hasMore ?? (Array.isArray(data) ? rawPosts.length >= take : rawPosts.length >= take),
                 cursor: data.cursor || null
             };

@@ -219,7 +219,8 @@ export const fetchTimeline = createAsyncThunk(
 
             const response = await fetch(url.toString(), { headers });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
-            const posts = await response.json();
+            const rawPosts = await response.json();
+            const posts = rawPosts.map(mapAtProtoPostToPost);
             return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -246,7 +247,8 @@ export const fetchUserPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
-            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
+            const posts = rawPosts.map(mapAtProtoPostToPost);
             const cursorVal = data.cursor || null;
 
             return { posts, userId, cursor: cursorVal, type };
@@ -454,7 +456,8 @@ export const fetchPostsByTag = createAsyncThunk(
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch posts by tag');
-            const posts: Post[] = await response.json();
+            const rawPosts = await response.json();
+            const posts = rawPosts.map(mapAtProtoPostToPost);
             return { posts, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -475,7 +478,8 @@ export const fetchPostsSearch = createAsyncThunk(
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to search posts');
-            const posts: Post[] = await response.json();
+            const rawPosts = await response.json();
+            const posts = rawPosts.map(mapAtProtoPostToPost);
             return { posts, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -720,7 +724,8 @@ export const fetchBookmarkedPosts = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
             const data = await response.json();
-            const posts = data.posts || [];
+            const rawPosts = data.posts || [];
+            const posts = rawPosts.map(mapAtProtoPostToPost);
             
             return { 
                 posts, 
@@ -747,7 +752,8 @@ export const fetchDiscoverPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
-            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
+            const posts = rawPosts.map(mapAtProtoPostToPost);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
             return { posts, skip, hasMore };
@@ -1827,6 +1833,23 @@ const postsSlice = createSlice({
                     state.discoverPosts.forEach(updateRecursive);
                     state.trendingPosts.forEach(updateRecursive);
                     state.bookmarkedPosts.forEach(updateRecursive);
+                }
+            )
+            // Cross-slice Interaction Synchronization (Feeds and Lists)
+            .addMatcher(
+                (action) => action.type.endsWith('/fulfilled') && (
+                    action.type.includes('feeds/fetchPosts') || 
+                    action.type.includes('feeds/hydratePosts') || 
+                    action.type.includes('lists/fetchListFeed') ||
+                    action.type.includes('feeds/fetchFeedPosts')
+                ),
+                (state, action: PayloadAction<any>) => {
+                    const posts = action.payload?.posts || (Array.isArray(action.payload) ? action.payload : null);
+                    if (!posts || !Array.isArray(posts)) return;
+
+                    posts.forEach((post: Post) => {
+                        updateInteractionTruth(state, post);
+                    });
                 }
             );
     },

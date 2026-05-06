@@ -5697,7 +5697,8 @@ public class PostService : IPostService
             .ToListAsync();
 
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
-        var enriched = await EnrichAndFilterPostsAsync(postDtos, userId);
+        var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
+        var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token);
         // Force IsBookmarked = true: every post returned here IS a bookmark by definition.
         // EnrichAndFilterPostsAsync may fail to set this correctly for remote posts.
         foreach (var p in enriched)
