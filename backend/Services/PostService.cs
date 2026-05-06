@@ -785,17 +785,14 @@ public class PostService : IPostService
             // We previously skipped this for timelines, but that resulted in missing status for remote posts.
             // Skip only if there's nothing to fetch.
             if (remoteUrisList.Any())
+            {
                 try
                 {
                     var token = viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
-
-                    // Split into chunks if there are too many (limit is 25)
                     foreach (var chunk in remoteUrisList.Chunk(25))
                     {
-                        // Cache key includes viewerId — AppView responses contain user-specific viewer.like/repost state
                         var cacheKey = $"appview:posts:{viewerId}:{string.Join(",", chunk.OrderBy(u => u)).GetHashCode()}";
                         var cachedJson = !bypassRemoteCache ? await _cacheService.GetAsync<string>(cacheKey) : null;
-
                         string? rawJson = null;
                         if (!string.IsNullOrEmpty(cachedJson))
                         {
@@ -803,34 +800,25 @@ public class PostService : IPostService
                         }
                         else
                         {
-                            // Use HttpClient with Bearer token if available to get viewer interaction state
-                            // Reduce timeout: 5s is plenty; 10s stacks up badly with 20 posts = 8 chunks
                             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
                             if (!string.IsNullOrEmpty(token))
                             {
                                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                             }
-                            
                             var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
                             var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
                             var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
-                            
-                            // [NEW] Fallback to public AppView if authenticated fetch fails (e.g. 401 Unauthorized)
                             if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
                             {
-                                _logger.LogWarning("[EnrichAndFilterPostsAsync] Authenticated ATProto fetch failed with {Status}. Falling back to public API.", response.StatusCode);
                                 client.DefaultRequestHeaders.Authorization = null;
                                 response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
                             }
-
                             if (response.IsSuccessStatusCode)
                             {
                                 rawJson = await response.Content.ReadAsStringAsync();
-                                // Cache for 2 minutes so repeated navigations reuse the result
                                 await _cacheService.SetAsync(cacheKey, rawJson, TimeSpan.FromMinutes(2));
                             }
                         }
-
                         if (!string.IsNullOrEmpty(rawJson))
                         {
                             using var doc = JsonDocument.Parse(rawJson);
@@ -843,44 +831,27 @@ public class PostService : IPostService
                                         var uri = uriProp.GetString();
                                         if (uri != null)
                                         {
-                                            remoteInteractionCache[uri.ToLower()] = rp.Clone(); // Case-insensitive key
-                                            
-                                            // [NEW] Extract labels from remote AppView result (Post, Author, and Media)
+                                            remoteInteractionCache[uri.ToLower()] = rp.Clone();
                                             void AddToActiveLabels(string subject, JsonElement labProp)
                                             {
                                                 if (labProp.ValueKind != JsonValueKind.Array) return;
                                                 var labels = new List<string>();
                                                 foreach (var lab in labProp.EnumerateArray())
                                                 {
-                                                    if (lab.TryGetProperty("val", out var valProp))
-                                                    {
-                                                        labels.Add(valProp.GetString()?.ToLower() ?? "");
-                                                    }
+                                                    if (lab.TryGetProperty("val", out var valProp)) labels.Add(valProp.GetString()?.ToLower() ?? "");
                                                 }
                                                 if (labels.Any())
                                                 {
-                                                    if (activeLabels.ContainsKey(subject))
-                                                    {
-                                                        activeLabels[subject] = activeLabels[subject].Concat(labels).Distinct().ToList();
-                                                    }
-                                                    else
-                                                    {
-                                                        activeLabels[subject] = labels;
-                                                    }
+                                                    if (activeLabels.ContainsKey(subject)) activeLabels[subject] = activeLabels[subject].Concat(labels).Distinct().ToList();
+                                                    else activeLabels[subject] = labels;
                                                 }
                                             }
-
                                             if (rp.TryGetProperty("labels", out var pLabels)) AddToActiveLabels(uri, pLabels);
                                             if (rp.TryGetProperty("author", out var authorProp) && authorProp.TryGetProperty("did", out var didProp))
                                             {
                                                 var did = didProp.GetString();
-                                                if (did != null)
-                                                {
-                                                    if (authorProp.TryGetProperty("labels", out var aLabels)) AddToActiveLabels(did, aLabels);
-                                                }
+                                                if (did != null && authorProp.TryGetProperty("labels", out var aLabels)) AddToActiveLabels(did, aLabels);
                                             }
-                                            
-                                            // Extract labels from media embeds
                                             if (rp.TryGetProperty("embed", out var embedProp))
                                             {
                                                 if (embedProp.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
@@ -890,11 +861,7 @@ public class PostService : IPostService
                                                         if (img.TryGetProperty("labels", out var imgLabels)) AddToActiveLabels(uri, imgLabels);
                                                     }
                                                 }
-                                                // Handle external (link) previews labels
-                                                if (embedProp.TryGetProperty("external", out var external) && external.TryGetProperty("labels", out var extLabels))
-                                                {
-                                                    AddToActiveLabels(uri, extLabels);
-                                                }
+                                                if (embedProp.TryGetProperty("external", out var external) && external.TryGetProperty("labels", out var extLabels)) AddToActiveLabels(uri, extLabels);
                                             }
                                         }
                                     }
