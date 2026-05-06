@@ -766,7 +766,9 @@ const feedsSlice = createSlice({
                     action.type.endsWith('/repostPost/pending') ||
                     action.type.endsWith('/toggleBookmark/pending'),
                 (state: FeedsState, action: any) => {
-                    const { uri: actionUri } = action.meta.arg;
+                    // toggleLike/repostPost pass { uri } directly; toggleBookmark passes { post }
+                    const actionUri = action.meta.arg?.uri || action.meta.arg?.post?.uri;
+                    if (!actionUri) return;
                     const type = action.type;
 
                     Object.keys(state.feedPosts).forEach(feedId => {

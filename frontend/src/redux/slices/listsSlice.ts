@@ -251,6 +251,7 @@ export const fetchListFeed = createAsyncThunk(
     'lists/fetchListFeed',
     async ({ id, skip = 0, take = 5 }: { id: string; skip?: number; take?: number }, { rejectWithValue }) => {
         try {
+            let posts: any[];
             if (id.startsWith('at://')) {
                 // app.bsky.feed.getListFeed
                 const res = await fetch(`${getXrpcBase()}/app.bsky.feed.getListFeed?list=${encodeURIComponent(id)}&limit=${take}`, {
@@ -258,11 +259,13 @@ export const fetchListFeed = createAsyncThunk(
                 });
                 if (!res.ok) throw new Error('Failed to fetch list feed via XRPC');
                 const data = await res.json();
-                const posts = (data.feed || []).map((f: any) => mapAtProtoPostToPost(f.post));
-                return posts;
+                posts = (data.feed || []).map((f: any) => mapAtProtoPostToPost(f.post));
+            } else {
+                posts = await listService.getListFeed(id, skip, take);
             }
-            const posts = await listService.getListFeed(id, skip, take);
-            return posts;
+            // Hydrate interaction status in the background
+            const hydrated = await hydratePostsWithInteractionStatus(posts);
+            return hydrated;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch list feed');
         }
@@ -569,11 +572,14 @@ const listsSlice = createSlice({
                 action.type.endsWith('/repostPost/pending') ||
                 action.type.endsWith('/toggleBookmark/pending'),
             (state: ListsState, action: any) => {
-                const { uri: actionUri } = action.meta.arg;
+                const { uri: actionUri } = action.meta.arg || {};
+                // toggleBookmark passes { post } not { uri }
+                const resolvedUri = actionUri || action.meta.arg?.post?.uri;
+                if (!resolvedUri) return;
                 const type = action.type;
 
                 const applyOptimistic = (posts: Post[]) => {
-                    const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
+                    const post = posts.find(p => p.uri === resolvedUri || p.id === resolvedUri || p.tid === resolvedUri || (p.uri && p.uri.endsWith('/' + resolvedUri.split('/').pop()!)));
                     if (post) {
                         if (type.includes('toggleLike')) {
                             const wasLiked = post.isLiked;
@@ -636,11 +642,13 @@ const listsSlice = createSlice({
                 action.type.endsWith('/repostPost/rejected') ||
                 action.type.endsWith('/toggleBookmark/rejected'),
             (state: ListsState, action: any) => {
-                const { uri: actionUri } = action.meta.arg;
+                const { uri: actionUri2 } = action.meta.arg || {};
+                const resolvedUri2 = actionUri2 || action.meta.arg?.post?.uri;
+                if (!resolvedUri2) return;
                 const type = action.type;
 
                 const rollback = (posts: Post[]) => {
-                    const post = posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri || (p.uri && p.uri.endsWith('/' + actionUri.split('/').pop()!)));
+                    const post = posts.find(p => p.uri === resolvedUri2 || p.id === resolvedUri2 || p.tid === resolvedUri2 || (p.uri && p.uri.endsWith('/' + resolvedUri2.split('/').pop()!)));
                     if (post) {
                         if (type.includes('toggleLike')) {
                             const wasLiked = post.isLiked;

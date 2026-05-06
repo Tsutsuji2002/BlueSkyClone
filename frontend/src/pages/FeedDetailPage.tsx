@@ -8,7 +8,7 @@ import { cn } from '../utils/classNames';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed, pinFeed, unpinFeed } from '../redux/slices/feedsSlice';
+import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed, pinFeed, unpinFeed, hydrateInteractionStatusForFeed } from '../redux/slices/feedsSlice';
 import { openAuthWall } from '../redux/slices/modalsSlice';
 import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
@@ -51,14 +51,24 @@ const FeedDetailPage: React.FC = () => {
 
     useEffect(() => {
         if (routeKey) {
-            dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take }));
+            dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take }) as any)
+                .then((result: any) => {
+                    if (result?.payload?.posts?.length) {
+                        dispatch(hydrateInteractionStatusForFeed({ feedId: result.payload.feedId, posts: result.payload.posts }) as any);
+                    }
+                });
         }
     }, [dispatch, routeKey]);
 
     const handleLoadMore = () => {
         if (routeKey) {
             const cursor = feedCursors[routeKey];
-            dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take, cursor }));
+            dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take, cursor }) as any)
+                .then((result: any) => {
+                    if (result?.payload?.posts?.length) {
+                        dispatch(hydrateInteractionStatusForFeed({ feedId: result.payload.feedId, posts: result.payload.posts }) as any);
+                    }
+                });
         }
     };
 

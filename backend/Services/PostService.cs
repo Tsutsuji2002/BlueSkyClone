@@ -917,14 +917,14 @@ public class PostService : IPostService
             // postRkeys already collected recursively above
 
             // Collect Likes joined with Post Uri or Tid
-            // PERFORMANCE: Remove ToLower() from DB queries to preserve index usage.
-            // postUrisList and postRkeysList are already pre-normalized to lowercase.
+            // postUrisList and postRkeysList are pre-normalized to lowercase;
+            // we must apply ToLower() on the DB side so case-insensitive matching works.
             var likedItems = viewerId != Guid.Empty
                 ? await _unitOfWork.Likes.Query()
                     .Where(l => l.UserId == viewerId && (
                         postIdsList.Contains(l.PostId) ||
-                        (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri)) ||
-                        (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid))
+                        (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri.ToLower())) ||
+                        (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid.ToLower()))
                     ))
                     .Select(l => new { l.PostId, Uri = l.Post.Uri, SubjectTid = l.Post.Tid, LikeUri = l.Uri ?? "" })
                     .ToListAsync()
@@ -934,13 +934,12 @@ public class PostService : IPostService
             var rkeyToLikedUri = likedItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).ToDictionary(x => x.SubjectTid!.ToLower(), x => x.LikeUri);
 
             // Collect Reposts joined with Post Uri or Tid
-            // PERFORMANCE: Remove ToLower() from DB queries to preserve index usage.
             var repostItems = viewerId != Guid.Empty
                 ? await _unitOfWork.Reposts.Query()
                     .Where(r => r.UserId == viewerId && (
                         postIdsList.Contains(r.PostId) ||
-                        (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri)) ||
-                        (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid))
+                        (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri.ToLower())) ||
+                        (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid.ToLower()))
                     ))
                     .Select(r => new { r.PostId, Uri = r.Post.Uri, SubjectTid = r.Post.Tid, RepostUri = r.Uri ?? "" })
                     .ToListAsync()
