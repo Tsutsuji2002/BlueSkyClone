@@ -1036,6 +1036,13 @@ public class PostService : IPostService
             var localRepliesCounts = await _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIdsList.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
             var localQuotesCounts = await _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIdsList.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
 
+            // PERFORMANCE FIX: Filter bookmark URI counts by the current batch to prevent "leak" fetching of all system bookmarks
+            var localBookmarksCountsByUri = await _unitOfWork.Bookmarks.Query()
+                .Where(b => b.Post != null && b.Post.Uri != null && postUrisList.Contains(b.Post.Uri))
+                .GroupBy(b => b.Post.Uri!)
+                .Select(g => new { Uri = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Uri.ToLowerInvariant(), x => x.Count);
+
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, TokenPresent={TokenPresent}, IsTimeline={IsTimeline}", 
                 posts.Count(), viewerId, !string.IsNullOrEmpty(token), isTimeline);
 
@@ -6983,6 +6990,12 @@ public class PostService : IPostService
             return mappedId;
         }
 
+        var authorNode = postNode["author"];
+        if (authorNode == null) return null;
+
+        var did = authorNode["did"]?.ToString();
+        if (string.IsNullOrEmpty(did)) return null;
+
         // Use change tracker + DB to avoid duplicates within same transaction
         var tid = uri.Split('/').Last();
         var existing = await _unitOfWork.Posts.Query()
@@ -6997,12 +7010,6 @@ public class PostService : IPostService
             }
             if (!string.IsNullOrEmpty(existing.Content)) return existing.Id;
         }
-
-        var authorNode = postNode["author"];
-        if (authorNode == null) return null;
-
-        var did = authorNode["did"]?.ToString();
-        if (string.IsNullOrEmpty(did)) return null;
 
         var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
         if (author == null)
