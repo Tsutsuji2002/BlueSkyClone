@@ -917,12 +917,14 @@ public class PostService : IPostService
             // postRkeys already collected recursively above
 
             // Collect Likes joined with Post Uri or Tid
+            // PERFORMANCE: Remove ToLower() from DB queries to preserve index usage.
+            // postUrisList and postRkeysList are already pre-normalized to lowercase.
             var likedItems = viewerId != Guid.Empty
                 ? await _unitOfWork.Likes.Query()
                     .Where(l => l.UserId == viewerId && (
                         postIdsList.Contains(l.PostId) ||
-                        (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri.ToLower())) ||
-                        (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid.ToLower()))
+                        (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri)) ||
+                        (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid))
                     ))
                     .Select(l => new { l.PostId, Uri = l.Post.Uri, SubjectTid = l.Post.Tid, LikeUri = l.Uri ?? "" })
                     .ToListAsync()
@@ -932,12 +934,13 @@ public class PostService : IPostService
             var rkeyToLikedUri = likedItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).ToDictionary(x => x.SubjectTid!.ToLower(), x => x.LikeUri);
 
             // Collect Reposts joined with Post Uri or Tid
+            // PERFORMANCE: Remove ToLower() from DB queries to preserve index usage.
             var repostItems = viewerId != Guid.Empty
                 ? await _unitOfWork.Reposts.Query()
                     .Where(r => r.UserId == viewerId && (
                         postIdsList.Contains(r.PostId) ||
-                        (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri.ToLower())) ||
-                        (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid.ToLower()))
+                        (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri)) ||
+                        (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid))
                     ))
                     .Select(r => new { r.PostId, Uri = r.Post.Uri, SubjectTid = r.Post.Tid, RepostUri = r.Uri ?? "" })
                     .ToListAsync()
@@ -1028,15 +1031,12 @@ public class PostService : IPostService
             var localRepliesCounts = await _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIdsList.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
             var localQuotesCounts = await _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIdsList.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
 
-            var localBookmarksCountsByUriRaw = await _unitOfWork.Bookmarks.Query()
-                .Where(b => b.Post != null && b.Post.Uri != null)
-                .Select(b => b.Post.Uri!)
-                .ToListAsync();
-
-            var localBookmarksCountsByUri = localBookmarksCountsByUriRaw
-                .Where(uri => postUrisList.Contains(uri.ToLowerInvariant()))
-                .GroupBy(uri => uri.ToLowerInvariant())
-                .ToDictionary(g => g.Key, g => g.Count());
+            // PERFORMANCE FIX: Filter bookmark URI counts by the current batch to prevent "leak" fetching of all system bookmarks
+            var localBookmarksCountsByUri = await _unitOfWork.Bookmarks.Query()
+                .Where(b => b.Post != null && b.Post.Uri != null && postUrisList.Contains(b.Post.Uri))
+                .GroupBy(b => b.Post.Uri!)
+                .Select(g => new { Uri = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Uri.ToLowerInvariant(), x => x.Count);
 
             // Fetch user settings for moderation filtering
             UserSetting? userSettings = null;
@@ -1395,8 +1395,13 @@ public class PostService : IPostService
                 // Look up local interaction counts
                 localLikesCounts.TryGetValue(post.Id, out var localLikes);
                 localRepostsCounts.TryGetValue(post.Id, out var localReposts);
+                
+                // UNIFIED BOOKMARK COUNT: Use local ID match OR canonical URI match for accuracy
                 localBookmarksCounts.TryGetValue(post.Id, out var localBookmarks);
-                // Bookmarks counts - skip URI check if redundant
+                if (localBookmarks == 0 && pUriKey != null)
+                {
+                    localBookmarksCountsByUri.TryGetValue(pUriKey, out localBookmarks);
+                }
 
                 localRepliesCounts.TryGetValue(post.Id, out var localReplies);
                 localQuotesCounts.TryGetValue(post.Id, out var localQuotes);
