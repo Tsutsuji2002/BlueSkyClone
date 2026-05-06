@@ -1087,6 +1087,13 @@ const postsSlice = createSlice({
                         ? Math.max(0, baseLikesCount - 1) 
                         : baseLikesCount + 1
                 };
+                
+                // Broaden optimistic truth to all identifiers
+                const postIdx = state.posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri);
+                if (postIdx) {
+                    if (postIdx.id) state.interactionTruth[postIdx.id] = state.interactionTruth[actionUri];
+                    if (postIdx.tid) state.interactionTruth[postIdx.tid] = state.interactionTruth[actionUri];
+                }
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
@@ -1357,6 +1364,14 @@ const postsSlice = createSlice({
                         ? Math.max(0, (existingTruth?.bookmarksCount || 0) - 1) 
                         : (existingTruth?.bookmarksCount || 0) + 1
                 };
+                
+                // Broaden optimistic truth for bookmarks
+                const bPost = actionPost;
+                if (bPost) {
+                    if (bPost.uri) state.interactionTruth[bPost.uri] = state.interactionTruth[actionUri];
+                    if (bPost.id) state.interactionTruth[bPost.id] = state.interactionTruth[actionUri];
+                    if (bPost.tid) state.interactionTruth[bPost.tid] = state.interactionTruth[actionUri];
+                }
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {

@@ -236,7 +236,7 @@ public class PostService : IPostService
     {
         try
         {
-            var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}";
+            var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}_{viewerId ?? Guid.Empty}";
             PagedPostDto? result = null;
 
             if (!bypassCache)
@@ -679,6 +679,8 @@ public class PostService : IPostService
             }
 
             var token = viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
+            _logger.LogInformation("[EnrichAndFilterPostsAsync] Start: PostsCount={Count}, ViewerId={ViewerId}, HasToken={HasToken}", 
+                posts.Count, viewerId, !string.IsNullOrEmpty(token));
             var postIds = new HashSet<Guid>();
             var postUris = new HashSet<string>();
             var postRkeys = new HashSet<string>();
@@ -806,6 +808,8 @@ public class PostService : IPostService
             // Skip only if there's nothing to fetch.
             if (remoteUrisList.Any())
             {
+                _logger.LogInformation("[EnrichAndFilterPostsAsync] Fetching remote interactions for {Count} URIs. Sample: {Sample}", 
+                    remoteUrisList.Count, remoteUrisList.FirstOrDefault());
                 try
                 {
                     foreach (var chunk in remoteUrisList.Chunk(25))
@@ -1411,32 +1415,28 @@ public class PostService : IPostService
                 {
                     if (remotePost.TryGetProperty("viewer", out var v))
                     {
-                         if (v.TryGetProperty("like", out var vl))
-                         {
-                             post.Viewer.Like = vl.ValueKind != JsonValueKind.Null ? vl.GetString() : null; // AUTHENTIC TRUTH
-                         }
-                         else 
-                         {
-                             post.Viewer.Like = null;
-                         }
-
-                        if (v.TryGetProperty("repost", out var vr))
-                        {
-                            post.Viewer.Repost = vr.ValueKind != JsonValueKind.Null ? vr.GetString() : null; // AUTHENTIC TRUTH
-                        }
-                        else
-                        {
-                            post.Viewer.Repost = null;
-                        }
+                          if (v.TryGetProperty("like", out var vl))
+                          {
+                              // AUTHENTIC TRUTH from AppView
+                              post.Viewer.Like = vl.ValueKind != JsonValueKind.Null ? vl.GetString() : null; 
+                              post.IsLiked = post.Viewer.Like != null;
+                          }
+                          
+                          if (v.TryGetProperty("repost", out var vr))
+                          {
+                              // AUTHENTIC TRUTH from AppView
+                              post.Viewer.Repost = vr.ValueKind != JsonValueKind.Null ? vr.GetString() : null;
+                              post.IsReposted = post.Viewer.Repost != null;
+                          }
                     }
                     else if (!string.IsNullOrEmpty(token))
                     {
-                        // No viewer state in AppView even though we are authenticated? 
-                        // Then the user definitely hasn't liked/reposted THIS post.
-                        post.Viewer.Like = null;
-                        post.Viewer.Repost = null;
-                        post.IsLiked = false;
-                        post.IsReposted = false;
+                         // AppView returned the post but NO viewer object, and we HAVE a token.
+                         // This means the viewer has NO interaction with this post on Bluesky.
+                         post.Viewer.Like = null;
+                         post.Viewer.Repost = null;
+                         post.IsLiked = false;
+                         post.IsReposted = false;
                     }
                     
                     // Always refresh media/embed from AppView for remote posts — local DB may have
