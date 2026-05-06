@@ -970,22 +970,20 @@ public class PostService : IPostService
                     .ToListAsync()).ToHashSet();
             }
 
-            // Collect ALL Bookmarks for the user to evaluate in-memory, bypassing SQLite's EF Core translation bugs with ToLower()
-            var allUserBookmarks = viewerId != Guid.Empty
-                ? await _unitOfWork.Bookmarks.Query()
+            // Collect ALL Bookmarks for the user to evaluate in-memory.
+            // Matching is done by PostId (local) or Tid/rkey (remote/agnostic).
+            var userBookmarks = new List<dynamic>();
+            if (viewerId != Guid.Empty)
+            {
+                var queryResult = await _unitOfWork.Bookmarks.Query()
                     .Where(b => b.UserId == viewerId)
-                    .Select(b => new { b.PostId, Uri = b.Post.Uri ?? b.Tid, SubjectTid = b.Post.Tid ?? b.Tid }) // Provide robust fallback to Tid if Uri is null to avoid null refs
-                    .ToListAsync()
-                : Enumerable.Empty<object>().Select(_ => new { PostId = Guid.Empty, Uri = (string?)null, SubjectTid = (string?)null }).ToList();
+                    .Select(b => new { b.PostId, Tid = b.Tid })
+                    .ToListAsync();
+                foreach (var b in queryResult) userBookmarks.Add(new { b.PostId, Tid = b.Tid.ToLowerInvariant() });
+            }
 
-            var bookmarkedItems = allUserBookmarks.Where(b =>
-                postIdsList.Contains(b.PostId) ||
-                (b.Uri != null && postUrisList.Contains(b.Uri.ToLower())) ||
-                (b.SubjectTid != null && postRkeysList.Contains(b.SubjectTid.ToLower()))
-            ).ToList();
-            var bookmarkedUris = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.Uri)).Select(x => x.Uri!.ToLower()).ToHashSet();
-            var bookmarkedIds = bookmarkedItems.Select(x => x.PostId).ToHashSet();
-            var bookmarkedRkeys = bookmarkedItems.Where(x => !string.IsNullOrEmpty(x.SubjectTid)).Select(x => x.SubjectTid!.ToLower()).ToHashSet();
+            var bookmarkedIds = userBookmarks.Where(b => b.PostId != Guid.Empty).Select(b => b.PostId).ToHashSet();
+            var bookmarkedRkeys = userBookmarks.Where(b => !string.IsNullOrEmpty(b.Tid)).Select(b => b.Tid).ToHashSet();
 
             var blockingUris = viewerId != Guid.Empty
                 ? await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}")
@@ -1356,8 +1354,7 @@ public class PostService : IPostService
                              (rkey != null && rkeyToRepostUri.TryGetValue(rkey, out var rru)) ? rru :
                              repostPostUrisById.TryGetValue(post.Id, out var ri) ? ri : post.Viewer?.Repost
                 };
-                post.IsBookmarked = (pUriKey != null && bookmarkedUris.Contains(pUriKey)) || 
-                                    (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
+                post.IsBookmarked = (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
                                     bookmarkedIds.Contains(post.Id);
                 post.IsLiked = post.Viewer?.Like != null;
                 post.IsReposted = post.Viewer?.Repost != null;
@@ -1366,10 +1363,7 @@ public class PostService : IPostService
                 localLikesCounts.TryGetValue(post.Id, out var localLikes);
                 localRepostsCounts.TryGetValue(post.Id, out var localReposts);
                 localBookmarksCounts.TryGetValue(post.Id, out var localBookmarks);
-                if (pUriKey != null && localBookmarksCountsByUri.TryGetValue(pUriKey, out var uriBookmarks)) 
-                {
-                    localBookmarks = Math.Max(localBookmarks, uriBookmarks);
-                }
+                // Bookmarks counts - skip URI check if redundant
 
                 localRepliesCounts.TryGetValue(post.Id, out var localReplies);
                 localQuotesCounts.TryGetValue(post.Id, out var localQuotes);
@@ -1516,7 +1510,8 @@ public class PostService : IPostService
                     // [Fix] Sync boolean interaction flags for ParentPost
                     if (parentUriKey != null)
                     {
-                        post.ParentPost.IsBookmarked = bookmarkedUris.Contains(parentUriKey);
+                        var prkey = parentUriKey.Split('/').LastOrDefault();
+                        post.ParentPost.IsBookmarked = (prkey != null && bookmarkedRkeys.Contains(prkey)) || bookmarkedIds.Contains(post.ParentPost.Id);
                         post.ParentPost.IsLiked = post.ParentPost.Viewer?.Like != null || likedPostUrisByUri.ContainsKey(parentUriKey);
                         post.ParentPost.IsReposted = post.ParentPost.Viewer?.Repost != null || repostPostUrisByUri.ContainsKey(parentUriKey);
                     }
@@ -1547,15 +1542,15 @@ public class PostService : IPostService
                     // [Fix] Sync boolean interaction flags for QuotePost
                     if (quoteUriKey != null)
                     {
-                        post.QuotePost.IsBookmarked = bookmarkedUris.Contains(quoteUriKey);
+                        var qrkey = quoteUriKey.Split('/').LastOrDefault();
+                        post.QuotePost.IsBookmarked = (qrkey != null && bookmarkedRkeys.Contains(qrkey)) || bookmarkedIds.Contains(post.QuotePost.Id);
                         post.QuotePost.IsLiked = post.QuotePost.Viewer?.Like != null || likedPostUrisByUri.ContainsKey(quoteUriKey);
                         post.QuotePost.IsReposted = post.QuotePost.Viewer?.Repost != null || repostPostUrisByUri.ContainsKey(quoteUriKey);
                     }
                 }
 
                 post.IsLiked = post.Viewer?.Like != null;
-                post.IsBookmarked = (pUriKey != null && bookmarkedUris.Contains(pUriKey)) ||
-                                    (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
+                post.IsBookmarked = (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
                                     (post.Id != Guid.Empty && bookmarkedIds.Contains(post.Id));
                 post.IsReposted = post.Viewer?.Repost != null;
 

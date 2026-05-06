@@ -209,11 +209,7 @@ export const fetchTimeline = createAsyncThunk(
             const response = await fetch(url.toString());
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts = await response.json();
-            
-            // Hydrate interaction status from global truth store for immediate UI updates
-            const token = localStorage.getItem('token');
-            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
-            return { posts: hydrated, skip, cursor: null };
+            return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -236,10 +232,7 @@ export const fetchUserPosts = createAsyncThunk(
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const cursorVal = data.cursor || null;
 
-            // Hydrate interaction status from global truth store
-            const token = localStorage.getItem('token');
-            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
-            return { posts: hydrated, userId, cursor: cursorVal, type };
+            return { posts, userId, cursor: cursorVal, type };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -570,7 +563,7 @@ export const fetchPostById = createAsyncThunk(
                     return posts;
                 }
                 
-                return await hydratePostsWithInteractionStatus(posts, token);
+                return posts;
             }
 
             const mappedPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
@@ -586,7 +579,7 @@ export const fetchPostById = createAsyncThunk(
                 return mappedPosts;
             }
             
-            return await hydratePostsWithInteractionStatus(mappedPosts, token);
+            return mappedPosts;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -611,8 +604,7 @@ export const fetchPostReplies = createAsyncThunk(
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
-            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
-            return { posts: hydrated, postId, skip, hasMore };
+            return { posts, postId, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -713,10 +705,8 @@ export const fetchBookmarkedPosts = createAsyncThunk(
             const data = await response.json();
             const posts = data.posts || [];
             
-            // Hydrate interaction status
-            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
             return { 
-                posts: hydrated, 
+                posts, 
                 cursor: data.cursor || null 
             };
         } catch (error: any) {
@@ -743,9 +733,7 @@ export const fetchDiscoverPosts = createAsyncThunk(
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
-            // Hydrate interaction status
-            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
-            return { posts: hydrated, skip, hasMore };
+            return { posts, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

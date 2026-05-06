@@ -259,10 +259,10 @@ export const fetchListFeed = createAsyncThunk(
                 if (!res.ok) throw new Error('Failed to fetch list feed via XRPC');
                 const data = await res.json();
                 const posts = (data.feed || []).map((f: any) => mapAtProtoPostToPost(f.post));
-                return await hydratePostsWithInteractionStatus(posts, getAuthHeaders().Authorization?.replace('Bearer ', '') || null);
+                return posts;
             }
             const posts = await listService.getListFeed(id, skip, take);
-            return await hydratePostsWithInteractionStatus(posts, getAuthHeaders().Authorization?.replace('Bearer ', '') || null);
+            return posts;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch list feed');
         }
