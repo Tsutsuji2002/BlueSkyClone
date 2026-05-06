@@ -379,7 +379,7 @@ public class PostService : IPostService
                 }
             }
 
-            var enriched = await EnrichAndFilterPostsAsync(paginated, viewerId ?? Guid.Empty, token, false, false);
+            var enriched = await EnrichAndFilterPostsAsync(paginated, viewerId ?? Guid.Empty, token, false, false, !string.IsNullOrEmpty(token));
 
             if (!string.IsNullOrEmpty(pinnedUri))
             {
@@ -5587,7 +5587,7 @@ public class PostService : IPostService
         if (resultDtos.Any())
         {
             var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-            var enriched = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty, token);
+            var enriched = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token));
             return enriched.ToList();
         }
 
@@ -5608,7 +5608,7 @@ public class PostService : IPostService
             var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
             var postDtos = posts.Select(MapToDto).ToList();
 
-            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty, token);
+            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token));
 
             if (postDtos.Any())
             {
@@ -5732,7 +5732,7 @@ public class PostService : IPostService
 
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
         var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
-        var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token);
+        var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token, false, true, !string.IsNullOrEmpty(token));
         // Force IsBookmarked = true: every post returned here IS a bookmark by definition.
         // EnrichAndFilterPostsAsync may fail to set this correctly for remote posts.
         foreach (var p in enriched)
@@ -5990,8 +5990,9 @@ public class PostService : IPostService
                 .Take(limit)
                 .ToListAsync();
 
+            var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
             var postDtos = posts.Select(MapToDto).ToList();
-            return await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty);
+            return await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token));
         }
         catch (Exception ex)
         {
