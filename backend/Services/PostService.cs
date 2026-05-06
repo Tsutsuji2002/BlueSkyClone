@@ -1635,10 +1635,17 @@ public class PostService : IPostService
                     }
                 }
 
-                post.IsLiked = post.Viewer?.Like != null;
-                post.IsBookmarked = (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
+                // High-level boolean flags ensure interaction status is available to all clients.
+                // NOTE: DO NOT blindly overwrite IsLiked with Viewer?.Like != null here,
+                // because local database matches (OR logic) might have validated it.
+                // Instead, if the flags were validated locally but Viewer fields are missing, backfill them:
+                if (post.IsLiked && post.Viewer?.Like == null) post.Viewer ??= new PostViewerDto { Like = "local" };
+                if (post.IsReposted && post.Viewer?.Repost == null) post.Viewer ??= new PostViewerDto { Repost = "local" };
+
+                // Finally ensure Bookmarked flag honors local db matches securely
+                post.IsBookmarked = post.IsBookmarked || 
+                                    (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
                                     (post.Id != Guid.Empty && bookmarkedIds.Contains(post.Id));
-                post.IsReposted = post.Viewer?.Repost != null;
 
 
                 // [REFACTORED] Pinned logic removed from generic enrichment as it's profile-context specific.
