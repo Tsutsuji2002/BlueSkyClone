@@ -147,9 +147,9 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
 
 
 const updateInteractionTruth = (state: PostsState, post: Post) => {
-    if (!post.uri) return;
+    if (!post || !post.uri) return;
     
-    // Normalize key to lowercase to avoid multi-view case mismatch issues
+    // Normalize key to lowercase
     const uriKey = post.uri.toLowerCase();
     
     if (!state.interactionTruth[uriKey]) {
@@ -163,28 +163,23 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
             repliesCount: post.repliesCount,
             viewer: post.viewer,
         };
-        // Also map by ID and TID for local/mixed lookup robustness (also lowercased)
+        // Map by ID and TID (rkey)
         if (post.id) state.interactionTruth[post.id.toLowerCase()] = state.interactionTruth[uriKey];
         if (post.tid) state.interactionTruth[post.tid.toLowerCase()] = state.interactionTruth[uriKey];
     } else {
         const existing = state.interactionTruth[uriKey];
         if (post.likesCount !== undefined && (post.likesCount ?? 0) > (existing.likesCount ?? 0)) existing.likesCount = post.likesCount;
         if (post.repostsCount !== undefined && (post.repostsCount ?? 0) > (existing.repostsCount ?? 0)) existing.repostsCount = post.repostsCount;
-        
-        // repliesCount and quotesCount are handled by the server or optimistic updates
         if (post.repliesCount !== undefined && (post.repliesCount ?? 0) > (existing.repliesCount ?? 0)) existing.repliesCount = post.repliesCount;
         if (post.quotesCount !== undefined && (post.quotesCount ?? 0) > (existing.quotesCount ?? 0)) existing.quotesCount = post.quotesCount;
         
-        // Boolean interaction flags: prefer "true" (confirmed state) over "false" (possibly stale).
         if (post.isLiked === true) existing.isLiked = true;
         if (post.isReposted === true) existing.isReposted = true;
         if (post.isBookmarked === true) existing.isBookmarked = true;
 
-        if (post.viewer !== undefined) existing.viewer = post.viewer;
-        
-        // Ensure reverse mapping is updated
-        if (post.id) state.interactionTruth[post.id] = existing;
-        if (post.tid) state.interactionTruth[post.tid] = existing;
+        if (post.viewer?.like && !existing.viewer?.like) {
+            existing.viewer = { ...existing.viewer, like: post.viewer.like };
+        }
     }
 };
 
@@ -1872,9 +1867,7 @@ const postsSlice = createSlice({
                     const posts = action.payload?.posts || (Array.isArray(action.payload) ? action.payload : null);
                     if (!posts || !Array.isArray(posts)) return;
 
-                    posts.forEach((post: Post) => {
-                        updateInteractionTruth(state, post);
-                    });
+                    syncPostsWithTruth(state, posts);
                 }
             );
     },

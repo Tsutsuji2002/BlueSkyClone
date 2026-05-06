@@ -842,7 +842,13 @@ public class PostService : IPostService
                             if (response.IsSuccessStatusCode)
                             {
                                 rawJson = await response.Content.ReadAsStringAsync();
+                                _logger.LogInformation("[EnrichAndFilterPostsAsync] AppView getPosts Success. Count={ChunkSize}, TokenUsed={TokenUsed}", chunk.Length, !string.IsNullOrEmpty(token));
                                 await _cacheService.SetAsync(cacheKey, rawJson, TimeSpan.FromMinutes(2));
+                            }
+                            else 
+                            {
+                                var err = await response.Content.ReadAsStringAsync();
+                                _logger.LogWarning("[EnrichAndFilterPostsAsync] AppView getPosts FAILED: {Status}. Error: {Error}", response.StatusCode, err);
                             }
                         }
                         if (!string.IsNullOrEmpty(rawJson))
@@ -1030,12 +1036,8 @@ public class PostService : IPostService
             var localRepliesCounts = await _unitOfWork.Posts.Query().Where(p => p.ReplyToPostId != null && postIdsList.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
             var localQuotesCounts = await _unitOfWork.Posts.Query().Where(p => p.QuotePostId != null && postIdsList.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count);
 
-            // PERFORMANCE FIX: Filter bookmark URI counts by the current batch to prevent "leak" fetching of all system bookmarks
-            var localBookmarksCountsByUri = await _unitOfWork.Bookmarks.Query()
-                .Where(b => b.Post != null && b.Post.Uri != null && postUrisList.Contains(b.Post.Uri))
-                .GroupBy(b => b.Post.Uri!)
-                .Select(g => new { Uri = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Uri.ToLowerInvariant(), x => x.Count);
+            _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, TokenPresent={TokenPresent}, IsTimeline={IsTimeline}", 
+                posts.Count(), viewerId, !string.IsNullOrEmpty(token), isTimeline);
 
             // Fetch user settings for moderation filtering
             UserSetting? userSettings = null;
@@ -1403,6 +1405,12 @@ public class PostService : IPostService
                 post.IsBookmarked = isBookmarked;
                 post.IsLiked = post.Viewer?.Like != null;
                 post.IsReposted = post.Viewer?.Repost != null;
+
+                if (post.IsBookmarked || post.IsLiked || post.IsReposted)
+                {
+                    _logger.LogInformation("[EnrichAndFilterPostsAsync] FINAL STATUS: Post={PostId}, Bookmarked={B}, Liked={L}, Reposted={R}, ViewerLike={VLike}", 
+                        post.Id, post.IsBookmarked, post.IsLiked, post.IsReposted, post.Viewer?.Like ?? "null");
+                }
 
                 // Look up local interaction counts
                 localLikesCounts.TryGetValue(post.Id, out var localLikes);
@@ -5835,8 +5843,11 @@ public class PostService : IPostService
         var matchedPosts = await _unitOfWork.Posts.Query()
             .Where(p =>
                 (p.Uri != null && loweredUris.Contains(p.Uri.ToLower())) ||
-                (p.Tid != null && rkeys.Contains(p.Tid.ToLower())))
-            .Select(p => new { p.Id, p.Uri, p.Tid })
+                (p.Tid != null && rkeys.Contains(p.Tid.ToLower())) ||
+                // Robust matching: if we have both TID and DID in the database post
+                (p.Tid != null && p.Author != null && p.Author.Did != null &&
+                 loweredUris.Any(lu => lu.Contains(p.Author.Did.ToLower()) && lu.EndsWith(p.Tid.ToLower()))))
+            .Select(p => new { p.Id, p.Uri, p.Tid, p.AuthorId })
             .ToListAsync();
 
         var matchedIds = matchedPosts.Select(p => p.Id).Distinct().ToList();
@@ -6841,6 +6852,7 @@ public class PostService : IPostService
             return new Post { Id = mappedId, Uri = atUri }; // Stub object with correct ID
         }
 
+        // 1. Try finding by URI first (fastest)
         var existingPost = await _unitOfWork.Posts.Query()
             .FirstOrDefaultAsync(p => p.Uri == atUri);
         if (existingPost != null)
@@ -6848,6 +6860,7 @@ public class PostService : IPostService
             return existingPost;
         }
 
+        // 2. Parse URI to get DID and TID (rkey)
         var segments = atUri.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length < 4)
         {
@@ -6857,6 +6870,7 @@ public class PostService : IPostService
         var did = segments[1];
         var tid = segments[^1];
 
+        // 3. Find/Create Author record first (DID is canonical)
         var author = await _unitOfWork.Users.Query()
             .FirstOrDefaultAsync(u => u.Did == did);
         if (author == null)
@@ -6875,6 +6889,21 @@ public class PostService : IPostService
             };
             await _unitOfWork.Users.AddAsync(author);
             if (autoSave) await _unitOfWork.CompleteAsync();
+        }
+
+        // 4. CANONICAL LOOKUP: Try finding by AuthorId + Tid
+        // This is key to preventing duplicates for handle-based vs DID-based URIs
+        existingPost = await _unitOfWork.Posts.Query()
+            .FirstOrDefaultAsync(p => p.AuthorId == author.Id && p.Tid == tid);
+            
+        if (existingPost != null)
+        {
+            // Update the URI if it changed (e.g. from handle to DID)
+            if (existingPost.Uri != atUri) {
+                existingPost.Uri = atUri;
+                _unitOfWork.Posts.Update(existingPost);
+            }
+            return existingPost;
         }
 
         var stubPost = new Post
@@ -6955,9 +6984,19 @@ public class PostService : IPostService
         }
 
         // Use change tracker + DB to avoid duplicates within same transaction
-        var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
-        if (existing != null && !string.IsNullOrEmpty(existing.Content)) 
-            return existing.Id;
+        var tid = uri.Split('/').Last();
+        var existing = await _unitOfWork.Posts.Query()
+            .FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid || (p.Author.Did == did && p.Tid == tid));
+            
+        if (existing != null) {
+            // Update the URI/CID if they were different (e.g. handle vs DID)
+            if (existing.Uri != uri || (cid != null && existing.Cid != cid)) {
+                existing.Uri = uri;
+                if (cid != null) existing.Cid = cid;
+                _unitOfWork.Posts.Update(existing);
+            }
+            if (!string.IsNullOrEmpty(existing.Content)) return existing.Id;
+        }
 
         var authorNode = postNode["author"];
         if (authorNode == null) return null;
