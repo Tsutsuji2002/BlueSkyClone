@@ -212,8 +212,12 @@ export const fetchTimeline = createAsyncThunk(
             url.searchParams.set('skip', String(skip));
             url.searchParams.set('take', String(take));
             if (refresh) url.searchParams.set('refresh', 'true');
-            
-            const response = await fetch(url.toString());
+
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const response = await fetch(url.toString(), { headers });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts = await response.json();
             return { posts, skip, cursor: null };
@@ -231,8 +235,14 @@ export const fetchUserPosts = createAsyncThunk(
             if (type) params.set('type', type);
             if (cursor) params.set('cursor', cursor);
             if (refresh) params.set('refresh', 'true');
+
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(
-                `${API_BASE_URL}/posts/user/${userId}?${params}`
+                `${API_BASE_URL}/posts/user/${userId}?${params}`,
+                { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();

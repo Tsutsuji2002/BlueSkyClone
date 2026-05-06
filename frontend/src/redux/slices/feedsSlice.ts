@@ -422,13 +422,15 @@ export const fetchFeedPosts = createAsyncThunk<
             if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
             if (refresh) url += `&refresh=true`;
 
-            const response = await fetch(url);
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const response = await fetch(url, { headers });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.error || 'Failed to fetch feed posts');
             
             const rawPosts = data.posts || (Array.isArray(data) ? data : []);
-            // Return posts immediately for fast render — interaction status (isLiked etc.)
-            // is hydrated asynchronously via hydrateInteractionStatusForFeed dispatched separately.
             return {
                 feedId,
                 posts: rawPosts,
