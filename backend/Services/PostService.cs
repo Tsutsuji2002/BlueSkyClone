@@ -1383,15 +1383,25 @@ public class PostService : IPostService
                     post.Author.FollowingReference = post.Author.Viewer.Following;
                 }
 
+                string? remoteAppViewLike = null;
+                string? remoteAppViewRepost = null;
+                if (pUriKey != null && remoteInteractionCache.TryGetValue(pUriKey, out var remoteMain) && remoteMain.TryGetProperty("viewer", out var pvMain))
+                {
+                    if (pvMain.TryGetProperty("like", out var pvlMain) && pvlMain.ValueKind != System.Text.Json.JsonValueKind.Null) remoteAppViewLike = pvlMain.GetString();
+                    if (pvMain.TryGetProperty("repost", out var pvrMain) && pvrMain.ValueKind != System.Text.Json.JsonValueKind.Null) remoteAppViewRepost = pvrMain.GetString();
+                }
+
                 rkey = !string.IsNullOrEmpty(post.Tid) ? post.Tid.ToLower() : pUriKey?.Split('/').LastOrDefault()?.ToLower();
                 post.Viewer = new PostViewerDto
                 {
-                    Like = (pUriKey != null && likedPostUrisByUri.TryGetValue(pUriKey, out var lu)) ? lu : 
+                    Like = remoteAppViewLike ??
+                           ((pUriKey != null && likedPostUrisByUri.TryGetValue(pUriKey, out var lu)) ? lu : 
                            (rkey != null && rkeyToLikedUri.TryGetValue(rkey, out var rlu)) ? rlu :
-                           likedPostUrisById.TryGetValue(post.Id, out var li) ? li : post.Viewer?.Like,
-                    Repost = (pUriKey != null && repostPostUrisByUri.TryGetValue(pUriKey, out var ru)) ? ru : 
+                           likedPostUrisById.TryGetValue(post.Id, out var li) ? li : post.Viewer?.Like),
+                    Repost = remoteAppViewRepost ?? 
+                             ((pUriKey != null && repostPostUrisByUri.TryGetValue(pUriKey, out var ru)) ? ru : 
                              (rkey != null && rkeyToRepostUri.TryGetValue(rkey, out var rru)) ? rru :
-                             repostPostUrisById.TryGetValue(post.Id, out var ri) ? ri : post.Viewer?.Repost
+                             repostPostUrisById.TryGetValue(post.Id, out var ri) ? ri : post.Viewer?.Repost)
                 };
                 // Robust Bookmark Matching: check by rkey (did-based), ID, or absolute URI (DID or Handle based)
                 bool isBookmarked = (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
