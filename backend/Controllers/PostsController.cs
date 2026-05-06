@@ -1206,7 +1206,7 @@ public class PostsController : ControllerBase
             {
                 try
                 {
-                    var enriched = await _postService.EnrichAndFilterPostsAsync(posts, viewerId.Value, false, false);
+                    var enriched = await _postService.EnrichAndFilterPostsAsync(posts, viewerId.Value, null, false, false);
                     posts = enriched.ToList();
                 }
                 catch { /* Enrich is best-effort */ }

@@ -1188,9 +1188,10 @@ public class FeedService : IFeedService
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
 
+            string? token = null;
             if (userId.HasValue)
             {
-                var token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+                token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
                 if (!string.IsNullOrEmpty(token))
                     httpClient.DefaultRequestHeaders.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -1230,7 +1231,7 @@ public class FeedService : IFeedService
                         // If we have a cursor, we don't skip (cursor handles pagination)
                         // If we don't have a cursor, we skip for offset-based pagination
                         var paginatedPosts = string.IsNullOrEmpty(cursor) ? posts.Skip(skip).Take(take).ToList() : posts.Take(take).ToList();
-                        var enriched = await _postService.EnrichAndFilterPostsAsync(paginatedPosts, userId ?? Guid.Empty);
+                        var enriched = await _postService.EnrichAndFilterPostsAsync(paginatedPosts, userId ?? Guid.Empty, token);
                         return new PagedPostDto { Posts = enriched, Cursor = outCursor };
                     }
                     else
@@ -1247,7 +1248,7 @@ public class FeedService : IFeedService
             _logger.LogInformation("[FeedService] getFeed returned no posts for {Uri} (both app views).", uri);
             var fallbackPosts = (fallback ?? new List<PostDto>());
             var fallbackPaginated = string.IsNullOrEmpty(cursor) ? fallbackPosts.Skip(skip).Take(take).ToList() : fallbackPosts.Take(take).ToList();
-            var enrichedFallback = await _postService.EnrichAndFilterPostsAsync(fallbackPaginated, userId ?? Guid.Empty);
+            var enrichedFallback = await _postService.EnrichAndFilterPostsAsync(fallbackPaginated, userId ?? Guid.Empty, token);
             return new PagedPostDto { Posts = enrichedFallback, Cursor = fallbackCursor };
         }
         catch (Exception ex)

@@ -66,6 +66,7 @@ public class PostService : IPostService
             // Include skip and take in cache key for proper pagination support
             var cacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}";
             List<PostDto>? mappedPosts = null;
+            string? token = null;
             User? user = null;
 
             if (!bypassCache)
@@ -86,7 +87,7 @@ public class PostService : IPostService
                     return new List<PostDto>();
                 }
 
-                var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
                 if (string.IsNullOrEmpty(token))
                 {
                     _logger.LogWarning("[GetTimelineAsync] No proxy token for user {UserId}.", userId);
@@ -134,8 +135,9 @@ public class PostService : IPostService
                 }
             }
             
+            token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
             var paginated = mappedPosts.Skip(skip).Take(take).ToList();
-            return userId != Guid.Empty ? await EnrichAndFilterPostsAsync(paginated, userId, isTimeline: true) : paginated;
+            return userId != Guid.Empty ? await EnrichAndFilterPostsAsync(paginated, userId, token, true) : paginated;
         }
         catch (Exception ex)
         {
@@ -237,6 +239,7 @@ public class PostService : IPostService
         try
         {
             var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}_{viewerId ?? Guid.Empty}";
+            string? token = null;
             PagedPostDto? result = null;
 
             if (!bypassCache)
@@ -310,7 +313,7 @@ public class PostService : IPostService
                 }
                 else
                 {
-                    var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
+                    token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
                     var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
                     
                     var queryArgs = new Dictionary<string, string?> { 
@@ -376,7 +379,7 @@ public class PostService : IPostService
                 }
             }
 
-            var enriched = await EnrichAndFilterPostsAsync(paginated, viewerId ?? Guid.Empty, isTimeline: false, forceDropHidden: false);
+            var enriched = await EnrichAndFilterPostsAsync(paginated, viewerId ?? Guid.Empty, token, false, false);
 
             if (!string.IsNullOrEmpty(pinnedUri))
             {
@@ -669,7 +672,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false)
+    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, string? token = null, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false)
     {
         try
         {
@@ -678,7 +681,7 @@ public class PostService : IPostService
                 return posts;
             }
 
-            var token = viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
+            token ??= viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
             _logger.LogInformation("[EnrichAndFilterPostsAsync] Start: PostsCount={Count}, ViewerId={ViewerId}, HasToken={HasToken}", 
                 posts.Count, viewerId, !string.IsNullOrEmpty(token));
             var postIds = new HashSet<Guid>();
@@ -705,11 +708,11 @@ public class PostService : IPostService
 
             // [NEW] Batch-sync local IDs for remote posts to ensure matching works correctly
             // This is critical because MapBlueskyPost assigns random GUIDs to remote posts.
-            var postUrisForSync = posts.Select(p => p.Uri?.ToLower()).Where(u => !string.IsNullOrEmpty(u)).ToList();
+            var postUrisForSync = posts.Select(p => p.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
             if (postUrisForSync.Any())
             {
                 var uriToIdMap = await _unitOfWork.Posts.Query()
-                    .Where(p => postUrisForSync.Contains(p.Uri!.ToLower()))
+                    .Where(p => postUrisForSync.Contains(p.Uri))
                     .Select(p => new { p.Uri, p.Id })
                     .ToDictionaryAsync(x => x.Uri!.ToLower(), x => x.Id);
 
@@ -1004,12 +1007,12 @@ public class PostService : IPostService
                     .ToListAsync();
                 foreach (var b in queryResult) userBookmarks.Add(new { 
                     b.PostId, 
-                    Tid = b.Tid.ToLowerInvariant(),
+                    Tid = b.Tid?.ToLowerInvariant(),
                     Uri = b.Uri?.ToLowerInvariant()
                 });
             }
 
-            var bookmarkedIds = userBookmarks.Where(b => b.PostId != Guid.Empty).Select(b => b.PostId).ToHashSet();
+            var bookmarkedIds = userBookmarks.Where(b => b.PostId != Guid.Empty).Select(b => (Guid)b.PostId).ToHashSet();
             var bookmarkedRkeys = userBookmarks.Where(b => !string.IsNullOrEmpty(b.Tid)).Select(b => (string)b.Tid).ToHashSet();
             var bookmarkedUris = userBookmarks.Where(b => !string.IsNullOrEmpty(b.Uri)).Select(b => (string)b.Uri).ToHashSet();
 
@@ -1027,12 +1030,12 @@ public class PostService : IPostService
 
             var localBookmarksCountsByUriRaw = await _unitOfWork.Bookmarks.Query()
                 .Where(b => b.Post != null && b.Post.Uri != null)
-                .Select(b => b.Post.Uri!.ToLower())
+                .Select(b => b.Post.Uri!)
                 .ToListAsync();
 
             var localBookmarksCountsByUri = localBookmarksCountsByUriRaw
-                .Where(uri => postUrisList.Contains(uri))
-                .GroupBy(uri => uri)
+                .Where(uri => postUrisList.Contains(uri.ToLowerInvariant()))
+                .GroupBy(uri => uri.ToLowerInvariant())
                 .ToDictionary(g => g.Key, g => g.Count());
 
             // Fetch user settings for moderation filtering
@@ -5545,7 +5548,8 @@ public class PostService : IPostService
 
         if (resultDtos.Any())
         {
-            var enriched = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty);
+            var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
+            var enriched = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty, token);
             return enriched.ToList();
         }
 
@@ -5563,9 +5567,10 @@ public class PostService : IPostService
             }
 
             var posts = await _unitOfWork.Posts.GetTrendingPosts24hAsync(limit, skip);
+            var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
             var postDtos = posts.Select(MapToDto).ToList();
 
-            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty);
+            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty, token);
 
             if (postDtos.Any())
             {
@@ -6472,7 +6477,8 @@ public class PostService : IPostService
             .Select(x => MapToDto(x.Post))
             .ToList();
 
-        var enriched = await EnrichAndFilterPostsAsync(result, userId);
+        var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
+        var enriched = await EnrichAndFilterPostsAsync(result, userId, token);
         return enriched;
     }
 
@@ -6591,7 +6597,7 @@ public class PostService : IPostService
         }
 
         var dto = MapToDto(post);
-        var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { dto }, userId);
+        var enriched = await EnrichAndFilterPostsAsync(new List<PostDto> { dto }, userId, null);
         return enriched.FirstOrDefault();
     }
 
