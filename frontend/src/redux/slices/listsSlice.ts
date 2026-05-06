@@ -4,6 +4,7 @@ import { ListDto, ListItemDto, CreateListDto, UpdateListDto, Post, UserDto } fro
 import listService from '../../services/listsService';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
+import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 
 interface ListsState {
     myLists: ListDto[];
@@ -257,9 +258,11 @@ export const fetchListFeed = createAsyncThunk(
                 });
                 if (!res.ok) throw new Error('Failed to fetch list feed via XRPC');
                 const data = await res.json();
-                return (data.feed || []).map((f: any) => mapAtProtoPostToPost(f.post));
+                const posts = (data.feed || []).map((f: any) => mapAtProtoPostToPost(f.post));
+                return await hydratePostsWithInteractionStatus(posts, getAuthHeaders().Authorization?.replace('Bearer ', '') || null);
             }
-            return await listService.getListFeed(id, skip, take);
+            const posts = await listService.getListFeed(id, skip, take);
+            return await hydratePostsWithInteractionStatus(posts, getAuthHeaders().Authorization?.replace('Bearer ', '') || null);
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch list feed');
         }

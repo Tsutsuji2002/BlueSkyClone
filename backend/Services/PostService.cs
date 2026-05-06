@@ -781,13 +781,10 @@ public class PostService : IPostService
             var remoteUrisList = remoteUris.ToList();
 
             var remoteInteractionCache = new Dictionary<string, JsonElement>();
-            
-            // PERFORMANCE: Skip expensive AppView remote fetch for timeline requests.
-            // Timeline posts already have LikesCount/RepostsCount populated from the local DB
-            // (incremented by ToggleLikeAsync etc.), so stale counts from AppView are not needed.
-            // Also skip when there's nothing to fetch.
-            if (remoteUrisList.Any() && !isTimeline)
-            {
+                        // PERFORMANCE: Refresh remote interaction counts from AppView.
+            // We previously skipped this for timelines, but that resulted in missing status for remote posts.
+            // Skip only if there's nothing to fetch.
+            if (remoteUrisList.Any())
                 try
                 {
                     var token = viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
@@ -5038,99 +5035,84 @@ public class PostService : IPostService
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isLiked = false, error = "User not found or missing DID" };
 
-            // 1. Fetch Remote Truth (Status & Subject Info)
-            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
+            // 1. Fetch Post Info (Prefer cache unless we absolutely need fresh remote stats immediately)
+            // Optimization: Try to use cached post info first to get Uri/Cid/Tid.
+            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: false);
             if (freshPost == null) return new { isLiked = false, error = "Post not found" };
 
-            // Prefer viewer state from AppView (remote truth), fall back to client-provided state
-            bool isCurrentlyLiked = freshPost.Viewer?.Like != null
-                ? true
-                : (clientIsLiked ?? false);
+            // Determine current state: trust client-providedURI if unliking to save a round-trip
+            bool isCurrentlyLiked = freshPost.Viewer?.Like != null ? true : (clientIsLiked ?? false);
             string? currentLikeUri = freshPost.Viewer?.Like ?? clientLikeUri;
 
-            _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. FreshPost State: Uri={Uri}, Tid={Tid}, LikeUri={Like}, isCurrentlyLiked={IsLiked}", 
-                userId, postId, freshPost.Uri, freshPost.Tid, currentLikeUri ?? "null", isCurrentlyLiked);
-            bool isLiking = !isCurrentlyLiked;
+            _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, Liked={IsLiked}", 
+                userId, postId, freshPost.Uri, isCurrentlyLiked);
             
-            _logger.LogInformation("[ToggleLikeAsync] User {UserId} attempting {Action} on Post {PostId} (Uri: {Uri}, Cid: {Cid}). Current state: isLiked={IsLiked}", 
-                userId, isLiking ? "LIKE" : "UNLIKE", postId, freshPost.Uri, freshPost.Cid, isCurrentlyLiked);
-
+            bool isLiking = !isCurrentlyLiked;
             bool proxySuccess = false;
             string? newLikeUri = null;
             string? errorMessage = null;
 
             // 2. AT Protocol Sync
-            try
+            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token))
             {
-                var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-                if (!string.IsNullOrEmpty(token))
+                if (isLiking)
                 {
-                    if (isLiking)
+                    var likeRecord = new Dictionary<string, object>
                     {
-                        var likeRecord = new Dictionary<string, object>
-                        {
-                            { "$type", "app.bsky.feed.like" },
-                            { "subject", new Dictionary<string, object> 
-                                { 
-                                    { "uri", freshPost.Uri! }, 
-                                    { "cid", (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy")) 
-                                        ? (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault()?.Cid ?? freshPost.Cid ?? ""
-                                        : freshPost.Cid ?? "" } 
-                                } 
-                            },
-                            { "createdAt", DateTime.UtcNow.ToString("O") }
-                        };
+                        { "$type", "app.bsky.feed.like" },
+                        { "subject", new Dictionary<string, object> 
+                            { 
+                                { "uri", freshPost.Uri! }, 
+                                { "cid", (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy")) 
+                                    ? (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault()?.Cid ?? freshPost.Cid ?? ""
+                                    : freshPost.Cid ?? "" } 
+                            } 
+                        },
+                        { "createdAt", DateTime.UtcNow.ToString("O") }
+                    };
 
-                        var result = await _xrpcProxy.ProxyRequestAsync(
-                            user.Did,
-                            "com.atproto.repo.createRecord",
-                            new Dictionary<string, string?>(),
-                            token,
-                            "POST",
-                            new { repo = user.Did, collection = "app.bsky.feed.like", record = likeRecord },
-                            userId
-                        );
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "com.atproto.repo.createRecord",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        new { repo = user.Did, collection = "app.bsky.feed.like", record = likeRecord },
+                        userId
+                    );
 
-                        proxySuccess = result.Success;
-                        if (result.Success)
-                        {
-                            var responseBody = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result.Content);
-                            newLikeUri = responseBody.GetProperty("uri").GetString();
-                        }
-                        else 
-                        {
-                            errorMessage = result.Content;
-                            _logger.LogWarning("[ToggleLikeAsync] createRecord failed: {Error}", errorMessage);
-                        }
+                    proxySuccess = result.Success;
+                    if (result.Success)
+                    {
+                        var responseBody = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result.Content);
+                        newLikeUri = responseBody.GetProperty("uri").GetString();
                     }
-                    else
+                    else 
                     {
-                        string? likeTid = currentLikeUri?.Split('/').Last();
-                        if (!string.IsNullOrEmpty(likeTid))
-                        {
-                            var result = await _xrpcProxy.ProxyRequestAsync(
-                                user.Did,
-                                "com.atproto.repo.deleteRecord",
-                                new Dictionary<string, string?>(),
-                                token,
-                                "POST",
-                                new { repo = user.Did, collection = "app.bsky.feed.like", rkey = likeTid },
-                                userId
-                            );
-                            proxySuccess = result.Success;
-                            if (!result.Success) errorMessage = result.Content;
-                        }
-                        else
-                        {
-                            proxySuccess = true; 
-                        }
+                        errorMessage = result.Content;
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[ToggleLikeAsync] Bluesky Sync Error: {Message}", ex.Message);
-                return new { isLiked = isCurrentlyLiked, likesCount = freshPost.LikesCount, error = "Bluesky sync failed" };
+                else if (!string.IsNullOrEmpty(currentLikeUri))
+                {
+                    string? likeTid = currentLikeUri.Split('/').Last();
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "com.atproto.repo.deleteRecord",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        new { repo = user.Did, collection = "app.bsky.feed.like", rkey = likeTid },
+                        userId
+                    );
+                    proxySuccess = result.Success;
+                    if (!result.Success) errorMessage = result.Content;
+                }
+                else
+                {
+                    // Already unliked or URI missing; assume success to prevent stuck UI
+                    proxySuccess = true;
+                }
             }
 
             if (!proxySuccess)
@@ -5138,40 +5120,28 @@ public class PostService : IPostService
                 return new { isLiked = isCurrentlyLiked, likesCount = freshPost.LikesCount, error = "Failed to update Bluesky", detail = errorMessage };
             }
 
-            // 3. Post-Action Data Sync
-            int finalLikesCount = freshPost.LikesCount;
-            var finalRefresh = await GetPostByIdAsync(postId, userId, bypassCache: true);
-            if (finalRefresh != null)
+            // 3. Update Local State and Broadcast (Optimistic approach for stats)
+            // Instead of a full GetPostByIdAsync(bypassCache: true) round-trip,
+            // increment/decrement locally and broadcast immediately.
+            int finalLikesCount = isLiking ? freshPost.LikesCount + 1 : Math.max(0, freshPost.LikesCount - 1);
+            
+            // Background update of local entity to eventually stay in sync
+            var postEntity = await _unitOfWork.Posts.GetByIdAsync(postId);
+            if (postEntity != null)
             {
-                finalLikesCount = finalRefresh.LikesCount;
-                
-                // Update local post metadata to stay in sync
-                var postEntity = await _unitOfWork.Posts.GetByIdAsync(postId);
-                if (postEntity != null)
-                {
-                    postEntity.LikesCount = finalLikesCount;
-                    _unitOfWork.Posts.Update(postEntity);
-                    await _unitOfWork.CompleteAsync();
-                }
-            }
-
-            // 4. Cleanup old local records if any (Migration)
-            var existingLocalLike = await _unitOfWork.Likes.Query()
-                .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
-            if (existingLocalLike != null)
-            {
-                _unitOfWork.Likes.Remove(existingLocalLike);
+                postEntity.LikesCount = finalLikesCount;
+                _unitOfWork.Posts.Update(postEntity);
                 await _unitOfWork.CompleteAsync();
             }
 
-            // Broadcast
+            // Broadcast stats update
             var timestamp = DateTime.UtcNow;
             await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
             { 
                 postId, 
                 likesCount = finalLikesCount,
-                repostsCount = finalRefresh?.RepostsCount ?? freshPost.RepostsCount,
-                bookmarksCount = finalRefresh?.BookmarksCount ?? freshPost.BookmarksCount,
+                repostsCount = freshPost.RepostsCount,
+                bookmarksCount = freshPost.BookmarksCount,
                 timestamp
             });
 
@@ -5261,93 +5231,81 @@ public class PostService : IPostService
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isReposted = false, error = "User not found or missing DID" };
 
-            // 1. Fetch Remote Truth
-            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
+            // 1. Fetch Post Info (Allow cache)
+            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: false);
             if (freshPost == null) return new { isReposted = false, error = "Post not found" };
 
             bool isCurrentlyReposted = freshPost.Viewer?.Repost != null;
             string? currentRepostUri = freshPost.Viewer?.Repost;
             bool isReposting = !isCurrentlyReposted;
             
-            _logger.LogInformation("[ToggleRepostAsync] User {UserId} attempting {Action} on Post {PostId} (Uri: {Uri}, Cid: {Cid}). Current state: isReposted={IsReposted}", 
-                userId, isReposting ? "REPOST" : "UNREPOST", postId, freshPost.Uri, freshPost.Cid, isCurrentlyReposted);
+            _logger.LogInformation("[ToggleRepostAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, Reposted={IsReposted}", 
+                userId, postId, freshPost.Uri, isCurrentlyReposted);
 
             bool proxySuccess = false;
             string? newRepostUri = null;
             string? errorMessage = null;
 
             // 2. AT Protocol Sync
-            try
+            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token))
             {
-                var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-                if (!string.IsNullOrEmpty(token))
+                if (isReposting)
                 {
-                    if (isReposting)
+                    var repostRecord = new Dictionary<string, object>
                     {
-                        var repostRecord = new Dictionary<string, object>
-                        {
-                            { "$type", "app.bsky.feed.repost" },
-                            { "subject", new Dictionary<string, object> 
-                                { 
-                                    { "uri", freshPost.Uri! }, 
-                                    { "cid", (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy")) 
-                                        ? (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault()?.Cid ?? freshPost.Cid ?? ""
-                                        : freshPost.Cid ?? "" } 
-                                } 
-                            },
-                            { "createdAt", DateTime.UtcNow.ToString("O") }
-                        };
+                        { "$type", "app.bsky.feed.repost" },
+                        { "subject", new Dictionary<string, object> 
+                            { 
+                                { "uri", freshPost.Uri! }, 
+                                { "cid", (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy")) 
+                                    ? (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault()?.Cid ?? freshPost.Cid ?? ""
+                                    : freshPost.Cid ?? "" } 
+                            } 
+                        },
+                        { "createdAt", DateTime.UtcNow.ToString("O") }
+                    };
 
-                        var result = await _xrpcProxy.ProxyRequestAsync(
-                            user.Did,
-                            "com.atproto.repo.createRecord",
-                            new Dictionary<string, string?>(),
-                            token,
-                            "POST",
-                            new { repo = user.Did, collection = "app.bsky.feed.repost", record = repostRecord },
-                            userId
-                        );
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "com.atproto.repo.createRecord",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        new { repo = user.Did, collection = "app.bsky.feed.repost", record = repostRecord },
+                        userId
+                    );
 
-                        proxySuccess = result.Success;
-                        if (result.Success)
-                        {
-                            var responseBody = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result.Content);
-                            newRepostUri = responseBody.GetProperty("uri").GetString();
-                        }
-                        else
-                        {
-                            errorMessage = result.Content;
-                            _logger.LogWarning("[ToggleRepostAsync] createRecord failed: {Error}", errorMessage);
-                        }
+                    proxySuccess = result.Success;
+                    if (result.Success)
+                    {
+                        var responseBody = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result.Content);
+                        newRepostUri = responseBody.GetProperty("uri").GetString();
                     }
                     else
                     {
-                        string? repostTid = currentRepostUri?.Split('/').Last();
-                        if (!string.IsNullOrEmpty(repostTid))
-                        {
-                            var result = await _xrpcProxy.ProxyRequestAsync(
-                                user.Did,
-                                "com.atproto.repo.deleteRecord",
-                                new Dictionary<string, string?>(),
-                                token,
-                                "POST",
-                                new { repo = user.Did, collection = "app.bsky.feed.repost", rkey = repostTid },
-                                userId
-                            );
-                            proxySuccess = result.Success;
-                            if (!result.Success) errorMessage = result.Content;
-                        }
-                        else
-                        {
-                            proxySuccess = true;
-                        }
+                        errorMessage = result.Content;
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[ToggleRepostAsync] Bluesky Sync Error: {Message}", ex.Message);
-                return new { isReposted = isCurrentlyReposted, repostsCount = freshPost.RepostsCount, error = "Bluesky sync failed" };
+                else if (!string.IsNullOrEmpty(currentRepostUri))
+                {
+                    string? repostTid = currentRepostUri.Split('/').Last();
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "com.atproto.repo.deleteRecord",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        new { repo = user.Did, collection = "app.bsky.feed.repost", rkey = repostTid },
+                        userId
+                    );
+                    proxySuccess = result.Success;
+                    if (!result.Success) errorMessage = result.Content;
+                }
+                else
+                {
+                    proxySuccess = true;
+                }
             }
 
             if (!proxySuccess)
@@ -5355,28 +5313,14 @@ public class PostService : IPostService
                 return new { isReposted = isCurrentlyReposted, repostsCount = freshPost.RepostsCount, error = "Failed to update Bluesky", detail = errorMessage };
             }
 
-            // 3. Post-Action Data Sync
-            int finalRepostsCount = freshPost.RepostsCount;
-            var finalRefresh = await GetPostByIdAsync(postId, userId, bypassCache: true);
-            if (finalRefresh != null)
+            // 3. Update Local State and Broadcast
+            int finalRepostsCount = isReposting ? freshPost.RepostsCount + 1 : Math.Max(0, freshPost.RepostsCount - 1);
+            
+            var postEntity = await _unitOfWork.Posts.GetByIdAsync(postId);
+            if (postEntity != null)
             {
-                finalRepostsCount = finalRefresh.RepostsCount;
-                
-                var postEntity = await _unitOfWork.Posts.GetByIdAsync(postId);
-                if (postEntity != null)
-                {
-                    postEntity.RepostsCount = finalRepostsCount;
-                    _unitOfWork.Posts.Update(postEntity);
-                    await _unitOfWork.CompleteAsync();
-                }
-            }
-
-            // 4. Cleanup old local records
-            var existingLocalRepost = await _unitOfWork.Reposts.Query()
-                .FirstOrDefaultAsync(r => r.PostId == postId && r.UserId == userId);
-            if (existingLocalRepost != null)
-            {
-                _unitOfWork.Reposts.Remove(existingLocalRepost);
+                postEntity.RepostsCount = finalRepostsCount;
+                _unitOfWork.Posts.Update(postEntity);
                 await _unitOfWork.CompleteAsync();
             }
 
@@ -5385,9 +5329,9 @@ public class PostService : IPostService
             await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
             { 
                 postId, 
-                likesCount = finalRefresh?.LikesCount ?? freshPost.LikesCount,
+                likesCount = freshPost.LikesCount,
                 repostsCount = finalRepostsCount,
-                bookmarksCount = finalRefresh?.BookmarksCount ?? freshPost.BookmarksCount,
+                bookmarksCount = freshPost.BookmarksCount,
                 timestamp
             });
 

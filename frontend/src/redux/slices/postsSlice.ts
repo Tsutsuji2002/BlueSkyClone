@@ -209,10 +209,11 @@ export const fetchTimeline = createAsyncThunk(
             const response = await fetch(url.toString());
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const posts = await response.json();
-            // Note: backend EnrichAndFilterPostsAsync already sets isLiked/isReposted/isBookmarked
-            // from the local DB, so we do NOT need to await hydratePostsWithInteractionStatus here.
-            // That would add 2 extra blocking network round-trips before the feed can render.
-            return { posts, skip, cursor: null };
+            
+            // Hydrate interaction status from global truth store for immediate UI updates
+            const token = localStorage.getItem('token');
+            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
+            return { posts: hydrated, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -234,7 +235,11 @@ export const fetchUserPosts = createAsyncThunk(
             const data = await response.json();
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const cursorVal = data.cursor || null;
-            return { posts, userId, cursor: cursorVal, type };
+
+            // Hydrate interaction status from global truth store
+            const token = localStorage.getItem('token');
+            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
+            return { posts: hydrated, userId, cursor: cursorVal, type };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -706,8 +711,12 @@ export const fetchBookmarkedPosts = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
             const data = await response.json();
+            const posts = data.posts || [];
+            
+            // Hydrate interaction status
+            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
             return { 
-                posts: data.posts || [], 
+                posts: hydrated, 
                 cursor: data.cursor || null 
             };
         } catch (error: any) {
@@ -733,7 +742,10 @@ export const fetchDiscoverPosts = createAsyncThunk(
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
             const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
-            return { posts, skip, hasMore };
+            
+            // Hydrate interaction status
+            const hydrated = await hydratePostsWithInteractionStatus(posts, token);
+            return { posts: hydrated, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
