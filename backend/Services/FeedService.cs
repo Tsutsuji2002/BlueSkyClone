@@ -25,6 +25,7 @@ public class FeedService : IFeedService
     private readonly IDistributedCache _cache;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IDidResolver _didResolver;
+    private readonly IUserService _userService;
     private static bool _isSeeded = true;
     private static readonly SemaphoreSlim _seedSemaphore = new(1, 1);
     private const string FollowingFeedKey = "following";
@@ -41,7 +42,8 @@ public class FeedService : IFeedService
         IXrpcProxyService xrpcProxy,
         IDistributedCache cache,
         IHttpClientFactory httpClientFactory,
-        IDidResolver didResolver)
+        IDidResolver didResolver,
+        IUserService userService)
     {
         _unitOfWork = unitOfWork;
         _postService = postService;
@@ -50,6 +52,7 @@ public class FeedService : IFeedService
         _cache = cache;
         _httpClientFactory = httpClientFactory;
         _didResolver = didResolver;
+        _userService = userService;
     }
 
     public async Task<PagedFeedsDto> GetTrendingFeedsAsync(Guid? userId, string? cursor = null, int limit = 10)
@@ -86,7 +89,7 @@ public class FeedService : IFeedService
 
             if (userId.HasValue)
             {
-                token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value);
                 var user = await _unitOfWork.Users.GetByIdAsync(userId.Value);
                 if (user != null) actorDid = user.Did;
             }
@@ -169,7 +172,7 @@ public class FeedService : IFeedService
         
         try
         {
-            var token = userId.HasValue ? await _cache.GetStringAsync($"BlueskyToken_{userId.Value}") : null;
+            var token = userId.HasValue ? await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value) : null;
             var savedUris = new HashSet<string>();
             var pinnedUris = new HashSet<string>();
             
@@ -1191,7 +1194,7 @@ public class FeedService : IFeedService
             string? token = null;
             if (userId.HasValue)
             {
-                token = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value);
                 if (!string.IsNullOrEmpty(token))
                     httpClient.DefaultRequestHeaders.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);

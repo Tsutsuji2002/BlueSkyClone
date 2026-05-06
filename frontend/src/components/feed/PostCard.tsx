@@ -86,9 +86,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
     const interactionTruth = useAppSelector((state: RootState) => {
-        const uri = postData.uri;
-        const id = postData.id;
-        const tid = postData.tid;
+        const uri = postData.uri?.toLowerCase();
+        const id = postData.id?.toLowerCase();
+        const tid = postData.tid?.toLowerCase();
         
         if (uri && state.posts.interactionTruth[uri]) return state.posts.interactionTruth[uri];
         if (id && state.posts.interactionTruth[id]) return state.posts.interactionTruth[id];

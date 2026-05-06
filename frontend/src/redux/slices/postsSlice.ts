@@ -149,8 +149,11 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
 const updateInteractionTruth = (state: PostsState, post: Post) => {
     if (!post.uri) return;
     
-    if (!state.interactionTruth[post.uri]) {
-        state.interactionTruth[post.uri] = {
+    // Normalize key to lowercase to avoid multi-view case mismatch issues
+    const uriKey = post.uri.toLowerCase();
+    
+    if (!state.interactionTruth[uriKey]) {
+        state.interactionTruth[uriKey] = {
             isLiked: post.isLiked,
             isReposted: post.isReposted,
             isBookmarked: post.isBookmarked,
@@ -160,11 +163,11 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
             repliesCount: post.repliesCount,
             viewer: post.viewer,
         };
-        // Also map by ID and TID for local/mixed lookup robustness
-        if (post.id) state.interactionTruth[post.id] = state.interactionTruth[post.uri];
-        if (post.tid) state.interactionTruth[post.tid] = state.interactionTruth[post.uri];
+        // Also map by ID and TID for local/mixed lookup robustness (also lowercased)
+        if (post.id) state.interactionTruth[post.id.toLowerCase()] = state.interactionTruth[uriKey];
+        if (post.tid) state.interactionTruth[post.tid.toLowerCase()] = state.interactionTruth[uriKey];
     } else {
-        const existing = state.interactionTruth[post.uri];
+        const existing = state.interactionTruth[uriKey];
         if (post.likesCount !== undefined && (post.likesCount ?? 0) > (existing.likesCount ?? 0)) existing.likesCount = post.likesCount;
         if (post.repostsCount !== undefined && (post.repostsCount ?? 0) > (existing.repostsCount ?? 0)) existing.repostsCount = post.repostsCount;
         
@@ -1803,10 +1806,11 @@ const postsSlice = createSlice({
                     const payload = action.payload;
                     if (!payload || !payload.uri) return;
 
-                    const existing = state.interactionTruth[payload.uri] || {};
+                    const uriKey = payload.uri.toLowerCase();
+                    const existing = state.interactionTruth[uriKey] || {};
 
                     // Update interaction truth - use ?? to never overwrite a known count with undefined
-                    state.interactionTruth[payload.uri] = {
+                    state.interactionTruth[uriKey] = {
                         ...existing,
                         isLiked: payload.isLiked ?? existing.isLiked,
                         likesCount: payload.likesCount ?? existing.likesCount,
