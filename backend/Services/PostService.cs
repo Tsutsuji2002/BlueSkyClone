@@ -1639,8 +1639,16 @@ public class PostService : IPostService
                 // NOTE: DO NOT blindly overwrite IsLiked with Viewer?.Like != null here,
                 // because local database matches (OR logic) might have validated it.
                 // Instead, if the flags were validated locally but Viewer fields are missing, backfill them:
-                if (post.IsLiked && post.Viewer?.Like == null) post.Viewer ??= new PostViewerDto { Like = "local" };
-                if (post.IsReposted && post.Viewer?.Repost == null) post.Viewer ??= new PostViewerDto { Repost = "local" };
+                if (post.IsLiked && post.Viewer?.Like == null) 
+                { 
+                    post.Viewer ??= new PostViewerDto(); 
+                    post.Viewer.Like = "local"; 
+                }
+                if (post.IsReposted && post.Viewer?.Repost == null) 
+                { 
+                    post.Viewer ??= new PostViewerDto(); 
+                    post.Viewer.Repost = "local"; 
+                }
 
                 // Finally ensure Bookmarked flag honors local db matches securely
                 post.IsBookmarked = post.IsBookmarked || 
