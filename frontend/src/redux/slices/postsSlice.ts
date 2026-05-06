@@ -160,14 +160,17 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
             repliesCount: post.repliesCount,
             viewer: post.viewer,
         };
+        // Also map by ID and TID for local/mixed lookup robustness
+        if (post.id) state.interactionTruth[post.id] = state.interactionTruth[post.uri];
+        if (post.tid) state.interactionTruth[post.tid] = state.interactionTruth[post.uri];
     } else {
         const existing = state.interactionTruth[post.uri];
-        if ((post.likesCount ?? 0) > (existing.likesCount ?? 0)) existing.likesCount = post.likesCount;
-        if ((post.repostsCount ?? 0) > (existing.repostsCount ?? 0)) existing.repostsCount = post.repostsCount;
+        if (post.likesCount !== undefined && (post.likesCount ?? 0) > (existing.likesCount ?? 0)) existing.likesCount = post.likesCount;
+        if (post.repostsCount !== undefined && (post.repostsCount ?? 0) > (existing.repostsCount ?? 0)) existing.repostsCount = post.repostsCount;
         
         // repliesCount and quotesCount are handled by the server or optimistic updates
-        if ((post.repliesCount ?? 0) > (existing.repliesCount ?? 0)) existing.repliesCount = post.repliesCount;
-        if ((post.quotesCount ?? 0) > (existing.quotesCount ?? 0)) existing.quotesCount = post.quotesCount;
+        if (post.repliesCount !== undefined && (post.repliesCount ?? 0) > (existing.repliesCount ?? 0)) existing.repliesCount = post.repliesCount;
+        if (post.quotesCount !== undefined && (post.quotesCount ?? 0) > (existing.quotesCount ?? 0)) existing.quotesCount = post.quotesCount;
         
         // Boolean interaction flags: prefer "true" (confirmed state) over "false" (possibly stale).
         if (post.isLiked === true) existing.isLiked = true;
@@ -175,6 +178,10 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
         if (post.isBookmarked === true) existing.isBookmarked = true;
 
         if (post.viewer !== undefined) existing.viewer = post.viewer;
+        
+        // Ensure reverse mapping is updated
+        if (post.id) state.interactionTruth[post.id] = existing;
+        if (post.tid) state.interactionTruth[post.tid] = existing;
     }
 };
 

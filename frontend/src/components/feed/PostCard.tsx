@@ -85,7 +85,17 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
-    const interactionTruth = useAppSelector((state: RootState) => (postData.uri ? state.posts.interactionTruth[postData.uri] : null) || null);
+    const interactionTruth = useAppSelector((state: RootState) => {
+        const uri = postData.uri;
+        const id = postData.id;
+        const tid = postData.tid;
+        
+        if (uri && state.posts.interactionTruth[uri]) return state.posts.interactionTruth[uri];
+        if (id && state.posts.interactionTruth[id]) return state.posts.interactionTruth[id];
+        if (tid && state.posts.interactionTruth[tid]) return state.posts.interactionTruth[tid];
+        
+        return null;
+    });
     
     // Merge global interaction truth with the local post object data
     const post = React.useMemo(() => {

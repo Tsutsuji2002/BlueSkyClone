@@ -310,7 +310,7 @@ public class PostService : IPostService
                 }
                 else
                 {
-                    var token = viewerId.HasValue ? await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}") : null;
+                    var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
                     var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
                     
                     var queryArgs = new Dictionary<string, string?> { 
@@ -678,6 +678,7 @@ public class PostService : IPostService
                 return posts;
             }
 
+            var token = viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
             var postIds = new HashSet<Guid>();
             var postUris = new HashSet<string>();
             var postRkeys = new HashSet<string>();
@@ -700,8 +701,27 @@ public class PostService : IPostService
 
             foreach (var p in posts) CollectIdentifiersRecursive(p);
 
-            var postIdsList = postIds.Distinct().ToList();
-            var postUrisList = postUris.Distinct().ToList();
+            // [NEW] Batch-sync local IDs for remote posts to ensure matching works correctly
+            // This is critical because MapBlueskyPost assigns random GUIDs to remote posts.
+            var postUrisForSync = posts.Select(p => p.Uri?.ToLower()).Where(u => !string.IsNullOrEmpty(u)).ToList();
+            if (postUrisForSync.Any())
+            {
+                var uriToIdMap = await _unitOfWork.Posts.Query()
+                    .Where(p => postUrisForSync.Contains(p.Uri!.ToLower()))
+                    .Select(p => new { p.Uri, p.Id })
+                    .ToDictionaryAsync(x => x.Uri!.ToLower(), x => x.Id);
+
+                foreach (var p in posts)
+                {
+                    if (p.Uri != null && uriToIdMap.TryGetValue(p.Uri.ToLower(), out var localId))
+                    {
+                        p.Id = localId;
+                    }
+                }
+            }
+
+            var postIdsList = posts.Select(p => p.Id).ToList();
+            var postUrisList = posts.Where(p => !string.IsNullOrEmpty(p.Uri)).Select(p => p.Uri!.ToLower()).ToList();
             var postRkeysList = postRkeys.Distinct().ToList();
 
             // [NEW] Fetch labels for posts and authors from local DB first
@@ -788,7 +808,6 @@ public class PostService : IPostService
             {
                 try
                 {
-                    var token = viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
                     foreach (var chunk in remoteUrisList.Chunk(25))
                     {
                         var cacheKey = $"appview:posts:{viewerId}:{string.Join(",", chunk.OrderBy(u => u)).GetHashCode()}";
@@ -977,13 +996,18 @@ public class PostService : IPostService
             {
                 var queryResult = await _unitOfWork.Bookmarks.Query()
                     .Where(b => b.UserId == viewerId)
-                    .Select(b => new { b.PostId, Tid = b.Tid })
+                    .Select(b => new { b.PostId, Tid = b.Tid, Uri = b.Post.Uri })
                     .ToListAsync();
-                foreach (var b in queryResult) userBookmarks.Add(new { b.PostId, Tid = b.Tid.ToLowerInvariant() });
+                foreach (var b in queryResult) userBookmarks.Add(new { 
+                    b.PostId, 
+                    Tid = b.Tid.ToLowerInvariant(),
+                    Uri = b.Uri?.ToLowerInvariant()
+                });
             }
 
             var bookmarkedIds = userBookmarks.Where(b => b.PostId != Guid.Empty).Select(b => b.PostId).ToHashSet();
-            var bookmarkedRkeys = userBookmarks.Where(b => !string.IsNullOrEmpty(b.Tid)).Select(b => b.Tid).ToHashSet();
+            var bookmarkedRkeys = userBookmarks.Where(b => !string.IsNullOrEmpty(b.Tid)).Select(b => (string)b.Tid).ToHashSet();
+            var bookmarkedUris = userBookmarks.Where(b => !string.IsNullOrEmpty(b.Uri)).Select(b => (string)b.Uri).ToHashSet();
 
             var blockingUris = viewerId != Guid.Empty
                 ? await _unitOfWork.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}")
@@ -1354,8 +1378,10 @@ public class PostService : IPostService
                              (rkey != null && rkeyToRepostUri.TryGetValue(rkey, out var rru)) ? rru :
                              repostPostUrisById.TryGetValue(post.Id, out var ri) ? ri : post.Viewer?.Repost
                 };
+                // Robust Bookmark Matching: check by rkey (did-based), ID, or absolute URI
                 post.IsBookmarked = (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
-                                    bookmarkedIds.Contains(post.Id);
+                                    bookmarkedIds.Contains(post.Id) ||
+                                    (!string.IsNullOrEmpty(post.Uri) && bookmarkedUris.Contains(post.Uri.ToLower()));
                 post.IsLiked = post.Viewer?.Like != null;
                 post.IsReposted = post.Viewer?.Repost != null;
 
@@ -1403,11 +1429,14 @@ public class PostService : IPostService
                             post.Viewer.Repost = null;
                         }
                     }
-                    else
+                    else if (!string.IsNullOrEmpty(token))
                     {
-                        // No viewer state in AppView at all? Then it's not liked/reposted.
+                        // No viewer state in AppView even though we are authenticated? 
+                        // Then the user definitely hasn't liked/reposted THIS post.
                         post.Viewer.Like = null;
                         post.Viewer.Repost = null;
+                        post.IsLiked = false;
+                        post.IsReposted = false;
                     }
                     
                     // Always refresh media/embed from AppView for remote posts — local DB may have
