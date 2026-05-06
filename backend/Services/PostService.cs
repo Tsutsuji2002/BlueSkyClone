@@ -907,7 +907,6 @@ public class PostService : IPostService
                 {
                     _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to fetch remote counts for timeline posts");
                 }
-
             }
 
             // [NEW] Index remote cache by rkey for robust cross-URI lookups (DID vs Handle)
