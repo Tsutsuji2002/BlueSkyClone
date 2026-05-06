@@ -5195,6 +5195,32 @@ public class PostService : IPostService
             {
                 postEntity.LikesCount = finalLikesCount;
                 _unitOfWork.Posts.Update(postEntity);
+                
+                // [Fix] Immediately sync the Like record locally to bypass AppView ingestion lag
+                if (isLiking)
+                {
+                    var existingLike = await _unitOfWork.Likes.Query().FirstOrDefaultAsync(l => l.UserId == userId && l.PostId == postId);
+                    if (existingLike == null)
+                    {
+                        var like = new Like
+                        {
+                            UserId = userId,
+                            PostId = postId,
+                            CreatedAt = DateTime.UtcNow,
+                            Uri = newLikeUri ?? "local"
+                        };
+                        await _unitOfWork.Likes.AddAsync(like);
+                    }
+                }
+                else
+                {
+                    var existingLike = await _unitOfWork.Likes.Query().FirstOrDefaultAsync(l => l.UserId == userId && l.PostId == postId);
+                    if (existingLike != null)
+                    {
+                        _unitOfWork.Likes.Remove(existingLike);
+                    }
+                }
+
                 await _unitOfWork.CompleteAsync();
             }
 
@@ -5385,6 +5411,32 @@ public class PostService : IPostService
             {
                 postEntity.RepostsCount = finalRepostsCount;
                 _unitOfWork.Posts.Update(postEntity);
+
+                // [Fix] Immediately sync the Repost record locally to bypass AppView ingestion lag
+                if (isReposting)
+                {
+                    var existingRepost = await _unitOfWork.Reposts.Query().FirstOrDefaultAsync(r => r.UserId == userId && r.PostId == postId);
+                    if (existingRepost == null)
+                    {
+                        var repost = new Repost
+                        {
+                            UserId = userId,
+                            PostId = postId,
+                            CreatedAt = DateTime.UtcNow,
+                            Uri = newRepostUri ?? "local"
+                        };
+                        await _unitOfWork.Reposts.AddAsync(repost);
+                    }
+                }
+                else
+                {
+                    var existingRepost = await _unitOfWork.Reposts.Query().FirstOrDefaultAsync(r => r.UserId == userId && r.PostId == postId);
+                    if (existingRepost != null)
+                    {
+                        _unitOfWork.Reposts.Remove(existingRepost);
+                    }
+                }
+
                 await _unitOfWork.CompleteAsync();
             }
 
