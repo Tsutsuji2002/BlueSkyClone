@@ -1410,8 +1410,25 @@ public class PostService : IPostService
                 }
 
                 post.IsBookmarked = isBookmarked;
-                post.IsLiked = post.Viewer?.Like != null;
-                post.IsReposted = post.Viewer?.Repost != null;
+                // Final Sync of boolean flags from Viewer state
+                post.IsLiked = post.Viewer?.Like != null || (pUriKey != null && likedPostUrisByUri.ContainsKey(pUriKey)) || likedPostUrisById.ContainsKey(post.Id);
+                post.IsReposted = post.Viewer?.Repost != null || (pUriKey != null && repostPostUrisByUri.ContainsKey(pUriKey)) || repostPostUrisById.ContainsKey(post.Id);
+                post.IsBookmarked = isBookmarked;
+
+                // Consolidation: If local interaction exists but was missed by AppView (or AppView failed),
+                // ensure the high-level flags and Viewer objects are populated.
+                if (post.IsLiked && post.Viewer.Like == null)
+                {
+                    post.Viewer.Like = (pUriKey != null && likedPostUrisByUri.TryGetValue(pUriKey, out var lu2)) ? lu2 : 
+                                       (rkey != null && rkeyToLikedUri.TryGetValue(rkey, out var rlu2)) ? rlu2 : 
+                                       likedPostUrisById.TryGetValue(post.Id, out var li2) ? li2 : "local";
+                }
+                if (post.IsReposted && post.Viewer.Repost == null)
+                {
+                    post.Viewer.Repost = (pUriKey != null && repostPostUrisByUri.TryGetValue(pUriKey, out var ru2)) ? ru2 : 
+                                         (rkey != null && rkeyToRepostUri.TryGetValue(rkey, out var rru2)) ? rru2 : 
+                                         repostPostUrisById.TryGetValue(post.Id, out var ri2) ? ri2 : "local";
+                }
 
                 if (post.IsBookmarked || post.IsLiked || post.IsReposted)
                 {
@@ -1527,8 +1544,9 @@ public class PostService : IPostService
                 }
 
                 // Final Sync of boolean flags from Viewer state
-                post.IsLiked = post.Viewer?.Like != null;
-                post.IsReposted = post.Viewer?.Repost != null;
+                // Final Sync of boolean flags from Viewer state
+                post.IsLiked = post.Viewer?.Like != null || (pUriKey != null && likedPostUrisByUri.ContainsKey(pUriKey)) || likedPostUrisById.ContainsKey(post.Id);
+                post.IsReposted = post.Viewer?.Repost != null || (pUriKey != null && repostPostUrisByUri.ContainsKey(pUriKey)) || repostPostUrisById.ContainsKey(post.Id);
 
 
                 if (post.ParentPost != null)
