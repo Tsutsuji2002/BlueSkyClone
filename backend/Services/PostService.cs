@@ -5089,7 +5089,7 @@ public class PostService : IPostService
             // 3. Update Local State and Broadcast (Optimistic approach for stats)
             // Instead of a full GetPostByIdAsync(bypassCache: true) round-trip,
             // increment/decrement locally and broadcast immediately.
-            int finalLikesCount = isLiking ? freshPost.LikesCount + 1 : Math.max(0, freshPost.LikesCount - 1);
+            int finalLikesCount = isLiking ? freshPost.LikesCount + 1 : Math.Max(0, freshPost.LikesCount - 1);
             
             // Background update of local entity to eventually stay in sync
             var postEntity = await _unitOfWork.Posts.GetByIdAsync(postId);
