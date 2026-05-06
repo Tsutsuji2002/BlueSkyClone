@@ -89,64 +89,74 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: s
 
     if (uris.length === 0) return posts;
 
-    // Run local-DB status and remote AppView viewer-state in parallel
+    // Run local-DB status and remote AppView viewer-state in parallel with a timeout
     const authToken = localStorage.getItem('token');
     const authHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
     };
     if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
 
-    const [localStatuses, viewerStatuses] = await Promise.all([
-        // (1) Local DB: authoritative for interactions done through this app
-        (async (): Promise<InteractionStatus[]> => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/posts/interactions/status`, {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({ uris })
-                });
-                if (!response.ok) return [];
-                return await response.json() as InteractionStatus[];
-            } catch {
-                return [];
-            }
-        })(),
-        // (2) Bluesky AppView: authoritative for native Bluesky likes/reposts
-        (async (): Promise<InteractionStatus[]> => {
-            const remoteUris = uris.filter(u => u.startsWith('at://') && !u.includes('local'));
-            if (!remoteUris.length) return [];
-            try {
-                const response = await fetch(`${API_BASE_URL}/posts/interactions/viewer-state`, {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({ uris: remoteUris })
-                });
-                if (!response.ok) return [];
-                return await response.json() as InteractionStatus[];
-            } catch {
-                return [];
-            }
-        })(),
-    ]);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second hard cap
 
-    // Merge both sources with prefer-true: if either source says liked/reposted, it wins
-    const merged = new Map<string, InteractionStatus>();
-    const add = (s: InteractionStatus) => {
-        const key = normalizeUri(s.uri);
-        if (!key) return;
-        const existing = merged.get(key);
-        if (!existing) {
-            merged.set(key, { ...s });
-        } else {
-            if (s.isLiked) existing.isLiked = true;
-            if (s.isReposted) existing.isReposted = true;
-            if (s.isBookmarked) existing.isBookmarked = true;
-            if (s.likeUri) existing.likeUri = s.likeUri;
-            if (s.repostUri) existing.repostUri = s.repostUri;
-        }
-    };
-    localStatuses.forEach(add);
-    viewerStatuses.forEach(add);
+    try {
+        const [localStatuses, viewerStatuses] = await Promise.all([
+            // (1) Local DB: authoritative for interactions done through this app
+            (async (): Promise<InteractionStatus[]> => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/posts/interactions/status`, {
+                        method: 'POST',
+                        headers: authHeaders,
+                        body: JSON.stringify({ uris }),
+                        signal: controller.signal
+                    });
+                    if (!response.ok) return [];
+                    return await response.json() as InteractionStatus[];
+                } catch (e) {
+                    console.warn('[postHydrator] LocalDB status check failed or timed out:', e);
+                    return [];
+                }
+            })(),
+            // (2) Bluesky AppView: authoritative for native Bluesky likes/reposts
+            (async (): Promise<InteractionStatus[]> => {
+                const remoteUris = uris.filter(u => u.startsWith('at://') && !u.includes('local'));
+                if (!remoteUris.length) return [];
+                try {
+                    const response = await fetch(`${API_BASE_URL}/posts/interactions/viewer-state`, {
+                        method: 'POST',
+                        headers: authHeaders,
+                        body: JSON.stringify({ uris: remoteUris }),
+                        signal: controller.signal
+                    });
+                    if (!response.ok) return [];
+                    return await response.json() as InteractionStatus[];
+                } catch (e) {
+                    console.warn('[postHydrator] AppView status check failed or timed out:', e);
+                    return [];
+                }
+            })(),
+        ]);
+        // Merge both sources with prefer-true: if either source says liked/reposted, it wins
+        const merged = new Map<string, InteractionStatus>();
+        const addStatus = (s: InteractionStatus) => {
+            const key = normalizeUri(s.uri);
+            if (!key) return;
+            const existing = merged.get(key);
+            if (!existing) {
+                merged.set(key, { ...s });
+            } else {
+                if (s.isLiked) existing.isLiked = true;
+                if (s.isReposted) existing.isReposted = true;
+                if (s.isBookmarked) existing.isBookmarked = true;
+                if (s.likeUri) existing.likeUri = s.likeUri;
+                if (s.repostUri) existing.repostUri = s.repostUri;
+            }
+        };
+        localStatuses.forEach(addStatus);
+        viewerStatuses.forEach(addStatus);
 
-    return applyInteractionStatuses(posts, Array.from(merged.values()));
+        return applyInteractionStatuses(posts, Array.from(merged.values()));
+    } finally {
+        clearTimeout(timeoutId);
+    }
 };

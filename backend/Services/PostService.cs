@@ -5848,12 +5848,10 @@ public class PostService : IPostService
             .ToList();
 
         var matchedPosts = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
             .Where(p =>
                 (p.Uri != null && loweredUris.Contains(p.Uri.ToLower())) ||
-                (p.Tid != null && rkeys.Contains(p.Tid.ToLower())) ||
-                // Robust matching: if we have both TID and DID in the database post
-                (p.Tid != null && p.Author != null && p.Author.Did != null &&
-                 loweredUris.Any(lu => lu.Contains(p.Author.Did.ToLower()) && lu.EndsWith(p.Tid.ToLower()))))
+                (p.Tid != null && rkeys.Contains(p.Tid.ToLower())))
             .Select(p => new { p.Id, p.Uri, p.Tid, p.AuthorId })
             .ToListAsync();
 
@@ -6999,7 +6997,8 @@ public class PostService : IPostService
         // Use change tracker + DB to avoid duplicates within same transaction
         var tid = uri.Split('/').Last();
         var existing = await _unitOfWork.Posts.Query()
-            .FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid || (p.Author.Did == did && p.Tid == tid));
+            .Include(p => p.Author)
+            .FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid || (p.Tid == tid && p.Author != null && p.Author.Did == did));
             
         if (existing != null) {
             // Update the URI/CID if they were different (e.g. handle vs DID)
