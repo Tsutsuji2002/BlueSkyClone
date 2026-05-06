@@ -558,16 +558,29 @@ public class PostsController : ControllerBase
             Guid postId;
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByUriAsync(uri ?? id, userId, bypassCache: true);
-                if (post == null) return NotFound("Remote post could not be resolved or ingested.");
+                var resolvedUri = uri ?? id;
+                _logger.LogInformation("[PostsController] LikePost: Resolving remote URI={Uri}", resolvedUri);
+                var post = await _postService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
+                if (post == null)
+                {
+                    _logger.LogWarning("[PostsController] LikePost: FAILED to resolve or ingest remote URI={Uri}", resolvedUri);
+                    return NotFound($"Remote post could not be resolved or ingested. URI: {resolvedUri}");
+                }
                 postId = post.Id;
             }
             else if (!Guid.TryParse(id, out postId))
             {
+                _logger.LogInformation("[PostsController] LikePost: Resolving by TID={Tid}", id);
                 var post = await _postService.GetPostByTidAsync(id, userId, bypassCache: true);
-                if (post == null) return NotFound();
+                if (post == null)
+                {
+                    _logger.LogWarning("[PostsController] LikePost: FAILED to resolve TID={Tid}", id);
+                    return NotFound($"Post with TID {id} not found.");
+                }
                 postId = post.Id;
             }
+            
+            _logger.LogInformation("[PostsController] LikePost: Toggling interaction for PostId={PostId} (OriginalId={Id})", postId, id);
             var result = await _postService.ToggleLikeAsync(userId, postId, isLiked, likeUri);
             return Ok(result);
         }

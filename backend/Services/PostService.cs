@@ -1384,10 +1384,23 @@ public class PostService : IPostService
                              (rkey != null && rkeyToRepostUri.TryGetValue(rkey, out var rru)) ? rru :
                              repostPostUrisById.TryGetValue(post.Id, out var ri) ? ri : post.Viewer?.Repost
                 };
-                // Robust Bookmark Matching: check by rkey (did-based), ID, or absolute URI
-                post.IsBookmarked = (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
+                // Robust Bookmark Matching: check by rkey (did-based), ID, or absolute URI (DID or Handle based)
+                bool isBookmarked = (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
                                     bookmarkedIds.Contains(post.Id) ||
                                     (!string.IsNullOrEmpty(post.Uri) && bookmarkedUris.Contains(post.Uri.ToLower()));
+
+                // Fallback for URIs that might use handle instead of DID or vice versa
+                if (!isBookmarked && !string.IsNullOrEmpty(post.Uri) && post.Author != null)
+                {
+                    var uriParts = post.Uri.Split('/');
+                    if (uriParts.Length >= 4) {
+                       var altUri1 = $"at://{post.Author.Did}/app.bsky.feed.post/{uriParts.Last()}".ToLower();
+                       var altUri2 = $"at://{post.Author.Handle}/app.bsky.feed.post/{uriParts.Last()}".ToLower();
+                       isBookmarked = bookmarkedUris.Contains(altUri1) || bookmarkedUris.Contains(altUri2);
+                    }
+                }
+
+                post.IsBookmarked = isBookmarked;
                 post.IsLiked = post.Viewer?.Like != null;
                 post.IsReposted = post.Viewer?.Repost != null;
 
@@ -1400,6 +1413,10 @@ public class PostService : IPostService
                 if (localBookmarks == 0 && pUriKey != null)
                 {
                     localBookmarksCountsByUri.TryGetValue(pUriKey, out localBookmarks);
+                }
+                if (localBookmarks == 0 && post.Author != null && !string.IsNullOrEmpty(post.Tid)) {
+                    var canonical = $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}".ToLower();
+                    localBookmarksCountsByUri.TryGetValue(canonical, out localBookmarks);
                 }
 
                 localRepliesCounts.TryGetValue(post.Id, out var localReplies);
@@ -3488,12 +3505,14 @@ public class PostService : IPostService
                 else
                 {
                     // Fallback to getRecord
+                    _logger.LogInformation("[IngestRemotePostAsync] getPostThread failed for {Uri}, falling back to getRecord", uri);
                     return await IngestViaGetRecordAsync(author, uri, rkey);
                 }
             }
             else
             {
                 // Fallback to getRecord if thread fails
+                _logger.LogInformation("[IngestRemotePostAsync] HTTP fetch failed for {Uri}, falling back to getRecord", uri);
                 return await IngestViaGetRecordAsync(author, uri, rkey);
             }
 

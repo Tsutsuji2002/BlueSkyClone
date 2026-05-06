@@ -378,10 +378,20 @@ export const toggleLike = createAsyncThunk(
             params.set('isLiked', String(isLiked));
             if (likeUri) params.set('likeUri', likeUri);
             const queryString = params.toString() ? `?${params.toString()}` : '';
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            console.log(`[toggleLike] PostId=${postId}, URI=${uri}, isLiked=${isLiked}`);
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/like${queryString}`, {
-                method: 'POST'
+                method: 'POST',
+                headers
             });
-            if (!response.ok) return rejectWithValue('Failed to toggle like');
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.warn(`[toggleLike] FAILED: ${response.status} ${errorData}`);
+                return rejectWithValue(`Failed to toggle like: ${errorData || response.statusText}`);
+            }
             const data = await response.json();
             return { uri, isLiked: data.isLiked, likeUri: data.likeUri, likesCount: data.likesCount };
         } catch (error: any) {
@@ -396,8 +406,13 @@ export const repostPost = createAsyncThunk(
         try {
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
             const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
+            const token = localStorage.getItem('token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost${queryParam}`, {
-                method: 'POST'
+                method: 'POST',
+                headers
             });
             if (!response.ok) return rejectWithValue('Failed to toggle repost');
             const data = await response.json();
@@ -1844,8 +1859,14 @@ const postsSlice = createSlice({
                 (action) => action.type.endsWith('/fulfilled') && (
                     action.type.includes('feeds/fetchPosts') || 
                     action.type.includes('feeds/hydratePosts') || 
+                    action.type.includes('feeds/fetchFeedPosts') ||
                     action.type.includes('lists/fetchListFeed') ||
-                    action.type.includes('feeds/fetchFeedPosts')
+                    action.type.includes('posts/fetchTimeline') ||
+                    action.type.includes('posts/fetchPostById') ||
+                    action.type.includes('posts/fetchUserPosts') ||
+                    action.type.includes('posts/fetchBookmarks') ||
+                    action.type.includes('posts/fetchByTag') ||
+                    action.type.includes('posts/fetchSearch')
                 ),
                 (state, action: PayloadAction<any>) => {
                     const posts = action.payload?.posts || (Array.isArray(action.payload) ? action.payload : null);

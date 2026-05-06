@@ -90,11 +90,15 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
         const id = postData.id?.toLowerCase();
         const tid = postData.tid?.toLowerCase();
         
-        if (uri && state.posts.interactionTruth[uri]) return state.posts.interactionTruth[uri];
-        if (id && state.posts.interactionTruth[id]) return state.posts.interactionTruth[id];
-        if (tid && state.posts.interactionTruth[tid]) return state.posts.interactionTruth[tid];
+        const result = (uri && state.posts.interactionTruth[uri]) || 
+                       (id && state.posts.interactionTruth[id]) || 
+                       (tid && state.posts.interactionTruth[tid]);
         
-        return null;
+        if (result) {
+            // console.log(`[PostCard Selector] Resolved Truth for ${uri}:`, result);
+        }
+        
+        return result || null;
     });
     
     // Merge global interaction truth with the local post object data
