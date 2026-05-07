@@ -810,121 +810,122 @@ public class PostService : IPostService
                     remoteUrisList.Count, remoteUrisList.FirstOrDefault());
                 try
                 {
-                    foreach (var chunk in remoteUrisList.Chunk(25))
+                    var chunks = remoteUrisList.Chunk(25).ToArray();
+                    var tasks = chunks.Select(async chunk =>
                     {
                         var cacheKey = $"appview:posts:{viewerId}:{string.Join(",", chunk.OrderBy(u => u)).GetHashCode()}";
                         var cachedJson = !bypassRemoteCache ? await _cacheService.GetAsync<string>(cacheKey) : null;
-                        string? rawJson = null;
-                        if (!string.IsNullOrEmpty(cachedJson))
+                        if (!string.IsNullOrEmpty(cachedJson)) return cachedJson;
+
+                        using var chunkClient = _httpClientFactory.CreateClient();
+                        chunkClient.Timeout = TimeSpan.FromSeconds(10);
+                        chunkClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                        if (!string.IsNullOrEmpty(token))
+                            chunkClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                        var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+                        var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+                        
+                        using var response = await chunkClient.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                        if (response.IsSuccessStatusCode)
                         {
-                            rawJson = cachedJson;
+                            var rawJson = await response.Content.ReadAsStringAsync();
+                            await _cacheService.SetAsync(cacheKey, rawJson, TimeSpan.FromMinutes(2));
+                            return rawJson;
                         }
-                        else
+                        else if (!string.IsNullOrEmpty(token))
                         {
-                            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                            if (!string.IsNullOrEmpty(token))
+                            // Fallback to public if private fails
+                            chunkClient.DefaultRequestHeaders.Authorization = null;
+                            using var pubResponse = await chunkClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                            if (pubResponse.IsSuccessStatusCode)
                             {
-                                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                            }
-                            var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                            var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
-                            var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
-                            if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
-                            {
-                                client.DefaultRequestHeaders.Authorization = null;
-                                response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
-                            }
-                            if (response.IsSuccessStatusCode)
-                            {
-                                rawJson = await response.Content.ReadAsStringAsync();
-                                _logger.LogInformation("[EnrichAndFilterPostsAsync] AppView getPosts Success. Count={ChunkSize}, TokenUsed={TokenUsed}", chunk.Length, !string.IsNullOrEmpty(token));
+                                var rawJson = await pubResponse.Content.ReadAsStringAsync();
                                 await _cacheService.SetAsync(cacheKey, rawJson, TimeSpan.FromMinutes(2));
-                            }
-                            else 
-                            {
-                                var err = await response.Content.ReadAsStringAsync();
-                                _logger.LogWarning("[EnrichAndFilterPostsAsync] AppView getPosts FAILED: {Status}. Error: {Error}", response.StatusCode, err);
+                                return rawJson;
                             }
                         }
-                        if (!string.IsNullOrEmpty(rawJson))
+                        return null;
+                    });
+
+                    var results = await Task.WhenAll(tasks);
+                    foreach (var rawJson in results)
+                    {
+                        if (string.IsNullOrEmpty(rawJson)) continue;
+                        using var doc = JsonDocument.Parse(rawJson);
+                        if (doc.RootElement.TryGetProperty("posts", out var remotePostsList))
                         {
-                            using var doc = JsonDocument.Parse(rawJson);
-                            if (doc.RootElement.TryGetProperty("posts", out var remotePostsList))
+                            foreach (var rp in remotePostsList.EnumerateArray())
                             {
-                                foreach (var rp in remotePostsList.EnumerateArray())
+                                if (rp.TryGetProperty("uri", out var uriProp))
                                 {
-                                    if (rp.TryGetProperty("uri", out var uriProp))
+                                    var uri = uriProp.GetString();
+                                    if (uri != null)
                                     {
-                                        var uri = uriProp.GetString();
-                                        if (uri != null)
+                                        var uriLower = uri.ToLower();
+                                        remoteInteractionCache[uriLower] = rp.Clone();
+                                        
+                                        // Refresh authoritative CID for remote posts
+                                        if (rp.TryGetProperty("cid", out var authoritativeCid))
                                         {
-                                            var uriLower = uri.ToLower();
-                                            remoteInteractionCache[uriLower] = rp.Clone();
-                                            
-                                            // [NEW] Refresh authoritative CID for remote posts
-                                            if (rp.TryGetProperty("cid", out var authoritativeCid))
+                                            var cidVal = authoritativeCid.GetString();
+                                            if (cidVal != null)
                                             {
-                                                var cidVal = authoritativeCid.GetString();
-                                                if (cidVal != null)
+                                                if (canonicalToRaw.TryGetValue(uriLower, out var rawUris))
                                                 {
-                                                    // Find the corresponding post in the input list and update its CID
-                                                    // This is safe because we use canonicalToRaw to link back
-                                                    if (canonicalToRaw.TryGetValue(uriLower, out var rawUris))
+                                                    foreach (var raw in rawUris)
                                                     {
-                                                        foreach (var raw in rawUris)
-                                                        {
-                                                            var target = posts.FirstOrDefault(p => (p.Uri != null && p.Uri.Equals(raw, StringComparison.OrdinalIgnoreCase)));
-                                                            if (target != null) target.Cid = cidVal;
-                                                        }
-                                                    }
-                                                    else 
-                                                    {
-                                                        var target = posts.FirstOrDefault(p => p.Uri != null && p.Uri.Equals(uriLower, StringComparison.OrdinalIgnoreCase));
+                                                        var target = posts.FirstOrDefault(p => (p.Uri != null && p.Uri.Equals(raw, StringComparison.OrdinalIgnoreCase)));
                                                         if (target != null) target.Cid = cidVal;
                                                     }
                                                 }
+                                                else 
+                                                {
+                                                    var target = posts.FirstOrDefault(p => p.Uri != null && p.Uri.Equals(uriLower, StringComparison.OrdinalIgnoreCase));
+                                                    if (target != null) target.Cid = cidVal;
+                                                }
                                             }
+                                        }
 
-                                            // [NEW] If this is a canonical URI, also index it by all raw URIs that map to it
-                                            if (canonicalToRaw.TryGetValue(uriLower, out var rawUrisForCache))
+                                        // Index canonical URIs by all raw URIs that map to them
+                                        if (canonicalToRaw.TryGetValue(uriLower, out var rawUrisForCache))
+                                        {
+                                            foreach (var raw in rawUrisForCache)
                                             {
-                                                foreach (var raw in rawUrisForCache)
-                                                {
-                                                    remoteInteractionCache[raw.ToLower()] = rp.Clone();
-                                                }
+                                                remoteInteractionCache[raw.ToLower()] = rp.Clone();
                                             }
+                                        }
 
-                                            void AddToActiveLabels(string subject, JsonElement labProp)
+                                        void AddToActiveLabels(string subject, JsonElement labProp)
+                                        {
+                                            if (labProp.ValueKind != JsonValueKind.Array) return;
+                                            var labels = new List<string>();
+                                            foreach (var lab in labProp.EnumerateArray())
                                             {
-                                                if (labProp.ValueKind != JsonValueKind.Array) return;
-                                                var labels = new List<string>();
-                                                foreach (var lab in labProp.EnumerateArray())
+                                                if (lab.TryGetProperty("val", out var valProp)) labels.Add(valProp.GetString()?.ToLower() ?? "");
+                                            }
+                                            if (labels.Any())
+                                            {
+                                                if (activeLabels.ContainsKey(subject)) activeLabels[subject] = activeLabels[subject].Concat(labels).Distinct().ToList();
+                                                else activeLabels[subject] = labels;
+                                            }
+                                        }
+                                        if (rp.TryGetProperty("labels", out var pLabels)) AddToActiveLabels(uri, pLabels);
+                                        if (rp.TryGetProperty("author", out var authorProp) && authorProp.TryGetProperty("did", out var didProp))
+                                        {
+                                            var did = didProp.GetString();
+                                            if (did != null && authorProp.TryGetProperty("labels", out var aLabels)) AddToActiveLabels(did, aLabels);
+                                        }
+                                        if (rp.TryGetProperty("embed", out var embedProp))
+                                        {
+                                            if (embedProp.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
+                                            {
+                                                foreach (var img in images.EnumerateArray())
                                                 {
-                                                    if (lab.TryGetProperty("val", out var valProp)) labels.Add(valProp.GetString()?.ToLower() ?? "");
-                                                }
-                                                if (labels.Any())
-                                                {
-                                                    if (activeLabels.ContainsKey(subject)) activeLabels[subject] = activeLabels[subject].Concat(labels).Distinct().ToList();
-                                                    else activeLabels[subject] = labels;
+                                                    if (img.TryGetProperty("labels", out var imgLabels)) AddToActiveLabels(uri, imgLabels);
                                                 }
                                             }
-                                            if (rp.TryGetProperty("labels", out var pLabels)) AddToActiveLabels(uri, pLabels);
-                                            if (rp.TryGetProperty("author", out var authorProp) && authorProp.TryGetProperty("did", out var didProp))
-                                            {
-                                                var did = didProp.GetString();
-                                                if (did != null && authorProp.TryGetProperty("labels", out var aLabels)) AddToActiveLabels(did, aLabels);
-                                            }
-                                            if (rp.TryGetProperty("embed", out var embedProp))
-                                            {
-                                                if (embedProp.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
-                                                {
-                                                    foreach (var img in images.EnumerateArray())
-                                                    {
-                                                        if (img.TryGetProperty("labels", out var imgLabels)) AddToActiveLabels(uri, imgLabels);
-                                                    }
-                                                }
-                                                if (embedProp.TryGetProperty("external", out var external) && external.TryGetProperty("labels", out var extLabels)) AddToActiveLabels(uri, extLabels);
-                                            }
+                                            if (embedProp.TryGetProperty("external", out var external) && external.TryGetProperty("labels", out var extLabels)) AddToActiveLabels(uri, extLabels);
                                         }
                                     }
                                 }
@@ -6120,10 +6121,9 @@ public class PostService : IPostService
             .ToList();
 
         var matchedPosts = await _unitOfWork.Posts.Query()
-            .Include(p => p.Author)
             .Where(p =>
-                (p.Uri != null && loweredUris.Contains(p.Uri.ToLower())) ||
-                (p.Tid != null && rkeys.Contains(p.Tid.ToLower())))
+                (p.Uri != null && loweredUris.Contains(p.Uri)) ||
+                (p.Tid != null && rkeys.Contains(p.Tid)))
             .Select(p => new { p.Id, p.Uri, p.Tid, p.AuthorId })
             .ToListAsync();
 
