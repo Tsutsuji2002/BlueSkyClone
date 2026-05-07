@@ -119,9 +119,13 @@ const applyFollowStateToPosts = (posts: Post[], identifier: string, isFollowing:
 };
 const getPostIdentityKey = (post?: Partial<Post> | null): string => {
     if (!post) return '';
-    if (post.uri) return `uri:${post.uri}`;
-    if (post.tid) return `tid:${post.tid}`;
-    if (post.id) return `id:${post.id}`;
+    
+    // Prioritize canonical URI
+    if (post.author?.did && post.tid) return `uri:at://${post.author.did}/app.bsky.feed.post/${post.tid}`.toLowerCase();
+    
+    if (post.uri) return `uri:${post.uri.toLowerCase()}`;
+    if (post.tid) return `tid:${post.tid.toLowerCase()}`;
+    if (post.id) return `id:${post.id.toLowerCase()}`;
     if (post.cid) return `cid:${post.cid}`;
     return '';
 };
@@ -147,13 +151,33 @@ const dedupePostsByIdentity = (posts: Post[]): Post[] => {
 
 
 const updateInteractionTruth = (state: PostsState, post: Post) => {
-    if (!post || !post.uri) return;
+    if (!post) return;
     
-    // Normalize key to lowercase
-    const uriKey = post.uri.toLowerCase();
+    // 1. Identify all potential keys for this post
+    const keys = new Set<string>();
+    if (post.uri) keys.add(post.uri.toLowerCase());
+    if (post.id) keys.add(post.id.toLowerCase());
+    if (post.tid) keys.add(post.tid.toLowerCase());
     
-    if (!state.interactionTruth[uriKey]) {
-        state.interactionTruth[uriKey] = {
+    // Canonical DID-based URI
+    const canonicalUri = (post.author?.did && post.tid) 
+        ? `at://${post.author.did}/app.bsky.feed.post/${post.tid}`.toLowerCase()
+        : null;
+    if (canonicalUri) keys.add(canonicalUri);
+
+    // 2. Find existing truth object if it exists under any of these keys
+    let existing: Partial<Post> | undefined;
+    const keysArray = Array.from(keys);
+    for (const key of keysArray) {
+        if (state.interactionTruth[key]) {
+            existing = state.interactionTruth[key];
+            break;
+        }
+    }
+
+    if (!existing) {
+        // Create new truth object
+        existing = {
             isLiked: post.isLiked,
             isReposted: post.isReposted,
             isBookmarked: post.isBookmarked,
@@ -161,26 +185,35 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
             repostsCount: post.repostsCount,
             bookmarksCount: post.bookmarksCount,
             repliesCount: post.repliesCount,
+            quotesCount: post.quotesCount,
             viewer: post.viewer,
         };
-        // Map by ID and TID (rkey)
-        if (post.id) state.interactionTruth[post.id.toLowerCase()] = state.interactionTruth[uriKey];
-        if (post.tid) state.interactionTruth[post.tid.toLowerCase()] = state.interactionTruth[uriKey];
     } else {
-        const existing = state.interactionTruth[uriKey];
+        // Update existing truth object with fresher data if available
         if (post.likesCount !== undefined && (post.likesCount ?? 0) > (existing.likesCount ?? 0)) existing.likesCount = post.likesCount;
         if (post.repostsCount !== undefined && (post.repostsCount ?? 0) > (existing.repostsCount ?? 0)) existing.repostsCount = post.repostsCount;
         if (post.repliesCount !== undefined && (post.repliesCount ?? 0) > (existing.repliesCount ?? 0)) existing.repliesCount = post.repliesCount;
         if (post.quotesCount !== undefined && (post.quotesCount ?? 0) > (existing.quotesCount ?? 0)) existing.quotesCount = post.quotesCount;
+        if (post.bookmarksCount !== undefined && (post.bookmarksCount ?? 0) > (existing.bookmarksCount ?? 0)) existing.bookmarksCount = post.bookmarksCount;
         
-        if (post.isLiked === true) existing.isLiked = true;
-        if (post.isReposted === true) existing.isReposted = true;
-        if (post.isBookmarked === true) existing.isBookmarked = true;
+        if (post.isLiked !== undefined) existing.isLiked = post.isLiked;
+        if (post.isReposted !== undefined) existing.isReposted = post.isReposted;
+        if (post.isBookmarked !== undefined) existing.isBookmarked = post.isBookmarked;
 
-        if (post.viewer?.like && !existing.viewer?.like) {
-            existing.viewer = { ...existing.viewer, like: post.viewer.like };
+        if (post.viewer) {
+            existing.viewer = {
+                ...existing.viewer,
+                ...post.viewer,
+                like: post.viewer.like || existing.viewer?.like,
+                repost: post.viewer.repost || existing.viewer?.repost,
+            };
         }
     }
+
+    // 3. Map all keys to the same truth object reference
+    keysArray.forEach(key => {
+        state.interactionTruth[key] = existing!;
+    });
 };
 
 const recursivelyUpdatePost = (post: Post, actionUri: string, updateFn: (p: Post) => void, state?: PostsState) => {

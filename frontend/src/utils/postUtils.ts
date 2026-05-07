@@ -11,23 +11,38 @@ export const matchesPost = (
 
     const target: Partial<Post> = typeof b === 'string' ? { uri: b } : b;
 
-    // 1. Direct URI match (Gold Standard)
-    if (a.uri && target.uri && a.uri === target.uri) return true;
+    // 1. Direct URI match
+    if (a.uri && target.uri && a.uri.toLowerCase() === target.uri.toLowerCase()) return true;
 
-    // 2. Database ID match (Silver Standard)
+    // 2. Canonical DID-based match (Authoritative)
+    const getCanonicalUri = (p: Partial<Post>) => {
+        if (p.uri && p.uri.startsWith('at://did:')) return p.uri.toLowerCase();
+        if (p.author?.did && p.tid) return `at://${p.author.did}/app.bsky.feed.post/${p.tid}`.toLowerCase();
+        return null;
+    };
+
+    const canonicalA = getCanonicalUri(a);
+    const canonicalB = getCanonicalUri(target);
+    if (canonicalA && canonicalB && canonicalA === canonicalB) return true;
+
+    // 3. Database ID match
     if (a.id && target.id && a.id === target.id) return true;
 
-    // 3. ATProto CID match (Metadata Standard)
-    if (a.cid && target.cid && a.cid === target.cid) return true;
+    // 4. Bluesky TID match (last segment of URI)
+    if (a.tid && target.tid && a.tid.toLowerCase() === target.tid.toLowerCase()) return true;
 
-    // 4. Bluesky TID match (Alternative ID)
-    if (a.tid && target.tid && a.tid === target.tid) return true;
-
-    // 5. Cross-reference URI with ID/TID (Common for mapped posts)
-    if (a.uri && target.id && a.uri.endsWith(`/${target.id}`)) return true;
-    if (target.uri && a.id && target.uri.endsWith(`/${a.id}`)) return true;
-    if (a.uri && target.tid && a.uri.endsWith(`/${target.tid}`)) return true;
-    if (target.uri && a.tid && target.uri.endsWith(`/${a.tid}`)) return true;
+    // 5. Cross-reference URI with TID (Common for handle vs DID vs local ID)
+    const getTid = (p: Partial<Post>) => p.tid || p.id || p.uri?.split('/').pop();
+    const tidA = getTid(a)?.toLowerCase();
+    const tidB = getTid(target)?.toLowerCase();
+    if (tidA && tidB && tidA === tidB) {
+        // If TIDs match, we should stay cautious but if authors match too, it's definitely the same post
+        if (a.author?.did && target.author?.did && a.author.did === target.author.did) return true;
+        if (a.author?.handle && target.author?.handle && a.author.handle === target.author.handle) return true;
+        // Fallback: If one has a URI and one has a TID, and the URI ends with that TID
+        if (a.uri?.toLowerCase().endsWith(`/${tidB}`)) return true;
+        if (target.uri?.toLowerCase().endsWith(`/${tidA}`)) return true;
+    }
 
     return false;
 };

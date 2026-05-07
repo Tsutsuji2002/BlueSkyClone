@@ -764,44 +764,35 @@ public class PostService : IPostService
             }
 
             // Batch fetch remote interactions from AppView
-            var remoteUris = new HashSet<string>();
+            var remoteUris = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var canonicalToRaw = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+            void RegisterUri(string rawUri, string? did, string? rkey)
+            {
+                if (string.IsNullOrEmpty(rawUri)) return;
+                
+                // Track raw URI if it's potentially remote
+                if (!rawUri.Contains(_localDomain) && !rawUri.StartsWith("at://local/"))
+                {
+                    remoteUris.Add(rawUri);
+                }
+
+                // Track canonical DID-based URI
+                if (!string.IsNullOrEmpty(did) && !string.IsNullOrEmpty(rkey))
+                {
+                    var canonical = $"at://{did}/app.bsky.feed.post/{rkey}";
+                    remoteUris.Add(canonical);
+                    
+                    if (!canonicalToRaw.ContainsKey(canonical)) canonicalToRaw[canonical] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    canonicalToRaw[canonical].Add(rawUri);
+                }
+            }
+
             foreach (var p in posts)
             {
-                // [NEW] Use canonical remote URI for fetch if possible, even if local URI is present.
-                // This ensures we get the authoritative Cid from AppView instead of our local GUID.
-                string canonicalUri = p.Uri ?? "";
-                if (p.Author != null && !string.IsNullOrEmpty(p.Author.Did) && !string.IsNullOrEmpty(p.Tid))
-                {
-                    canonicalUri = $"at://{p.Author.Did}/app.bsky.feed.post/{p.Tid}";
-                }
-
-                if (!string.IsNullOrEmpty(canonicalUri) && !canonicalUri.Contains(_localDomain) && !canonicalUri.StartsWith("at://local/"))
-                {
-                    remoteUris.Add(canonicalUri);
-                }
-                
-                // Also check Parent and Quote posts to ensure they get fresh CIDs
-                if (p.ParentPost != null)
-                {
-                    string pUri = p.ParentPost.Uri ?? "";
-                    if (p.ParentPost.Author != null && !string.IsNullOrEmpty(p.ParentPost.Author.Did) && !string.IsNullOrEmpty(p.ParentPost.Tid))
-                    {
-                        pUri = $"at://{p.ParentPost.Author.Did}/app.bsky.feed.post/{p.ParentPost.Tid}";
-                    }
-                    if (!string.IsNullOrEmpty(pUri) && !pUri.Contains(_localDomain) && !pUri.StartsWith("at://local/"))
-                        remoteUris.Add(pUri);
-                }
-
-                if (p.QuotePost != null)
-                {
-                    string qUri = p.QuotePost.Uri ?? "";
-                    if (p.QuotePost.Author != null && !string.IsNullOrEmpty(p.QuotePost.Author.Did) && !string.IsNullOrEmpty(p.QuotePost.Tid))
-                    {
-                        qUri = $"at://{p.QuotePost.Author.Did}/app.bsky.feed.post/{p.QuotePost.Tid}";
-                    }
-                    if (!string.IsNullOrEmpty(qUri) && !qUri.Contains(_localDomain) && !qUri.StartsWith("at://local/"))
-                        remoteUris.Add(qUri);
-                }
+                RegisterUri(p.Uri ?? "", p.Author?.Did, p.Tid);
+                if (p.ParentPost != null) RegisterUri(p.ParentPost.Uri ?? "", p.ParentPost.Author?.Did, p.ParentPost.Tid);
+                if (p.QuotePost != null) RegisterUri(p.QuotePost.Uri ?? "", p.QuotePost.Author?.Did, p.QuotePost.Tid);
             }
             var remoteUrisList = remoteUris.ToList();
 
@@ -863,7 +854,18 @@ public class PostService : IPostService
                                         var uri = uriProp.GetString();
                                         if (uri != null)
                                         {
-                                            remoteInteractionCache[uri.ToLower()] = rp.Clone();
+                                            var uriLower = uri.ToLower();
+                                            remoteInteractionCache[uriLower] = rp.Clone();
+                                            
+                                            // [NEW] If this is a canonical URI, also index it by all raw URIs that map to it
+                                            if (canonicalToRaw.TryGetValue(uriLower, out var rawUris))
+                                            {
+                                                foreach (var raw in rawUris)
+                                                {
+                                                    remoteInteractionCache[raw.ToLower()] = rp.Clone();
+                                                }
+                                            }
+
                                             void AddToActiveLabels(string subject, JsonElement labProp)
                                             {
                                                 if (labProp.ValueKind != JsonValueKind.Array) return;
@@ -1385,10 +1387,19 @@ public class PostService : IPostService
 
                 string? remoteAppViewLike = null;
                 string? remoteAppViewRepost = null;
-                if (pUriKey != null && remoteInteractionCache.TryGetValue(pUriKey, out var remoteMain) && remoteMain.TryGetProperty("viewer", out var pvMain))
+                
+                // [NEW] Robust AppView lookup: try raw URI, then canonical DID-based URI
+                string? canonicalUri = (post.Author != null && !string.IsNullOrEmpty(post.Author.Did) && !string.IsNullOrEmpty(post.Tid))
+                    ? $"at://{post.Author.Did}/app.bsky.feed.post/{post.Tid}".ToLower()
+                    : null;
+
+                bool TryGetRemoteInteraction(string key, out JsonElement val) => remoteInteractionCache.TryGetValue(key.ToLower(), out val);
+
+                if (((pUriKey != null && TryGetRemoteInteraction(pUriKey, out var rm1)) || (canonicalUri != null && TryGetRemoteInteraction(canonicalUri, out rm1))) 
+                    && rm1.TryGetProperty("viewer", out var pvMain))
                 {
-                    if (pvMain.TryGetProperty("like", out var pvlMain) && pvlMain.ValueKind != System.Text.Json.JsonValueKind.Null) remoteAppViewLike = pvlMain.GetString();
-                    if (pvMain.TryGetProperty("repost", out var pvrMain) && pvrMain.ValueKind != System.Text.Json.JsonValueKind.Null) remoteAppViewRepost = pvrMain.GetString();
+                    if (pvMain.TryGetProperty("like", out var pvlMain) && pvlMain.ValueKind != JsonValueKind.Null) remoteAppViewLike = pvlMain.GetString();
+                    if (pvMain.TryGetProperty("repost", out var pvrMain) && pvrMain.ValueKind != JsonValueKind.Null) remoteAppViewRepost = pvrMain.GetString();
                 }
 
                 rkey = !string.IsNullOrEmpty(post.Tid) ? post.Tid.ToLower() : pUriKey?.Split('/').LastOrDefault()?.ToLower();
@@ -1396,19 +1407,22 @@ public class PostService : IPostService
                 {
                     Like = remoteAppViewLike ??
                            ((pUriKey != null && likedPostUrisByUri.TryGetValue(pUriKey, out var lu)) ? lu : 
+                           (canonicalUri != null && likedPostUrisByUri.TryGetValue(canonicalUri, out var lcu)) ? lcu :
                            (rkey != null && rkeyToLikedUri.TryGetValue(rkey, out var rlu)) ? rlu :
                            likedPostUrisById.TryGetValue(post.Id, out var li) ? li : post.Viewer?.Like),
                     Repost = remoteAppViewRepost ?? 
                              ((pUriKey != null && repostPostUrisByUri.TryGetValue(pUriKey, out var ru)) ? ru : 
+                             (canonicalUri != null && repostPostUrisByUri.TryGetValue(canonicalUri, out var rcu)) ? rcu :
                              (rkey != null && rkeyToRepostUri.TryGetValue(rkey, out var rru)) ? rru :
                              repostPostUrisById.TryGetValue(post.Id, out var ri) ? ri : post.Viewer?.Repost)
                 };
                 // Robust Bookmark Matching: check by rkey (did-based), ID, or absolute URI (DID or Handle based)
                 bool isBookmarked = (rkey != null && bookmarkedRkeys.Contains(rkey)) ||
                                     bookmarkedIds.Contains(post.Id) ||
-                                    (!string.IsNullOrEmpty(post.Uri) && bookmarkedUris.Contains(post.Uri.ToLower()));
+                                    (pUriKey != null && bookmarkedUris.Contains(pUriKey)) ||
+                                    (canonicalUri != null && bookmarkedUris.Contains(canonicalUri));
 
-                // Fallback for URIs that might use handle instead of DID or vice versa
+                // Fallback for URIs that might use handle instead of DID or vice versa in bookmarkedUris set
                 if (!isBookmarked && !string.IsNullOrEmpty(post.Uri) && post.Author != null)
                 {
                     var uriParts = post.Uri.Split('/');
@@ -5128,19 +5142,35 @@ public class PostService : IPostService
 
             // 2. AT Protocol Sync
             var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-            if (!string.IsNullOrEmpty(token))
+            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(freshPost.Uri))
             {
                 if (isLiking)
                 {
-                    var likeRecord = new Dictionary<string, object>
+                    // [Optimized] Ensure we have a valid CID for the remote post
+                    string? targetCid = freshPost.Cid;
+                    if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
+                    {
+                        // Fallback 1: Try local DB lookup for a cached CID
+                        var localPostCid = await _unitOfWork.Posts.Query().Where(p => p.Uri == freshPost.Uri).Select(p => p.Cid).FirstOrDefaultAsync();
+                        if (!string.IsNullOrEmpty(localPostCid) && localPostCid.StartsWith("bafy"))
+                        {
+                            targetCid = localPostCid;
+                        }
+                        else 
+                        {
+                            // Fallback 2: Remote lookup (Slow but necessary if CID is missing)
+                            var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
+                            targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
+                        }
+                    }
+
+                    var likeRecord = new Dictionary<string, object> 
                     {
                         { "$type", "app.bsky.feed.like" },
                         { "subject", new Dictionary<string, object> 
                             { 
                                 { "uri", freshPost.Uri! }, 
-                                { "cid", (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy")) 
-                                    ? (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault()?.Cid ?? freshPost.Cid ?? ""
-                                    : freshPost.Cid ?? "" } 
+                                { "cid", targetCid ?? "" } 
                             } 
                         },
                         { "createdAt", DateTime.UtcNow.ToString("O") }
@@ -5165,6 +5195,7 @@ public class PostService : IPostService
                     else 
                     {
                         errorMessage = result.Content;
+                        _logger.LogWarning("[ToggleLikeAsync] CreateRecord Proxy FAILED: {Error}", errorMessage);
                     }
                 }
                 else if (!string.IsNullOrEmpty(currentLikeUri))
@@ -5180,7 +5211,11 @@ public class PostService : IPostService
                         userId
                     );
                     proxySuccess = result.Success;
-                    if (!result.Success) errorMessage = result.Content;
+                    if (!result.Success) 
+                    {
+                        errorMessage = result.Content;
+                        _logger.LogWarning("[ToggleLikeAsync] DeleteRecord Proxy FAILED: {Error}", errorMessage);
+                    }
                 }
                 else
                 {
@@ -5189,9 +5224,11 @@ public class PostService : IPostService
                 }
             }
 
-            if (!proxySuccess)
+            if (!proxySuccess && !string.IsNullOrEmpty(errorMessage))
             {
-                return new { isLiked = isCurrentlyLiked, likesCount = freshPost.LikesCount, error = "Failed to update Bluesky", detail = errorMessage };
+                // SPECIAL CASE: If the record already exists or doesn't exist on remote, we can potentially ignore the error 
+                // to keep the local state in sync. But usually, we want to know it failed.
+                return new { isLiked = isCurrentlyLiked, likesCount = freshPost.LikesCount, error = "Interaction failed", detail = errorMessage };
             }
 
             // 3. Update Local State and Broadcast (Optimistic approach for stats)
@@ -5352,15 +5389,31 @@ public class PostService : IPostService
             {
                 if (isReposting)
                 {
+                    // [Optimized] Ensure we have a valid CID for the remote post
+                    string? targetCid = freshPost.Cid;
+                    if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
+                    {
+                        // Fallback 1: Try local DB lookup for a cached CID
+                        var localPostCid = await _unitOfWork.Posts.Query().Where(p => p.Uri == freshPost.Uri).Select(p => p.Cid).FirstOrDefaultAsync();
+                        if (!string.IsNullOrEmpty(localPostCid) && localPostCid.StartsWith("bafy"))
+                        {
+                            targetCid = localPostCid;
+                        }
+                        else 
+                        {
+                            // Fallback 2: Remote lookup
+                            var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
+                            targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
+                        }
+                    }
+
                     var repostRecord = new Dictionary<string, object>
                     {
                         { "$type", "app.bsky.feed.repost" },
                         { "subject", new Dictionary<string, object> 
                             { 
                                 { "uri", freshPost.Uri! }, 
-                                { "cid", (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy")) 
-                                    ? (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault()?.Cid ?? freshPost.Cid ?? ""
-                                    : freshPost.Cid ?? "" } 
+                                { "cid", targetCid ?? "" } 
                             } 
                         },
                         { "createdAt", DateTime.UtcNow.ToString("O") }
@@ -5385,6 +5438,7 @@ public class PostService : IPostService
                     else
                     {
                         errorMessage = result.Content;
+                        _logger.LogWarning("[ToggleRepostAsync] CreateRecord Proxy FAILED: {Error}", errorMessage);
                     }
                 }
                 else if (!string.IsNullOrEmpty(currentRepostUri))
@@ -5400,17 +5454,22 @@ public class PostService : IPostService
                         userId
                     );
                     proxySuccess = result.Success;
-                    if (!result.Success) errorMessage = result.Content;
+                    if (!result.Success) 
+                    {
+                        errorMessage = result.Content;
+                        _logger.LogWarning("[ToggleRepostAsync] DeleteRecord Proxy FAILED: {Error}", errorMessage);
+                    }
                 }
                 else
                 {
+                    // Already unreposted
                     proxySuccess = true;
                 }
             }
 
-            if (!proxySuccess)
+            if (!proxySuccess && !string.IsNullOrEmpty(errorMessage))
             {
-                return new { isReposted = isCurrentlyReposted, repostsCount = freshPost.RepostsCount, error = "Failed to update Bluesky", detail = errorMessage };
+                return new { isReposted = isCurrentlyReposted, repostsCount = freshPost.RepostsCount, error = "Interaction failed", detail = errorMessage };
             }
 
             // 3. Update Local State and Broadcast
