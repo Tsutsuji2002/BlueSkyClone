@@ -861,10 +861,34 @@ public class PostService : IPostService
                                             var uriLower = uri.ToLower();
                                             remoteInteractionCache[uriLower] = rp.Clone();
                                             
-                                            // [NEW] If this is a canonical URI, also index it by all raw URIs that map to it
-                                            if (canonicalToRaw.TryGetValue(uriLower, out var rawUris))
+                                            // [NEW] Refresh authoritative CID for remote posts
+                                            if (rp.TryGetProperty("cid", out var authoritativeCid))
                                             {
-                                                foreach (var raw in rawUris)
+                                                var cidVal = authoritativeCid.GetString();
+                                                if (cidVal != null)
+                                                {
+                                                    // Find the corresponding post in the input list and update its CID
+                                                    // This is safe because we use canonicalToRaw to link back
+                                                    if (canonicalToRaw.TryGetValue(uriLower, out var rawUris))
+                                                    {
+                                                        foreach (var raw in rawUris)
+                                                        {
+                                                            var target = posts.FirstOrDefault(p => (p.Uri != null && p.Uri.Equals(raw, StringComparison.OrdinalIgnoreCase)));
+                                                            if (target != null) target.Cid = cidVal;
+                                                        }
+                                                    }
+                                                    else 
+                                                    {
+                                                        var target = posts.FirstOrDefault(p => p.Uri != null && p.Uri.Equals(uriLower, StringComparison.OrdinalIgnoreCase));
+                                                        if (target != null) target.Cid = cidVal;
+                                                    }
+                                                }
+                                            }
+
+                                            // [NEW] If this is a canonical URI, also index it by all raw URIs that map to it
+                                            if (canonicalToRaw.TryGetValue(uriLower, out var rawUrisForCache))
+                                            {
+                                                foreach (var raw in rawUrisForCache)
                                                 {
                                                     remoteInteractionCache[raw.ToLower()] = rp.Clone();
                                                 }
@@ -5930,17 +5954,46 @@ public class PostService : IPostService
     /// </summary>
     public async Task<IEnumerable<PostInteractionStatusDto>> GetViewerStateFromAppViewAsync(Guid userId, IEnumerable<string> uris)
     {
-        var uriList = uris
+        var normalizedUris = uris
             .Where(u => !string.IsNullOrWhiteSpace(u))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (!uriList.Any()) return Array.Empty<PostInteractionStatusDto>();
+        if (!normalizedUris.Any()) return Array.Empty<PostInteractionStatusDto>();
 
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) return Array.Empty<PostInteractionStatusDto>();
 
         var result = new List<PostInteractionStatusDto>();
+        var remoteUris = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var canonicalToRaw = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        // [NEW] Robust Filtering: Skip local URIs that poison AppView requests
+        foreach (var rawUri in normalizedUris)
+        {
+            if (rawUri.Contains(_localDomain) || rawUri.StartsWith("at://local/")) continue;
+            
+            remoteUris.Add(rawUri);
+            
+            // If it's a handle-based URI, we should also try DID-based lookup for reliability
+            // Use a regex-free split for performance
+            var parts = rawUri.Split('/');
+            if (parts.Length >= 5 && parts[0] == "at:" && !parts[2].StartsWith("did:"))
+            {
+                // It's a handle-based URI. Try to find the DID for this handle in our local cache.
+                var handle = parts[2];
+                var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == handle);
+                if (author != null && !string.IsNullOrEmpty(author.Did))
+                {
+                    var canonical = $"at://{author.Did}/app.bsky.feed.post/{parts.Last()}";
+                    remoteUris.Add(canonical);
+                    if (!canonicalToRaw.ContainsKey(canonical)) canonicalToRaw[canonical] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    canonicalToRaw[canonical].Add(rawUri);
+                }
+            }
+        }
+
+        if (!remoteUris.Any()) return Array.Empty<PostInteractionStatusDto>();
 
         try
         {
@@ -5948,7 +6001,7 @@ public class PostService : IPostService
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            foreach (var chunk in uriList.Chunk(25))
+            foreach (var chunk in remoteUris.Chunk(25))
             {
                 var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
                 var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
@@ -5961,18 +6014,20 @@ public class PostService : IPostService
 
                 var json = await response.Content.ReadAsStringAsync();
                 using var doc = JsonDocument.Parse(json);
-                if (!doc.RootElement.TryGetProperty("posts", out var posts)) continue;
+                if (!doc.RootElement.TryGetProperty("posts", out var postsArray)) continue;
 
-                foreach (var post in posts.EnumerateArray())
+                foreach (var rp in postsArray.EnumerateArray())
                 {
-                    if (!post.TryGetProperty("uri", out var uriProp)) continue;
+                    if (!rp.TryGetProperty("uri", out var uriProp)) continue;
                     var uri = uriProp.GetString();
                     if (string.IsNullOrEmpty(uri)) continue;
+                    
+                    var uriLower = uri.ToLower();
 
                     string? likeUri = null;
                     string? repostUri = null;
 
-                    if (post.TryGetProperty("viewer", out var viewer))
+                    if (rp.TryGetProperty("viewer", out var viewer))
                     {
                         if (viewer.TryGetProperty("like", out var lv) && lv.ValueKind == JsonValueKind.String)
                             likeUri = lv.GetString();
@@ -5980,17 +6035,38 @@ public class PostService : IPostService
                             repostUri = rv.GetString();
                     }
 
-                    result.Add(new PostInteractionStatusDto
+                    var status = new PostInteractionStatusDto
                     {
-                        Uri = uri,
-                        Cid = post.TryGetProperty("cid", out var cp) ? cp.GetString() : null,
+                        Uri = uri, // This will be the DID-based canonical URI
+                        Cid = rp.TryGetProperty("cid", out var cp) ? cp.GetString() : null,
                         Tid = uri.Split('/').LastOrDefault(),
                         IsLiked = !string.IsNullOrEmpty(likeUri),
                         IsReposted = !string.IsNullOrEmpty(repostUri),
-                        IsBookmarked = false, 
+                        IsBookmarked = false, // Not returned by AppView
                         LikeUri = likeUri,
                         RepostUri = repostUri
-                    });
+                    };
+                    result.Add(status);
+
+                    // [NEW] If we requested a handle-based URI but AppView returned DID-based, 
+                    // we MUST also return the status for the handle-based URI so the frontend can match it.
+                    if (canonicalToRaw.TryGetValue(uriLower, out var raws))
+                    {
+                        foreach (var raw in raws)
+                        {
+                            result.Add(new PostInteractionStatusDto
+                            {
+                                Uri = raw,
+                                Cid = status.Cid,
+                                Tid = status.Tid,
+                                IsLiked = status.IsLiked,
+                                IsReposted = status.IsReposted,
+                                IsBookmarked = false,
+                                LikeUri = status.LikeUri,
+                                RepostUri = status.RepostUri
+                            });
+                        }
+                    }
                 }
             }
         }
