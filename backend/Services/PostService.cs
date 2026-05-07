@@ -5281,45 +5281,10 @@ public class PostService : IPostService
                 newLikeUri = isLiking ? currentLikeUri : null; // keep existing URI if already liked
             }
 
-            // 3. Update Local State and Broadcast (Optimistic approach for stats)
-            // Instead of a full GetPostByIdAsync(bypassCache: true) round-trip,
-            // increment/decrement locally and broadcast immediately.
+            // AT-Proto is the source of truth for likes/reposts.
+            // We do NOT persist Like entities locally - AppView ingestion handles eventual consistency.
+            // Just compute the optimistic count for the SignalR broadcast.
             int finalLikesCount = isLiking ? freshPost.LikesCount + 1 : Math.Max(0, freshPost.LikesCount - 1);
-            
-            // Background update of local entity to eventually stay in sync
-            var postEntity = await _unitOfWork.Posts.GetByIdAsync(postId);
-            if (postEntity != null)
-            {
-                postEntity.LikesCount = finalLikesCount;
-                _unitOfWork.Posts.Update(postEntity);
-                
-                // [Fix] Immediately sync the Like record locally to bypass AppView ingestion lag
-                if (isLiking)
-                {
-                    var existingLike = await _unitOfWork.Likes.Query().FirstOrDefaultAsync(l => l.UserId == userId && l.PostId == postId);
-                    if (existingLike == null)
-                    {
-                        var like = new Like
-                        {
-                            UserId = userId,
-                            PostId = postId,
-                            CreatedAt = DateTime.UtcNow,
-                            Uri = newLikeUri ?? "local"
-                        };
-                        await _unitOfWork.Likes.AddAsync(like);
-                    }
-                }
-                else
-                {
-                    var existingLike = await _unitOfWork.Likes.Query().FirstOrDefaultAsync(l => l.UserId == userId && l.PostId == postId);
-                    if (existingLike != null)
-                    {
-                        _unitOfWork.Likes.Remove(existingLike);
-                    }
-                }
-
-                await _unitOfWork.CompleteAsync();
-            }
 
             // Broadcast stats update
             var timestamp = DateTime.UtcNow;
@@ -5534,42 +5499,9 @@ public class PostService : IPostService
                 newRepostUri = isReposting ? currentRepostUri : null;
             }
 
-            // 3. Update Local State and Broadcast
+            // AT-Proto is the source of truth for reposts.
+            // We do NOT persist Repost entities locally - AppView ingestion handles eventual consistency.
             int finalRepostsCount = isReposting ? freshPost.RepostsCount + 1 : Math.Max(0, freshPost.RepostsCount - 1);
-            
-            var postEntity = await _unitOfWork.Posts.GetByIdAsync(postId);
-            if (postEntity != null)
-            {
-                postEntity.RepostsCount = finalRepostsCount;
-                _unitOfWork.Posts.Update(postEntity);
-
-                // [Fix] Immediately sync the Repost record locally to bypass AppView ingestion lag
-                if (isReposting)
-                {
-                    var existingRepost = await _unitOfWork.Reposts.Query().FirstOrDefaultAsync(r => r.UserId == userId && r.PostId == postId);
-                    if (existingRepost == null)
-                    {
-                        var repost = new Repost
-                        {
-                            UserId = userId,
-                            PostId = postId,
-                            CreatedAt = DateTime.UtcNow,
-                            Uri = newRepostUri ?? "local"
-                        };
-                        await _unitOfWork.Reposts.AddAsync(repost);
-                    }
-                }
-                else
-                {
-                    var existingRepost = await _unitOfWork.Reposts.Query().FirstOrDefaultAsync(r => r.UserId == userId && r.PostId == postId);
-                    if (existingRepost != null)
-                    {
-                        _unitOfWork.Reposts.Remove(existingRepost);
-                    }
-                }
-
-                await _unitOfWork.CompleteAsync();
-            }
 
             // Broadcast
             var timestamp = DateTime.UtcNow;
