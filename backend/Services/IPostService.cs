@@ -20,7 +20,7 @@ public interface IPostService
     Task<List<Guid>> DeletePostAsync(Guid userId, Guid postId);
     Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null);
     Task<object> ToggleBookmarkAsync(Guid userId, Guid postId);
-    Task<object> ToggleRepostAsync(Guid userId, Guid postId);
+    Task<object> ToggleRepostAsync(Guid userId, Guid postId, bool? clientIsReposted = null, string? clientRepostUri = null);
     Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null, int skip = 0, int take = 20);
     Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false);
     Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false);

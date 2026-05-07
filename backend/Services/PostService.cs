@@ -5164,12 +5164,13 @@ public class PostService : IPostService
             var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: false);
             if (freshPost == null) return new { isLiked = false, error = "Post not found" };
 
-            // Determine current state: trust client-providedURI if unliking to save a round-trip
-            bool isCurrentlyLiked = freshPost.Viewer?.Like != null ? true : (clientIsLiked ?? false);
-            string? currentLikeUri = freshPost.Viewer?.Like ?? clientLikeUri;
+            // Determine current state: CLIENT is authoritative (they know what they clicked)
+            // Fallback to viewer state only if client didn't provide it
+            bool isCurrentlyLiked = clientIsLiked.HasValue ? clientIsLiked.Value : (freshPost.Viewer?.Like != null);
+            string? currentLikeUri = clientLikeUri ?? freshPost.Viewer?.Like;
 
-            _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, Liked={IsLiked}", 
-                userId, postId, freshPost.Uri, isCurrentlyLiked);
+            _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, ClientIsLiked={ClientIsLiked}, ViewerLike={ViewerLike}", 
+                userId, postId, freshPost.Uri, clientIsLiked, freshPost.Viewer?.Like);
             
             bool isLiking = !isCurrentlyLiked;
             bool proxySuccess = false;
@@ -5262,9 +5263,22 @@ public class PostService : IPostService
 
             if (!proxySuccess && !string.IsNullOrEmpty(errorMessage))
             {
-                // SPECIAL CASE: If the record already exists or doesn't exist on remote, we can potentially ignore the error 
-                // to keep the local state in sync. But usually, we want to know it failed.
-                return new { isLiked = isCurrentlyLiked, likesCount = freshPost.LikesCount, error = "Interaction failed", detail = errorMessage };
+                // Treat idempotent AT-Proto conflicts as success:
+                // - "Record already exists" means we tried to like but it's already liked → treat as liked OK
+                // - "Could not find record" means we tried to unlike but it's already gone → treat as unliked OK
+                bool isConflictError = errorMessage.Contains("Could not locate record", StringComparison.OrdinalIgnoreCase)
+                    || errorMessage.Contains("Record already exists", StringComparison.OrdinalIgnoreCase)
+                    || errorMessage.Contains("not found", StringComparison.OrdinalIgnoreCase);
+                
+                if (!isConflictError)
+                {
+                    _logger.LogWarning("[ToggleLikeAsync] Non-recoverable failure: {Error}", errorMessage);
+                    return new { isLiked = isCurrentlyLiked, likesCount = freshPost.LikesCount, error = "Interaction failed", detail = errorMessage };
+                }
+                // Conflict errors: proceed as if it succeeded (the desired state is already on the server)
+                _logger.LogInformation("[ToggleLikeAsync] Idempotent conflict on {Action}, treating as success. Error={Error}", isLiking ? "like" : "unlike", errorMessage);
+                proxySuccess = true;
+                newLikeUri = isLiking ? currentLikeUri : null; // keep existing URI if already liked
             }
 
             // 3. Update Local State and Broadcast (Optimistic approach for stats)
@@ -5391,7 +5405,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<object> ToggleRepostAsync(Guid userId, Guid postId)
+    public async Task<object> ToggleRepostAsync(Guid userId, Guid postId, bool? clientIsReposted = null, string? clientRepostUri = null)
     {
         var lockKey = $"lock:repost:{userId}:{postId}";
         if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
@@ -5408,12 +5422,13 @@ public class PostService : IPostService
             var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: false);
             if (freshPost == null) return new { isReposted = false, error = "Post not found" };
 
-            bool isCurrentlyReposted = freshPost.Viewer?.Repost != null;
-            string? currentRepostUri = freshPost.Viewer?.Repost;
+            // Determine current state: CLIENT is authoritative
+            bool isCurrentlyReposted = clientIsReposted.HasValue ? clientIsReposted.Value : (freshPost.Viewer?.Repost != null);
+            string? currentRepostUri = clientRepostUri ?? freshPost.Viewer?.Repost;
             bool isReposting = !isCurrentlyReposted;
             
-            _logger.LogInformation("[ToggleRepostAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, Reposted={IsReposted}", 
-                userId, postId, freshPost.Uri, isCurrentlyReposted);
+            _logger.LogInformation("[ToggleRepostAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, ClientIsReposted={ClientIsReposted}", 
+                userId, postId, freshPost.Uri, clientIsReposted);
 
             bool proxySuccess = false;
             string? newRepostUri = null;
@@ -5505,7 +5520,18 @@ public class PostService : IPostService
 
             if (!proxySuccess && !string.IsNullOrEmpty(errorMessage))
             {
-                return new { isReposted = isCurrentlyReposted, repostsCount = freshPost.RepostsCount, error = "Interaction failed", detail = errorMessage };
+                bool isConflictError = errorMessage.Contains("Could not locate record", StringComparison.OrdinalIgnoreCase)
+                    || errorMessage.Contains("Record already exists", StringComparison.OrdinalIgnoreCase)
+                    || errorMessage.Contains("not found", StringComparison.OrdinalIgnoreCase);
+                
+                if (!isConflictError)
+                {
+                    _logger.LogWarning("[ToggleRepostAsync] Non-recoverable failure: {Error}", errorMessage);
+                    return new { isReposted = isCurrentlyReposted, repostsCount = freshPost.RepostsCount, error = "Interaction failed", detail = errorMessage };
+                }
+                _logger.LogInformation("[ToggleRepostAsync] Idempotent conflict on {Action}, treating as success.", isReposting ? "repost" : "unrepost");
+                proxySuccess = true;
+                newRepostUri = isReposting ? currentRepostUri : null;
             }
 
             // 3. Update Local State and Broadcast

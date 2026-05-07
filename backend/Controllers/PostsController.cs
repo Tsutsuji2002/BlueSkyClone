@@ -623,7 +623,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost("{id}/repost")]
-    public async Task<IActionResult> RepostPost(string id, [FromQuery] string? uri = null)
+    public async Task<IActionResult> RepostPost(string id, [FromQuery] string? uri = null, [FromQuery] bool? isReposted = null, [FromQuery] string? repostUri = null)
     {
         try
         {
@@ -643,7 +643,7 @@ public class PostsController : ControllerBase
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
-            var result = await _postService.ToggleRepostAsync(userId, postId);
+            var result = await _postService.ToggleRepostAsync(userId, postId, isReposted, repostUri);
             return Ok(result);
         }
         catch (Exception ex)

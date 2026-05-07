@@ -658,7 +658,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                                             id: 'repost',
                                             label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
                                             icon: <FiRepeat />,
-                                            onClick: () => ensureAuth(() => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted, currentRepostsCount: post.repostsCount })))
+                                            onClick: () => ensureAuth(() => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted, repostUri: post.viewer?.repost, currentRepostsCount: post.repostsCount })))
                                         },
                                         {
                                             id: 'quote',

@@ -188,7 +188,7 @@ const MediaViewerPage: React.FC = () => {
     const handleRepost = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         console.log('MediaViewerPage handleRepost clicked for:', currentPost.id);
-        dispatch(repostPost({ uri: currentPost.uri!, cid: currentPost.cid!, isReposted: !!currentPost.isReposted }));
+        dispatch(repostPost({ uri: currentPost.uri!, cid: currentPost.cid!, isReposted: !!currentPost.isReposted, repostUri: currentPost.viewer?.repost }));
     };
 
     const handleComment = (e: React.MouseEvent) => {

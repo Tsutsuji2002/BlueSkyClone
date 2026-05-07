@@ -433,7 +433,7 @@ const PostDetailPage: React.FC = () => {
 
     const handleRepost = () => {
         if (!post.uri || !post.cid) return;
-        dispatch(repostPost({ uri: post.uri, cid: post.cid, isReposted: !!post.isReposted, currentRepostsCount: post.repostsCount }));
+        dispatch(repostPost({ uri: post.uri, cid: post.cid, isReposted: !!post.isReposted, repostUri: post.viewer?.repost, currentRepostsCount: post.repostsCount }));
     };
 
     const handleBookmark = () => {

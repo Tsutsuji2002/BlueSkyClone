@@ -4,6 +4,7 @@ import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
 import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
+import { showToast } from './toastSlice';
 
 const initialState: PostsState = {
     posts: [],
@@ -405,12 +406,11 @@ export const createPost = createAsyncThunk(
 
 export const toggleLike = createAsyncThunk(
     'posts/toggleLike',
-    async ({ uri, cid, isLiked, likeUri, currentLikesCount }: { uri: string; cid: string; isLiked: boolean; likeUri?: string; currentLikesCount?: number }, { rejectWithValue }) => {
+    async ({ uri, cid, isLiked, likeUri, currentLikesCount }: { uri: string; cid: string; isLiked: boolean; likeUri?: string; currentLikesCount?: number }, { rejectWithValue, dispatch }) => {
         try {
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
             const params = new URLSearchParams();
             if (uri.startsWith('at://')) params.set('uri', uri);
-            // Pass client-known state so backend can reliably determine like vs unlike
             params.set('isLiked', String(isLiked));
             if (likeUri) params.set('likeUri', likeUri);
             const queryString = params.toString() ? `?${params.toString()}` : '';
@@ -418,19 +418,19 @@ export const toggleLike = createAsyncThunk(
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            console.log(`[toggleLike] PostId=${postId}, URI=${uri}, isLiked=${isLiked}`);
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/like${queryString}`, {
                 method: 'POST',
                 headers
             });
             if (!response.ok) {
                 const errorData = await response.text();
-                console.warn(`[toggleLike] FAILED: ${response.status} ${errorData}`);
+                (dispatch as any)(showToast({ message: isLiked ? 'Failed to unlike post' : 'Failed to like post', type: 'error' }));
                 return rejectWithValue(`Failed to toggle like: ${errorData || response.statusText}`);
             }
             const data = await response.json();
             return { uri, isLiked: data.isLiked, likeUri: data.likeUri, likesCount: data.likesCount };
         } catch (error: any) {
+            (dispatch as any)(showToast({ message: 'Failed to like post', type: 'error' }));
             return rejectWithValue(error.message);
         }
     }
@@ -438,22 +438,30 @@ export const toggleLike = createAsyncThunk(
 
 export const repostPost = createAsyncThunk(
     'posts/repost',
-    async ({ uri, cid, isReposted, currentRepostsCount }: { uri: string; cid: string; isReposted: boolean; currentRepostsCount?: number }, { rejectWithValue }) => {
+    async ({ uri, cid, isReposted, repostUri, currentRepostsCount }: { uri: string; cid: string; isReposted: boolean; repostUri?: string; currentRepostsCount?: number }, { rejectWithValue, dispatch }) => {
         try {
             const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
-            const queryParam = uri.startsWith('at://') ? `?uri=${encodeURIComponent(uri)}` : '';
+            const params = new URLSearchParams();
+            if (uri.startsWith('at://')) params.set('uri', uri);
+            params.set('isReposted', String(isReposted));
+            if (repostUri) params.set('repostUri', repostUri);
+            const queryString = params.toString() ? `?${params.toString()}` : '';
             const token = localStorage.getItem('token');
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost${queryParam}`, {
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost${queryString}`, {
                 method: 'POST',
                 headers
             });
-            if (!response.ok) return rejectWithValue('Failed to toggle repost');
+            if (!response.ok) {
+                (dispatch as any)(showToast({ message: isReposted ? 'Failed to undo repost' : 'Failed to repost', type: 'error' }));
+                return rejectWithValue('Failed to toggle repost');
+            }
             const data = await response.json();
             return { uri, isReposted: data.isReposted, repostUri: data.repostUri, repostsCount: data.repostsCount };
         } catch (error: any) {
+            (dispatch as any)(showToast({ message: 'Failed to repost', type: 'error' }));
             return rejectWithValue(error.message);
         }
     }
