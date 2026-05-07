@@ -771,14 +771,18 @@ public class PostService : IPostService
             {
                 if (string.IsNullOrEmpty(rawUri)) return;
                 
+                bool isLocal = rawUri.Contains(_localDomain) || 
+                               rawUri.StartsWith("at://local/") || 
+                               (!string.IsNullOrEmpty(did) && did.StartsWith("did:local:"));
+
                 // Track raw URI if it's potentially remote
-                if (!rawUri.Contains(_localDomain) && !rawUri.StartsWith("at://local/"))
+                if (!isLocal)
                 {
                     remoteUris.Add(rawUri);
                 }
 
                 // Track canonical DID-based URI
-                if (!string.IsNullOrEmpty(did) && !string.IsNullOrEmpty(rkey))
+                if (!isLocal && !string.IsNullOrEmpty(did) && !string.IsNullOrEmpty(rkey))
                 {
                     var canonical = $"at://{did}/app.bsky.feed.post/{rkey}";
                     remoteUris.Add(canonical);
@@ -1431,6 +1435,13 @@ public class PostService : IPostService
                        var altUri2 = $"at://{post.Author.Handle}/app.bsky.feed.post/{uriParts.Last()}".ToLower();
                        isBookmarked = bookmarkedUris.Contains(altUri1) || bookmarkedUris.Contains(altUri2);
                     }
+                }
+
+                // Final safety: check if any of the Author's known handles/DIDs match a bookmark with this Rkey
+                if (!isBookmarked && rkey != null && post.Author != null)
+                {
+                    if (!string.IsNullOrEmpty(post.Author.Did) && bookmarkedUris.Contains($"at://{post.Author.Did.ToLower()}/app.bsky.feed.post/{rkey}")) isBookmarked = true;
+                    if (!isBookmarked && !string.IsNullOrEmpty(post.Author.Handle) && bookmarkedUris.Contains($"at://{post.Author.Handle.ToLower()}/app.bsky.feed.post/{rkey}")) isBookmarked = true;
                 }
 
                 post.IsBookmarked = isBookmarked;
