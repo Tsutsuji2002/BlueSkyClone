@@ -5798,6 +5798,7 @@ public class PostService : IPostService
 
     public async Task<PagedPostDto> GetBookmarkedPostsAsync(Guid userId, int skip = 0, int take = 20)
     {
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 1: Starting query.");
         var query = _unitOfWork.Bookmarks.Query()
             .Where(b => b.UserId == userId)
             .Include(b => b.Post)
@@ -5818,16 +5819,28 @@ public class PostService : IPostService
             .AsSplitQuery()
             .OrderByDescending(b => b.CreatedAt);
 
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 2: About to count.");
         var total = await query.CountAsync();
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 3: Total counted = {Total}, skipping {Skip}, taking {Take}", total, skip, take);
+        
         var bookmarkedPosts = await query
             .Skip(skip)
             .Take(take)
             .Select(b => b.Post)
             .ToListAsync();
 
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 4: Successfully fetched {Count} posts from DB. About to map.", bookmarkedPosts.Count);
+
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
+        
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 5: Mapped to DTOs. About to refresh token.");
         var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
+        
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 6: Token refreshed. Calling EnrichAndFilterPostsAsync.");
         var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token, false, true, !string.IsNullOrEmpty(token));
+        
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 7: Enrichment complete. Emitting result.");
+
         // Force IsBookmarked = true: every post returned here IS a bookmark by definition.
         // EnrichAndFilterPostsAsync may fail to set this correctly for remote posts.
         foreach (var p in enriched)
