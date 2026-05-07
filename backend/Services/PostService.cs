@@ -6117,7 +6117,7 @@ public class PostService : IPostService
                 (l.Post != null && l.Post.Uri != null && loweredUris.Contains(l.Post.Uri.ToLower())) ||
                 (l.Post != null && l.Post.Tid != null && rkeys.Contains(l.Post.Tid.ToLower()))
             ))
-            .Select(l => new { l.PostId, Uri = l.Post.Uri, SubjectTid = l.Post.Tid, LikeUri = l.Uri })
+            .Select(l => new { l.PostId, Uri = l.Post.Uri, Tid = l.Tid, LikeUri = l.Uri })
             .ToListAsync();
 
         var reposts = await _unitOfWork.Reposts.Query()
@@ -6126,7 +6126,7 @@ public class PostService : IPostService
                 (r.Post != null && r.Post.Uri != null && loweredUris.Contains(r.Post.Uri.ToLower())) ||
                 (r.Post != null && r.Post.Tid != null && rkeys.Contains(r.Post.Tid.ToLower()))
             ))
-            .Select(r => new { r.PostId, Uri = r.Post.Uri, SubjectTid = r.Post.Tid, RepostUri = r.Uri })
+            .Select(r => new { r.PostId, Uri = r.Post.Uri, Tid = r.Tid, RepostUri = r.Uri })
             .ToListAsync();
 
         var bookmarks = await _unitOfWork.Bookmarks.Query()
@@ -6135,7 +6135,7 @@ public class PostService : IPostService
                 (b.Post != null && b.Post.Uri != null && loweredUris.Contains(b.Post.Uri.ToLower())) ||
                 (b.Post != null && b.Post.Tid != null && rkeys.Contains(b.Post.Tid.ToLower()))
             ))
-            .Select(b => new { b.PostId, Uri = b.Post.Uri, SubjectTid = b.Post.Tid })
+            .Select(b => new { b.PostId, Uri = b.Post.Uri, Tid = b.Tid })
             .ToListAsync();
 
         var likeByUri = likes
