@@ -251,7 +251,11 @@ export const fetchTimeline = createAsyncThunk(
             const response = await fetch(url.toString(), { headers });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const rawPosts = await response.json();
-            const posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(mapAtProtoPostToPost);
+            
+            // [NEW] Perform second-pass interaction hydration (Sync with local DB + AppView)
+            posts = await hydratePostsWithInteractionStatus(posts, token);
+            
             return { posts, skip, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -771,7 +775,10 @@ export const fetchBookmarkedPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
             const data = await response.json();
             const rawPosts = data.posts || [];
-            const posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(mapAtProtoPostToPost);
+            
+            // [NEW] Perform second-pass interaction hydration
+            posts = await hydratePostsWithInteractionStatus(posts, token);
             
             return { 
                 posts, 
@@ -797,9 +804,12 @@ export const fetchDiscoverPosts = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();
-            // Support both { posts, hasMore } shape and plain Post[] for backward compat
             const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-            const posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(mapAtProtoPostToPost);
+            
+            // [NEW] Perform second-pass interaction hydration
+            posts = await hydratePostsWithInteractionStatus(posts, token);
+            
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
             return { posts, skip, hasMore };

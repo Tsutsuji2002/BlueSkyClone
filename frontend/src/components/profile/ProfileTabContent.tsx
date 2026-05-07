@@ -69,6 +69,12 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 if (response.ok) {
                     const data = await response.json();
                     fetchedItems = Array.isArray(data) ? data : (data.posts || []);
+                    
+                    // [NEW] Perform second-pass interaction hydration
+                    if (fetchedItems.length > 0) {
+                        fetchedItems = await hydratePostsWithInteractionStatus(fetchedItems, token);
+                    }
+
                     if (type === 'video') {
                         fetchedItems = fetchedItems.filter((p: Post) => 
                             !!p.videoUrl || !!p.video || (p.media && p.media.some(m => m.type === 'video'))
