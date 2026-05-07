@@ -283,7 +283,11 @@ export const fetchUserPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
             const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-            const posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(mapAtProtoPostToPost);
+
+            // [NEW] Perform second-pass interaction hydration
+            posts = await hydratePostsWithInteractionStatus(posts, token);
+
             const cursorVal = data.cursor || null;
 
             return { posts, userId, cursor: cursorVal, type };
@@ -529,7 +533,11 @@ export const fetchPostsSearch = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to search posts');
             const rawPosts = await response.json();
-            const posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(mapAtProtoPostToPost);
+
+            // [NEW] Perform second-pass interaction hydration
+            posts = await hydratePostsWithInteractionStatus(posts, token);
+
             return { posts, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -631,13 +639,15 @@ export const fetchPostById = createAsyncThunk(
                             p.isReposted = !!p.viewer.repost;
                         }
                     });
-                    return posts;
+                    
+                    // [NEW] Even if we have viewer state, we still need local DB for bookmarks
+                    return await hydratePostsWithInteractionStatus(posts, token);
                 }
                 
-                return posts;
+                return await hydratePostsWithInteractionStatus(posts, token);
             }
 
-            const mappedPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
+            let mappedPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
             
             // Apply same skip-logic for direct API calls if they return viewer state
             if (token && mappedPosts.length > 0 && mappedPosts.every(p => p.viewer !== undefined)) {
@@ -647,10 +657,10 @@ export const fetchPostById = createAsyncThunk(
                         p.isReposted = !!p.viewer.repost;
                     }
                 });
-                return mappedPosts;
+                return await hydratePostsWithInteractionStatus(mappedPosts, token);
             }
-            
-            return mappedPosts;
+
+            return await hydratePostsWithInteractionStatus(mappedPosts, token);
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -672,9 +682,12 @@ export const fetchPostReplies = createAsyncThunk(
             const data = await response.json();
             
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
-            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            let posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
+            // [NEW] Perform second-pass interaction hydration
+            posts = await hydratePostsWithInteractionStatus(posts, token);
+
             return { posts, postId, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -695,7 +708,11 @@ export const fetchTrendingPosts = createAsyncThunk(
                 { headers }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch trending');
-            const posts = await response.json() as Post[];
+            let posts = await response.json() as Post[];
+
+            // [NEW] Perform second-pass interaction hydration
+            posts = await hydratePostsWithInteractionStatus(posts, token);
+
             return posts;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -838,7 +855,11 @@ export const fetchPostQuotes = createAsyncThunk<
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch quotes');
 
-            const posts: Post[] = (data.posts || []);
+            let posts: Post[] = (data.posts || []);
+            
+            // [NEW] Perform second-pass interaction hydration
+            posts = await hydratePostsWithInteractionStatus(posts, token);
+
             return { posts, cursor: data.cursor || null, hasMore: data.hasMore ?? !!data.cursor };
         } catch (error: any) {
             return rejectWithValue(error.message);

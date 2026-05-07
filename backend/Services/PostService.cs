@@ -6143,8 +6143,8 @@ public class PostService : IPostService
             .GroupBy(x => x.Uri!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().LikeUri, StringComparer.OrdinalIgnoreCase);
         var likeByTid = likes
-            .Where(x => !string.IsNullOrWhiteSpace(x.SubjectTid))
-            .GroupBy(x => x.SubjectTid!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
+            .Where(x => !string.IsNullOrWhiteSpace(x.Tid))
+            .GroupBy(x => x.Tid!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().LikeUri, StringComparer.OrdinalIgnoreCase);
         var likeByPostId = likes
             .GroupBy(x => x.PostId)
@@ -6155,8 +6155,8 @@ public class PostService : IPostService
             .GroupBy(x => x.Uri!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().RepostUri, StringComparer.OrdinalIgnoreCase);
         var repostByTid = reposts
-            .Where(x => !string.IsNullOrWhiteSpace(x.SubjectTid))
-            .GroupBy(x => x.SubjectTid!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
+            .Where(x => !string.IsNullOrWhiteSpace(x.Tid))
+            .GroupBy(x => x.Tid!.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().RepostUri, StringComparer.OrdinalIgnoreCase);
         var repostByPostId = reposts
             .GroupBy(x => x.PostId)
@@ -6167,8 +6167,8 @@ public class PostService : IPostService
             .Select(x => x.Uri!.ToLowerInvariant())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var bookmarkedTids = bookmarks
-            .Where(x => !string.IsNullOrWhiteSpace(x.SubjectTid))
-            .Select(x => x.SubjectTid!.ToLowerInvariant())
+            .Where(x => !string.IsNullOrWhiteSpace(x.Tid))
+            .Select(x => x.Tid!.ToLowerInvariant())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var bookmarkedPostIds = bookmarks
             .Select(x => x.PostId)
@@ -6211,8 +6211,9 @@ public class PostService : IPostService
 
             result.Add(new PostInteractionStatusDto
             {
-                Uri = matchedPost?.Uri ?? originalUri,
-                Tid = matchedPost?.Tid,
+                // CRITICAL: Return the requested URI so the frontend can match it as a key
+                Uri = originalUri, 
+                Tid = rkey, // Always return the Tid for robust frontend fallback
                 IsLiked = !string.IsNullOrWhiteSpace(likeUri),
                 IsReposted = !string.IsNullOrWhiteSpace(repostUri),
                 IsBookmarked = isBookmarked,
