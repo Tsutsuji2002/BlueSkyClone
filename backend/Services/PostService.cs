@@ -5968,24 +5968,42 @@ public class PostService : IPostService
         var remoteUris = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var canonicalToRaw = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
-        // [NEW] Robust Filtering: Skip local URIs that poison AppView requests
+        // [NEW] Robust Filtering: Skip local URIs and perform bulk DID lookup
+        var handlesToLookup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rawUri in normalizedUris)
+        {
+            if (rawUri.Contains(_localDomain) || rawUri.StartsWith("at://local/")) continue;
+            
+            var parts = rawUri.Split('/');
+            if (parts.Length >= 5 && parts[0] == "at:" && !parts[2].StartsWith("did:"))
+            {
+                handlesToLookup.Add(parts[2]);
+            }
+        }
+
+        var handleToDid = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (handlesToLookup.Any())
+        {
+             var users = await _unitOfWork.Users.Query()
+                .Where(u => handlesToLookup.Contains(u.Handle))
+                .Select(u => new { u.Handle, u.Did })
+                .ToListAsync();
+             foreach (var u in users) if (!string.IsNullOrEmpty(u.Did)) handleToDid[u.Handle] = u.Did;
+        }
+
         foreach (var rawUri in normalizedUris)
         {
             if (rawUri.Contains(_localDomain) || rawUri.StartsWith("at://local/")) continue;
             
             remoteUris.Add(rawUri);
             
-            // If it's a handle-based URI, we should also try DID-based lookup for reliability
-            // Use a regex-free split for performance
             var parts = rawUri.Split('/');
             if (parts.Length >= 5 && parts[0] == "at:" && !parts[2].StartsWith("did:"))
             {
-                // It's a handle-based URI. Try to find the DID for this handle in our local cache.
                 var handle = parts[2];
-                var author = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == handle);
-                if (author != null && !string.IsNullOrEmpty(author.Did))
+                if (handleToDid.TryGetValue(handle, out var did))
                 {
-                    var canonical = $"at://{author.Did}/app.bsky.feed.post/{parts.Last()}";
+                    var canonical = $"at://{did}/app.bsky.feed.post/{parts.Last()}";
                     remoteUris.Add(canonical);
                     if (!canonicalToRaw.ContainsKey(canonical)) canonicalToRaw[canonical] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     canonicalToRaw[canonical].Add(rawUri);
@@ -6112,29 +6130,17 @@ public class PostService : IPostService
         var matchedIds = matchedPosts.Select(p => p.Id).Distinct().ToList();
 
         var likes = await _unitOfWork.Likes.Query()
-            .Where(l => l.UserId == userId && (
-                matchedIds.Contains(l.PostId) ||
-                (l.Post != null && l.Post.Uri != null && loweredUris.Contains(l.Post.Uri.ToLower())) ||
-                (l.Post != null && l.Post.Tid != null && rkeys.Contains(l.Post.Tid.ToLower()))
-            ))
+            .Where(l => l.UserId == userId && matchedIds.Contains(l.PostId))
             .Select(l => new { l.PostId, Uri = l.Post.Uri, Tid = l.Tid, LikeUri = l.Uri })
             .ToListAsync();
 
         var reposts = await _unitOfWork.Reposts.Query()
-            .Where(r => r.UserId == userId && (
-                matchedIds.Contains(r.PostId) ||
-                (r.Post != null && r.Post.Uri != null && loweredUris.Contains(r.Post.Uri.ToLower())) ||
-                (r.Post != null && r.Post.Tid != null && rkeys.Contains(r.Post.Tid.ToLower()))
-            ))
+            .Where(r => r.UserId == userId && matchedIds.Contains(r.PostId))
             .Select(r => new { r.PostId, Uri = r.Post.Uri, Tid = r.Tid, RepostUri = r.Uri })
             .ToListAsync();
 
         var bookmarks = await _unitOfWork.Bookmarks.Query()
-            .Where(b => b.UserId == userId && (
-                matchedIds.Contains(b.PostId) ||
-                (b.Post != null && b.Post.Uri != null && loweredUris.Contains(b.Post.Uri.ToLower())) ||
-                (b.Post != null && b.Post.Tid != null && rkeys.Contains(b.Post.Tid.ToLower()))
-            ))
+            .Where(b => b.UserId == userId && matchedIds.Contains(b.PostId))
             .Select(b => new { b.PostId, Uri = b.Post.Uri, Tid = b.Tid })
             .ToListAsync();
 
