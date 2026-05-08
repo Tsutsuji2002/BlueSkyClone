@@ -38,6 +38,28 @@ public class PostService : IPostService
     private readonly IHttpClientFactory _httpClientFactory;
     private static readonly SemaphoreSlim _resolutionSemaphore = new SemaphoreSlim(10, 10);
 
+    private string NormalizeUri(string uri)
+    {
+        if (string.IsNullOrEmpty(uri)) return uri;
+        uri = uri.Trim();
+        if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) return uri;
+
+        var parts = uri.Substring(5).Split('/');
+        if (parts.Length < 3) return uri;
+
+        var didOrHandle = parts[0];
+        // DETECT CORRUPTION: if it starts with did:plc: but has a dot after it, it's a handle-based DID corruption
+        // e.g. at://did:plc:tsutsuji2002.bsky.social/app.bsky.feed.post/123 -> at://tsutsuji2002.bsky.social/app.bsky.feed.post/123
+        if (didOrHandle.StartsWith("did:plc:", StringComparison.OrdinalIgnoreCase) && didOrHandle.Contains("."))
+        {
+            var handle = didOrHandle.Substring(8);
+            _logger.LogWarning("[NormalizeUri] Detected DID-prefixed handle corruption: {OldUri}, fixing to handle-based URI.", uri);
+            return $"at://{handle}/{parts[1]}/{string.Join("/", parts.Skip(2))}";
+        }
+
+        return uri;
+    }
+
     public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, IHttpClientFactory httpClientFactory)
     {
         _unitOfWork = unitOfWork;
@@ -3445,7 +3467,7 @@ public class PostService : IPostService
     public async Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null, bool bypassCache = false)
     {
         if (string.IsNullOrEmpty(uri)) return null;
-        uri = uri.Trim();
+        uri = NormalizeUri(uri);
 
         try
         {

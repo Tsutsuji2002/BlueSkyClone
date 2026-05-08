@@ -29,6 +29,24 @@ public class UserService : IUserService
     private readonly ILogger<UserService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly string _localDomain;
+
+    private string NormalizeDid(string did)
+    {
+        if (string.IsNullOrEmpty(did)) return did;
+        did = did.Trim();
+        
+        // DETECT CORRUPTION: did:plc:tsutsuji2002.bsky.social -> tsutsuji2002.bsky.social
+        if (did.StartsWith("did:plc:", StringComparison.OrdinalIgnoreCase) && did.Contains("."))
+        {
+            var handle = did.Substring(8);
+            _logger.LogWarning("[NormalizeDid] Detected DID-prefixed handle corruption: {OldDid}, fixing to handle.", did);
+            return handle;
+        }
+
+        return did;
+    }
+
     // Per-user semaphores to prevent thundering-herd when token expires (e.g. ~3 AM)
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _tokenRefreshLocks = new();
 
@@ -500,6 +518,13 @@ public class UserService : IUserService
 
                 var did = root.GetProperty("did").GetString();
                 if (string.IsNullOrEmpty(did)) return (null, null);
+                
+                did = NormalizeDid(did);
+                // Ensure did doesn't contain a dot if it's supposed to be a PLC did
+                if (did.StartsWith("did:plc:") && did.Contains(".")) {
+                    _logger.LogError("[ResolveRemoteProfileInternalAsync] BSky API returned malformed DID: {Did}", did);
+                    return (null, null);
+                }
 
                 var profileHandle = root.TryGetProperty("handle", out var hp) ? hp.GetString() : null;
                 var deterministicId = CreateDeterministicGuid(did);
