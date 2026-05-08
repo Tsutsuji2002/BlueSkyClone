@@ -563,7 +563,7 @@ public class PostsController : ControllerBase
                 var post = await _postService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
                 if (post == null)
                 {
-                    _logger.LogWarning("[PostsController] LikePost: FAILED to resolve or ingest remote URI={Uri}", resolvedUri);
+                    _logger.LogWarning("[PostsController] LikePost: FAILED to resolve or ingest remote URI={Uri} using userId={UserId}", resolvedUri, userId);
                     return NotFound($"Remote post could not be resolved or ingested. URI: {resolvedUri}");
                 }
                 postId = post.Id;
@@ -581,7 +581,13 @@ public class PostsController : ControllerBase
             }
             
             _logger.LogInformation("[PostsController] LikePost: Toggling interaction for PostId={PostId} (OriginalId={Id})", postId, id);
-            var result = await _postService.ToggleLikeAsync(userId, postId, isLiked, likeUri);
+            var result = (dynamic)await _postService.ToggleLikeAsync(userId, postId, isLiked, likeUri);
+            
+            // Check for service-level errors and return as BadRequest so frontend detects failure
+            try {
+                if (result.error != null) return BadRequest(result);
+            } catch {}
+
             return Ok(result);
         }
         catch (Exception ex)
@@ -643,7 +649,14 @@ public class PostsController : ControllerBase
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
-            var result = await _postService.ToggleRepostAsync(userId, postId, isReposted, repostUri);
+            _logger.LogInformation("[PostsController] RepostPost: Toggling interaction for PostId={PostId} (OriginalId={Id})", postId, id);
+            var result = (dynamic)await _postService.ToggleRepostAsync(userId, postId, isReposted, repostUri);
+            
+            // Check for service-level errors and return as BadRequest so frontend detects failure
+            try {
+                if (result.error != null) return BadRequest(result);
+            } catch {}
+
             return Ok(result);
         }
         catch (Exception ex)

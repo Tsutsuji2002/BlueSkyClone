@@ -3493,6 +3493,7 @@ public class PostService : IPostService
                 return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
             }
 
+            _logger.LogWarning("[GetPostByUriAsync] Resolving FAILED for Uri={Uri}. bypassCache={BypassCache}", uri, bypassCache);
             return null;
         }
         catch (Exception ex)
@@ -3579,7 +3580,7 @@ public class PostService : IPostService
             // Try Public AppView first for global stats
             try
             {
-                using var client = new System.Net.Http.HttpClient();
+                using var client = _httpClientFactory.CreateClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                 var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=0");
                 if (response.IsSuccessStatusCode)
@@ -5159,9 +5160,8 @@ public class PostService : IPostService
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isLiked = false, error = "User not found or missing DID" };
 
-            // 1. Fetch Post Info (Prefer cache unless we absolutely need fresh remote stats immediately)
-            // Optimization: Try to use cached post info first to get Uri/Cid/Tid.
-            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: false);
+            // 1. Fetch Post Info (FORCE bypassCache to ensure we get the real count before toggling)
+            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
             if (freshPost == null) return new { isLiked = false, error = "Post not found" };
 
             // Determine current state: CLIENT is authoritative (they know what they clicked)
