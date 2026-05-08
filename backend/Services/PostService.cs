@@ -3437,19 +3437,28 @@ public class PostService : IPostService
     public async Task<PostDto?> GetPostByUriAsync(string uri, Guid? viewerId = null, bool bypassCache = false)
     {
         if (string.IsNullOrEmpty(uri)) return null;
+        uri = uri.Trim();
 
         try
         {
-            if (!uri.StartsWith("at://")) return null;
+            if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) 
+            {
+                _logger.LogWarning("[GetPostByUriAsync] Invalid URI format (no at://): {Uri}", uri);
+                return null;
+            }
 
             var parts = uri.Substring(5).Split('/');
-            if (parts.Length < 3) return null;
+            if (parts.Length < 3)
+            {
+                _logger.LogWarning("[GetPostByUriAsync] Invalid URI format (too few parts): {Uri}", uri);
+                return null;
+            }
 
             var didOrHandle = parts[0];
             var collection = parts[1];
             var rkey = parts[2];
 
-            // 1. Remote post Ingestion FIRST (for federated content)
+            // 1. Remote post Ingestion (authoritative fetch from BlueSky)
             if (didOrHandle != "local" && collection == "app.bsky.feed.post")
             {
                 var ingested = await IngestRemotePostAsync(uri);
@@ -3459,7 +3468,7 @@ public class PostService : IPostService
                 }
             }
 
-            // 2. Local DB Lookups (for at://local/ or as emergency fallback)
+            // 2. Local DB Lookups - Exact Match
             var existing = await _unitOfWork.Posts.Query()
                 .FirstOrDefaultAsync(p => p.Uri == uri);
 
@@ -3469,6 +3478,7 @@ public class PostService : IPostService
                 if (existing != null && existing.IsDeleted == true) existing = null;
             }
 
+            // 3. Fallback: Search by TID and Author (in case URI or DID casing changed)
             if (existing == null)
             {
                 var matchingAuthor = await _unitOfWork.Users.Query()
@@ -3482,10 +3492,12 @@ public class PostService : IPostService
                 }
             }
 
-            if (existing == null && !string.IsNullOrEmpty(rkey))
+            // 4. Fallback: Search by URI using LIKE (to ignore subtle encoding differences)
+            if (existing == null)
             {
                 existing = await _unitOfWork.Posts.Query()
-                    .FirstOrDefaultAsync(p => p.Tid == rkey && (p.IsDeleted == false || p.IsDeleted == null));
+                    .FirstOrDefaultAsync(p => p.Uri != null && p.Uri.EndsWith("/app.bsky.feed.post/" + rkey) &&
+                                             (p.IsDeleted == false || p.IsDeleted == null));
             }
 
             if (existing != null)
@@ -3493,7 +3505,7 @@ public class PostService : IPostService
                 return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
             }
 
-            _logger.LogWarning("[GetPostByUriAsync] Resolving FAILED for Uri={Uri}. bypassCache={BypassCache}", uri, bypassCache);
+            _logger.LogWarning("[GetPostByUriAsync] Resolving FAILED for Uri={Uri}. bypassCache={BypassCache}. Last attempt rkey fallback also failed.", uri, bypassCache);
             return null;
         }
         catch (Exception ex)
@@ -3561,7 +3573,11 @@ public class PostService : IPostService
 
             // 1. Resolve author
             var (author, _) = await _userService.ResolveRemoteProfileAsync(didOrHandle);
-            if (author == null) return null;
+            if (author == null) 
+            {
+                _logger.LogWarning("[IngestRemotePostAsync] Author resolution FAILED for {Actor}", didOrHandle);
+                return null;
+            }
 
             // 2. Fetch post thread (depth 0) to get record data and GLOBAL counts
             var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
@@ -3588,8 +3604,15 @@ public class PostService : IPostService
                     contentData = await response.Content.ReadAsStringAsync();
                     success = true;
                 }
+                else
+                {
+                    _logger.LogInformation("[IngestRemotePostAsync] Public API returned {Status} for {Uri}", response.StatusCode, uri);
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _logger.LogInformation("[IngestRemotePostAsync] Public API Exception for {Uri}: {Msg}", uri, ex.Message);
+            }
 
             // Fallback to proxying PDS
             if (!success)
