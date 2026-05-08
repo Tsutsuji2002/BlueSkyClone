@@ -1206,13 +1206,13 @@ public class PostService : IPostService
                         target.Labels = rp.Labels;
                         target.QuotePost = rp.QuotePost;
                     }
-                    else if (bypassRemoteCache && resolvedInteractions.TryGetValue(target.Uri ?? "", out var ri))
+                    else if (bypassRemoteCache && remoteInteractionCache.TryGetValue(target.Uri ?? "", out var ri))
                     {
                         // [FIX] Even if the post exists in DB, if we are bypassing cache (e.g. during a Like),
                         // we MUST update counts from the freshly fetched AppView state.
-                        target.LikesCount = ri.LikesCount;
-                        target.RepostsCount = ri.RepostsCount;
-                        target.RepliesCount = ri.RepliesCount;
+                        target.LikesCount = ri.TryGetProperty("likeCount", out var lhc) ? lhc.GetInt32() : target.LikesCount;
+                        target.RepostsCount = ri.TryGetProperty("repostCount", out var rhc) ? rhc.GetInt32() : target.RepostsCount;
+                        target.RepliesCount = ri.TryGetProperty("replyCount", out var rlhc) ? rlhc.GetInt32() : target.RepliesCount;
                     }
 
                     if (target.Author != null && resolvedAuthors.TryGetValue(target.Author.Did ?? "", out var ra))
@@ -3559,7 +3559,6 @@ public class PostService : IPostService
             _logger.LogError(ex, "Failed to sync unpinned post to ATProto for user {UserId}", userId);
         }
     }
-
     private async Task<Post?> IngestRemotePostAsync(string uri)
     {
         try
@@ -3589,22 +3588,14 @@ public class PostService : IPostService
 
             // 2. Check if already exists (using canonical URI)
             var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == canonicalUri);
-            if (existing != null)
+            if (existing != null && !string.IsNullOrEmpty(existing.Content))
             {
-                // If the post exists but is a stub (missing Tid or Content), it will be updated below
-                if (!string.IsNullOrEmpty(existing.Content)) return existing;
+                return existing;
             }
 
-            // 3. Fetch post thread (depth 0) to get record data and GLOBAL counts
-            var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
-            {
-                { "uri", canonicalUri },
-                { "depth", "0" }
-            };
-            var qCollection = new QueryCollection(qDict);
-
-            JsonElement postData;
-            JsonElement record;
+            // 3. Fetch authoritative data from AppView
+            JsonElement postData = default;
+            JsonElement record = default;
             string? cid = null;
             bool success = false;
             string contentData = "";
@@ -3614,28 +3605,23 @@ public class PostService : IPostService
             {
                 using var client = _httpClientFactory.CreateClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)); // Strict 5s timeout
-                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=0", cts.Token);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(canonicalUri)}&depth=0", cts.Token);
                 if (response.IsSuccessStatusCode)
                 {
                     contentData = await response.Content.ReadAsStringAsync();
                     success = true;
                 }
-                else
-                {
-                    _logger.LogInformation("[IngestRemotePostAsync] Public API returned {Status} for {Uri}", response.StatusCode, uri);
-                }
             }
             catch (Exception ex)
             {
-                _logger.LogInformation("[IngestRemotePostAsync] Public API Exception for {Uri}: {Msg}", uri, ex.Message);
+                _logger.LogInformation("[IngestRemotePostAsync] Public API Exception for {Uri}: {Msg}", canonicalUri, ex.Message);
             }
 
-            // Fallback to proxying PDS
             if (!success)
             {
-                var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "app.bsky.feed.getPostThread", qCollection);
+                var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { { "uri", canonicalUri }, { "depth", "0" } };
+                var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "app.bsky.feed.getPostThread", new QueryCollection(qDict));
                 if (proxyResult.Success)
                 {
                     contentData = proxyResult.Content;
@@ -3645,36 +3631,28 @@ public class PostService : IPostService
 
             if (success)
             {
-                var threadData = System.Text.Json.JsonDocument.Parse(contentData);
-                if (threadData.RootElement.TryGetProperty("thread", out var thread) && 
-                    thread.TryGetProperty("post", out postData))
+                var doc = JsonDocument.Parse(contentData);
+                if (doc.RootElement.TryGetProperty("thread", out var thread) && thread.TryGetProperty("post", out postData))
                 {
                     cid = postData.GetProperty("cid").GetString();
                     record = postData.GetProperty("record");
                 }
-                else
-                {
-                    // Fallback to getRecord
-                    _logger.LogInformation("[IngestRemotePostAsync] getPostThread failed for {Uri}, falling back to getRecord", uri);
-                    return await IngestViaGetRecordAsync(author, uri, rkey);
-                }
-            }
-            else
-            {
-                // Fallback to getRecord if thread fails
-                _logger.LogInformation("[IngestRemotePostAsync] HTTP fetch failed for {Uri}, falling back to getRecord", uri);
-                return await IngestViaGetRecordAsync(author, uri, rkey);
             }
 
-            // Check if already exists (race condition)
-            var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri || p.Cid == cid);
+            if (string.IsNullOrEmpty(cid))
+            {
+                _logger.LogInformation("[IngestRemotePostAsync] Failed to fetch thread for {Uri}, falling back to getRecord", canonicalUri);
+                return await IngestViaGetRecordAsync(author, canonicalUri, rkey);
+            }
+
+            // 4. Final check before creation (race condition or existing stub)
+            existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == canonicalUri || p.Cid == cid);
             if (existing != null)
             {
-                // If the post exists but is a stub (missing Tid or Content), update it with authoritative data
                 bool isStub = string.IsNullOrEmpty(existing.Tid) || string.IsNullOrEmpty(existing.Content);
                 if (isStub)
                 {
-                    _logger.LogInformation("[IngestRemotePostAsync] Enriching existing stub post {PostId} (Uri: {Uri}) with authoritative metadata", existing.Id, uri);
+                    _logger.LogInformation("[IngestRemotePostAsync] Enriching stub post {PostId} ({Uri})", existing.Id, canonicalUri);
                     existing.Content = record.GetProperty("text").GetString();
                     existing.Tid = rkey;
                     existing.Cid = cid;
@@ -3688,22 +3666,20 @@ public class PostService : IPostService
                     _unitOfWork.Posts.Update(existing);
                     await _unitOfWork.CompleteAsync();
                     
-                    // Also ingest embeds for the newly enriched stub
                     if (postData.TryGetProperty("embed", out var embedStub))
-                    {
                         await IngestEmbedsAsync(existing, embedStub, autoSave: true);
-                    }
                 }
                 return existing;
             }
 
+            // 5. Create new entry
             var newPost = new Post
             {
                 Id = Guid.NewGuid(),
                 AuthorId = author.Id,
                 Content = record.GetProperty("text").GetString(),
                 CreatedAt = DateTime.Parse(record.GetProperty("createdAt").GetString() ?? DateTime.UtcNow.ToString()),
-                Uri = uri,
+                Uri = canonicalUri,
                 Cid = cid,
                 Tid = rkey,
                 LikesCount = postData.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
@@ -3715,11 +3691,8 @@ public class PostService : IPostService
             await _unitOfWork.Posts.AddAsync(newPost);
             await _unitOfWork.CompleteAsync();
 
-            // 3. Ingest Media and Link Previews if present
             if (postData.TryGetProperty("embed", out var embed))
-            {
                 await IngestEmbedsAsync(newPost, embed, autoSave: true);
-            }
 
             return newPost;
         }
@@ -3729,6 +3702,7 @@ public class PostService : IPostService
             return null;
         }
     }
+
 
     private async Task IngestMediaFromEmbedAsync(Guid postId, JsonElement embed)
     {
