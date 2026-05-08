@@ -215,6 +215,7 @@ export interface Post {
     language?: string;
     repostedBy?: Partial<User>;
     lastUpdated?: string; // ISO string for local cross-event ordering
+    lastInteractedAt?: string; // ISO string for SignalR cooldown protection
     uri?: string;
     tid?: string;
     cid?: string;

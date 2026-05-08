@@ -5306,6 +5306,8 @@ public class PostService : IPostService
             await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
             { 
                 postId, 
+                uri = freshPost.Uri,
+                tid = freshPost.Tid,
                 likesCount = finalLikesCount,
                 repostsCount = freshPost.RepostsCount,
                 bookmarksCount = freshPost.BookmarksCount,
@@ -5371,6 +5373,8 @@ public class PostService : IPostService
             await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
             { 
                 postId, 
+                uri = post.Uri,
+                tid = post.Tid,
                 likesCount = post.LikesCount ?? 0,
                 repostsCount = post.RepostsCount ?? 0,
                 bookmarksCount = post.BookmarksCount ?? 0,
@@ -5527,6 +5531,8 @@ public class PostService : IPostService
             await _postHubContext.Clients.All.SendAsync("UpdatePostStats", new 
             { 
                 postId, 
+                uri = freshPost.Uri,
+                tid = freshPost.Tid,
                 likesCount = freshPost.LikesCount,
                 repostsCount = finalRepostsCount,
                 bookmarksCount = freshPost.BookmarksCount,

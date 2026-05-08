@@ -888,15 +888,23 @@ const postsSlice = createSlice({
             state.lastUserPostsType = null;
             state.cursor = null;
         },
-        updatePostStats: (state, action: PayloadAction<{ uri: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
-            const { uri: actionUri, timestamp, ...stats } = action.payload;
-            const truth = state.interactionTruth[actionUri];
-
+        updatePostStats: (state, action: PayloadAction<{ uri: string; tid?: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
+            const { uri: actionUri, tid, timestamp, ...stats } = action.payload;
+            
+            // Try to find the canonical truth by all possible identifiers
+            const truth = state.interactionTruth[actionUri] || (tid && state.interactionTruth[tid]);
+            
             const updateInArray = (arr: Post[]) => {
                 arr.forEach((p: Post) => {
                     recursivelyUpdatePost(p, actionUri, (post) => {
-                        if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
-                            // Favor our interactionTruth counts if they exist, as SignalR might broadcast stale cached values
+                        // COOLDOWN PROTECTION: Ignore SignalR updates if we've interacted with this post in the last 30 seconds,
+                        // as the AppView stats are often stale immediately after a write.
+                        const now = new Date();
+                        const lastInteraction = truth?.lastInteractedAt ? new Date(truth.lastInteractedAt) : null;
+                        const isCoolingDown = lastInteraction && (now.getTime() - lastInteraction.getTime() < 30000);
+
+                        if (!isCoolingDown && (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated))) {
+                            // Favor our interactionTruth counts if they exist
                             if (stats.likesCount !== undefined) {
                                 post.likesCount = (truth && truth.likesCount !== undefined) ? truth.likesCount : stats.likesCount;
                             }
@@ -1202,7 +1210,8 @@ const postsSlice = createSlice({
                     isLiked: !existingTruth?.isLiked,
                     likesCount: existingTruth?.isLiked 
                         ? Math.max(0, baseLikesCount - 1) 
-                        : baseLikesCount + 1
+                        : baseLikesCount + 1,
+                    lastInteractedAt: new Date().toISOString()
                 };
                 
                 // Broaden optimistic truth to all identifiers
@@ -1301,7 +1310,8 @@ const postsSlice = createSlice({
                     isReposted: !existingTruth?.isReposted,
                     repostsCount: existingTruth?.isReposted 
                         ? Math.max(0, baseRepostsCount - 1) 
-                        : baseRepostsCount + 1
+                        : baseRepostsCount + 1,
+                    lastInteractedAt: new Date().toISOString()
                 };
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
