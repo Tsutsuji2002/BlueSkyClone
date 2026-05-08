@@ -3441,24 +3441,26 @@ public class PostService : IPostService
 
         try
         {
-            if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) 
+            // 1. Local DB Lookups FIRST (Performance optimization: resolve instantly if already ingested)
+            var existing = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .FirstOrDefaultAsync(p => p.Uri == uri);
+
+            if (existing != null)
             {
-                _logger.LogWarning("[GetPostByUriAsync] Invalid URI format (no at://): {Uri}", uri);
-                return null;
+                return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
             }
 
+            // 2. Format validation
+            if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) return null;
             var parts = uri.Substring(5).Split('/');
-            if (parts.Length < 3)
-            {
-                _logger.LogWarning("[GetPostByUriAsync] Invalid URI format (too few parts): {Uri}", uri);
-                return null;
-            }
+            if (parts.Length < 3) return null;
 
             var didOrHandle = parts[0];
             var collection = parts[1];
             var rkey = parts[2];
 
-            // 1. Remote post Ingestion (authoritative fetch from BlueSky)
+            // 3. Remote ingestion ONLY if not found locally or if it's a remote post
             if (didOrHandle != "local" && collection == "app.bsky.feed.post")
             {
                 var ingested = await IngestRemotePostAsync(uri);
@@ -3468,44 +3470,26 @@ public class PostService : IPostService
                 }
             }
 
-            // 2. Local DB Lookups - Exact Match
-            var existing = await _unitOfWork.Posts.Query()
-                .FirstOrDefaultAsync(p => p.Uri == uri);
-
-            if (existing == null && didOrHandle == "local" && Guid.TryParse(rkey, out var postId))
+            // 4. Emergency fallbacks (TID search, local GUID search)
+            if (didOrHandle == "local" && Guid.TryParse(rkey, out var postId))
             {
                 existing = await _unitOfWork.Posts.GetByIdAsync(postId);
-                if (existing != null && existing.IsDeleted == true) existing = null;
+                if (existing != null && existing.IsDeleted != true) 
+                    return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
             }
 
-            // 3. Fallback: Search by TID and Author (in case URI or DID casing changed)
-            if (existing == null)
-            {
-                var matchingAuthor = await _unitOfWork.Users.Query()
-                    .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
+            var matchingAuthor = await _unitOfWork.Users.Query()
+                .FirstOrDefaultAsync(u => u.Did == didOrHandle || u.Handle == didOrHandle);
 
-                if (matchingAuthor != null)
-                {
-                    existing = await _unitOfWork.Posts.Query()
-                        .FirstOrDefaultAsync(p => p.Tid == rkey && p.AuthorId == matchingAuthor.Id &&
-                                                  (p.IsDeleted == false || p.IsDeleted == null));
-                }
-            }
-
-            // 4. Fallback: Search by URI using LIKE (to ignore subtle encoding differences)
-            if (existing == null)
+            if (matchingAuthor != null)
             {
                 existing = await _unitOfWork.Posts.Query()
-                    .FirstOrDefaultAsync(p => p.Uri != null && p.Uri.EndsWith("/app.bsky.feed.post/" + rkey) &&
-                                             (p.IsDeleted == false || p.IsDeleted == null));
+                    .FirstOrDefaultAsync(p => p.Tid == rkey && p.AuthorId == matchingAuthor.Id &&
+                                              (p.IsDeleted == false || p.IsDeleted == null));
+                if (existing != null) return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
             }
 
-            if (existing != null)
-            {
-                return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
-            }
-
-            _logger.LogWarning("[GetPostByUriAsync] Resolving FAILED for Uri={Uri}. bypassCache={BypassCache}. Last attempt rkey fallback also failed.", uri, bypassCache);
+            _logger.LogWarning("[GetPostByUriAsync] Resolving FAILED for Uri={Uri}", uri);
             return null;
         }
         catch (Exception ex)
@@ -3598,7 +3582,9 @@ public class PostService : IPostService
             {
                 using var client = _httpClientFactory.CreateClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=0");
+                
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)); // Strict 5s timeout
+                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(uri)}&depth=0", cts.Token);
                 if (response.IsSuccessStatusCode)
                 {
                     contentData = await response.Content.ReadAsStringAsync();
@@ -5173,9 +5159,9 @@ public class PostService : IPostService
     public async Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null)
     {
         var lockKey = $"lock:like:{userId}:{postId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(10))) // Increase to 10s to allow for remote ingestion
         {
-            return new { isLiked = false, likesCount = 0, error = "Action in progress" };
+            return new { isLiked = false, likesCount = 0, error = "Action in progress (resolution or lock contention)" };
         }
 
         try
@@ -5396,9 +5382,9 @@ public class PostService : IPostService
     public async Task<object> ToggleRepostAsync(Guid userId, Guid postId, bool? clientIsReposted = null, string? clientRepostUri = null)
     {
         var lockKey = $"lock:repost:{userId}:{postId}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(2)))
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(10))) // Increase to 10s to allow for remote ingestion
         {
-            return new { isReposted = false, repostsCount = 0, error = "Action in progress" };
+            return new { isReposted = false, repostsCount = 0, error = "Action in progress (resolution or lock contention)" };
         }
 
         try
@@ -5406,9 +5392,13 @@ public class PostService : IPostService
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isReposted = false, error = "User not found or missing DID" };
 
-            // 1. Fetch Post Info (Allow cache)
-            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: false);
-            if (freshPost == null) return new { isReposted = false, error = "Post not found" };
+            // 1. Fetch Post Info (FORCE bypassCache to ensure we get the real count before toggling)
+            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
+            if (freshPost == null) 
+            {
+                _logger.LogWarning("[ToggleRepostAsync] Post {PostId} NOT FOUND in DB after resolution.", postId);
+                return new { isReposted = false, error = "Post not found" };
+            }
 
             // Determine current state: CLIENT is authoritative
             bool isCurrentlyReposted = clientIsReposted.HasValue ? clientIsReposted.Value : (freshPost.Viewer?.Repost != null);
