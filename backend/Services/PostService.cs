@@ -1206,6 +1206,14 @@ public class PostService : IPostService
                         target.Labels = rp.Labels;
                         target.QuotePost = rp.QuotePost;
                     }
+                    else if (bypassRemoteCache && resolvedInteractions.TryGetValue(target.Uri ?? "", out var ri))
+                    {
+                        // [FIX] Even if the post exists in DB, if we are bypassing cache (e.g. during a Like),
+                        // we MUST update counts from the freshly fetched AppView state.
+                        target.LikesCount = ri.LikesCount;
+                        target.RepostsCount = ri.RepostsCount;
+                        target.RepliesCount = ri.RepliesCount;
+                    }
 
                     if (target.Author != null && resolvedAuthors.TryGetValue(target.Author.Did ?? "", out var ra))
                     {
@@ -3441,17 +3449,7 @@ public class PostService : IPostService
 
         try
         {
-            // 1. Local DB Lookups FIRST (Performance optimization: resolve instantly if already ingested)
-            var existing = await _unitOfWork.Posts.Query()
-                .Include(p => p.Author)
-                .FirstOrDefaultAsync(p => p.Uri == uri);
-
-            if (existing != null)
-            {
-                return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
-            }
-
-            // 2. Format validation
+            // 1. Format validation & Normalization
             if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) return null;
             var parts = uri.Substring(5).Split('/');
             if (parts.Length < 3) return null;
@@ -3460,7 +3458,26 @@ public class PostService : IPostService
             var collection = parts[1];
             var rkey = parts[2];
 
-            // 3. Remote ingestion ONLY if not found locally or if it's a remote post
+            // Normalize URI to DID-based if it's handle-based to ensure DB match
+            string lookupUri = uri;
+            if (!didOrHandle.StartsWith("did:"))
+            {
+                var (author, _) = await _userService.ResolveRemoteProfileAsync(didOrHandle);
+                if (author != null) lookupUri = $"at://{author.Did}/{collection}/{rkey}";
+            }
+
+            // 2. Local DB Lookups FIRST (Performance optimization: resolve instantly if already ingested)
+            // Match against both the provided URI and the canonical DID-based URI
+            var existing = await _unitOfWork.Posts.Query()
+                .Include(p => p.Author)
+                .FirstOrDefaultAsync(p => p.Uri == lookupUri || p.Uri == uri);
+
+            if (existing != null)
+            {
+                return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
+            }
+
+            // 3. Remote ingestion ONLY if not found locally
             if (didOrHandle != "local" && collection == "app.bsky.feed.post")
             {
                 var ingested = await IngestRemotePostAsync(uri);
@@ -3489,7 +3506,7 @@ public class PostService : IPostService
                 if (existing != null) return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
             }
 
-            _logger.LogWarning("[GetPostByUriAsync] Resolving FAILED for Uri={Uri}", uri);
+            _logger.LogWarning("[GetPostByUriAsync] Resolving FAILED for Uri={Uri} (lookupUri={LookupUri})", uri, lookupUri);
             return null;
         }
         catch (Exception ex)
@@ -3563,10 +3580,25 @@ public class PostService : IPostService
                 return null;
             }
 
-            // 2. Fetch post thread (depth 0) to get record data and GLOBAL counts
+            // Normalize URI to DID-based canonical form to avoid duplication and resolution misses
+            string canonicalUri = uri;
+            if (!didOrHandle.StartsWith("did:"))
+            {
+                canonicalUri = $"at://{author.Did}/app.bsky.feed.post/{rkey}";
+            }
+
+            // 2. Check if already exists (using canonical URI)
+            var existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == canonicalUri);
+            if (existing != null)
+            {
+                // If the post exists but is a stub (missing Tid or Content), it will be updated below
+                if (!string.IsNullOrEmpty(existing.Content)) return existing;
+            }
+
+            // 3. Fetch post thread (depth 0) to get record data and GLOBAL counts
             var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
             {
-                { "uri", uri },
+                { "uri", canonicalUri },
                 { "depth", "0" }
             };
             var qCollection = new QueryCollection(qDict);
@@ -6034,7 +6066,10 @@ public class PostService : IPostService
                         IsReposted = !string.IsNullOrEmpty(repostUri),
                         IsBookmarked = false, // Not returned by AppView
                         LikeUri = likeUri,
-                        RepostUri = repostUri
+                        RepostUri = repostUri,
+                        LikesCount = rp.TryGetProperty("likeCount", out var lhc) ? lhc.GetInt32() : 0,
+                        RepostsCount = rp.TryGetProperty("repostCount", out var rhc) ? rhc.GetInt32() : 0,
+                        RepliesCount = rp.TryGetProperty("replyCount", out var rlhc) ? rlhc.GetInt32() : 0
                     };
                     result.Add(status);
 

@@ -195,6 +195,11 @@ public class PostInteractionStatusDto
     public bool IsBookmarked { get; set; }
     public string? LikeUri { get; set; }
     public string? RepostUri { get; set; }
+    public int LikesCount { get; set; }
+    public int RepostsCount { get; set; }
+    public int RepliesCount { get; set; }
+    public int QuotesCount { get; set; }
+    public int BookmarksCount { get; set; }
     public string? Cid { get; set; }
 }
 
