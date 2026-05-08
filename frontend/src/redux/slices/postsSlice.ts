@@ -428,7 +428,7 @@ export const toggleLike = createAsyncThunk(
                 return rejectWithValue(`Failed to toggle like: ${errorData || response.statusText}`);
             }
             const data = await response.json();
-            return { uri, isLiked: data.isLiked, likeUri: data.likeUri, likesCount: data.likesCount };
+            return { uri, isLiked: data.isLiked, likeUri: data.likeUri };
         } catch (error: any) {
             (dispatch as any)(showToast({ message: 'Failed to like post', type: 'error' }));
             return rejectWithValue(error.message);
@@ -459,7 +459,7 @@ export const repostPost = createAsyncThunk(
                 return rejectWithValue('Failed to toggle repost');
             }
             const data = await response.json();
-            return { uri, isReposted: data.isReposted, repostUri: data.repostUri, repostsCount: data.repostsCount };
+            return { uri, isReposted: data.isReposted, repostUri: data.repostUri };
         } catch (error: any) {
             (dispatch as any)(showToast({ message: 'Failed to repost', type: 'error' }));
             return rejectWithValue(error.message);
@@ -748,7 +748,7 @@ export const toggleBookmark = createAsyncThunk(
             
             if (!response.ok) return rejectWithValue('Failed to toggle bookmark');
             const data = await response.json();
-            return { uri: uri || postId, isBookmarked: data.isBookmarked, bookmarksCount: data.bookmarksCount, post: post };
+            return { uri: uri || postId, isBookmarked: data.isBookmarked, post: post };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -1313,6 +1313,14 @@ const postsSlice = createSlice({
                         : baseRepostsCount + 1,
                     lastInteractedAt: new Date().toISOString()
                 };
+
+                // Broaden optimistic truth to all identifiers
+                const postIdx = state.posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri);
+                if (postIdx) {
+                    if (postIdx.id) state.interactionTruth[postIdx.id] = state.interactionTruth[actionUri];
+                    if (postIdx.tid) state.interactionTruth[postIdx.tid] = state.interactionTruth[actionUri];
+                }
+
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {

@@ -5317,7 +5317,6 @@ public class PostService : IPostService
             return new 
             { 
                 isLiked = isLiking, 
-                likesCount = finalLikesCount,
                 likeUri = newLikeUri
             };
         }
@@ -5381,7 +5380,7 @@ public class PostService : IPostService
                 timestamp
             });
 
-            return new { isBookmarked, bookmarksCount = post.BookmarksCount ?? 0 };
+            return new { isBookmarked };
         }
         finally
         {
@@ -5542,7 +5541,6 @@ public class PostService : IPostService
             return new 
             { 
                 isReposted = isReposting, 
-                repostsCount = finalRepostsCount,
                 repostUri = newRepostUri
             };
         }
