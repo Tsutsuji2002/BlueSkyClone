@@ -890,12 +890,19 @@ const postsSlice = createSlice({
         },
         updatePostStats: (state, action: PayloadAction<{ uri: string; likesCount: number; repostsCount: number; bookmarksCount: number; repliesCount: number; quotesCount: number; timestamp?: string }>) => {
             const { uri: actionUri, timestamp, ...stats } = action.payload;
+            const truth = state.interactionTruth[actionUri];
+
             const updateInArray = (arr: Post[]) => {
                 arr.forEach((p: Post) => {
                     recursivelyUpdatePost(p, actionUri, (post) => {
                         if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
-                            if (stats.likesCount !== undefined) post.likesCount = stats.likesCount;
-                            if (stats.repostsCount !== undefined) post.repostsCount = stats.repostsCount;
+                            // Favor our interactionTruth counts if they exist, as SignalR might broadcast stale cached values
+                            if (stats.likesCount !== undefined) {
+                                post.likesCount = (truth && truth.likesCount !== undefined) ? truth.likesCount : stats.likesCount;
+                            }
+                            if (stats.repostsCount !== undefined) {
+                                post.repostsCount = (truth && truth.repostsCount !== undefined) ? truth.repostsCount : stats.repostsCount;
+                            }
                             if (stats.bookmarksCount !== undefined) post.bookmarksCount = stats.bookmarksCount;
                             if (stats.repliesCount !== undefined) post.repliesCount = stats.repliesCount;
                             if (stats.quotesCount !== undefined) post.quotesCount = stats.quotesCount;
@@ -912,11 +919,20 @@ const postsSlice = createSlice({
         },
         updateUserPostStatus: (state, action: PayloadAction<{ uri: string; isLiked?: boolean; isReposted?: boolean; isBookmarked?: boolean; timestamp?: string }>) => {
             const { uri: actionUri, timestamp, ...status } = action.payload;
+            const truth = state.interactionTruth[actionUri];
+
             const updateInArray = (arr: Post[]) => {
                 arr.forEach((p: Post) => {
                     recursivelyUpdatePost(p, actionUri, (post) => {
                         if (!timestamp || !post.lastUpdated || new Date(timestamp) >= new Date(post.lastUpdated)) {
-                            Object.assign(post, status);
+                            // Protect optimistic states from SignalR overwrites
+                            const finalStatus = { ...status };
+                            if (truth) {
+                                if (status.isLiked !== undefined && truth.isLiked !== undefined) finalStatus.isLiked = truth.isLiked;
+                                if (status.isReposted !== undefined && truth.isReposted !== undefined) finalStatus.isReposted = truth.isReposted;
+                                if (status.isBookmarked !== undefined && truth.isBookmarked !== undefined) finalStatus.isBookmarked = truth.isBookmarked;
+                            }
+                            Object.assign(post, finalStatus);
                             if (timestamp) post.lastUpdated = timestamp;
                         }
                     });
@@ -1217,16 +1233,12 @@ const postsSlice = createSlice({
                 const serverIsLiked = action.payload.isLiked;
                 const existing = state.interactionTruth[actionUri];
                 
-                // Better Way: Only trust server count if it reflects our intended status
-                // If we are LIKED but server says UNLIKED, the server count is definitely stale.
-                const shouldTrustServerCount = serverIsLiked === existing?.isLiked;
-
+                // Rely entirely on the optimistic count calculated in pending state
+                // since the backend returns a stale count to avoid cache-busting database hits.
                 state.interactionTruth[actionUri] = {
                     ...existing,
                     isLiked: serverIsLiked,
-                    likesCount: (shouldTrustServerCount && action.payload.likesCount !== undefined) 
-                        ? action.payload.likesCount 
-                        : existing?.likesCount,
+                    likesCount: existing?.likesCount,
                     viewer: { ...existing?.viewer, like: action.payload.likeUri }
                 };
 
@@ -1234,7 +1246,7 @@ const postsSlice = createSlice({
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             post.isLiked = action.payload.isLiked;
-                            if (action.payload.likesCount !== undefined) post.likesCount = action.payload.likesCount;
+                            // Intentionally omit updating post.likesCount here to preserve optimistic count
                             if (!post.viewer) post.viewer = {};
                             post.viewer.like = action.payload.likeUri;
                             post.lastUpdated = new Date().toISOString();
@@ -1312,14 +1324,11 @@ const postsSlice = createSlice({
 
                 const serverIsReposted = action.payload.isReposted;
                 const existing = state.interactionTruth[actionUri];
-                const shouldTrustServerCount = serverIsReposted === existing?.isReposted;
-
+                // Rely entirely on the optimistic count calculated in pending state
                 state.interactionTruth[actionUri] = {
                     ...existing,
                     isReposted: serverIsReposted,
-                    repostsCount: (shouldTrustServerCount && action.payload.repostsCount !== undefined) 
-                        ? action.payload.repostsCount 
-                        : existing?.repostsCount,
+                    repostsCount: existing?.repostsCount,
                     viewer: { ...existing?.viewer, repost: action.payload.repostUri }
                 };
 
@@ -1327,7 +1336,8 @@ const postsSlice = createSlice({
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
                             post.isReposted = action.payload.isReposted;
-                            if (action.payload.repostsCount !== undefined) post.repostsCount = action.payload.repostsCount;
+                            // Intentionally omit updating post.repostsCount here to preserve optimistic count
+
                             if (!post.viewer) post.viewer = {};
                             post.viewer.repost = action.payload.repostUri;
                             post.lastUpdated = new Date().toISOString();
