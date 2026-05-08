@@ -408,7 +408,7 @@ BlueSkyClone/
 | `GET` | `/api/notifications` | ✓ | Get notifications feed |
 | `PUT` | `/api/notifications/read` | ✓ | Mark notifications as read |
 
-### Media & Admin
+### Media & Admin (Local branch only)
 
 | Method | Route | Auth | Description |
 |--------|-------|:----:|-------------|
