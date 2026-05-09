@@ -11,6 +11,15 @@ PRINT 'Starting batch deletion of old remote posts...';
 ALTER TABLE [Posts] NOCHECK CONSTRAINT ALL;
 GO
 
+PRINT 'Caching remote users in memory for instant lookups...';
+CREATE TABLE #RemoteUsers (Id UNIQUEIDENTIFIER PRIMARY KEY);
+INSERT INTO #RemoteUsers (Id)
+SELECT Id FROM [Users] WHERE CAST(PasswordHash AS NVARCHAR(255)) = 'remote';
+
+DECLARE @RemoteUserCount INT = @@ROWCOUNT;
+PRINT 'Found ' + CAST(@RemoteUserCount AS VARCHAR) + ' remote users.';
+PRINT 'Starting batch deletion of old remote posts via indexed scan...';
+
 DECLARE @CutoffDate DATETIME = DATEADD(day, -1, GETUTCDATE());
 DECLARE @DeletedRows INT = 1;
 DECLARE @TotalDeleted INT = 0;
@@ -19,8 +28,8 @@ WHILE @DeletedRows > 0
 BEGIN
     SELECT TOP (50000) p.Id INTO #BatchIds
     FROM [Posts] p
-    INNER JOIN [Users] u ON p.AuthorId = u.Id
-    WHERE (CAST(u.PasswordHash AS NVARCHAR(255)) = 'remote') AND p.CreatedAt < @CutoffDate;
+    WHERE EXISTS (SELECT 1 FROM #RemoteUsers u WHERE u.Id = p.AuthorId) 
+      AND p.CreatedAt < @CutoffDate;
 
     SET @DeletedRows = @@ROWCOUNT;
 
