@@ -1,3 +1,6 @@
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
 -- 1. Switch to SIMPLE recovery mode to prevent log file bloat
 ALTER DATABASE [BlueSkyClone] SET RECOVERY SIMPLE;
 GO

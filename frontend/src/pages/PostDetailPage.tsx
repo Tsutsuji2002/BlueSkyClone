@@ -104,7 +104,14 @@ const PostDetailPage: React.FC = () => {
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
     const postData = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post;
-    const interactionTruth = useAppSelector((state: RootState) => (postData?.uri ? state.posts.interactionTruth[postData.uri] : null) || null);
+    const interactionTruth = useAppSelector((state: RootState) => {
+        const uriStr = postData?.uri?.toLowerCase();
+        const idStr = postData?.id?.toLowerCase();
+        const tidStr = postData?.tid?.toLowerCase();
+        return (uriStr && state.posts.interactionTruth[uriStr]) || 
+               (idStr && state.posts.interactionTruth[idStr]) || 
+               (tidStr && state.posts.interactionTruth[tidStr]) || null;
+    });
 
     const post = React.useMemo(() => {
         if (!postData) return null;

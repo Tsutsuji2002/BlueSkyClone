@@ -1460,7 +1460,10 @@ const postsSlice = createSlice({
                         state.threadPosts[index] = mergePostSnapshot(existingPost, fetchedPost);
                     } else {
                         // Problem 3 Fix: Apply existing interactionTruth to new posts before pushing
-                        const truth = state.interactionTruth[fetchedPost.uri!];
+                        const uriStr = fetchedPost.uri?.toLowerCase() || '';
+                        const idStr = fetchedPost.id?.toLowerCase() || '';
+                        const tidStr = fetchedPost.tid?.toLowerCase() || '';
+                        const truth = state.interactionTruth[uriStr] || state.interactionTruth[idStr] || state.interactionTruth[tidStr];
                         if (truth) {
                             if (truth.isLiked === true) fetchedPost.isLiked = true;
                             if (truth.isReposted === true) fetchedPost.isReposted = true;
