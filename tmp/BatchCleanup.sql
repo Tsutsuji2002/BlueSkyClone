@@ -51,8 +51,8 @@ BEGIN
     DELETE n FROM [Notifications] n INNER JOIN #BatchIds b ON n.PostId = b.Id;
     
     -- Wipe out interaction dependencies (Likes, Reposts, Bookmarks)
-    DELETE l FROM [Likes] l INNER JOIN #BatchIds b ON l.TargetPostId = b.Id;
-    DELETE r FROM [Reposts] r INNER JOIN #BatchIds b ON r.TargetPostId = b.Id;
+    DELETE l FROM [Likes] l INNER JOIN #BatchIds b ON l.PostId = b.Id;
+    DELETE r FROM [Reposts] r INNER JOIN #BatchIds b ON r.PostId = b.Id;
     DELETE bm FROM [Bookmarks] bm INNER JOIN #BatchIds b ON bm.PostId = b.Id;
 
     -- 2. Nullify self-references to satisfy FK constraints without needing Schema Locks
