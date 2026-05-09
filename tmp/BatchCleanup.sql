@@ -15,9 +15,7 @@ GO
 
 RAISERROR ('Starting batch deletion of old remote posts...', 0, 1) WITH NOWAIT;
 
--- Disable self-referencing integrity checks on Posts (e.g. FK_PostReply)
-ALTER TABLE [Posts] NOCHECK CONSTRAINT ALL;
-GO
+-- We bypass Schema Modification locks to avoid blocking on background SQL processes!
 
 RAISERROR ('Caching remote users in memory for instant lookups...', 0, 1) WITH NOWAIT;
 CREATE TABLE #RemoteUsers (Id UNIQUEIDENTIFIER PRIMARY KEY);
@@ -51,6 +49,15 @@ BEGIN
     DELETE pm FROM [PostMedia] pm INNER JOIN #BatchIds b ON pm.PostId = b.Id;
     DELETE lp FROM [LinkPreviews] lp INNER JOIN #BatchIds b ON lp.PostId = b.Id;
     DELETE n FROM [Notifications] n INNER JOIN #BatchIds b ON n.PostId = b.Id;
+    
+    -- Wipe out interaction dependencies (Likes, Reposts, Bookmarks)
+    DELETE l FROM [Likes] l INNER JOIN #BatchIds b ON l.TargetPostId = b.Id;
+    DELETE r FROM [Reposts] r INNER JOIN #BatchIds b ON r.TargetPostId = b.Id;
+    DELETE bm FROM [Bookmarks] bm INNER JOIN #BatchIds b ON bm.PostId = b.Id;
+
+    -- 2. Nullify self-references to satisfy FK constraints without needing Schema Locks
+    UPDATE p SET ReplyToPostId = NULL, QuotePostId = NULL, RootPostId = NULL
+    FROM [Posts] p INNER JOIN #BatchIds b ON p.Id = b.Id;
 
     -- 2. Wipe the posts
     DELETE p FROM [Posts] p INNER JOIN #BatchIds b ON p.Id = b.Id;
@@ -65,9 +72,7 @@ BEGIN
 END
 GO
 
-RAISERROR ('Re-enabling constraints...', 0, 1) WITH NOWAIT;
-ALTER TABLE [Posts] CHECK CONSTRAINT ALL;
-GO
+-- No constraints to re-enable since we never altered the schema!
 
 RAISERROR ('Shrinking database files to return space to Linux...', 0, 1) WITH NOWAIT;
 DBCC SHRINKDATABASE ([BlueSkyClone]);
