@@ -325,6 +325,12 @@ using (var scope = app.Services.CreateScope())
         try
         {
             context.Database.ExecuteSqlRaw(@"
+-- Ensure IsBanned exists on Users (may be missing after a clean DB reset)
+IF COL_LENGTH('Users', 'IsBanned') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [IsBanned] bit NOT NULL DEFAULT 0;
+END
+
 IF COL_LENGTH('MutedWords', 'CreatedAt') IS NULL
 BEGIN
     ALTER TABLE [MutedWords] ADD [CreatedAt] datetime2 NOT NULL CONSTRAINT [DF_MutedWords_CreatedAt] DEFAULT ((getutcdate()));
