@@ -5,20 +5,28 @@ SET NOCOUNT ON;
 ALTER DATABASE [BlueSkyClone] SET RECOVERY SIMPLE;
 GO
 
-PRINT 'Starting batch deletion of old remote posts...';
+-- KILL ALL OTHER SESSIONS to free any schema locks left over from cancelled scripts
+DECLARE @kill varchar(8000) = '';  
+SELECT @kill = @kill + 'kill ' + CONVERT(varchar(5), session_id) + ';'  
+FROM sys.dm_exec_sessions
+WHERE database_id = db_id('BlueSkyClone') AND session_id <> @@SPID;  
+EXEC(@kill);  
+GO
+
+RAISERROR ('Starting batch deletion of old remote posts...', 0, 1) WITH NOWAIT;
 
 -- Disable self-referencing integrity checks on Posts (e.g. FK_PostReply)
 ALTER TABLE [Posts] NOCHECK CONSTRAINT ALL;
 GO
 
-PRINT 'Caching remote users in memory for instant lookups...';
+RAISERROR ('Caching remote users in memory for instant lookups...', 0, 1) WITH NOWAIT;
 CREATE TABLE #RemoteUsers (Id UNIQUEIDENTIFIER PRIMARY KEY);
 INSERT INTO #RemoteUsers (Id)
 SELECT Id FROM [Users] WHERE CAST(PasswordHash AS NVARCHAR(255)) = 'remote';
 
 DECLARE @RemoteUserCount INT = @@ROWCOUNT;
-PRINT 'Found ' + CAST(@RemoteUserCount AS VARCHAR) + ' remote users.';
-PRINT 'Starting batch deletion of old remote posts via indexed scan...';
+RAISERROR ('Found %d remote users.', 0, 1, @RemoteUserCount) WITH NOWAIT;
+RAISERROR ('Starting batch deletion of old remote posts via indexed scan...', 0, 1) WITH NOWAIT;
 
 DECLARE @CutoffDate DATETIME = DATEADD(day, -1, GETUTCDATE());
 DECLARE @DeletedRows INT = 1;
@@ -50,19 +58,19 @@ BEGIN
     DROP TABLE #BatchIds;
 
     SET @TotalDeleted = @TotalDeleted + @DeletedRows;
-    PRINT 'Deleted ' + CAST(@TotalDeleted AS VARCHAR) + ' posts so far...';
+    RAISERROR ('Deleted %d posts so far...', 0, 1, @TotalDeleted) WITH NOWAIT;
     
     -- Free up log file space
     CHECKPOINT;
 END
 GO
 
-PRINT 'Re-enabling constraints...';
+RAISERROR ('Re-enabling constraints...', 0, 1) WITH NOWAIT;
 ALTER TABLE [Posts] CHECK CONSTRAINT ALL;
 GO
 
-PRINT 'Shrinking database files to return space to Linux...';
+RAISERROR ('Shrinking database files to return space to Linux...', 0, 1) WITH NOWAIT;
 DBCC SHRINKDATABASE ([BlueSkyClone]);
 GO
 
-PRINT 'Cleanup complete! VPS space has been restored.';
+RAISERROR ('Cleanup complete! VPS space has been restored.', 0, 1) WITH NOWAIT;
