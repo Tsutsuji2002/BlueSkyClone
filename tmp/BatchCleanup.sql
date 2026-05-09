@@ -23,7 +23,8 @@ DECLARE @TotalDeleted INT = 0;
 
 WHILE @DeletedRows > 0
 BEGIN
-    SELECT TOP (50000) p.Id INTO #BatchIds
+    BEGIN TRY
+        SELECT TOP (50000) p.Id INTO #BatchIds
     FROM [Posts] p
     WHERE EXISTS (SELECT 1 FROM #RemoteUsers u WHERE u.Id = p.AuthorId) 
       AND p.CreatedAt < @CutoffDate;
@@ -55,11 +56,30 @@ BEGIN
 
     DROP TABLE #BatchIds;
 
-    SET @TotalDeleted = @TotalDeleted + @DeletedRows;
-    RAISERROR ('Deleted %d posts so far...', 0, 1, @TotalDeleted) WITH NOWAIT;
-    
-    -- Free up log file space
-    CHECKPOINT;
+        SET @TotalDeleted = @TotalDeleted + @DeletedRows;
+        RAISERROR ('Deleted %d posts so far...', 0, 1, @TotalDeleted) WITH NOWAIT;
+        
+        -- Free up log file space
+        CHECKPOINT;
+    END TRY
+    BEGIN CATCH
+        -- Check if error is a deadlock (Error 1205)
+        IF ERROR_NUMBER() = 1205
+        BEGIN
+            RAISERROR ('Deadlock detected! Waiting 2 seconds and retrying...', 0, 1) WITH NOWAIT;
+            
+            -- Clean up the temporary table if it was created before the deadlock
+            IF OBJECT_ID('tempdb..#BatchIds') IS NOT NULL DROP TABLE #BatchIds;
+            
+            WAITFOR DELAY '00:00:02';
+            -- We don't break, the loop just continues automatically!
+        END
+        ELSE
+        BEGIN
+            -- If it's not a deadlock, it's a real syntax error, so throw it
+            THROW;
+        END
+    END CATCH
 END
 GO
 
