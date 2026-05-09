@@ -2,16 +2,7 @@ SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 SET NOCOUNT ON;
 
-ALTER DATABASE [BlueSkyClone] SET RECOVERY SIMPLE;
-GO
 
--- KILL ALL OTHER SESSIONS to free any schema locks left over from cancelled scripts
-DECLARE @kill varchar(8000) = '';  
-SELECT @kill = @kill + 'kill ' + CONVERT(varchar(5), session_id) + ';'  
-FROM sys.dm_exec_sessions
-WHERE database_id = db_id('BlueSkyClone') AND session_id <> @@SPID;  
-EXEC(@kill);  
-GO
 
 RAISERROR ('Starting batch deletion of old remote posts...', 0, 1) WITH NOWAIT;
 
