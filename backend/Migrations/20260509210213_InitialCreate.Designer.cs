@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BSkyClone.Migrations
 {
     [DbContext(typeof(BSkyDbContext))]
-    [Migration("20260109053759_AddImageUrlToMessages")]
-    partial class AddImageUrlToMessages
+    [Migration("20260509210213_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,15 +33,27 @@ namespace BSkyClone.Migrations
                     b.Property<Guid>("BlockedUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Cid")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("(getutcdate())");
 
+                    b.Property<string>("Tid")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Uri")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.HasKey("UserId", "BlockedUserId")
                         .HasName("PK__BlockedA__0A8170EB918D5838");
 
                     b.HasIndex("BlockedUserId");
+
+                    b.HasIndex(new[] { "Uri" }, "IX_BlockedAccounts_Uri");
 
                     b.ToTable("BlockedAccounts");
                 });
@@ -53,6 +65,10 @@ namespace BSkyClone.Migrations
 
                     b.Property<Guid>("PostId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Cid")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -153,6 +169,9 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("IsOfficial")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -177,6 +196,48 @@ namespace BSkyClone.Migrations
                         .IsUnique();
 
                     b.ToTable("Feeds");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.Hashtag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<bool?>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("PostsCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Hashtags");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Hashtags");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Interest", b =>
@@ -215,6 +276,52 @@ namespace BSkyClone.Migrations
                     b.ToTable("Interests");
                 });
 
+            modelBuilder.Entity("BSkyClone.Models.Label", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("(newsequentialid())");
+
+                    b.Property<string>("Cid")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("Neg")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Src")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Uri")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Val")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Uri");
+
+                    b.ToTable("Labels");
+                });
+
             modelBuilder.Entity("BSkyClone.Models.Like", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -222,6 +329,10 @@ namespace BSkyClone.Migrations
 
                     b.Property<Guid>("PostId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Cid")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -233,15 +344,67 @@ namespace BSkyClone.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Uri")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.HasKey("UserId", "PostId")
                         .HasName("PK__Likes__8D29EA4DA4FAA6F6");
 
                     b.HasIndex("PostId");
 
+                    b.HasIndex(new[] { "Uri" }, "IX_Likes_Uri");
+
                     b.HasIndex(new[] { "Tid" }, "UQ__Likes__C451DB30B024EDAB")
                         .IsUnique();
 
                     b.ToTable("Likes");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.LinkPreview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Domain")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Image")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId")
+                        .IsUnique()
+                        .HasFilter("[MessageId] IS NOT NULL");
+
+                    b.HasIndex("PostId")
+                        .IsUnique()
+                        .HasFilter("[PostId] IS NOT NULL");
+
+                    b.ToTable("LinkPreviews");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.List", b =>
@@ -254,6 +417,9 @@ namespace BSkyClone.Migrations
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Cid")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -261,6 +427,11 @@ namespace BSkyClone.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsCurated")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<bool?>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -281,6 +452,9 @@ namespace BSkyClone.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasDefaultValue("social");
 
+                    b.Property<string>("Uri")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id")
                         .HasName("PK__Lists__3214EC07397CB41F");
 
@@ -297,10 +471,19 @@ namespace BSkyClone.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Cid")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("JoinedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Uri")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("ListId", "UserId")
                         .HasName("PK__ListMemb__32FBA4C18A09448F");
@@ -308,6 +491,41 @@ namespace BSkyClone.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ListMembers");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.ListPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("(newsequentialid())");
+
+                    b.Property<DateTime>("AddedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<Guid>("AddedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Caption")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ListId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddedByUserId");
+
+                    b.HasIndex("ListId");
+
+                    b.HasIndex("PostId");
+
+                    b.ToTable("ListPosts");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Message", b =>
@@ -336,10 +554,23 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("IsModified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<bool?>("IsRead")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<bool>("IsRecalled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid?>("ReplyToId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("SenderId")
                         .HasColumnType("uniqueidentifier");
@@ -354,12 +585,46 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("ConversationId");
 
+                    b.HasIndex("ReplyToId");
+
                     b.HasIndex("SenderId");
 
                     b.HasIndex(new[] { "Tid" }, "UQ__Messages__C451DB300D86D8F0")
                         .IsUnique();
 
                     b.ToTable("Messages");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.MessageReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id")
+                        .HasName("PK_MessageReactions");
+
+                    b.HasIndex("MessageId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("MessageReactions");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.MutedAccount", b =>
@@ -391,6 +656,33 @@ namespace BSkyClone.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<bool>("ExcludeFollowing")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MuteBehavior")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("hide");
+
+                    b.Property<string>("Targets")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("content");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
@@ -414,6 +706,9 @@ namespace BSkyClone.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("(newsequentialid())");
 
+                    b.Property<string>("Content")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -429,6 +724,9 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<Guid?>("ListId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("PostId")
                         .HasColumnType("uniqueidentifier");
 
@@ -443,6 +741,9 @@ namespace BSkyClone.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Title")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Type")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -450,14 +751,39 @@ namespace BSkyClone.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Notifica__3214EC07E46938FE");
 
+                    b.HasIndex("PostId");
+
                     b.HasIndex("SenderId");
 
                     b.HasIndex(new[] { "RecipientId" }, "IX_Notifications_RecipientId");
+
+                    b.HasIndex(new[] { "RecipientId", "IsRead", "CreatedAt" }, "IX_Notifications_RecipientId_IsRead_CreatedAt");
 
                     b.HasIndex(new[] { "Tid" }, "UQ__Notifica__C451DB3001D0607B")
                         .IsUnique();
 
                     b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.PageContent", b =>
+                {
+                    b.Property<string>("Slug")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("HtmlContent")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Slug");
+
+                    b.ToTable("PageContents");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Post", b =>
@@ -475,6 +801,13 @@ namespace BSkyClone.Migrations
                     b.Property<Guid>("AuthorId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("BookmarksCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Cid")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Content")
                         .HasColumnType("nvarchar(max)");
 
@@ -483,15 +816,27 @@ namespace BSkyClone.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("(getutcdate())");
 
+                    b.Property<string>("FacetsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool?>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("Labels")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Language")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("LikesCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<Guid?>("QuotePostId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int?>("QuotesCount")
                         .ValueGeneratedOnAdd()
@@ -525,16 +870,31 @@ namespace BSkyClone.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Uri")
+                        .HasColumnType("nvarchar(450)");
+
                     b.HasKey("Id")
                         .HasName("PK__Posts__3214EC07CB992B89");
 
-                    b.HasIndex("AuthorId");
+                    b.HasIndex("QuotePostId");
 
-                    b.HasIndex("ReplyToPostId");
+                    b.HasIndex(new[] { "AuthorId", "IsDeleted", "CreatedAt" }, "IX_Posts_AuthorId_Active_CreatedAt");
+
+                    b.HasIndex(new[] { "AuthorId", "CreatedAt" }, "IX_Posts_AuthorId_CreatedAt");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "IX_Posts_CreatedAt");
+
+                    b.HasIndex(new[] { "LikesCount" }, "IX_Posts_LikesCount");
+
+                    b.HasIndex(new[] { "LikesCount", "CreatedAt" }, "IX_Posts_LikesCount_CreatedAt");
+
+                    b.HasIndex(new[] { "ReplyToPostId", "CreatedAt" }, "IX_Posts_ReplyToPostId_CreatedAt");
 
                     b.HasIndex(new[] { "RootPostId" }, "IX_Posts_RootPostId");
 
                     b.HasIndex(new[] { "Tid" }, "IX_Posts_Tid");
+
+                    b.HasIndex(new[] { "Uri" }, "IX_Posts_Uri");
 
                     b.HasIndex(new[] { "Tid" }, "UQ__Posts__C451DB308F8113F0")
                         .IsUnique();
@@ -551,6 +911,10 @@ namespace BSkyClone.Migrations
 
                     b.Property<string>("AltText")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Cid")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -570,6 +934,9 @@ namespace BSkyClone.Migrations
                     b.Property<Guid>("PostId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ThumbnailUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Type")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -586,6 +953,84 @@ namespace BSkyClone.Migrations
                     b.ToTable("PostMedia");
                 });
 
+            modelBuilder.Entity("BSkyClone.Models.RepoBlock", b =>
+                {
+                    b.Property<string>("Cid")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("Did")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Cid");
+
+                    b.HasIndex("Did");
+
+                    b.ToTable("RepoBlocks");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.Report", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("(newsequentialid())");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<string>("ReasonText")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReasonType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("ReporterId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("open");
+
+                    b.Property<string>("SubjectCid")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("SubjectType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SubjectUri")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReporterId");
+
+                    b.ToTable("Reports");
+                });
+
             modelBuilder.Entity("BSkyClone.Models.Repost", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -593,6 +1038,10 @@ namespace BSkyClone.Migrations
 
                     b.Property<Guid>("PostId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Cid")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -604,15 +1053,73 @@ namespace BSkyClone.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Uri")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.HasKey("UserId", "PostId")
                         .HasName("PK__Reposts__8D29EA4D0BE60F6C");
 
                     b.HasIndex("PostId");
 
+                    b.HasIndex(new[] { "Uri" }, "IX_Reposts_Uri");
+
                     b.HasIndex(new[] { "Tid" }, "UQ__Reposts__C451DB3010751B4E")
                         .IsUnique();
 
                     b.ToTable("Reposts");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.SupportRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("(newsequentialid())");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DeviceType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("pending");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SupportRequests");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.User", b =>
@@ -653,6 +1160,9 @@ namespace BSkyClone.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<string>("EncryptedSigningPrivateKey")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("FollowersCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -667,6 +1177,9 @@ namespace BSkyClone.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsBanned")
+                        .HasColumnType("bit");
 
                     b.Property<bool?>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -683,6 +1196,12 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Labels")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime2");
 
@@ -694,13 +1213,39 @@ namespace BSkyClone.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PinnedPostUri")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("PostsCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<string>("RepoCommit")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RepoCommitSignature")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("RepoRev")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("RepoRoot")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Salt")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SigningPublicKey")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Username")
@@ -714,7 +1259,11 @@ namespace BSkyClone.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Users__3214EC07B91FF525");
 
+                    b.HasIndex(new[] { "IsDeleted", "CreatedAt" }, "IX_Users_Active_CreatedAt");
+
                     b.HasIndex(new[] { "Did" }, "IX_Users_Did");
+
+                    b.HasIndex(new[] { "FollowersCount", "CreatedAt" }, "IX_Users_FollowersCount_CreatedAt");
 
                     b.HasIndex(new[] { "Username" }, "UQ__Users__536C85E411906A34")
                         .IsUnique();
@@ -770,17 +1319,58 @@ namespace BSkyClone.Migrations
                     b.Property<Guid>("FollowingId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Cid")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<string>("Tid")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Uri")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.HasKey("FollowerId", "FollowingId")
                         .HasName("PK__UserFoll__79CB0335AE8EF105");
 
                     b.HasIndex("FollowingId");
 
+                    b.HasIndex(new[] { "Uri" }, "IX_UserFollows_Uri");
+
                     b.ToTable("UserFollows");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.UserListSubscription", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ListId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<int>("PinnedOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("UserId", "ListId")
+                        .HasName("PK_UserListSubscription");
+
+                    b.HasIndex("ListId");
+
+                    b.ToTable("UserListSubscriptions");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.UserSetting", b =>
@@ -821,10 +1411,94 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<bool?>("EnableDiscoverVideo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("EnableTreeView")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool?>("EnableTrending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("EnabledMediaProviders")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("FontSize")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(15);
+
+                    b.Property<string>("GraphicMediaFilter")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool?>("InAppNotifyActivity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyFollowers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyLikes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyLikesOfReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyMentions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyOthers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyQuotes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyReplies")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("InAppNotifyRepostsOfReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("LargerAltBadge")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("NonSexualNudityFilter")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool?>("NotifyActivity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
 
                     b.Property<bool?>("NotifyFollowers")
                         .ValueGeneratedOnAdd()
@@ -836,12 +1510,123 @@ namespace BSkyClone.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("NotifyLikesOfReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("NotifyMentions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("NotifyOthers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("NotifyQuotes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<bool?>("NotifyReplies")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool?>("NotifyReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("NotifyRepostsOfReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyActivity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyFollowers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyLikes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyLikesOfReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyMentions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyOthers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyQuotes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyReplies")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("PushNotifyRepostsOfReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<bool?>("RequireAltText")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool?>("RequireLogoutVisibility")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("SelectedInterests")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SexuallyExplicitFilter")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool?>("ShowQuotePosts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("ShowReplies")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("ShowReposts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool?>("ShowSampleSavedFeeds")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
@@ -862,6 +1647,22 @@ namespace BSkyClone.Migrations
                         .HasName("PK__UserSett__1788CC4CA56EF176");
 
                     b.ToTable("UserSettings");
+                });
+
+            modelBuilder.Entity("PostHashtag", b =>
+                {
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("HashtagId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PostId", "HashtagId")
+                        .HasName("PK_PostHashtags");
+
+                    b.HasIndex("HashtagId");
+
+                    b.ToTable("PostHashtags", (string)null);
                 });
 
             modelBuilder.Entity("PostInterest", b =>
@@ -1000,6 +1801,23 @@ namespace BSkyClone.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BSkyClone.Models.LinkPreview", b =>
+                {
+                    b.HasOne("BSkyClone.Models.Message", "Message")
+                        .WithOne("LinkPreview")
+                        .HasForeignKey("BSkyClone.Models.LinkPreview", "MessageId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("BSkyClone.Models.Post", "Post")
+                        .WithOne("LinkPreview")
+                        .HasForeignKey("BSkyClone.Models.LinkPreview", "PostId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Message");
+
+                    b.Navigation("Post");
+                });
+
             modelBuilder.Entity("BSkyClone.Models.List", b =>
                 {
                     b.HasOne("BSkyClone.Models.User", "Owner")
@@ -1032,6 +1850,33 @@ namespace BSkyClone.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BSkyClone.Models.ListPost", b =>
+                {
+                    b.HasOne("BSkyClone.Models.User", "AddedByUser")
+                        .WithMany()
+                        .HasForeignKey("AddedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("BSkyClone.Models.List", "List")
+                        .WithMany("ListPosts")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BSkyClone.Models.Post", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("AddedByUser");
+
+                    b.Navigation("List");
+
+                    b.Navigation("Post");
+                });
+
             modelBuilder.Entity("BSkyClone.Models.Message", b =>
                 {
                     b.HasOne("BSkyClone.Models.Conversation", "Conversation")
@@ -1039,6 +1884,11 @@ namespace BSkyClone.Migrations
                         .HasForeignKey("ConversationId")
                         .IsRequired()
                         .HasConstraintName("FK_MsgConv");
+
+                    b.HasOne("BSkyClone.Models.Message", "ReplyTo")
+                        .WithMany()
+                        .HasForeignKey("ReplyToId")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("BSkyClone.Models.User", "Sender")
                         .WithMany("Messages")
@@ -1048,7 +1898,28 @@ namespace BSkyClone.Migrations
 
                     b.Navigation("Conversation");
 
+                    b.Navigation("ReplyTo");
+
                     b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.MessageReaction", b =>
+                {
+                    b.HasOne("BSkyClone.Models.Message", "Message")
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BSkyClone.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.MutedAccount", b =>
@@ -1084,6 +1955,12 @@ namespace BSkyClone.Migrations
 
             modelBuilder.Entity("BSkyClone.Models.Notification", b =>
                 {
+                    b.HasOne("BSkyClone.Models.Post", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("FK_NotificationPost");
+
                     b.HasOne("BSkyClone.Models.User", "Recipient")
                         .WithMany("NotificationRecipients")
                         .HasForeignKey("RecipientId")
@@ -1095,6 +1972,8 @@ namespace BSkyClone.Migrations
                         .HasForeignKey("SenderId")
                         .IsRequired()
                         .HasConstraintName("FK_NotifSender");
+
+                    b.Navigation("Post");
 
                     b.Navigation("Recipient");
 
@@ -1110,6 +1989,12 @@ namespace BSkyClone.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_PostAuthor");
 
+                    b.HasOne("BSkyClone.Models.Post", "QuotePost")
+                        .WithMany("InverseQuotePost")
+                        .HasForeignKey("QuotePostId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PostQuote");
+
                     b.HasOne("BSkyClone.Models.Post", "ReplyToPost")
                         .WithMany("InverseReplyToPost")
                         .HasForeignKey("ReplyToPostId")
@@ -1121,6 +2006,8 @@ namespace BSkyClone.Migrations
                         .HasConstraintName("FK_PostRoot");
 
                     b.Navigation("Author");
+
+                    b.Navigation("QuotePost");
 
                     b.Navigation("ReplyToPost");
 
@@ -1139,6 +2026,17 @@ namespace BSkyClone.Migrations
                     b.Navigation("Post");
                 });
 
+            modelBuilder.Entity("BSkyClone.Models.Report", b =>
+                {
+                    b.HasOne("BSkyClone.Models.User", "Reporter")
+                        .WithMany()
+                        .HasForeignKey("ReporterId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Reporter");
+                });
+
             modelBuilder.Entity("BSkyClone.Models.Repost", b =>
                 {
                     b.HasOne("BSkyClone.Models.Post", "Post")
@@ -1155,6 +2053,16 @@ namespace BSkyClone.Migrations
                         .HasConstraintName("FK_RepostUser");
 
                     b.Navigation("Post");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.SupportRequest", b =>
+                {
+                    b.HasOne("BSkyClone.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
                 });
@@ -1199,6 +2107,26 @@ namespace BSkyClone.Migrations
                     b.Navigation("Following");
                 });
 
+            modelBuilder.Entity("BSkyClone.Models.UserListSubscription", b =>
+                {
+                    b.HasOne("BSkyClone.Models.List", "List")
+                        .WithMany()
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ULS_List");
+
+                    b.HasOne("BSkyClone.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .IsRequired()
+                        .HasConstraintName("FK_ULS_User");
+
+                    b.Navigation("List");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("BSkyClone.Models.UserSetting", b =>
                 {
                     b.HasOne("BSkyClone.Models.User", "User")
@@ -1209,6 +2137,23 @@ namespace BSkyClone.Migrations
                         .HasConstraintName("FK_SettingsUser");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PostHashtag", b =>
+                {
+                    b.HasOne("BSkyClone.Models.Hashtag", null)
+                        .WithMany()
+                        .HasForeignKey("HashtagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_PH_Hashtag");
+
+                    b.HasOne("BSkyClone.Models.Post", null)
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_PH_Post");
                 });
 
             modelBuilder.Entity("PostInterest", b =>
@@ -1276,17 +2221,30 @@ namespace BSkyClone.Migrations
             modelBuilder.Entity("BSkyClone.Models.List", b =>
                 {
                     b.Navigation("ListMembers");
+
+                    b.Navigation("ListPosts");
+                });
+
+            modelBuilder.Entity("BSkyClone.Models.Message", b =>
+                {
+                    b.Navigation("LinkPreview");
+
+                    b.Navigation("Reactions");
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Post", b =>
                 {
                     b.Navigation("Bookmarks");
 
+                    b.Navigation("InverseQuotePost");
+
                     b.Navigation("InverseReplyToPost");
 
                     b.Navigation("InverseRootPost");
 
                     b.Navigation("Likes");
+
+                    b.Navigation("LinkPreview");
 
                     b.Navigation("PostMedia");
 

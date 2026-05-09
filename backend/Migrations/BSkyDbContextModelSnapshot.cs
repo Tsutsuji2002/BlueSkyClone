@@ -42,12 +42,15 @@ namespace BSkyClone.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Uri")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.HasKey("UserId", "BlockedUserId")
                         .HasName("PK__BlockedA__0A8170EB918D5838");
 
                     b.HasIndex("BlockedUserId");
+
+                    b.HasIndex(new[] { "Uri" }, "IX_BlockedAccounts_Uri");
 
                     b.ToTable("BlockedAccounts");
                 });
@@ -346,6 +349,8 @@ namespace BSkyClone.Migrations
                         .HasName("PK__Likes__8D29EA4DA4FAA6F6");
 
                     b.HasIndex("PostId");
+
+                    b.HasIndex(new[] { "Uri" }, "IX_Likes_Uri");
 
                     b.HasIndex(new[] { "Tid" }, "UQ__Likes__C451DB30B024EDAB")
                         .IsUnique();
@@ -863,7 +868,7 @@ namespace BSkyClone.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Uri")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id")
                         .HasName("PK__Posts__3214EC07CB992B89");
@@ -885,6 +890,8 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "RootPostId" }, "IX_Posts_RootPostId");
 
                     b.HasIndex(new[] { "Tid" }, "IX_Posts_Tid");
+
+                    b.HasIndex(new[] { "Uri" }, "IX_Posts_Uri");
 
                     b.HasIndex(new[] { "Tid" }, "UQ__Posts__C451DB308F8113F0")
                         .IsUnique();
@@ -1051,6 +1058,8 @@ namespace BSkyClone.Migrations
                         .HasName("PK__Reposts__8D29EA4D0BE60F6C");
 
                     b.HasIndex("PostId");
+
+                    b.HasIndex(new[] { "Uri" }, "IX_Reposts_Uri");
 
                     b.HasIndex(new[] { "Tid" }, "UQ__Reposts__C451DB3010751B4E")
                         .IsUnique();
@@ -1329,6 +1338,8 @@ namespace BSkyClone.Migrations
                         .HasName("PK__UserFoll__79CB0335AE8EF105");
 
                     b.HasIndex("FollowingId");
+
+                    b.HasIndex(new[] { "Uri" }, "IX_UserFollows_Uri");
 
                     b.ToTable("UserFollows");
                 });

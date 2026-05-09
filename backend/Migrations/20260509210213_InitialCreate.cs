@@ -26,6 +26,23 @@ namespace BSkyClone.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Hashtags",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Slug = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    PostsCount = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Hashtags", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Interests",
                 columns: table => new
                 {
@@ -42,16 +59,70 @@ namespace BSkyClone.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Labels",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "(newsequentialid())"),
+                    Src = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    Uri = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    Cid = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    Val = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Neg = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())"),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Labels", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PageContents",
+                columns: table => new
+                {
+                    Slug = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    HtmlContent = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PageContents", x => x.Slug);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RepoBlocks",
+                columns: table => new
+                {
+                    Cid = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Data = table.Column<byte[]>(type: "varbinary(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())"),
+                    Did = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RepoBlocks", x => x.Cid);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "(newsequentialid())"),
                     Did = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    SigningPublicKey = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    EncryptedSigningPrivateKey = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RepoRev = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    RepoRoot = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    RepoCommit = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    RepoCommitSignature = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Username = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Handle = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    Role = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Salt = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Labels = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DisplayName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     AvatarUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CoverImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -66,7 +137,10 @@ namespace BSkyClone.Migrations
                     LastLoginAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     IsOnline = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
                     IsPrivate = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    PinnedPostUri = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsBanned = table.Column<bool>(type: "bit", nullable: false),
+                    IsVerified = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -79,7 +153,10 @@ namespace BSkyClone.Migrations
                 {
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     BlockedUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())")
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
+                    Tid = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Cid = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Uri = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -132,7 +209,8 @@ namespace BSkyClone.Migrations
                     CreatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
                     SubscribersCount = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    IsOfficial = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -155,7 +233,10 @@ namespace BSkyClone.Migrations
                     Purpose = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true, defaultValue: "social"),
                     AvatarUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    Uri = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Cid = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsCurated = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
@@ -177,13 +258,22 @@ namespace BSkyClone.Migrations
                     ConversationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     SenderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Content = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
                     IsRead = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
+                    IsModified = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    IsRecalled = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    ReplyToId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK__Messages__3214EC0740CF255F", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Messages_Messages_ReplyToId",
+                        column: x => x.ReplyToId,
+                        principalTable: "Messages",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_MsgConv",
                         column: x => x.ConversationId,
@@ -226,7 +316,12 @@ namespace BSkyClone.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Word = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false)
+                    Word = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    MuteBehavior = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "hide"),
+                    Targets = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false, defaultValue: "content"),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ExcludeFollowing = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())")
                 },
                 constraints: table =>
                 {
@@ -240,52 +335,30 @@ namespace BSkyClone.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Notifications",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "(newsequentialid())"),
-                    Tid = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    Type = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    RecipientId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SenderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    IsRead = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK__Notifica__3214EC07E46938FE", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_NotifRecipient",
-                        column: x => x.RecipientId,
-                        principalTable: "Users",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_NotifSender",
-                        column: x => x.SenderId,
-                        principalTable: "Users",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Posts",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "(newsequentialid())"),
                     Tid = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Cid = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Uri = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    FacetsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     AuthorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Content = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
                     ReplyToPostId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     RootPostId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    QuotePostId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     LikesCount = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
                     RepostsCount = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
                     RepliesCount = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
                     QuotesCount = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
+                    BookmarksCount = table.Column<int>(type: "int", nullable: true),
                     ReplyRestriction = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "anyone"),
                     AllowQuotes = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
+                    Language = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    Labels = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -296,6 +369,11 @@ namespace BSkyClone.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PostQuote",
+                        column: x => x.QuotePostId,
+                        principalTable: "Posts",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_PostReply",
                         column: x => x.ReplyToPostId,
@@ -309,12 +387,64 @@ namespace BSkyClone.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Reports",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "(newsequentialid())"),
+                    SubjectType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    SubjectUri = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    SubjectCid = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    ReasonType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    ReasonText = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ReporterId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())"),
+                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "open")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Reports", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Reports_Users_ReporterId",
+                        column: x => x.ReporterId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SupportRequests",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "(newsequentialid())"),
+                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Username = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    Category = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    DeviceType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "pending"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())"),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SupportRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SupportRequests_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "UserFollows",
                 columns: table => new
                 {
                     FollowerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     FollowingId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())")
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
+                    Tid = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Cid = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Uri = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -362,6 +492,9 @@ namespace BSkyClone.Migrations
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     AdultContentFilter = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "hide"),
                     EnableAdultContent = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    SexuallyExplicitFilter = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    GraphicMediaFilter = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    NonSexualNudityFilter = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SortReplies = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true, defaultValue: "top"),
                     RequireAltText = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
                     AutoplayVideoGif = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
@@ -370,9 +503,47 @@ namespace BSkyClone.Migrations
                     NotifyLikes = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
                     NotifyFollowers = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
                     NotifyReplies = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    NotifyMentions = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    NotifyQuotes = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    NotifyReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyLikes = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyFollowers = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyReplies = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyMentions = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyQuotes = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyLikes = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyFollowers = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyReplies = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyMentions = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyQuotes = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    NotifyActivity = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyActivity = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyActivity = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    NotifyLikesOfReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyLikesOfReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyLikesOfReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    NotifyRepostsOfReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyRepostsOfReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyRepostsOfReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    NotifyOthers = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    PushNotifyOthers = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    InAppNotifyOthers = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
                     DefaultReplyRestriction = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "anyone"),
                     DefaultAllowQuotes = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
-                    FontSize = table.Column<int>(type: "int", nullable: true, defaultValue: 15)
+                    FontSize = table.Column<int>(type: "int", nullable: true, defaultValue: 15),
+                    EnableTrending = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    EnableDiscoverVideo = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    EnableTreeView = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    RequireLogoutVisibility = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    LargerAltBadge = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    SelectedInterests = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ShowReplies = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    ShowReposts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    ShowQuotePosts = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
+                    ShowSampleSavedFeeds = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    EnabledMediaProviders = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -418,7 +589,10 @@ namespace BSkyClone.Migrations
                 {
                     ListId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    JoinedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())")
+                    JoinedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Uri = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Cid = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -437,12 +611,64 @@ namespace BSkyClone.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "UserListSubscriptions",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ListId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())"),
+                    PinnedOrder = table.Column<int>(type: "int", nullable: false, defaultValue: 0)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserListSubscription", x => new { x.UserId, x.ListId });
+                    table.ForeignKey(
+                        name: "FK_ULS_List",
+                        column: x => x.ListId,
+                        principalTable: "Lists",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ULS_User",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MessageReactions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    MessageId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Emoji = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageReactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MessageReactions_Messages_MessageId",
+                        column: x => x.MessageId,
+                        principalTable: "Messages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MessageReactions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Bookmarks",
                 columns: table => new
                 {
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Tid = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Cid = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())")
                 },
                 constraints: table =>
@@ -468,6 +694,8 @@ namespace BSkyClone.Migrations
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Tid = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Cid = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Uri = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())")
                 },
                 constraints: table =>
@@ -484,6 +712,131 @@ namespace BSkyClone.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LinkPreviews",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Url = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Image = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Domain = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())"),
+                    PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    MessageId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LinkPreviews", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LinkPreviews_Messages_MessageId",
+                        column: x => x.MessageId,
+                        principalTable: "Messages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_LinkPreviews_Posts_PostId",
+                        column: x => x.PostId,
+                        principalTable: "Posts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ListPosts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "(newsequentialid())"),
+                    ListId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AddedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AddedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())"),
+                    Caption = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ListPosts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ListPosts_Lists_ListId",
+                        column: x => x.ListId,
+                        principalTable: "Lists",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ListPosts_Posts_PostId",
+                        column: x => x.PostId,
+                        principalTable: "Posts",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ListPosts_Users_AddedByUserId",
+                        column: x => x.AddedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Notifications",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "(newsequentialid())"),
+                    Tid = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Type = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    RecipientId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SenderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ListId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsRead = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    Content = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())"),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK__Notifica__3214EC07E46938FE", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_NotifRecipient",
+                        column: x => x.RecipientId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_NotifSender",
+                        column: x => x.SenderId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_NotificationPost",
+                        column: x => x.PostId,
+                        principalTable: "Posts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PostHashtags",
+                columns: table => new
+                {
+                    PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    HashtagId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PostHashtags", x => new { x.PostId, x.HashtagId });
+                    table.ForeignKey(
+                        name: "FK_PH_Hashtag",
+                        column: x => x.HashtagId,
+                        principalTable: "Hashtags",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PH_Post",
+                        column: x => x.PostId,
+                        principalTable: "Posts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -518,9 +871,12 @@ namespace BSkyClone.Migrations
                     PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Type = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     Url = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Cid = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     AltText = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ThumbnailUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Position = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false)
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(getutcdate())")
                 },
                 constraints: table =>
                 {
@@ -563,6 +919,8 @@ namespace BSkyClone.Migrations
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Tid = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Cid = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Uri = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "(getutcdate())")
                 },
                 constraints: table =>
@@ -585,6 +943,11 @@ namespace BSkyClone.Migrations
                 name: "IX_BlockedAccounts_BlockedUserId",
                 table: "BlockedAccounts",
                 column: "BlockedUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BlockedAccounts_Uri",
+                table: "BlockedAccounts",
+                column: "Uri");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Bookmarks_PostId",
@@ -614,15 +977,31 @@ namespace BSkyClone.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Hashtags_Slug",
+                table: "Hashtags",
+                column: "Slug",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "UQ__Interest__BC7B5FB60749EE1D",
                 table: "Interests",
                 column: "Slug",
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Labels_Uri",
+                table: "Labels",
+                column: "Uri");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Likes_PostId",
                 table: "Likes",
                 column: "PostId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Likes_Uri",
+                table: "Likes",
+                column: "Uri");
 
             migrationBuilder.CreateIndex(
                 name: "UQ__Likes__C451DB30B024EDAB",
@@ -631,9 +1010,38 @@ namespace BSkyClone.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_LinkPreviews_MessageId",
+                table: "LinkPreviews",
+                column: "MessageId",
+                unique: true,
+                filter: "[MessageId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LinkPreviews_PostId",
+                table: "LinkPreviews",
+                column: "PostId",
+                unique: true,
+                filter: "[PostId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ListMembers_UserId",
                 table: "ListMembers",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ListPosts_AddedByUserId",
+                table: "ListPosts",
+                column: "AddedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ListPosts_ListId",
+                table: "ListPosts",
+                column: "ListId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ListPosts_PostId",
+                table: "ListPosts",
+                column: "PostId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Lists_OwnerId",
@@ -641,9 +1049,24 @@ namespace BSkyClone.Migrations
                 column: "OwnerId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_MessageReactions_MessageId",
+                table: "MessageReactions",
+                column: "MessageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageReactions_UserId",
+                table: "MessageReactions",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Messages_ConversationId",
                 table: "Messages",
                 column: "ConversationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Messages_ReplyToId",
+                table: "Messages",
+                column: "ReplyToId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Messages_SenderId",
@@ -667,9 +1090,19 @@ namespace BSkyClone.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Notifications_PostId",
+                table: "Notifications",
+                column: "PostId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Notifications_RecipientId",
                 table: "Notifications",
                 column: "RecipientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_RecipientId_IsRead_CreatedAt",
+                table: "Notifications",
+                columns: new[] { "RecipientId", "IsRead", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Notifications_SenderId",
@@ -681,6 +1114,11 @@ namespace BSkyClone.Migrations
                 table: "Notifications",
                 column: "Tid",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PostHashtags_HashtagId",
+                table: "PostHashtags",
+                column: "HashtagId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PostInterests_InterestId",
@@ -698,14 +1136,39 @@ namespace BSkyClone.Migrations
                 column: "ListId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Posts_AuthorId",
+                name: "IX_Posts_AuthorId_Active_CreatedAt",
                 table: "Posts",
-                column: "AuthorId");
+                columns: new[] { "AuthorId", "IsDeleted", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Posts_ReplyToPostId",
+                name: "IX_Posts_AuthorId_CreatedAt",
                 table: "Posts",
-                column: "ReplyToPostId");
+                columns: new[] { "AuthorId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Posts_CreatedAt",
+                table: "Posts",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Posts_LikesCount",
+                table: "Posts",
+                column: "LikesCount");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Posts_LikesCount_CreatedAt",
+                table: "Posts",
+                columns: new[] { "LikesCount", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Posts_QuotePostId",
+                table: "Posts",
+                column: "QuotePostId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Posts_ReplyToPostId_CreatedAt",
+                table: "Posts",
+                columns: new[] { "ReplyToPostId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Posts_RootPostId",
@@ -718,10 +1181,25 @@ namespace BSkyClone.Migrations
                 column: "Tid");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Posts_Uri",
+                table: "Posts",
+                column: "Uri");
+
+            migrationBuilder.CreateIndex(
                 name: "UQ__Posts__C451DB308F8113F0",
                 table: "Posts",
                 column: "Tid",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RepoBlocks_Did",
+                table: "RepoBlocks",
+                column: "Did");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Reports_ReporterId",
+                table: "Reports",
+                column: "ReporterId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Reposts_PostId",
@@ -729,10 +1207,20 @@ namespace BSkyClone.Migrations
                 column: "PostId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Reposts_Uri",
+                table: "Reposts",
+                column: "Uri");
+
+            migrationBuilder.CreateIndex(
                 name: "UQ__Reposts__C451DB3010751B4E",
                 table: "Reposts",
                 column: "Tid",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SupportRequests_UserId",
+                table: "SupportRequests",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserFeedSubscriptions_FeedId",
@@ -745,14 +1233,34 @@ namespace BSkyClone.Migrations
                 column: "FollowingId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserFollows_Uri",
+                table: "UserFollows",
+                column: "Uri");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UserInterests_InterestId",
                 table: "UserInterests",
                 column: "InterestId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserListSubscriptions_ListId",
+                table: "UserListSubscriptions",
+                column: "ListId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Active_CreatedAt",
+                table: "Users",
+                columns: new[] { "IsDeleted", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_Did",
                 table: "Users",
                 column: "Did");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_FollowersCount_CreatedAt",
+                table: "Users",
+                columns: new[] { "FollowersCount", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "UQ__Users__536C85E411906A34",
@@ -777,8 +1285,7 @@ namespace BSkyClone.Migrations
                 table: "Users",
                 column: "Handle",
                 unique: true);
-                }
-
+        }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
@@ -793,13 +1300,22 @@ namespace BSkyClone.Migrations
                 name: "ConversationParticipants");
 
             migrationBuilder.DropTable(
+                name: "Labels");
+
+            migrationBuilder.DropTable(
                 name: "Likes");
+
+            migrationBuilder.DropTable(
+                name: "LinkPreviews");
 
             migrationBuilder.DropTable(
                 name: "ListMembers");
 
             migrationBuilder.DropTable(
-                name: "Messages");
+                name: "ListPosts");
+
+            migrationBuilder.DropTable(
+                name: "MessageReactions");
 
             migrationBuilder.DropTable(
                 name: "MutedAccounts");
@@ -811,6 +1327,12 @@ namespace BSkyClone.Migrations
                 name: "Notifications");
 
             migrationBuilder.DropTable(
+                name: "PageContents");
+
+            migrationBuilder.DropTable(
+                name: "PostHashtags");
+
+            migrationBuilder.DropTable(
                 name: "PostInterests");
 
             migrationBuilder.DropTable(
@@ -820,7 +1342,16 @@ namespace BSkyClone.Migrations
                 name: "PostReplyAllowedLists");
 
             migrationBuilder.DropTable(
+                name: "RepoBlocks");
+
+            migrationBuilder.DropTable(
+                name: "Reports");
+
+            migrationBuilder.DropTable(
                 name: "Reposts");
+
+            migrationBuilder.DropTable(
+                name: "SupportRequests");
 
             migrationBuilder.DropTable(
                 name: "UserFeedSubscriptions");
@@ -832,13 +1363,16 @@ namespace BSkyClone.Migrations
                 name: "UserInterests");
 
             migrationBuilder.DropTable(
+                name: "UserListSubscriptions");
+
+            migrationBuilder.DropTable(
                 name: "UserSettings");
 
             migrationBuilder.DropTable(
-                name: "Conversations");
+                name: "Messages");
 
             migrationBuilder.DropTable(
-                name: "Lists");
+                name: "Hashtags");
 
             migrationBuilder.DropTable(
                 name: "Posts");
@@ -848,6 +1382,12 @@ namespace BSkyClone.Migrations
 
             migrationBuilder.DropTable(
                 name: "Interests");
+
+            migrationBuilder.DropTable(
+                name: "Lists");
+
+            migrationBuilder.DropTable(
+                name: "Conversations");
 
             migrationBuilder.DropTable(
                 name: "Users");
