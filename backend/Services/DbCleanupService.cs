@@ -51,23 +51,6 @@ namespace BSkyClone.Services
 
             var cutoffDate = DateTime.UtcNow.AddDays(-RetentionDays);
 
-            // 1. Delete old remote posts from 'stub' authors (remote users with no local significance)
-            // We identify stub users as those with a placeholder email or marked as remote in some way.
-            // Based on FirehoseService implementation, stub users have PasswordHash = "remote".
-            
-            var remoteStubUserIds = await db.Users
-                .Where(u => u.PasswordHash == "remote")
-                .Select(u => u.Id)
-                .ToListAsync(stoppingToken);
-
-            if (!remoteStubUserIds.Any()) 
-            {
-                _logger.LogInformation("No remote stub users found for cleanup.");
-                return;
-            }
-
-            _logger.LogInformation("Found {Count} potential remote stub users. Checking for old posts...", remoteStubUserIds.Count);
-
             // Batch deletion to avoid locking the database for too long
             int totalDeleted = 0;
             const int batchSize = 1000;
@@ -77,7 +60,7 @@ namespace BSkyClone.Services
             {
                 // Delete PostMedia first (Foreign Key)
                 var oldPostsBatch = await db.Posts
-                    .Where(p => remoteStubUserIds.Contains(p.AuthorId) && p.CreatedAt < cutoffDate)
+                    .Where(p => p.Author.PasswordHash == "remote" && p.CreatedAt < cutoffDate)
                     .Select(p => p.Id)
                     .Take(batchSize)
                     .ToListAsync(stoppingToken);
