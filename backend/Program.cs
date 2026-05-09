@@ -160,6 +160,7 @@ builder.Services.AddScoped<IChatProxyService, ChatProxyService>();
 builder.Services.AddScoped<ILabelingService, LabelingService>();
 builder.Services.AddSingleton<PerformanceMonitoringService>();
 builder.Services.AddHostedService<FirehoseService>();
+builder.Services.AddHostedService<DbCleanupService>();
 
 // Redis Caching
 if (builder.Environment.IsDevelopment())

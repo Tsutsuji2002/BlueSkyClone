@@ -19,10 +19,13 @@ namespace BSkyClone.Services
         private readonly IServiceProvider _serviceProvider;
         private readonly string _relayUrl = "wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos";
 
-        public FirehoseService(ILogger<FirehoseService> logger, IServiceProvider serviceProvider)
+        private readonly int _samplingRate;
+
+        public FirehoseService(ILogger<FirehoseService> logger, IServiceProvider serviceProvider, IConfiguration configuration)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _samplingRate = configuration.GetValue<int>("Firehose:SamplingRate", 5); // Default to 5% instead of 30%
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -142,7 +145,7 @@ namespace BSkyClone.Services
                 }
                 catch { /* Non-critical: fall through to sampling */ }
 
-                if (!isLocalUser && new Random().Next(0, 100) > 30)
+                if (!isLocalUser && new Random().Next(0, 100) > _samplingRate)
                 {
                     _logger.LogTrace("Firehose: Probabilistically skipping post from unknown remote {Did}.", did);
                     return;
