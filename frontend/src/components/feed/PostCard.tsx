@@ -552,7 +552,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                                     <ModerationBanner
                                         reason={reason}
                                         behavior={behavior as 'hide' | 'warn'}
-                                        onShow={() => setIsUnmuted(true)}
+                                        onShow={reason === 'Authentication Required' ? undefined : () => setIsUnmuted(true)}
                                     />
                                 );
                             }

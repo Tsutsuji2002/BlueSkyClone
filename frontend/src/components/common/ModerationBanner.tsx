@@ -29,9 +29,11 @@ const ModerationBanner: React.FC<ModerationBannerProps> = ({ reason, behavior, o
                         {t(`moderation.${reason}`, reason)}
                     </span>
                     <span className="text-[12px] text-gray-500 dark:text-dark-text-secondary">
-                        {behavior === 'hide'
-                            ? t('moderation.content_hidden_desc', 'This content is hidden by your settings')
-                            : t('moderation.content_warn_desc', 'This content may be sensitive')}
+                        {reason === 'Authentication Required'
+                            ? t('moderation.auth_required_desc', 'Hidden by author. Learn more.')
+                            : behavior === 'hide'
+                                ? t('moderation.content_hidden_desc', 'This content is hidden by your settings')
+                                : t('moderation.content_warn_desc', 'This content may be sensitive')}
                     </span>
                 </div>
             </div>

@@ -47,7 +47,8 @@ import {
     FiSun, FiMoon, FiLogOut, FiEdit, FiRss, FiList, FiShield,
     FiX, FiMessageSquare,
     FiChevronDown,
-    FiFlag
+    FiFlag,
+    FiLock
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
@@ -679,12 +680,32 @@ const PostDetailPage: React.FC = () => {
                 </div>
             ))}
 
-            <div ref={mainPostRef} className="px-4 py-3 border-b border-gray-100 dark:border-dark-border relative bg-white dark:bg-dark-bg">
-                {/* Post Content & Moderation UI logic */}
-                {(() => {
-                    const isMuted = post.muteInfo?.isMuted && !isUnmuted;
-                    const behavior = post.muteInfo?.behavior;
-                    const reason = post.muteInfo?.reason || t('moderation.sensitive_content', 'Sensitive Content');
+            {(() => {
+                const isMuted = post.muteInfo?.isMuted && !isUnmuted;
+                const behavior = post.muteInfo?.behavior;
+                const reason = post.muteInfo?.reason || t('moderation.sensitive_content', 'Sensitive Content');
+
+                if (isMuted && behavior === 'hide' && reason === 'Authentication Required') {
+                    return (
+                        <div ref={mainPostRef} className="px-4 py-6 border-b border-gray-100 dark:border-dark-border relative bg-white dark:bg-dark-bg">
+                            <div className="flex bg-gray-50 dark:bg-dark-surface/50 border border-gray-200 dark:border-dark-border p-4 rounded-xl gap-3">
+                                <div className="mt-0.5">
+                                    <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-dark-surface flex items-center justify-center text-gray-500">
+                                        <FiLock size={16} />
+                                    </div>
+                                </div>
+                                <div className="text-gray-600 dark:text-dark-text-secondary italic">
+                                    {t('post.auth_required_full', 'This author has chosen to make their posts visible only to people who are signed in.')}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div ref={mainPostRef} className="px-4 py-3 border-b border-gray-100 dark:border-dark-border relative bg-white dark:bg-dark-bg">
+                        {/* Post Content & Moderation UI logic */}
+                        {(() => {
 
                     if (isMuted && behavior === 'hide') {
                         return (
@@ -992,6 +1013,8 @@ const PostDetailPage: React.FC = () => {
                     />
                 </div>
             </div>
+            );
+            })()}
 
             {/* Reply Input */}
             {!currentUser ? (
