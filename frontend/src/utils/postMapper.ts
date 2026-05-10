@@ -189,6 +189,21 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         allowQuotes = !isDisabled;
     }
 
+    const labels = normalizeLabelValues(atPost.labels);
+    const authorLabels = author.labels || [];
+    const hasNoUnauthenticated = labels.includes('!no-unauthenticated') || authorLabels.includes('!no-unauthenticated');
+    const isUnauthenticated = !localStorage.getItem('token');
+
+    let muteInfo = atPost.muteInfo;
+    if (!muteInfo && hasNoUnauthenticated && isUnauthenticated) {
+        muteInfo = {
+            isMuted: true,
+            behavior: 'hide',
+            reason: 'Authentication Required',
+            source: 'System'
+        };
+    }
+
     // Map the post
     const post: Post = {
         id: atPost.cid || atPost.uri?.split('/').pop() || '',
@@ -219,8 +234,8 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         tid: atPost.uri?.split('/').pop(),
         replyToPostId: record.reply?.parent?.uri?.split('/').pop(),
         rootPostId: record.reply?.root?.uri?.split('/').pop(),
-        muteInfo: atPost.muteInfo,
-        labels: normalizeLabelValues(atPost.labels),
+        muteInfo,
+        labels,
         replyRestriction,
         allowQuotes,
     };
