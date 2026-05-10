@@ -142,11 +142,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="tag/:tag" element={<TagPage />} />
                     <Route path="profile/:handle/post/:postId" element={<PostDetailPage />} />
                     <Route path="profile/:handle/post/:postId/reposted-by" element={<PostRepostedByPage />} />
-                    <Route path="profile/:handle/post/:postId/liked-by" element={
-                        <ProtectedRoute>
-                            <PostLikedByPage />
-                        </ProtectedRoute>
-                    } />
+                    <Route path="profile/:handle/post/:postId/liked-by" element={<PostLikedByPage />} />
                     <Route path="profile/:handle/post/:postId/quotes" element={<PostQuotesPage />} />
                     <Route path="profile/:handle/post/:postId/media/:index" element={<MediaViewerPage />} />
                     <Route path="settings" element={

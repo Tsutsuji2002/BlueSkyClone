@@ -1098,6 +1098,7 @@ public class PostsController : ControllerBase
     /// Returns the list of users who liked a given post (proxies app.bsky.feed.getLikes).
     /// Requires authentication.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("liked-by")]
     public async Task<IActionResult> GetLikedBy([FromQuery] string uri, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
     {
@@ -1105,11 +1106,12 @@ public class PostsController : ControllerBase
         try
         {
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(currentUserIdString) || !Guid.TryParse(currentUserIdString, out var viewerId))
-                return Unauthorized();
+            Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
-            var viewerToken = await (HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>())
-                .GetStringAsync($"BlueskyToken_{viewerId}");
+            var viewerToken = viewerId.HasValue
+                ? await (HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>())
+                    .GetStringAsync($"BlueskyToken_{viewerId.Value}")
+                : null;
 
             var clientFactory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
             using var client = clientFactory.CreateClient();
@@ -1147,12 +1149,12 @@ public class PostsController : ControllerBase
             }
 
             // Enrich with follow status
-            if (users.Any())
+            if (viewerId.HasValue && users.Any())
             {
                 var dids = users.Where(u => !string.IsNullOrEmpty(u.Did)).Select(u => u.Did!).ToList();
                 try
                 {
-                    var statuses = await userService.GetInteractionStatusesByDidsAsync(viewerId, dids);
+                    var statuses = await userService.GetInteractionStatusesByDidsAsync(viewerId.Value, dids);
                     users = users.Select(u =>
                     {
                         if (!string.IsNullOrEmpty(u.Did) && statuses.TryGetValue(u.Did, out var s))
