@@ -5,7 +5,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiMoreHorizontal, FiShare2, FiLink, FiSend, FiCode } from 'react-icons/fi';
 import { toggleLike, repostPost, fetchPostById } from '../redux/slices/postsSlice';
-import { openReply } from '../redux/slices/modalsSlice';
+import { openReply, openAuthWall } from '../redux/slices/modalsSlice';
 import { Post } from '../types';
 import Avatar from '../components/common/Avatar';
 import RichText from '../components/common/RichText';
@@ -42,6 +42,7 @@ const MediaViewerPage: React.FC = () => {
     const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
     const postsError = useAppSelector((state: RootState) => state.posts.threadError);
     const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
+    const currentUser = useAppSelector((state: RootState) => state.auth.user);
 
     const currentPost = useMemo(() => {
         const findIn = (arr: Post[]) => arr.find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId));
@@ -178,24 +179,38 @@ const MediaViewerPage: React.FC = () => {
         }
     };
 
+    const ensureAuth = (callback: () => void) => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+        callback();
+    };
+
     // Features
     const handleLike = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        console.log('MediaViewerPage handleLike clicked for:', currentPost.id);
-        dispatch(toggleLike({ uri: currentPost.uri!, cid: currentPost.cid!, isLiked: !!currentPost.isLiked, likeUri: currentPost.viewer?.like ?? currentPost.likeUri }));
+        ensureAuth(() => {
+            console.log('MediaViewerPage handleLike clicked for:', currentPost.id);
+            dispatch(toggleLike({ uri: currentPost.uri!, cid: currentPost.cid!, isLiked: !!currentPost.isLiked, likeUri: currentPost.viewer?.like ?? currentPost.likeUri }));
+        });
     };
 
     const handleRepost = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        console.log('MediaViewerPage handleRepost clicked for:', currentPost.id);
-        dispatch(repostPost({ uri: currentPost.uri!, cid: currentPost.cid!, isReposted: !!currentPost.isReposted, repostUri: currentPost.viewer?.repost }));
+        ensureAuth(() => {
+            console.log('MediaViewerPage handleRepost clicked for:', currentPost.id);
+            dispatch(repostPost({ uri: currentPost.uri!, cid: currentPost.cid!, isReposted: !!currentPost.isReposted, repostUri: currentPost.viewer?.repost }));
+        });
     };
 
     const handleComment = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const currentPostId = currentPost.tid || currentPost.id;
-        navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}`, { replace: true });
-        setTimeout(() => dispatch(openReply(currentPost)), 150);
+        ensureAuth(() => {
+            const currentPostId = currentPost.tid || currentPost.id;
+            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}`, { replace: true });
+            setTimeout(() => dispatch(openReply(currentPost)), 150);
+        });
     };
 
     const handleShare = (e: React.MouseEvent) => {
