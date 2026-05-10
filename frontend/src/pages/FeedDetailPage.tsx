@@ -40,7 +40,7 @@ const FeedDetailPage: React.FC = () => {
     useDocumentTitle(feed?.name || t('feeds.title'));
 
     useEffect(() => {
-        if (subscribedFeeds.length === 0) {
+        if (isAuthenticated && subscribedFeeds.length === 0) {
             dispatch(fetchSubscribedFeeds());
         }
 
