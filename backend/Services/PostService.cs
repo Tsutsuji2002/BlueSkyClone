@@ -1301,6 +1301,10 @@ public class PostService : IPostService
                             filter = "warn";
                             category = "Sensitive Content";
                         }
+                        else if (label == "!no-unauthenticated" && (viewerId == null || viewerId == Guid.Empty)) {
+                            filter = "hide";
+                            category = "Authentication Required";
+                        }
                         
                         // Override if Adult Content is disabled globally
                         if (userSettings?.EnableAdultContent == false && isAdult)

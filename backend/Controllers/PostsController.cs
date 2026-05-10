@@ -1229,12 +1229,12 @@ public class PostsController : ControllerBase
                 }
             }
 
-            // Enrich with interaction status (isLiked, isReposted, isBookmarked)
-            if (viewerId.HasValue && posts.Any())
+            // Enrich with interaction status and filter restricted content for both logged in and guest users
+            if (posts.Any())
             {
                 try
                 {
-                    var enriched = await _postService.EnrichAndFilterPostsAsync(posts, viewerId.Value, null, false, false);
+                    var enriched = await _postService.EnrichAndFilterPostsAsync(posts, viewerId ?? Guid.Empty, null, false, false);
                     posts = enriched.ToList();
                 }
                 catch { /* Enrich is best-effort */ }
