@@ -456,9 +456,11 @@ public class UserService : IUserService
     {
         if (string.IsNullOrEmpty(identifier)) return (null, null);
 
-        var cacheKey = $"remote_profile:{identifier}";
-        var cached = await _cacheService.GetAsync<User>(cacheKey);
-        if (cached != null) return (cached, null);
+        // [PHASE 4 FIX] Use a viewer-aware cache key to prevent relationship status dropout.
+        // We also increment the version (v3) to ensure we don't pick up old, broken global cache entries.
+        var cacheKey = $"remote_profile_v3:{identifier}:{viewerId ?? Guid.Empty}";
+        var cached = await _cacheService.GetAsync<ResolvedProfileResultDto>(cacheKey);
+        if (cached != null) return (cached.User, cached.Status);
 
         // Dedup ongoing requests to prevent thundering herd / deadlocks
         var resolutionTask = _ongoingResolutions.GetOrAdd(identifier, id => ResolveRemoteProfileInternalAsync(id, token, viewerId, cacheKey));
@@ -619,7 +621,8 @@ public class UserService : IUserService
                             if (!isNew) db.Users.Update(user);
 
                             await db.SaveChangesAsync();
-                            await cache.SetAsync(cacheKey!, user, TimeSpan.FromMinutes(30));
+                            // [PHASE 4] Cache the combined profile and status result using the viewer-aware key
+                            await cache.SetAsync(cacheKey!, new ResolvedProfileResultDto { User = user, Status = status }, TimeSpan.FromMinutes(15));
 
                             // Sync relationships in background if needed
                             if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
@@ -682,6 +685,12 @@ public class UserService : IUserService
                                 BlockingReference = localBlock?.Uri ?? status.BlockingReference
                             };
                         }
+                    }
+
+                    // [PHASE 4] Update the background cache with the blended status before returning (as fallback)
+                    if (!string.IsNullOrEmpty(cacheKey))
+                    {
+                        var _ = _cacheService.SetAsync(cacheKey, new ResolvedProfileResultDto { User = transientUser, Status = status }, TimeSpan.FromMinutes(15));
                     }
 
                     return (transientUser, status);
@@ -2961,4 +2970,10 @@ public class RemoteFollowsResult
     public List<User> Users { get; set; } = new();
     public List<string> Dids { get; set; } = new();
     public string? Cursor { get; set; }
+}
+
+public class ResolvedProfileResultDto
+{
+    public User? User { get; set; }
+    public UserRelationshipStatusDto? Status { get; set; }
 }
