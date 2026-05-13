@@ -1116,7 +1116,8 @@ public class UserService : IUserService
 
             try
             {
-                var response = await client.GetAsync(url);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var response = await client.GetAsync(url, cts.Token);
                 if (!response.IsSuccessStatusCode)
                 {
                     continue;
@@ -1285,7 +1286,8 @@ public class UserService : IUserService
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
             if (!string.IsNullOrEmpty(token)) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var response = await client.GetAsync(url);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await client.GetAsync(url, cts.Token);
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
@@ -1389,7 +1391,8 @@ public class UserService : IUserService
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
             if (!string.IsNullOrEmpty(token)) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var response = await client.GetAsync(url);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await client.GetAsync(url, cts.Token);
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
@@ -2206,7 +2209,8 @@ public class UserService : IUserService
                     client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-                    var response = await client.GetAsync(url);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    var response = await client.GetAsync(url, cts.Token);
                     if (response.IsSuccessStatusCode)
                     {
                         var content = await response.Content.ReadAsStringAsync();
@@ -2257,7 +2261,8 @@ public class UserService : IUserService
                     client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-                    var response = await client.GetAsync(url);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    var response = await client.GetAsync(url, cts.Token);
                     if (response.IsSuccessStatusCode)
                     {
                         var content = await response.Content.ReadAsStringAsync();
@@ -2423,7 +2428,8 @@ public class UserService : IUserService
                           string.Join("&", batch.Select(d => $"actors={Uri.EscapeDataString(d)}"));
                 try
                 {
-                    var response = await client.GetAsync(url);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    var response = await client.GetAsync(url, cts.Token);
                     if (!response.IsSuccessStatusCode) continue;
                     var content = await response.Content.ReadAsStringAsync();
                     using var doc = System.Text.Json.JsonDocument.Parse(content);
@@ -2502,7 +2508,8 @@ public class UserService : IUserService
             var url = "https://api.bsky.app/xrpc/app.bsky.actor.getProfiles?" + string.Join("&", batch.Select(d => $"actors={Uri.EscapeDataString(d)}"));
             try
             {
-                var response = await client.GetAsync(url);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var response = await client.GetAsync(url, cts.Token);
                 if (!response.IsSuccessStatusCode)
                 {
                     continue;
@@ -2642,7 +2649,8 @@ public class UserService : IUserService
                 var batch = normalizedDids.Skip(i).Take(25).ToList();
                 var url = "https://api.bsky.app/xrpc/app.bsky.actor.getProfiles?" + string.Join("&", batch.Select(d => $"actors={d}"));
 
-                var response = await client.GetAsync(url);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var response = await client.GetAsync(url, cts.Token);
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
@@ -3027,7 +3035,8 @@ public class UserService : IUserService
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
             if (!string.IsNullOrEmpty(token)) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var response = await client.GetAsync(url);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await client.GetAsync(url, cts.Token);
             if (!response.IsSuccessStatusCode) return new List<User>();
 
             var content = await response.Content.ReadAsStringAsync();
