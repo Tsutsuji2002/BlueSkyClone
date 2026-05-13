@@ -462,13 +462,15 @@ public class UserService : IUserService
         var cached = await _cacheService.GetAsync<ResolvedProfileResultDto>(cacheKey);
         if (cached != null) return (cached.User, cached.Status);
 
-        // Dedup ongoing requests to prevent thundering herd / deadlocks
-        var resolutionTask = _ongoingResolutions.GetOrAdd(identifier, id => ResolveRemoteProfileInternalAsync(id, token, viewerId, cacheKey));
+        // [PHASE 5 FIX] Dedup key MUST be viewer-aware to prevent race conditions where 
+        // an unauthenticated request poisons the task result for an authenticated requester.
+        var dedupKey = $"{identifier}:{viewerId ?? Guid.Empty}";
+        var resolutionTask = _ongoingResolutions.GetOrAdd(dedupKey, _ => ResolveRemoteProfileInternalAsync(identifier, token, viewerId, cacheKey));
         
         try {
             return await resolutionTask;
         } finally {
-            _ongoingResolutions.TryRemove(identifier, out _);
+            _ongoingResolutions.TryRemove(dedupKey, out _);
         }
     }
 
