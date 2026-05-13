@@ -634,9 +634,45 @@ public class UserService : IUserService
                         }
                     });
 
-                    // RETURN INSTANTLY
+                    // 2026-05-13: BLEND WITH LOCAL STATUS
+                    // The remote AppView (viewer property) can be stale for several seconds after an action.
+                    // We must blend it with our local DB truth to ensure the UI updates immediately.
                     UserRelationshipStatusDto? status = null;
                     if (root.TryGetProperty("viewer", out var vProp)) status = BuildInteractionStatusFromViewer(vProp);
+
+                    if (viewerId.HasValue)
+                    {
+                        var localFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, transientUser.Id);
+                        var localBlock = await _unitOfWork.Blocks.Query()
+                            .FirstOrDefaultAsync(b => b.UserId == viewerId.Value && b.BlockedUserId == transientUser.Id);
+                        var localMute = await _unitOfWork.Mutes.IsMutedAsync(viewerId.Value, transientUser.Id);
+
+                        if (status == null)
+                        {
+                            status = new UserRelationshipStatusDto(
+                                IsFollowing: localFollow != null,
+                                IsFollowedBy: false, // We don't track incoming follows locally for all remote users yet
+                                IsBlocking: localBlock != null,
+                                IsBlockedBy: false,
+                                IsMuted: localMute,
+                                FollowingReference: localFollow?.Uri,
+                                BlockingReference: localBlock?.Uri
+                            );
+                        }
+                        else
+                        {
+                            // Override remote status with local truth (Local DB wins for immediate status)
+                            status = status with
+                            {
+                                IsFollowing = localFollow != null || status.IsFollowing,
+                                IsBlocking = localBlock != null || status.IsBlocking,
+                                IsMuted = localMute || status.IsMuted,
+                                FollowingReference = localFollow?.Uri ?? status.FollowingReference,
+                                BlockingReference = localBlock?.Uri ?? status.BlockingReference
+                            };
+                        }
+                    }
+
                     return (transientUser, status);
                 }
                 catch (Exception dbEx)
