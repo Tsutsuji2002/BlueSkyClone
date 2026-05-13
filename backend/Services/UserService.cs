@@ -474,11 +474,13 @@ public class UserService : IUserService
     {
         try
         {
-            string baseApiUrl = "https://api.bsky.app";
-            // Use public API for unauthenticated requests
-            if (string.IsNullOrEmpty(token)) {
-                baseApiUrl = "https://public.api.bsky.app";
+            // [PHASE 3] Token Auto-Recovery: fetch token from DB if missing but viewerId is present
+            if (string.IsNullOrEmpty(token) && viewerId.HasValue && viewerId != Guid.Empty)
+            {
+                token = await GetOrRefreshBlueskyTokenAsync(viewerId.Value);
             }
+
+            string baseApiUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
 
             var url = $"{baseApiUrl}/xrpc/app.bsky.actor.getProfile?actor={Uri.EscapeDataString(identifier)}";
             using var client = _httpClientFactory.CreateClient();
@@ -507,7 +509,8 @@ public class UserService : IUserService
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && !string.IsNullOrEmpty(token))
             {
                   // Try one more time with public if private failed — but call Internal directly to avoid dedup deadlock
-                  return await ResolveRemoteProfileInternalAsync(identifier, null, null, cacheKey);
+                  // [PHASE 3] Preserve viewerId so local DB lookups still work during fallback
+                  return await ResolveRemoteProfileInternalAsync(identifier, null, viewerId, cacheKey);
             }
             
             if (response.IsSuccessStatusCode)
