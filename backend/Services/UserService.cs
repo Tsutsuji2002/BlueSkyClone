@@ -642,6 +642,14 @@ public class UserService : IUserService
 
                     if (viewerId.HasValue)
                     {
+                        // [PHASE 2 FIX] Ensure we use the authoritative local database ID for relationship lookups.
+                        // transientUser.Id is deterministic MD5 by default, but existing users might have random GUIDs.
+                        var localUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == did);
+                        if (localUser != null)
+                        {
+                            transientUser.Id = localUser.Id;
+                        }
+
                         var localFollow = await _unitOfWork.Follows.GetAsync(viewerId.Value, transientUser.Id);
                         var localBlock = await _unitOfWork.Blocks.Query()
                             .FirstOrDefaultAsync(b => b.UserId == viewerId.Value && b.BlockedUserId == transientUser.Id);

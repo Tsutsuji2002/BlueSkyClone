@@ -747,6 +747,34 @@ public class PostService : IPostService
                 }
             }
 
+            // [PHASE 2] Synchronize Author.Id with local database IDs to ensure relationship lookups match correctly.
+            // MapBlueskyPost assigns random GUIDs; we must replace them with DB IDs if the user exists locally.
+            var allAuthorDids = posts.SelectMany(p => new[] { p.Author?.Did, p.ParentPost?.Author?.Did, p.QuotePost?.Author?.Did, p.QuotePost?.ParentPost?.Author?.Did })
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Distinct()
+                .ToList();
+
+            if (allAuthorDids.Any())
+            {
+                var didToIdMap = await _unitOfWork.Users.Query()
+                    .Where(u => allAuthorDids.Contains(u.Did))
+                    .Select(u => new { u.Did, u.Id })
+                    .ToDictionaryAsync(x => x.Did, x => x.Id);
+
+                void SyncAuthorIdRecursive(PostDto? p)
+                {
+                    if (p == null) return;
+                    if (p.Author != null && !string.IsNullOrEmpty(p.Author.Did) && didToIdMap.TryGetValue(p.Author.Did, out var authorId))
+                    {
+                        p.Author.Id = authorId;
+                    }
+                    if (p.ParentPost != null) SyncAuthorIdRecursive(p.ParentPost);
+                    if (p.QuotePost != null) SyncAuthorIdRecursive(p.QuotePost);
+                }
+
+                foreach (var p in posts) SyncAuthorIdRecursive(p);
+            }
+
             var postIdsList = posts.Select(p => p.Id).ToList();
             var postUrisList = posts.Where(p => !string.IsNullOrEmpty(p.Uri)).Select(p => p.Uri!.ToLower()).ToList();
             var postRkeysList = postRkeys.Distinct().ToList();
@@ -1011,17 +1039,19 @@ public class PostService : IPostService
                 ? await _unitOfWork.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "")
                 : new Dictionary<Guid, string>();
             
-            // [NEW] Fetch followed DIDs to support ExcludeFollowing in muted words
-            var followedDids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // [PHASE 2] Fetch followed DIDs and their follow URIs to support robust follow lookups.
+            // DID-based mapping is more reliable for remote actors than GUID-based mapping.
+            var followedDidToUri = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (viewerId != Guid.Empty)
             {
                 var followList = await _unitOfWork.Follows.Query()
                     .Where(f => f.FollowerId == viewerId)
-                    .Join(_unitOfWork.Users.Query(), f => f.FollowingId, u => u.Id, (f, u) => u.Did)
-                    .Where(d => !string.IsNullOrEmpty(d))
+                    .Join(_unitOfWork.Users.Query(), f => f.FollowingId, u => u.Id, (f, u) => new { u.Did, f.Uri })
+                    .Where(x => !string.IsNullOrEmpty(x.Did))
                     .ToListAsync();
-                followedDids = new HashSet<string>(followList, StringComparer.OrdinalIgnoreCase);
+                foreach (var x in followList) followedDidToUri[x.Did!] = x.Uri ?? "";
             }
+            var followedDids = new HashSet<string>(followedDidToUri.Keys, StringComparer.OrdinalIgnoreCase);
 
             var mutedWords = viewerId != Guid.Empty
                 ? await _unitOfWork.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync()
@@ -1442,7 +1472,8 @@ public class PostService : IPostService
                         Muted = mutedUserIds.Contains(post.Author.Id),
                         BlockedBy = blockedByUserIds.Contains(post.Author.Id),
                         Blocking = blockingUris.TryGetValue(post.Author.Id, out var bUri) ? bUri : null,
-                        Following = followingUris.TryGetValue(post.Author.Id, out var fUri) ? fUri : null
+                        Following = (post.Author.Did != null && followedDidToUri.TryGetValue(post.Author.Did, out var fdUri)) ? fdUri : 
+                                    (followingUris.TryGetValue(post.Author.Id, out var fUri) ? fUri : null)
                     };
                     post.Author.IsFollowing = post.Author.Viewer.Following != null;
                     post.Author.FollowingReference = post.Author.Viewer.Following;
