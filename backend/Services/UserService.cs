@@ -621,8 +621,6 @@ public class UserService : IUserService
                             if (!isNew) db.Users.Update(user);
 
                             await db.SaveChangesAsync();
-                            // [PHASE 4] Cache the combined profile and status result using the viewer-aware key
-                            await cache.SetAsync(cacheKey!, new ResolvedProfileResultDto { User = user, Status = status }, TimeSpan.FromMinutes(15));
 
                             // Sync relationships in background if needed
                             if (viewerId.HasValue && root.TryGetProperty("viewer", out var viewerProp))
