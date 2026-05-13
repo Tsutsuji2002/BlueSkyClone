@@ -451,6 +451,34 @@ public class UserService : IUserService
         }
     }
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<(User?, UserRelationshipStatusDto?)>> _ongoingResolutions = new();
+    
+    // [FIX] Relationship Synchronization Guard: tracks recent user actions to prevent stale AppView data from overwriting local truth.
+    // Key: "viewerId:targetDid", Value: Timestamp of last action
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _recentMutations = new();
+
+    private async Task InvalidateProfileCacheAsync(Guid viewerId, string? did, string? handle)
+    {
+        if (string.IsNullOrEmpty(did) && string.IsNullOrEmpty(handle)) return;
+
+        var tasks = new List<Task>();
+        if (!string.IsNullOrEmpty(did))
+        {
+            var keyByDid = $"remote_profile_v3:{did}:{viewerId}";
+            tasks.Add(_cacheService.RemoveAsync(keyByDid));
+            
+            // Log mutation for the guard
+            _recentMutations[$"{viewerId}:{did.ToLowerInvariant()}"] = DateTime.UtcNow;
+            _logger.LogInformation("[RelationshipGuard] Recorded mutation for viewer {ViewerId} -> target {TargetDid}. Grace period active.", viewerId, did);
+        }
+        
+        if (!string.IsNullOrEmpty(handle))
+        {
+            var keyByHandle = $"remote_profile_v3:{handle}:{viewerId}";
+            tasks.Add(_cacheService.RemoveAsync(keyByHandle));
+        }
+
+        await Task.WhenAll(tasks);
+    }
 
     public async Task<(User?, UserRelationshipStatusDto?)> ResolveRemoteProfileAsync(string identifier, string? token = null, Guid? viewerId = null)
     {
@@ -675,12 +703,22 @@ public class UserService : IUserService
                         }
                         else
                         {
+                            // [FIX] Relationship Synchronization Guard:
+                            // If a mutation was recently performed in our UI, our local DB is the absolute truth.
+                            // This prevents stale AppView results from showing "Follow" after an unfollow, or vice versa.
+                            bool isRecentMutation = _recentMutations.TryGetValue($"{viewerId.Value}:{did.ToLowerInvariant()}", out var lastM) && (DateTime.UtcNow - lastM < TimeSpan.FromSeconds(60));
+
+                            if (isRecentMutation)
+                            {
+                                 _logger.LogInformation("[RelationshipGuard] Applying authoritative Local Truth for {TargetDid} (viewer {ViewerId}) due to recent mutation.", did, viewerId.Value);
+                            }
+
                             // Override remote status with local truth (Local DB wins for immediate status)
                             status = status with
                             {
-                                IsFollowing = localFollow != null || status.IsFollowing,
-                                IsBlocking = localBlock != null || status.IsBlocking,
-                                IsMuted = localMute || status.IsMuted,
+                                IsFollowing = isRecentMutation ? (localFollow != null) : (localFollow != null || status.IsFollowing),
+                                IsBlocking = isRecentMutation ? (localBlock != null) : (localBlock != null || status.IsBlocking),
+                                IsMuted = isRecentMutation ? localMute : (localMute || status.IsMuted),
                                 FollowingReference = localFollow?.Uri ?? status.FollowingReference,
                                 BlockingReference = localBlock?.Uri ?? status.BlockingReference
                             };
@@ -1787,6 +1825,10 @@ public class UserService : IUserService
         targetUser.FollowersCount = (targetUser.FollowersCount ?? 0) + 1;
 
         await _unitOfWork.CompleteAsync();
+        
+        // [FIX] Invalidate profile cache and trigger mutation guard
+        await InvalidateProfileCacheAsync(followerId, targetUser.Did, targetUser.Handle);
+        
         var finalUri = follow.Uri ?? (!string.IsNullOrWhiteSpace(followerUser.Did) ? $"at://{followerUser.Did}/app.bsky.graph.follow/{follow.Tid}" : null);
         return new FollowUserResultDto(true, Uri: finalUri);
     }
@@ -1869,6 +1911,13 @@ public class UserService : IUserService
         if (targetUser != null) targetUser.FollowersCount = Math.Max(0, (targetUser.FollowersCount ?? 0) - 1);
 
         await _unitOfWork.CompleteAsync();
+        
+        // [FIX] Invalidate profile cache and trigger mutation guard
+        if (targetUser != null)
+        {
+            await InvalidateProfileCacheAsync(followerId, targetUser.Did, targetUser.Handle);
+        }
+        
         return true;
     }
 
@@ -1954,6 +2003,10 @@ public class UserService : IUserService
 
         await _unitOfWork.Blocks.AddAsync(block);
         await _unitOfWork.CompleteAsync();
+        
+        // [FIX] Invalidate profile cache and trigger mutation guard
+        await InvalidateProfileCacheAsync(userId, target.Did, target.Handle);
+        
         return true;
     }
 
@@ -2013,6 +2066,13 @@ public class UserService : IUserService
 
         _unitOfWork.Blocks.Remove(block);
         await _unitOfWork.CompleteAsync();
+        
+        // [FIX] Invalidate profile cache and trigger mutation guard
+        if (target != null)
+        {
+            await InvalidateProfileCacheAsync(userId, target.Did, target.Handle);
+        }
+        
         return true;
     }
 
@@ -2066,6 +2126,10 @@ public class UserService : IUserService
         var mute = new MutedAccount { UserId = userId, MutedUserId = targetUserId, CreatedAt = DateTime.UtcNow };
         await _unitOfWork.Mutes.AddAsync(mute);
         await _unitOfWork.CompleteAsync();
+        
+        // [FIX] Invalidate profile cache and trigger mutation guard
+        await InvalidateProfileCacheAsync(userId, target.Did, target.Handle);
+        
         return true;
     }
 
@@ -2117,6 +2181,10 @@ public class UserService : IUserService
 
         _unitOfWork.Mutes.Remove(mute);
         await _unitOfWork.CompleteAsync();
+        
+        // [FIX] Invalidate profile cache and trigger mutation guard
+        await InvalidateProfileCacheAsync(userId, target.Did, target.Handle);
+        
         return true;
     }
 
@@ -2280,6 +2348,8 @@ public class UserService : IUserService
             .ToListAsync();
 
         var result = new Dictionary<Guid, UserRelationshipStatusDto>();
+        var usersById = targetUsers.ToDictionary(u => u.Id);
+
         foreach (var id in targetIdList)
         {
             var dbStatus = new UserRelationshipStatusDto(
@@ -2292,9 +2362,38 @@ public class UserService : IUserService
                 BlockingReference: blockingMap.TryGetValue(id, out var b) ? b.Uri : null
             );
 
-            result[id] = remoteStatusMap.TryGetValue(id, out var remoteStatus)
-                ? remoteStatus
-                : dbStatus;
+            if (remoteStatusMap.TryGetValue(id, out var remoteStatus))
+            {
+                // [FIX] Relationship Synchronization Guard:
+                // Check if a mutation was recently performed for this specific user.
+                bool isRecentMutation = false;
+                if (usersById.TryGetValue(id, out var user) && !string.IsNullOrEmpty(user.Did))
+                {
+                    isRecentMutation = _recentMutations.TryGetValue($"{viewerId}:{user.Did.ToLowerInvariant()}", out var lastM) && (DateTime.UtcNow - lastM < TimeSpan.FromSeconds(60));
+                }
+
+                if (isRecentMutation)
+                {
+                    _logger.LogInformation("[RelationshipGuard] Batch: Applying authoritative Local Truth for {TargetId} due to recent mutation.", id);
+                    result[id] = dbStatus;
+                }
+                else
+                {
+                    // Blend: Local DB wins for presence, Remote wins for federation info
+                    result[id] = remoteStatus with
+                    {
+                        IsFollowing = dbStatus.IsFollowing || remoteStatus.IsFollowing,
+                        IsBlocking = dbStatus.IsBlocking || remoteStatus.IsBlocking,
+                        IsMuted = dbStatus.IsMuted || remoteStatus.IsMuted,
+                        FollowingReference = dbStatus.FollowingReference ?? remoteStatus.FollowingReference,
+                        BlockingReference = dbStatus.BlockingReference ?? remoteStatus.BlockingReference
+                    };
+                }
+            }
+            else
+            {
+                result[id] = dbStatus;
+            }
         }
 
         return result;
@@ -2585,6 +2684,24 @@ public class UserService : IUserService
 
     public async Task SyncRelationshipStatusWithAtProtoAsync(Guid viewerId, User targetUser, JsonElement viewerProp)
     {
+        // [FIX] Relationship Synchronization Guard:
+        // Do not sync relationship from remote if the user just performed an action in our UI.
+        // This prevents stale AppView data from overwriting our fresh local DB intent 
+        // while the action is still federating.
+        if (!string.IsNullOrEmpty(targetUser.Did) && _recentMutations.TryGetValue($"{viewerId}:{targetUser.Did.ToLowerInvariant()}", out var lastMutation))
+        {
+            if (DateTime.UtcNow - lastMutation < TimeSpan.FromSeconds(60))
+            {
+                _logger.LogInformation("[RelationshipGuard] Skipping sync for {TargetDid} (viewer {ViewerId}) due to recent mutation ({Elapsed:N1}s ago)", targetUser.Did, viewerId, (DateTime.UtcNow - lastMutation).TotalSeconds);
+                return;
+            }
+            else
+            {
+                // Clean up old entries
+                _recentMutations.TryRemove($"{viewerId}:{targetUser.Did.ToLowerInvariant()}", out _);
+            }
+        }
+
         try
         {
             var tasks = new List<Task>();
