@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     FiArrowLeft, FiSettings, FiSearch, FiRss,
-    FiChevronRight, FiGrid, FiActivity, FiMapPin, FiRefreshCw
+    FiChevronRight, FiGrid, FiMapPin, FiRefreshCw
 } from 'react-icons/fi';
 import { BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import { FiX, FiTrash2 } from 'react-icons/fi';
@@ -174,19 +174,14 @@ const FeedsPage: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="px-6 py-4">
-                        <div className="flex items-start gap-4 mb-6">
-                            <div className="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
-                                <FiActivity className="text-primary-500" size={24} />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <h1 className="text-2xl font-black text-gray-900 dark:text-dark-text leading-tight">
-                                    {t('feeds.discover_new_feeds')}
-                                </h1>
-                                <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary leading-normal">
-                                    {t('feeds.discover_description')}
-                                </p>
-                            </div>
+                    <div className="px-6 py-6">
+                        <div className="flex flex-col gap-1 mb-6">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text leading-tight">
+                                {t('feeds.discover_new_feeds')}
+                            </h2>
+                            <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary leading-normal">
+                                {t('feeds.discover_description')}
+                            </p>
                         </div>
 
                         <div className="relative group mb-2">
@@ -258,8 +253,8 @@ const FeedsPage: React.FC = () => {
                                                 key={fk}
                                                 onClick={() => !isSpecial && navigate(`/feeds/${encodeURIComponent(fk)}`)}
                                                 className={cn(
-                                                    "flex items-center justify-between px-6 py-2 content-center items-center hover:bg-gray-50 dark:hover:bg-dark-surface transition-all cursor-pointer group flex justify-between",
-                                                    isSpecial ? "cursor-default" : "hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer"
+                                                    "flex items-center justify-between px-6 py-2.5 hover:bg-gray-50 dark:hover:bg-dark-surface transition-all cursor-pointer group",
+                                                    isSpecial ? "cursor-default" : "cursor-pointer"
                                                 )}
                                             >
                                                 <div className="flex items-center gap-3 overflow-hidden min-w-0">
@@ -273,7 +268,7 @@ const FeedsPage: React.FC = () => {
                                                         {isSpecial ? t('nav.following') : feed.name}
                                                     </span>
                                                 </div>
-                                                {!isSpecial && <FiChevronRight className="text-gray-300 group-hover:text-primary-400 transition-all opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0" size={18} />}
+                                                {!isSpecial && <FiChevronRight className="text-gray-400 dark:text-dark-text-secondary transition-all" size={18} />}
                                             </div>
                                         );
                                     })}
@@ -301,21 +296,16 @@ const FeedsPage: React.FC = () => {
                     </div>
                 )}
 
-                {/* SEARCH & DISCOVER (BACK TO BOTTOM) */}
+                {/* SEARCH & DISCOVER SECTION */}
                 {isAuthenticated && (
-                    <div className="px-5 pt-8 pb-6 border-t border-gray-100 dark:border-dark-border">
-                        <div className="flex items-start gap-4 mb-5">
-                            <div className="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
-                                <FiActivity className="text-primary-500" size={26} />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <h1 className="text-2xl font-black text-gray-900 dark:text-dark-text leading-tight">
-                                    {t('feeds.discover_new_feeds')}
-                                </h1>
-                                <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary leading-normal">
-                                    {t('feeds.discover_description')}
-                                </p>
-                            </div>
+                    <div className="px-6 pt-10 pb-6 border-t border-gray-100 dark:border-dark-border">
+                        <div className="flex flex-col gap-1 mb-6">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text leading-tight">
+                                {t('feeds.discover_new_feeds')}
+                            </h2>
+                            <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary leading-normal">
+                                {t('feeds.discover_description')}
+                            </p>
                         </div>
 
                         <div className="relative group">
@@ -367,14 +357,14 @@ const FeedsPage: React.FC = () => {
                                                         onClick={(e) => handlePinToggle(e, feed)}
                                                         disabled={actionLoading[feedActionKey(feed)]}
                                                         className={cn(
-                                                            "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-[13px] transition-all disabled:opacity-50",
+                                                            "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[13px] transition-all disabled:opacity-50",
                                                             feed.isPinned
-                                                                ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
-                                                                : "bg-primary-500 text-white"
+                                                                ? "bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-dark-text hover:bg-gray-200 dark:hover:bg-dark-surface-secondary"
+                                                                : "bg-primary-500 text-white hover:bg-primary-600"
                                                         )}
                                                     >
-                                                        {feed.isPinned ? <BsPinAngleFill size={12} /> : <BsPinAngle size={12} />}
-                                                        {feed.isPinned ? 'Pinned to Home' : 'Pin to Home'}
+                                                        {feed.isPinned ? <BsPinAngleFill size={14} /> : <BsPinAngle size={14} />}
+                                                        {feed.isPinned ? 'Pinned' : 'Pin feed'}
                                                     </button>
 
                                                     {/* Pin Dropdown */}
@@ -417,10 +407,13 @@ const FeedsPage: React.FC = () => {
                                             )}
                                         </div>
                                         {feed.description && (
-                                            <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-2 leading-relaxed pl-[52px]">
+                                            <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-2 leading-relaxed mt-1.5">
                                                 {feed.description}
                                             </p>
                                         )}
+                                        <p className="text-[12.5px] text-gray-400 dark:text-dark-text-secondary mt-1.5">
+                                            Liked by {(feed.subscribersCount || feed.followersCount || 0).toLocaleString()} users
+                                        </p>
                                     </div>
                                 ))}
                                 {searchLoading && <div className="p-4 text-center text-sm text-gray-500">{t('common.loading')}</div>}
@@ -461,14 +454,14 @@ const FeedsPage: React.FC = () => {
                                                         onClick={(e) => handlePinToggle(e, feed)}
                                                         disabled={actionLoading[feedActionKey(feed)]}
                                                         className={cn(
-                                                            "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-[13px] transition-all disabled:opacity-50",
+                                                            "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[13px] transition-all disabled:opacity-50",
                                                             feed.isPinned
-                                                                ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
-                                                                : "bg-primary-500 text-white"
+                                                                ? "bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-dark-text hover:bg-gray-200 dark:hover:bg-dark-surface-secondary"
+                                                                : "bg-primary-500 text-white hover:bg-primary-600"
                                                         )}
                                                     >
-                                                        {feed.isPinned ? <BsPinAngleFill size={12} /> : <BsPinAngle size={12} />}
-                                                        {feed.isPinned ? 'Pinned to Home' : 'Pin to Home'}
+                                                        {feed.isPinned ? <BsPinAngleFill size={14} /> : <BsPinAngle size={14} />}
+                                                        {feed.isPinned ? 'Pinned' : 'Pin feed'}
                                                     </button>
 
                                                     {/* Pin Dropdown */}
