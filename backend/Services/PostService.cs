@@ -109,10 +109,10 @@ public class PostService : IPostService
                     return new List<PostDto>();
                 }
 
-                token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
                 if (string.IsNullOrEmpty(token))
                 {
-                    _logger.LogWarning("[GetTimelineAsync] No proxy token for user {UserId}.", userId);
+                    _logger.LogWarning("[GetTimelineAsync] Failed to refresh/get token for user {UserId}.", userId);
                     mappedPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
                 }
                 else
@@ -7514,7 +7514,7 @@ public class PostService : IPostService
         else
         {
             // Remote PDS (BlueSky)
-            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{user.Id}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(user.Id);
             if (string.IsNullOrEmpty(token)) return;
 
             var nsid = "com.atproto.repo.putRecord";

@@ -243,7 +243,7 @@ public class UserService : IUserService
             return CreateBlobNode(cid, mimeType, file.Length);
         }
 
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{user.Id}");
+        var token = await GetOrRefreshBlueskyTokenAsync(user.Id);
         if (string.IsNullOrWhiteSpace(token))
         {
             throw new Exception("Your Bluesky session expired. Please sign in again before editing your profile.");
@@ -285,7 +285,7 @@ public class UserService : IUserService
             return;
         }
 
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{user.Id}");
+        var token = await GetOrRefreshBlueskyTokenAsync(user.Id);
         if (string.IsNullOrWhiteSpace(token))
         {
             throw new Exception("Your Bluesky session expired. Please sign in again before editing your profile.");

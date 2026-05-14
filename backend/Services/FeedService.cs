@@ -371,7 +371,7 @@ public class FeedService : IFeedService
 
     private async Task<List<FeedDto>> GetRemoteFeedsAsync(Guid userId)
     {
-        var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) return new List<FeedDto>();
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -642,7 +642,7 @@ public class FeedService : IFeedService
     {
         try
         {
-            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
             if (string.IsNullOrEmpty(token)) return false;
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -779,7 +779,7 @@ public class FeedService : IFeedService
 
         try
         {
-            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
             if (string.IsNullOrEmpty(token)) return false;
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -1406,7 +1406,7 @@ public class FeedService : IFeedService
 
             if (viewerId.HasValue)
             {
-                token = await _cache.GetStringAsync($"BlueskyToken_{viewerId.Value}");
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value);
                 var viewer = await _unitOfWork.Users.GetByIdAsync(viewerId.Value);
                 viewerDid = viewer?.Did;
             }
