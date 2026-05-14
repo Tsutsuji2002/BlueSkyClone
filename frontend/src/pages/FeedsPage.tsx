@@ -303,15 +303,6 @@ const FeedsPage: React.FC = () => {
                                         {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
                                     </button>
                                 )}
-                                <div className="px-6 pt-2">
-                                    <button 
-                                        onClick={() => navigate('/settings/saved-feeds')}
-                                        className="w-full py-2.5 px-4 bg-gray-100 dark:bg-dark-surface-secondary hover:bg-gray-200 dark:hover:bg-dark-surface-secondary-hover border border-gray-200 dark:border-dark-border rounded-xl text-sm font-bold text-gray-700 dark:text-dark-text flex items-center justify-center gap-2 transition-all"
-                                    >
-                                        <FiSettings size={14} className="text-gray-400" />
-                                        {t('feeds.edit_feeds')}
-                                    </button>
-                                </div>
                             </div>
                         )}
                     </div>
