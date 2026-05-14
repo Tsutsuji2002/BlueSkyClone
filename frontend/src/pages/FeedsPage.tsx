@@ -224,39 +224,9 @@ const FeedsPage: React.FC = () => {
 
             <div className="flex-1 min-h-[500px]">
 
-                {/* SEARCH & DISCOVER (MOVED TO TOP) */}
-                <div className="px-5 pt-5 pb-3 bg-white dark:bg-dark-bg border-b border-gray-100 dark:border-dark-border">
-                    <div className={cn(
-                        "flex items-start gap-3 transition-all duration-300",
-                        searchQuery.length >= 2 ? "opacity-0 h-0 overflow-hidden mb-0 scale-95" : "opacity-100 mb-3 scale-100"
-                    )}>
-                        <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
-                            <FiActivity className="text-primary-500" size={22} />
-                        </div>
-                        <div>
-                            <h2 className="text-[17px] font-black text-gray-900 dark:text-dark-text leading-tight">
-                                {t('feeds.discover_new_feeds')}
-                            </h2>
-                            <p className="text-[13.5px] text-gray-500 dark:text-dark-text-secondary leading-snug mt-0.5">
-                                {t('feeds.discover_description')}
-                            </p>
-                        </div>
-                    </div>
 
-                    <div className="relative group">
-                        <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={16} />
-                        <input
-                            type="text"
-                            placeholder={t('feeds.search_feeds_placeholder')}
-                            className="w-full bg-gray-100 dark:bg-dark-surface py-2.5 pl-10 pr-4 rounded-full text-[14px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-400 outline-none transition-colors dark:text-dark-text placeholder-gray-400"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                {/* MY FEEDS SECTION (ONLY SHOW WHEN NOT SEARCHING) */}
-                {isAuthenticated && !searchQuery && (
+                {/* MY FEEDS SECTION (SHOW ALWAYS) */}
+                {isAuthenticated && (
                     <div className="border-b border-gray-100 dark:border-dark-border bg-gray-50/30 dark:bg-dark-surface/5">
                         <div className="px-6 py-4 flex items-center justify-between group cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
                             onClick={() => setIsMyFeedsExpanded(!isMyFeedsExpanded)}
@@ -331,17 +301,47 @@ const FeedsPage: React.FC = () => {
                     </div>
                 )}
 
+                {/* SEARCH & DISCOVER (BACK TO BOTTOM) */}
+                {isAuthenticated && (
+                    <div className="px-5 pt-8 pb-6 border-t border-gray-100 dark:border-dark-border">
+                        <div className="flex items-start gap-4 mb-5">
+                            <div className="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
+                                <FiActivity className="text-primary-500" size={26} />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <h1 className="text-2xl font-black text-gray-900 dark:text-dark-text leading-tight">
+                                    {t('feeds.discover_new_feeds')}
+                                </h1>
+                                <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary leading-normal">
+                                    {t('feeds.discover_description')}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="relative group">
+                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
+                            <input
+                                type="text"
+                                placeholder={t('feeds.search_feeds_placeholder')}
+                                className="w-full bg-gray-100 dark:bg-dark-surface-secondary border-none rounded-2xl py-3.5 pl-12 pr-4 text-[16px] focus:ring-2 focus:ring-primary-500 outline-none transition-colors dark:text-dark-text placeholder-gray-500"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                )}
+
                 {/* Search Results or Discover */}
                 {searchQuery.length >= 2 ? (
                     /* Search results */
-                    <div className="flex flex-col">
-                        <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/5 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider flex items-center justify-between transition-colors">
+                    <div className="flex flex-col min-h-[800px]">
+                        <div className="px-4 py-3 bg-gray-50 dark:bg-dark-surface/20 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider flex items-center justify-between border-t border-gray-100 dark:border-dark-border transition-colors">
                             <span>{t('feeds.search_results')}</span>
                             {searchLoading && <FiRefreshCw className="animate-spin text-primary-500" size={14} />}
                         </div>
                         
                         {searchLoading && searchResults.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-dark-bg">
+                            <div className="flex flex-col items-center justify-center py-20 bg-transparent">
                                 <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
                                 <p className="text-gray-500 dark:text-dark-text-secondary">Searching feeds...</p>
                             </div>
@@ -426,7 +426,7 @@ const FeedsPage: React.FC = () => {
                                 {searchLoading && <div className="p-4 text-center text-sm text-gray-500">{t('common.loading')}</div>}
                             </>
                         ) : !searchLoading && (
-                            <div className="flex flex-col items-center justify-center py-20 px-10 text-center bg-white dark:bg-dark-bg transition-opacity duration-500">
+                            <div className="flex flex-col items-center justify-center py-20 px-10 text-center bg-transparent transition-opacity duration-500">
                                 <div className="w-16 h-16 bg-gray-100 dark:bg-dark-surface/50 rounded-full flex items-center justify-center mb-4">
                                     <FiSearch className="text-gray-400" size={30} />
                                 </div>
