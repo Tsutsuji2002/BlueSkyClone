@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-    FiArrowLeft, FiSettings, FiPlus, FiSearch, FiRss,
-    FiChevronRight, FiGrid, FiCheck, FiMenu, FiActivity
+    FiArrowLeft, FiSettings, FiSearch, FiRss,
+    FiChevronRight, FiGrid, FiActivity, FiMapPin
 } from 'react-icons/fi';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
@@ -16,10 +16,7 @@ import {
     fetchSubscribedFeeds,
     fetchRecommendedFeeds,
     pinFeed,
-    unpinFeed,
     searchFeeds,
-    saveFeed,
-    unsaveFeed
 } from '../redux/slices/feedsSlice';
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -114,26 +111,7 @@ const FeedsPage: React.FC = () => {
             return;
         }
         const key = feedActionKey(feed);
-        if (feed.isPinned) {
-            await dispatch(unpinFeed(key));
-        } else {
-            await dispatch(pinFeed(key));
-        }
-        // No immediate re-fetch to avoid race condition
-    };
-
-    const handleSaveToggle = async (e: React.MouseEvent, feed: Feed) => {
-        e.stopPropagation();
-        if (!isAuthenticated) {
-            dispatch(openAuthWall());
-            return;
-        }
-        const key = feedActionKey(feed);
-        if (feed.isSubscribed) {
-            await dispatch(unsaveFeed(key));
-        } else {
-            await dispatch(saveFeed(key));
-        }
+        await dispatch(pinFeed(key));
     };
 
     useDocumentTitle(t('feeds.title'));
@@ -284,23 +262,9 @@ const FeedsPage: React.FC = () => {
                     </div>
                 )}
 
-                {isAuthenticated && (
-                    <div className="p-4 bg-gray-50 dark:bg-dark-bg transition-colors border-b border-gray-100 dark:border-dark-border">
-                        <div className="relative group">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
-                            <input
-                                type="text"
-                                placeholder={t('feeds.search_feeds_placeholder')}
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-3 pl-12 pr-10 rounded-xl text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* Search Results or Recommendations */}
+                {/* Search Results or Discover */}
                 {searchQuery.length >= 2 ? (
+                    /* Search results */
                     <div className="flex flex-col">
                         <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/5 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
                             {t('feeds.search_results')}
@@ -308,82 +272,113 @@ const FeedsPage: React.FC = () => {
                         {searchResults.map((feed: Feed) => (
                             <div
                                 key={feedActionKey(feed)}
-                                onClick={() => {
-                                    navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
-                                }}
+                                onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
                                 className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
                             >
-                                <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex items-center justify-between gap-3 mb-2">
                                     <div className="flex gap-3 min-w-0">
                                         <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
                                         <div className="flex flex-col min-w-0">
                                             <span className="font-bold text-gray-900 dark:text-dark-text hover:underline truncate">{feed.name}</span>
-                                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">@{feed.handle}</span>
+                                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">Feed by @{feed.handle}</span>
                                         </div>
                                     </div>
+                                    {isAuthenticated && (
+                                        <button
+                                            onClick={(e) => handlePinToggle(e, feed)}
+                                            disabled={actionLoading[feedActionKey(feed)]}
+                                            className={cn(
+                                                "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-[13px] transition-all disabled:opacity-50",
+                                                feed.isPinned
+                                                    ? "bg-primary-500 text-white"
+                                                    : "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
+                                            )}
+                                        >
+                                            <FiMapPin size={12} />
+                                            {feed.isPinned ? 'Pinned' : 'Pin feed'}
+                                        </button>
+                                    )}
                                 </div>
-                                <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed mb-1 pl-[52px]">
-                                    {feed.description}
-                                </p>
+                                {feed.description && (
+                                    <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-2 leading-relaxed pl-[52px]">
+                                        {feed.description}
+                                    </p>
+                                )}
                             </div>
                         ))}
-                        {searchLoading && <div className="p-4 text-center">{t('common.loading')}</div>}
+                        {searchLoading && <div className="p-4 text-center text-sm text-gray-500">{t('common.loading')}</div>}
                     </div>
                 ) : (
+                    /* Discover new feeds */
                     <div className="flex flex-col">
-                        {isAuthenticated && (
-                            <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/5 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider flex items-center gap-2">
-                                <FiActivity className="text-primary-500" /> {t('feeds.recommended_for_you')}
+                        {/* Discover New Feeds Banner */}
+                        <div className="px-5 pt-5 pb-3">
+                            <div className="flex items-start gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
+                                    <FiActivity className="text-primary-500" size={22} />
+                                </div>
+                                <div>
+                                    <h2 className="text-[17px] font-black text-gray-900 dark:text-dark-text leading-tight">
+                                        Discover New Feeds
+                                    </h2>
+                                    <p className="text-[13.5px] text-gray-500 dark:text-dark-text-secondary leading-snug mt-0.5">
+                                        Choose your own timeline! Feeds built by the community help you find content you love.
+                                    </p>
+                                </div>
                             </div>
-                        )}
+                            {/* Unified search bar */}
+                            <div className="relative group">
+                                <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="Search feeds"
+                                    className="w-full bg-gray-100 dark:bg-dark-surface py-2.5 pl-10 pr-4 rounded-full text-[14px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-400 outline-none transition-colors dark:text-dark-text placeholder-gray-400"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                        </div>
 
+                        {/* Feed cards */}
                         {recommendedFeeds.map((feed: Feed) => (
                             <div
                                 key={feedActionKey(feed)}
-                                onClick={() => {
-                                    navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
-                                }}
-                                className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
+                                onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
+                                className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer"
                             >
-                                <div className="flex items-start justify-between gap-3 mb-2">
-                                    <div className="flex gap-3 min-w-0">
-                                        <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="font-bold text-gray-900 dark:text-dark-text group-hover:underline truncate">
-                                                {feed.name}
-                                            </span>
-                                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
-                                                {t('profile.feed_by')} @{feed.handle}
-                                            </span>
+                                <div className="flex items-start gap-3">
+                                    <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} className="flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-2 mb-0.5">
+                                            <div className="min-w-0">
+                                                <span className="font-bold text-[15px] text-gray-900 dark:text-dark-text block truncate">{feed.name}</span>
+                                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary">Feed by @{feed.handle}</span>
+                                            </div>
+                                            {isAuthenticated && (
+                                                <button
+                                                    onClick={(e) => handlePinToggle(e, feed)}
+                                                    disabled={actionLoading[feedActionKey(feed)]}
+                                                    className={cn(
+                                                        "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-[13px] transition-all disabled:opacity-50",
+                                                        feed.isPinned
+                                                            ? "bg-primary-500 text-white"
+                                                            : "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
+                                                    )}
+                                                >
+                                                    <FiMapPin size={12} />
+                                                    {feed.isPinned ? 'Pinned' : 'Pin feed'}
+                                                </button>
+                                            )}
                                         </div>
-                                    </div>
-                                    <button
-                                        onClick={(e: React.MouseEvent) => handleSaveToggle(e, feed)}
-                                        disabled={actionLoading[feedActionKey(feed)]}
-                                        className={cn(
-                                            "p-2 rounded-full transition-colors disabled:opacity-50",
-                                            feed.isSubscribed ? "text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
+                                        {feed.description && (
+                                            <p className="text-[13.5px] text-gray-600 dark:text-dark-text-secondary line-clamp-2 leading-relaxed mt-1">
+                                                {feed.description}
+                                            </p>
                                         )}
-                                    >
-                                        {feed.isSubscribed ? <FiCheck size={20} /> : <FiPlus size={20} />}
-                                    </button>
-                                </div>
-
-                                <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed mb-1 pl-[52px]">
-                                    {feed.description}
-                                </p>
-                                <div className="pl-[52px] flex items-center gap-2 mt-2">
-                                    {isAuthenticated ? (
-                                        <span className="text-xs text-gray-400 dark:text-dark-text-secondary font-medium px-2 py-0.5 bg-gray-100 dark:bg-dark-surface rounded-full">
-                                            {feed.subscribersCount || feed.followersCount || 0} {t('profile.followers')}
-                                        </span>
-                                    ) : (
-                                        <span className="text-[13px] font-medium text-gray-500 dark:text-dark-text-secondary">
-                                            {t('feeds.liked_by_users', { 
-                                                count: feed.subscribersCount || feed.followersCount || 0
-                                            })}
-                                        </span>
-                                    )}
+                                        <p className="text-[12.5px] text-gray-400 dark:text-dark-text-secondary mt-1.5">
+                                            Liked by {(feed.subscribersCount || feed.followersCount || 0).toLocaleString()} users
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -395,7 +390,7 @@ const FeedsPage: React.FC = () => {
                                 )}
                             </div>
                         )}
-                        
+
                         {!isLoading && recommendedFeeds.length === 0 && (
                             <div className="p-8 text-center flex flex-col items-center">
                                 <div className="w-12 h-12 bg-gray-100 dark:bg-dark-surface rounded-full flex items-center justify-center mb-3">

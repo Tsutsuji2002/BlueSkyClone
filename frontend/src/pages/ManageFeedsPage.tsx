@@ -136,7 +136,7 @@ const ManageFeedsPage: React.FC = () => {
 
             dispatch(showToast({ message: t('common.save_success', { defaultValue: 'Changes saved!' }), type: 'success' }));
             setHasChanges(false);
-            dispatch(fetchSubscribedFeeds());
+            dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
             setInitialPinnedIds(uniqueCurrentPinnedIds);
         } catch (error: any) {
             dispatch(showToast({ message: String(error) || 'Failed to save changes', type: 'error' }));

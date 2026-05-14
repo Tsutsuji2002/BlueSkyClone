@@ -96,6 +96,8 @@ const FeedDetailPage: React.FC = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [id, isLoading, posts.length]);
 
+    const [showInfoModal, setShowInfoModal] = useState(false);
+
     if (!feed && routeKey && infoLoading[routeKey] === false && infoError[routeKey]) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
@@ -118,7 +120,6 @@ const FeedDetailPage: React.FC = () => {
             <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-dark-bg p-6 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500 mb-4"></div>
                 <p className="text-gray-500 text-sm">Loading feed information...</p>
-                {/* Fallback link if loading takes too long */}
                 <button 
                    onClick={() => routeKey && dispatch(fetchFeedInfo(routeKey))}
                    className="mt-4 text-xs text-primary-500 opacity-50 hover:opacity-100"
@@ -131,181 +132,184 @@ const FeedDetailPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">
-                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
-                    <div className="flex items-center justify-between px-3 py-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
-                            >
-                                <FiArrowLeft size={20} className="text-gray-900 dark:text-dark-text" />
-                            </button>
-                            <div className="flex items-center gap-2 min-w-0">
-                                <FeedAvatar
-                                    src={feed.avatarUrl || feed.avatar}
-                                    alt={feed.name}
-                                    size="sm"
-                                    className="rounded-md"
-                                />
-                                <div className="flex flex-col min-w-0">
-                                    <h1 className="text-[17px] font-black text-gray-900 dark:text-dark-text truncate leading-tight">
-                                        {feed.name}
-                                    </h1>
-                                    <div className="flex items-center gap-1.5 text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                        <BsHeart className="text-gray-400" size={12} />
-                                        <span className="font-medium">
-                                            {count >= 1000 ? `${(count / 1000).toFixed(1)}K` : count} Likers
-                                        </span>
-                                    </div>
-                                </div>
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
+                <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
+                        >
+                            <FiArrowLeft size={20} className="text-gray-900 dark:text-dark-text" />
+                        </button>
+                        <div className="flex items-center gap-2 min-w-0">
+                            <FeedAvatar
+                                src={feed.avatarUrl || feed.avatar}
+                                alt={feed.name}
+                                size="sm"
+                                className="rounded-md"
+                            />
+                            <div className="flex flex-col min-w-0">
+                                <h1 className="text-[17px] font-black text-gray-900 dark:text-dark-text truncate leading-tight">
+                                    {feed.name}
+                                </h1>
+                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">
+                                    @{feed.handle}
+                                </span>
                             </div>
                         </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                            <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors group">
-                                <FiMoreHorizontal size={20} className="text-gray-700 dark:text-dark-text" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    if (!isAuthenticated) {
-                                        dispatch(openAuthWall());
-                                        return;
-                                    }
-                                    const fk = feedActionKey(feed);
-                                    if (feed.isPinned) await dispatch(unpinFeed(fk));
-                                    else await dispatch(pinFeed(fk));
-                                }}
-                                disabled={feeds_actionLoading[feedActionKey(feed)]}
-                                className={cn(
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* "..." opens info modal */}
+                        <button
+                            className="p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                            onClick={() => setShowInfoModal(true)}
+                        >
+                            <FiMoreHorizontal size={20} className="text-gray-700 dark:text-dark-text" />
+                        </button>
+                        {/* Bell / pin toggle */}
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                if (!isAuthenticated) {
+                                    dispatch(openAuthWall());
+                                    return;
+                                }
+                                const fk = feedActionKey(feed);
+                                if (feed.isPinned) await dispatch(unpinFeed(fk));
+                                else await dispatch(pinFeed(fk));
+                            }}
+                            disabled={feeds_actionLoading[feedActionKey(feed)]}
+                            className={cn(
                                 "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors disabled:opacity-50",
                                 feed.isPinned ? "text-primary-500" : "text-gray-700 dark:text-dark-text"
                             )}>
-                                <FiBell size={20} />
-                            </button>
-                        </div>
+                            <FiBell size={20} />
+                        </button>
                     </div>
-                </div>
-
-                {/* Feed Info Card - Bluesky style with Like + Pin */}
-                <div className="border-b border-gray-100 dark:border-dark-border px-4 py-5 bg-white dark:bg-dark-bg">
-                    <div className="flex gap-3 mb-3">
-                        <FeedAvatar
-                            src={feed.avatarUrl || feed.avatar}
-                            alt={feed.name}
-                            size="lg"
-                            className="rounded-xl flex-shrink-0"
-                        />
-                        <div className="flex flex-col flex-1 min-w-0 justify-center">
-                            <span className="font-black text-gray-900 dark:text-dark-text text-[17px] leading-tight">
-                                {feed.name}
-                            </span>
-                            <span className="text-gray-500 dark:text-dark-text-secondary text-[14px]">
-                                By{' '}
-                                <button
-                                    onClick={() => navigate(`/profile/${feed.handle}`)}
-                                    className="hover:underline text-gray-500 dark:text-dark-text-secondary"
-                                >
-                                    @{feed.handle}
-                                </button>
-                            </span>
-                        </div>
-                    </div>
-
-                    {feed.description && (
-                        <p className="text-[14.5px] text-gray-700 dark:text-dark-text-secondary leading-normal mb-4">
-                            {feed.description}
-                        </p>
-                    )}
-
-                    {count > 0 && (
-                        <p className="text-[13px] text-primary-500 hover:underline cursor-pointer mb-4">
-                            Liked by {count >= 1000 ? `${(count / 1000).toFixed(1)}K` : count} users
-                        </p>
-                    )}
-
-                    {/* Action Buttons - Bluesky Style */}
-                    {isAuthenticated && (
-                        <div className="flex gap-3">
-                            {/* Like button */}
-                            <button
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border font-semibold text-[14.5px] transition-all",
-                                    "border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface"
-                                )}
-                            >
-                                <BsHeart size={16} />
-                                Like
-                            </button>
-
-                            {/* Pin feed button */}
-                            <button
-                                onClick={async () => {
-                                    if (!isAuthenticated) {
-                                        dispatch(openAuthWall());
-                                        return;
-                                    }
-                                    const fk = feedActionKey(feed);
-                                    if (feed.isPinned) {
-                                        await dispatch(unpinFeed(fk));
-                                    } else {
-                                        await dispatch(pinFeed(fk));
-                                    }
-                                    if (routeKey) dispatch(fetchFeedInfo(routeKey));
-                                }}
-                                disabled={feeds_actionLoading[feedActionKey(feed)]}
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-[14.5px] transition-all disabled:opacity-50",
-                                    feed.isPinned
-                                        ? "bg-primary-500 hover:bg-primary-600 text-white"
-                                        : "bg-primary-500 hover:bg-primary-600 text-white"
-                                )}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M17 4v7l2 3v2h-6v5l-1 1-1-1v-5H5v-2l2-3V4h10zm-5 15.5L12 20l.01-.01L12 19.5zm0-15a1 1 0 0 0-1 1v7.28L8.72 15H15.3L13 12.28V5a1 1 0 0 0-1-1z"/>
-                                </svg>
-                                {feed.isPinned ? 'Unpin feed' : 'Pin feed'}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Report link */}
-                    {isAuthenticated && (
-                        <div className="mt-3 flex items-center justify-between text-[13px] text-gray-400 dark:text-dark-text-secondary">
-                            <span>Something wrong? <button className="text-primary-500 hover:underline">Let us know.</button></span>
-                            <button className="hover:text-gray-600 dark:hover:text-dark-text flex items-center gap-1">Report feed ⓘ</button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Feed Posts */}
-                <div className="pb-20">
-                    {!isLoading && posts.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                            <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
-                                <FiRss className="text-gray-300" size={40} />
-                            </div>
-                            <h2 className="text-xl font-black text-gray-900 dark:text-dark-text mb-2">
-                                {t('feeds.no_posts')}
-                            </h2>
-                            <p className="text-gray-500 dark:text-dark-text-secondary max-w-xs leading-relaxed">
-                                {t('feeds.no_posts_desc')}
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            <Feed 
-                                feedId={`feed_detail_${id}`}
-                                posts={posts} 
-                                isLoading={isFeedLoading}
-                                hasMore={feedHasMore[id || ''] !== false}
-                                onLoadMore={handleLoadMore}
-                                emptyMessage={t('feeds.no_posts_desc')}
-                            />
-                        </>
-                    )}
                 </div>
             </div>
+
+            {/* Feed Info Modal (opened by "...") */}
+            {showInfoModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center"
+                    onClick={() => setShowInfoModal(false)}
+                >
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
+
+                    {/* Modal card */}
+                    <div
+                        className="relative z-10 w-[340px] max-w-[90vw] bg-white dark:bg-dark-surface rounded-2xl shadow-2xl p-5 mx-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Feed header */}
+                        <div className="flex gap-3 mb-3">
+                            <FeedAvatar
+                                src={feed.avatarUrl || feed.avatar}
+                                alt={feed.name}
+                                size="lg"
+                                className="rounded-xl flex-shrink-0"
+                            />
+                            <div className="flex flex-col flex-1 min-w-0 justify-center">
+                                <span className="font-black text-gray-900 dark:text-dark-text text-[17px] leading-tight">
+                                    {feed.name}
+                                </span>
+                                <button
+                                    onClick={() => { setShowInfoModal(false); navigate(`/profile/${feed.handle}`); }}
+                                    className="text-gray-500 dark:text-dark-text-secondary text-[14px] hover:underline text-left"
+                                >
+                                    By @{feed.handle}
+                                </button>
+                            </div>
+                        </div>
+
+                        {feed.description && (
+                            <p className="text-[14.5px] text-gray-700 dark:text-dark-text-secondary leading-normal mb-3">
+                                {feed.description}
+                            </p>
+                        )}
+
+                        {count > 0 && (
+                            <p className="text-[13px] text-primary-500 mb-4">
+                                Liked by {count >= 1000 ? `${(count / 1000).toFixed(1)}K` : count} users
+                            </p>
+                        )}
+
+                        {/* Action buttons */}
+                        {isAuthenticated && (
+                            <div className="flex gap-3 mb-4">
+                                {/* Like button (visual only) */}
+                                <button
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border font-semibold text-[14.5px] transition-all border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-bg"
+                                >
+                                    <BsHeart size={16} />
+                                    Like
+                                </button>
+
+                                {/* Pin / Unpin */}
+                                <button
+                                    onClick={async () => {
+                                        const fk = feedActionKey(feed);
+                                        if (feed.isPinned) {
+                                            await dispatch(unpinFeed(fk));
+                                        } else {
+                                            await dispatch(pinFeed(fk));
+                                        }
+                                        if (routeKey) dispatch(fetchFeedInfo(routeKey));
+                                        setShowInfoModal(false);
+                                    }}
+                                    disabled={feeds_actionLoading[feedActionKey(feed)]}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-[14.5px] transition-all disabled:opacity-50 bg-primary-500 hover:bg-primary-600 text-white"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M17 4v7l2 3v2h-6v5l-1 1-1-1v-5H5v-2l2-3V4h10zm-5 15.5L12 20l.01-.01L12 19.5zm0-15a1 1 0 0 0-1 1v7.28L8.72 15H15.3L13 12.28V5a1 1 0 0 0-1-1z"/>
+                                    </svg>
+                                    {feed.isPinned ? 'Unpin feed' : 'Pin feed'}
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between text-[13px] text-gray-400 dark:text-dark-text-secondary">
+                            <span>Something wrong? <button className="text-primary-500 hover:underline">Let us know.</button></span>
+                            <button className="hover:text-gray-600 dark:hover:text-dark-text">Report feed ⓘ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Feed Posts */}
+            <div className="pb-20">
+                {!isLoading && posts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                        <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
+                            <FiRss className="text-gray-300" size={40} />
+                        </div>
+                        <h2 className="text-xl font-black text-gray-900 dark:text-dark-text mb-2">
+                            {t('feeds.no_posts')}
+                        </h2>
+                        <p className="text-gray-500 dark:text-dark-text-secondary max-w-xs leading-relaxed">
+                            {t('feeds.no_posts_desc')}
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        <Feed 
+                            feedId={`feed_detail_${id}`}
+                            posts={posts} 
+                            isLoading={isFeedLoading}
+                            hasMore={feedHasMore[id || ''] !== false}
+                            onLoadMore={handleLoadMore}
+                            emptyMessage={t('feeds.no_posts_desc')}
+                        />
+                    </>
+                )}
+            </div>
+        </div>
     );
 };
 
 export default FeedDetailPage;
+

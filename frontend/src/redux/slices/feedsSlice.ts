@@ -194,16 +194,17 @@ export const fetchRecommendedFeeds = createAsyncThunk<
 
 export const fetchSubscribedFeeds = createAsyncThunk<
     Feed[],
-    void,
+    { bypassThrottle?: boolean } | void,
     { rejectValue: string }
 >(
     'feeds/fetchSubscribedFeeds',
-    async (_: void, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
+    async (params, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
         try {
+            const bypassThrottle = params && typeof params === 'object' ? params.bypassThrottle : false;
             const state = getState() as { feeds: FeedsState };
             const now = Date.now();
-            // Throttle: don't fetch more than once every 10 seconds unless it's the first time
-            if (state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000)) {
+            // Throttle: don't fetch more than once every 10 seconds unless explicitly bypassed
+            if (!bypassThrottle && state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000)) {
                 console.log('feedsSlice: fetchSubscribedFeeds throttled (called too recently)');
                 return state.feeds.subscribedFeeds;
             }
