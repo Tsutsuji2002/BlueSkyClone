@@ -268,6 +268,9 @@ public class FeedService : IFeedService
             IsPinned = pinned.Contains(uri) || (isDiscover && pinned.Contains(DiscoverFeedKey)),
             SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
             Handle = isDiscover ? DiscoverFeedKey : creatorHandle,
+            Cid = gen.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null,
+            IsLiked = gen.TryGetProperty("viewer", out var viewer) && viewer.TryGetProperty("like", out var vl) && vl.ValueKind != JsonValueKind.Null,
+            LikeUri = gen.TryGetProperty("viewer", out var viewer2) && viewer2.TryGetProperty("like", out var vl2) ? vl2.GetString() : null,
             Creator = new AuthorDto
             {
                 Did = creatorDid,
@@ -920,6 +923,96 @@ public class FeedService : IFeedService
                 IsVerified = feed.Creator.IsVerified
             } : null
         };
+    public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri)
+    {
+        if (string.IsNullOrEmpty(uri)) return null;
+        var resolved = await ResolveFeedsMetadataAsync(new List<string> { uri }, null);
+        return resolved.FirstOrDefault();
+    }
+
+    public async Task<object> ToggleLikeFeedAsync(Guid userId, string feedUri, bool? clientIsLiked = null, string? clientLikeUri = null)
+    {
+        try
+        {
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
+                return new { error = "Not authenticated" };
+
+            // 1. Get current state to ensure we have CID
+            var feedMetadata = await GetFeedMetadataByUriAsync(feedUri);
+            if (feedMetadata == null) return new { error = "Feed not found" };
+
+            bool isLiking = clientIsLiked ?? !feedMetadata.IsLiked;
+            string? currentLikeUri = clientLikeUri ?? feedMetadata.LikeUri;
+
+            if (isLiking)
+            {
+                var likeRecord = new Dictionary<string, object>
+                {
+                    { "$type", "app.bsky.feed.like" },
+                    { "subject", new Dictionary<string, object>
+                        {
+                            { "uri", feedUri },
+                            { "cid", feedMetadata.Cid ?? "" }
+                        }
+                    },
+                    { "createdAt", DateTime.UtcNow.ToString("O") }
+                };
+
+                var result = await _xrpcProxy.ProxyRequestAsync(
+                    user.Did,
+                    "com.atproto.repo.createRecord",
+                    new Dictionary<string, string?>(),
+                    token,
+                    "POST",
+                    new { repo = user.Did, collection = "app.bsky.feed.like", record = likeRecord },
+                    userId
+                );
+
+                if (result.Success)
+                {
+                    var responseBody = JsonSerializer.Deserialize<JsonElement>(result.Content);
+                    var newLikeUri = responseBody.GetProperty("uri").GetString();
+                    return new { isLiked = true, likeUri = newLikeUri };
+                }
+                else
+                {
+                    _logger.LogWarning("[ToggleLikeFeedAsync] Like FAILED: {Error}", result.Content);
+                    return new { error = "Like failed", detail = result.Content };
+                }
+            }
+            else if (!string.IsNullOrEmpty(currentLikeUri))
+            {
+                string? likeTid = currentLikeUri.Split('/').Last();
+                var result = await _xrpcProxy.ProxyRequestAsync(
+                    user.Did,
+                    "com.atproto.repo.deleteRecord",
+                    new Dictionary<string, string?>(),
+                    token,
+                    "POST",
+                    new { repo = user.Did, collection = "app.bsky.feed.like", rkey = likeTid },
+                    userId
+                );
+
+                if (result.Success)
+                {
+                    return new { isLiked = false, likeUri = (string?)null };
+                }
+                else
+                {
+                    _logger.LogWarning("[ToggleLikeFeedAsync] Unlike FAILED: {Error}", result.Content);
+                    return new { error = "Unlike failed", detail = result.Content };
+                }
+            }
+
+            return new { isLiked = false };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ToggleLikeFeedAsync] Critical Error");
+            return new { error = ex.Message };
+        }
     }
 
     public async Task<FeedDto?> GetFeedByIdAsync(Guid feedId, Guid userId)

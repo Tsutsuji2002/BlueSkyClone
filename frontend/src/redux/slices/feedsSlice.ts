@@ -370,6 +370,32 @@ export const reorderPinnedFeeds = createAsyncThunk<
     }
 );
 
+export const likeFeed = createAsyncThunk<
+    { isLiked: boolean, likeUri?: string },
+    { feedId: string, isLiked?: boolean, likeUri?: string },
+    { rejectValue: string }
+>(
+    'feeds/like',
+    async ({ feedId, isLiked, likeUri }, { rejectWithValue }) => {
+        try {
+            let url = `${API_BASE_URL}/feeds/like/${encodeURIComponent(feedId)}`;
+            const params = new URLSearchParams();
+            if (isLiked !== undefined) params.append('isLiked', isLiked.toString());
+            if (likeUri) params.append('likeUri', likeUri);
+            
+            const query = params.toString();
+            if (query) url += `?${query}`;
+
+            const response = await fetch(url, { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to like feed');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const fetchFeedInfo = createAsyncThunk<
     Feed,
     string,
@@ -571,6 +597,32 @@ const feedsSlice = createSlice({
             .addCase(fetchFeedInfo.rejected, (state: FeedsState, action: any) => {
                 state.infoLoading[action.meta.arg] = false;
                 state.infoError[action.meta.arg] = action.payload;
+            })
+            .addCase(likeFeed.pending, (state: FeedsState, action) => {
+                state.actionLoading[action.meta.arg.feedId] = true;
+            })
+            .addCase(likeFeed.fulfilled, (state: FeedsState, action: any) => {
+                const { feedId } = action.meta.arg;
+                state.actionLoading[feedId] = false;
+                const { isLiked, likeUri } = action.payload;
+
+                const matches = (f: Feed) => feedActionKey(f) === feedId || f.id === feedId;
+                const updateInList = (list: Feed[]) => {
+                    const f = list.find(matches);
+                    if (f) {
+                        f.isLiked = isLiked;
+                        f.likeUri = likeUri;
+                    }
+                };
+
+                updateInList(state.feeds);
+                updateInList(state.subscribedFeeds);
+                if (state.searchResults) updateInList(state.searchResults);
+                updateInList(state.recommendedFeeds);
+                updateInList(state.userFeeds);
+            })
+            .addCase(likeFeed.rejected, (state: FeedsState, action: any) => {
+                state.actionLoading[action.meta.arg.feedId] = false;
             })
             .addCase(searchFeeds.pending, (state: FeedsState) => {
                 state.searchLoading = true;

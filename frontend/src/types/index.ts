@@ -316,6 +316,7 @@ export interface Feed {
     /** Bluesky AT URI or "following" for the timeline; prefer with feedActionKey() for API routes. */
     uri?: string;
     tid?: string;
+    cid?: string;
     name: string;
     description: string;
     handle: string;
@@ -325,6 +326,8 @@ export interface Feed {
     subscribersCount?: number;
     isSubscribed?: boolean;
     isPinned?: boolean; // For UI state in FeedsPage/ProfilePage
+    isLiked?: boolean; // Whether the current user has liked this feed generator
+    likeUri?: string; // AT URI of the like record
     pinnedOrder?: number;
     creator?: {
         id: string;

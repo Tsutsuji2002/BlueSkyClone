@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useNavigationType } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Feed from '../components/feed/Feed';
-import { FiArrowLeft, FiMoreHorizontal, FiBell, FiRss } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiBookmark, FiRss } from 'react-icons/fi';
 import { BsHeart, BsHeartFill } from 'react-icons/bs';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed, pinFeed, unpinFeed, hydrateInteractionStatusForFeed } from '../redux/slices/feedsSlice';
+import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFeed, pinFeed, unpinFeed, likeFeed, hydrateInteractionStatusForFeed } from '../redux/slices/feedsSlice';
 import { openAuthWall } from '../redux/slices/modalsSlice';
 import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
@@ -184,7 +184,7 @@ const FeedDetailPage: React.FC = () => {
                                 "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors disabled:opacity-50",
                                 feed.isPinned ? "text-primary-500" : "text-gray-700 dark:text-dark-text"
                             )}>
-                            <FiBell size={20} />
+                            <FiBookmark size={20} fill={feed.isPinned ? 'currentColor' : 'none'} />
                         </button>
                     </div>
                 </div>
@@ -240,12 +240,22 @@ const FeedDetailPage: React.FC = () => {
                         {/* Action buttons */}
                         {isAuthenticated && (
                             <div className="flex gap-3 mb-4">
-                                {/* Like button (visual only) */}
+                                {/* Like button */}
                                 <button
+                                    onClick={async () => {
+                                        if (routeKey && feed) {
+                                            await dispatch(likeFeed({ 
+                                                feedId: routeKey, 
+                                                isLiked: !feed.isLiked, 
+                                                likeUri: feed.likeUri 
+                                            }));
+                                        }
+                                    }}
+                                    disabled={feeds_actionLoading[routeKey]}
                                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border font-semibold text-[14.5px] transition-all border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-bg"
                                 >
-                                    <BsHeart size={16} />
-                                    Like
+                                    {feed.isLiked ? <BsHeartFill size={16} className="text-red-500" /> : <BsHeart size={16} />}
+                                    {feed.isLiked ? 'Liked' : 'Like'}
                                 </button>
 
                                 {/* Pin / Unpin */}
@@ -257,7 +267,6 @@ const FeedDetailPage: React.FC = () => {
                                         } else {
                                             await dispatch(pinFeed(fk));
                                         }
-                                        if (routeKey) dispatch(fetchFeedInfo(routeKey));
                                         setShowInfoModal(false);
                                     }}
                                     disabled={feeds_actionLoading[feedActionKey(feed)]}

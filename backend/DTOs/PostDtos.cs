@@ -172,6 +172,9 @@ public class FeedDto
     public bool IsPinned { get; set; }
     public int PinnedOrder { get; set; }
     public bool IsSubscribed { get; set; }
+    public bool IsLiked { get; set; }
+    public string? LikeUri { get; set; }
+    public string? Cid { get; set; }
     public string? Uri { get; set; }
 }
 

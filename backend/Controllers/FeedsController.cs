@@ -439,6 +439,28 @@ public class FeedsController : ControllerBase
             return Ok(new List<FeedDto>());
         }
     }
+
+    [Authorize]
+    [HttpPost("like/{*feedId}")]
+    public async Task<IActionResult> LikeFeed(string feedId, [FromQuery] string? uri = null, [FromQuery] bool? isLiked = null, [FromQuery] string? likeUri = null)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var (_, resolvedUri) = ParseFeedRouteKey(feedId, uri);
+            if (string.IsNullOrEmpty(resolvedUri)) return BadRequest(new { message = "Feed URI is required" });
+
+            var result = await _feedService.ToggleLikeFeedAsync(userId, resolvedUri, isLiked, likeUri);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedsController] LikeFeed error: {Msg}", ex.Message);
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
 
 

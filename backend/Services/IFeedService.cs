@@ -18,6 +18,6 @@ public interface IFeedService
     Task<FeedDto?> GetFeedByIdAsync(Guid feedId, Guid userId);
     Task<FeedDto?> GetFeedMetadataByUriAsync(string uri);
     Task<PagedPostDto> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take, string? uri = null, string? cursor = null);
-    Task<IEnumerable<FeedDto>> GetActorFeedsAsync(string actor, Guid? viewerId = null);
+    Task<object> ToggleLikeFeedAsync(Guid userId, string feedUri, bool? clientIsLiked = null, string? clientLikeUri = null);
     Task PreSeedFeedsAsync();
 }
