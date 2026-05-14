@@ -925,13 +925,6 @@ public class FeedService : IFeedService
         };
     }
 
-    public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri)
-    {
-        if (string.IsNullOrEmpty(uri)) return null;
-        var resolved = await ResolveFeedsMetadataAsync(new List<string> { uri }, null);
-        return resolved.FirstOrDefault();
-    }
-
     public async Task<object> ToggleLikeFeedAsync(Guid userId, string feedUri, bool? clientIsLiked = null, string? clientLikeUri = null)
     {
         try
