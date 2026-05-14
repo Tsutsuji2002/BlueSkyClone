@@ -701,6 +701,7 @@ const feedsSlice = createSlice({
                         f.isPinned = false;
                     }
                 };
+                findAndUpdate(state.feeds);
                 findAndUpdate(state.searchResults);
                 findAndUpdate(state.recommendedFeeds);
                 const canonical = state.subscribedFeeds.find(matches);

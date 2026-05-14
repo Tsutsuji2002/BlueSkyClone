@@ -217,7 +217,6 @@ const FeedDetailPage: React.FC = () => {
                                         } else {
                                             await dispatch(saveFeed(fk));
                                         }
-                                        dispatch(fetchSubscribedFeeds());
                                         if (routeKey) dispatch(fetchFeedInfo(routeKey));
                                     }}
                                     disabled={feeds_actionLoading[feedActionKey(feed)]}
