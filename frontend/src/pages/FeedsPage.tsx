@@ -315,7 +315,7 @@ const FeedsPage: React.FC = () => {
                                                 )}
                                             >
                                                 {feed.isPinned ? <BsPinAngleFill size={12} /> : <BsPinAngle size={12} />}
-                                                {feed.isPinned ? 'Pinned' : 'Pin feed'}
+                                                {feed.isPinned ? 'Pinned to Home' : 'Pin to Home'}
                                             </button>
 
                                             {/* Pin Dropdown */}
@@ -425,7 +425,7 @@ const FeedsPage: React.FC = () => {
                                                         )}
                                                     >
                                                         {feed.isPinned ? <BsPinAngleFill size={12} /> : <BsPinAngle size={12} />}
-                                                        {feed.isPinned ? 'Pinned' : 'Pin feed'}
+                                                        {feed.isPinned ? 'Pinned to Home' : 'Pin to Home'}
                                                     </button>
 
                                                     {/* Pin Dropdown */}

@@ -7,8 +7,8 @@ import { RootState } from '../../redux/store';
 import api from '../../utils/api';
 import Avatar from '../common/Avatar';
 import UserHoverCard from '../common/UserHoverCard';
-import { BsPatchCheckFill } from 'react-icons/bs';
 import LoadingIndicator from '../common/LoadingIndicator';
+import { BsPatchCheckFill, BsSoundwave } from 'react-icons/bs';
 
 import TrendingSection from './TrendingSection';
 import OnboardingCard from './OnboardingCard';
@@ -125,6 +125,17 @@ const RightSidebar: React.FC = () => {
             dispatch(fetchSubscribedFeeds());
         }
     }, [isAuthenticated, dispatch, feeds.length, subscribedFeeds.length, feedsLoading]);
+
+    // Background synchronization for cross-device updates
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        
+        const interval = setInterval(() => {
+            dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [isAuthenticated, dispatch]);
 
     // Memoized pinned feeds calculation
     const pinnedFeeds = useMemo(() => {
@@ -290,6 +301,7 @@ const RightSidebar: React.FC = () => {
                         const isNews = name.includes('news');
                         const isScience = name.includes('science');
                         const isDiscover = name.includes('discover') || name.includes('hot');
+                        const isBirds = name.includes('birds') || feedActionKey(feed).includes('birds');
 
                         return (
                             <button
@@ -299,7 +311,7 @@ const RightSidebar: React.FC = () => {
                             >
                                 <div className={cn(
                                     "w-5 h-5 rounded-[4px] flex-shrink-0 flex items-center justify-center overflow-hidden",
-                                    isFollowing || isScience || isDiscover ? "bg-primary-500" : (isNews ? "bg-gray-500 dark:bg-[#405168]" : "bg-gray-200 dark:bg-[#111822]")
+                                    isFollowing || isScience || isDiscover || isBirds ? "bg-primary-500" : (isNews ? "bg-gray-500 dark:bg-[#405168]" : "bg-gray-200 dark:bg-[#111822]")
                                 )}>
                                     {isFollowing ? (
                                         <svg fill="none" viewBox="0 0 24 24" width="14" height="14">
@@ -317,6 +329,8 @@ const RightSidebar: React.FC = () => {
                                         <svg fill="none" viewBox="0 0 24 24" width="12" height="12">
                                             <path fill="#FFFFFF" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
                                         </svg>
+                                    ) : isBirds ? (
+                                        <BsSoundwave className="text-white" size={14} />
                                     ) : (
                                         feed.avatar || feed.avatarUrl ? (
                                             <img src={feed.avatar || feed.avatarUrl} alt="" className="w-full h-full object-cover" />

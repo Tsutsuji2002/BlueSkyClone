@@ -643,13 +643,11 @@ const feedsSlice = createSlice({
             })
             .addCase(pinFeed.pending, (state: FeedsState, action) => {
                 state.actionLoading[action.meta.arg] = true;
-            })
-            .addCase(pinFeed.fulfilled, (state: FeedsState, action: any) => {
-                state.isLoading = false;
+                
+                // Optimistic Update
                 const feedId = action.meta.arg;
-                state.actionLoading[feedId] = false;
-
                 const matches = (f: Feed) => feedActionKey(f) === feedId || f.id === feedId;
+                
                 const updateInList = (list: Feed[]) => {
                     const f = list.find(matches);
                     if (f) {
@@ -661,8 +659,7 @@ const feedsSlice = createSlice({
                 updateInList(state.feeds);
                 updateInList(state.searchResults);
                 updateInList(state.recommendedFeeds);
-
-                // Handle subscribedFeeds
+                
                 let subFeed = state.subscribedFeeds.find(matches);
                 if (subFeed) {
                     subFeed.isPinned = true;
@@ -685,6 +682,12 @@ const feedsSlice = createSlice({
                     state.pinnedFeedIds.push(pinIdToStore);
                 }
             })
+            .addCase(pinFeed.fulfilled, (state: FeedsState, action: any) => {
+                const feedId = action.meta.arg;
+                state.actionLoading[feedId] = false;
+                // Fulfilled state is already handled by pending (optimistic)
+                // but we keep consistent state just in case server returned different metadata
+            })
             .addCase(pinFeed.rejected, (state: FeedsState, action: any) => {
                 state.actionLoading[action.meta.arg] = false;
             })
@@ -703,12 +706,9 @@ const feedsSlice = createSlice({
             })
             .addCase(unpinFeed.pending, (state: FeedsState, action) => {
                 state.actionLoading[action.meta.arg] = true;
-            })
-            .addCase(unpinFeed.fulfilled, (state: FeedsState, action: any) => {
-                state.isLoading = false;
-                const feedId = action.meta.arg;
-                state.actionLoading[feedId] = false;
 
+                // Optimistic Update
+                const feedId = action.meta.arg;
                 const matches = (f: Feed) => feedActionKey(f) === feedId || f.id === feedId;
                 const updateInList = (list: Feed[]) => {
                     const f = list.find(matches);
@@ -725,6 +725,11 @@ const feedsSlice = createSlice({
                 const canonical = state.subscribedFeeds.find(matches);
                 const pinKey = canonical ? feedActionKey(canonical) : feedId;
                 state.pinnedFeedIds = state.pinnedFeedIds.filter(id => id !== feedId && id !== pinKey);
+            })
+            .addCase(unpinFeed.fulfilled, (state: FeedsState, action: any) => {
+                const feedId = action.meta.arg;
+                state.actionLoading[feedId] = false;
+                // Fulfilled state is already handled by pending (optimistic)
             })
             .addCase(unpinFeed.rejected, (state: FeedsState, action: any) => {
                 state.actionLoading[action.meta.arg] = false;
