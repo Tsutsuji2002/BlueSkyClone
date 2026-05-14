@@ -923,6 +923,8 @@ public class FeedService : IFeedService
                 IsVerified = feed.Creator.IsVerified
             } : null
         };
+    }
+
     public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri)
     {
         if (string.IsNullOrEmpty(uri)) return null;
