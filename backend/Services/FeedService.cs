@@ -872,7 +872,20 @@ public class FeedService : IFeedService
 
     public async Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid? userId, string query, int skip, int take)
     {
-        var feeds = await _unitOfWork.Feeds.Query()
+        var result = new List<FeedDto>();
+        var queryLower = query.ToLowerInvariant();
+
+        // 1. Check for synthetic matches (Following, Discover)
+        if (skip == 0)
+        {
+            if ("following".Contains(queryLower))
+                result.Add(CreateSyntheticTimelineFeed(FollowingFeedKey, false, true));
+            if ("discover".Contains(queryLower))
+                result.Add(CreateSyntheticTimelineFeed(DiscoverFeedKey, false, true));
+        }
+
+        // 2. Local DB Search
+        var localFeeds = await _unitOfWork.Feeds.Query()
             .Include(f => f.Creator)
             .Where(f => (f.IsDeleted == false || f.IsDeleted == null) && 
                         (f.Name.Contains(query) || (f.Description != null && f.Description.Contains(query))))
@@ -897,7 +910,36 @@ public class FeedService : IFeedService
                 .ToListAsync();
         }
 
-        return feeds.Select(f => MapToDto(f, userPinnedFeedIds.Contains(f.Id), 0, userSubscribedFeedIds.Contains(f.Id)));
+        foreach (var f in localFeeds)
+        {
+            result.Add(MapToDto(f, userPinnedFeedIds.Contains(f.Id), 0, userSubscribedFeedIds.Contains(f.Id)));
+        }
+
+        // 3. Remote Fallback (if we need more results)
+        if (result.Count < take)
+        {
+            try
+            {
+                // Fetch a large page of popular feeds from Bluesky
+                var popularPage = await GetPopularRemoteFeedsAsync(userId, null, 100);
+                if (popularPage?.Feeds != null)
+                {
+                    var remoteMatches = popularPage.Feeds
+                        .Where(rf => (rf.Name?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) || 
+                                     (rf.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+                        .Where(rf => !result.Any(lr => lr.Tid == rf.Tid || (lr.Name == rf.Name && lr.Handle == rf.Handle)))
+                        .Take(take - result.Count);
+
+                    result.AddRange(remoteMatches);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[FeedService] Remote fallback search failed for query: {Query}", query);
+            }
+        }
+
+        return result;
     }
 
     private FeedDto MapToDto(Feed feed, bool isPinned = false, int pinnedOrder = 0, bool isSubscribed = true)

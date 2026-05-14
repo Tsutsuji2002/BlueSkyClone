@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     FiArrowLeft, FiSettings, FiSearch, FiRss,
-    FiChevronRight, FiGrid, FiActivity, FiMapPin
+    FiChevronRight, FiGrid, FiActivity, FiMapPin, FiRefreshCw
 } from 'react-icons/fi';
 import { BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import { FiX, FiTrash2 } from 'react-icons/fi';
@@ -34,6 +34,7 @@ const FeedsPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showMorePinned, setShowMorePinned] = useState(false);
     const [showAllMyFeeds, setShowAllMyFeeds] = useState(false);
+    const [isMyFeedsExpanded, setIsMyFeedsExpanded] = useState(true);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [activePinMenuId, setActivePinMenuId] = useState<string | null>(null);
     const pinMenuRef = useRef<HTMLDivElement>(null);
@@ -223,96 +224,110 @@ const FeedsPage: React.FC = () => {
 
             <div className="flex-1 min-h-[500px]">
 
-                {isAuthenticated && (
-                    /* My feeds section for authenticated users */
-                    <div className="p-4 border-b border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/10">
-                        <div className="flex items-center gap-4 mb-1">
-                            <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
-                                <FiGrid className="text-primary-500" size={20} />
-                            </div>
-                            <div>
-                                <h2 className="font-bold text-gray-900 dark:text-dark-text">{t('feeds.my_feeds')}</h2>
-                                <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-0.5">
-                                    {t('feeds.my_feeds_hint')}
-                                </p>
-                            </div>
+                {/* SEARCH & DISCOVER (MOVED TO TOP) */}
+                <div className="px-5 pt-5 pb-3 bg-white dark:bg-dark-bg border-b border-gray-100 dark:border-dark-border">
+                    <div className={cn(
+                        "flex items-start gap-3 transition-all duration-300",
+                        searchQuery.length >= 2 ? "opacity-0 h-0 overflow-hidden mb-0 scale-95" : "opacity-100 mb-3 scale-100"
+                    )}>
+                        <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
+                            <FiActivity className="text-primary-500" size={22} />
                         </div>
-
-                    <div className="space-y-0.5 mt-1">
-                            {myFeedsSorted.length === 0 && (
-                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-4 italic text-center">
-                                    {t('feeds.no_saved_feeds')}
-                                </p>
-                            )}
-                            {(showAllMyFeeds ? myFeedsSorted : myFeedsSorted.slice(0, myFeedsCollapsedAt)).map((feed: Feed) => {
-                                    const fk = feedActionKey(feed);
-                                    const isSpecial = fk === 'following';
-                                    return (
-                                        <div
-                                            key={fk}
-                                            onClick={() => !isSpecial && navigate(`/feeds/${encodeURIComponent(fk)}`)}
-                                            className={cn(
-                                                "flex items-center justify-between px-4 py-3 transition-colors group",
-                                                isSpecial ? "cursor-default" : "hover:bg-gray-50 dark:hover:bg-dark-surface/30 cursor-pointer"
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-3 overflow-hidden min-w-0">
-                                                <FeedAvatar
-                                                    src={feed.avatarUrl || feed.avatar}
-                                                    alt={feed.name}
-                                                    size="sm"
-                                                    className="rounded-md flex-shrink-0"
-                                                />
-                                                <span className="font-semibold text-gray-900 dark:text-dark-text truncate text-[15px]">
-                                                    {isSpecial ? t('nav.following') : feed.name}
-                                                </span>
-                                            </div>
-                                            {!isSpecial && <FiChevronRight className="text-gray-400 flex-shrink-0" size={18} />}
-                                        </div>
-                                    );
-                                })}
-                            {myFeedsSorted.length > myFeedsCollapsedAt && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllMyFeeds(!showAllMyFeeds)}
-                                    className="w-full py-2 mt-1 text-sm font-bold text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
-                                >
-                                    {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
-                                </button>
-                            )}
+                        <div>
+                            <h2 className="text-[17px] font-black text-gray-900 dark:text-dark-text leading-tight">
+                                {t('feeds.discover_new_feeds')}
+                            </h2>
+                            <p className="text-[13.5px] text-gray-500 dark:text-dark-text-secondary leading-snug mt-0.5">
+                                {t('feeds.discover_description')}
+                            </p>
                         </div>
                     </div>
-                )}
 
-                {/* Search Bar / Discover Banner for Authenticated users */}
-                {isAuthenticated && (
-                    <div className="px-5 pt-5 pb-3">
-                        {searchQuery.length < 2 && (
-                            <div className="flex items-start gap-3 mb-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
-                                    <FiActivity className="text-primary-500" size={22} />
+                    <div className="relative group">
+                        <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={16} />
+                        <input
+                            type="text"
+                            placeholder={t('feeds.search_feeds_placeholder')}
+                            className="w-full bg-gray-100 dark:bg-dark-surface py-2.5 pl-10 pr-4 rounded-full text-[14px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-400 outline-none transition-colors dark:text-dark-text placeholder-gray-400"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* MY FEEDS SECTION (ONLY SHOW WHEN NOT SEARCHING) */}
+                {isAuthenticated && !searchQuery && (
+                    <div className="border-b border-gray-100 dark:border-dark-border bg-gray-50/30 dark:bg-dark-surface/5">
+                        <div className="px-6 py-4 flex items-center justify-between group cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
+                            onClick={() => setIsMyFeedsExpanded(!isMyFeedsExpanded)}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
+                                    <FiGrid className="text-primary-600 dark:text-primary-400" size={18} />
                                 </div>
-                                <div>
-                                    <h2 className="text-[17px] font-black text-gray-900 dark:text-dark-text leading-tight">
-                                        Discover New Feeds
-                                    </h2>
-                                    <p className="text-[13.5px] text-gray-500 dark:text-dark-text-secondary leading-snug mt-0.5">
-                                        Choose your own timeline! Feeds built by the community help you find content you love.
+                                <h3 className="font-bold text-gray-900 dark:text-dark-text">{t('feeds.my_feeds')}</h3>
+                            </div>
+                            <div className="text-[13px] text-gray-400 font-medium">
+                                {isMyFeedsExpanded ? 'Hide' : 'Show'}
+                            </div>
+                        </div>
+                        
+                        {isMyFeedsExpanded && (
+                            <div className="pb-4">
+                                <div className="px-6 mb-2">
+                                    <p className="text-[13px] text-gray-500 dark:text-dark-text-secondary leading-snug">
+                                        Pin feeds to add them to Home. Use settings for order on Home.
                                     </p>
+                                </div>
+                                <div className="space-y-0.5">
+                                    {(showAllMyFeeds ? myFeedsSorted : myFeedsSorted.slice(0, myFeedsCollapsedAt)).map((feed: Feed) => {
+                                        const fk = feedActionKey(feed);
+                                        const isSpecial = fk === 'following';
+                                        return (
+                                            <div
+                                                key={fk}
+                                                onClick={() => !isSpecial && navigate(`/feeds/${encodeURIComponent(fk)}`)}
+                                                className={cn(
+                                                    "flex items-center justify-between px-6 py-2 content-center items-center hover:bg-gray-50 dark:hover:bg-dark-surface transition-all cursor-pointer group flex justify-between",
+                                                    isSpecial ? "cursor-default" : "hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3 overflow-hidden min-w-0">
+                                                    <FeedAvatar
+                                                        src={feed.avatarUrl || feed.avatar}
+                                                        alt={feed.name}
+                                                        size="sm"
+                                                        className="rounded-md flex-shrink-0"
+                                                    />
+                                                    <span className="font-semibold text-gray-700 dark:text-dark-text group-hover:text-primary-500 transition-colors truncate text-[15px]">
+                                                        {isSpecial ? t('nav.following') : feed.name}
+                                                    </span>
+                                                </div>
+                                                {!isSpecial && <FiChevronRight className="text-gray-300 group-hover:text-primary-400 transition-all opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0" size={18} />}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {myFeedsSorted.length > myFeedsCollapsedAt && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllMyFeeds(!showAllMyFeeds)}
+                                        className="w-full py-2 px-6 text-sm font-bold text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors text-center"
+                                    >
+                                        {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
+                                    </button>
+                                )}
+                                <div className="px-6 pt-2">
+                                    <button 
+                                        onClick={() => navigate('/settings/saved-feeds')}
+                                        className="w-full py-2.5 px-4 bg-gray-100 dark:bg-dark-surface-secondary hover:bg-gray-200 dark:hover:bg-dark-surface-secondary-hover border border-gray-200 dark:border-dark-border rounded-xl text-sm font-bold text-gray-700 dark:text-dark-text flex items-center justify-center gap-2 transition-all"
+                                    >
+                                        <FiSettings size={14} className="text-gray-400" />
+                                        {t('feeds.edit_feeds')}
+                                    </button>
                                 </div>
                             </div>
                         )}
-                        {/* Unified search bar (Persistent) */}
-                        <div className="relative group">
-                            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search feeds"
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-2.5 pl-10 pr-4 rounded-full text-[14px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-400 outline-none transition-colors dark:text-dark-text placeholder-gray-400"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
                     </div>
                 )}
 
@@ -320,86 +335,108 @@ const FeedsPage: React.FC = () => {
                 {searchQuery.length >= 2 ? (
                     /* Search results */
                     <div className="flex flex-col">
-                        <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/5 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-                            {t('feeds.search_results')}
+                        <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/5 text-[13px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider flex items-center justify-between transition-colors">
+                            <span>{t('feeds.search_results')}</span>
+                            {searchLoading && <FiRefreshCw className="animate-spin text-primary-500" size={14} />}
                         </div>
-                        {searchResults.map((feed: Feed) => (
-                            <div
-                                key={feedActionKey(feed)}
-                                onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
-                                className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
-                            >
-                                <div className="flex items-center justify-between gap-3 mb-2">
-                                    <div className="flex gap-3 min-w-0">
-                                        <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="font-bold text-gray-900 dark:text-dark-text hover:underline truncate">{feed.name}</span>
-                                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">Feed by @{feed.handle}</span>
-                                        </div>
-                                    </div>
-                                    {isAuthenticated && (
-                                        <div className="relative" ref={activePinMenuId === feedActionKey(feed) ? pinMenuRef : null}>
-                                            <button
-                                                onClick={(e) => handlePinToggle(e, feed)}
-                                                disabled={actionLoading[feedActionKey(feed)]}
-                                                className={cn(
-                                                    "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-[13px] transition-all disabled:opacity-50",
-                                                    feed.isPinned
-                                                        ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
-                                                        : "bg-primary-500 text-white"
-                                                )}
-                                            >
-                                                {feed.isPinned ? <BsPinAngleFill size={12} /> : <BsPinAngle size={12} />}
-                                                {feed.isPinned ? 'Pinned to Home' : 'Pin to Home'}
-                                            </button>
+                        
+                        {searchLoading && searchResults.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-dark-bg">
+                                <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                <p className="text-gray-500 dark:text-dark-text-secondary">Searching feeds...</p>
+                            </div>
+                        ) : searchResults.length > 0 ? (
+                            <>
+                                {searchResults.map((feed: Feed) => (
+                                    <div
+                                        key={feedActionKey(feed)}
+                                        onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
+                                        className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
+                                    >
+                                        <div className="flex items-center justify-between gap-3 mb-2">
+                                            <div className="flex gap-3 min-w-0">
+                                                <FeedAvatar src={feed.avatarUrl || feed.avatar} alt={feed.name} />
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="font-bold text-gray-900 dark:text-dark-text hover:underline truncate">{feed.name}</span>
+                                                    <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">Feed by @{feed.handle}</span>
+                                                </div>
+                                            </div>
+                                            {isAuthenticated && (
+                                                <div className="relative" ref={activePinMenuId === feedActionKey(feed) ? pinMenuRef : null}>
+                                                    <button
+                                                        onClick={(e) => handlePinToggle(e, feed)}
+                                                        disabled={actionLoading[feedActionKey(feed)]}
+                                                        className={cn(
+                                                            "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-[13px] transition-all disabled:opacity-50",
+                                                            feed.isPinned
+                                                                ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
+                                                                : "bg-primary-500 text-white"
+                                                        )}
+                                                    >
+                                                        {feed.isPinned ? <BsPinAngleFill size={12} /> : <BsPinAngle size={12} />}
+                                                        {feed.isPinned ? 'Pinned to Home' : 'Pin to Home'}
+                                                    </button>
 
-                                            {/* Pin Dropdown */}
-                                            {activePinMenuId === feedActionKey(feed) && (
-                                                <div 
-                                                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#161e27] border border-gray-100 dark:border-gray-800 rounded-xl shadow-2xl z-50 overflow-hidden py-1.5 ring-1 ring-black/5"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <button
-                                                        onClick={async (e) => {
-                                                            e.stopPropagation();
-                                                            const fk = feedActionKey(feed);
-                                                            await dispatch(unpinFeed(fk));
-                                                            setActivePinMenuId(null);
-                                                            dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
-                                                        }}
-                                                        className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-900 dark:text-dark-text"
-                                                    >
-                                                        <span className="font-semibold">Unpin from home</span>
-                                                        <FiX size={18} className="text-gray-500" />
-                                                    </button>
-                                                    <button
-                                                        onClick={async (e) => {
-                                                            e.stopPropagation();
-                                                            const fk = feedActionKey(feed);
-                                                            await dispatch(unsaveFeed(fk));
-                                                            if (feed.isPinned) await dispatch(unpinFeed(fk));
-                                                            
-                                                            setActivePinMenuId(null);
-                                                            dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
-                                                        }}
-                                                        className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-red-500"
-                                                    >
-                                                        <span className="font-semibold">Remove from my feeds</span>
-                                                        <FiTrash2 size={18} />
-                                                    </button>
+                                                    {/* Pin Dropdown */}
+                                                    {activePinMenuId === feedActionKey(feed) && (
+                                                        <div 
+                                                            className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#161e27] border border-gray-100 dark:border-gray-800 rounded-xl shadow-2xl z-50 overflow-hidden py-1.5 ring-1 ring-black/5"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    const fk = feedActionKey(feed);
+                                                                    await dispatch(unpinFeed(fk));
+                                                                    setActivePinMenuId(null);
+                                                                    dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+                                                                }}
+                                                                className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-900 dark:text-dark-text"
+                                                            >
+                                                                <span className="font-semibold">Unpin from home</span>
+                                                                <FiX size={18} className="text-gray-500" />
+                                                            </button>
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    const fk = feedActionKey(feed);
+                                                                    await dispatch(unsaveFeed(fk));
+                                                                    if (feed.isPinned) await dispatch(unpinFeed(fk));
+                                                                    
+                                                                    setActivePinMenuId(null);
+                                                                    dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+                                                                }}
+                                                                className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-red-500"
+                                                            >
+                                                                <span className="font-semibold">Remove from my feeds</span>
+                                                                <FiTrash2 size={18} />
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
-                                    )}
+                                        {feed.description && (
+                                            <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-2 leading-relaxed pl-[52px]">
+                                                {feed.description}
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
+                                {searchLoading && <div className="p-4 text-center text-sm text-gray-500">{t('common.loading')}</div>}
+                            </>
+                        ) : !searchLoading && (
+                            <div className="flex flex-col items-center justify-center py-20 px-10 text-center bg-white dark:bg-dark-bg transition-opacity duration-500">
+                                <div className="w-16 h-16 bg-gray-100 dark:bg-dark-surface/50 rounded-full flex items-center justify-center mb-4">
+                                    <FiSearch className="text-gray-400" size={30} />
                                 </div>
-                                {feed.description && (
-                                    <p className="text-[14px] text-gray-600 dark:text-dark-text-secondary line-clamp-2 leading-relaxed pl-[52px]">
-                                        {feed.description}
-                                    </p>
-                                )}
+                                <h3 className="font-bold text-[17px] text-gray-900 dark:text-dark-text">No feeds found</h3>
+                                <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary mt-1">
+                                    We couldn't find any feeds matching "{searchQuery}". 
+                                    Try a different keyword or check for typos.
+                                </p>
                             </div>
-                        ))}
-                        {searchLoading && <div className="p-4 text-center text-sm text-gray-500">{t('common.loading')}</div>}
+                        )}
                     </div>
                 ) : (
                     <div className="flex flex-col">
