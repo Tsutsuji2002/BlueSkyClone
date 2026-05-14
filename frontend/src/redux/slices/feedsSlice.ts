@@ -736,30 +736,42 @@ const feedsSlice = createSlice({
             })
             .addCase(saveFeed.pending, (state: FeedsState, action) => {
                 state.actionLoading[action.meta.arg] = true;
-            })
-            .addCase(saveFeed.fulfilled, (state: FeedsState, action: any) => {
+
+                // Optimistic Update
                 const feedId = action.meta.arg;
-                state.actionLoading[feedId] = false;
                 const matches = (f: Feed) => feedActionKey(f) === feedId || f.id === feedId;
                 const sourceFeed = state.searchResults.find(matches) ||
-                    state.recommendedFeeds.find(matches);
+                    state.recommendedFeeds.find(matches) ||
+                    state.feeds.find(matches);
 
                 if (sourceFeed) {
-                    sourceFeed.isSubscribed = true;
+                    // Update in place if found in results
+                    const updateList = (list: Feed[]) => {
+                        const f = list.find(matches);
+                        if (f) f.isSubscribed = true;
+                    };
+                    updateList(state.searchResults);
+                    updateList(state.recommendedFeeds);
+                    updateList(state.feeds);
+
                     if (!state.subscribedFeeds.find(matches)) {
                         state.subscribedFeeds.push({ ...sourceFeed, isSubscribed: true });
                     }
                 }
+            })
+            .addCase(saveFeed.fulfilled, (state: FeedsState, action: any) => {
+                const feedId = action.meta.arg;
+                state.actionLoading[feedId] = false;
+                // Already handled optimistically
             })
             .addCase(saveFeed.rejected, (state: FeedsState, action: any) => {
                 state.actionLoading[action.meta.arg] = false;
             })
             .addCase(unsaveFeed.pending, (state: FeedsState, action) => {
                 state.actionLoading[action.meta.arg] = true;
-            })
-            .addCase(unsaveFeed.fulfilled, (state: FeedsState, action: any) => {
+
+                // Optimistic Update
                 const feedId = action.meta.arg;
-                state.actionLoading[feedId] = false;
                 const matches = (f: Feed) => feedActionKey(f) === feedId || f.id === feedId;
                 const findAndUpdate = (list: Feed[]) => {
                     const f = list.find(matches);
@@ -771,10 +783,16 @@ const feedsSlice = createSlice({
                 findAndUpdate(state.feeds);
                 findAndUpdate(state.searchResults);
                 findAndUpdate(state.recommendedFeeds);
+                
                 const canonical = state.subscribedFeeds.find(matches);
                 const pinKey = canonical ? feedActionKey(canonical) : feedId;
                 state.subscribedFeeds = state.subscribedFeeds.filter(f => !matches(f));
                 state.pinnedFeedIds = state.pinnedFeedIds.filter(id => id !== feedId && id !== pinKey);
+            })
+            .addCase(unsaveFeed.fulfilled, (state: FeedsState, action: any) => {
+                const feedId = action.meta.arg;
+                state.actionLoading[feedId] = false;
+                // Already handled optimistically
             })
             .addCase(unsaveFeed.rejected, (state: FeedsState, action: any) => {
                 state.actionLoading[action.meta.arg] = false;
