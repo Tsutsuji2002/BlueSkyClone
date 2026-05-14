@@ -153,7 +153,7 @@ namespace BSkyClone.Services
                             var topicStr = item.TryGetProperty("topic", out var tEl) ? tEl.GetString() : "";
                             if (!string.IsNullOrEmpty(topicStr))
                             {
-                                var hashtag = topicStr.StartsWith("#") ? topicStr.Substring(1) : topicStr.Replace(" ", "");
+                                var hashtag = topicStr.StartsWith("#") ? topicStr.Substring(1) : topicStr;
                                 var link = item.TryGetProperty("link", out var lEl) ? lEl.GetString() : null;
                                 
                                 topics.Add(new TrendingTopicDto
