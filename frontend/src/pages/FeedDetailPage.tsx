@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, useNavigationType } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Feed from '../components/feed/Feed';
-import { FiArrowLeft, FiMoreHorizontal, FiRss } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiRss, FiX, FiTrash2 } from 'react-icons/fi';
 import { BsHeart, BsHeartFill, BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
@@ -97,6 +97,18 @@ const FeedDetailPage: React.FC = () => {
     }, [id, isLoading, posts.length]);
 
     const [showInfoModal, setShowInfoModal] = useState(false);
+    const [showPinMenu, setShowPinMenu] = useState(false);
+    const pinMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (pinMenuRef.current && !pinMenuRef.current.contains(event.target as Node)) {
+                setShowPinMenu(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     if (!feed && routeKey && infoLoading[routeKey] === false && infoError[routeKey]) {
         return (
@@ -161,31 +173,71 @@ const FeedDetailPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                         {/* "..." opens info modal */}
-                        <button
-                            className="p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
-                            onClick={() => setShowInfoModal(true)}
-                        >
-                            <FiMoreHorizontal size={20} className="text-gray-700 dark:text-dark-text" />
-                        </button>
+                        <div className="relative">
+                            <button
+                                className="p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                                onClick={() => setShowInfoModal(true)}
+                            >
+                                <FiMoreHorizontal size={20} className="text-gray-700 dark:text-dark-text" />
+                            </button>
+                        </div>
                         {/* Bell / pin toggle */}
-                        <button
-                            type="button"
-                            onClick={async () => {
-                                if (!isAuthenticated) {
-                                    dispatch(openAuthWall());
-                                    return;
-                                }
-                                const fk = feedActionKey(feed);
-                                if (feed.isPinned) await dispatch(unpinFeed(fk));
-                                else await dispatch(pinFeed(fk));
-                            }}
-                            disabled={feeds_actionLoading[feedActionKey(feed)]}
-                            className={cn(
-                                "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors disabled:opacity-50",
-                                feed.isPinned ? "text-primary-500" : "text-gray-700 dark:text-dark-text"
-                            )}>
-                            {feed.isPinned ? <BsPinAngleFill size={20} /> : <BsPinAngle size={20} />}
-                        </button>
+                        <div className="relative" ref={pinMenuRef}>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!isAuthenticated) {
+                                        dispatch(openAuthWall());
+                                        return;
+                                    }
+                                    const fk = feedActionKey(feed);
+                                    if (feed.isPinned) {
+                                        setShowPinMenu(!showPinMenu);
+                                    } else {
+                                        await dispatch(pinFeed(fk));
+                                        dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+                                    }
+                                }}
+                                disabled={feeds_actionLoading[feedActionKey(feed)]}
+                                className={cn(
+                                    "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors disabled:opacity-50",
+                                    feed.isPinned ? "text-primary-500" : "text-gray-700 dark:text-dark-text"
+                                )}>
+                                {feed.isPinned ? <BsPinAngleFill size={20} /> : <BsPinAngle size={20} />}
+                            </button>
+
+                            {/* Pin Dropdown Menu */}
+                            {showPinMenu && (
+                                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#161e27] border border-gray-100 dark:border-gray-800 rounded-xl shadow-2xl z-50 overflow-hidden py-1.5 ring-1 ring-black/5">
+                                    <button
+                                        onClick={async () => {
+                                            const fk = feedActionKey(feed);
+                                            await dispatch(unpinFeed(fk));
+                                            setShowPinMenu(false);
+                                            dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+                                        }}
+                                        className="w-full flex items-center justify-between px-4 py-3 text-[15px] hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-900 dark:text-dark-text"
+                                    >
+                                        <span className="font-semibold">Unpin from home</span>
+                                        <FiX size={20} className="text-gray-500 dark:text-gray-400" />
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            const fk = feedActionKey(feed);
+                                            await dispatch(unsaveFeed(fk));
+                                            if (feed.isPinned) await dispatch(unpinFeed(fk));
+                                            
+                                            setShowPinMenu(false);
+                                            dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+                                        }}
+                                        className="w-full flex items-center justify-between px-4 py-3 text-[15px] hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-red-500"
+                                    >
+                                        <span className="font-semibold">Remove from my feeds</span>
+                                        <FiTrash2 size={20} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
