@@ -246,28 +246,32 @@ const FeedsPage: React.FC = () => {
                                 </p>
                             )}
                             {(showAllMyFeeds ? myFeedsSorted : myFeedsSorted.slice(0, myFeedsCollapsedAt)).map((feed: Feed) => {
-                                const fk = feedActionKey(feed);
-                                return (
-                                    <div
-                                        key={fk}
-                                        onClick={() => navigate(`/feeds/${encodeURIComponent(fk)}`)}
-                                        className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface/30 cursor-pointer transition-colors group"
-                                    >
-                                        <div className="flex items-center gap-3 overflow-hidden min-w-0">
-                                            <FeedAvatar
-                                                src={feed.avatarUrl || feed.avatar}
-                                                alt={feed.name}
-                                                size="sm"
-                                                className="rounded-md flex-shrink-0"
-                                            />
-                                            <span className="font-semibold text-gray-900 dark:text-dark-text truncate text-[15px]">
-                                                {(feed.handle === 'following' || feed.name === 'Following') ? t('nav.following') : feed.name}
-                                            </span>
+                                    const fk = feedActionKey(feed);
+                                    const isSpecial = fk === 'following';
+                                    return (
+                                        <div
+                                            key={fk}
+                                            onClick={() => !isSpecial && navigate(`/feeds/${encodeURIComponent(fk)}`)}
+                                            className={cn(
+                                                "flex items-center justify-between px-4 py-3 transition-colors group",
+                                                isSpecial ? "cursor-default" : "hover:bg-gray-50 dark:hover:bg-dark-surface/30 cursor-pointer"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3 overflow-hidden min-w-0">
+                                                <FeedAvatar
+                                                    src={feed.avatarUrl || feed.avatar}
+                                                    alt={feed.name}
+                                                    size="sm"
+                                                    className="rounded-md flex-shrink-0"
+                                                />
+                                                <span className="font-semibold text-gray-900 dark:text-dark-text truncate text-[15px]">
+                                                    {isSpecial ? t('nav.following') : feed.name}
+                                                </span>
+                                            </div>
+                                            {!isSpecial && <FiChevronRight className="text-gray-400 flex-shrink-0" size={18} />}
                                         </div>
-                                        <FiChevronRight className="text-gray-400 flex-shrink-0" size={18} />
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
                             {myFeedsSorted.length > myFeedsCollapsedAt && (
                                 <button
                                     type="button"
