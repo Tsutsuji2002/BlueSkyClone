@@ -379,10 +379,13 @@ public class FeedsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("search")]
-    public async Task<IActionResult> SearchFeeds([FromQuery] string query, [FromQuery] int skip = 0, [FromQuery] int take = 10)
+    public async Task<IActionResult> SearchFeeds([FromQuery] string? query = null, [FromQuery] string? searchQuery = null, [FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
         try
         {
+            var effectiveQuery = query ?? searchQuery;
+            if (string.IsNullOrWhiteSpace(effectiveQuery)) return Ok(new List<FeedDto>());
+
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? userId = null;
             if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var parsedId))
@@ -390,7 +393,7 @@ public class FeedsController : ControllerBase
                 userId = parsedId;
             }
 
-            var feeds = await _feedService.SearchFeedsAsync(userId, query, skip, take);
+            var feeds = await _feedService.SearchFeedsAsync(userId, effectiveQuery, skip, take);
             return Ok(feeds);
         }
         catch (Exception ex)

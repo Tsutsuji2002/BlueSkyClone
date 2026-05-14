@@ -222,37 +222,6 @@ const FeedsPage: React.FC = () => {
             )}
 
             <div className="flex-1 min-h-[500px]">
-                {/* Search Bar / Discover Banner for Authenticated users */}
-                {isAuthenticated && (
-                    <div className="px-5 pt-5 pb-3">
-                        {searchQuery.length < 2 && (
-                            <div className="flex items-start gap-3 mb-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
-                                    <FiActivity className="text-primary-500" size={22} />
-                                </div>
-                                <div>
-                                    <h2 className="text-[17px] font-black text-gray-900 dark:text-dark-text leading-tight">
-                                        Discover New Feeds
-                                    </h2>
-                                    <p className="text-[13.5px] text-gray-500 dark:text-dark-text-secondary leading-snug mt-0.5">
-                                        Choose your own timeline! Feeds built by the community help you find content you love.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                        {/* Unified search bar (Persistent) */}
-                        <div className="relative group">
-                            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search feeds"
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-2.5 pl-10 pr-4 rounded-full text-[14px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-400 outline-none transition-colors dark:text-dark-text placeholder-gray-400"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                )}
 
                 {isAuthenticated && (
                     /* My feeds section for authenticated users */
@@ -311,6 +280,38 @@ const FeedsPage: React.FC = () => {
                                     {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
                                 </button>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Search Bar / Discover Banner for Authenticated users */}
+                {isAuthenticated && (
+                    <div className="px-5 pt-5 pb-3">
+                        {searchQuery.length < 2 && (
+                            <div className="flex items-start gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
+                                    <FiActivity className="text-primary-500" size={22} />
+                                </div>
+                                <div>
+                                    <h2 className="text-[17px] font-black text-gray-900 dark:text-dark-text leading-tight">
+                                        Discover New Feeds
+                                    </h2>
+                                    <p className="text-[13.5px] text-gray-500 dark:text-dark-text-secondary leading-snug mt-0.5">
+                                        Choose your own timeline! Feeds built by the community help you find content you love.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                        {/* Unified search bar (Persistent) */}
+                        <div className="relative group">
+                            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search feeds"
+                                className="w-full bg-gray-100 dark:bg-dark-surface py-2.5 pl-10 pr-4 rounded-full text-[14px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-400 outline-none transition-colors dark:text-dark-text placeholder-gray-400"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
                     </div>
                 )}
