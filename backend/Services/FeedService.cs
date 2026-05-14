@@ -645,7 +645,8 @@ public class FeedService : IFeedService
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did)) return false;
 
-            var normalizedFeedUri = CanonicalizeFeedValue(feedUri);
+            var resolvedFeedUri = await ResolveAtUriAsync(feedUri);
+            var normalizedFeedUri = CanonicalizeFeedValue(resolvedFeedUri);
 
             // 1. Get current preferences
             var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
@@ -666,9 +667,29 @@ public class FeedService : IFeedService
             if (v2Pref != null)
             {
                 var items = v2Pref["items"]!.AsArray();
-                var matchedItems = items
-                    .Where(i => MatchesFeedValue(i?["value"]?.GetValue<string>(), normalizedFeedUri))
-                    .ToList();
+                
+                // Self-healing: Find items that match visually or dynamically resolve to the target to clean up stale handles
+                var matchedItems = new List<JsonNode>();
+                foreach (var item in items.ToList())
+                {
+                    var val = item?["value"]?.GetValue<string>();
+                    if (string.IsNullOrWhiteSpace(val)) continue;
+                    
+                    var canonicalVal = CanonicalizeFeedValue(val);
+                    if (MatchesFeedValue(canonicalVal, normalizedFeedUri))
+                    {
+                        matchedItems.Add(item);
+                    }
+                    else if (val.StartsWith("at://", StringComparison.OrdinalIgnoreCase) && !val.StartsWith("at://did:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Resolve the stored handle AT URI to see if it's actually referring to the same target DID
+                        var resolvedStoredVal = await ResolveAtUriAsync(val);
+                        if (MatchesFeedValue(CanonicalizeFeedValue(resolvedStoredVal), normalizedFeedUri))
+                        {
+                            matchedItems.Add(item);
+                        }
+                    }
+                }
 
                 if (save)
                 {
@@ -686,10 +707,11 @@ public class FeedService : IFeedService
                     {
                         var primary = matchedItems[0];
                         primary["type"] = prefType;
-                        primary["value"] = normalizedFeedUri;
+                        primary["value"] = normalizedFeedUri; // enforce storing the DID-resolved canonical URI
                         if (pinAction.HasValue)
                             primary["pinned"] = pinAction.Value;
 
+                        // self-heal: scrub out any duplicates or malformed handle-based matches
                         foreach (var extra in matchedItems.Skip(1).ToList())
                             items.Remove(extra);
                     }
@@ -743,11 +765,14 @@ public class FeedService : IFeedService
         if (orderedPinnedKeys == null || orderedPinnedKeys.Count == 0)
             return true;
 
-        var keys = orderedPinnedKeys
-            .Select(k => k.Trim())
-            .Where(k => k.Length > 0)
-            .Select(CanonicalizeFeedValue)
-            .ToList();
+        var keys = new List<string>();
+        foreach (var k in orderedPinnedKeys)
+        {
+            var trimmed = k?.Trim();
+            if (string.IsNullOrEmpty(trimmed)) continue;
+            var resolvedUri = await ResolveAtUriAsync(trimmed);
+            keys.Add(CanonicalizeFeedValue(resolvedUri));
+        }
 
         try
         {
@@ -787,9 +812,31 @@ public class FeedService : IFeedService
                 var idx = remainingPinned.FindIndex(n =>
                     MatchesFeedValue(n["value"]?.GetValue<string>(), k));
 
+                if (idx == -1)
+                {
+                    // Fallback to async resolution match if needed to cleanly reorder legacy handles
+                    for (int i = 0; i < remainingPinned.Count; i++)
+                    {
+                        var remainingVal = remainingPinned[i]?["value"]?.GetValue<string>();
+                        if (!string.IsNullOrWhiteSpace(remainingVal) && remainingVal.StartsWith("at://") && !remainingVal.StartsWith("at://did:"))
+                        {
+                            var resolvedRemaining = await ResolveAtUriAsync(remainingVal);
+                            if (MatchesFeedValue(CanonicalizeFeedValue(resolvedRemaining), k))
+                            {
+                                idx = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 if (idx >= 0)
                 {
                     var node = remainingPinned[idx];
+                    // Clean up the structure by enforcing the DID format
+                    if (node != null && node["value"] != null)
+                        node["value"] = k; 
+                        
                     reorderedPinned.Add(node);
                     remainingPinned.RemoveAt(idx);
                 }
