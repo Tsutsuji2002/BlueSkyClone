@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useNavigationType } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Feed from '../components/feed/Feed';
-import { FiArrowLeft, FiMoreHorizontal, FiBookmark, FiRss } from 'react-icons/fi';
-import { BsHeart, BsHeartFill } from 'react-icons/bs';
+import { FiArrowLeft, FiMoreHorizontal, FiRss } from 'react-icons/fi';
+import { BsHeart, BsHeartFill, BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -184,7 +184,7 @@ const FeedDetailPage: React.FC = () => {
                                 "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors disabled:opacity-50",
                                 feed.isPinned ? "text-primary-500" : "text-gray-700 dark:text-dark-text"
                             )}>
-                            <FiBookmark size={20} fill={feed.isPinned ? 'currentColor' : 'none'} />
+                            {feed.isPinned ? <BsPinAngleFill size={20} /> : <BsPinAngle size={20} />}
                         </button>
                     </div>
                 </div>
@@ -270,11 +270,18 @@ const FeedDetailPage: React.FC = () => {
                                         setShowInfoModal(false);
                                     }}
                                     disabled={feeds_actionLoading[feedActionKey(feed)]}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-[14.5px] transition-all disabled:opacity-50 bg-primary-500 hover:bg-primary-600 text-white"
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-[14.5px] transition-all disabled:opacity-50",
+                                        feed.isPinned
+                                            ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
+                                            : "bg-primary-500 hover:bg-primary-600 text-white"
+                                    )}
                                 >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M17 4v7l2 3v2h-6v5l-1 1-1-1v-5H5v-2l2-3V4h10zm-5 15.5L12 20l.01-.01L12 19.5zm0-15a1 1 0 0 0-1 1v7.28L8.72 15H15.3L13 12.28V5a1 1 0 0 0-1-1z"/>
-                                    </svg>
+                                    {feed.isPinned ? (
+                                        <BsPinAngleFill size={16} />
+                                    ) : (
+                                        <BsPinAngle size={16} />
+                                    )}
                                     {feed.isPinned ? 'Unpin feed' : 'Pin feed'}
                                 </button>
                             </div>

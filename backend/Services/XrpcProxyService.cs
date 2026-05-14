@@ -37,7 +37,6 @@ namespace BSkyClone.Services
             "app.bsky.feed.getPostThread",
             "app.bsky.feed.getActorLikes",
             "app.bsky.feed.getActorFeeds",
-            "app.bsky.actor.getPreferences",
             "app.bsky.graph.getFollowers",
             "app.bsky.graph.getFollows"
         };

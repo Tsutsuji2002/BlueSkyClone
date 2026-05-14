@@ -209,7 +209,7 @@ export const fetchSubscribedFeeds = createAsyncThunk<
                 return state.feeds.subscribedFeeds;
             }
 
-            const response = await fetch(`${API_BASE_URL}/feeds/subscribed`);
+            const response = await fetch(`${API_BASE_URL}/feeds/subscribed?t=${now}`);
             const data = await response.json();
             console.log('feedsSlice: fetchSubscribedFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch subscribed feeds');
@@ -294,6 +294,11 @@ export const pinFeed = createAsyncThunk<
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to pin feed');
+            
+            // Bypass throttle for subsequent fetch to ensure UI is in sync
+            // wait a tiny bit for backend proxy to settle if needed (optional)
+            // await new Promise(resolve => setTimeout(resolve, 500));
+            
             return data;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -315,6 +320,10 @@ export const unpinFeed = createAsyncThunk<
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to unpin feed');
+            
+            // Bypass throttle for subsequent fetch to ensure UI is in sync
+            // await new Promise(resolve => setTimeout(resolve, 500));
+            
             return data;
         } catch (error: any) {
             return rejectWithValue(error.message);

@@ -3,6 +3,7 @@ import {
     FiArrowLeft, FiSettings, FiSearch, FiRss,
     FiChevronRight, FiGrid, FiActivity, FiMapPin
 } from 'react-icons/fi';
+import { BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
 import { useNavigate, useNavigationType } from 'react-router-dom';
@@ -290,11 +291,11 @@ const FeedsPage: React.FC = () => {
                                             className={cn(
                                                 "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-[13px] transition-all disabled:opacity-50",
                                                 feed.isPinned
-                                                    ? "bg-primary-500 text-white"
-                                                    : "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
+                                                    ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
+                                                    : "bg-primary-500 text-white"
                                             )}
                                         >
-                                            <FiMapPin size={12} />
+                                            {feed.isPinned ? <BsPinAngleFill size={12} /> : <BsPinAngle size={12} />}
                                             {feed.isPinned ? 'Pinned' : 'Pin feed'}
                                         </button>
                                     )}
@@ -361,11 +362,11 @@ const FeedsPage: React.FC = () => {
                                                     className={cn(
                                                         "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-[13px] transition-all disabled:opacity-50",
                                                         feed.isPinned
-                                                            ? "bg-primary-500 text-white"
-                                                            : "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
+                                                            ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50"
+                                                            : "bg-primary-500 text-white"
                                                     )}
                                                 >
-                                                    <FiMapPin size={12} />
+                                                    {feed.isPinned ? <BsPinAngleFill size={12} /> : <BsPinAngle size={12} />}
                                                     {feed.isPinned ? 'Pinned' : 'Pin feed'}
                                                 </button>
                                             )}
