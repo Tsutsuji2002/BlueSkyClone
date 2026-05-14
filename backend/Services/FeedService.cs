@@ -1461,9 +1461,38 @@ public class FeedService : IFeedService
         }
     }
 
-    public Task PreSeedFeedsAsync()
+    public async Task PreSeedFeedsAsync()
     {
-        return Task.CompletedTask;
+        try
+        {
+            await _seedSemaphore.WaitAsync();
+            
+            // 1. Seed Interests if empty
+            var anyInterest = await _unitOfWork.Interests.Query().AnyAsync();
+            if (!anyInterest)
+            {
+                _logger.LogInformation("[FeedService] Seeding initial interests...");
+                var categories = PostCategoryConstants.AllCategories;
+                foreach (var cat in categories)
+                {
+                    await _unitOfWork.Interests.AddAsync(new Interest
+                    {
+                        Name = cat,
+                        Slug = cat.ToLower().Replace(" ", "-")
+                    });
+                }
+                await _unitOfWork.CompleteAsync();
+                _logger.LogInformation("[FeedService] Successfully seeded {Count} interests.", categories.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedService] Error during interest seeding.");
+        }
+        finally
+        {
+            _seedSemaphore.Release();
+        }
     }
 
     private async Task<string> ResolveAtUriAsync(string uri)
