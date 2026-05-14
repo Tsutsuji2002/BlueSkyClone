@@ -174,25 +174,39 @@ const FeedsPage: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="px-6 py-6">
-                        <div className="flex flex-col gap-1 mb-6">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text leading-tight">
-                                {t('feeds.discover_new_feeds')}
-                            </h2>
-                            <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary leading-normal">
-                                {t('feeds.discover_description')}
-                            </p>
+                    <div className="px-6 py-6 border-b border-gray-100 dark:border-dark-border">
+                        <div className="flex flex-row items-center gap-3 mb-4">
+                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#001E47]">
+                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" style={{ color: 'rgb(0, 106, 255)' }}>
+                                    <path fill="#006AFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M3 4a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2H4Zm-1 7a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm9-8a4 4 0 1 1 7.446 2.032l.99.989a1 1 0 1 1-1.415 1.414l-.99-.989A4 4 0 0 1 12 12Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="text-[21px] font-bold text-gray-900 dark:text-white leading-tight tracking-[0.25px]">
+                                    {t('feeds.discover_new_feeds')}
+                                </h2>
+                                <p className="text-[15px] text-gray-500 dark:text-[#DCE2EA] leading-normal font-normal tracking-[0.25px]">
+                                    {t('feeds.discover_description')}
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="relative group mb-2">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                            <input
-                                type="text"
-                                placeholder={t('feeds.search_feeds_placeholder')}
-                                className="w-full bg-gray-100 dark:bg-dark-surface-secondary border-none rounded-2xl py-3 pl-12 pr-4 text-[16px] focus:ring-2 focus:ring-primary-500 outline-none transition-colors dark:text-dark-text placeholder-gray-500"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+                        <div className="relative group px-1 pb-1">
+                            <div className="flex flex-row items-center relative w-full px-3 z-10">
+                                <div className="z-20 pr-1">
+                                    <svg fill="none" viewBox="0 0 24 24" width="20" height="20" style={{ color: 'rgb(102, 123, 153)', pointerEvents: 'none', flexShrink: 0 }}>
+                                        <path fill="#667B99" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M11 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 14.32 4.906l3.387 3.387a1 1 0 0 1-1.414 1.414l-3.387-3.387A8 8 0 0 1 3 11Z"></path>
+                                    </svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder={t('feeds.search_feeds_placeholder')}
+                                    className="relative z-20 flex-1 bg-transparent border-none py-[11px] px-1 text-[15px] tracking-[0.25px] leading-[18px] focus:ring-0 outline-none dark:text-white placeholder-[#667B99]"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                <div className="z-10 absolute inset-0 rounded-[10px] bg-[#19222E] border border-transparent"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -222,17 +236,24 @@ const FeedsPage: React.FC = () => {
 
                 {/* MY FEEDS SECTION (SHOW ALWAYS) */}
                 {isAuthenticated && (
-                    <div className="border-b border-gray-100 dark:border-dark-border bg-gray-50/30 dark:bg-dark-surface/5">
-                        <div className="px-6 py-4 flex items-center justify-between group cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
+                    <div className="border-b border-gray-100 dark:border-dark-border bg-gray-50/30 dark:bg-transparent">
+                        <div className="px-3 py-4 flex flex-row items-center gap-3 group cursor-pointer"
                             onClick={() => setIsMyFeedsExpanded(!isMyFeedsExpanded)}
                         >
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
-                                    <FiGrid className="text-primary-600 dark:text-primary-400" size={18} />
-                                </div>
-                                <h3 className="font-bold text-gray-900 dark:text-dark-text">{t('feeds.my_feeds')}</h3>
+                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#001E47] flex-shrink-0">
+                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" style={{ color: 'rgb(0, 106, 255)' }}>
+                                    <path fill="#006AFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M4 5a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4Zm0 12a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H4Zm-1-5a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm14-3a1 1 0 0 1 .92.606l1.342 3.132 3.132 1.343a1 1 0 0 1 0 1.838l-3.132 1.343-1.343 3.132a1 1 0 0 1-1.838 0l-1.343-3.132-3.132-1.343a1 1 0 0 1 0-1.838l3.132-1.343 1.343-3.132A1 1 0 0 1 17 9Zm0 3.539-.58 1.355a1 1 0 0 1-.526.525L14.539 15l1.355.58a1 1 0 0 1 .525.526L17 17.461l.58-1.355a1 1 0 0 1 .526-.525L19.461 15l-1.355-.58a1 1 0 0 1-.525-.526L17 12.539Z"></path>
+                                </svg>
                             </div>
-                            <div className="text-[13px] text-gray-400 font-medium">
+                            <div className="flex-1">
+                                <h3 className="text-[21px] font-bold text-gray-900 dark:text-white leading-tight tracking-[0.25px]">
+                                    {t('feeds.my_feeds')}
+                                </h3>
+                                <p className="text-[15px] text-gray-500 dark:text-[#DCE2EA] leading-normal font-normal tracking-[0.25px]">
+                                    All the feeds you've saved, right in one place.
+                                </p>
+                            </div>
+                            <div className="text-[13px] text-gray-400 font-medium px-3">
                                 {isMyFeedsExpanded ? 'Hide' : 'Show'}
                             </div>
                         </div>
@@ -298,25 +319,39 @@ const FeedsPage: React.FC = () => {
 
                 {/* SEARCH & DISCOVER SECTION */}
                 {isAuthenticated && (
-                    <div className="px-6 pt-10 pb-6 border-t border-gray-100 dark:border-dark-border">
-                        <div className="flex flex-col gap-1 mb-6">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text leading-tight">
-                                {t('feeds.discover_new_feeds')}
-                            </h2>
-                            <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary leading-normal">
-                                {t('feeds.discover_description')}
-                            </p>
+                    <div className="px-3 py-6 border-t border-gray-100 dark:border-dark-border">
+                        <div className="flex flex-row items-center gap-3 mb-4">
+                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#001E47] flex-shrink-0">
+                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" style={{ color: 'rgb(0, 106, 255)' }}>
+                                    <path fill="#006AFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M3 4a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2H4Zm-1 7a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm9-8a4 4 0 1 1 7.446 2.032l.99.989a1 1 0 1 1-1.415 1.414l-.99-.989A4 4 0 0 1 12 12Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="text-[21px] font-bold text-gray-900 dark:text-white leading-tight tracking-[0.25px]">
+                                    {t('feeds.discover_new_feeds')}
+                                </h2>
+                                <p className="text-[15px] text-gray-500 dark:text-[#DCE2EA] leading-normal font-normal tracking-[0.25px]">
+                                    {t('feeds.discover_description')}
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="relative group">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
-                            <input
-                                type="text"
-                                placeholder={t('feeds.search_feeds_placeholder')}
-                                className="w-full bg-gray-100 dark:bg-dark-surface-secondary border-none rounded-2xl py-3.5 pl-12 pr-4 text-[16px] focus:ring-2 focus:ring-primary-500 outline-none transition-colors dark:text-dark-text placeholder-gray-500"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+                        <div className="relative group px-1 pb-1">
+                            <div className="flex flex-row items-center relative w-full px-3 z-10">
+                                <div className="z-20 pr-1">
+                                    <svg fill="none" viewBox="0 0 24 24" width="20" height="20" style={{ color: 'rgb(102, 123, 153)', pointerEvents: 'none', flexShrink: 0 }}>
+                                        <path fill="#667B99" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M11 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 14.32 4.906l3.387 3.387a1 1 0 0 1-1.414 1.414l-3.387-3.387A8 8 0 0 1 3 11Z"></path>
+                                    </svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder={t('feeds.search_feeds_placeholder')}
+                                    className="relative z-20 flex-1 bg-transparent border-none py-[11px] px-1 text-[15px] tracking-[0.25px] leading-[18px] focus:ring-0 outline-none dark:text-white placeholder-[#667B99]"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                <div className="z-10 absolute inset-0 rounded-[10px] bg-[#19222E] border border-transparent"></div>
+                            </div>
                         </div>
                     </div>
                 )}
