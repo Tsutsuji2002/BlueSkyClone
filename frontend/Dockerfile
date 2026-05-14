@@ -9,6 +9,7 @@ ARG REACT_APP_GIPHY_API_KEY
 ENV REACT_APP_GIPHY_API_KEY=$REACT_APP_GIPHY_API_KEY
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
+RUN npm install ajv@^8 --legacy-peer-deps --no-save
 COPY . .
 RUN npm run build
 
