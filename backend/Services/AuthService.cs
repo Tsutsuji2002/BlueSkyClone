@@ -119,7 +119,9 @@ public class AuthService : IAuthService
             FollowingCount = 0,
             PostsCount = 0,
             PasswordHash = "PROXY_ACCOUNT", // No local password
-            Salt = "PROXY_ACCOUNT"
+            Salt = "PROXY_ACCOUNT",
+            BlueskyAccessToken = accessJwt,
+            BlueskyRefreshToken = refreshJwt
         };
 
         user.UserSetting = new UserSetting
@@ -194,7 +196,9 @@ public class AuthService : IAuthService
                 CreatedAt = DateTime.UtcNow,
                 IsBanned = false,
                 PasswordHash = "PROXY_ACCOUNT",
-                Salt = "PROXY_ACCOUNT"
+                Salt = "PROXY_ACCOUNT",
+                BlueskyAccessToken = accessJwt,
+                BlueskyRefreshToken = refreshJwt
             };
             user.UserSetting = new UserSetting { UserId = user.Id, AppLanguage = "en", ThemeMode = "system" };
             await _unitOfWork.Users.AddAsync(user);
@@ -203,6 +207,8 @@ public class AuthService : IAuthService
         {
             if (user.IsBanned) throw new UnauthorizedAccessException("Your account has been banned locally.");
             user.Handle = handle;
+            user.BlueskyAccessToken = accessJwt;
+            user.BlueskyRefreshToken = refreshJwt;
             _unitOfWork.Users.Update(user);
         }
 

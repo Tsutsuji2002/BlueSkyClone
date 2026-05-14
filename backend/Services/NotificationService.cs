@@ -20,17 +20,20 @@ public class NotificationService : INotificationService
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly IDistributedCache _cache;
     private readonly ILogger<NotificationService> _logger;
+    private readonly IUserService _userService;
 
     public NotificationService(
         IUnitOfWork unitOfWork,
         IXrpcProxyService xrpcProxy,
         IDistributedCache cache,
-        ILogger<NotificationService> logger)
+        ILogger<NotificationService> logger,
+        IUserService userService)
     {
         _unitOfWork = unitOfWork;
         _xrpcProxy = xrpcProxy;
         _cache = cache;
         _logger = logger;
+        _userService = userService;
     }
 
     public async Task<PagedNotificationsDto> GetNotificationsAsync(Guid userId, int limit = 50, string? cursor = null)
@@ -62,7 +65,7 @@ public class NotificationService : INotificationService
 
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
         {
-            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
             if (!string.IsNullOrEmpty(token))
             {
                 try
@@ -148,7 +151,7 @@ public class NotificationService : INotificationService
         var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
         {
-            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
             if (!string.IsNullOrEmpty(token))
             {
                 try
@@ -190,7 +193,7 @@ public class NotificationService : INotificationService
         var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
         {
-            var token = await _cache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
             if (!string.IsNullOrEmpty(token))
             {
                 try

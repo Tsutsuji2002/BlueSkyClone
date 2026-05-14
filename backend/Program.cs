@@ -331,6 +331,16 @@ BEGIN
     ALTER TABLE [Users] ADD [IsBanned] bit NOT NULL DEFAULT 0;
 END
 
+IF COL_LENGTH('Users', 'BlueskyAccessToken') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [BlueskyAccessToken] nvarchar(max) NULL;
+END
+
+IF COL_LENGTH('Users', 'BlueskyRefreshToken') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [BlueskyRefreshToken] nvarchar(max) NULL;
+END
+
 IF COL_LENGTH('MutedWords', 'CreatedAt') IS NULL
 BEGIN
     ALTER TABLE [MutedWords] ADD [CreatedAt] datetime2 NOT NULL CONSTRAINT [DF_MutedWords_CreatedAt] DEFAULT ((getutcdate()));

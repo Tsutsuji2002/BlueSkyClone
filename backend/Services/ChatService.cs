@@ -23,8 +23,9 @@ public class ChatService : IChatService
     private readonly IChatProxyService _chatProxy;
     private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
     private readonly ILogger<ChatService> _logger;
+    private readonly IUserService _userService;
 
-    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext, IChatProxyService chatProxy, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, ILogger<ChatService> logger)
+    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext, IChatProxyService chatProxy, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, ILogger<ChatService> logger, IUserService userService)
     {
         _unitOfWork = unitOfWork;
         _linkService = linkService;
@@ -33,6 +34,7 @@ public class ChatService : IChatService
         _chatProxy = chatProxy;
         _distributedCache = distributedCache;
         _logger = logger;
+        _userService = userService;
     }
 
     public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId, int limit = 50, string? cursor = null)
@@ -40,7 +42,7 @@ public class ChatService : IChatService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return Enumerable.Empty<ConversationDto>();
 
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         
         // If the user has a DID, they are a Bluesky user.
         // We MUST fetch from proxy and NOT fall back to local chats.
@@ -108,7 +110,7 @@ public class ChatService : IChatService
 
     public async Task<ConversationDto?> GetConversationAsync(Guid userId, string conversationId)
     {
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
             return await _chatProxy.GetConversationAsync(token, conversationId);
@@ -134,7 +136,7 @@ public class ChatService : IChatService
 
     public async Task<IEnumerable<MessageDto>> GetConversationMessagesAsync(Guid userId, string conversationId, int limit = 50, DateTimeOffset? before = null)
     {
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
             var msgs = await _chatProxy.GetMessagesAsync(token, conversationId, limit, before?.ToString("O"));
@@ -206,7 +208,7 @@ public class ChatService : IChatService
 
     public async Task<ConversationDto> GetOrCreateConversationAsync(Guid userId, List<string> participantIds)
     {
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token))
         {
             // For proxy, we need the participant IDs to be DIDs or handles.
@@ -316,7 +318,7 @@ public class ChatService : IChatService
 
     public async Task<MessageDto> SendMessageAsync(Guid userId, string conversationId, string? content, string? imageUrl = null, string? replyToId = null, LinkPreviewDto? linkPreviewDto = null)
     {
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
             return await _chatProxy.SendMessageAsync(token, conversationId, content ?? "");
@@ -495,7 +497,7 @@ public class ChatService : IChatService
 
     public async Task<MessageDto> AddOrUpdateReactionAsync(Guid userId, string conversationId, string messageId, string emoji)
     {
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         
         if (!string.IsNullOrEmpty(token) && !IsGuid(messageId))
         {
@@ -630,7 +632,7 @@ public class ChatService : IChatService
 
     public async Task DeleteMessageForSelfAsync(Guid userId, string conversationId, string messageId)
     {
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
             await _chatProxy.DeleteMessageForSelfAsync(token, conversationId, messageId);
@@ -649,7 +651,7 @@ public class ChatService : IChatService
 
     public async Task MarkAsReadAsync(Guid userId, string conversationId, string? messageId = null)
     {
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
             // If messageId is null, we try to find the latest message from the proxy convo
@@ -684,7 +686,7 @@ public class ChatService : IChatService
 
     public async Task<ChatLogResult> GetLogAsync(Guid userId, string conversationId, string? cursor)
     {
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
              var messages = await _chatProxy.GetMessagesAsync(token, conversationId, 50, cursor);

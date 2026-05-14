@@ -60,6 +60,9 @@ public partial class User
     public bool? IsDeleted { get; set; }
     public string? PinnedPostUri { get; set; }
 
+    public string? BlueskyAccessToken { get; set; }
+    public string? BlueskyRefreshToken { get; set; }
+
     public bool IsBanned { get; set; } = false;
 
     public bool IsVerified { get; set; } = false;

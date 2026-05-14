@@ -2945,6 +2945,16 @@ public class UserService : IUserService
             if (!string.IsNullOrEmpty(token)) return token;
 
             var refreshToken = await _distributedCache.GetStringAsync($"BlueskyRefreshToken_{userId}");
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                refreshToken = user?.BlueskyRefreshToken;
+                if (!string.IsNullOrEmpty(refreshToken))
+                {
+                    _logger.LogInformation("[GetOrRefreshBlueskyTokenAsync] Cache miss for {UserId}, recovered refresh token from DB.", userId);
+                }
+            }
+
             if (string.IsNullOrEmpty(refreshToken)) return null;
 
             try
@@ -2958,6 +2968,9 @@ public class UserService : IUserService
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
                     _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Failed to refresh Bluesky token for {UserId}. Status: {Status}. Body: {Body}", userId, response.StatusCode, errorBody);
+                    
+                    // If refresh failed with 400/401, the refresh token is likely invalid/expired.
+                    // We should probably clear it from DB to avoid endless retries, but let's be cautious for now.
                     return null;
                 }
 
@@ -2982,6 +2995,16 @@ public class UserService : IUserService
 
                 await _distributedCache.SetStringAsync($"BlueskyToken_{userId}", nextAccessJwt, accessCacheOptions);
                 await _distributedCache.SetStringAsync($"BlueskyRefreshToken_{userId}", nextRefreshJwt, refreshCacheOptions);
+
+                // Persist to DB for long-term recovery
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user != null)
+                {
+                    user.BlueskyAccessToken = nextAccessJwt;
+                    user.BlueskyRefreshToken = nextRefreshJwt;
+                    await _unitOfWork.CompleteAsync();
+                }
+
                 return nextAccessJwt;
             }
             catch (Exception ex)
