@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useNavigationType } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Feed from '../components/feed/Feed';
-import { FiArrowLeft, FiMoreHorizontal, FiHeart, FiMapPin, FiRss } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiBell, FiRss } from 'react-icons/fi';
+import { BsHeart, BsHeartFill } from 'react-icons/bs';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -151,7 +152,7 @@ const FeedDetailPage: React.FC = () => {
                                         {feed.name}
                                     </h1>
                                     <div className="flex items-center gap-1.5 text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                        <FiHeart className="fill-current text-gray-400" size={12} />
+                                        <BsHeart className="text-gray-400" size={12} />
                                         <span className="font-medium">
                                             {count >= 1000 ? `${(count / 1000).toFixed(1)}K` : count} Likers
                                         </span>
@@ -159,7 +160,7 @@ const FeedDetailPage: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1 flex-shrink-0">
                             <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors group">
                                 <FiMoreHorizontal size={20} className="text-gray-700 dark:text-dark-text" />
                             </button>
@@ -173,99 +174,107 @@ const FeedDetailPage: React.FC = () => {
                                     const fk = feedActionKey(feed);
                                     if (feed.isPinned) await dispatch(unpinFeed(fk));
                                     else await dispatch(pinFeed(fk));
-                                    dispatch(fetchSubscribedFeeds());
                                 }}
                                 disabled={feeds_actionLoading[feedActionKey(feed)]}
                                 className={cn(
                                 "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors disabled:opacity-50",
                                 feed.isPinned ? "text-primary-500" : "text-gray-700 dark:text-dark-text"
                             )}>
-                                <FiMapPin size={20} className={feed.isPinned ? "fill-current" : ""} />
+                                <FiBell size={20} />
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Feed Info Card - Designed like a special post */}
-                <div className="border-b border-gray-100 dark:border-dark-border px-4 py-4 bg-white dark:bg-dark-bg">
-                    <div className="flex gap-3 mb-4">
+                {/* Feed Info Card - Bluesky style with Like + Pin */}
+                <div className="border-b border-gray-100 dark:border-dark-border px-4 py-5 bg-white dark:bg-dark-bg">
+                    <div className="flex gap-3 mb-3">
                         <FeedAvatar
                             src={feed.avatarUrl || feed.avatar}
                             alt={feed.name}
                             size="lg"
                             className="rounded-xl flex-shrink-0"
                         />
-                        <div className="flex flex-col flex-1 min-w-0 pt-0.5">
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex flex-col min-w-0">
-                                    <span className="font-black text-gray-900 dark:text-dark-text text-[15px] truncate">
-                                        {feed.name}
-                                    </span>
-                                    <span className="text-gray-500 dark:text-dark-text-secondary text-[14px] truncate">
-                                        @{feed.handle}
-                                    </span>
-                                </div>
+                        <div className="flex flex-col flex-1 min-w-0 justify-center">
+                            <span className="font-black text-gray-900 dark:text-dark-text text-[17px] leading-tight">
+                                {feed.name}
+                            </span>
+                            <span className="text-gray-500 dark:text-dark-text-secondary text-[14px]">
+                                By{' '}
                                 <button
-                                    onClick={async () => {
-                                        if (!isAuthenticated) {
-                                            dispatch(openAuthWall());
-                                            return;
-                                        }
-                                        const fk = feedActionKey(feed);
-                                        if (feed.isSubscribed) {
-                                            await dispatch(unsaveFeed(fk));
-                                        } else {
-                                            await dispatch(saveFeed(fk));
-                                        }
-                                        if (routeKey) dispatch(fetchFeedInfo(routeKey));
-                                    }}
-                                    disabled={feeds_actionLoading[feedActionKey(feed)]}
-                                    className={cn(
-                                        "px-5 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm flex-shrink-0 disabled:opacity-50",
-                                        feed.isSubscribed
-                                            ? "bg-gray-100 dark:bg-dark-surface text-gray-700 dark:text-dark-text border border-gray-200 dark:border-dark-border"
-                                            : "bg-primary-500 hover:bg-primary-600 text-white"
-                                    )}
+                                    onClick={() => navigate(`/profile/${feed.handle}`)}
+                                    className="hover:underline text-gray-500 dark:text-dark-text-secondary"
                                 >
-                                    {feed.isSubscribed ? t('feeds.subscribed') : t('feeds.subscribe')}
+                                    @{feed.handle}
                                 </button>
-                            </div>
+                            </span>
                         </div>
                     </div>
 
-                    {/* Feed "Pinned Post" Content Style */}
-                    <div className="flex flex-col bg-gray-50 dark:bg-dark-surface/30 rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border mt-2">
-                        {/* Placeholder for Banner Image since it's not in the DB, using a gradient for now */}
-                        <div className="h-40 w-full bg-gradient-to-br from-primary-400 to-indigo-600 flex items-center justify-center p-6 text-center">
-                            <div className="text-white">
-                                <h2 className="text-2xl font-black mb-1 uppercase tracking-tighter uppercase">{feed.name}</h2>
-                                <p className="text-white/80 font-bold">@{feed.handle}</p>
-                            </div>
+                    {feed.description && (
+                        <p className="text-[14.5px] text-gray-700 dark:text-dark-text-secondary leading-normal mb-4">
+                            {feed.description}
+                        </p>
+                    )}
+
+                    {count > 0 && (
+                        <p className="text-[13px] text-primary-500 hover:underline cursor-pointer mb-4">
+                            Liked by {count >= 1000 ? `${(count / 1000).toFixed(1)}K` : count} users
+                        </p>
+                    )}
+
+                    {/* Action Buttons - Bluesky Style */}
+                    {isAuthenticated && (
+                        <div className="flex gap-3">
+                            {/* Like button */}
+                            <button
+                                className={cn(
+                                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border font-semibold text-[14.5px] transition-all",
+                                    "border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface"
+                                )}
+                            >
+                                <BsHeart size={16} />
+                                Like
+                            </button>
+
+                            {/* Pin feed button */}
+                            <button
+                                onClick={async () => {
+                                    if (!isAuthenticated) {
+                                        dispatch(openAuthWall());
+                                        return;
+                                    }
+                                    const fk = feedActionKey(feed);
+                                    if (feed.isPinned) {
+                                        await dispatch(unpinFeed(fk));
+                                    } else {
+                                        await dispatch(pinFeed(fk));
+                                    }
+                                    if (routeKey) dispatch(fetchFeedInfo(routeKey));
+                                }}
+                                disabled={feeds_actionLoading[feedActionKey(feed)]}
+                                className={cn(
+                                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-[14.5px] transition-all disabled:opacity-50",
+                                    feed.isPinned
+                                        ? "bg-primary-500 hover:bg-primary-600 text-white"
+                                        : "bg-primary-500 hover:bg-primary-600 text-white"
+                                )}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17 4v7l2 3v2h-6v5l-1 1-1-1v-5H5v-2l2-3V4h10zm-5 15.5L12 20l.01-.01L12 19.5zm0-15a1 1 0 0 0-1 1v7.28L8.72 15H15.3L13 12.28V5a1 1 0 0 0-1-1z"/>
+                                </svg>
+                                {feed.isPinned ? 'Unpin feed' : 'Pin feed'}
+                            </button>
                         </div>
-                        <div className="p-4">
-                            <h3 className="font-black text-gray-900 dark:text-dark-text text-lg mb-2">
-                                {feed.name} - BlueSky Feed
-                            </h3>
-                            <p className="text-[15px] text-gray-600 dark:text-dark-text-secondary leading-normal">
-                                {feed.description || "A custom community feed for BlueSky."}
-                            </p>
-                            <div className="flex items-center gap-4 mt-4 py-3 border-t border-gray-100 dark:border-dark-border">
-                                <div className="flex items-center gap-1.5 text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                    <FiHeart size={14} className="text-red-500 fill-red-500" />
-                                    <span className="font-bold text-gray-900 dark:text-dark-text">
-                                        {count.toLocaleString()}
-                                    </span>
-                                    <span>{t('profile.followers')}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-[13px] text-gray-500 dark:text-dark-text-secondary">
-                                    <FiRss size={14} className="text-primary-500" />
-                                    <span className="font-bold text-gray-900 dark:text-dark-text">
-                                        Active Feed
-                                    </span>
-                                </div>
-                            </div>
+                    )}
+
+                    {/* Report link */}
+                    {isAuthenticated && (
+                        <div className="mt-3 flex items-center justify-between text-[13px] text-gray-400 dark:text-dark-text-secondary">
+                            <span>Something wrong? <button className="text-primary-500 hover:underline">Let us know.</button></span>
+                            <button className="hover:text-gray-600 dark:hover:text-dark-text flex items-center gap-1">Report feed ⓘ</button>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Feed Posts */}

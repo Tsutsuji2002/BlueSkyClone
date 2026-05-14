@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     FiArrowLeft, FiSettings, FiPlus, FiSearch, FiRss,
-    FiChevronRight, FiGrid, FiCheck, FiMenu, FiActivity, FiMapPin
+    FiChevronRight, FiGrid, FiCheck, FiMenu, FiActivity
 } from 'react-icons/fi';
 import FeedAvatar from '../components/common/FeedAvatar';
 import { cn } from '../utils/classNames';
@@ -119,7 +119,7 @@ const FeedsPage: React.FC = () => {
         } else {
             await dispatch(pinFeed(key));
         }
-        dispatch(fetchSubscribedFeeds());
+        // No immediate re-fetch to avoid race condition
     };
 
     const handleSaveToggle = async (e: React.MouseEvent, feed: Feed) => {
@@ -134,8 +134,6 @@ const FeedsPage: React.FC = () => {
         } else {
             await dispatch(saveFeed(key));
         }
-        dispatch(fetchSubscribedFeeds());
-        dispatch(fetchRecommendedFeeds());
     };
 
     useDocumentTitle(t('feeds.title'));
@@ -244,9 +242,9 @@ const FeedsPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-1 mt-3">
+                    <div className="space-y-0.5 mt-1">
                             {myFeedsSorted.length === 0 && (
-                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-2 italic text-center">
+                                <p className="text-sm text-gray-500 dark:text-dark-text-secondary py-4 italic text-center">
                                     {t('feeds.no_saved_feeds')}
                                 </p>
                             )}
@@ -256,7 +254,7 @@ const FeedsPage: React.FC = () => {
                                     <div
                                         key={fk}
                                         onClick={() => navigate(`/feeds/${encodeURIComponent(fk)}`)}
-                                        className="flex items-center justify-between p-3 hover:bg-white dark:hover:bg-dark-surface rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-dark-border group"
+                                        className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface/30 cursor-pointer transition-colors group"
                                     >
                                         <div className="flex items-center gap-3 overflow-hidden min-w-0">
                                             <FeedAvatar
@@ -265,30 +263,11 @@ const FeedsPage: React.FC = () => {
                                                 size="sm"
                                                 className="rounded-md flex-shrink-0"
                                             />
-                                            <span className="font-semibold text-gray-900 dark:text-dark-text truncate">
+                                            <span className="font-semibold text-gray-900 dark:text-dark-text truncate text-[15px]">
                                                 {(feed.handle === 'following' || feed.name === 'Following') ? t('nav.following') : feed.name}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                            <button
-                                                type="button"
-                                                onClick={(e: React.MouseEvent) => handlePinToggle(e, feed)}
-                                                disabled={actionLoading[fk]}
-                                                className={cn(
-                                                    'p-2 rounded-full transition-colors disabled:opacity-50',
-                                                    feed.isPinned
-                                                        ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
-                                                        : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface'
-                                                )}
-                                            >
-                                                <FiMapPin
-                                                    size={18}
-                                                    className={cn(feed.isPinned ? 'fill-current' : '')}
-                                                    title={feed.isPinned ? t('feeds.unpin') : t('feeds.pin')}
-                                                />
-                                            </button>
-                                            <FiChevronRight className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
+                                        <FiChevronRight className="text-gray-400 flex-shrink-0" size={18} />
                                     </div>
                                 );
                             })}
@@ -296,7 +275,7 @@ const FeedsPage: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowAllMyFeeds(!showAllMyFeeds)}
-                                    className="w-full py-2 mt-2 text-sm font-bold text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
+                                    className="w-full py-2 mt-1 text-sm font-bold text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
                                 >
                                     {showAllMyFeeds ? t('common.show_less') : t('common.show_more')}
                                 </button>
