@@ -176,9 +176,9 @@ const FeedsPage: React.FC = () => {
 
                     <div className="px-6 py-6 border-b border-gray-100 dark:border-[#232e3e]">
                         <div className="flex flex-row items-center gap-3 mb-4">
-                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#001E47]">
-                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" style={{ color: 'rgb(0, 106, 255)' }}>
-                                    <path fill="#006AFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M3 4a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2H4Zm-1 7a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm9-8a4 4 0 1 1 7.446 2.032l.99.989a1 1 0 1 1-1.415 1.414l-.99-.989A4 4 0 0 1 12 12Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
+                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#E6F3FF] dark:bg-[#001E47]">
+                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" className="text-[#0085FF] dark:text-[#006AFF]">
+                                    <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M3 4a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2H4Zm-1 7a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm9-8a4 4 0 1 1 7.446 2.032l.99.989a1 1 0 1 1-1.415 1.414l-.99-.989A4 4 0 0 1 12 12Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
                                 </svg>
                             </div>
                             <div className="flex-1">
@@ -201,11 +201,11 @@ const FeedsPage: React.FC = () => {
                                 <input
                                     type="text"
                                     placeholder={t('feeds.search_feeds_placeholder')}
-                                    className="relative z-20 flex-1 bg-transparent border-none py-[11px] px-1 text-[15px] tracking-[0.25px] leading-[18px] focus:ring-0 outline-none dark:text-white placeholder-[#667B99]"
+                                    className="relative z-20 flex-1 bg-transparent border-none py-[11px] px-1 text-[15px] tracking-[0.25px] leading-[18px] focus:ring-0 outline-none text-gray-900 dark:text-white placeholder-[#667B99]"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
-                                <div className="z-10 absolute inset-0 rounded-[10px] bg-gray-50 dark:bg-[#19222E] border border-transparent"></div>
+                                <div className="z-10 absolute inset-0 rounded-[10px] bg-[#F1F3F5] dark:bg-[#19222E] border border-transparent"></div>
                             </div>
                         </div>
                     </div>
@@ -240,9 +240,9 @@ const FeedsPage: React.FC = () => {
                         <div className="px-3 py-4 flex flex-row items-center gap-3 group cursor-pointer"
                             onClick={() => setIsMyFeedsExpanded(!isMyFeedsExpanded)}
                         >
-                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#001E47] flex-shrink-0">
-                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" style={{ color: 'rgb(0, 106, 255)' }}>
-                                    <path fill="#006AFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M4 5a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4Zm0 12a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H4Zm-1-5a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm14-3a1 1 0 0 1 .92.606l1.342 3.132 3.132 1.343a1 1 0 0 1 0 1.838l-3.132 1.343-1.343 3.132a1 1 0 0 1-1.838 0l-1.343-3.132-3.132-1.343a1 1 0 0 1 0-1.838l3.132-1.343 1.343-3.132A1 1 0 0 1 17 9Zm0 3.539-.58 1.355a1 1 0 0 1-.526.525L14.539 15l1.355.58a1 1 0 0 1 .525.526L17 17.461l.58-1.355a1 1 0 0 1 .526-.525L19.461 15l-1.355-.58a1 1 0 0 1-.525-.526L17 12.539Z"></path>
+                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#E6F3FF] dark:bg-[#001E47] flex-shrink-0">
+                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" className="text-[#0085FF] dark:text-[#006AFF]">
+                                    <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M4 5a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4Zm0 12a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H4Zm-1-5a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm14-3a1 1 0 0 1 .92.606l1.342 3.132 3.132 1.343a1 1 0 0 1 0 1.838l-3.132 1.343-1.343 3.132a1 1 0 0 1-1.838 0l-1.343-3.132-3.132-1.343a1 1 0 0 1 0-1.838l3.132-1.343 1.343-3.132A1 1 0 0 1 17 9Zm0 3.539-.58 1.355a1 1 0 0 1-.526.525L14.539 15l1.355.58a1 1 0 0 1 .525.526L17 17.461l.58-1.355a1 1 0 0 1 .526-.525L19.461 15l-1.355-.58a1 1 0 0 1-.525-.526L17 12.539Z"></path>
                                 </svg>
                             </div>
                             <div className="flex-1">
@@ -312,9 +312,9 @@ const FeedsPage: React.FC = () => {
                 {isAuthenticated && (
                     <div className="px-3 py-6 border-t border-gray-100 dark:border-dark-border">
                         <div className="flex flex-row items-center gap-3 mb-4">
-                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#001E47] flex-shrink-0">
-                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" style={{ color: 'rgb(0, 106, 255)' }}>
-                                    <path fill="#006AFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M3 4a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2H4Zm-1 7a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm9-8a4 4 0 1 1 7.446 2.032l.99.989a1 1 0 1 1-1.415 1.414l-.99-.989A4 4 0 0 1 12 12Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
+                            <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#E6F3FF] dark:bg-[#001E47] flex-shrink-0">
+                                <svg fill="none" viewBox="0 0 24 24" width="24" height="24" className="text-[#0085FF] dark:text-[#006AFF]">
+                                    <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M3 4a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2H4Zm-1 7a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h13a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm9-8a4 4 0 1 1 7.446 2.032l.99.989a1 1 0 1 1-1.415 1.414l-.99-.989A4 4 0 0 1 12 12Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
                                 </svg>
                             </div>
                             <div className="flex-1">
@@ -337,11 +337,11 @@ const FeedsPage: React.FC = () => {
                                 <input
                                     type="text"
                                     placeholder={t('feeds.search_feeds_placeholder')}
-                                    className="relative z-20 flex-1 bg-transparent border-none py-[11px] px-1 text-[15px] tracking-[0.25px] leading-[18px] focus:ring-0 outline-none dark:text-white placeholder-[#667B99]"
+                                    className="relative z-20 flex-1 bg-transparent border-none py-[11px] px-1 text-[15px] tracking-[0.25px] leading-[18px] focus:ring-0 outline-none text-gray-900 dark:text-white placeholder-[#667B99]"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
-                                <div className="z-10 absolute inset-0 rounded-[10px] bg-[#19222E] border border-transparent"></div>
+                                <div className="z-10 absolute inset-0 rounded-[10px] bg-[#F1F3F5] dark:bg-[#19222E] border border-transparent"></div>
                             </div>
                         </div>
                     </div>

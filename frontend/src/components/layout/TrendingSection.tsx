@@ -69,10 +69,10 @@ const TrendingSection: React.FC = () => {
                             className="flex flex-row items-center justify-start group cursor-pointer hover:underline decoration-white/20"
                         >
                             <div className="flex flex-row items-center gap-1">
-                                <span className="text-[13.1px] text-[#526580] min-w-[16px] leading-[17px]">
+                                <span className="text-[13.1px] text-[#526580] dark:text-[#8798b0] min-w-[16px] leading-[17px]">
                                     {index + 1}.
                                 </span>
-                                <span className="text-[13.1px] text-[#a5b2c5] group-hover:text-white transition-colors truncate leading-[17px]">
+                                <span className="text-[13.1px] text-[#1D2B3D] dark:text-[#a5b2c5] group-hover:text-[#006AFF] dark:group-hover:text-white transition-colors truncate leading-[17px]">
                                     {topic.hashtag.replace('#', '')}
                                 </span>
                             </div>
