@@ -152,11 +152,11 @@ const FeedsPage: React.FC = () => {
     const myFeedsCollapsedAt = 12;
 
     return (
-        <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">
+        <div className="min-h-screen border-r border-gray-200 dark:border-[#232e3e] bg-white dark:bg-black">
             {/* Header */}
             {!isAuthenticated ? (
                 /* Guest Hero Header per Pic 2 */
-                <div className="bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border transition-colors">
+                <div className="bg-white dark:bg-black border-b border-gray-100 dark:border-[#232e3e] transition-colors">
                     <div className="flex items-center justify-between p-4 px-6 h-[60px]">
                         <div className="flex items-center gap-4">
                             <button 
@@ -174,7 +174,7 @@ const FeedsPage: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="px-6 py-6 border-b border-gray-100 dark:border-dark-border">
+                    <div className="px-6 py-6 border-b border-gray-100 dark:border-[#232e3e]">
                         <div className="flex flex-row items-center gap-3 mb-4">
                             <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-[#001E47]">
                                 <svg fill="none" viewBox="0 0 24 24" width="24" height="24" style={{ color: 'rgb(0, 106, 255)' }}>
@@ -205,14 +205,14 @@ const FeedsPage: React.FC = () => {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
-                                <div className="z-10 absolute inset-0 rounded-[10px] bg-[#19222E] border border-transparent"></div>
+                                <div className="z-10 absolute inset-0 rounded-[10px] bg-gray-50 dark:bg-[#19222E] border border-transparent"></div>
                             </div>
                         </div>
                     </div>
                 </div>
             ) : (
                 /* Authenticated Header */
-                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border p-4 flex items-center justify-between">
+                <div className="sticky top-0 z-20 bg-white/95 dark:bg-black/95 backdrop-blur-md border-b border-gray-200 dark:border-[#232e3e] p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate(-1)}
@@ -236,7 +236,7 @@ const FeedsPage: React.FC = () => {
 
                 {/* MY FEEDS SECTION (SHOW ALWAYS) */}
                 {isAuthenticated && (
-                    <div className="border-b border-gray-100 dark:border-dark-border bg-gray-50/30 dark:bg-transparent">
+                    <div className="border-b border-gray-100 dark:border-[#232e3e] bg-gray-50/30 dark:bg-black">
                         <div className="px-3 py-4 flex flex-row items-center gap-3 group cursor-pointer"
                             onClick={() => setIsMyFeedsExpanded(!isMyFeedsExpanded)}
                         >
