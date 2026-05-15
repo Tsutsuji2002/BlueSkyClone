@@ -5,8 +5,8 @@ import { FiTrendingUp, FiX, FiChevronRight, FiMoreHorizontal } from 'react-icons
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
-import { TrendingTopic } from '../../types';
-import { fetchTrending } from '../../redux/slices/trendingSlice';
+import { Feed } from '../../types';
+import { fetchTrendingFeeds } from '../../redux/slices/feedsSlice';
 import { updateNotificationSettings } from '../../redux/slices/authSlice';
 import ConfirmModal from '../common/ConfirmModal';
 import { cn } from '../../utils/classNames';
@@ -15,14 +15,14 @@ const TrendingSection: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { topics: trendingTopics, isLoading } = useAppSelector((state: RootState) => state.trending);
+    const { trendingFeeds, isLoading } = useAppSelector((state: RootState) => state.feeds);
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const location = useLocation();
 
     useEffect(() => {
         if (settings?.openTrendingTopics !== false) {
-            dispatch(fetchTrending());
+            dispatch(fetchTrendingFeeds({ limit: 5 }));
         }
     }, [dispatch, settings?.openTrendingTopics]);
 
@@ -30,7 +30,7 @@ const TrendingSection: React.FC = () => {
         return null;
     }
 
-    if (!isLoading && trendingTopics.length === 0) {
+    if (!isLoading && (!trendingFeeds || trendingFeeds.length === 0)) {
         return null;
     }
 
@@ -47,7 +47,7 @@ const TrendingSection: React.FC = () => {
                         <path fill="currentColor" className="text-gray-900 dark:text-white" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z" />
                     </svg>
                     <h2 className="text-[15px] font-semibold text-gray-900 dark:text-dark-text">
-                        {t('sidebar.trending_header', { defaultValue: 'Trending' })}
+                        {t('sidebar.trending_header', { defaultValue: 'Trending Feeds' })}
                     </h2>
                 </div>
                 <button 
@@ -64,24 +64,31 @@ const TrendingSection: React.FC = () => {
                         <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : (
-                    trendingTopics.slice(0, 5).map((topic: TrendingTopic, index) => (
+                    trendingFeeds && trendingFeeds.slice(0, 5).map((feed: Feed, index) => (
                         <button
-                            key={topic.id}
+                            key={feed.id || feed.uri}
                             onClick={() => {
-                                if (topic.link) {
-                                    navigate(topic.link);
-                                } else {
-                                    navigate(`/search?q=${encodeURIComponent(topic.hashtag)}`);
-                                }
+                                navigate(`/profile/${feed.creator?.handle || feed.creator?.did || 'unknown'}/feed/${feed.tid || feed.uri?.split('/').pop() || ''}`);
                             }}
-                            className="flex items-center gap-1 text-left group"
+                            className="flex items-center gap-3 text-left group cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition p-2 rounded -mx-2"
                         >
-                            <span className="text-[13.1px] text-gray-500 min-w-[20px]">
+                            <span className="text-[13px] font-medium text-gray-500 min-w-[12px]">
                                 {index + 1}.
                             </span>
-                            <span className="text-[14px] font-medium text-gray-900 dark:text-[#a5b2c5] group-hover:underline truncate">
-                                {topic.hashtag}
-                            </span>
+                            <div className="w-6 h-6 rounded bg-primary-100 flex-shrink-0 overflow-hidden relative">
+                                {feed.avatarUrl ? (
+                                    <img src={feed.avatarUrl} alt={feed.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-primary-600 flex items-center justify-center">
+                                        <span className="text-white text-[10px] uppercase">{feed.name.substring(0, 2)}</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <span className="text-[14px] font-medium text-gray-900 dark:text-[#a5b2c5] group-hover:text-primary-500 dark:group-hover:text-primary-400 transition truncate block">
+                                    {feed.name}
+                                </span>
+                            </div>
                         </button>
                     ))
                 )}
@@ -91,7 +98,7 @@ const TrendingSection: React.FC = () => {
                 isOpen={isConfirmModalOpen}
                 onClose={() => setIsConfirmModalOpen(false)}
                 onConfirm={handleHideTrending}
-                title={t('sidebar.hide_trending_title', { defaultValue: 'Hide trending topics?' })}
+                title={t('sidebar.hide_trending_title', { defaultValue: 'Hide trending feeds?' })}
                 message={t('sidebar.hide_trending_message', { defaultValue: 'You can always turn them back on in settings.' })}
                 confirmLabel={t('sidebar.hide', { defaultValue: 'Hide' })}
                 cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
@@ -100,6 +107,5 @@ const TrendingSection: React.FC = () => {
         </div>
     );
 };
-
 
 export default TrendingSection;

@@ -3732,7 +3732,7 @@ public class PostService : IPostService
             // 4.1 Ensure author is persisted to DB before inserting post to avoid race condition with UserService background persist
             var dbAuthor = await _unitOfWork.Users.GetByIdAsync(author.Id);
             int retries = 0;
-            while (dbAuthor == null && retries < 20) // Wait up to 2 seconds
+            while (dbAuthor == null && retries < 50) // Wait up to 5 seconds
             {
                 await Task.Delay(100);
                 dbAuthor = await _unitOfWork.Users.GetByIdAsync(author.Id);
