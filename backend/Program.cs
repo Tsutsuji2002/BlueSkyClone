@@ -331,6 +331,11 @@ BEGIN
     ALTER TABLE [Users] ADD [IsBanned] bit NOT NULL DEFAULT 0;
 END
 
+IF COL_LENGTH('Users', 'IsVerified') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [IsVerified] bit NOT NULL DEFAULT 0;
+END
+
 IF COL_LENGTH('Users', 'BlueskyAccessToken') IS NULL
 BEGIN
     ALTER TABLE [Users] ADD [BlueskyAccessToken] nvarchar(max) NULL;
@@ -339,6 +344,11 @@ END
 IF COL_LENGTH('Users', 'BlueskyRefreshToken') IS NULL
 BEGIN
     ALTER TABLE [Users] ADD [BlueskyRefreshToken] nvarchar(max) NULL;
+END
+
+IF COL_LENGTH('Users', 'EmailConfirmed') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [EmailConfirmed] bit NOT NULL DEFAULT 1;
 END
 
 IF COL_LENGTH('MutedWords', 'CreatedAt') IS NULL
