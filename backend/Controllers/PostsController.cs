@@ -585,7 +585,8 @@ public class PostsController : ControllerBase
             }
             
             _logger.LogInformation("[PostsController] LikePost: Toggling interaction for PostId={PostId} (OriginalId={Id})", postId, id);
-            var result = (dynamic)await _postService.ToggleLikeAsync(userId, postId, isLiked, likeUri);
+            string? fallbackUri = uri ?? (id.StartsWith("at://") ? id : null);
+            var result = (dynamic)await _postService.ToggleLikeAsync(userId, postId, isLiked, likeUri, fallbackUri);
             
             // Check for service-level errors and return as BadRequest so frontend detects failure
             try {
@@ -663,7 +664,8 @@ public class PostsController : ControllerBase
                 postId = post.Id;
             }
             _logger.LogInformation("[PostsController] RepostPost: Toggling interaction for PostId={PostId} (OriginalId={Id})", postId, id);
-            var result = (dynamic)await _postService.ToggleRepostAsync(userId, postId, isReposted, repostUri);
+            string? fallbackUri = uri ?? (id.StartsWith("at://") ? id : null);
+            var result = (dynamic)await _postService.ToggleRepostAsync(userId, postId, isReposted, repostUri, fallbackUri);
             
             // Check for service-level errors and return as BadRequest so frontend detects failure
             try {
