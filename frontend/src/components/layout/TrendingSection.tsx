@@ -1,29 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiTrendingUp, FiX, FiChevronRight, FiMoreHorizontal } from 'react-icons/fi';
+import { FiMoreHorizontal } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
-import { Feed } from '../../types';
-import { fetchTrendingFeeds } from '../../redux/slices/feedsSlice';
+import { fetchTrending } from '../../redux/slices/trendingSlice';
 import { updateNotificationSettings } from '../../redux/slices/authSlice';
 import ConfirmModal from '../common/ConfirmModal';
-import { cn } from '../../utils/classNames';
 import { formatCount } from '../../utils/formatNumber';
 
 const TrendingSection: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { trendingFeeds, isLoading } = useAppSelector((state: RootState) => state.feeds);
+    const { topics, isLoading } = useAppSelector((state: RootState) => state.trending);
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-    const location = useLocation();
 
     useEffect(() => {
         if (settings?.openTrendingTopics !== false) {
-            dispatch(fetchTrendingFeeds({ limit: 5 }));
+            dispatch(fetchTrending());
         }
     }, [dispatch, settings?.openTrendingTopics]);
 
@@ -31,10 +28,9 @@ const TrendingSection: React.FC = () => {
         return null;
     }
 
-    if (!isLoading && (!trendingFeeds || trendingFeeds.length === 0)) {
+    if (!isLoading && (!topics || topics.length === 0)) {
         return null;
     }
-
 
     const handleHideTrending = () => {
         dispatch(updateNotificationSettings({ openTrendingTopics: false }));
@@ -42,13 +38,13 @@ const TrendingSection: React.FC = () => {
 
     return (
         <div className="border border-gray-100 dark:border-dark-border rounded-2xl p-4 mb-4 bg-gray-100/30 dark:bg-dark-surface/30">
-            <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-1.5">
                     <svg fill="none" width="16" height="16" viewBox="0 0 24 24">
                         <path fill="currentColor" className="text-gray-900 dark:text-white" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z" />
                     </svg>
-                    <h2 className="text-[15px] font-semibold text-gray-900 dark:text-dark-text">
-                        {t('sidebar.trending_header', { defaultValue: 'Trending Feeds' })}
+                    <h2 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
+                        {t('sidebar.trending_header', { defaultValue: 'Trending' })}
                     </h2>
                 </div>
                 <button 
@@ -59,36 +55,51 @@ const TrendingSection: React.FC = () => {
                 </button>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
                 {isLoading ? (
                     <div className="py-4 flex justify-center">
                         <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : (
-                    trendingFeeds && trendingFeeds.slice(0, 5).map((feed: Feed, index) => (
+                    topics && topics.slice(0, 5).map((topic, index) => (
                         <button
-                            key={feed.id || feed.uri}
+                            key={topic.id || topic.hashtag}
                             onClick={() => {
-                                navigate(`/profile/${feed.creator?.handle || feed.creator?.did || 'unknown'}/feed/${feed.tid || feed.uri?.split('/').pop() || ''}`);
+                                // Topics in Bluesky usually navigate to a search result or a specific feed
+                                const searchUrl = topic.link || `/search?query=${encodeURIComponent(topic.hashtag)}`;
+                                navigate(searchUrl);
                             }}
-                            className="flex items-center gap-3 text-left group cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition p-2 rounded -mx-2"
+                            className="flex items-start gap-3 text-left group cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition px-2 py-1.5 rounded"
                         >
-                            <span className="text-[13px] font-medium text-gray-500 min-w-[12px]">
+                            <span className="text-[13px] font-bold text-gray-500 mt-0.5 min-w-[14px]">
                                 {index + 1}.
                             </span>
-                            <div className="w-6 h-6 rounded bg-primary-100 flex-shrink-0 overflow-hidden relative">
-                                {feed.avatarUrl ? (
-                                    <img src={feed.avatarUrl} alt={feed.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full bg-primary-600 flex items-center justify-center">
-                                        <span className="text-white text-[10px] uppercase">{feed.name.substring(0, 2)}</span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <span className="text-[14px] font-medium text-gray-900 dark:text-[#a5b2c5] group-hover:text-primary-500 dark:group-hover:text-primary-400 transition truncate block">
-                                    {feed.name}
-                                </span>
+                            <div className="flex flex-col flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[14px] font-bold text-gray-900 dark:text-[#f1f3f5] group-hover:text-primary-500 dark:group-hover:text-primary-400 transition truncate">
+                                        {topic.hashtag.replace('#', '')}
+                                    </span>
+                                    {topic.postsCount > 5000 && (
+                                        <span className="text-[10px] items-center bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1 rounded font-bold uppercase py-0.5">
+                                            Hot
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    {topic.category && (
+                                        <span className="text-[12px] text-gray-500 dark:text-[#8798b0] truncate">
+                                            {topic.category}
+                                        </span>
+                                    )}
+                                    {topic.postsCount > 0 && (
+                                        <>
+                                            <span className="text-[10px] text-gray-400">•</span>
+                                            <span className="text-[12px] text-gray-500 dark:text-[#8798b0]">
+                                                {formatCount(topic.postsCount)} posts
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </button>
                     ))
@@ -99,7 +110,7 @@ const TrendingSection: React.FC = () => {
                 isOpen={isConfirmModalOpen}
                 onClose={() => setIsConfirmModalOpen(false)}
                 onConfirm={handleHideTrending}
-                title={t('sidebar.hide_trending_title', { defaultValue: 'Hide trending feeds?' })}
+                title={t('sidebar.hide_trending_title', { defaultValue: 'Hide trending?' })}
                 message={t('sidebar.hide_trending_message', { defaultValue: 'You can always turn them back on in settings.' })}
                 confirmLabel={t('sidebar.hide', { defaultValue: 'Hide' })}
                 cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
