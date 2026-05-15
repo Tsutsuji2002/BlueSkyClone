@@ -5251,9 +5251,9 @@ public class PostService : IPostService
         return affectedIds;
     }
 
-    public async Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null)
+    public async Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null, string? fallbackUri = null)
     {
-        var lockKey = $"lock:like:{userId}:{postId}";
+        var lockKey = $"lock:like:{userId}:{postId}-{fallbackUri}";
         if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(10))) // Increase to 10s to allow for remote ingestion
         {
             return new { isLiked = false, likesCount = 0, error = "Action in progress (resolution or lock contention)" };
@@ -5264,13 +5264,26 @@ public class PostService : IPostService
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isLiked = false, error = "User not found or missing DID" };
 
-            // 1. Fetch Post Info (FORCE bypassCache to ensure we get the real count before toggling)
-            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
-            if (freshPost == null) return new { isLiked = false, error = "Post not found" };
+            PostDto? freshPost = null;
+            if (postId != Guid.Empty)
+            {
+                // 1. Fetch Post Info (FORCE bypassCache to ensure we get the real count before toggling)
+                freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
+                if (freshPost == null) return new { isLiked = false, error = "Post not found" };
+            }
+            else if (string.IsNullOrEmpty(fallbackUri))
+            {
+                return new { isLiked = false, error = "Post not found and no fallback URI provided" };
+            }
+            else
+            {
+                // Create a temporary stub for processing the proxy interaction
+                freshPost = new PostDto { Id = Guid.Empty, Uri = fallbackUri, Cid = "" };
+            }
 
             // Determine current state: CLIENT is authoritative (they know what they clicked)
             // Fallback to viewer state only if client didn't provide it
-            bool isCurrentlyLiked = clientIsLiked.HasValue ? clientIsLiked.Value : (freshPost.Viewer?.Like != null);
+            bool isCurrentlyLiked = clientIsLiked ?? (freshPost.Viewer?.Like != null);
             string? currentLikeUri = clientLikeUri ?? freshPost.Viewer?.Like;
 
             _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, ClientIsLiked={ClientIsLiked}, ViewerLike={ViewerLike}", 
@@ -5388,7 +5401,46 @@ public class PostService : IPostService
             // AT-Proto is the source of truth for likes/reposts.
             // We do NOT persist Like entities locally - AppView ingestion handles eventual consistency.
             // Just compute the optimistic count for the SignalR broadcast.
-            int finalLikesCount = isLiking ? freshPost.LikesCount + 1 : Math.Max(0, freshPost.LikesCount - 1);
+            int finalLikesCount = isLiking ? (freshPost.LikesCount + 1) : Math.Max(0, freshPost.LikesCount - 1);
+
+            // 3. Local DB Sync (ONLY if valid local post ID is available)
+            if (postId != Guid.Empty)
+            {
+                if (isLiking)
+                {
+                    // Create Local DB Record
+                    var existingLike = await _unitOfWork.Likes.Query().FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+                    if (existingLike == null && (string.IsNullOrEmpty(token) || proxySuccess))
+                    {
+                        var like = new Like { Tid = GenerateTid(), PostId = postId, UserId = userId, CreatedAt = DateTime.UtcNow, Uri = newLikeUri };
+                        await _unitOfWork.Likes.AddAsync(like);
+                        
+                        var postToUpdate = await _unitOfWork.Posts.GetByIdAsync(postId);
+                        if (postToUpdate != null) {
+                            postToUpdate.LikesCount = (postToUpdate.LikesCount ?? 0) + 1;
+                            _unitOfWork.Posts.Update(postToUpdate);
+                            finalLikesCount = postToUpdate.LikesCount ?? 0;
+                        }
+                    }
+                }
+                else
+                {
+                    var existingLike = await _unitOfWork.Likes.Query().FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+                    if (existingLike != null && (string.IsNullOrEmpty(token) || proxySuccess))
+                    {
+                        _unitOfWork.Likes.Remove(existingLike);
+
+                        var postToUpdate = await _unitOfWork.Posts.GetByIdAsync(postId);
+                        if (postToUpdate != null && (postToUpdate.LikesCount ?? 0) > 0) {
+                            postToUpdate.LikesCount = (postToUpdate.LikesCount ?? 0) - 1;
+                            _unitOfWork.Posts.Update(postToUpdate);
+                            finalLikesCount = postToUpdate.LikesCount ?? 0;
+                        }
+                    }
+                }
+
+                await _unitOfWork.CompleteAsync();
+            }
 
             // Broadcast stats update
             var timestamp = DateTime.UtcNow;
@@ -5477,9 +5529,9 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<object> ToggleRepostAsync(Guid userId, Guid postId, bool? clientIsReposted = null, string? clientRepostUri = null)
+    public async Task<object> ToggleRepostAsync(Guid userId, Guid postId, bool? clientIsReposted = null, string? clientRepostUri = null, string? fallbackUri = null)
     {
-        var lockKey = $"lock:repost:{userId}:{postId}";
+        var lockKey = $"lock:repost:{userId}:{postId}-{fallbackUri}";
         if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(10))) // Increase to 10s to allow for remote ingestion
         {
             return new { isReposted = false, repostsCount = 0, error = "Action in progress (resolution or lock contention)" };
@@ -5490,16 +5542,28 @@ public class PostService : IPostService
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isReposted = false, error = "User not found or missing DID" };
 
-            // 1. Fetch Post Info (FORCE bypassCache to ensure we get the real count before toggling)
-            var freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
-            if (freshPost == null) 
+            PostDto? freshPost = null;
+            if (postId != Guid.Empty)
             {
-                _logger.LogWarning("[ToggleRepostAsync] Post {PostId} NOT FOUND in DB after resolution.", postId);
-                return new { isReposted = false, error = "Post not found" };
+                // FORCE bypassCache to ensure we get the real count
+                freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
+                if (freshPost == null) 
+                {
+                    _logger.LogWarning("[ToggleRepostAsync] Post {PostId} NOT FOUND in DB after resolution.", postId);
+                    return new { isReposted = false, error = "Post not found" };
+                }
+            }
+            else if (string.IsNullOrEmpty(fallbackUri))
+            {
+                return new { isReposted = false, error = "Post not found and no fallback URI provided" };
+            }
+            else
+            {
+                freshPost = new PostDto { Id = Guid.Empty, Uri = fallbackUri, Cid = "" };
             }
 
             // Determine current state: CLIENT is authoritative
-            bool isCurrentlyReposted = clientIsReposted.HasValue ? clientIsReposted.Value : (freshPost.Viewer?.Repost != null);
+            bool isCurrentlyReposted = clientIsReposted ?? (freshPost.Viewer?.Repost != null);
             string? currentRepostUri = clientRepostUri ?? freshPost.Viewer?.Repost;
             bool isReposting = !isCurrentlyReposted;
             

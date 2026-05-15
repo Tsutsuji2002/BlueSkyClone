@@ -563,10 +563,14 @@ public class PostsController : ControllerBase
                 var post = await _postService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
                 if (post == null)
                 {
-                    _logger.LogWarning("[PostsController] LikePost: FAILED to resolve or ingest remote URI={Uri} using userId={UserId}", resolvedUri, userId);
-                    return NotFound($"Remote post could not be resolved or ingested. URI: {resolvedUri}");
+                    _logger.LogWarning("[PostsController] LikePost: Post missing locally. Passing null GUID to ToggleLikeAsync, which will handle the direct proxying for {Uri}", resolvedUri);
+                    // Use Empty Guid to signal "missing/dropped post"
+                    postId = Guid.Empty;
                 }
-                postId = post.Id;
+                else
+                {
+                    postId = post.Id;
+                }
             }
             else if (!Guid.TryParse(id, out postId))
             {
@@ -608,7 +612,8 @@ public class PostsController : ControllerBase
             Guid postId;
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByUriAsync(uri ?? id, userId, bypassCache: true);
+                var resolvedUri = uri ?? id;
+                var post = await _postService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
                 if (post == null) return NotFound("Remote post could not be resolved or ingested.");
                 postId = post.Id;
             }
@@ -639,9 +644,17 @@ public class PostsController : ControllerBase
             Guid postId;
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
-                var post = await _postService.GetPostByUriAsync(uri ?? id, userId, bypassCache: true);
-                if (post == null) return NotFound("Remote post could not be resolved or ingested.");
-                postId = post.Id;
+                var resolvedUri = uri ?? id;
+                var post = await _postService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
+                if (post == null) 
+                {
+                    _logger.LogWarning("[PostsController] RepostPost: Post missing locally at {Uri}", resolvedUri);
+                    postId = Guid.Empty;
+                }
+                else
+                {
+                    postId = post.Id;
+                }
             }
             else if (!Guid.TryParse(id, out postId))
             {
