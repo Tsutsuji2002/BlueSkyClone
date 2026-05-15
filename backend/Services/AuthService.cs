@@ -121,7 +121,8 @@ public class AuthService : IAuthService
             PasswordHash = "PROXY_ACCOUNT", // No local password
             Salt = "PROXY_ACCOUNT",
             BlueskyAccessToken = accessJwt,
-            BlueskyRefreshToken = refreshJwt
+            BlueskyRefreshToken = refreshJwt,
+            EmailConfirmed = bskySession.TryGetProperty("emailConfirmed", out var ec) && ec.GetBoolean()
         };
 
         user.UserSetting = new UserSetting
@@ -180,6 +181,7 @@ public class AuthService : IAuthService
         string email = bskySession.TryGetProperty("email", out var emailProp) ? emailProp.GetString()! : $"{handle}@bluesky.local";
         string accessJwt = bskySession.GetProperty("accessJwt").GetString()!;
         string refreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
+        bool emailConfirmed = bskySession.TryGetProperty("emailConfirmed", out var confirmedProp) && confirmedProp.GetBoolean();
 
         var user = await _unitOfWork.Users.GetByDidAsync(did) ?? await _unitOfWork.Users.GetByHandleAsync(handle);
         
@@ -198,7 +200,8 @@ public class AuthService : IAuthService
                 PasswordHash = "PROXY_ACCOUNT",
                 Salt = "PROXY_ACCOUNT",
                 BlueskyAccessToken = accessJwt,
-                BlueskyRefreshToken = refreshJwt
+                BlueskyRefreshToken = refreshJwt,
+                EmailConfirmed = emailConfirmed
             };
             user.UserSetting = new UserSetting { UserId = user.Id, AppLanguage = "en", ThemeMode = "system" };
             await _unitOfWork.Users.AddAsync(user);
@@ -209,6 +212,7 @@ public class AuthService : IAuthService
             user.Handle = handle;
             user.BlueskyAccessToken = accessJwt;
             user.BlueskyRefreshToken = refreshJwt;
+            user.EmailConfirmed = emailConfirmed;
             _unitOfWork.Users.Update(user);
         }
 
@@ -290,6 +294,13 @@ public class AuthService : IAuthService
                         var bskySession = JsonSerializer.Deserialize<JsonElement>(refreshResult.Content);
                         string nextAccessJwt = bskySession.GetProperty("accessJwt").GetString()!;
                         string nextRefreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
+                        
+                        if (bskySession.TryGetProperty("emailConfirmed", out var eco))
+                        {
+                            user.EmailConfirmed = eco.GetBoolean();
+                            _unitOfWork.Users.Update(user);
+                            await _unitOfWork.CompleteAsync();
+                        }
 
                         var bskyCacheOptions = new DistributedCacheEntryOptions { 
                             AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
@@ -418,7 +429,9 @@ public class AuthService : IAuthService
             user.Role,
             null,
             user.IsVerified,
-            user.Did
+            user.Did,
+            null, // FollowingReference
+            user.EmailConfirmed
         );
 
         var settingsDto = user.UserSetting != null ? new UserSettingDto(

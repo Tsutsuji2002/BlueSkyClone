@@ -66,6 +66,7 @@ public partial class User
     public bool IsBanned { get; set; } = false;
 
     public bool IsVerified { get; set; } = false;
+    public bool EmailConfirmed { get; set; } = true;
 
     public virtual ICollection<BlockedAccount> BlockedAccountBlockedUsers { get; set; } = new List<BlockedAccount>();
 

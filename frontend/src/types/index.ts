@@ -14,6 +14,7 @@ export interface User {
     website?: string;
     dateOfBirth?: string;
     emailVerified?: boolean;
+    emailConfirmed?: boolean;
     twoFactorEnabled?: boolean;
     isPrivate?: boolean;
     createdAt?: string;

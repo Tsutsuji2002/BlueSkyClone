@@ -44,7 +44,8 @@ public record UserDto(
     int? ListMembershipStatus = null,
     bool IsVerified = false,
     string? Did = null,
-    string? FollowingReference = null
+    string? FollowingReference = null,
+    bool EmailConfirmed = true
 )
 {
     [JsonPropertyName("isFollowing")]

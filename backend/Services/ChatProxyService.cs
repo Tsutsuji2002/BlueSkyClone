@@ -172,9 +172,26 @@ namespace BSkyClone.Services
             var response = await CallAsync(token, url, "GET");
             if (!response.IsSuccessStatusCode)
             {
-                var error = await response.Content.ReadAsStringAsync();
-                _logger.LogError("getConvoForMembers failed: {StatusCode} - {Error} for {Url}", response.StatusCode, error, url);
-                throw new Exception($"Failed to get/create conversation: {response.StatusCode}");
+                var errorJson = await response.Content.ReadAsStringAsync();
+                var errorCode = "Unknown";
+                var errorMessage = "Unknown error";
+                
+                try 
+                {
+                    using var doc = JsonDocument.Parse(errorJson);
+                    if (doc.RootElement.TryGetProperty("error", out var err)) errorCode = err.GetString() ?? "Unknown";
+                    if (doc.RootElement.TryGetProperty("message", out var msg)) errorMessage = msg.GetString() ?? "Unknown";
+                }
+                catch {}
+
+                _logger.LogError("getConvoForMembers failed: {StatusCode} - {Error} ({Message}) for {Url}", response.StatusCode, errorCode, errorMessage, url);
+                
+                if (errorCode == "AccountRestriction")
+                {
+                    throw new Exception("Your account is restricted from starting new chats. This usually requires a confirmed email address on Bluesky.");
+                }
+
+                throw new Exception($"Failed to start conversation: {errorMessage}");
             }
 
             var json = await response.Content.ReadAsStringAsync();

@@ -6,6 +6,8 @@ import LoadingIndicator from '../common/LoadingIndicator';
 import api from '../../utils/api';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { useAppSelector } from '../../hooks/useAppSelector';
+import { RootState } from '../../redux/store';
 import { startConversation } from '../../redux/slices/messagesSlice';
 
 interface ChatSearchModalProps {
@@ -17,9 +19,11 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
     const { t } = useTranslation();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
+    const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -52,14 +56,23 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
     }, [searchQuery]);
 
     const handleStartChat = async (user: any) => {
+        if (!currentUser?.emailConfirmed) {
+            setError(t('messages.email_not_confirmed', { defaultValue: "Proactive chat initiation requires a confirmed email address on Bluesky. Please verify your email in your Bluesky settings." }));
+            return;
+        }
+
+        setError(null);
         try {
             const resultAction = await dispatch(startConversation([user.did || user.id]) as any);
             if (startConversation.fulfilled.match(resultAction)) {
                 onClose();
                 navigate(`/messages/${resultAction.payload.id}`);
+            } else if (startConversation.rejected.match(resultAction)) {
+                setError(resultAction.payload as string || 'Failed to start conversation');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to start chat:', error);
+            setError(error.message || 'Failed to start chat');
         }
     };
 
@@ -89,6 +102,41 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                         <FiX size={20} />
                     </button>
                 </div>
+
+                {/* Email Verification Warning */}
+                {currentUser && !currentUser.emailConfirmed && (
+                    <div className="bg-[#0085ff]/10 p-4 border-b border-[#0085ff]/20">
+                        <div className="flex gap-3">
+                            <div className="text-[#0085ff] pt-0.5">
+                                <svg fill="none" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[13.5px] text-[#0085ff] font-medium leading-normal">
+                                    Confirm your email address on Bluesky to start chats.
+                                </p>
+                                <a 
+                                    href="https://bsky.app/settings" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-[13px] text-[#0085ff] font-bold underline mt-1 inline-block"
+                                >
+                                    Verify on Bluesky
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                    <div className="bg-red-50 dark:bg-red-500/10 p-4 border-b border-red-100 dark:border-red-500/20">
+                        <p className="text-[13.5px] text-red-600 dark:text-red-400 font-medium">
+                            {error}
+                        </p>
+                    </div>
+                )}
 
                 {/* Search Input */}
                 <div className="p-4 px-6">
