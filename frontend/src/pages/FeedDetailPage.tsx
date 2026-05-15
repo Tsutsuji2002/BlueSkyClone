@@ -144,101 +144,119 @@ const FeedDetailPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">
-            {/* Sticky Header */}
-            <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
-                <div className="flex items-center justify-between px-3 py-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
-                        >
-                            <FiArrowLeft size={20} className="text-gray-900 dark:text-dark-text" />
-                        </button>
-                        <div className="flex items-center gap-2 min-w-0">
-                            <FeedAvatar
-                                src={feed.avatarUrl || feed.avatar}
-                                alt={feed.name}
-                                size="sm"
-                                className="rounded-md"
-                            />
-                            <div className="flex flex-col min-w-0">
-                                <h1 className="text-[17px] font-black text-gray-900 dark:text-dark-text truncate leading-tight">
-                                    {feed.name}
-                                </h1>
-                                <span className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">
-                                    @{feed.handle}
-                                </span>
-                            </div>
+            <div className={cn(
+                "sticky top-0 z-30 w-full border-b flex flex-row items-center gap-2 bg-black px-5 min-h-[52px] border-[#232e3e] mx-auto max-w-[600px]"
+            )}>
+                {/* Back Button */}
+                <div className="z-50 w-[33px]">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="flex flex-row items-center justify-center h-[33px] w-[33px] rounded-full -ml-[3px] bg-transparent hover:bg-white/10 transition-colors"
+                    >
+                        <div className="z-20 w-[17px] height-[17px]">
+                             <svg fill="none" width="24" viewBox="0 0 24 24" height="24" className="text-[#8798b0]">
+                                <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M3 12a1 1 0 0 1 .293-.707l6-6a1 1 0 0 1 1.414 1.414L6.414 11H20a1 1 0 1 1 0 2H6.414l4.293 4.293a1 1 0 0 1-1.414 1.414l-6-6A1 1 0 0 1 3 12Z" />
+                             </svg>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                        {/* "..." opens info modal */}
-                        <div className="relative">
-                            <button
-                                className="p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
-                                onClick={() => setShowInfoModal(true)}
-                            >
-                                <FiMoreHorizontal size={20} className="text-gray-700 dark:text-dark-text" />
-                            </button>
-                        </div>
-                        {/* Bell / pin toggle */}
-                        <div className="relative" ref={pinMenuRef}>
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    if (!isAuthenticated) {
-                                        dispatch(openAuthWall());
-                                        return;
-                                    }
-                                    const fk = feedActionKey(feed);
-                                    if (feed.isPinned) {
-                                        setShowPinMenu(!showPinMenu);
-                                    } else {
-                                        await dispatch(pinFeed(fk));
-                                        dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
-                                    }
-                                }}
-                                disabled={feeds_actionLoading[feedActionKey(feed)]}
-                                className={cn(
-                                    "p-2.5 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors disabled:opacity-50",
-                                    feed.isPinned ? "text-primary-500" : "text-gray-700 dark:text-dark-text"
-                                )}>
-                                {feed.isPinned ? <BsPinAngleFill size={20} /> : <BsPinAngle size={20} />}
-                            </button>
+                    </button>
+                </div>
 
-                            {/* Pin Dropdown Menu */}
-                            {showPinMenu && (
-                                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#161e27] border border-gray-100 dark:border-gray-800 rounded-xl shadow-2xl z-50 overflow-hidden py-1.5 ring-1 ring-black/5">
-                                    <button
-                                        onClick={async () => {
-                                            const fk = feedActionKey(feed);
-                                            await dispatch(unpinFeed(fk));
-                                            setShowPinMenu(false);
-                                            dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
-                                        }}
-                                        className="w-full flex items-center justify-between px-4 py-3 text-[15px] hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-900 dark:text-dark-text"
-                                    >
-                                        <span className="font-semibold">Unpin from home</span>
-                                        <FiX size={20} className="text-gray-500 dark:text-gray-400" />
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            const fk = feedActionKey(feed);
-                                            await dispatch(unsaveFeed(fk));
-                                            if (feed.isPinned) await dispatch(unpinFeed(fk));
-                                            
-                                            setShowPinMenu(false);
-                                            dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
-                                        }}
-                                        className="w-full flex items-center justify-between px-4 py-3 text-[15px] hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-red-500"
-                                    >
-                                        <span className="font-semibold">Remove from my feeds</span>
-                                        <FiTrash2 size={20} />
-                                    </button>
+                {/* Center Content / Info Trigger */}
+                <div className="flex-1 flex justify-center min-h-[33px]">
+                    <button
+                        onClick={() => setShowInfoModal(true)}
+                        className="flex flex-row items-center justify-start py-0.5 pr-2 relative group"
+                    >
+                        <div className="absolute inset-0 -left-0.5 rounded-lg bg-[#111822] opacity-0 group-hover:opacity-100 transition-opacity duration-100" />
+                        <div className="flex-1 flex flex-row items-center gap-2 relative">
+                            <div className="flex-1">
+                                <div className="text-[16.9px] tracking-[0.25px] text-white font-bold line-clamp-2 leading-[22px] text-left">
+                                    {feed.name}
                                 </div>
-                            )}
+                                <div className="flex flex-row gap-1.5 mt-[-1px]">
+                                    <div className="text-[13.1px] tracking-[0.25px] text-[#a5b2c5] overflow-hidden min-w-0 flex-shrink-1 leading-[17px]">
+                                        @{feed.handle}
+                                    </div>
+                                    <div className="flex flex-row items-center gap-0.5">
+                                        <svg fill="none" viewBox="0 0 24 24" width="12" height="12">
+                                            <path fill="#526580" fillRule="evenodd" clipRule="evenodd" d="M12.489 21.372c8.528-4.78 10.626-10.47 9.022-14.47-.779-1.941-2.414-3.333-4.342-3.763-1.697-.378-3.552.003-5.169 1.287-1.617-1.284-3.472-1.665-5.17-1.287-1.927.43-3.562 1.822-4.34 3.764-1.605 4 .493 9.69 9.021 14.47a1 1 0 0 0 .978 0Z" />
+                                        </svg>
+                                        <div className="text-[13.1px] tracking-[0.25px] text-[#a5b2c5] overflow-hidden min-w-0 leading-[17px]">
+                                            {count >= 1000 ? `${(count / 1000).toFixed(1)}K` : count}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="#526580" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
+                            </svg>
                         </div>
-                    </div>
+                    </button>
+                </div>
+
+                {/* Pin Button */}
+                <div className="z-50 w-[33px]" ref={pinMenuRef}>
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            if (!isAuthenticated) {
+                                dispatch(openAuthWall());
+                                return;
+                            }
+                            const fk = feedActionKey(feed);
+                            if (feed.isPinned) {
+                                setShowPinMenu(!showPinMenu);
+                            } else {
+                                await dispatch(pinFeed(fk));
+                                dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+                            }
+                        }}
+                        disabled={feeds_actionLoading[feedActionKey(feed)]}
+                        className={cn(
+                            "flex flex-row items-center justify-center bg-black h-[33px] w-[33px] rounded-lg transition-colors group",
+                            feed.isPinned ? "text-[#0085ff]" : "text-[#8798b0] hover:bg-white/10"
+                        )}
+                    >
+                        <div className="z-20 w-[17px] h-[17px]">
+                            <svg fill="none" width="24" viewBox="0 0 24 24" height="24" className={feed.isPinned ? "text-[#0085ff]" : "text-[#8798b0]"}>
+                                <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z" />
+                            </svg>
+                        </div>
+
+                        {/* Pin Dropdown Menu */}
+                        {showPinMenu && (
+                            <div className="absolute top-[38px] right-0 w-64 bg-white dark:bg-[#161e27] border border-gray-100 dark:border-gray-800 rounded-xl shadow-2xl z-50 overflow-hidden py-1.5 ring-1 ring-black/5">
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        const fk = feedActionKey(feed);
+                                        await dispatch(unpinFeed(fk));
+                                        setShowPinMenu(false);
+                                        dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+                                    }}
+                                    className="w-full flex items-center justify-between px-4 py-3 text-[15px] hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-900 dark:text-dark-text"
+                                >
+                                    <span className="font-semibold">Unpin from home</span>
+                                    <FiX size={20} className="text-gray-500 dark:text-gray-400" />
+                                </button>
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        const fk = feedActionKey(feed);
+                                        await dispatch(unsaveFeed(fk));
+                                        if (feed.isPinned) await dispatch(unpinFeed(fk));
+                                        
+                                        setShowPinMenu(false);
+                                        dispatch(fetchSubscribedFeeds({ bypassThrottle: true }));
+                                    }}
+                                    className="w-full flex items-center justify-between px-4 py-3 text-[15px] hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-red-500"
+                                >
+                                    <span className="font-semibold">Remove from my feeds</span>
+                                    <FiTrash2 size={20} />
+                                </button>
+                            </div>
+                        )}
+                    </button>
                 </div>
             </div>
 
