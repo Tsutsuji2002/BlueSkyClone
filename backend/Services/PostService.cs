@@ -3729,6 +3729,22 @@ public class PostService : IPostService
                 return existing;
             }
 
+            // 4.1 Ensure author is persisted to DB before inserting post to avoid race condition with UserService background persist
+            var dbAuthor = await _unitOfWork.Users.GetByIdAsync(author.Id);
+            int retries = 0;
+            while (dbAuthor == null && retries < 20) // Wait up to 2 seconds
+            {
+                await Task.Delay(100);
+                dbAuthor = await _unitOfWork.Users.GetByIdAsync(author.Id);
+                retries++;
+            }
+            
+            if (dbAuthor == null)
+            {
+                _logger.LogWarning("[IngestRemotePostAsync] Author {Did} not persisted in time by UserService. Aborting ingestion.", author.Did);
+                return null;
+            }
+
             // 5. Create new entry
             var newPost = new Post
             {
@@ -3923,6 +3939,22 @@ public class PostService : IPostService
                     }
                 }
                 return existing;
+            }
+
+            // Ensure author is persisted to DB before inserting post to avoid race condition with UserService background persist
+            var dbAuthor = await _unitOfWork.Users.GetByIdAsync(author.Id);
+            int retries = 0;
+            while (dbAuthor == null && retries < 20) // Wait up to 2 seconds
+            {
+                await Task.Delay(100);
+                dbAuthor = await _unitOfWork.Users.GetByIdAsync(author.Id);
+                retries++;
+            }
+            
+            if (dbAuthor == null)
+            {
+                _logger.LogWarning("[IngestViaGetRecordAsync] Author {Did} not persisted in time by UserService. Aborting ingestion.", author.Did);
+                return null;
             }
 
             var newPost = new Post
