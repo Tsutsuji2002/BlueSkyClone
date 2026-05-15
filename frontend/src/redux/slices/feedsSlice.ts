@@ -147,13 +147,14 @@ const initialState: FeedsState = {
 
 export const fetchTrendingFeeds = createAsyncThunk<
     Feed[],
-    void,
+    { limit?: number } | void,
     { rejectValue: string }
 >(
     'feeds/fetchTrendingFeeds',
-    async (_: void, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async (params, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/feeds/trending`);
+            const limit = params && typeof params === 'object' ? params.limit : 10;
+            const response = await fetch(`${API_BASE_URL}/feeds/trending?limit=${limit}`);
             const data = await response.json();
             console.log('feedsSlice: fetchTrendingFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch trending feeds');
