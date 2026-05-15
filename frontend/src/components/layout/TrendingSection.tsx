@@ -10,6 +10,7 @@ import { fetchTrendingFeeds } from '../../redux/slices/feedsSlice';
 import { updateNotificationSettings } from '../../redux/slices/authSlice';
 import ConfirmModal from '../common/ConfirmModal';
 import { cn } from '../../utils/classNames';
+import { formatCount } from '../../utils/formatNumber';
 
 const TrendingSection: React.FC = () => {
     const navigate = useNavigate();

@@ -115,6 +115,7 @@ interface FeedsState {
     userFeeds: Feed[];
     userFeedsLoading: boolean;
     lastSubscribedFeedsFetch: number;
+    trendingFeeds: Feed[];
 }
 
 const initialState: FeedsState = {
@@ -141,6 +142,7 @@ const initialState: FeedsState = {
     userFeeds: [],
     userFeedsLoading: false,
     lastSubscribedFeedsFetch: 0,
+    trendingFeeds: [],
 };
 
 export const fetchTrendingFeeds = createAsyncThunk<
@@ -531,7 +533,18 @@ const feedsSlice = createSlice({
             })
             .addCase(fetchTrendingFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
                 state.isLoading = false;
-                state.feeds = action.payload;
+                state.trendingFeeds = action.payload;
+                
+                // Also update general feeds cache
+                action.payload.forEach(feed => {
+                    const key = feedActionKey(feed);
+                    const index = state.feeds.findIndex(f => feedActionKey(f) === key);
+                    if (index >= 0) {
+                        state.feeds[index] = feed;
+                    } else {
+                        state.feeds.push(feed);
+                    }
+                });
             })
             .addCase(fetchTrendingFeeds.rejected, (state: FeedsState, action: any) => {
                 state.isLoading = false;
