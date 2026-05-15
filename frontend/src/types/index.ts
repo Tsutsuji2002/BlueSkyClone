@@ -331,6 +331,7 @@ export interface Feed {
     pinnedOrder?: number;
     creator?: {
         id: string;
+        did?: string;
         handle: string;
         displayName: string;
         avatarUrl?: string;
