@@ -17,6 +17,8 @@ import Dropdown from '../common/Dropdown';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
 import ButterflyLogo from '../common/ButterflyLogo';
+import { fetchUnreadCount } from '../../redux/slices/notificationsSlice';
+import { fetchConversations } from '../../redux/slices/messagesSlice';
 
 const iconMap: Record<string, React.ReactNode> = {
     home: <FiHome size={28} strokeWidth={2} />,
@@ -30,9 +32,6 @@ const iconMap: Record<string, React.ReactNode> = {
     user: <FiUser size={28} strokeWidth={2} />,
     settings: <FiSettings size={28} strokeWidth={2} />,
 };
-
-import { fetchUnreadCount } from '../../redux/slices/notificationsSlice';
-import { fetchConversations } from '../../redux/slices/messagesSlice';
 
 const Sidebar: React.FC = () => {
     const navigate = useNavigate();
