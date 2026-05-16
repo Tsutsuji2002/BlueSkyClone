@@ -91,8 +91,8 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Log exception here in a real scenario
-            return StatusCode(500, new { message = "An unexpected error occurred. Please try again." });
+            // [TEMP FOR DEBUG] Expose error to help fix production 500
+            return StatusCode(500, new { message = ex.Message, details = ex.StackTrace });
         }
     }
 
