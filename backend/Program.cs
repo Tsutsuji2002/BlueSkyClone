@@ -263,6 +263,26 @@ var app = builder.Build();
 // Handle Forwarded Headers from Nginx
 app.UseForwardedHeaders();
 
+// Global Exception Handler to ensure JSON error responses
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        var exceptionHandlerPathFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerPathFeature>();
+        var exception = exceptionHandlerPathFeature?.Error;
+        
+        var errorBody = new { 
+            message = "Global Error: " + (exception?.Message ?? "Unknown Error"), 
+            details = exception?.StackTrace,
+            path = exceptionHandlerPathFeature?.Path
+        };
+        
+        await context.Response.WriteAsJsonAsync(errorBody);
+    });
+});
+
 app.UseMiddleware<BSkyClone.Middleware.RequestLoggingMiddleware>();
 
 // Configure the HTTP request pipeline.
@@ -300,6 +320,9 @@ app.UseMiddleware<BSkyClone.Middleware.XrpcMiddleware>();
 app.MapControllers();
 app.MapHub<BSkyClone.Hubs.ChatHub>("/hubs/chat");
 app.MapHub<BSkyClone.Hubs.PostHub>("/hubs/posts");
+
+// Diagnostic Endpoint
+app.MapGet("/api/debug/ping", () => Results.Ok(new { status = "alive", time = DateTime.UtcNow }));
 
 // Apply database migrations automatically
 using (var scope = app.Services.CreateScope())
