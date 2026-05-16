@@ -26,7 +26,7 @@ public class AuthController : ControllerBase
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var result = await _authService.GetUserProfileAsync(userId);
-            if (result == null) return NotFound();
+            if (result == null) return NotFound(new { message = "User not found" });
             return Ok(result);
         }
         catch (UnauthorizedAccessException ex)
@@ -63,7 +63,7 @@ public class AuthController : ControllerBase
         try
         {
             await _authService.RequestPhoneVerificationAsync(request.PhoneNumber);
-            return Ok();
+            return Ok(new { success = true });
         }
         catch (Exception ex)
         {
@@ -123,7 +123,7 @@ public class AuthController : ControllerBase
         
         Response.Cookies.Delete("access_token");
         Response.Cookies.Delete("refresh_token");
-        return Ok();
+        return Ok(new { success = true });
     }
 
     private void SetTokenCookies(string token, string refreshToken)

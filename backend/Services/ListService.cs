@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BSkyClone.Utilities;
 
 namespace BSkyClone.Services;
 
@@ -40,7 +41,7 @@ public class ListService : IListService
         var user = await _userService.GetUserByIdAsync(userId);
         if (user == null || string.IsNullOrEmpty(user.Did)) throw new Exception("User DID not found");
 
-        var rkey = Utilities.ProtocolUtils.GenerateTid();
+        var rkey = ProtocolUtils.GenerateTid();
         var listRecord = new
         {
             name = dto.Name,
@@ -205,7 +206,7 @@ public class ListService : IListService
         if (existing != null && !string.IsNullOrEmpty(existing.Uri)) return true; // Already exists in Repo
 
         // 2. Create listitem Record in Repository
-        var rkey = Utilities.ProtocolUtils.GenerateTid();
+        var rkey = ProtocolUtils.GenerateTid();
         var listItemRecord = new
         {
             subject = targetUser.Did,

@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using BSkyClone.Hubs;
+using BSkyClone.Utilities;
 
 namespace BSkyClone.Services;
 

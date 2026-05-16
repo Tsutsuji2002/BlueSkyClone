@@ -110,7 +110,7 @@ public class FeedsController : ControllerBase
         {
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) 
-                return Unauthorized();
+                return Unauthorized(new { message = "Unauthorized" });
 
             var paged = await _feedService.GetTrendingFeedsAsync(userId, cursor, limit);
             _logger.LogInformation("[FeedsController] GetTrending returned {Count} feeds. Cursor: {Cursor}", paged.Feeds.Count(), paged.Cursor);
@@ -212,13 +212,13 @@ public class FeedsController : ControllerBase
         try
         {
             var feed = await _feedService.GetFeedByTidAsync(tid);
-            if (feed == null) return NotFound();
+            if (feed == null) return NotFound(new { message = "Feed not found" });
             return Ok(feed);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[FeedsController] GetFeed error: {ex.Message}");
-            return NotFound();
+            return NotFound(new { message = "Feed error" });
         }
     }
 
@@ -233,13 +233,13 @@ public class FeedsController : ControllerBase
 
             _logger.LogInformation("[FeedsController] GetFeedById requested for ID: {Id}, Original string in path: {PathId}", id, Request.Path.Value?.Split('/').Last());
             var feed = await _feedService.GetFeedByIdAsync(id, userId);
-            if (feed == null) return NotFound();
+            if (feed == null) return NotFound(new { message = "Feed not found" });
             return Ok(feed);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[FeedsController] GetFeedById error: {ex.Message}");
-            return NotFound();
+            return NotFound(new { message = "Feed error" });
         }
     }
 
@@ -432,6 +432,8 @@ public class FeedsController : ControllerBase
         {
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(userIdStr, out var vid) ? vid : null;
+
+            if (viewerId == null) return Unauthorized(new { message = "Log in to view actor feeds" });
 
             var feeds = await _feedService.GetActorFeedsAsync(actor, viewerId);
             return Ok(feeds);

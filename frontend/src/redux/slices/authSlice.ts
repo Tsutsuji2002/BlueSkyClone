@@ -103,9 +103,9 @@ export const login = createAsyncThunk(
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(credentials),
             });
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                return rejectWithValue(data.message || 'Login failed');
+                return rejectWithValue(data.message || `Login failed (Status: ${response.status})`);
             }
 
             return {
@@ -147,9 +147,9 @@ export const signUp = createAsyncThunk(
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData),
             });
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                return rejectWithValue(data.message || 'Registration failed');
+                return rejectWithValue(data.message || `Registration failed (Status: ${response.status})`);
             }
 
             return data;
@@ -170,10 +170,10 @@ export const getMe = createAsyncThunk(
                     'Content-Type': 'application/json'
                 },
             });
-            const userData = await response.json();
+            const userData = await response.json().catch(() => ({}));
             
             if (!response.ok) {
-                return rejectWithValue(userData.message || 'Failed to fetch user');
+                return rejectWithValue(userData.message || `Failed to fetch user (Status: ${response.status})`);
             }
 
             return {
@@ -219,9 +219,9 @@ export const updateUserProfile = createAsyncThunk(
                 method: 'PATCH',
                 body: formData,
             });
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                return rejectWithValue(data.message || 'Update failed');
+                return rejectWithValue(data.message || `Update failed (Status: ${response.status})`);
             }
             return data;
         } catch (error: any) {
@@ -241,9 +241,9 @@ export const updateUserAccount = createAsyncThunk(
                 },
                 body: JSON.stringify(accountData),
             });
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                return rejectWithValue(data.message || 'Update failed');
+                return rejectWithValue(data.message || `Update failed (Status: ${response.status})`);
             }
             return data;
         } catch (error: any) {
@@ -272,9 +272,9 @@ export const updateNotificationSettings = createAsyncThunk(
                 },
                 body: JSON.stringify(payload),
             });
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                return rejectWithValue(data.message || 'Update failed');
+                return rejectWithValue(data.message || `Update failed (Status: ${response.status})`);
             }
 
             // Sync with official AT Protocol preferences if possible
@@ -351,9 +351,9 @@ export const verifyDomain = createAsyncThunk(
                 },
                 body: JSON.stringify({ handle })
             });
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                return rejectWithValue(data.message || 'Verification failed');
+                return rejectWithValue(data.message || `Verification failed (Status: ${response.status})`);
             }
             return data;
         } catch (error: any) {
