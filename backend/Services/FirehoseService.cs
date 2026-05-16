@@ -212,6 +212,20 @@ namespace BSkyClone.Services
                             }
                         }
                     }
+                    // Handle remote Follow records
+                    else if (action == "create" && path != null && path.StartsWith("app.bsky.graph.follow/") && cid != null)
+                    {
+                        var block = extractedBlocks.Find(b => b.Cid == cid);
+                        if (block.Data != null)
+                        {
+                            var record = CborUtils.Decode(block.Data) as Dictionary<string, object>;
+                            if (record != null && record.TryGetValue("subject", out var subjectDid)) 
+                            {
+                                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                                await userService.ProcessRemoteFollowAsync(did, subjectDid.ToString());
+                            }
+                        }
+                    }
                     // Handle deletions
                     else if (action == "delete" && path != null)
                     {

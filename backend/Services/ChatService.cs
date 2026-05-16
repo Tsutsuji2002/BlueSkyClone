@@ -24,8 +24,9 @@ public class ChatService : IChatService
     private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
     private readonly ILogger<ChatService> _logger;
     private readonly IUserService _userService;
+    private readonly INotificationService _notificationService;
 
-    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext, IChatProxyService chatProxy, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, ILogger<ChatService> logger, IUserService userService)
+    public ChatService(IUnitOfWork unitOfWork, ILinkService linkService, ICacheService cacheService, IHubContext<ChatHub> hubContext, IChatProxyService chatProxy, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, ILogger<ChatService> logger, IUserService userService, INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _linkService = linkService;
@@ -35,6 +36,7 @@ public class ChatService : IChatService
         _distributedCache = distributedCache;
         _logger = logger;
         _userService = userService;
+        _notificationService = notificationService;
     }
 
     public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId, int limit = 50, string? cursor = null)
@@ -826,25 +828,7 @@ public class ChatService : IChatService
 
     private async Task SendNotificationAsync(Notification notification)
     {
-        var notificationDto = new NotificationDto(
-            notification.Id,
-            $"at://local/app.bsky.notification.event/{notification.Tid}",
-            "pseudo-cid-" + notification.Id,
-            notification.Type ?? "message",
-            notification.Type ?? "message",
-            null,
-            MapToUserDto(notification.Sender),
-            notification.PostId?.ToString(),
-            null,
-            notification.ListId,
-            notification.Title,
-            notification.Content,
-            notification.IsRead ?? false,
-            DateTime.SpecifyKind(notification.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc)
-        );
-
-        await _hubContext.Clients.Group($"user-{notification.RecipientId}")
-            .SendAsync("ReceiveNotification", notificationDto);
+        await _notificationService.CreateNotificationAsync(notification);
     }
 
     public async Task<string> GetChatSettingsAsync(Guid userId)

@@ -29,6 +29,7 @@ public class UserService : IUserService
     private readonly ILogger<UserService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly INotificationService _notificationService;
     private readonly string _localDomain;
 
     private string NormalizeDid(string did)
@@ -59,7 +60,8 @@ public class UserService : IUserService
         IRepoManager repoManager,
         ILogger<UserService> logger,
         IHttpClientFactory httpClientFactory,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _config = config;
@@ -70,6 +72,7 @@ public class UserService : IUserService
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         _scopeFactory = scopeFactory;
+        _notificationService = notificationService;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id) => await _unitOfWork.Users.GetByIdAsync(id);

@@ -33,6 +33,7 @@ public class PostService : IPostService
     private readonly IUserService _userService;
     private readonly ILogger<PostService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly INotificationService _notificationService;
     private readonly string _localDomain;
     private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -60,7 +61,7 @@ public class PostService : IPostService
         return uri;
     }
 
-    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, IHttpClientFactory httpClientFactory)
+    public PostService(IUnitOfWork unitOfWork, IWebHostEnvironment environment, IHubContext<ChatHub> hubContext, IHubContext<PostHub> postHubContext, ILinkService linkService, ICacheService cacheService, ICategorizationService categorizationService, ISearchService searchService, IRepoManager repoManager, IXrpcProxyService xrpcProxy, ILabelingService labelingService, IUserService userService, ILogger<PostService> logger, IServiceScopeFactory scopeFactory, INotificationService notificationService, IConfiguration configuration, Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache, IHttpClientFactory httpClientFactory)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
@@ -76,6 +77,7 @@ public class PostService : IPostService
         _userService = userService;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _notificationService = notificationService;
         _localDomain = configuration["DomainName"] ?? "bskyclone.site";
         _distributedCache = distributedCache;
         _httpClientFactory = httpClientFactory;
@@ -4982,6 +4984,33 @@ public class PostService : IPostService
             await _unitOfWork.Posts.AddAsync(newPost);
             await _unitOfWork.CompleteAsync();
 
+            // [NEW] Trigger notification for replies to local users
+            if (replyToPostId.HasValue)
+            {
+                var parentPost = await _unitOfWork.Posts.GetByIdAsync(replyToPostId.Value);
+                if (parentPost != null)
+                {
+                    // Check if parent post belongs to a local user
+                    var recipient = await _unitOfWork.Users.GetByIdAsync(parentPost.AuthorId);
+                    if (recipient != null && !string.IsNullOrEmpty(recipient.Email) && recipient.Email != $"{recipient.Did}@placeholder.com")
+                    {
+                        var notification = new Notification
+                        {
+                            Id = Guid.NewGuid(),
+                            Tid = ProtocolUtils.GenerateTid(),
+                            Type = "reply",
+                            SenderId = author.Id,
+                            RecipientId = recipient.Id,
+                            PostId = parentPost.Id,
+                            Content = newPost.Content?.Length > 100 ? newPost.Content.Substring(0, 97) + "..." : newPost.Content,
+                            IsRead = false,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _notificationService.CreateNotificationAsync(notification);
+                    }
+                }
+            }
+
             // Phase 35: Parse Embeds (Media/Links)
             if (record.TryGetValue("embed", out var embedObj) && embedObj is Dictionary<string, object> embed)
             {
@@ -7131,6 +7160,31 @@ public class PostService : IPostService
             await _unitOfWork.CompleteAsync();
 
             _logger.LogInformation("[Firehose] Incremented {Type} by {Delta} for local post {PostId}", type, delta, post.Id);
+
+            // [NEW] Trigger notification for Likes/Reposts on local posts
+            if (delta > 0 && !string.IsNullOrEmpty(actorDid))
+            {
+                var sender = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == actorDid);
+                if (sender != null)
+                {
+                    var recipient = await _unitOfWork.Users.GetByIdAsync(post.AuthorId);
+                    if (recipient != null && recipient.Id != sender.Id) // Don't notify self-interactions
+                    {
+                        var notification = new Notification
+                        {
+                            Id = Guid.NewGuid(),
+                            Tid = ProtocolUtils.GenerateTid(),
+                            Type = type, // "like" or "repost"
+                            SenderId = sender.Id,
+                            RecipientId = recipient.Id,
+                            PostId = post.Id,
+                            IsRead = false,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _notificationService.CreateNotificationAsync(notification);
+                    }
+                }
+            }
 
             // Broadcast the updated counts to spectators of this post via SignalR
             await _postHubContext.Clients.Group($"post-{post.Id}").SendAsync("UpdatePostStats", new

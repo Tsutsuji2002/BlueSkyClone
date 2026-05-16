@@ -11,6 +11,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
+using BSkyClone.Hubs;
 
 namespace BSkyClone.Services;
 
@@ -21,19 +23,22 @@ public class NotificationService : INotificationService
     private readonly IDistributedCache _cache;
     private readonly ILogger<NotificationService> _logger;
     private readonly IUserService _userService;
+    private readonly IHubContext<ChatHub> _hubContext;
 
     public NotificationService(
         IUnitOfWork unitOfWork,
         IXrpcProxyService xrpcProxy,
         IDistributedCache cache,
         ILogger<NotificationService> logger,
-        IUserService userService)
+        IUserService userService,
+        IHubContext<ChatHub> hubContext)
     {
         _unitOfWork = unitOfWork;
         _xrpcProxy = xrpcProxy;
         _cache = cache;
         _logger = logger;
         _userService = userService;
+        _hubContext = hubContext;
     }
 
     public async Task<PagedNotificationsDto> GetNotificationsAsync(Guid userId, int limit = 50, string? cursor = null)
@@ -207,6 +212,30 @@ public class NotificationService : INotificationService
                 }
             }
         }
+    }
+    
+    public async Task CreateNotificationAsync(Notification notification)
+    {
+        // 1. Persist to database
+        await _unitOfWork.Notifications.AddAsync(notification);
+        await _unitOfWork.CompleteAsync();
+
+        // 2. Map to DTO for broadcasting
+        // We need to ensure navigation properties are loaded or manually mapped
+        var sender = await _unitOfWork.Users.GetByIdAsync(notification.SenderId);
+        var post = notification.PostId.HasValue ? await _unitOfWork.Posts.GetByIdAsync(notification.PostId.Value) : null;
+        
+        // Temporarily assign for mapping (will be cleared after scope)
+        notification.Sender = sender!;
+        notification.Post = post;
+
+        var dto = MapToDto(notification);
+
+        // 3. Broadcast to user's SignalR group
+        await _hubContext.Clients.Group($"user-{notification.RecipientId}")
+            .SendAsync("ReceiveNotification", dto);
+            
+        _logger.LogInformation("Real-time notification broadcasted to user {UserId} for type {Type}", notification.RecipientId, notification.Type);
     }
 
     private NotificationDto MapToDto(Notification n) => MapToDto(n, null);
