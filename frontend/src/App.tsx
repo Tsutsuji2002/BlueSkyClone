@@ -137,16 +137,32 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
 
-    if (isAuthenticated) {
-        // Poll every 60 seconds to ensure badges stay synced even if SignalR misses an event
-        pollInterval = setInterval(() => {
+    const fetchCounts = () => {
+        if (isAuthenticated) {
             dispatch(fetchUnreadCount());
             dispatch(fetchConversations());
-        }, 60000);
+        }
+    };
+
+    if (isAuthenticated) {
+        // Poll every 15 seconds to ensure badges stay synced even if SignalR misses an event
+        pollInterval = setInterval(fetchCounts, 15000);
     }
+
+    // Instantly fetch when user focuses window or returns to the tab
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+            fetchCounts();
+        }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', fetchCounts);
 
     return () => {
         if (pollInterval) clearInterval(pollInterval);
+        window.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('focus', fetchCounts);
     };
   }, [isAuthenticated, dispatch]);
 
