@@ -30,7 +30,6 @@ public class UserService : IUserService
     private readonly ILogger<UserService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly string _localDomain;
 
     private string NormalizeDid(string did)
     {
@@ -3164,7 +3163,9 @@ public class UserService : IUserService
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _notificationService.CreateNotificationAsync(notification);
+            using var scope = _scopeFactory.CreateScope();
+            var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+            await notificationService.CreateNotificationAsync(notification);
             _logger.LogInformation("Follow notification created and broadcasted for {RecipientDid} from {FollowerDid}", followedDid, followerDid);
         }
         catch (Exception ex)
