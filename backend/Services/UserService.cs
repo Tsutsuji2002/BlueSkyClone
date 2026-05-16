@@ -3115,6 +3115,65 @@ public class UserService : IUserService
         var results = await Task.WhenAll(tasks);
         return results.Where(r => r != null).Select(r => r!).ToList();
     }
+
+    public async Task ProcessRemoteFollowAsync(string followerDid, string followedDid)
+    {
+        try
+        {
+            var recipient = await _unitOfWork.Users.GetByDidAsync(followedDid);
+            if (recipient == null) return;
+
+            var sender = await _unitOfWork.Users.GetByDidAsync(followerDid);
+            if (sender == null)
+            {
+                // Create stub for remote follower
+                sender = new User
+                {
+                    Id = Guid.NewGuid(),
+                    Did = followerDid,
+                    Handle = followerDid,
+                    Username = followerDid,
+                    Email = $"{followerDid}@placeholder.com",
+                    PasswordHash = "remote",
+                    Salt = "remote",
+                    IsVerified = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.Users.AddAsync(sender);
+                await _unitOfWork.CompleteAsync();
+                
+                // Proactively resolve profile
+                _ = Task.Run(async () => await ResolveRemoteProfileAsync(followerDid));
+            }
+
+            if (sender.Id == recipient.Id) return;
+
+            // Check if notification already exists for this follower in the last 24h
+            var last24h = DateTime.UtcNow.AddDays(-1);
+            var existing = await _unitOfWork.Notifications.Query()
+                .AnyAsync(n => n.RecipientId == recipient.Id && n.SenderId == sender.Id && n.Type == "follow" && n.CreatedAt > last24h);
+            
+            if (existing) return;
+
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                Tid = ProtocolUtils.GenerateTid(),
+                Type = "follow",
+                SenderId = sender.Id,
+                RecipientId = recipient.Id,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _notificationService.CreateNotificationAsync(notification);
+            _logger.LogInformation("Follow notification created and broadcasted for {RecipientDid} from {FollowerDid}", followedDid, followerDid);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing remote follow for {Downstream}", followedDid);
+        }
+    }
 }
 
 public class RemoteFollowsResult

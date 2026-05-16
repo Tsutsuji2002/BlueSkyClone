@@ -145,43 +145,43 @@ const FeedDetailPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">
             <div className={cn(
-                "sticky top-0 z-30 w-full border-b flex flex-row items-center gap-2 bg-black px-5 min-h-[52px] border-[#232e3e] mx-auto max-w-[600px]"
+                "sticky top-0 z-30 w-full border-b flex flex-row items-center gap-2 px-5 min-h-[52px] mx-auto max-w-[600px] bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md border-gray-100 dark:border-gray-800"
             )}>
                 {/* Back Button */}
                 <div className="z-50 w-[33px]">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex flex-row items-center justify-center h-[33px] w-[33px] rounded-full -ml-[3px] bg-transparent hover:bg-white/10 transition-colors"
+                        className="flex flex-row items-center justify-center h-[33px] w-[33px] rounded-full -ml-[3px] bg-transparent hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                         <div className="z-20 w-[17px] height-[17px]">
-                             <svg fill="none" width="24" viewBox="0 0 24 24" height="24" className="text-[#8798b0]">
+                             <svg fill="none" width="24" viewBox="0 0 24 24" height="24" className="text-gray-900 dark:text-dark-text">
                                 <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M3 12a1 1 0 0 1 .293-.707l6-6a1 1 0 0 1 1.414 1.414L6.414 11H20a1 1 0 1 1 0 2H6.414l4.293 4.293a1 1 0 0 1-1.414 1.414l-6-6A1 1 0 0 1 3 12Z" />
                              </svg>
                         </div>
                     </button>
                 </div>
 
-                {/* Center Content / Info Trigger */}
-                <div className="flex-1 flex justify-center min-h-[33px]">
+                {/* Left-aligned Title Content / Info Trigger */}
+                <div className="flex-1 flex justify-start min-h-[33px]">
                     <button
                         onClick={() => setShowInfoModal(true)}
                         className="flex flex-row items-center justify-start py-0.5 pr-2 relative group"
                     >
-                        <div className="absolute inset-0 -left-0.5 rounded-lg bg-[#111822] opacity-0 group-hover:opacity-100 transition-opacity duration-100" />
+                        <div className="absolute inset-0 -left-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 opacity-0 group-hover:opacity-100 transition-opacity duration-100" />
                         <div className="flex-1 flex flex-row items-center gap-2 relative">
                             <div className="flex-1">
-                                <div className="text-[16.9px] tracking-[0.25px] text-white font-bold line-clamp-2 leading-[22px] text-left">
+                                <div className="text-[17px] tracking-[0.25px] text-gray-900 dark:text-dark-text font-black line-clamp-2 leading-[22px] text-left">
                                     {feed.name}
                                 </div>
                                 <div className="flex flex-row gap-1.5 mt-[-1px]">
-                                    <div className="text-[13.1px] tracking-[0.25px] text-[#a5b2c5] overflow-hidden min-w-0 flex-shrink-1 leading-[17px]">
+                                    <div className="text-[13px] tracking-[0.25px] text-gray-500 dark:text-dark-text-secondary overflow-hidden min-w-0 flex-shrink-1 leading-[17px]">
                                         @{feed.handle}
                                     </div>
                                     <div className="flex flex-row items-center gap-0.5">
                                         <svg fill="none" viewBox="0 0 24 24" width="12" height="12">
                                             <path fill="#526580" fillRule="evenodd" clipRule="evenodd" d="M12.489 21.372c8.528-4.78 10.626-10.47 9.022-14.47-.779-1.941-2.414-3.333-4.342-3.763-1.697-.378-3.552.003-5.169 1.287-1.617-1.284-3.472-1.665-5.17-1.287-1.927.43-3.562 1.822-4.34 3.764-1.605 4 .493 9.69 9.021 14.47a1 1 0 0 0 .978 0Z" />
                                         </svg>
-                                        <div className="text-[13.1px] tracking-[0.25px] text-[#a5b2c5] overflow-hidden min-w-0 leading-[17px]">
+                                        <div className="text-[13px] tracking-[0.25px] text-gray-500 dark:text-dark-text-secondary overflow-hidden min-w-0 leading-[17px]">
                                             {count >= 1000 ? `${(count / 1000).toFixed(1)}K` : count}
                                         </div>
                                     </div>
@@ -213,12 +213,12 @@ const FeedDetailPage: React.FC = () => {
                         }}
                         disabled={feeds_actionLoading[feedActionKey(feed)]}
                         className={cn(
-                            "flex flex-row items-center justify-center bg-black h-[33px] w-[33px] rounded-lg transition-colors group",
-                            feed.isPinned ? "text-[#0085ff]" : "text-[#8798b0] hover:bg-white/10"
+                            "flex flex-row items-center justify-center h-[33px] w-[33px] rounded-lg transition-colors group bg-transparent",
+                            feed.isPinned ? "text-primary-500" : "text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10"
                         )}
                     >
                         <div className="z-20 w-[17px] h-[17px]">
-                            <svg fill="none" width="24" viewBox="0 0 24 24" height="24" className={feed.isPinned ? "text-[#0085ff]" : "text-[#8798b0]"}>
+                            <svg fill="none" width="24" viewBox="0 0 24 24" height="24" className={feed.isPinned ? "text-primary-500" : "text-gray-400 dark:text-gray-500"}>
                                 <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z" />
                             </svg>
                         </div>
