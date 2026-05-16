@@ -31,6 +31,9 @@ const iconMap: Record<string, React.ReactNode> = {
     settings: <FiSettings size={28} strokeWidth={2} />,
 };
 
+import { fetchUnreadCount } from '../../redux/slices/notificationsSlice';
+import { fetchConversations } from '../../redux/slices/messagesSlice';
+
 const Sidebar: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -41,6 +44,15 @@ const Sidebar: React.FC = () => {
     const unreadNotifications = useAppSelector((state) => state.notifications.unreadCount);
     const conversations = useAppSelector((state) => state.messages.conversations);
     const unreadMessages = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
+
+    React.useEffect(() => {
+        if (user) {
+            // Defensive check to ensure we fetch if counts are zero
+            if (unreadNotifications === 0) dispatch(fetchUnreadCount());
+            if (unreadMessages === 0) dispatch(fetchConversations());
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, dispatch]);
 
     const handleLogout = async () => {
         await dispatch(logoutAsync());

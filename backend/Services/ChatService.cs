@@ -73,7 +73,10 @@ public class ChatService : IChatService
             return Enumerable.Empty<ConversationDto>();
         }
 
-        var cacheKey = $"user:{userId}:conversations:{limit}:{cursor}";
+        var cacheKey = string.IsNullOrEmpty(cursor) && limit == 50 
+            ? $"user:{userId}:conversations" 
+            : $"user:{userId}:conversations:{limit}:{cursor}";
+        
         var cached = await _cacheService.GetAsync<IEnumerable<ConversationDto>>(cacheKey);
         if (cached != null) return cached;
 

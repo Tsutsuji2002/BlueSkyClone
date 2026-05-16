@@ -112,6 +112,8 @@ const AppContent: React.FC = () => {
         };
 
         signalrService.onStatusChange(statusCallback);
+        
+        // Initial fetch
         dispatch(fetchUnreadCount());
         dispatch(fetchConversations());
     } else {
@@ -130,6 +132,23 @@ const AppContent: React.FC = () => {
         }
     };
   }, [isAuthenticated, dispatch, t]);
+
+  // Periodic polling for unread counts (fallback + sync)
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    if (isAuthenticated) {
+        // Poll every 60 seconds to ensure badges stay synced even if SignalR misses an event
+        pollInterval = setInterval(() => {
+            dispatch(fetchUnreadCount());
+            dispatch(fetchConversations());
+        }, 60000);
+    }
+
+    return () => {
+        if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [isAuthenticated, dispatch]);
 
   // Theme Management
   useEffect(() => {

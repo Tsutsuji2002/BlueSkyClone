@@ -77,8 +77,7 @@ class PostSignalRService {
             this.connection = new signalR.HubConnectionBuilder()
                 .withUrl(HUB_URL, {
                     accessTokenFactory: () => {
-                        // Rely on HttpOnly cookies instead of localStorage tokens
-                        return '';
+                        return localStorage.getItem('token') || '';
                     }
                 })
                 .withAutomaticReconnect({
