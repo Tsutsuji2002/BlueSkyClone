@@ -298,16 +298,21 @@ public class AuthService : IAuthService
                         if (bskySession.TryGetProperty("emailConfirmed", out var eco))
                         {
                             user.EmailConfirmed = eco.GetBoolean();
-                            _unitOfWork.Users.Update(user);
-                            await _unitOfWork.CompleteAsync();
                         }
+
+                        // [FIX] Persist fresh tokens to DB for long-term recovery
+                        user.BlueskyAccessToken = nextAccessJwt;
+                        user.BlueskyRefreshToken = nextRefreshJwt;
+
+                        _unitOfWork.Users.Update(user);
+                        await _unitOfWork.CompleteAsync();
 
                         var bskyCacheOptions = new DistributedCacheEntryOptions { 
                             AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
                         };
                         await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
                         await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
-                        _logger.LogInformation("Successfully refreshed Bluesky session for user {UserId}", user.Id);
+                        _logger.LogInformation("Successfully refreshed and PERSISTED Bluesky session for user {UserId}", user.Id);
                     }
                     else
                     {
