@@ -33,17 +33,17 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
     private readonly IDistributedCache _cache;
     private readonly IXrpcProxyService _xrpcProxy;
-    private readonly IFeedService _feedService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<PostHub> _postHubContext;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, IXrpcProxyService xrpcProxy, IFeedService feedService, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, IXrpcProxyService xrpcProxy, IServiceScopeFactory scopeFactory, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _cache = cache;
         _xrpcProxy = xrpcProxy;
-        _feedService = feedService;
+        _scopeFactory = scopeFactory;
         _postHubContext = postHubContext;
         _logger = logger;
     }
@@ -388,8 +388,10 @@ public class AuthService : IAuthService
 
     private async Task SeedDefaultFeedsAsync(Guid userId)
     {
-        await _feedService.PinFeedAsync(userId, Guid.Empty, "following");
-        await _feedService.PinFeedAsync(userId, Guid.Empty, "discover");
+        using var scope = _scopeFactory.CreateScope();
+        var feedService = scope.ServiceProvider.GetRequiredService<IFeedService>();
+        await feedService.PinFeedAsync(userId, Guid.Empty, "following");
+        await feedService.PinFeedAsync(userId, Guid.Empty, "discover");
     }
 
     public async Task LogoutAsync(string refreshToken)

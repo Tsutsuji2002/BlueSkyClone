@@ -23,7 +23,7 @@ public class NotificationService : INotificationService
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly IDistributedCache _cache;
     private readonly ILogger<NotificationService> _logger;
-    private readonly IUserService _userService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<ChatHub> _hubContext;
 
     public NotificationService(
@@ -31,14 +31,14 @@ public class NotificationService : INotificationService
         IXrpcProxyService xrpcProxy,
         IDistributedCache cache,
         ILogger<NotificationService> logger,
-        IUserService userService,
+        IServiceScopeFactory scopeFactory,
         IHubContext<ChatHub> hubContext)
     {
         _unitOfWork = unitOfWork;
         _xrpcProxy = xrpcProxy;
         _cache = cache;
         _logger = logger;
-        _userService = userService;
+        _scopeFactory = scopeFactory;
         _hubContext = hubContext;
     }
 
@@ -71,7 +71,9 @@ public class NotificationService : INotificationService
 
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
         {
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            using var scope = _scopeFactory.CreateScope();
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            var token = await userService.GetOrRefreshBlueskyTokenAsync(userId);
             if (!string.IsNullOrEmpty(token))
             {
                 try
@@ -157,7 +159,9 @@ public class NotificationService : INotificationService
         var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
         {
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            using var scope = _scopeFactory.CreateScope();
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            var token = await userService.GetOrRefreshBlueskyTokenAsync(userId);
             if (!string.IsNullOrEmpty(token))
             {
                 try
@@ -199,7 +203,9 @@ public class NotificationService : INotificationService
         var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
         {
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            using var scope = _scopeFactory.CreateScope();
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            var token = await userService.GetOrRefreshBlueskyTokenAsync(userId);
             if (!string.IsNullOrEmpty(token))
             {
                 try
