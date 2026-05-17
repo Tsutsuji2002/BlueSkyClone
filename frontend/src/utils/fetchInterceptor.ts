@@ -1,6 +1,41 @@
 import { store } from '../redux/store';
 import { logoutAsync } from '../redux/slices/authSlice';
 
+const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
+
+// Mutex to prevent multiple concurrent refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Attempts to refresh the session by calling /api/auth/refresh.
+ * Returns true if successful, false otherwise.
+ * Uses a mutex so only one refresh runs at a time.
+ */
+async function tryRefreshToken(originalFetch: typeof window.fetch): Promise<boolean> {
+    if (isRefreshing && refreshPromise) {
+        return refreshPromise;
+    }
+
+    isRefreshing = true;
+    refreshPromise = (async () => {
+        try {
+            const res = await originalFetch(`${API_URL}/auth/refresh`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            return res.ok;
+        } catch {
+            return false;
+        } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
+}
 
 export const setupFetchInterceptor = () => {
     const { fetch: originalFetch } = window;
@@ -15,7 +50,7 @@ export const setupFetchInterceptor = () => {
         }
 
         const isLogoutRequest = url.endsWith('/auth/logout');
-
+        const isRefreshRequest = url.endsWith('/auth/refresh');
 
         const response = await originalFetch(...args);
 
@@ -23,14 +58,23 @@ export const setupFetchInterceptor = () => {
         const isExternalRequest = url.startsWith('http') && !url.includes('/api/');
         const isXrpcRequest = url.includes('/xrpc/');
 
-        if (response.status === 401 && !isLogoutRequest && !isExternalRequest && !isXrpcRequest) {
-            // Avoid looping if we're already on welcome/login pages or if it's a silent background check
+        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isXrpcRequest) {
+            // Avoid looping if we're already on welcome/login pages
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
             
             if (!isAuthPage) {
                 const state = store.getState();
                 if (state.auth.isAuthenticated) {
-                    store.dispatch(logoutAsync());
+                    // Try to refresh the token instead of immediately logging out
+                    const refreshed = await tryRefreshToken(originalFetch);
+
+                    if (refreshed) {
+                        // Retry the original request with fresh cookies
+                        return originalFetch(...args);
+                    } else {
+                        // Refresh failed — session is truly expired, log out
+                        store.dispatch(logoutAsync());
+                    }
                 }
             }
         }

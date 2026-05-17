@@ -186,6 +186,29 @@ export const getMe = createAsyncThunk(
     }
 );
 
+export const refreshSession = createAsyncThunk(
+    'auth/refreshSession',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/auth/refresh`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                return rejectWithValue(data.message || `Refresh failed (Status: ${response.status})`);
+            }
+            return {
+                user: data.user,
+                settings: data.settings,
+            };
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Token refresh failed');
+        }
+    }
+);
+
 export const logoutAsync = createAsyncThunk(
     'auth/logout',
     async (_, { rejectWithValue }) => {
@@ -434,6 +457,20 @@ const authSlice = createSlice({
                 // hydrateAtpSession moved to thunk
             })
             .addCase(getMe.rejected, (state) => {
+                state.isLoading = false;
+                state.isAuthenticated = false;
+                state.user = null;
+                state.settings = null;
+            })
+            // Refresh Session
+            .addCase(refreshSession.fulfilled, (state, action: PayloadAction<{ user: User; settings: UserSettings }>) => {
+                state.isLoading = false;
+                state.isAuthenticated = true;
+                state.user = action.payload.user;
+                state.settings = normalizeSettings(action.payload.settings);
+                state.error = null;
+            })
+            .addCase(refreshSession.rejected, (state) => {
                 state.isLoading = false;
                 state.isAuthenticated = false;
                 state.user = null;

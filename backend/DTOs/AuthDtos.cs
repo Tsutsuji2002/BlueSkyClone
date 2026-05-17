@@ -148,7 +148,8 @@ public record AuthResponse(
     UserDto User,
     UserSettingDto Settings,
     string Token,
-    string RefreshToken
+    string RefreshToken,
+    bool RememberMe = false
 );
 
 public record MutedWordDto(

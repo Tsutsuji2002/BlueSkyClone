@@ -46,7 +46,7 @@ public class AuthController : ControllerBase
             {
                 return BadRequest(new { message = "User with this email or handle already exists." });
             }
-            SetTokenCookies(result.Token, result.RefreshToken);
+            SetTokenCookies(result.Token, result.RefreshToken, false);
             return Ok(new { user = result.User, settings = result.Settings });
         }
         catch (Exception ex)
@@ -82,7 +82,7 @@ public class AuthController : ControllerBase
             {
                 return Unauthorized(new { message = "Invalid email/handle or password." });
             }
-            SetTokenCookies(result.Token, result.RefreshToken);
+            SetTokenCookies(result.Token, result.RefreshToken, request.RememberMe);
             return Ok(new { user = result.User, settings = result.Settings });
         }
         catch (UnauthorizedAccessException ex)
@@ -108,7 +108,7 @@ public class AuthController : ControllerBase
         {
             return Unauthorized(new { message = "Invalid refresh token." });
         }
-        SetTokenCookies(result.Token, result.RefreshToken);
+        SetTokenCookies(result.Token, result.RefreshToken, result.RememberMe);
         return Ok(new { user = result.User, settings = result.Settings });
     }
 
@@ -126,14 +126,14 @@ public class AuthController : ControllerBase
         return Ok(new { success = true });
     }
 
-    private void SetTokenCookies(string token, string refreshToken)
+    private void SetTokenCookies(string token, string refreshToken, bool rememberMe = false)
     {
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
             Secure = true, // Ensure HTTPS is required
             SameSite = SameSiteMode.Lax, // Allow some cross-site for SPA
-            Expires = DateTimeOffset.UtcNow.AddDays(7)
+            Expires = DateTimeOffset.UtcNow.AddDays(rememberMe ? 30 : 7)
         };
         Response.Cookies.Append("access_token", token, cookieOptions);
         Response.Cookies.Append("refresh_token", refreshToken, cookieOptions);

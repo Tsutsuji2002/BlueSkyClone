@@ -23,7 +23,7 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { getMe, stopLoading } from './redux/slices/authSlice';
+import { getMe, refreshSession, stopLoading } from './redux/slices/authSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
@@ -64,8 +64,13 @@ const AppContent: React.FC = () => {
       if (!isAuthenticated) {
         const result = await dispatch(getMe());
         if (getMe.rejected.match(result)) {
-           console.warn('[App] Initial auth check failed.');
-           dispatch(stopLoading());
+           // Access token expired — try to refresh before giving up
+           console.warn('[App] Initial auth check failed, attempting token refresh...');
+           const refreshResult = await dispatch(refreshSession());
+           if (refreshSession.rejected.match(refreshResult)) {
+             console.warn('[App] Token refresh also failed. User is unauthenticated.');
+             dispatch(stopLoading());
+           }
         }
       }
     };

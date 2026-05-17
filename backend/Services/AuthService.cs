@@ -154,7 +154,7 @@ public class AuthService : IAuthService
             _logger.LogWarning(ex, "Failed to seed default saved feeds for user {UserId}", user.Id);
         }
 
-        return MapToAuthResponse(user, token, refreshToken);
+        return MapToAuthResponse(user, token, refreshToken, false);
     }
 
 
@@ -252,7 +252,7 @@ public class AuthService : IAuthService
         await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
         await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
 
-        return MapToAuthResponse(user, token, refreshToken);
+        return MapToAuthResponse(user, token, refreshToken, request.RememberMe);
     }
 
     public async Task<AuthResponse?> RefreshTokenAsync(string refreshToken)
@@ -326,7 +326,7 @@ public class AuthService : IAuthService
             }
         }
 
-        return MapToAuthResponse(user, newToken, newRefreshToken);
+        return MapToAuthResponse(user, newToken, newRefreshToken, rememberMe);
     }
 
     public async Task<AuthResponse?> GetUserProfileAsync(Guid userId)
@@ -416,7 +416,7 @@ public class AuthService : IAuthService
         return refreshToken;
     }
 
-    private AuthResponse MapToAuthResponse(User user, string token, string refreshToken)
+    private AuthResponse MapToAuthResponse(User user, string token, string refreshToken, bool rememberMe = false)
     {
         var userDto = new UserDto(
             user.Id,
@@ -510,7 +510,7 @@ public class AuthService : IAuthService
             null                                 // EnabledMediaProviders
         );
 
-        return new AuthResponse(userDto, settingsDto, token, refreshToken);
+        return new AuthResponse(userDto, settingsDto, token, refreshToken, rememberMe);
     }
 
     private string GenerateJwtToken(User user, bool rememberMe = false)
