@@ -6803,16 +6803,70 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0)
     {
-        var posts = await _unitOfWork.Posts.Query()
-            .Where(p => p.Content != null && p.Content.Contains("#" + tag) && (p.IsDeleted == false || p.IsDeleted == null))
-            .Include(p => p.Author)
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip(offset)
-            .Take(limit)
-            .ToListAsync();
+        var resultList = new List<PostDto>();
 
-        var dtos = posts.Select(p => MapToDto(p)).ToList();
-        return await EnrichAndFilterPostsAsync(dtos, viewerId ?? Guid.Empty);
+        try
+        {
+            var hostname = "public.api.bsky.app";
+            string? viewerToken = null;
+            if (viewerId.HasValue && viewerId.Value != Guid.Empty)
+            {
+                viewerToken = await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}");
+                if (!string.IsNullOrEmpty(viewerToken)) hostname = "api.bsky.app";
+            }
+
+            using var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            if (!string.IsNullOrEmpty(viewerToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
+            }
+
+            // Using AppView API for Search
+            string searchUrl = $"https://{hostname}/xrpc/app.bsky.feed.searchPosts?tag={Uri.EscapeDataString(tag)}&limit={limit}";
+            
+            var response = await client.GetAsync(searchUrl);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("posts", out var postsArray))
+                {
+                    foreach (var postEl in postsArray.EnumerateArray())
+                    {
+                        var mapped = MapBlueskyPost(postEl);
+                        if (mapped != null) resultList.Add(mapped);
+                    }
+                }
+            }
+            else
+            {
+                _logger.LogWarning("[GetPostsByTagAsync] Search API failed: {StatusCode} for tag {Tag}", response.StatusCode, tag);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[GetPostsByTagAsync] Exception fetching remote tags for {Tag}", tag);
+        }
+
+        if (!resultList.Any())
+        {
+            // Fallback to local DB search but heavily constrained to avoid 504 timeout on full table scan
+            var posts = await _unitOfWork.Posts.Query()
+                .Where(p => p.Content != null && p.Content.Contains("#" + tag) && (p.IsDeleted == false || p.IsDeleted == null))
+                .Include(p => p.Author)
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip(offset)
+                .Take(Math.Min(limit, 5)) // Constraint
+                .ToListAsync();
+
+            var dtos = posts.Select(p => MapToDto(p)).ToList();
+            return await EnrichAndFilterPostsAsync(dtos, viewerId ?? Guid.Empty);
+        }
+
+        // Apply interaction enrichment
+        return await EnrichAndFilterPostsAsync(resultList, viewerId ?? Guid.Empty);
     }
 
     public async Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0, bool bypassCache = false)
