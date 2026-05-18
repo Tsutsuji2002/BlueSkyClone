@@ -38,6 +38,10 @@ async function tryRefreshToken(originalFetch: typeof window.fetch): Promise<bool
 }
 
 export const setupFetchInterceptor = () => {
+    // Cleanup legacy tokens from localStorage to prevent them from interfering with cookie-based auth
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+
     const { fetch: originalFetch } = window;
 
     window.fetch = async (...args) => {
@@ -70,6 +74,12 @@ export const setupFetchInterceptor = () => {
 
                     if (refreshed) {
                         // Retry the original request with fresh cookies
+                        // Ensure we use 'include' or respect original credentials
+                        if (typeof args[1] === 'object') {
+                            args[1] = { ...args[1], credentials: args[1].credentials || 'include' };
+                        } else if (!args[1]) {
+                            args[1] = { credentials: 'include' };
+                        }
                         return originalFetch(...args);
                     } else {
                         // Refresh failed — session is truly expired, log out

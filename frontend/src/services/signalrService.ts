@@ -109,11 +109,7 @@ class SignalRService {
 
         try {
             this.connection = new signalR.HubConnectionBuilder()
-                .withUrl(HUB_URL, {
-                    accessTokenFactory: () => {
-                        return localStorage.getItem('token') || '';
-                    }
-                })
+                .withUrl(HUB_URL)
                 .withAutomaticReconnect({
                     nextRetryDelayInMilliseconds: retryContext => {
                         if (retryContext.elapsedMilliseconds > 60000) return null;
