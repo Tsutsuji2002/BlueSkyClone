@@ -58,7 +58,7 @@ export const setupFetchInterceptor = () => {
         const isExternalRequest = url.startsWith('http') && !url.includes('/api/');
         const isXrpcRequest = url.includes('/xrpc/');
 
-        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isXrpcRequest) {
+        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest) {
             // Avoid looping if we're already on welcome/login pages
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
             

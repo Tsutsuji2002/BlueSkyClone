@@ -408,8 +408,8 @@ public class AuthService : IAuthService
 
         var cacheOptions = new DistributedCacheEntryOptions
         {
-            // If rememberMe is checked, extend refresh token to 30 days, else keep it at 7 days
-            AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7)
+            // If rememberMe is checked, extend refresh token to 365 days (1 year), else keep it at 7 days
+            AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(365) : TimeSpan.FromDays(7)
         };
 
         await _cache.SetStringAsync($"RefreshToken_{refreshToken}", $"{userId}|{rememberMe}", cacheOptions);

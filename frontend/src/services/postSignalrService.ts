@@ -59,7 +59,7 @@ class PostSignalRService {
         return Math.min(2000 * Math.pow(2, retryCount - 1), 30000);
     }
 
-    public async startConnection() {
+    public async startConnection(): Promise<void> {
         if (this.connection?.state === signalR.HubConnectionState.Connected) {
             console.log('[PostSignalR] Already connected');
             return;
@@ -98,7 +98,23 @@ class PostSignalRService {
             
             const errorMessage = err?.toString() || '';
             if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
-                console.warn('[PostSignalR] Unauthorized. Stopping retries.');
+                console.warn('[PostSignalR] Unauthorized. Attempting session refresh...');
+                
+                try {
+                    const { refreshSession } = await import('../redux/slices/authSlice');
+                    const result = await store.dispatch(refreshSession() as any);
+                    
+                    if (refreshSession.fulfilled.match(result)) {
+                        console.log('[PostSignalR] Session refreshed successfully. Retrying connection...');
+                        this.isConnecting = false;
+                        return this.startConnection();
+                    } else {
+                        console.error('[PostSignalR] Session refresh failed after 401.');
+                    }
+                } catch (refreshErr) {
+                    console.error('[PostSignalR] Error during session refresh:', refreshErr);
+                }
+
                 this.isConnecting = false;
                 return;
             }

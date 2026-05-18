@@ -92,7 +92,7 @@ class SignalRService {
         });
     }
 
-    public async startConnection() {
+    public async startConnection(): Promise<void> {
         if (this.connection?.state === signalR.HubConnectionState.Connected) {
             console.log('[SignalR] Already connected');
             return;
@@ -134,7 +134,24 @@ class SignalRService {
             
             const errorMessage = err?.toString() || '';
             if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
-                console.warn('[SignalR] Unauthorized. Stopping retries.');
+                console.warn('[SignalR] Unauthorized. Attempting session refresh...');
+                
+                // Attempt to refresh the session before retrying
+                try {
+                    const { refreshSession } = await import('../redux/slices/authSlice');
+                    const result = await store.dispatch(refreshSession() as any);
+                    
+                    if (refreshSession.fulfilled.match(result)) {
+                        console.log('[SignalR] Session refreshed successfully. Retrying connection...');
+                        this.isConnecting = false;
+                        return this.startConnection();
+                    } else {
+                        console.error('[SignalR] Session refresh failed after 401.');
+                    }
+                } catch (refreshErr) {
+                    console.error('[SignalR] Error during session refresh:', refreshErr);
+                }
+
                 this.isConnecting = false;
                 return;
             }

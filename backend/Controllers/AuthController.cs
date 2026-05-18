@@ -133,7 +133,7 @@ public class AuthController : ControllerBase
             HttpOnly = true,
             Secure = true, // Ensure HTTPS is required
             SameSite = SameSiteMode.Lax, // Allow some cross-site for SPA
-            Expires = DateTimeOffset.UtcNow.AddDays(rememberMe ? 30 : 7)
+            Expires = DateTimeOffset.UtcNow.AddDays(rememberMe ? 365 : 7)
         };
         Response.Cookies.Append("access_token", token, cookieOptions);
         Response.Cookies.Append("refresh_token", refreshToken, cookieOptions);
