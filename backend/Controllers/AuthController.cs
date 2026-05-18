@@ -121,8 +121,8 @@ public class AuthController : ControllerBase
             await _authService.LogoutAsync(refreshToken);
         }
         
-        Response.Cookies.Delete("access_token");
-        Response.Cookies.Delete("refresh_token");
+        Response.Cookies.Delete("access_token", new CookieOptions { Path = "/" });
+        Response.Cookies.Delete("refresh_token", new CookieOptions { Path = "/" });
         return Ok(new { success = true });
     }
 

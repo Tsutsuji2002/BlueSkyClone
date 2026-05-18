@@ -75,7 +75,9 @@ class PostSignalRService {
 
         try {
             this.connection = new signalR.HubConnectionBuilder()
-                .withUrl(HUB_URL)
+                .withUrl(HUB_URL, {
+                    withCredentials: true
+                })
                 .withAutomaticReconnect({
                     nextRetryDelayInMilliseconds: retryContext => {
                         if (retryContext.elapsedMilliseconds > 60000) return null;
