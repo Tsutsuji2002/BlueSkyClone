@@ -56,11 +56,9 @@ const InterestManagementPage: React.FC = () => {
         if (!interestName.trim()) return;
 
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/interests`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ name: interestName.trim() })

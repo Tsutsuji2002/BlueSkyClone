@@ -42,7 +42,6 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const authSettings = useAppSelector((state) => state.auth.settings);
-    const token = localStorage.getItem('token');
 
     const [localReply, setLocalReply] = useState(replyRestriction);
     const [localQuotes, setLocalQuotes] = useState(allowQuotes);
@@ -75,7 +74,7 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
     const fetchLists = async () => {
         try {
             const resp = await axios.get(`${API_BASE_URL}/Lists/my`, {
-                headers: { Authorization: `Bearer ${token}` }
+                withCredentials: true
             });
             setMyLists(resp.data);
         } catch (error) {
@@ -96,13 +95,14 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
         setIsUpdating(true);
 
         try {
-            if (postUri) {
-                await dispatch(updateInteractionSettings({
-                    postUri,
-                    replyRestriction: finalRestriction,
-                    allowQuotes: localQuotes
-                })).unwrap();
-            }
+            const response = await fetch(`${API_BASE_URL}/posts/interactions/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uri: postUri, replyRestriction: finalRestriction, allowQuotes: localQuotes }),
+                credentials: 'include'
+            });
+            
+            if (!response.ok) throw new Error('Failed to update');
 
             setReplyRestriction(finalRestriction);
             setAllowQuotes(localQuotes);

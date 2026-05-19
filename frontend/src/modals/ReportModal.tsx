@@ -30,13 +30,12 @@ const ReportModal: React.FC = () => {
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/xrpc/com.atproto.moderation.createReport`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     reasonType,
                     reason: reason.trim(),

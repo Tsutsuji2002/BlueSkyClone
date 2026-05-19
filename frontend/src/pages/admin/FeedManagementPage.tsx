@@ -95,15 +95,12 @@ const FeedManagementPage: React.FC = () => {
     const uploadFile = async (file: File): Promise<string | null> => {
         try {
             setUploading(true);
-            const token = localStorage.getItem('token');
             const formData = new FormData();
             formData.append('file', file);
 
             const response = await fetch(`${API_BASE_URL}/media/upload?folder=feeds`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
+                credentials: 'include',
                 body: formData
             });
 
@@ -137,28 +134,15 @@ const FeedManagementPage: React.FC = () => {
                 }
             }
 
-            const token = localStorage.getItem('token');
             const url = editingFeed
                 ? `${API_BASE_URL}/admin/feeds/${editingFeed.id}`
                 : `${API_BASE_URL}/admin/feeds`;
 
-            const method = editingFeed ? 'PUT' : 'POST';
-            const body = editingFeed
-                ? {
-                    name: formData.name,
-                    description: formData.description,
-                    avatarUrl: finalAvatarUrl,
-                    isOfficial: formData.isOfficial
-                }
-                : { ...formData, avatarUrl: finalAvatarUrl };
-
             const response = await fetch(url, {
-                method,
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
+                method: editingFeed ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...formData, avatarUrl: finalAvatarUrl }),
+                credentials: 'include'
             });
 
             if (response.ok) {

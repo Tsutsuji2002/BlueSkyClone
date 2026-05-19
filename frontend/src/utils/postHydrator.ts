@@ -72,7 +72,7 @@ export const applyInteractionStatuses = (posts: Post[], statuses: InteractionSta
     return posts.map((post) => patchPost(post) ?? post);
 };
 
-export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: string | null): Promise<Post[]> => {
+export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<Post[]> => {
     if (!posts.length) return posts;
 
     const collectUris = (post?: Post | null, set: Set<string> = new Set()): Set<string> => {
@@ -89,12 +89,10 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: s
 
     if (uris.length === 0) return posts;
 
-    // Run local-DB status and remote AppView viewer-state in parallel with a timeout
-    const authToken = localStorage.getItem('token');
+    // Interaction hydration now relies on HttpOnly cookies
     const authHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
     };
-    if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second hard cap
@@ -108,6 +106,7 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: s
                         method: 'POST',
                         headers: authHeaders,
                         body: JSON.stringify({ uris }),
+                        credentials: 'include',
                         signal: controller.signal
                     });
                     if (!response.ok) return [];
@@ -126,6 +125,7 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[], token?: s
                         method: 'POST',
                         headers: authHeaders,
                         body: JSON.stringify({ uris: remoteUris }),
+                        credentials: 'include',
                         signal: controller.signal
                     });
                     if (!response.ok) return [];

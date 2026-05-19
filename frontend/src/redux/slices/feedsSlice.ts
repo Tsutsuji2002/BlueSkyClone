@@ -461,11 +461,7 @@ export const fetchFeedPosts = createAsyncThunk<
             if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
             if (refresh) url += `&refresh=true`;
 
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(url, { headers });
+            const response = await fetch(url, { credentials: 'include' });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) return rejectWithValue(data.error || data.message || `Failed to fetch feed posts (Status: ${response.status})`);
             

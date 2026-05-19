@@ -33,12 +33,11 @@ export const fetchConversations = createAsyncThunk(
     'messages/fetchConversations',
     async ({ limit = 50, cursor }: { limit?: number; cursor?: string | null } | undefined = {}, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             let url = `${API_URL}/chat/conversations?limit=${limit}`;
             if (cursor) url += `&cursor=${cursor}`;
 
             const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch conversations');
@@ -53,9 +52,8 @@ export const fetchConversationById = createAsyncThunk(
     'messages/fetchConversationById',
     async (conversationId: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/chat/conversations/${conversationId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch conversation');
@@ -70,12 +68,11 @@ export const fetchMessages = createAsyncThunk(
     'messages/fetchMessages',
     async ({ conversationId, limit = 50, before }: { conversationId: string; limit?: number; before?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             let url = `${API_URL}/chat/conversations/${conversationId}/messages?limit=${limit}`;
             if (before) url += `&before=${before}`;
 
             const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch messages');
@@ -90,10 +87,9 @@ export const fetchChatLog = createAsyncThunk(
     'messages/fetchChatLog',
     async ({ conversationId, cursor }: { conversationId: string; cursor: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const url = `${API_URL}/chat/conversations/${conversationId}/log?cursor=${cursor}`;
             const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch chat log');
@@ -108,14 +104,13 @@ export const startConversation = createAsyncThunk(
     'messages/startConversation',
     async (participantIds: string[], { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/chat/conversations`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ participantIds })
+                body: JSON.stringify({ participantIds }),
+                credentials: 'include'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to start conversation');
@@ -130,13 +125,12 @@ export const markAsRead = createAsyncThunk(
     'messages/markAsRead',
     async ({ conversationId, messageId }: { conversationId: string; messageId?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             let url = `${API_URL}/chat/conversations/${conversationId}/read`;
             if (messageId) url += `?messageId=${messageId}`;
             
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (!response.ok) {
                 const data = await response.json();
@@ -153,9 +147,8 @@ export const fetchChatSettings = createAsyncThunk(
     'messages/fetchSettings',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/chat/settings`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch settings');
@@ -171,14 +164,13 @@ export const updateChatSettings = createAsyncThunk(
     async (allowIncoming: string, { rejectWithValue }) => {
         try {
             console.log('Thunk: updateChatSettings starting with:', allowIncoming);
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/chat/settings`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ allowIncoming })
+                body: JSON.stringify({ allowIncoming }),
+                credentials: 'include'
             });
             console.log('Thunk: response received:', response.status);
             if (!response.ok) {

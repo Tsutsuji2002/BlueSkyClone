@@ -149,11 +149,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
 
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const headers: HeadersInit = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const res = await fetch(`${API_BASE_URL}/users/profile/${key}`, { headers });
+            const res = await fetch(`${API_BASE_URL}/users/profile/${key}`, { credentials: 'include' });
             if (res.ok) {
                 const data = await res.json();
                 const profileData = data.user;

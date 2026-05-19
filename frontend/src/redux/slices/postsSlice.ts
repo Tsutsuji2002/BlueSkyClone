@@ -245,17 +245,15 @@ export const fetchTimeline = createAsyncThunk(
             url.searchParams.set('take', String(take));
             if (refresh) url.searchParams.set('refresh', 'true');
 
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(url.toString(), { headers });
+            const response = await fetch(url.toString(), { 
+                credentials: 'include'
+            });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const rawPosts = await response.json();
             let posts = rawPosts.map(mapAtProtoPostToPost);
             
             // [NEW] Perform second-pass interaction hydration (Sync with local DB + AppView)
-            posts = await hydratePostsWithInteractionStatus(posts, token);
+            posts = await hydratePostsWithInteractionStatus(posts);
             
             return { posts, skip, cursor: null };
         } catch (error: any) {
@@ -273,13 +271,9 @@ export const fetchUserPosts = createAsyncThunk(
             if (cursor) params.set('cursor', cursor);
             if (refresh) params.set('refresh', 'true');
 
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(
                 `${API_BASE_URL}/posts/user/${userId}?${params}`,
-                { headers }
+                { credentials: 'include' }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
@@ -287,7 +281,7 @@ export const fetchUserPosts = createAsyncThunk(
             let posts = rawPosts.map(mapAtProtoPostToPost);
 
             // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts, token);
+            posts = await hydratePostsWithInteractionStatus(posts);
 
             const cursorVal = data.cursor || null;
 
@@ -306,7 +300,6 @@ export const updatePost = createAsyncThunk(
     'posts/updatePost',
     async ({ id, content, mediaFiles, videoFile, linkPreview, gifUrl, existingMediaIdsToKeep, labels, quotePostId }: { id: string; content: string; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; existingMediaIdsToKeep?: string[]; labels?: string[]; quotePostId?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const formData = new FormData();
             formData.append('Content', content);
             if (mediaFiles) {
@@ -337,6 +330,7 @@ export const updatePost = createAsyncThunk(
 
             const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
                 method: 'PUT',
+                credentials: 'include',
                 body: formData
             });
 
@@ -358,8 +352,6 @@ export const createPost = createAsyncThunk(
         try {
             const state = getState() as any;
             const user = state.auth.user;
-            const token = localStorage.getItem('token');
-
             const formData = new FormData();
             formData.append('Content', postData.content);
             if (postData.replyToPostId) formData.append('ReplyToPostId', postData.replyToPostId);
@@ -389,6 +381,7 @@ export const createPost = createAsyncThunk(
 
             const response = await fetch(`${API_BASE_URL}/posts`, {
                 method: 'POST',
+                credentials: 'include',
                 body: formData
             });
 
@@ -414,13 +407,9 @@ export const toggleLike = createAsyncThunk(
             params.set('isLiked', String(isLiked));
             if (likeUri) params.set('likeUri', likeUri);
             const queryString = params.toString() ? `?${params.toString()}` : '';
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/like${queryString}`, {
                 method: 'POST',
-                headers
+                credentials: 'include'
             });
             if (!response.ok) {
                 const errorData = await response.text();
@@ -446,13 +435,9 @@ export const repostPost = createAsyncThunk(
             params.set('isReposted', String(isReposted));
             if (repostUri) params.set('repostUri', repostUri);
             const queryString = params.toString() ? `?${params.toString()}` : '';
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost${queryString}`, {
                 method: 'POST',
-                headers
+                credentials: 'include'
             });
             if (!response.ok) {
                 (dispatch as any)(showToast({ message: isReposted ? 'Failed to undo repost' : 'Failed to repost', type: 'error' }));
@@ -474,7 +459,8 @@ export const deletePost = createAsyncThunk(
             // Extract GUID from URI
             const postId = postUri.includes('/') ? postUri.split('/').pop()! : postUri;
             const response = await fetch(`${API_BASE_URL}/posts/${postId}?uri=${encodeURIComponent(postUri)}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include'
             });
             if (!response.ok) return rejectWithValue('Failed to delete post');
             return postUri;
@@ -494,6 +480,7 @@ export const updateInteractionSettings = createAsyncThunk(
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ replyRestriction, allowQuotes })
             });
             if (!response.ok) return rejectWithValue('Failed to update interaction settings');
@@ -509,13 +496,9 @@ export const fetchPostsByTag = createAsyncThunk(
     'posts/fetchByTag',
     async ({ tag, take = 20, skip = 0 }: { tag: string; take?: number; skip?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(
                 `${API_BASE_URL}/posts/tag/${encodeURIComponent(tag)}?take=${take}&skip=${skip}`,
-                { headers }
+                { credentials: 'include' }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch posts by tag');
             const rawPosts = await response.json();
@@ -531,20 +514,16 @@ export const fetchPostsSearch = createAsyncThunk(
     'posts/fetchSearch',
     async ({ query, skip = 0, take = 20 }: { query: string; skip?: number; take?: number; cursor?: string }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(
                 `${API_BASE_URL}/search/posts?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`,
-                { headers }
+                { credentials: 'include' }
             );
             if (!response.ok) return rejectWithValue('Failed to search posts');
             const rawPosts = await response.json();
             let posts = rawPosts.map(mapAtProtoPostToPost);
 
             // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts, token);
+            posts = await hydratePostsWithInteractionStatus(posts);
 
             return { posts, cursor: null };
         } catch (error: any) {
@@ -557,7 +536,6 @@ export const fetchPostById = createAsyncThunk(
     'posts/fetchPostById',
     async (args: string | { uri: string; handle?: string; take?: number }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const uri = typeof args === 'string' ? args : args.uri;
             const handle = typeof args === 'object' ? args.handle : undefined;
             const take = typeof args === 'object' && args.take !== undefined ? args.take : 20;
@@ -580,13 +558,10 @@ export const fetchPostById = createAsyncThunk(
                 endpoint = `${API_BASE_URL}/posts/tid/${postId}?take=${take}`;
             }
 
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(
                 endpoint,
                 {
-                    headers,
+                    credentials: 'include',
                     cache: 'no-store'
                 }
             );
@@ -637,7 +612,8 @@ export const fetchPostById = createAsyncThunk(
                 // Problem 1 Fix: Check if we have authenticated viewer fields already
                 // If every post has a viewer object, it means getPostThread was called with auth
                 // and we can skip the extra round-trip to the local interactions DB.
-                const hasViewerState = token && posts.length > 0 && posts.every(p => p.viewer !== undefined);
+                // Note: We are now using credentials: 'include' instead of manual token
+                const hasViewerState = posts.length > 0 && posts.every(p => p.viewer !== undefined);
                 
                 if (hasViewerState) {
                     // Map bsky viewer fields to our internal interaction flags
@@ -649,26 +625,26 @@ export const fetchPostById = createAsyncThunk(
                     });
                     
                     // [NEW] Even if we have viewer state, we still need local DB for bookmarks
-                    return await hydratePostsWithInteractionStatus(posts, token);
+                    return await hydratePostsWithInteractionStatus(posts);
                 }
                 
-                return await hydratePostsWithInteractionStatus(posts, token);
+                return await hydratePostsWithInteractionStatus(posts);
             }
 
             let mappedPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
             
             // Apply same skip-logic for direct API calls if they return viewer state
-            if (token && mappedPosts.length > 0 && mappedPosts.every(p => p.viewer !== undefined)) {
+            if (mappedPosts.length > 0 && mappedPosts.every(p => p.viewer !== undefined)) {
                  mappedPosts.forEach(p => {
                     if (p.viewer) {
                         p.isLiked = !!p.viewer.like;
                         p.isReposted = !!p.viewer.repost;
                     }
                 });
-                return await hydratePostsWithInteractionStatus(mappedPosts, token);
+                return await hydratePostsWithInteractionStatus(mappedPosts);
             }
 
-            return await hydratePostsWithInteractionStatus(mappedPosts, token);
+            return await hydratePostsWithInteractionStatus(mappedPosts);
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -678,13 +654,9 @@ export const fetchPostReplies = createAsyncThunk(
     'posts/fetchReplies',
     async ({ postId, skip = 0, take = 20 }: { postId: string; skip?: number; take?: number }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(
                 `${API_BASE_URL}/posts/replies?uri=${encodeURIComponent(postId)}&skip=${skip}&take=${take}`,
-                { headers }
+                { credentials: 'include' }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch replies');
             const data = await response.json();
@@ -694,7 +666,7 @@ export const fetchPostReplies = createAsyncThunk(
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
             // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts, token);
+            posts = await hydratePostsWithInteractionStatus(posts);
 
             return { posts, postId, skip, hasMore };
         } catch (error: any) {
@@ -707,19 +679,15 @@ export const fetchTrendingPosts = createAsyncThunk(
     'posts/fetchTrending',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(
                 `${API_BASE_URL}/posts/trending`,
-                { headers }
+                { credentials: 'include' }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch trending');
             let posts = await response.json() as Post[];
 
             // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts, token);
+            posts = await hydratePostsWithInteractionStatus(posts);
 
             return posts;
         } catch (error: any) {
@@ -732,7 +700,6 @@ export const toggleBookmark = createAsyncThunk(
     'posts/toggleBookmark',
     async ({ post }: { post: Post }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const postId = post.id;
             const uri = post.uri;
 
@@ -743,7 +710,7 @@ export const toggleBookmark = createAsyncThunk(
 
             const response = await fetch(url.toString(), {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             
             if (!response.ok) return rejectWithValue('Failed to toggle bookmark');
@@ -759,10 +726,9 @@ export const pinPost = createAsyncThunk(
     'posts/pin',
     async (postUri: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/posts/pin?uri=${encodeURIComponent(postUri)}`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (!response.ok) return rejectWithValue('Failed to pin post');
             return postUri;
@@ -776,10 +742,9 @@ export const unpinPost = createAsyncThunk(
     'posts/unpin',
     async (_, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/posts/unpin`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (!response.ok) return rejectWithValue('Failed to unpin post');
             return null;
@@ -793,20 +758,17 @@ export const fetchBookmarkedPosts = createAsyncThunk(
     'posts/fetchBookmarks',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/posts/bookmarks?skip=${skip}&take=${take}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
             const data = await response.json();
-            const rawPosts = data.posts || [];
-            let posts = rawPosts.map(mapAtProtoPostToPost);
             
             // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts, token);
+            data.posts = await hydratePostsWithInteractionStatus(data.posts.map(mapAtProtoPostToPost));
             
             return { 
-                posts, 
+                posts: data.posts, 
                 cursor: data.cursor || null 
             };
         } catch (error: any) {
@@ -819,13 +781,9 @@ export const fetchDiscoverPosts = createAsyncThunk(
     'posts/fetchDiscover',
     async ({ skip = 0, take = 20 }: { skip?: number; take?: number } = {}, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const response = await fetch(
                 `${API_BASE_URL}/posts/discover?skip=${skip}&take=${take}`,
-                { headers }
+                { credentials: 'include' }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();
@@ -833,7 +791,7 @@ export const fetchDiscoverPosts = createAsyncThunk(
             let posts = rawPosts.map(mapAtProtoPostToPost);
             
             // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts, token);
+            posts = await hydratePostsWithInteractionStatus(posts);
             
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
@@ -852,21 +810,19 @@ export const fetchPostQuotes = createAsyncThunk<
     'posts/fetchQuotes',
     async ({ postUri, cursor, limit = 20 }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
-
             const params = new URLSearchParams({ uri: postUri, limit: String(limit) });
             if (cursor) params.append('cursor', cursor);
 
-            const response = await fetch(`${API_BASE_URL}/posts/quotes?${params}`, { headers });
+            const response = await fetch(`${API_BASE_URL}/posts/quotes?${params}`, { 
+                credentials: 'include' 
+            });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch quotes');
 
             let posts: Post[] = (data.posts || []);
             
             // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts, token);
+            posts = await hydratePostsWithInteractionStatus(posts);
 
             return { posts, cursor: data.cursor || null, hasMore: data.hasMore ?? !!data.cursor };
         } catch (error: any) {

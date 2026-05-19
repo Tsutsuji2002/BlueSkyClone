@@ -74,13 +74,17 @@ export const setupFetchInterceptor = () => {
 
                     if (refreshed) {
                         // Retry the original request with fresh cookies
-                        // Ensure we use 'include' or respect original credentials
-                        if (typeof args[1] === 'object') {
-                            args[1] = { ...args[1], credentials: args[1].credentials || 'include' };
-                        } else if (!args[1]) {
-                            args[1] = { credentials: 'include' };
-                        }
-                        return originalFetch(...args);
+                        // Strip any existing Authorization header to ensure the backend uses the new cookies
+                        const newHeaders = new Headers((typeof args[1] === 'object' && (args[1] as RequestInit).headers) || {});
+                        newHeaders.delete('Authorization');
+
+                        const newOptions: RequestInit = {
+                            ...(typeof args[1] === 'object' ? args[1] : {}),
+                            headers: newHeaders,
+                            credentials: 'include'
+                        };
+                        
+                        return originalFetch(args[0], newOptions);
                     } else {
                         // Refresh failed — session is truly expired, log out
                         store.dispatch(logoutAsync());

@@ -24,7 +24,6 @@ const ModerationInteractionPage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const settings = useAppSelector((state: RootState) => state.auth.settings);
-    const token = localStorage.getItem('token');
 
     // Local state
     const [localReply, setLocalReply] = useState<string>('anyone');
@@ -56,7 +55,7 @@ const ModerationInteractionPage: React.FC = () => {
     const fetchLists = async () => {
         try {
             const resp = await axios.get(`${API_BASE_URL}/Lists/my`, {
-                headers: { Authorization: `Bearer ${token}` }
+                withCredentials: true
             });
             setMyLists(resp.data);
         } catch (error) {

@@ -17,11 +17,8 @@ export const useUserSearch = (query: string, delay: number = 300) => {
             setIsLoading(true);
             setError(null);
             try {
-                const token = localStorage.getItem('token');
                 const response = await fetch(`${API_BASE_URL}/user/search?q=${encodeURIComponent(query)}&limit=5`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    credentials: 'include'
                 });
 
                 if (!response.ok) {

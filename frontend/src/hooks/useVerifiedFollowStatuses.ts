@@ -74,15 +74,7 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
         }
 
         const generation = requestGeneration.current;
-        const token = localStorage.getItem('token');
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json'
-        };
-
-        if (token && token !== 'null') {
-            headers.Authorization = `Bearer ${token}`;
-        }
-
+        
         // Batch processing: Process users in groups of 25 (BSky standard batch size)
         const processBatch = async (batch: User[]) => {
             const batchKeys = batch.map(getStatusKey);
@@ -96,11 +88,9 @@ export const useVerifiedFollowStatuses = (users: User[], ownerKey?: string) => {
             });
 
             try {
-                const actorsQuery = batchActors.map(a => `actors=${encodeURIComponent(a)}`).join('&');
-                const response = await fetch(
-                    `${API_BASE_URL}/xrpc/app.bsky.actor.getProfiles?${actorsQuery}`,
-                    { headers }
-                );
+                const response = await fetch(`${API_BASE_URL}/user/verify-follow?dids=${batchActors.join(',')}`, {
+                    credentials: 'include'
+                });
 
                 if (!response.ok || generation !== requestGeneration.current) {
                     return;

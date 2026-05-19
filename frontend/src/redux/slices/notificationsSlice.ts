@@ -4,8 +4,7 @@ import { NotificationsState, Notification } from '../../types';
 const getXrpcBase = () => '/xrpc';
 
 const getXrpcHeaders = (): Record<string, string> => {
-    const token = localStorage.getItem('token');
-    return (token && token !== 'null') ? { 'Authorization': `Bearer ${token}` } : {};
+    return { 'Content-Type': 'application/json' };
 };
 
 

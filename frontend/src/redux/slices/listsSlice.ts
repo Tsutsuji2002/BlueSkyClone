@@ -40,8 +40,7 @@ const initialState: ListsState = {
 const getXrpcBase = () => '/xrpc';
 
 const getAuthHeaders = (): Record<string, string> => {
-    const token = localStorage.getItem('token');
-    return (token && token !== 'null') ? { 'Authorization': `Bearer ${token}` } : {};
+    return {};
 };
 
 const mapListFromXrpc = (list: any): ListDto => {

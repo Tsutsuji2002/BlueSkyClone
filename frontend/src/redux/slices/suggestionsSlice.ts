@@ -20,7 +20,6 @@ export const fetchSuggestedUsers = createAsyncThunk(
     'suggestions/fetchByCategory',
     async ({ categoryId, limit = 10 }: { categoryId: string; limit?: number }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('token');
             const url = new URL(`${API_BASE_URL}/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore`);
             url.searchParams.append('limit', limit.toString());
             
@@ -31,7 +30,7 @@ export const fetchSuggestedUsers = createAsyncThunk(
             url.searchParams.append('_t', Date.now().toString());
 
             const response = await fetch(url.toString(), {
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                credentials: 'include'
             });
 
             if (!response.ok) {

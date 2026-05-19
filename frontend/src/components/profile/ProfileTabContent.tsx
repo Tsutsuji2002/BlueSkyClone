@@ -48,9 +48,10 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         }
 
         try {
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = {};
-            if (token && token !== 'null') headers['Authorization'] = `Bearer ${token}`;
+            // We use HttpOnly cookies, so no manual Authorization header is needed
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json'
+            };
 
             let fetchedItems: any[] = [];
             let nextCursor: string | null = null;
@@ -70,9 +71,9 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     const data = await response.json();
                     fetchedItems = Array.isArray(data) ? data : (data.posts || []);
                     
-                    // [NEW] Perform second-pass interaction hydration
+                    // Interaction hydration now relies on cookies
                     if (fetchedItems.length > 0) {
-                        fetchedItems = await hydratePostsWithInteractionStatus(fetchedItems, token);
+                        fetchedItems = await hydratePostsWithInteractionStatus(fetchedItems);
                     }
 
                     if (type === 'video') {
@@ -84,7 +85,10 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 }
             } else if (type === 'lists') {
                 // Use XRPD getLists which we know works and proxies to Bluesky
-                const response = await fetch(`/xrpc/app.bsky.graph.getLists?actor=${encodeURIComponent(userId)}&limit=50`, { headers });
+                const response = await fetch(`/xrpc/app.bsky.graph.getLists?actor=${encodeURIComponent(userId)}&limit=50`, { 
+                    headers,
+                    credentials: 'include' 
+                });
                 if (response.ok) {
                     const data = await response.json();
                     fetchedItems = data.lists || [];

@@ -192,7 +192,9 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
     const labels = normalizeLabelValues(atPost.labels);
     const authorLabels = author.labels || [];
     const hasNoUnauthenticated = labels.includes('!no-unauthenticated') || authorLabels.includes('!no-unauthenticated');
-    const isUnauthenticated = !localStorage.getItem('token');
+    // For cookie-based auth, we check viewer state or rely on 401s, 
+    // but here we can check if viewer state is absent to infer unauthenticated.
+    const isUnauthenticated = !atPost.viewer && !atPost.author?.viewer;
 
     let muteInfo = atPost.muteInfo;
     if (!muteInfo && hasNoUnauthenticated && isUnauthenticated) {

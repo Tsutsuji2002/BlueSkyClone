@@ -983,14 +983,13 @@ const ChatPage: React.FC = () => {
                                         <button
                                             key={conv.id}
                                             onClick={async () => {
-                                                const token = localStorage.getItem('token');
                                                 await fetch(`${API_URL}/chat/messages/${forwardingMessage.id}/forward`, {
                                                     method: 'POST',
                                                     headers: {
-                                                        'Authorization': `Bearer ${token}`,
                                                         'Content-Type': 'application/json'
                                                     },
-                                                    body: JSON.stringify({ targetConversationIds: [conv.id] })
+                                                    body: JSON.stringify({ targetConversationIds: [conv.id] }),
+                                                    credentials: 'include'
                                                 });
                                                 setForwardingMessage(null);
                                             }}
