@@ -56,13 +56,29 @@ export const setupFetchInterceptor = () => {
         const isLogoutRequest = url.endsWith('/auth/logout');
         const isRefreshRequest = url.endsWith('/auth/refresh');
 
-        const response = await originalFetch(...args);
-
-        // Check if the URL is an external request (starts with http but isn't part of our API)
-        const isExternalRequest = url.startsWith('http') && !url.includes('/api/');
+        // Check if the URL is an external request (starts with http but isn't part of our domain or API)
+        const isSameOrigin = url.startsWith('/') || url.startsWith(window.location.origin);
+        const isExternalRequest = url.startsWith('http') && !isSameOrigin;
         const isXrpcRequest = url.includes('/xrpc/');
 
-        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest) {
+        // Force credentials: 'include' for all same-origin requests to ensure cookies are sent
+        if (isSameOrigin && !isExternalRequest) {
+            if (args[0] instanceof Request) {
+                // Cannot easily modify a Request object, so we pass credentials in the second argument
+                // which originalFetch will merge with the Request object's properties.
+                args[1] = { ...args[1], credentials: 'include' };
+            } else {
+                if (typeof args[1] === 'object') {
+                    args[1] = { ...args[1], credentials: 'include' };
+                } else if (!args[1]) {
+                    args[1] = { credentials: 'include' };
+                }
+            }
+        }
+
+        const response = await originalFetch(...args);
+
+        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && (isSameOrigin || isXrpcRequest)) {
             // Avoid looping if we're already on welcome/login pages
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
             
