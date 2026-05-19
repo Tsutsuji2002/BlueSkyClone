@@ -1,5 +1,4 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
@@ -33,10 +32,17 @@ export const submitSupportRequest = createAsyncThunk(
     'support/submit',
     async (data: { email: string; description: string; username?: string; category: string; deviceType: string }, { rejectWithValue }) => {
         try {
-            const response = await axios.post(`${API_URL}/SupportRequest`, data);
-            return response.data;
+            const response = await fetch(`${API_URL}/SupportRequest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+                credentials: 'include'
+            });
+            const resData = await response.json().catch(() => ({}));
+            if (!response.ok) return rejectWithValue(resData.message || 'Failed to submit request');
+            return resData;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to submit request');
+            return rejectWithValue(error.message || 'Something went wrong');
         }
     }
 );
@@ -45,10 +51,14 @@ export const fetchAllSupportRequests = createAsyncThunk(
     'support/fetchAll',
     async (_, { rejectWithValue }) => {
         try {
-            const response = await axios.get(`${API_URL}/SupportRequest`);
-            return response.data;
+            const response = await fetch(`${API_URL}/SupportRequest`, {
+                credentials: 'include'
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch requests');
+            return data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch requests');
+            return rejectWithValue(error.message || 'Something went wrong');
         }
     }
 );
@@ -57,10 +67,19 @@ export const updateSupportStatus = createAsyncThunk(
     'support/updateStatus',
     async ({ id, status }: { id: string; status: string }, { rejectWithValue }) => {
         try {
-            const response = await axios.patch(`${API_URL}/SupportRequest/${id}/status`, { status });
+            const response = await fetch(`${API_URL}/SupportRequest/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status }),
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                return rejectWithValue(data.message || 'Failed to update status');
+            }
             return { id, status };
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update status');
+            return rejectWithValue(error.message || 'Something went wrong');
         }
     }
 );

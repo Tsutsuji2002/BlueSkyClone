@@ -8,7 +8,6 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { updateNotificationSettings } from '../redux/slices/authSlice';
 import { updateInteractionSettings } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
-import axios from 'axios';
 import { API_BASE_URL } from '../constants';
 
 interface List {
@@ -73,10 +72,12 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
 
     const fetchLists = async () => {
         try {
-            const resp = await axios.get(`${API_BASE_URL}/Lists/my`, {
-                withCredentials: true
+            const response = await fetch(`${API_BASE_URL}/Lists/my`, {
+                credentials: 'include'
             });
-            setMyLists(resp.data);
+            if (!response.ok) throw new Error('Failed to fetch lists');
+            const data = await response.json();
+            setMyLists(data);
         } catch (error) {
             console.error('Failed to fetch lists', error);
         }
