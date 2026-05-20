@@ -1,7 +1,11 @@
 import { useScrollRestoration } from '../../hooks/useScrollRestoration';
 
-const ScrollToTop = () => {
-    useScrollRestoration();
+interface ScrollToTopProps {
+    subKey?: string;
+}
+
+const ScrollToTop: React.FC<ScrollToTopProps> = ({ subKey }) => {
+    useScrollRestoration(subKey);
     return null;
 };
 

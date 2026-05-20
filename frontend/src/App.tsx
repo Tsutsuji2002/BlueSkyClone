@@ -211,9 +211,9 @@ const AppContent: React.FC = () => {
     return <LoadingScreen />;
   }
 
-  return (
+    return (
     <>
-      <ScrollToTop />
+      <ScrollToTop subKey={location.pathname === '/search' ? (new URLSearchParams(location.search).get('q') || '') + '_' + (new URLSearchParams(location.search).get('tab') || 'top') : undefined} />
       <AppRoutes />
       <CreatePostModal />
       <ReplyModal />
