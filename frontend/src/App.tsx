@@ -61,23 +61,16 @@ const AppContent: React.FC = () => {
     sessionStorage.removeItem('chunk_reload_count');
 
     const checkAuth = async () => {
-      // Use a lock to prevent multiple concurrent checks
       if ((window as any)._isAuthChecking) return;
       (window as any)._isAuthChecking = true;
 
       try {
-          const result = await dispatch(getMe());
-          if (getMe.rejected.match(result)) {
-             // Access token expired — try to refresh before giving up
-             console.warn('[App] Initial auth check failed, attempting token refresh...');
-             const refreshResult = await dispatch(refreshSession());
-             if (refreshSession.rejected.match(refreshResult)) {
-               console.warn('[App] Token refresh also failed. User is unauthenticated.');
-               dispatch(stopLoading());
-             }
-          }
+          // The interceptor will now automatically try to refresh the session
+          // if getMe returns a 401. So we only need to call getMe once.
+          await dispatch(getMe());
       } finally {
           (window as any)._isAuthChecking = false;
+          dispatch(stopLoading());
       }
     };
 

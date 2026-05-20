@@ -3,23 +3,39 @@ import { logoutAsync } from '../redux/slices/authSlice';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
-// Keep a reference to the native fetch to avoid recursion issues
-const nativeFetch = window.fetch;
-let isInterceptorSetup = false;
-
 // Mutex to prevent multiple concurrent refresh attempts
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 /**
- * Attempts to refresh the session by calling /api/auth/refresh.
- * Returns true if successful, false otherwise.
- * Uses a mutex so only one refresh runs at a time.
+ * Symbol to prevent recursion and double initialization.
+ */
+const INTERCEPTED = Symbol('fetch-intercepted');
+
+/**
+ * Robustly capture the original native fetch once.
+ */
+const getNativeFetch = (): typeof window.fetch => {
+    if ((window as any)._originalFetch) return (window as any)._originalFetch;
+    
+    // If window.fetch is already intercepted by us, we need to find the real one.
+    // In normal cases, we capture it before any interception.
+    if ((window.fetch as any)[INTERCEPTED]) {
+        console.error('[FetchInterceptor] Native fetch lost! This should not happen.');
+        return (window.fetch as any)._original || window.fetch;
+    }
+
+    const native = window.fetch;
+    (window as any)._originalFetch = native;
+    return native;
+};
+
+/**
+ * Silent session refresh attempt.
  */
 async function tryRefreshToken(): Promise<boolean> {
-    if (isRefreshing && refreshPromise) {
-        return refreshPromise;
-    }
+    const nativeFetch = getNativeFetch();
+    if (isRefreshing && refreshPromise) return refreshPromise;
 
     isRefreshing = true;
     refreshPromise = (async () => {
@@ -42,79 +58,81 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 export const setupFetchInterceptor = () => {
-    if (isInterceptorSetup) return;
-    isInterceptorSetup = true;
+    const nativeFetch = getNativeFetch();
 
-    window.fetch = async (...args) => {
-        // args[0] is the resource (URL)
+    if ((window.fetch as any)[INTERCEPTED]) {
+        console.warn('[FetchInterceptor] Already initialized.');
+        return;
+    }
+
+    const interceptedFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
         let url = '';
-        if (args[0] instanceof Request) {
-            url = args[0].url;
+        if (input instanceof Request) {
+            url = input.url;
         } else {
-            url = args[0]?.toString() || '';
+            url = input.toString();
         }
 
         const isLogoutRequest = url.endsWith('/auth/logout');
         const isRefreshRequest = url.endsWith('/auth/refresh');
+        const isLoginRequest = url.endsWith('/auth/login') || url.endsWith('/auth/register');
 
-        // Check if the URL is an external request (starts with http but isn't part of our domain or API)
-        // We use window.location.origin to detect same-domain calls (including /xrpc)
         const isSameOrigin = !url.startsWith('http') || url.startsWith(window.location.origin);
         const isExternalRequest = url.startsWith('http') && !isSameOrigin;
-        
-        // Ensure credentials: 'include' for all same-origin requests to send cookies
+
+        // Force credentials: 'include' for same-origin
         if (isSameOrigin && !isExternalRequest && !isRefreshRequest) {
-            if (args[0] instanceof Request) {
-               args[1] = { ...args[1], credentials: 'include' };
-            } else {
-               args[1] = { ...(args[1] as RequestInit), credentials: 'include' };
+            if (init) {
+                init.credentials = 'include';
+            } else if (!(input instanceof Request)) {
+                init = { credentials: 'include' };
             }
+            // If input is a Request, we'll handle it in the clone logic below
         }
 
-        // Clone request if it's a POST/PUT/PATCH we might need to retry
-        // Request body can only be consumed once, so we need a clone for the first call.
-        const firstCallArgs = [...args] as [RequestInfo, RequestInit?];
-        if (args[0] instanceof Request && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(args[0].method)) {
-            firstCallArgs[0] = args[0].clone();
+        // Clone request body if it's potentially retryable
+        let firstCallArgs: [RequestInfo | URL, RequestInit?] = [input, init];
+        if (input instanceof Request) {
+            // If it's a request object, we must clone it to reuse it later
+            firstCallArgs = [input.clone(), init];
         }
 
-        const response = await nativeFetch(...firstCallArgs);
+        const response = await (nativeFetch as any)(...firstCallArgs);
 
         // Handle 401 Unauthorized
-        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest) {
+        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isLoginRequest) {
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
             
             if (!isAuthPage) {
-                const state = store.getState();
-                // Only attempt refresh if we believe we should be authenticated
-                if (state.auth.isAuthenticated) {
-                    const refreshed = await tryRefreshToken();
+                // ALWAYS attempt refresh on 401 same-origin if not on auth pages.
+                // This handles the "expired access token but valid refresh cookie" case during startup.
+                const refreshed = await tryRefreshToken();
 
-                    if (refreshed) {
-                        // Retry the original request with same-origin policy enforced
-                        const retryOptions: RequestInit = {
-                            ...(args[0] instanceof Request ? {} : (args[1] as RequestInit || {})),
+                if (refreshed) {
+                    // Successful refresh! Now retry the original request.
+                    const retryOptions: RequestInit = {
+                        ...(init || {}),
+                        credentials: 'include'
+                    };
+
+                    if (input instanceof Request) {
+                        const newHeaders = new Headers(input.headers);
+                        newHeaders.delete('Authorization'); // Remove stale bearer token if any
+                        
+                        const retryReq = new Request(input.url, {
+                            method: input.method,
+                            headers: newHeaders,
+                            body: input.body, // The original body is still available because we cloned it for the first call
                             credentials: 'include'
-                        };
-
-                        // If it was a Request object, we need to handle headers carefully
-                        if (args[0] instanceof Request) {
-                            const newHeaders = new Headers(args[0].headers);
-                            newHeaders.delete('Authorization');
-                            retryOptions.headers = newHeaders;
-                            return nativeFetch(args[0].url, {
-                                method: args[0].method,
-                                body: args[0].body,
-                                ...retryOptions
-                            });
-                        } else {
-                            const newHeaders = new Headers((args[1] as RequestInit)?.headers || {});
-                            newHeaders.delete('Authorization');
-                            retryOptions.headers = newHeaders;
-                            return nativeFetch(args[0], retryOptions);
-                        }
+                        });
+                        return nativeFetch(retryReq);
                     } else {
-                        // Refresh failed — session expired, perform clean logout
+                        return nativeFetch(input, retryOptions);
+                    }
+                } else {
+                    // Refresh failed - session really is dead.
+                    const state = store.getState();
+                    if (state.auth.isAuthenticated) {
                         store.dispatch(logoutAsync());
                     }
                 }
@@ -123,4 +141,8 @@ export const setupFetchInterceptor = () => {
 
         return response;
     };
+
+    (interceptedFetch as any)[INTERCEPTED] = true;
+    (interceptedFetch as any)._original = nativeFetch;
+    window.fetch = interceptedFetch as any;
 };
