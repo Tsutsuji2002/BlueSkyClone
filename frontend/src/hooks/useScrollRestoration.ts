@@ -79,13 +79,16 @@ export function useScrollRestoration(subKey?: string) {
                         observer.disconnect();
                         restorationDone = true;
                     };
+                } else {
+                    window.scrollTo(0, 0);
                 }
             } catch (e) {
                 console.error('ScrollRestoration: Failed to restore', e);
+                window.scrollTo(0, 0);
             }
-        } else if (navigationType === 'PUSH') {
-            // Only scroll to top on REAL new navigations, not subKey changes
-            console.log(`[ScrollRestoration] PUSH navigation, scrolling to top.`);
+        } else if (navigationType === 'PUSH' || (subKey !== undefined && !saved)) {
+            // SCROLL TO TOP: For real new navigations, OR tab switches with no saved pos
+            console.log(`[ScrollRestoration] Navigation/Tab switch with no saved pos, scrolling to top.`);
             window.scrollTo(0, 0);
         }
 
