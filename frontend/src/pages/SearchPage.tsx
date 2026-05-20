@@ -25,8 +25,8 @@ const SearchPage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
 
-    const { searchPostsByTab, searchHasMoreByTab } = useAppSelector((state: RootState) => state.posts);
-    const { searchResultsByTab, searchHasMoreByTab: searchUsersHasMoreByTab, searchLoading: isUsersLoading, isLoading: isPostsLoading } = useAppSelector((state: RootState) => state.user);
+    const { searchPostsByTab, searchHasMoreByTab, isLoading: isPostsLoading } = useAppSelector((state: RootState) => state.posts);
+    const { searchResultsByTab, searchHasMoreByTab: searchUsersHasMoreByTab, searchLoading: isUsersLoading } = useAppSelector((state: RootState) => state.user);
 
     const [inputValue, setInputValue] = useState(query);
     const limit = 20;
@@ -40,9 +40,14 @@ const SearchPage: React.FC = () => {
 
     useEffect(() => {
         if (activeTab && !visitedTabs.has(activeTab)) {
-            setVisitedTabs(prev => new Set(prev).add(activeTab));
+            setVisitedTabs(prev => {
+                if (prev.has(activeTab)) return prev;
+                const next = new Set(prev);
+                next.add(activeTab);
+                return next;
+            });
         }
-    }, [activeTab, visitedTabs]);
+    }, [activeTab]);
 
     // Reset scroll and data on new query
     useEffect(() => {
@@ -62,13 +67,13 @@ const SearchPage: React.FC = () => {
 
     useEffect(() => {
         setInputValue(query);
-        if (query) {
-            const currentTabResults = activeTab === 'people' 
+        if (query && !isLoading) {
+            const currentResults = activeTab === 'people' 
                 ? (searchResultsByTab?.[activeTab] || [])
                 : (searchPostsByTab?.[activeTab] || []);
             
             // Only fetch if we don't have results for this tab yet
-            if (currentTabResults.length === 0) {
+            if (currentResults.length === 0) {
                 if (activeTab === 'people') {
                     const userQuery = query.startsWith('@') ? query.slice(1) : query;
                     dispatch(searchUsers({ query: userQuery, skip: 0, take: limit, tab: activeTab }));
@@ -77,7 +82,7 @@ const SearchPage: React.FC = () => {
                 }
             }
         }
-    }, [dispatch, query, activeTab, searchPostsByTab, searchResultsByTab]);
+    }, [dispatch, query, activeTab]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
