@@ -652,7 +652,7 @@ public class PostService : IPostService
     {
         try
         {
-            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
             
             if (!string.IsNullOrEmpty(token))
@@ -661,33 +661,62 @@ public class PostService : IPostService
             }
             
             var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
-            var url = $"{baseUrl}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(query)}&limit={take}";
-            if (skip > 0)
-            {
-                // Note: bsky search typically uses 'cursor' for pagination, but some endpoints support offset.
-                // For now, let's keep it simple.
-            }
+            string? cursor = null;
+            var results = new List<PostDto>();
+            int fetchedSoFar = 0;
+            int maxDepth = 100; // Safety limit to prevent infinite loops or excessive API calls
 
-            var response = await httpClient.GetAsync(url);
-            if (!response.IsSuccessStatusCode)
+            // Loop to handle skip/take via cursors
+            while (fetchedSoFar < skip + take && fetchedSoFar < maxDepth)
             {
-                _logger.LogWarning("[SearchPostsRemoteAsync] fetch failed: {StatusCode}", response.StatusCode);
-                return new List<PostDto>();
-            }
+                // Calculate how many to fetch in this page. 
+                // We fetch up to 'take' or 25 if we're still skipping.
+                int limit = Math.Max(take, 25);
+                var url = $"{baseUrl}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(query)}&limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
-            var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
-            if (responseBody.TryGetProperty("posts", out var postsArray))
-            {
-                var mappedPosts = new List<PostDto>();
-                foreach (var postObj in postsArray.EnumerateArray())
+                var response = await httpClient.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
                 {
-                    var dto = MapBlueskyPost(postObj);
-                    if (dto != null) mappedPosts.Add(dto);
+                    _logger.LogWarning("[SearchPostsRemoteAsync] fetch failed: {StatusCode} at depth {Depth}", response.StatusCode, fetchedSoFar);
+                    break;
                 }
-                return mappedPosts;
+
+                var responseBody = await System.Text.Json.JsonSerializer.DeserializeAsync<System.Text.Json.JsonElement>(await response.Content.ReadAsStreamAsync());
+                
+                if (responseBody.TryGetProperty("posts", out var postsArray))
+                {
+                    var pagePosts = postsArray.EnumerateArray().ToList();
+                    if (pagePosts.Count == 0) break;
+
+                    foreach (var postObj in pagePosts)
+                    {
+                        if (fetchedSoFar >= skip && results.Count < take)
+                        {
+                            var dto = MapBlueskyPost(postObj);
+                            if (dto != null) results.Add(dto);
+                        }
+                        fetchedSoFar++;
+                    }
+
+                    // Get next cursor
+                    if (responseBody.TryGetProperty("cursor", out var cursorProp))
+                    {
+                        cursor = cursorProp.GetString();
+                        if (string.IsNullOrEmpty(cursor)) break;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    break;
+                }
             }
 
-            return new List<PostDto>();
+            return results;
         }
         catch (Exception ex)
         {

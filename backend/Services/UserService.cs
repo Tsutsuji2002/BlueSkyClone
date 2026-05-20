@@ -566,25 +566,7 @@ public class UserService : IUserService
 
                 // Build a transient User from the API response so we always have something to return
                 // even if the local DB persistence fails
-                var transientUser = new User
-                {
-                    Id = deterministicId,
-                    Did = did,
-                    Handle = profileHandle,
-                    Username = profileHandle?.Split('.')[0] ?? did,
-                    DisplayName = root.TryGetProperty("displayName", out var dn0) ? dn0.GetString() : null,
-                    AvatarUrl = root.TryGetProperty("avatar", out var av0) ? av0.GetString() : null,
-                    CoverImageUrl = root.TryGetProperty("banner", out var bn0) ? bn0.GetString() : null,
-                    Bio = root.TryGetProperty("description", out var ds0) ? ds0.GetString() : null,
-                    FollowersCount = root.TryGetProperty("followersCount", out var fc0) && fc0.TryGetInt32(out var fct0) ? fct0 : 0,
-                    FollowingCount = root.TryGetProperty("followsCount", out var fw0) && fw0.TryGetInt32(out var fwt0) ? fwt0 : 0,
-                    PostsCount = root.TryGetProperty("postsCount", out var pc0) && pc0.TryGetInt32(out var pct0) ? pct0 : 0,
-                    IsVerified = true,
-                    CreatedAt = DateTime.UtcNow,
-                    PasswordHash = "REMOTE_USER",
-                    Salt = "REMOTE_USER",
-                    Email = $"{did}@remote.bsky.social"
-                };
+                var transientUser = MapBlueskyActor(root);
 
                 bool isNewUser = false;
                 
@@ -1566,7 +1548,99 @@ public class UserService : IUserService
     public async Task<UserFollow?> GetFollowAsync(Guid followerId, Guid followingId) => await _unitOfWork.Follows.GetAsync(followerId, followingId);
     public async Task<BlockedAccount?> GetBlockAsync(Guid userId, Guid blockedUserId) => await _unitOfWork.Blocks.Query().FirstOrDefaultAsync(b => b.UserId == userId && b.BlockedUserId == blockedUserId);
     public async Task<MutedByListDto?> GetMutingListAsync(Guid viewerId, Guid targetUserId) => null; // Placeholder
-    public async Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20, Guid? viewerId = null) => new List<User>();
+    public async Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20, Guid? viewerId = null)
+    {
+        try
+        {
+            using var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(20);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+
+            string baseUrl = "https://api.bsky.app";
+            string? cursor = null;
+            var results = new List<User>();
+            int fetchedSoFar = 0;
+            int maxDepth = 100;
+
+            while (fetchedSoFar < skip + take && fetchedSoFar < maxDepth)
+            {
+                int limit = Math.Max(take, 25);
+                var url = $"{baseUrl}/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(query)}&limit={limit}";
+                if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode) break;
+
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("actors", out var actorsArray))
+                {
+                    var pageActors = actorsArray.EnumerateArray().ToList();
+                    if (pageActors.Count == 0) break;
+
+                    foreach (var actorObj in pageActors)
+                    {
+                        if (fetchedSoFar >= skip && results.Count < take)
+                        {
+                            var did = actorObj.GetProperty("did").GetString();
+                            if (!string.IsNullOrEmpty(did))
+                            {
+                                // Map remote actor to local User DTO
+                                var user = MapBlueskyActor(actorObj);
+                                if (user != null) results.Add(user);
+                            }
+                        }
+                        fetchedSoFar++;
+                    }
+
+                    if (root.TryGetProperty("cursor", out var cursorProp))
+                    {
+                        cursor = cursorProp.GetString();
+                        if (string.IsNullOrEmpty(cursor)) break;
+                    }
+                    else break;
+                }
+                else break;
+            }
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SearchActorsRemoteAsync] Error searching for {Query}", query);
+            return new List<User>();
+        }
+    }
+
+    private User MapBlueskyActor(JsonElement root)
+    {
+        var did = root.GetProperty("did").GetString() ?? "";
+        var profileHandle = root.TryGetProperty("handle", out var hp) ? hp.GetString() : null;
+        var deterministicId = CreateDeterministicGuid(did);
+
+        return new User
+        {
+            Id = deterministicId,
+            Did = did,
+            Handle = profileHandle,
+            Username = profileHandle?.Split('.')[0] ?? did,
+            DisplayName = root.TryGetProperty("displayName", out var dn0) ? dn0.GetString() : null,
+            AvatarUrl = root.TryGetProperty("avatar", out var av0) ? av0.GetString() : null,
+            CoverImageUrl = root.TryGetProperty("banner", out var bn0) ? bn0.GetString() : null,
+            Bio = root.TryGetProperty("description", out var ds0) ? ds0.GetString() : null,
+            FollowersCount = root.TryGetProperty("followersCount", out var fc0) && fc0.TryGetInt32(out var fct0) ? fct0 : 0,
+            FollowingCount = root.TryGetProperty("followsCount", out var fw0) && fw0.TryGetInt32(out var fwt0) ? fwt0 : 0,
+            PostsCount = root.TryGetProperty("postsCount", out var pc0) && pc0.TryGetInt32(out var pct0) ? pct0 : 0,
+            IsVerified = true,
+            CreatedAt = DateTime.UtcNow,
+            PasswordHash = "REMOTE_USER",
+            Salt = "REMOTE_USER",
+            Email = $"{did}@remote.bsky.social"
+        };
+    }
     public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId) => await _unitOfWork.MutedWords.Query()
         .Where(m => m.UserId == userId)
         .OrderByDescending(m => m.CreatedAt)

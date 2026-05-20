@@ -745,6 +745,8 @@ const userSlice = createSlice({
 
                 if (skip === 0) {
                     state.searchResults = incomingUsers;
+                    const requestLimit = action.meta.arg.take || 20;
+                    state.hasMore = incomingUsers.length >= requestLimit;
                 } else {
                     // Stable identity upsert: prefers DID, falls back to ID
                     const updatedUsers = [...state.searchResults];
@@ -762,10 +764,12 @@ const userSlice = createSlice({
                         }
                     });
 
+                    const addedNewUsers = newUsers.length > 0;
                     state.searchResults = [...updatedUsers, ...newUsers];
+                    
+                    const requestLimit = action.meta.arg.take || 20;
+                    state.hasMore = incomingUsers.length >= requestLimit && addedNewUsers;
                 }
-                const requestLimit = action.meta.arg.take || 20;
-                state.hasMore = incomingUsers.length >= requestLimit;
             })
             .addCase(searchUsers.rejected, (state: UserState, action) => {
                 state.searchLoading = false;
