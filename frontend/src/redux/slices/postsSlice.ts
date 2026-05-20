@@ -12,6 +12,8 @@ const initialState: PostsState = {
     discoverPosts: [],
     trendingPosts: [],
     bookmarkedPosts: [],
+    searchPostsByTab: {},
+    searchHasMoreByTab: {},
     isLoading: false,
     isThreadLoading: false,
     isRepliesLoading: false,
@@ -512,7 +514,7 @@ export const fetchPostsByTag = createAsyncThunk(
 
 export const fetchPostsSearch = createAsyncThunk(
     'posts/fetchSearch',
-    async ({ query, skip = 0, take = 20 }: { query: string; skip?: number; take?: number; cursor?: string }, { rejectWithValue }) => {
+    async ({ query, skip = 0, take = 20 }: { query: string; skip?: number; take?: number; cursor?: string; tab?: string }, { rejectWithValue }) => {
         try {
             const response = await fetch(
                 `${API_BASE_URL}/search/posts?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`,
@@ -1597,33 +1599,36 @@ const postsSlice = createSlice({
             // Fetch Posts Search
             .addCase(fetchPostsSearch.pending, (state: PostsState, action: any) => {
                 state.isLoading = true;
-                const { skip } = action.meta.arg;
+                const { skip, tab = 'top' } = action.meta.arg;
                 if (skip === 0 || !skip) {
-                    state.posts = [];
-                    state.lastUserPostsUserId = null;
-                    state.lastUserPostsType = null;
+                    if (!state.searchPostsByTab) state.searchPostsByTab = {};
+                    state.searchPostsByTab[tab] = [];
+                    state.posts = []; // legacy sync
                 }
             })
             .addCase(fetchPostsSearch.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
-                const { skip } = action.meta.arg;
+                const { skip, tab = 'top' } = action.meta.arg;
                 let newPostsCount = 0;
+                
+                if (!state.searchPostsByTab) state.searchPostsByTab = {};
+                if (!state.searchHasMoreByTab) state.searchHasMoreByTab = {};
+
                 if (skip === 0) {
-                    state.posts = action.payload.posts;
+                    state.searchPostsByTab[tab] = action.payload.posts;
+                    state.posts = action.payload.posts; // legacy sync
                     newPostsCount = action.payload.posts.length;
-                    state.lastUserPostsUserId = null;
-                    state.lastUserPostsType = null;
                 } else {
-                    const existingUris = new Set(state.posts.map((p: Post) => p.uri));
+                    const existing = state.searchPostsByTab[tab] || [];
+                    const existingUris = new Set(existing.map((p: Post) => p.uri));
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
                     newPostsCount = newPosts.length;
-                    state.posts = [...state.posts, ...newPosts];
+                    state.searchPostsByTab[tab] = [...existing, ...newPosts];
+                    state.posts = state.searchPostsByTab[tab]; // legacy sync
                 }
                 syncPostsWithTruth(state, action.payload.posts);
-                // Fix: hasMore should be false if no NEW posts were added, 
-                // OR if the server returned fewer results than requested.
-                const requestLimit = action.meta.arg.take || 20;
-                state.hasMore = action.payload.posts.length > 0 && newPostsCount > 0;
+                state.searchHasMoreByTab[tab] = action.payload.posts.length > 0 && newPostsCount > 0;
+                state.hasMore = state.searchHasMoreByTab[tab]; // legacy sync
             })
             .addCase(fetchPostsSearch.rejected, (state: PostsState, action) => {
                 state.isLoading = false;

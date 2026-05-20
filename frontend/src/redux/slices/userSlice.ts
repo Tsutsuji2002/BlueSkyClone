@@ -37,6 +37,8 @@ const initialState: UserState = {
     cursor: null,
     profileIdentifier: null,
     hasMore: true,
+    searchResultsByTab: {},
+    searchHasMoreByTab: {},
 };
 
 export const normalizeIdentifier = (value?: string | null): string => {
@@ -125,7 +127,7 @@ const updateCachedUsersByIdentifier = (
 };
 export const searchUsers = createAsyncThunk<
     User[],
-    { query: string, skip: number, take: number },
+    { query: string, skip: number, take: number, tab?: string },
     { rejectValue: string }
 >(
     'user/search',
@@ -733,43 +735,35 @@ const userSlice = createSlice({
             .addCase(searchUsers.pending, (state: UserState, action: any) => {
                 state.searchLoading = true;
                 state.error = null;
-                const { skip } = action.meta.arg;
-                if (skip === 0) {
-                    state.searchResults = [];
+                const { skip, tab = 'people' } = action.meta.arg;
+                if (skip === 0 || !skip) {
+                    if (!state.searchResultsByTab) state.searchResultsByTab = {};
+                    state.searchResultsByTab[tab] = [];
+                    state.searchResults = []; // legacy sync
                 }
             })
             .addCase(searchUsers.fulfilled, (state: UserState, action: any) => {
                 state.searchLoading = false;
                 const incomingUsers = (action.payload || []) as User[];
-                const { skip } = action.meta.arg;
+                const { skip, tab = 'people' } = action.meta.arg;
 
-                if (skip === 0) {
-                    state.searchResults = incomingUsers;
-                    const requestLimit = action.meta.arg.take || 20;
-                    state.hasMore = incomingUsers.length >= requestLimit;
+                if (!state.searchResultsByTab) state.searchResultsByTab = {};
+                if (!state.searchHasMoreByTab) state.searchHasMoreByTab = {};
+
+                if (skip === 0 || !skip) {
+                    state.searchResultsByTab[tab] = incomingUsers;
+                    state.searchResults = incomingUsers; // legacy sync
                 } else {
-                    // Stable identity upsert: prefers DID, falls back to ID
-                    const updatedUsers = [...state.searchResults];
-                    const newUsers: User[] = [];
-
-                    incomingUsers.forEach((newUser: User) => {
-                        const index = updatedUsers.findIndex(u =>
-                            (newUser.did && u.did && newUser.did === u.did) ||
-                            (u.id === newUser.id)
-                        );
-                        if (index !== -1) {
-                            updatedUsers[index] = { ...updatedUsers[index], ...newUser };
-                        } else {
-                            newUsers.push(newUser);
-                        }
-                    });
-
-                    const addedNewUsers = newUsers.length > 0;
-                    state.searchResults = [...updatedUsers, ...newUsers];
-                    
-                    const requestLimit = action.meta.arg.take || 20;
-                    state.hasMore = incomingUsers.length >= requestLimit && addedNewUsers;
+                    const existing = state.searchResultsByTab[tab] || [];
+                    const existingIds = new Set(existing.map((u: User) => u.id));
+                    const newUsers = incomingUsers.filter((u: User) => !existingIds.has(u.id));
+                    state.searchResultsByTab[tab] = [...existing, ...newUsers];
+                    state.searchResults = state.searchResultsByTab[tab]; // legacy sync
                 }
+                
+                const requestLimit = action.meta.arg.take || 20;
+                state.searchHasMoreByTab[tab] = incomingUsers.length >= requestLimit;
+                state.hasMore = state.searchHasMoreByTab[tab]; // legacy sync
             })
             .addCase(searchUsers.rejected, (state: UserState, action) => {
                 state.searchLoading = false;

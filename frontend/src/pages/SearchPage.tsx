@@ -25,25 +25,59 @@ const SearchPage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
 
-    const { posts, isLoading: isPostsLoading, hasMore } = useAppSelector((state: RootState) => state.posts);
-    const { searchResults: users, searchLoading: isUsersLoading } = useAppSelector((state: RootState) => state.user);
+    const { searchPostsByTab, searchHasMoreByTab } = useAppSelector((state: RootState) => state.posts);
+    const { searchResultsByTab, searchHasMoreByTab: searchUsersHasMoreByTab, searchLoading: isUsersLoading, isLoading: isPostsLoading } = useAppSelector((state: RootState) => state.user);
 
     const [inputValue, setInputValue] = useState(query);
     const limit = 20;
 
     const isLoading = activeTab === 'people' ? isUsersLoading : isPostsLoading;
 
+    // Track scroll positions for tab separation (Mirroring HomePage logic)
+    const scrollPositionsRef = React.useRef<Record<string, number>>({});
+    const prevActiveTab = React.useRef<string | null>(activeTab);
+    const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([activeTab]));
+
+    useEffect(() => {
+        if (activeTab && !visitedTabs.has(activeTab)) {
+            setVisitedTabs(prev => new Set(prev).add(activeTab));
+        }
+    }, [activeTab, visitedTabs]);
+
+    // Reset scroll and data on new query
+    useEffect(() => {
+        scrollPositionsRef.current = {};
+        setVisitedTabs(new Set([activeTab]));
+        window.scrollTo(0, 0);
+    }, [query]);
+
+    // Restore scroll position when tab changes (Instant feel)
+    React.useLayoutEffect(() => {
+        if (activeTab && activeTab !== prevActiveTab.current) {
+            const targetScroll = scrollPositionsRef.current[activeTab] || 0;
+            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+            prevActiveTab.current = activeTab;
+        }
+    }, [activeTab]);
+
     useEffect(() => {
         setInputValue(query);
         if (query) {
-            if (activeTab === 'people') {
-                const userQuery = query.startsWith('@') ? query.slice(1) : query;
-                dispatch(searchUsers({ query: userQuery, skip: 0, take: limit }));
-            } else {
-                dispatch(fetchPostsSearch({ query, skip: 0, take: limit }));
+            const currentTabResults = activeTab === 'people' 
+                ? (searchResultsByTab?.[activeTab] || [])
+                : (searchPostsByTab?.[activeTab] || []);
+            
+            // Only fetch if we don't have results for this tab yet
+            if (currentTabResults.length === 0) {
+                if (activeTab === 'people') {
+                    const userQuery = query.startsWith('@') ? query.slice(1) : query;
+                    dispatch(searchUsers({ query: userQuery, skip: 0, take: limit, tab: activeTab }));
+                } else {
+                    dispatch(fetchPostsSearch({ query, skip: 0, take: limit, tab: activeTab }));
+                }
             }
         }
-    }, [dispatch, query, activeTab]);
+    }, [dispatch, query, activeTab, searchPostsByTab, searchResultsByTab]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -51,22 +85,33 @@ const SearchPage: React.FC = () => {
             const nextTab = inputValue.trim().startsWith('@') ? 'people' : activeTab;
             setSearchParams({ q: inputValue.trim(), tab: nextTab });
             setActiveTab(nextTab);
+            scrollPositionsRef.current = {};
+            window.scrollTo(0, 0);
         }
     };
 
     const handleTabChange = (tab: string) => {
+        if (tab === activeTab) return;
+
+        // Save current position
+        scrollPositionsRef.current[activeTab] = window.scrollY;
+        
         setActiveTab(tab);
         setSearchParams({ q: query, tab });
     };
 
     const handleLoadMore = () => {
         if (query) {
-            const currentCount = activeTab === 'people' ? users.length : posts.length;
+            const currentResults = activeTab === 'people' 
+                ? (searchResultsByTab?.[activeTab] || [])
+                : (searchPostsByTab?.[activeTab] || []);
+            const currentCount = currentResults.length;
+
             if (activeTab === 'people') {
                 const userQuery = query.startsWith('@') ? query.slice(1) : query;
-                dispatch(searchUsers({ query: userQuery, skip: currentCount, take: limit }));
+                dispatch(searchUsers({ query: userQuery, skip: currentCount, take: limit, tab: activeTab }));
             } else {
-                dispatch(fetchPostsSearch({ query, skip: currentCount, take: limit }));
+                dispatch(fetchPostsSearch({ query, skip: currentCount, take: limit, tab: activeTab }));
             }
         }
     };
@@ -75,6 +120,14 @@ const SearchPage: React.FC = () => {
 
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
     const [isFocused, setIsFocused] = useState(false);
+
+    // Standard search tabs
+    const tabs = [
+        { id: 'top', label: t('search.top', { defaultValue: 'Top' }) },
+        { id: 'latest', label: t('search.latest', { defaultValue: 'Latest' }) },
+        { id: 'people', label: t('search.people', { defaultValue: 'People' }) },
+        { id: 'media', label: t('search.media', { defaultValue: 'Media' }) }
+    ];
 
     if (!isAuthenticated) {
         return (
@@ -158,11 +211,11 @@ const SearchPage: React.FC = () => {
                             
                             {/* User Results */}
                             <div className="divide-y divide-gray-100 dark:divide-dark-border">
-                                {isUsersLoading && users.length === 0 ? (
+                                {isUsersLoading && (searchResultsByTab?.['people'] || []).length === 0 ? (
                                     <div className="flex justify-center py-8">
                                         <LoadingIndicator size="md" />
                                     </div>
-                                ) : users.map((user) => (
+                                ) : (searchResultsByTab?.['people'] || []).map((user) => (
                                     <div
                                         key={user.id}
                                         onClick={() => navigate(`/profile/${user.handle}`)}
@@ -227,90 +280,92 @@ const SearchPage: React.FC = () => {
 
                     {/* Tabs */}
                     <div className="flex border-b border-gray-100 dark:border-dark-border overflow-x-auto no-scrollbar">
-                        <button
-                            onClick={() => handleTabChange('top')}
-                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === 'top' ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
-                            {t('search.top', { defaultValue: 'Top' })}
-                        </button>
-                        <button
-                            onClick={() => handleTabChange('latest')}
-                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === 'latest' ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
-                            {t('search.latest', { defaultValue: 'Latest' })}
-                        </button>
-                        <button
-                            onClick={() => handleTabChange('people')}
-                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === 'people' ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
-                            {t('search.people', { defaultValue: 'People' })}
-                        </button>
-                        <button
-                            onClick={() => handleTabChange('media')}
-                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === 'media' ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
-                            {t('search.media', { defaultValue: 'Media' })}
-                        </button>
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleTabChange(tab.id)}
+                                className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === tab.id ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
+                                {tab.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                {/* Results Container */}
+                {/* Results Container: Render all visited tabs but hide inactive ones (Mirroring HomePage) */}
                 <div className="pb-20">
-                    {isLoading && (activeTab === 'people' ? users : posts).length === 0 ? (
-                        <div className="flex justify-center py-20">
-                            <LoadingIndicator size="lg" />
-                        </div>
-                    ) : (activeTab === 'people' ? users : posts).length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                            <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
-                                <FiSearch className="text-gray-300" size={40} />
-                            </div>
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
-                                {t('search.no_results_title', { defaultValue: 'No results' })}
-                            </h2>
-                            <p className="text-gray-500 dark:text-dark-text-secondary">
-                                {t('search.no_results_desc', { defaultValue: 'We couldn\'t find anything for "{{query}}"', query })}
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            {activeTab === 'people' ? (
-                                <div className="divide-y divide-gray-100 dark:divide-dark-border">
-                                    {users.map((user) => (
-                                        <div
-                                            key={user.id}
-                                            onClick={() => navigate(`/profile/${user.handle}`)}
-                                            className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer transition-colors"
-                                        >
-                                            <UserHoverCard user={user}>
-                                                <div onClick={(e) => e.stopPropagation()}>
-                                                    <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName || user.handle || '?'} size="lg" />
-                                                </div>
-                                            </UserHoverCard>
+                    {tabs.map((tab) => {
+                        if (!visitedTabs.has(tab.id)) return null;
 
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1">
-                                                    <UserHoverCard user={user}>
-                                                        <span className="font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName || user.handle || 'Unknown'}</span>
-                                                    </UserHoverCard>
-                                                    {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
-                                                </div>
-                                                <div className="text-gray-500 dark:text-dark-text-secondary text-[15px] truncate">@{user.handle}</div>
-                                                {user.bio && (
-                                                    <div className="text-gray-900 dark:text-dark-text text-[15px] mt-1 line-clamp-2">{user.bio}</div>
-                                                )}
-                                            </div>
+                        const currentPosts = searchPostsByTab?.[tab.id] || [];
+                        const currentUsers = searchResultsByTab?.[tab.id] || [];
+                        const currentHasMore = tab.id === 'people' 
+                            ? (searchUsersHasMoreByTab?.[tab.id] ?? false)
+                            : (searchHasMoreByTab?.[tab.id] ?? false);
+
+                        const isTabLoading = isLoading && activeTab === tab.id;
+                        const hasNoResults = !isTabLoading && (tab.id === 'people' ? currentUsers.length === 0 : currentPosts.length === 0);
+
+                        return (
+                            <div key={tab.id} hidden={activeTab !== tab.id} style={{ display: activeTab === tab.id ? 'block' : 'none' }}>
+                                {(isTabLoading && (tab.id === 'people' ? currentUsers : currentPosts).length === 0) ? (
+                                    <div className="flex justify-center py-20">
+                                        <LoadingIndicator size="lg" />
+                                    </div>
+                                ) : hasNoResults ? (
+                                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                                        <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
+                                            <FiSearch className="text-gray-300" size={40} />
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <Feed 
-                                    feedId={`search_posts_${query}`}
-                                    posts={posts} 
-                                    isLoading={isLoading}
-                                    hasMore={hasMore}
-                                    onLoadMore={handleLoadMore}
-                                    emptyMessage={t('search.no_results_title', { defaultValue: 'No results' })}
-                                />
-                            )}
-                        </>
-                    )}
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                                            {t('search.no_results_title', { defaultValue: 'No results' })}
+                                        </h2>
+                                        <p className="text-gray-500 dark:text-dark-text-secondary">
+                                            {t('search.no_results_desc', { defaultValue: 'We couldn\'t find anything for "{{query}}"', query })}
+                                        </p>
+                                    </div>
+                                ) : tab.id === 'people' ? (
+                                    <div className="divide-y divide-gray-100 dark:divide-dark-border">
+                                        {currentUsers.map((user) => (
+                                            <div
+                                                key={user.id}
+                                                onClick={() => navigate(`/profile/${user.handle}`)}
+                                                className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer transition-colors"
+                                            >
+                                                <UserHoverCard user={user}>
+                                                    <div onClick={(e) => e.stopPropagation()}>
+                                                        <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName || user.handle || '?'} size="lg" />
+                                                    </div>
+                                                </UserHoverCard>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-1">
+                                                        <UserHoverCard user={user}>
+                                                            <span className="font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName || user.handle || 'Unknown'}</span>
+                                                        </UserHoverCard>
+                                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
+                                                    </div>
+                                                    <div className="text-gray-500 dark:text-dark-text-secondary text-[15px] truncate">@{user.handle}</div>
+                                                    {user.bio && (
+                                                        <div className="text-gray-900 dark:text-dark-text text-[15px] mt-1 line-clamp-2">{user.bio}</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <Feed 
+                                        feedId={`search_${tab.id}_${query}`}
+                                        posts={currentPosts} 
+                                        isLoading={isTabLoading}
+                                        hasMore={currentHasMore}
+                                        onLoadMore={handleLoadMore}
+                                        emptyMessage={t('search.no_results_title', { defaultValue: 'No results' })}
+                                        isActive={activeTab === tab.id}
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
         </div>
     );
