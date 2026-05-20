@@ -1623,7 +1623,7 @@ const postsSlice = createSlice({
                 // Fix: hasMore should be false if no NEW posts were added, 
                 // OR if the server returned fewer results than requested.
                 const requestLimit = action.meta.arg.take || 20;
-                state.hasMore = action.payload.posts.length >= requestLimit && newPostsCount > 0;
+                state.hasMore = action.payload.posts.length > 0 && newPostsCount > 0;
             })
             .addCase(fetchPostsSearch.rejected, (state: PostsState, action) => {
                 state.isLoading = false;
