@@ -1607,17 +1607,23 @@ const postsSlice = createSlice({
             .addCase(fetchPostsSearch.fulfilled, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 const { skip } = action.meta.arg;
+                let newPostsCount = 0;
                 if (skip === 0) {
                     state.posts = action.payload.posts;
+                    newPostsCount = action.payload.posts.length;
                     state.lastUserPostsUserId = null;
                     state.lastUserPostsType = null;
                 } else {
                     const existingUris = new Set(state.posts.map((p: Post) => p.uri));
                     const newPosts = action.payload.posts.filter((p: Post) => !existingUris.has(p.uri));
+                    newPostsCount = newPosts.length;
                     state.posts = [...state.posts, ...newPosts];
                 }
                 syncPostsWithTruth(state, action.payload.posts);
-                state.hasMore = action.payload.posts.length > 0;
+                // Fix: hasMore should be false if no NEW posts were added, 
+                // OR if the server returned fewer results than requested.
+                const requestLimit = action.meta.arg.take || 20;
+                state.hasMore = action.payload.posts.length >= requestLimit && newPostsCount > 0;
             })
             .addCase(fetchPostsSearch.rejected, (state: PostsState, action) => {
                 state.isLoading = false;

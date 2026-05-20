@@ -764,6 +764,8 @@ const userSlice = createSlice({
 
                     state.searchResults = [...updatedUsers, ...newUsers];
                 }
+                const requestLimit = action.meta.arg.take || 20;
+                state.hasMore = incomingUsers.length >= requestLimit;
             })
             .addCase(searchUsers.rejected, (state: UserState, action) => {
                 state.searchLoading = false;
