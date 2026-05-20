@@ -29,9 +29,26 @@ const SearchPage: React.FC = () => {
     const { searchResults: users, searchLoading: isUsersLoading } = useAppSelector((state: RootState) => state.user);
 
     const [inputValue, setInputValue] = useState(query);
+    const [scrollPositions, setScrollPositions] = useState<Record<string, number>>({});
     const limit = 20;
 
     const isLoading = activeTab === 'people' ? isUsersLoading : isPostsLoading;
+
+    // Reset scroll positions on new query
+    useEffect(() => {
+        setScrollPositions({});
+        window.scrollTo(0, 0);
+    }, [query]);
+
+    // Restore scroll position when tab changes
+    useEffect(() => {
+        const savedPos = scrollPositions[activeTab] || 0;
+        // Small delay to ensure content has started rendering
+        const timeoutId = setTimeout(() => {
+            window.scrollTo(0, savedPos);
+        }, 0);
+        return () => clearTimeout(timeoutId);
+    }, [activeTab, scrollPositions]);
 
     useEffect(() => {
         setInputValue(query);
@@ -49,12 +66,23 @@ const SearchPage: React.FC = () => {
         e.preventDefault();
         if (inputValue.trim()) {
             const nextTab = inputValue.trim().startsWith('@') ? 'people' : activeTab;
+            // Clear scroll positions for the new search
+            setScrollPositions({});
             setSearchParams({ q: inputValue.trim(), tab: nextTab });
             setActiveTab(nextTab);
+            window.scrollTo(0, 0);
         }
     };
 
     const handleTabChange = (tab: string) => {
+        if (tab === activeTab) return;
+        
+        // Save current scroll position before switching
+        setScrollPositions(prev => ({
+            ...prev,
+            [activeTab]: window.scrollY
+        }));
+        
         setActiveTab(tab);
         setSearchParams({ q: query, tab });
     };
