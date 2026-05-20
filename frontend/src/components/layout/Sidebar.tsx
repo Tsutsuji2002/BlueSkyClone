@@ -44,14 +44,8 @@ const Sidebar: React.FC = () => {
     const conversations = useAppSelector((state) => state.messages.conversations);
     const unreadMessages = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
 
-    React.useEffect(() => {
-        if (user) {
-            // Defensive check to ensure we fetch if counts are zero
-            if (unreadNotifications === 0) dispatch(fetchUnreadCount());
-            if (unreadMessages === 0) dispatch(fetchConversations());
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, dispatch]);
+    // Removed redundant polling logic that caused infinite loops when counts were zero.
+    // App.tsx now handles the unified session lifecycle and periodic updates.
 
     const handleLogout = async () => {
         await dispatch(logoutAsync());
