@@ -25,3 +25,6 @@ certbot/
 logs/
 *.log
 *.txt
+
+# AI Analysis
+brain/
