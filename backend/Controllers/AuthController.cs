@@ -131,7 +131,7 @@ public class AuthController : ControllerBase
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
-            Secure = true, // Ensure HTTPS is required
+            Secure = Request.IsHttps, // Only require HTTPS if the request came in over HTTPS
             SameSite = SameSiteMode.Lax, // Allow some cross-site for SPA
             Expires = DateTimeOffset.UtcNow.AddDays(rememberMe ? 365 : 7),
             Path = "/"

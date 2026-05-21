@@ -123,35 +123,39 @@ export const setupFetchInterceptor = () => {
 
         const response = await (nativeFetch as any)(...firstCallArgs);
 
+        // Avoid infinite loops: if a request marked as a retry still returns 401, don't try to refresh again.
+        const isRetry = input instanceof Request ? input.headers.has('X-Retry-Attempt') : (init?.headers as any)?.['X-Retry-Attempt'];
+
         // Handle 401 Unauthorized
-        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isLoginRequest) {
+        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isLoginRequest && !isRetry) {
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
             
             if (!isAuthPage) {
                 // ALWAYS attempt refresh on 401 same-origin if not on auth pages.
-                // This handles the "expired access token but valid refresh cookie" case during startup.
                 const refreshed = await tryRefreshToken();
 
                 if (refreshed) {
                     // Successful refresh! Now retry the original request.
-                    const retryOptions: RequestInit = {
-                        ...(init || {}),
-                        credentials: 'include'
-                    };
-
                     if (input instanceof Request) {
                         const newHeaders = new Headers(input.headers);
-                        newHeaders.delete('Authorization'); // Remove stale bearer token if any
+                        newHeaders.delete('Authorization');
+                        newHeaders.set('X-Retry-Attempt', '1');
                         
                         const retryReq = new Request(input.url, {
                             method: input.method,
                             headers: newHeaders,
-                            body: input.body, // The original body is still available because we cloned it for the first call
+                            body: input.body,
                             credentials: 'include'
                         });
                         return nativeFetch(retryReq);
                     } else {
-                        return nativeFetch(input, retryOptions);
+                        const retryHeaders = new Headers(init?.headers || {});
+                        retryHeaders.set('X-Retry-Attempt', '1');
+                        return nativeFetch(input, {
+                            ...(init || {}),
+                            headers: retryHeaders,
+                            credentials: 'include'
+                        });
                     }
                 } else {
                     // Refresh failed - session really is dead.
