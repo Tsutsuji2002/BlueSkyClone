@@ -46,10 +46,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     <div className={cn("hidden lg:block flex-shrink-0", isAuthenticated ? "w-20 xl:w-[280px]" : "w-64 xl:w-[280px]")}>
                         {isAuthenticated ? (
                             <Sidebar />
-                        ) : isLoading ? (
-                            <div className="w-full h-full" /> // Blank while loading session
                         ) : (
-                            <GuestSidebar />
+                            // Only show guest sidebar if NOT loading
+                            !isLoading && <GuestSidebar />
                         )}
                     </div>
 
@@ -81,7 +80,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     <MobileCreateButton />
                 </>
             ) : (
-                <GuestBottomBanner />
+                !isLoading && <GuestBottomBanner />
             )}
 
             {/* Mobile Navigation Sidebar */}

@@ -70,7 +70,9 @@ const HomePage: React.FC = () => {
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
 
     const hasAnyData = subscribedFeeds.length > 0 || pinnedLists.length > 0 || (activeTab && feedPosts[activeTab]?.length > 0);
-    const isInitialLoading = (feedsLoading || authLoading) && !hasAnyData;
+    // Stay in loading state if auth is still working, or if we are authenticated but haven't even started fetching feeds/lists yet.
+    // We check lastSubscribedFeedsFetch === 0 to know if we've ever tried.
+    const isInitialLoading = (feedsLoading || authLoading || (isAuthenticated && subscribedFeeds.length === 0)) && !hasAnyData;
 
     useEffect(() => {
         if (!authLoading && subscribedFeeds.length === 0) {

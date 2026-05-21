@@ -65,12 +65,11 @@ const AppContent: React.FC = () => {
       (window as any)._isAuthChecking = true;
 
       try {
-          // The interceptor will now automatically try to refresh the session
-          // if getMe returns a 401. So we only need to call getMe once.
-          await dispatch(getMe());
+          await dispatch(getMe()).unwrap();
+      } catch (e) {
+          console.error('[App] Auth check failed:', e);
       } finally {
           (window as any)._isAuthChecking = false;
-          dispatch(stopLoading());
       }
     };
 

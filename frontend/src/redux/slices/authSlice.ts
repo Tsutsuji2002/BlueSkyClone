@@ -165,6 +165,7 @@ export const getMe = createAsyncThunk(
         try {
             const response = await fetch(`${API_URL}/auth/me`, {
                 method: 'GET',
+                credentials: 'include',
                 // Fetch will automatically send HttpOnly cookies from same-origin
                 headers: {
                     'Content-Type': 'application/json'
