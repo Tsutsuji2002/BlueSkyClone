@@ -44,15 +44,9 @@ const Feed: React.FC<FeedProps> = ({
     // Content filter logic helper (moved out of useMemo to use as initial state)
     const getFilteredPosts = (posts: Post[]) => {
         const basePosts = posts.filter(post => !post.isDeleted);
-        if (!contentLanguages || contentLanguages.length === 0) return basePosts;
-        const matchingPosts: Post[] = [];
-        const otherPosts: Post[] = [];
-        basePosts.forEach(post => {
-            const lang = post.language || detectLanguage(post.content);
-            if (contentLanguages.includes(lang)) matchingPosts.push(post);
-            else otherPosts.push(post);
-        });
-        return matchingPosts.length === 0 ? otherPosts : [...matchingPosts, ...otherPosts];
+        // We removed the language-based grouping that was causing chronological order to break.
+        // Posts now stay in their original (likely chronological) order.
+        return basePosts;
     };
 
     const filteredPosts = useMemo(() => getFilteredPosts(allPosts), [allPosts, contentLanguages]);
