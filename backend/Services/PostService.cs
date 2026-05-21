@@ -83,13 +83,13 @@ public class PostService : IPostService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<IEnumerable<PostDto>> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, bool bypassCache = false)
+    public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, string? cursor = null, bool bypassCache = false)
     {
         try
         {
             // Include skip and take in cache key for proper pagination support
-            var cacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}";
-            List<PostDto>? mappedPosts = null;
+            var cacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}_{cursor ?? "root"}";
+            PagedPostDto? resultDto = null;
             string? token = null;
             User? user = null;
 
@@ -98,31 +98,35 @@ public class PostService : IPostService
                 var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
                 if (!string.IsNullOrEmpty(cachedJson))
                 {
-                    try { mappedPosts = System.Text.Json.JsonSerializer.Deserialize<List<PostDto>>(cachedJson); } catch { }
+                    try { resultDto = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson); } catch { }
                 }
             }
 
-            if (mappedPosts == null)
+            if (resultDto == null)
             {
                 user = await _unitOfWork.Users.GetByIdAsync(userId);
                 if (user == null || string.IsNullOrEmpty(user.Did))
                 {
                     _logger.LogWarning("[GetTimelineAsync] User or DID not found for {UserId}.", userId);
-                    return new List<PostDto>();
+                    return new PagedPostDto();
                 }
 
                 token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
                 if (string.IsNullOrEmpty(token))
                 {
                     _logger.LogWarning("[GetTimelineAsync] Failed to refresh/get token for user {UserId}.", userId);
-                    mappedPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                    var fallbackPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                    resultDto = new PagedPostDto { Posts = fallbackPosts };
                 }
                 else
                 {
+                    var queryArgs = new Dictionary<string, string?> { { "limit", "100" } };
+                    if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
+
                     var result = await _xrpcProxy.ProxyRequestAsync(
                         user.Did,
                         "app.bsky.feed.getTimeline",
-                        new Dictionary<string, string?> { { "limit", "100" } },
+                        queryArgs,
                         token,
                         "GET",
                         null,
@@ -132,41 +136,52 @@ public class PostService : IPostService
                     if (!result.Success)
                     {
                         _logger.LogError("[GetTimelineAsync] Bluesky proxy failed: {Res}", result.Content);
-                        mappedPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                        var fallbackPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                        resultDto = new PagedPostDto { Posts = fallbackPosts };
                     }
                     else
                     {
-                        mappedPosts = new List<PostDto>();
                         using var doc = JsonDocument.Parse(result.Content);
-                        if (doc.RootElement.TryGetProperty("feed", out var feedArray))
-                            mappedPosts = MapBlueskyFeed(feedArray);
+                        var posts = doc.RootElement.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
+                        var nextCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
 
-                        if (mappedPosts.Count == 0)
+                        if (posts.Count == 0)
                         {
                             _logger.LogInformation("[GetTimelineAsync] Proxy timeline returned no posts for {UserId}; trying fallback feed reconstruction.", userId);
-                            mappedPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                            posts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
                         }
+                        
+                        resultDto = new PagedPostDto { Posts = posts, Cursor = nextCursor };
                     }
                 }
 
                 // Only cache non-empty results to avoid serving stale empty responses
-                if (mappedPosts.Count > 0)
+                if (resultDto.Posts.Any())
                 {
                     await _distributedCache.SetStringAsync(cacheKey,
-                        System.Text.Json.JsonSerializer.Serialize(mappedPosts),
+                        System.Text.Json.JsonSerializer.Serialize(resultDto),
                         new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
-                        { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) });
+                        { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
                 }
             }
             
             token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
-            var paginated = mappedPosts.Skip(skip).Take(take).ToList();
-            return userId != Guid.Empty ? await EnrichAndFilterPostsAsync(paginated, userId, token, true) : paginated;
+            var enriched = userId != Guid.Empty ? await EnrichAndFilterPostsAsync(resultDto.Posts, userId, token, true) : resultDto.Posts;
+            
+            // If we have a cursor, we assume the server handled "skip" (though getTimeline doesn't use skip, it uses cursors)
+            // If we ARE using skip, we skip/take.
+            var paginated = string.IsNullOrEmpty(cursor) ? enriched.Skip(skip).Take(take).ToList() : enriched.Take(take).ToList();
+            
+            return new PagedPostDto 
+            { 
+                Posts = paginated, 
+                Cursor = resultDto.Cursor 
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[GetTimelineAsync] Critical Error for user {UserId}", userId);
-            return new List<PostDto>();
+            return new PagedPostDto();
         }
     }
 
@@ -391,19 +406,8 @@ public class PostService : IPostService
             var authorUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == handleOrDid || u.Did == handleOrDid);
             var pinnedUri = authorUser?.PinnedPostUri;
 
-            var paginated = result.Posts.Skip(skip).Take(take).ToList();
-
-            if (skip == 0 && !string.IsNullOrEmpty(pinnedUri))
-            {
-                var pinnedPost = result.Posts.FirstOrDefault(p => p.Uri == pinnedUri || p.Viewer?.Repost == pinnedUri);
-                if (pinnedPost != null && !paginated.Any(p => p.Uri == pinnedUri))
-                {
-                    paginated.Insert(0, pinnedPost);
-                    if (paginated.Count > take) paginated.RemoveAt(paginated.Count - 1);
-                }
-            }
-
-            var enriched = await EnrichAndFilterPostsAsync(paginated, viewerId ?? Guid.Empty, token, false, false, !string.IsNullOrEmpty(token));
+            var enriched = await EnrichAndFilterPostsAsync(result.Posts, viewerId ?? Guid.Empty, token, false, false, !string.IsNullOrEmpty(token));
+            var paginated = enriched.Skip(skip).Take(take).ToList();
 
             if (!string.IsNullOrEmpty(pinnedUri))
             {

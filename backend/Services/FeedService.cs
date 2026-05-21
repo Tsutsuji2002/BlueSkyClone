@@ -1324,8 +1324,7 @@ public class FeedService : IFeedService
             {
                 if (uri == FollowingFeedKey && userId.HasValue)
                 {
-                    var timelinePosts = await _postService.GetTimelineAsync(userId.Value, skip, take);
-                    return new PagedPostDto { Posts = timelinePosts };
+                    return await _postService.GetTimelineAsync(userId.Value, skip, take, cursor);
                 }
 
                 if (uri == DiscoverFeedKey)
@@ -1410,9 +1409,9 @@ public class FeedService : IFeedService
                         
                         // If we have a cursor, we don't skip (cursor handles pagination)
                         // If we don't have a cursor, we skip for offset-based pagination
-                        var paginatedPosts = string.IsNullOrEmpty(cursor) ? posts.Skip(skip).Take(take).ToList() : posts.Take(take).ToList();
-                        var enriched = await _postService.EnrichAndFilterPostsAsync(paginatedPosts, userId ?? Guid.Empty, token);
-                        return new PagedPostDto { Posts = enriched, Cursor = outCursor };
+                        var enriched = await _postService.EnrichAndFilterPostsAsync(posts, userId ?? Guid.Empty, token);
+                        var paginatedPosts = string.IsNullOrEmpty(cursor) ? enriched.Skip(skip).Take(take).ToList() : enriched.Take(take).ToList();
+                        return new PagedPostDto { Posts = paginatedPosts, Cursor = outCursor };
                     }
                     else
                     {

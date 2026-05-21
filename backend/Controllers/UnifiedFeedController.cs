@@ -60,7 +60,9 @@ public class UnifiedFeedController : ControllerBase
                     }
                     else
                     {
-                        posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take, refresh);
+                        var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh);
+                        posts = paged.Posts;
+                        outCursor = paged.Cursor;
                     }
                     break;
                 case "discover":
@@ -102,7 +104,9 @@ public class UnifiedFeedController : ControllerBase
                         }
                         else
                         {
-                            posts = await _postService.GetTimelineAsync(viewerId.Value, skip, take, refresh);
+                            var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh);
+                            posts = paged.Posts;
+                            outCursor = paged.Cursor;
                         }
                     }
                     break;
