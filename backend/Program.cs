@@ -31,6 +31,9 @@ builder.Services.AddSignalR(options =>
 builder.Services.AddMemoryCache();
 builder.Services.AddRateLimiter(options =>
 {
+    // Return 429 Too Many Requests (not the default 503) so clients can distinguish
+    // a rate limit from a real server outage and retry with appropriate backoff.
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddFixedWindowLimiter("login", opt =>
     {
         opt.PermitLimit = 5;

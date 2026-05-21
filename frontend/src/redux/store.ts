@@ -34,9 +34,9 @@ const appReducer = combineReducers({
 });
 
 const rootReducer = (state: ReturnType<typeof appReducer> | undefined, action: AnyAction) => {
-    // Check if the logout action was fulfilled
-    if (action.type === 'auth/logout/fulfilled') {
-        // Reset the state but preserve theme and language
+    // 'auth/logout' is a synchronous reducer action (not a thunk), so no '/fulfilled' suffix.
+    if (action.type === 'auth/logout') {
+        // Reset all slices on logout, but keep theme and language preferences.
         const { theme, language } = state || {};
         state = {
             theme,

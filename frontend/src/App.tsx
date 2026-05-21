@@ -59,39 +59,13 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Sync RTK Query result to authSlice + handle session expiry
-  const isRefreshingRef = React.useRef(false);
+  // Sync RTK Query result to authSlice for backward compatibility
   useEffect(() => {
     if (meData) {
       dispatch(setAuth(meData));
     } else if (meError) {
-      const status = (meError as any)?.status;
-      const isAuthError = status === 401 || status === 403;
-
-      if (isAuthError && !isRefreshingRef.current) {
-        // Session expired — attempt silent refresh before giving up
-        isRefreshingRef.current = true;
-        import('./redux/api/authApi').then(({ authApi }) => {
-          (dispatch as any)(authApi.endpoints.refreshSession.initiate())
-            .unwrap()
-            .then(() => {
-              // Refresh succeeded: RTK Query will automatically re-fetch /auth/me
-              // (invalidatesTags: ['Auth'] on refreshSession mutation)
-              console.log('[App] Session refreshed successfully');
-            })
-            .catch(() => {
-              // Refresh also failed — user must re-login
-              console.warn('[App] Session refresh failed, logging out');
-              dispatch(logout());
-            })
-            .finally(() => {
-              isRefreshingRef.current = false;
-            });
-        });
-      } else if (!isAuthError) {
-        // Non-auth error (network error etc.) — just stop the loading spinner
-        dispatch(stopLoading());
-      }
+      // If error (e.g. 401), we ensure state is not loading
+      dispatch(stopLoading());
     }
   }, [meData, meError, dispatch]);
 

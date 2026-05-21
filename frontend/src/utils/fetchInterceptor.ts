@@ -103,10 +103,15 @@ export const setupFetchInterceptor = () => {
         if (isSameOrigin && !isExternalRequest && !isRefreshRequest) {
             if (init) {
                 init.credentials = 'include';
-            } else if (!(input instanceof Request)) {
+            } else if (input instanceof Request) {
+                // If input is a Request, we need to ensure its credentials property is set.
+                // Request objects are immutable, so we must clone and replace.
+                if (input.credentials !== 'include') {
+                    input = new Request(input, { credentials: 'include' });
+                }
+            } else {
                 init = { credentials: 'include' };
             }
-            // If input is a Request, we'll handle it in the clone logic below
         }
 
         // Clone request body if it's potentially retryable
@@ -156,6 +161,17 @@ export const setupFetchInterceptor = () => {
                     }
                 }
             }
+        }
+
+        // Handle 429 Too Many Requests
+        if (response.status === 429) {
+            store.dispatch({
+                type: 'toast/showToast',
+                payload: { 
+                    message: 'auth.login.too_many_requests', 
+                    type: 'error' 
+                }
+            });
         }
 
         return response;

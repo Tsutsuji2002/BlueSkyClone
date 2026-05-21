@@ -9,7 +9,15 @@ export const authApi = apiSlice.injectEndpoints({
                 method: 'POST',
                 body: credentials,
             }),
-            invalidatesTags: ['Auth'],
+            // Populate the getMe cache directly from the login response instead of
+            // invalidating 'Auth', which would trigger a redundant GET /auth/me round-trip
+            // and could rapidly exhaust the rate-limited /auth/refresh endpoint.
+            onQueryStarted: async (_arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    dispatch(authApi.util.updateQueryData('getMe', undefined, () => data));
+                } catch { /* login error is handled in the component */ }
+            },
         }),
         signUp: builder.mutation<{ user: User; settings: any }, SignUpFormData>({
             query: (userData) => ({
@@ -17,7 +25,13 @@ export const authApi = apiSlice.injectEndpoints({
                 method: 'POST',
                 body: userData,
             }),
-            invalidatesTags: ['Auth'],
+            // Same as login — populate cache directly to avoid redundant /auth/me refetch.
+            onQueryStarted: async (_arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    dispatch(authApi.util.updateQueryData('getMe', undefined, () => data));
+                } catch { }
+            },
         }),
         getMe: builder.query<{ user: User; settings: any }, void>({
             query: () => '/auth/me',

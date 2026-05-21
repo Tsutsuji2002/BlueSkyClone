@@ -9,14 +9,14 @@ export const apiSlice = createApi({
     reducerPath: 'api',
     baseQuery: fetchBaseQuery({
         baseUrl: API_BASE_URL,
+        // REQUIRED: Send HttpOnly cookies (access_token, refresh_token) with every request.
+        // Without this, the browser won't attach cookies and every API call will 401,
+        // which hammers the rate-limited /auth/refresh endpoint and causes 503s.
+        credentials: 'include',
         prepareHeaders: (headers) => {
-            // We use HttpOnly cookies for most auth, so credentials: 'include' 
-            // is the main requirement. fetchBaseQuery handles this if configured.
             return headers;
         },
     }),
-    // Use 'include' to ensure HttpOnly cookies (access_token, refresh_token) 
-    // are sent with every RTK Query fetch.
     tagTypes: ['Auth', 'Post', 'User', 'Feed', 'List', 'Notification', 'Trending'],
     endpoints: () => ({}),
 });
