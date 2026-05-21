@@ -7,7 +7,8 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
-import { login, clearError } from '../../redux/slices/authSlice';
+import { clearError, setAuth } from '../../redux/slices/authSlice';
+import { useLoginMutation } from '../../redux/api/authApi';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import ButterflyLogo from '../../components/common/ButterflyLogo';
@@ -19,7 +20,9 @@ const LoginPage: React.FC = () => {
     const { t, i18n } = useTranslation();
     useDocumentTitle(t('auth.login.title'));
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
-    const { isLoading, error } = useAppSelector((state) => state.auth);
+    const { error } = useAppSelector((state) => state.auth);
+    const [loginMutation, { isLoading: isMutationLoading }] = useLoginMutation();
+    const isLoading = isMutationLoading;
     
     const formatErrorMessage = (err: string | null) => {
         if (!err) return null;
@@ -51,12 +54,13 @@ const LoginPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const resultAction = await dispatch(login(formData));
-        if (login.fulfilled.match(resultAction)) {
+        try {
+            const data = await loginMutation(formData).unwrap();
+            dispatch(setAuth(data));
             navigate('/');
-        } else if (login.rejected.match(resultAction)) {
+        } catch (err: any) {
             dispatch(showToast({
-                message: formatErrorMessage(resultAction.payload as string) || t('auth.login.error_generic'),
+                message: formatErrorMessage(err?.data?.message || err?.message) || t('auth.login.error_generic'),
                 type: 'error'
             }));
         }

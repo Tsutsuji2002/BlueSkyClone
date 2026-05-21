@@ -11,7 +11,8 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useTheme } from '../../hooks/useTheme';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
-import { logoutAsync } from '../../redux/slices/authSlice';
+import { logout } from '../../redux/slices/authSlice';
+import { useLogoutMutation } from '../../redux/api/authApi';
 import Avatar from '../common/Avatar';
 import Dropdown from '../common/Dropdown';
 import { BsPatchCheckFill } from 'react-icons/bs';
@@ -44,12 +45,20 @@ const Sidebar: React.FC = () => {
     const conversations = useAppSelector((state) => state.messages.conversations);
     const unreadMessages = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
 
+    const [logoutMutation] = useLogoutMutation();
+
     // Removed redundant polling logic that caused infinite loops when counts were zero.
     // App.tsx now handles the unified session lifecycle and periodic updates.
 
     const handleLogout = async () => {
-        await dispatch(logoutAsync());
-        navigate('/welcome');
+        try {
+            await logoutMutation().unwrap();
+        } catch (err) {
+            console.error('Logout API failed:', err);
+        } finally {
+            dispatch(logout());
+            navigate('/welcome');
+        }
     };
 
     return (

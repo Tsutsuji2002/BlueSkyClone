@@ -23,8 +23,9 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { getMe, refreshSession, stopLoading } from './redux/slices/authSlice';
+import { stopLoading, setAuth, logout } from './redux/slices/authSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
+import { useGetMeQuery } from './redux/api/authApi';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
 import signalrService, { HubStatus } from './services/signalrService';
@@ -45,6 +46,7 @@ const AppContent: React.FC = () => {
   const theme = useAppSelector((state: RootState) => state.theme);
   const { t, i18n } = useTranslation();
   const location = useLocation();
+  const { data: meData, error: meError, isFetching: isMeFetching } = useGetMeQuery();
   const isFirstRender = React.useRef(true);
   const signalrTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -57,26 +59,18 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
+  // Sync RTK Query result to authSlice for backward compatibility
+  useEffect(() => {
+    if (meData) {
+      dispatch(setAuth(meData));
+    } else if (meError) {
+      // If error (e.g. 401), we ensure state is not loading
+      dispatch(stopLoading());
+    }
+  }, [meData, meError, dispatch]);
+
   useEffect(() => {
     sessionStorage.removeItem('chunk_reload_count');
-
-    const checkAuth = async () => {
-      if ((window as any)._isAuthChecking) return;
-      (window as any)._isAuthChecking = true;
-
-      try {
-          await dispatch(getMe()).unwrap();
-      } catch (e) {
-          console.error('[App] Auth check failed:', e);
-      } finally {
-          (window as any)._isAuthChecking = false;
-      }
-    };
-
-    if (isFirstRender.current) {
-        isFirstRender.current = false;
-        checkAuth();
-    }
     
     const fallbackTimer = setTimeout(() => {
         dispatch(stopLoading());
@@ -85,7 +79,7 @@ const AppContent: React.FC = () => {
     return () => {
         clearTimeout(fallbackTimer);
     };
-}, [dispatch, isAuthenticated]);
+}, [dispatch]);
 
   // Unified SignalR Lifecycle with Debouncing
   useEffect(() => {

@@ -4,7 +4,14 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
-import { toggleLike, repostPost, deletePost, fetchPostById, toggleBookmark, updateInteractionSettings, fetchPostReplies, createPost, clearThreadPosts } from '../redux/slices/postsSlice';
+import { clearThreadPosts, toggleBookmark } from '../redux/slices/postsSlice';
+import { 
+    useGetPostDetailsQuery, 
+    useGetRepliesQuery, 
+    useToggleLikeMutation, 
+    useRepostMutation, 
+    useDeletePostMutation 
+} from '../redux/api/postApi';
 import { openReply, openMobileMenu, openEditPost, openReport, openQuote, openAuthWall } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
@@ -18,7 +25,7 @@ import RichText from '../components/common/RichText';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
 import { showToast } from '../redux/slices/toastSlice';
 import { usePostActions } from '../hooks/usePostActions';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { updateSettings } from '../redux/slices/authSlice';
 import {
     FiArrowLeft,
     FiHeart,
@@ -95,16 +102,24 @@ const PostDetailPage: React.FC = () => {
     const { t, i18n } = useTranslation();
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
+    const { data: threadData, isLoading: isThreadLoading } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
+    const postData = (threadData || []).find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post;
+
     const posts = useAppSelector((state: RootState) => state.posts.threadPosts);
-    const isThreadLoading = useAppSelector((state: RootState) => state.posts.isThreadLoading);
-    const isRepliesLoading = useAppSelector((state: RootState) => state.posts.isRepliesLoading);
-    const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
-    const userActionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
-    const currentUser = useAppSelector((state: RootState) => state.auth.user);
-    const settings = useAppSelector((state: RootState) => state.auth.settings);
-    const sortOrder = settings?.sortReplies || 'top';
-    const treeViewEnabled = settings?.treeView || false;
-    const postData = posts.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post;
+    const [skipReplies, setSkipReplies] = React.useState(0);
+    const INITIAL_REPLIES_TAKE = 10;
+    const LAZY_REPLIES_TAKE = 5;
+    const [hasExhaustedReplies, setHasExhaustedReplies] = React.useState(false);
+
+    const { data: repliesData, isFetching: isRepliesLoading } = useGetRepliesQuery(
+        { postId: postData?.uri || postId!, skip: skipReplies, take: LAZY_REPLIES_TAKE },
+        { skip: !postData?.uri || hasExhaustedReplies }
+    );
+    
+    const [toggleLikeMutation] = useToggleLikeMutation();
+    const [repostMutation] = useRepostMutation();
+    const [deletePostMutation] = useDeletePostMutation();
+
     const interactionTruth = useAppSelector((state: RootState) => {
         const uriStr = postData?.uri?.toLowerCase();
         const idStr = postData?.id?.toLowerCase();
@@ -113,6 +128,11 @@ const PostDetailPage: React.FC = () => {
                (idStr && state.posts.interactionTruth[idStr]) || 
                (tidStr && state.posts.interactionTruth[tidStr]) || null;
     });
+
+    const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const settings = useAppSelector((state: RootState) => state.auth.settings);
+    const sortOrder = settings?.sortReplies || 'top';
+    const treeViewEnabled = settings?.treeView || false;
 
     const post = React.useMemo(() => {
         if (!postData) return null;
@@ -128,12 +148,6 @@ const PostDetailPage: React.FC = () => {
         : t('post.title');
 
     useDocumentTitle(pageTitle);
-
-    // Use a larger initial batch (20) to ensure most threads are fully loaded immediately.
-    // This allows the initial fetch logic to verify if directReplies.length < 20, 
-    // seamlessly exhausting the thread and preventing the observer from firing useless [] requests.
-    const INITIAL_REPLIES_TAKE = 10;
-    const LAZY_REPLIES_TAKE = 5;
 
     // Helper to sort a list of posts by current sortOrder
     const sortPosts = React.useCallback((arr: Post[]) => {
@@ -218,9 +232,6 @@ const PostDetailPage: React.FC = () => {
     const observerTarget = React.useRef<HTMLDivElement>(null);
     const lastSkipRef = React.useRef<number>(-1);
     const lastRequestTimeRef = React.useRef<number>(0);
-    const [hasExhaustedReplies, setHasExhaustedReplies] = React.useState(false);
-    const isInitialFetchComplete = React.useRef(false);
-
     const hasMoreReplies = React.useMemo(() => {
         if (!post || hasExhaustedReplies) return false;
         const topLevelRepliesList = posts.filter(p => {
@@ -235,50 +246,31 @@ const PostDetailPage: React.FC = () => {
             return matches;
         });
         const topLevelCount = topLevelRepliesList.length;
-        if (topLevelCount > 0 && topLevelCount % 5 === 0) {
-            console.log(`[PostDetail] TopLevelCount: ${topLevelCount}, total replies: ${post.repliesCount}`);
-        }
         return topLevelCount < (post.repliesCount || 0);
     }, [post, posts, hasExhaustedReplies]);
 
     // Intersection observer for lazy loading replies
     React.useEffect(() => {
-        if (!post?.id || !hasMoreReplies) return;
+        if (!post?.id || !hasMoreReplies || isRepliesLoading) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
-                if (!entries[0].isIntersecting || isRepliesLoading || !isInitialFetchComplete.current) return;
-
-                const currentTopLevelCount = posts.filter(p => {
-                    if (!p.replyToPostId) return false;
-                    return p.replyToPostId === post.id ||
-                           p.replyToPostId === post.tid ||
-                           p.replyToPostId === post.cid ||
-                           p.replyToPostId === post.uri ||
-                           (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)));
-                }).length;
-
-                // Prevent duplicate fetches for the same page offset
-                if (currentTopLevelCount === lastSkipRef.current) return;
-                lastSkipRef.current = currentTopLevelCount;
-                lastRequestTimeRef.current = Date.now();
-                
-                dispatch(fetchPostReplies({ postId: post.uri || post.id, skip: currentTopLevelCount, take: LAZY_REPLIES_TAKE }))
-                    .unwrap()
-                    .then((result) => {
-                        if (result.hasMore === false) {
-                            setHasExhaustedReplies(true);
-                        }
-                    })
-                    .catch(() => { /* handle cleanly */ });
+                if (entries[0].isIntersecting) {
+                    setSkipReplies(prev => prev + LAZY_REPLIES_TAKE);
+                }
             },
-            // Pre-load before user actually reaches the bottom
             { threshold: 0, rootMargin: '300px' }
         );
 
         if (observerTarget.current) observer.observe(observerTarget.current);
         return () => observer.disconnect();
-    }, [dispatch, hasMoreReplies, isRepliesLoading, post?.id, posts, post?.uri, post?.tid, LAZY_REPLIES_TAKE]);
+    }, [hasMoreReplies, isRepliesLoading, post?.id]);
+
+    // Reset exhausting replies on change
+    React.useEffect(() => {
+        setHasExhaustedReplies(false);
+        setSkipReplies(0);
+    }, [postId]);
 
     // Track which post IDs we've already fetched replies for to avoid re-fetching
     const fetchedRepliesRef = React.useRef<Set<string>>(new Set());
@@ -297,72 +289,7 @@ const PostDetailPage: React.FC = () => {
         }
     }, [postId, post?.id, post?.uri]);
 
-    React.useEffect(() => {
-        if (postId) {
-            dispatch(clearThreadPosts());
-            lastSkipRef.current = -1;
-            setHasExhaustedReplies(false);
-            
-            dispatch(fetchPostById({ handle: handle!, uri: postId!, take: INITIAL_REPLIES_TAKE }))
-                .unwrap()
-                .then((threadArray) => {
-                    isInitialFetchComplete.current = true;
-                    // Evaluate if the initial fetch exhausted the available top-level replies
-                    const mainPost = threadArray.find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId!));
-                    if (mainPost) {
-                        const directReplies = threadArray.filter((p: Post) => 
-                            p.replyToPostId === mainPost.id || 
-                            p.replyToPostId === mainPost.tid || 
-                            (mainPost.uri && (p.replyToPostId === mainPost.uri || mainPost.uri.endsWith('/' + p.replyToPostId!)))
-                        );
-                        if (directReplies.length < INITIAL_REPLIES_TAKE) {
-                            setHasExhaustedReplies(true);
-                        }
-                    }
-                })
-                .catch(() => {
-                    isInitialFetchComplete.current = true; // Still mark as complete even if errored to allow retry via scroll
-                });
-        }
-        return () => {
-            dispatch(clearThreadPosts());
-            isInitialFetchComplete.current = false;
-        };
-    }, [dispatch, handle, postId, INITIAL_REPLIES_TAKE]);
-
-    // Re-fetch the thread immediately after the user posts a reply, so the new reply is visible
-    // Problem 4: This is now handled optimistically in the Redux reducer.
-    // We only need to reset the exhaustion flag to allow loading more replies if any.
-    const lastPostsLength = React.useRef(0);
-    const replyCount = useAppSelector((state: RootState) => state.posts.posts.filter(
-        (p: Post) => p.replyToPostId === post?.id || p.replyToPostId === post?.tid || p.replyToPostId === post?.uri
-    ).length);
-
-    React.useEffect(() => {
-        if (replyCount > lastPostsLength.current && post?.uri) {
-            setHasExhaustedReplies(false);
-        }
-        lastPostsLength.current = replyCount;
-    }, [replyCount, post?.uri]);
-
     const oldestKnown = ancestors.length > 0 ? ancestors[0] : post;
-    const fetchedParentIdsRef = React.useRef<Set<string>>(new Set());
-
-    React.useEffect(() => {
-        if (oldestKnown?.replyToPostId) {
-            const parentId = oldestKnown.replyToPostId;
-            const hasParent = posts.some(p => p.id === parentId || p.tid === parentId || (p.uri && (p.uri === parentId || p.uri.endsWith('/' + parentId))));
-            
-            if (!hasParent && !fetchedParentIdsRef.current.has(parentId)) {
-                fetchedParentIdsRef.current.add(parentId);
-                dispatch(fetchPostById({ uri: parentId, take: INITIAL_REPLIES_TAKE }))
-                    .unwrap()
-                    .catch((err) => {
-                        console.warn(`[PostDetail] Failed to fetch ancestor ${parentId}:`, err);
-                    });
-            }
-        }
-    }, [dispatch, oldestKnown?.id, oldestKnown?.replyToPostId, posts, INITIAL_REPLIES_TAKE]);
 
     // Tracking the current thread state
 
@@ -434,14 +361,32 @@ const PostDetailPage: React.FC = () => {
         navigate(-1);
     };
 
-    const handleLike = () => {
+    const handleLike = async () => {
         if (!post.uri || !post.cid) return;
-        dispatch(toggleLike({ uri: post.uri, cid: post.cid, isLiked: !!post.isLiked, likeUri: post.viewer?.like ?? post.likeUri, currentLikesCount: post.likesCount }));
+        try {
+            await toggleLikeMutation({ 
+                uri: post.uri, 
+                cid: post.cid, 
+                isLiked: !!post.isLiked, 
+                likeUri: post.viewer?.like ?? post.likeUri 
+            }).unwrap();
+        } catch (err) {
+            console.error('Like failed:', err);
+        }
     };
 
-    const handleRepost = () => {
+    const handleRepost = async () => {
         if (!post.uri || !post.cid) return;
-        dispatch(repostPost({ uri: post.uri, cid: post.cid, isReposted: !!post.isReposted, repostUri: post.viewer?.repost, currentRepostsCount: post.repostsCount }));
+        try {
+            await repostMutation({ 
+                uri: post.uri, 
+                cid: post.cid, 
+                isReposted: !!post.isReposted, 
+                repostUri: post.viewer?.repost 
+            }).unwrap();
+        } catch (err) {
+            console.error('Repost failed:', err);
+        }
     };
 
     const handleBookmark = () => {
@@ -451,11 +396,11 @@ const PostDetailPage: React.FC = () => {
 
     const handleDelete = async () => {
         try {
-            await dispatch(deletePost(post.uri!)).unwrap();
+            await deletePostMutation(post.uri!).unwrap();
             dispatch(showToast({ message: t('common.post_deleted'), type: 'success' }));
             navigate(-1);
         } catch (error: any) {
-            dispatch(showToast({ message: error || t('common.failed_to_delete'), type: 'error' }));
+            dispatch(showToast({ message: error?.data?.message || error?.message || t('common.failed_to_delete'), type: 'error' }));
         }
     };
 
@@ -492,14 +437,14 @@ const PostDetailPage: React.FC = () => {
         {
             id: 'linear',
             label: t('post.linear', 'Linear'),
-            onClick: () => dispatch(updateNotificationSettings({ treeView: false })),
+            onClick: () => dispatch(updateSettings({ treeView: false })),
             type: 'radio',
             selected: !treeViewEnabled,
         },
         {
             id: 'threaded',
             label: t('post.threaded', 'Threaded'),
-            onClick: () => dispatch(updateNotificationSettings({ treeView: true })),
+            onClick: () => dispatch(updateSettings({ treeView: true })),
             type: 'radio',
             selected: treeViewEnabled,
             hasDivider: true,
@@ -519,21 +464,21 @@ const PostDetailPage: React.FC = () => {
         {
             id: 'top',
             label: t('post.top_replies_first', 'Top replies first'),
-            onClick: () => dispatch(updateNotificationSettings({ sortReplies: 'top' })),
+            onClick: () => dispatch(updateSettings({ sortReplies: 'top' })),
             type: 'radio',
             selected: sortOrder === 'top',
         },
         {
             id: 'oldest',
             label: t('post.oldest_replies_first', 'Oldest replies first'),
-            onClick: () => dispatch(updateNotificationSettings({ sortReplies: 'oldest' })),
+            onClick: () => dispatch(updateSettings({ sortReplies: 'oldest' })),
             type: 'radio',
             selected: sortOrder === 'oldest',
         },
         {
             id: 'newest',
             label: t('post.newest_replies_first', 'Newest replies first'),
-            onClick: () => dispatch(updateNotificationSettings({ sortReplies: 'newest' })),
+            onClick: () => dispatch(updateSettings({ sortReplies: 'newest' })),
             type: 'radio',
             selected: sortOrder === 'newest',
         }
@@ -557,7 +502,7 @@ const PostDetailPage: React.FC = () => {
             label: treeViewEnabled ? t('post.view_as_linear') : t('post.view_as_threaded'),
             icon: <FiList />,
             onClick: () => {
-                dispatch(updateNotificationSettings({ treeView: !treeViewEnabled }));
+                dispatch(updateSettings({ treeView: !treeViewEnabled }));
             },
         },
         {
@@ -568,7 +513,7 @@ const PostDetailPage: React.FC = () => {
                 const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
                 const currentIndex = orders.indexOf(sortOrder as any);
                 const nextIndex = (currentIndex + 1) % orders.length;
-                dispatch(updateNotificationSettings({ sortReplies: orders[nextIndex] }));
+                dispatch(updateSettings({ sortReplies: orders[nextIndex] }));
                 dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
             },
         },
@@ -1266,7 +1211,7 @@ const PostDetailPage: React.FC = () => {
                     allowQuotes={post.allowQuotes !== false}
                     setAllowQuotes={() => { }}
                     postUri={post.uri!}
-                    loading={actionLoading[post.uri!]}
+                    loading={false}
                 />
             )}
         </div>
