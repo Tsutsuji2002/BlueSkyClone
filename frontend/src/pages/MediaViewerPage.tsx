@@ -4,7 +4,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiMoreHorizontal, FiShare2, FiLink, FiSend, FiCode } from 'react-icons/fi';
-import { toggleLike, repostPost, fetchPostById } from '../redux/slices/postsSlice';
+import { useGetPostDetailsQuery, useToggleLikeMutation, useRepostMutation } from '../redux/api/postApi';
 import { openReply, openAuthWall } from '../redux/slices/modalsSlice';
 import { Post } from '../types';
 import Avatar from '../components/common/Avatar';
@@ -37,17 +37,19 @@ const MediaViewerPage: React.FC = () => {
     const [touchEnd, setTouchEnd] = useState<number | null>(null);
     const minSwipeDistance = 50;
 
-    const allPosts = useAppSelector((state: RootState) => state.posts.posts);
-    const threadPosts = useAppSelector((state: RootState) => state.posts.threadPosts);
-    const isPostsLoading = useAppSelector((state: RootState) => state.posts.isLoading);
-    const postsError = useAppSelector((state: RootState) => state.posts.threadError);
-    const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const { data: threadData, isLoading: isThreadLoading, error: threadError } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
+    const [toggleLikeMutation, { isLoading: isLikeLoading }] = useToggleLikeMutation();
+    const [repostMutation, { isLoading: isRepostLoading }] = useRepostMutation();
 
     const currentPost = useMemo(() => {
-        const findIn = (arr: Post[]) => arr.find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId));
-        return findIn(allPosts) || findIn(threadPosts);
-    }, [allPosts, threadPosts, postId]);
+        if (!threadData) return null;
+        return (threadData as Post[]).find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId)) as Post;
+    }, [threadData, postId]);
+
+    const isPostsLoading = isThreadLoading;
+    const postsError = threadError ? 'Failed to load post' : null;
+    const allPosts = useAppSelector((state: RootState) => state.posts.posts);
 
     // Media posts for swiping across feed
     const mediaPosts = useMemo(() => 
@@ -66,11 +68,8 @@ const MediaViewerPage: React.FC = () => {
     }, [indexParam]);
 
     useEffect(() => {
-        // Only fetch if we don't have the post, and there's no active request or error
-        if (postId && !currentPost && !isPostsLoading && !postsError) {
-            dispatch(fetchPostById({ uri: postId, handle }));
-        }
-    }, [postId, currentPost, dispatch, handle, isPostsLoading, postsError]);
+        // Post data is handled by useGetPostDetailsQuery
+    }, [postId, handle]);
 
     const getMediaUrl = useCallback((url: string) => {
         if (!url) return '';
@@ -141,7 +140,7 @@ const MediaViewerPage: React.FC = () => {
                         </p>
                         <div className="flex flex-col gap-3">
                             <button 
-                                onClick={() => dispatch(fetchPostById({ uri: postId!, handle }))}
+                                onClick={() => window.location.reload()}
                                 className="w-full py-4 bg-primary-500 hover:bg-primary-600 active:scale-95 transition-all text-white rounded-2xl font-bold text-[17px]"
                             >
                                 {t('common.retry')}
@@ -190,17 +189,35 @@ const MediaViewerPage: React.FC = () => {
     // Features
     const handleLike = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        ensureAuth(() => {
+        ensureAuth(async () => {
             console.log('MediaViewerPage handleLike clicked for:', currentPost.id);
-            dispatch(toggleLike({ uri: currentPost.uri!, cid: currentPost.cid!, isLiked: !!currentPost.isLiked, likeUri: currentPost.viewer?.like ?? currentPost.likeUri }));
+            try {
+                await toggleLikeMutation({
+                    uri: currentPost.uri!,
+                    cid: currentPost.cid!,
+                    isLiked: !!currentPost.isLiked,
+                    likeUri: currentPost.viewer?.like ?? currentPost.likeUri
+                }).unwrap();
+            } catch (err) {
+                console.error('Like failed:', err);
+            }
         });
     };
 
     const handleRepost = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        ensureAuth(() => {
+        ensureAuth(async () => {
             console.log('MediaViewerPage handleRepost clicked for:', currentPost.id);
-            dispatch(repostPost({ uri: currentPost.uri!, cid: currentPost.cid!, isReposted: !!currentPost.isReposted, repostUri: currentPost.viewer?.repost }));
+            try {
+                await repostMutation({
+                    uri: currentPost.uri!,
+                    cid: currentPost.cid!,
+                    isReposted: !!currentPost.isReposted,
+                    repostUri: currentPost.viewer?.repost
+                }).unwrap();
+            } catch (err) {
+                console.error('Repost failed:', err);
+            }
         });
     };
 
@@ -315,7 +332,7 @@ const MediaViewerPage: React.FC = () => {
                     </button>
                     <button
                         onClick={handleRepost}
-                        disabled={actionLoading[currentPost.id]}
+                        disabled={isRepostLoading}
                         className={cn("flex flex-col items-center gap-1.5 transition-all active:scale-75 p-2 min-w-[60px]", currentPost.isReposted ? "text-green-500 scale-110" : "text-white/95")}
                     >
                         <FiRepeat size={26} className={currentPost.isReposted ? "stroke-[2.5px]" : ""} />
@@ -323,7 +340,7 @@ const MediaViewerPage: React.FC = () => {
                     </button>
                     <button
                         onClick={handleLike}
-                        disabled={actionLoading[currentPost.id]}
+                        disabled={isLikeLoading}
                         className={cn("flex flex-col items-center gap-1.5 transition-all active:scale-75 p-2 min-w-[60px]", currentPost.isLiked ? "text-red-500 scale-110" : "text-white/95")}
                     >
                         <FiHeart size={26} className={currentPost.isLiked ? "fill-current" : ""} />
@@ -365,8 +382,8 @@ const MediaViewerPage: React.FC = () => {
                     {/* Unified Actions */}
                     <div className="py-6 border-y border-gray-100 dark:border-dark-border flex justify-around items-center">
                         <button onClick={handleComment} className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-primary-500 transition-all group"><FiMessageCircle size={24} className="group-hover:scale-110" /><span className="text-xs font-bold">{currentPost.repliesCount}</span></button>
-                        <button onClick={handleRepost} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isReposted ? "text-green-500" : "text-gray-500 hover:text-green-500")}><FiRepeat size={24} className={cn("group-hover:scale-110", currentPost.isReposted ? "stroke-[2.5px]" : "")} /><span className="text-xs font-bold">{currentPost.repostsCount}</span></button>
-                        <button onClick={handleLike} disabled={actionLoading[currentPost.id]} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isLiked ? "text-red-500" : "text-gray-500 hover:text-red-500")}><FiHeart size={24} className={cn("group-hover:scale-110", currentPost.isLiked ? "fill-current" : "")} /><span className="text-xs font-bold">{currentPost.likesCount}</span></button>
+                        <button onClick={handleRepost} disabled={isRepostLoading} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isReposted ? "text-green-500" : "text-gray-500 hover:text-green-500")}><FiRepeat size={24} className={cn("group-hover:scale-110", currentPost.isReposted ? "stroke-[2.5px]" : "")} /><span className="text-xs font-bold">{currentPost.repostsCount}</span></button>
+                        <button onClick={handleLike} disabled={isLikeLoading} className={cn("flex flex-col items-center gap-1.5 transition-all group", currentPost.isLiked ? "text-red-500" : "text-gray-500 hover:text-red-500")}><FiHeart size={24} className={cn("group-hover:scale-110", currentPost.isLiked ? "fill-current" : "")} /><span className="text-xs font-bold">{currentPost.likesCount}</span></button>
                         <Dropdown
                             trigger={
                                 <button className="flex flex-col items-center gap-1.5 text-gray-500 hover:text-primary-500 transition-all group">

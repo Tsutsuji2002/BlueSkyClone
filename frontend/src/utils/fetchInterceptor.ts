@@ -1,5 +1,5 @@
 import { store } from '../redux/store';
-import { logoutAsync } from '../redux/slices/authSlice';
+import { logout } from '../redux/slices/authSlice';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
@@ -152,7 +152,7 @@ export const setupFetchInterceptor = () => {
                     // Refresh failed - session really is dead.
                     const state = store.getState();
                     if (state.auth.isAuthenticated) {
-                        store.dispatch(logoutAsync());
+                        store.dispatch(logout());
                     }
                 }
             }

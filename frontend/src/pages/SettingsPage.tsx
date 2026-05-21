@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { logoutAsync } from '../redux/slices/authSlice';
+import { logout } from '../redux/slices/authSlice';
+import { useLogoutMutation } from '../redux/api/authApi';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { RootState } from '../redux/store';
 
@@ -20,6 +21,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
+    const [logoutMutation] = useLogoutMutation();
     const { t, i18n } = useTranslation();
     const user = useAppSelector((state: RootState) => state.auth.user);
 
@@ -44,7 +46,12 @@ const SettingsPage: React.FC = () => {
     const currentThemeName = settings?.themeMode === 'dark' ? t('settings.dark_mode') : settings?.themeMode === 'light' ? t('settings.light_mode') : t('settings.system_mode', 'System');
 
     const handleLogout = async () => {
-        await dispatch(logoutAsync());
+        try {
+            await logoutMutation().unwrap();
+        } catch (err) {
+            console.error('Logout failed:', err);
+        }
+        dispatch(logout());
         navigate('/welcome');
     };
 

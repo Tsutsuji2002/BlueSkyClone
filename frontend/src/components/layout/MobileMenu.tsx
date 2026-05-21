@@ -13,7 +13,8 @@ import {
 import { RootState } from '../../redux/store';
 import { cn } from '../../utils/classNames';
 import { useTheme } from '../../hooks/useTheme';
-import { logoutAsync } from '../../redux/slices/authSlice';
+import { logout } from '../../redux/slices/authSlice';
+import { useLogoutMutation } from '../../redux/api/authApi';
 import IconButton from '../common/IconButton';
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -32,6 +33,7 @@ const MobileMenu: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const dispatch = useAppDispatch();
+    const [logoutMutation] = useLogoutMutation();
     const { t } = useTranslation();
     const { toggle, isDark } = useTheme();
     const user = useAppSelector((state: RootState) => state.auth.user);
@@ -206,7 +208,12 @@ const MobileMenu: React.FC = () => {
                     {user && (
                         <button
                             onClick={async () => {
-                                await dispatch(logoutAsync());
+                                try {
+                                    await logoutMutation().unwrap();
+                                } catch (err) {
+                                    console.error('Logout failed:', err);
+                                }
+                                dispatch(logout());
                                 dispatch(closeMobileMenu());
                                 navigate('/welcome');
                             }}
