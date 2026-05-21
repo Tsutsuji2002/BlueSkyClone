@@ -7,14 +7,15 @@ const getXrpcHeaders = (): Record<string, string> => {
     return { 'Content-Type': 'application/json' };
 };
 
+const xrpcFetch = (url: string, options?: RequestInit) =>
+    fetch(url, { credentials: 'include', ...options, headers: { ...getXrpcHeaders(), ...(options?.headers || {}) } });
+
 
 export const fetchNotifications = createAsyncThunk<Notification[], void, { rejectValue: string }>(
     'notifications/fetchNotifications',
     async (_, { rejectWithValue }) => {
         try {
-            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=50`, {
-                headers: getXrpcHeaders()
-            });
+            const res = await xrpcFetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=50`);
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 return rejectWithValue(err.message || `Error ${res.status}`);
@@ -64,9 +65,8 @@ export const markNotificationAsRead = createAsyncThunk<string, string, { rejectV
     'notifications/markAsRead',
     async (id: string, { rejectWithValue }) => {
         try {
-            await fetch(`${getXrpcBase()}/app.bsky.notification.updateSeen`, {
+            await xrpcFetch(`${getXrpcBase()}/app.bsky.notification.updateSeen`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ seenAt: new Date().toISOString() })
             });
             return id;
@@ -80,9 +80,8 @@ export const markAllNotificationsAsRead = createAsyncThunk<void, void, { rejectV
     'notifications/markAllAsRead',
     async (_, { rejectWithValue }) => {
         try {
-            await fetch(`${getXrpcBase()}/app.bsky.notification.updateSeen`, {
+            await xrpcFetch(`${getXrpcBase()}/app.bsky.notification.updateSeen`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ seenAt: new Date().toISOString() })
             });
         } catch (error: any) {
@@ -95,7 +94,7 @@ export const fetchUnreadCount = createAsyncThunk<number, void, { rejectValue: st
     'notifications/fetchUnreadCount',
     async (_, { rejectWithValue }) => {
         try {
-            const res = await fetch(`${getXrpcBase()}/app.bsky.notification.getUnreadCount`);
+            const res = await xrpcFetch(`${getXrpcBase()}/app.bsky.notification.getUnreadCount`);
             if (!res.ok) return rejectWithValue('Failed to fetch unread count');
             const data = await res.json();
             return data.count ?? 0;

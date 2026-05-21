@@ -59,13 +59,39 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Sync RTK Query result to authSlice for backward compatibility
+  // Sync RTK Query result to authSlice + handle session expiry
+  const isRefreshingRef = React.useRef(false);
   useEffect(() => {
     if (meData) {
       dispatch(setAuth(meData));
     } else if (meError) {
-      // If error (e.g. 401), we ensure state is not loading
-      dispatch(stopLoading());
+      const status = (meError as any)?.status;
+      const isAuthError = status === 401 || status === 403;
+
+      if (isAuthError && !isRefreshingRef.current) {
+        // Session expired — attempt silent refresh before giving up
+        isRefreshingRef.current = true;
+        import('./redux/api/authApi').then(({ authApi }) => {
+          (dispatch as any)(authApi.endpoints.refreshSession.initiate())
+            .unwrap()
+            .then(() => {
+              // Refresh succeeded: RTK Query will automatically re-fetch /auth/me
+              // (invalidatesTags: ['Auth'] on refreshSession mutation)
+              console.log('[App] Session refreshed successfully');
+            })
+            .catch(() => {
+              // Refresh also failed — user must re-login
+              console.warn('[App] Session refresh failed, logging out');
+              dispatch(logout());
+            })
+            .finally(() => {
+              isRefreshingRef.current = false;
+            });
+        });
+      } else if (!isAuthError) {
+        // Non-auth error (network error etc.) — just stop the loading spinner
+        dispatch(stopLoading());
+      }
     }
   }, [meData, meError, dispatch]);
 
@@ -133,6 +159,7 @@ const AppContent: React.FC = () => {
   // Periodic polling for unread counts (fallback + sync)
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
+    let debounceTimer: NodeJS.Timeout | null = null;
 
     const fetchCounts = () => {
         if (isAuthenticated) {
@@ -141,25 +168,33 @@ const AppContent: React.FC = () => {
         }
     };
 
+    // Debounced version: coalesces rapid focus events (e.g. switching to DevTools and back)
+    // into a single call. 2s delay is imperceptible to users but prevents request storms.
+    const fetchCountsDebounced = () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(fetchCounts, 2000);
+    };
+
     if (isAuthenticated) {
-        // Poll every 15 seconds to ensure badges stay synced even if SignalR misses an event
-        pollInterval = setInterval(fetchCounts, 15000);
+        // Poll every 60s as a fallback; SignalR handles real-time badge updates
+        pollInterval = setInterval(fetchCounts, 60000);
     }
 
-    // Instantly fetch when user focuses window or returns to the tab
+    // Fetch on tab/window return — debounced to avoid storms on rapid focus changes
     const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
-            fetchCounts();
+            fetchCountsDebounced();
         }
     };
 
     window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', fetchCounts);
+    window.addEventListener('focus', fetchCountsDebounced);
 
     return () => {
         if (pollInterval) clearInterval(pollInterval);
+        if (debounceTimer) clearTimeout(debounceTimer);
         window.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('focus', fetchCounts);
+        window.removeEventListener('focus', fetchCountsDebounced);
     };
   }, [isAuthenticated, dispatch]);
 
