@@ -119,7 +119,7 @@ const MessagesPage: React.FC = () => {
                 />
 
                 {/* Conversations List */}
-                <div className="flex-1 overflow-y-auto bg-white dark:bg-dark-bg">
+                <div className="flex-1 overflow-y-auto bg-white dark:bg-dark-bg no-scrollbar">
                     {isLoading && conversations.length === 0 ? (
                         <div className="flex flex-col items-center justify-center p-20">
                             <LoadingIndicator size="lg" />
