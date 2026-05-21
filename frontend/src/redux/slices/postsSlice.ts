@@ -1939,6 +1939,46 @@ const postsSlice = createSlice({
 
                     syncPostsWithTruth(state, posts);
                 }
+            )
+            // RTK Query Sync: sync getReplies results into Redux threadPosts
+            .addMatcher(
+                (action): action is PayloadAction<{ posts: Post[]; hasMore: boolean }> =>
+                    action.type === 'api/executeQuery/fulfilled' &&
+                    (action as any).meta?.arg?.endpointName === 'getReplies',
+                (state, action) => {
+                    const { posts } = action.payload;
+                    if (!posts?.length) return;
+
+                    posts.forEach((post: Post) => updateInteractionTruth(state, post));
+
+                    // Merge new posts into threadPosts (deduplicate)
+                    const existingUris = new Set(state.threadPosts.map((p: Post) => p.uri || p.id));
+                    const newPosts = posts.filter((p: Post) => {
+                        const uid = p.uri || p.id;
+                        return uid && !existingUris.has(uid);
+                    });
+                    state.threadPosts = [...state.threadPosts, ...newPosts];
+                    state.isRepliesLoading = false;
+                }
+            )
+            // RTK Query Sync: sync getPostDetails results into Redux threadPosts
+            .addMatcher(
+                (action): action is PayloadAction<Post[]> =>
+                    action.type === 'api/executeQuery/fulfilled' &&
+                    (action as any).meta?.arg?.endpointName === 'getPostDetails',
+                (state, action) => {
+                    const posts = action.payload as Post[];
+                    if (!posts?.length) return;
+
+                    posts.forEach((post: Post) => updateInteractionTruth(state, post));
+
+                    const existingUris = new Set(state.threadPosts.map((p: Post) => p.uri || p.id));
+                    const newPosts = posts.filter((p: Post) => {
+                        const uid = p.uri || p.id;
+                        return uid && !existingUris.has(uid);
+                    });
+                    state.threadPosts = [...state.threadPosts, ...newPosts];
+                }
             );
     },
 });

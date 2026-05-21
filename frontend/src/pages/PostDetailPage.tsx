@@ -234,20 +234,11 @@ const PostDetailPage: React.FC = () => {
     const lastRequestTimeRef = React.useRef<number>(0);
     const hasMoreReplies = React.useMemo(() => {
         if (!post || hasExhaustedReplies) return false;
-        const topLevelRepliesList = posts.filter(p => {
-            if (!p.replyToPostId) return false;
-            const matches = 
-                p.replyToPostId === post.id ||
-                p.replyToPostId === post.tid ||
-                p.replyToPostId === post.cid ||
-                p.replyToPostId === post.uri ||
-                (post.uri && (p.replyToPostId === post.uri || post.uri.endsWith('/' + p.replyToPostId!)));
-            
-            return matches;
-        });
-        const topLevelCount = topLevelRepliesList.length;
-        return topLevelCount < (post.repliesCount || 0);
-    }, [post, posts, hasExhaustedReplies]);
+        // Use the authoritative hasMore flag from RTK Query instead of
+        // comparing Redux state counts (which caused an infinite loop because
+        // RTK Query results were not reflected in state.posts.threadPosts before this fix).
+        return repliesData?.hasMore ?? false;
+    }, [post, repliesData, hasExhaustedReplies]);
 
     // Intersection observer for lazy loading replies
     React.useEffect(() => {
@@ -265,6 +256,13 @@ const PostDetailPage: React.FC = () => {
         if (observerTarget.current) observer.observe(observerTarget.current);
         return () => observer.disconnect();
     }, [hasMoreReplies, isRepliesLoading, post?.id]);
+
+    // Mark replies as exhausted when the API returns hasMore: false
+    React.useEffect(() => {
+        if (repliesData && !repliesData.hasMore && skipReplies > 0) {
+            setHasExhaustedReplies(true);
+        }
+    }, [repliesData, skipReplies]);
 
     // Reset exhausting replies on change
     React.useEffect(() => {
