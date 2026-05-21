@@ -31,22 +31,40 @@ const getNativeFetch = (): typeof window.fetch => {
 };
 
 /**
- * Silent session refresh attempt.
+ * Silent session refresh attempt with a safety timeout.
  */
 async function tryRefreshToken(): Promise<boolean> {
     const nativeFetch = getNativeFetch();
-    if (isRefreshing && refreshPromise) return refreshPromise;
+    if (isRefreshing && refreshPromise) {
+        console.log('[FetchInterceptor] Waiting for existing refresh attempt...');
+        return refreshPromise;
+    }
 
+    console.log('[FetchInterceptor] Starting fresh session refresh...');
     isRefreshing = true;
-    refreshPromise = (async () => {
+
+    // Use a race to ensure we don't hang indefinitely
+    const refreshTimeout = new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+            if (isRefreshing) {
+                console.warn('[FetchInterceptor] Refresh attempt TIMED OUT after 30s.');
+                resolve(false);
+            }
+        }, 30000);
+    });
+
+    const refreshActual = (async () => {
         try {
             const res = await nativeFetch(`${API_URL}/auth/refresh`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
             });
+            
+            console.log(`[FetchInterceptor] Refresh result: ${res.status}`);
             return res.ok;
-        } catch {
+        } catch (err) {
+            console.error('[FetchInterceptor] Refresh network error:', err);
             return false;
         } finally {
             isRefreshing = false;
@@ -54,6 +72,7 @@ async function tryRefreshToken(): Promise<boolean> {
         }
     })();
 
+    refreshPromise = Promise.race([refreshActual, refreshTimeout]);
     return refreshPromise;
 }
 

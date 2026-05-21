@@ -133,8 +133,11 @@ namespace BSkyClone.Services
                 var clientReq = _httpClientFactory.CreateClient();
                 clientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                 
-                var response = await clientReq.SendAsync(request);
-                var content = await response.Content.ReadAsStringAsync();
+                // Add a reasonable timeout to prevent hanging the whole backend thread
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
+                
+                var response = await clientReq.SendAsync(request, cts.Token);
+                var content = await response.Content.ReadAsStringAsync(cts.Token);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -211,8 +214,10 @@ namespace BSkyClone.Services
                 var clientReq = _httpClientFactory.CreateClient();
                 clientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                 
-                var response = await clientReq.SendAsync(request);
-                var content = await response.Content.ReadAsStringAsync();
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30)); // Slightly longer for streams
+                
+                var response = await clientReq.SendAsync(request, cts.Token);
+                var content = await response.Content.ReadAsStringAsync(cts.Token);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -259,7 +264,10 @@ namespace BSkyClone.Services
                             var client = _httpClientFactory.CreateClient();
                             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                             
-                            var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}");
+                            // Use a short timeout for DNS/Handle resolution
+                            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+                            
+                            var idResponse = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={didOrHandle}", cts.Token);
                             if (idResponse.IsSuccessStatusCode)
                             {
                                 var data = await idResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
