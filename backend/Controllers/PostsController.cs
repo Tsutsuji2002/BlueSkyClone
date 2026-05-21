@@ -36,9 +36,9 @@ public class PostsController : ControllerBase
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
             
-            var posts = await _postService.GetTimelineAsync(userId, skip, take);
-            _logger.LogInformation("[PostsController] GetTimeline: UserId={UserId}, Count={Count}", userId, posts.Count());
-            return Ok(posts);
+            var pagedResult = await _postService.GetTimelineAsync(userId, skip, take);
+            _logger.LogInformation("[PostsController] GetTimeline: UserId={UserId}, Count={Count}", userId, pagedResult.Posts.Count());
+            return Ok(pagedResult.Posts);
         }
         catch (Exception ex)
         {

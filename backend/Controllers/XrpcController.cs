@@ -376,9 +376,9 @@ namespace BSkyClone.Controllers
 
                 _logger.LogInformation("XRPC GetTimeline for {UserId}, skip={Skip}, limit={Limit}", userId, skip, limit);
 
-                var posts = await _postService.GetTimelineAsync(userId, skip, limit);
+                var pagedResult = await _postService.GetTimelineAsync(userId, skip, limit);
                 
-                var feed = posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
+                var feed = pagedResult.Posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
                 {
                     Post = new Lexicons.App.Bsky.Feed.PostView
                     {
@@ -407,7 +407,7 @@ namespace BSkyClone.Controllers
                 return Ok(new Lexicons.App.Bsky.Feed.GetTimelineResponse
                 {
                     Feed = feed,
-                    Cursor = (skip + limit).ToString()
+                    Cursor = pagedResult.Cursor ?? (skip + limit).ToString()
                 });
             }
             catch (Exception ex)

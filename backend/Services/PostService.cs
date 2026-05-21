@@ -166,7 +166,7 @@ public class PostService : IPostService
             }
             
             token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
-            var enriched = userId != Guid.Empty ? await EnrichAndFilterPostsAsync(resultDto.Posts, userId, token, true) : resultDto.Posts;
+            var enriched = userId != Guid.Empty ? await EnrichAndFilterPostsAsync(resultDto.Posts.ToList(), userId, token, true) : resultDto.Posts.ToList();
             
             // If we have a cursor, we assume the server handled "skip" (though getTimeline doesn't use skip, it uses cursors)
             // If we ARE using skip, we skip/take.
@@ -406,7 +406,7 @@ public class PostService : IPostService
             var authorUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == handleOrDid || u.Did == handleOrDid);
             var pinnedUri = authorUser?.PinnedPostUri;
 
-            var enriched = await EnrichAndFilterPostsAsync(result.Posts, viewerId ?? Guid.Empty, token, false, false, !string.IsNullOrEmpty(token));
+            var enriched = await EnrichAndFilterPostsAsync(result.Posts.ToList(), viewerId ?? Guid.Empty, token, false, false, !string.IsNullOrEmpty(token));
             var paginated = enriched.Skip(skip).Take(take).ToList();
 
             if (!string.IsNullOrEmpty(pinnedUri))
