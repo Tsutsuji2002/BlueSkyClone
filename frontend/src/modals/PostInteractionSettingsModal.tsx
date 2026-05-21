@@ -5,7 +5,7 @@ import Button from '../components/common/Button';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { updateInteractionSettings } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import { API_BASE_URL } from '../constants';
@@ -40,6 +40,7 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
 }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     const authSettings = useAppSelector((state) => state.auth.settings);
 
     const [localReply, setLocalReply] = useState(replyRestriction);
@@ -109,10 +110,10 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
             setAllowQuotes(localQuotes);
 
             if (saveForNextTime) {
-                await dispatch(updateNotificationSettings({
+                await updateSettings({
                     defaultReplyRestriction: finalRestriction,
                     defaultAllowQuotes: localQuotes
-                }));
+                }).unwrap();
             }
 
             dispatch(showToast({ message: t('post.interaction_settings_updated', 'Settings updated'), type: 'success' }));

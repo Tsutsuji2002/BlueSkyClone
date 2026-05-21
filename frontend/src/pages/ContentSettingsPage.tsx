@@ -12,8 +12,10 @@ import {
     FiPlay
 } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
-import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { updateNotificationSettings, updateSettings } from '../redux/slices/authSlice';
+import { useAppDispatch } from '../hooks/useAppDispatch';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { updateSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -22,11 +24,12 @@ const ContentSettingsPage: React.FC = () => {
     const { t } = useTranslation();
 
     const dispatch = useAppDispatch();
+    const [updateSettingsMutation] = useUpdateSettingsMutation();
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
     const handleToggle = (key: string, value: boolean) => {
         dispatch(updateSettings({ [key]: value })); // Optimistic UI update
-        dispatch(updateNotificationSettings({ [key]: value }));
+        updateSettingsMutation({ [key]: value });
     };
 
     const MenuLinkItem = ({

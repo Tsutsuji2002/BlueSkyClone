@@ -4,7 +4,7 @@ import { FiX, FiCamera } from 'react-icons/fi';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { closeEditProfile } from '../redux/slices/modalsSlice';
-import { updateUserProfile } from '../redux/slices/authSlice';
+import { useUpdateProfileMutation } from '../redux/api/authApi';
 import { updateProfileLocal } from '../redux/slices/userSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
@@ -28,7 +28,7 @@ const EditProfileModal: React.FC = () => {
     const dispatch = useAppDispatch();
     const { editProfile } = useAppSelector((state: RootState) => state.modals);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
-    const isSaving = useAppSelector((state: RootState) => state.auth.isLoading);
+    const [updateProfileMutation, { isLoading: isMutationSaving }] = useUpdateProfileMutation();
 
     const [displayName, setDisplayName] = useState('');
     const [description, setDescription] = useState('');
@@ -159,7 +159,7 @@ const EditProfileModal: React.FC = () => {
         }
 
         try {
-            const updatedUser = await dispatch(updateUserProfile(formData)).unwrap();
+            const updatedUser = await updateProfileMutation(formData).unwrap();
             dispatch(updateProfileLocal(updatedUser));
             dispatch(showToast({ message: 'Profile updated.', type: 'success' }));
             dispatch(closeEditProfile());
@@ -211,7 +211,7 @@ const EditProfileModal: React.FC = () => {
                         onClick={() => {
                             void handleSave();
                         }}
-                        disabled={isSaving}
+                        disabled={isMutationSaving}
                         className="bg-primary-500 text-white rounded-full px-4 py-1.5 font-bold hover:bg-primary-600 transition-colors disabled:opacity-60"
                     >
                         {t('settings.save')}

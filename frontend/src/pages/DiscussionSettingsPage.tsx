@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiMessageSquare } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
-import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { updateNotificationSettings, updateSettings } from '../redux/slices/authSlice';
+import { useAppDispatch } from '../hooks/useAppDispatch';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { updateSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -13,11 +15,12 @@ const DiscussionSettingsPage: React.FC = () => {
     const { t } = useTranslation();
 
     const dispatch = useAppDispatch();
+    const [updateSettingsMutation] = useUpdateSettingsMutation();
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
     const handleToggle = (key: string, value: any) => {
         dispatch(updateSettings({ [key]: value })); // Optimistic UI update
-        dispatch(updateNotificationSettings({ [key]: value }));
+        updateSettingsMutation({ [key]: value });
     };
 
     const RadioItem = ({
@@ -117,7 +120,7 @@ const DiscussionSettingsPage: React.FC = () => {
                             <button
                                 onClick={() => {
                                     dispatch(updateSettings({ treeView: !settings?.treeView })); // Optimistic UI
-                                    dispatch(updateNotificationSettings({ enableTreeView: !settings?.treeView } as any));
+                                    updateSettingsMutation({ enableTreeView: !settings?.treeView } as any);
                                 }}
                                 className={cn(
                                     "w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out",

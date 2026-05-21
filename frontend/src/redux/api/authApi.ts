@@ -37,6 +37,30 @@ export const authApi = apiSlice.injectEndpoints({
             }),
             invalidatesTags: ['Auth', 'Post', 'User', 'Feed', 'List', 'Notification', 'Trending'],
         }),
+        updateSettings: builder.mutation<UserSettings, Partial<UserSettings>>({
+            query: (settings) => ({
+                url: '/User/settings',
+                method: 'PATCH',
+                body: settings,
+            }),
+            invalidatesTags: ['Auth'],
+        }),
+        updateProfile: builder.mutation<User, FormData>({
+            query: (formData) => ({
+                url: '/User/profile',
+                method: 'PATCH',
+                body: formData,
+            }),
+            invalidatesTags: ['Auth'],
+        }),
+        updateAccount: builder.mutation<User, Partial<User>>({
+            query: (accountData) => ({
+                url: '/User/account',
+                method: 'PATCH',
+                body: accountData,
+            }),
+            invalidatesTags: ['Auth'],
+        }),
     }),
 });
 
@@ -46,4 +70,7 @@ export const {
     useGetMeQuery,
     useRefreshSessionMutation,
     useLogoutMutation,
+    useUpdateSettingsMutation,
+    useUpdateProfileMutation,
+    useUpdateAccountMutation,
 } = authApi;

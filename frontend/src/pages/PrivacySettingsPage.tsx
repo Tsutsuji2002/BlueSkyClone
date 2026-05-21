@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiChevronRight, FiShield, FiKey, FiBell, FiEyeOff, FiX, FiCheck } from 'react-icons/fi';
 import Button from '../components/common/Button';
-import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -38,12 +38,11 @@ const PrivacySettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
-
-    const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
     const handleToggle = (key: string, value: boolean) => {
-        dispatch(updateNotificationSettings({ [key]: value }));
+        updateSettings({ [key]: value });
     };
 
     useDocumentTitle(t('privacy.title'));

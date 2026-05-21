@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft } from 'react-icons/fi';
 import { cn } from '../utils/classNames';
-import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useAppDispatch } from '../hooks/useAppDispatch';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -12,11 +13,12 @@ const AccessibilityPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
 
+    const [updateSettings] = useUpdateSettingsMutation();
     const dispatch = useAppDispatch();
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
     const handleToggle = (key: string, value: boolean) => {
-        dispatch(updateNotificationSettings({ [key]: value }));
+        updateSettings({ [key]: value });
     };
 
     const SettingsToggle = ({

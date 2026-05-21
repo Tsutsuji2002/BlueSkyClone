@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { FiArrowLeft, FiHeart, FiUserPlus, FiMessageSquare, FiAtSign, FiRepeat, FiBell, FiCpu, FiCheck } from 'react-icons/fi';
 import { RiDoubleQuotesL } from 'react-icons/ri';
 import { BsArrowRepeat } from 'react-icons/bs';
@@ -11,7 +10,7 @@ import { UserSettings } from '../types';
 
 const NotificationTypeSettingsPage: React.FC = () => {
     const navigate = useNavigate();
-    const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     const { type } = useParams<{ type: string }>();
     const { t } = useTranslation();
     const { settings } = useAppSelector(state => state.auth);
@@ -40,15 +39,15 @@ const NotificationTypeSettingsPage: React.FC = () => {
     const inAppEnabled = settings ? !!settings[fields.inApp] : true;
 
     const handleToggleNotify = () => {
-        dispatch(updateNotificationSettings({ [fields.notify]: !notifyEnabled }));
+        updateSettings({ [fields.notify]: !notifyEnabled });
     };
 
     const handleTogglePush = () => {
-        dispatch(updateNotificationSettings({ [fields.push]: !pushEnabled }));
+        updateSettings({ [fields.push]: !pushEnabled });
     };
 
     const handleToggleInApp = () => {
-        dispatch(updateNotificationSettings({ [fields.inApp]: !inAppEnabled }));
+        updateSettings({ [fields.inApp]: !inAppEnabled });
     };
 
     const typeConfig: Record<string, { icon: React.ReactNode, label: string, desc: string }> = {

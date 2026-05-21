@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FiX, FiCopy, FiInfo, FiGlobe, FiFileText, FiLoader, FiChevronLeft, FiAtSign } from 'react-icons/fi';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { verifyDomain, updateUserAccount } from '../redux/slices/authSlice';
+import { verifyDomain } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import Button from '../components/common/Button';
 import { cn } from '../utils/classNames';

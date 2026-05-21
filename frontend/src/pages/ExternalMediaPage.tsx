@@ -5,13 +5,12 @@ import { FiArrowLeft, FiInfo } from 'react-icons/fi';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { useAppDispatch } from '../hooks/useAppDispatch';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 
 const ExternalMediaPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     const settings = useAppSelector(state => state.auth.settings);
 
     const mediaProviders = [
@@ -25,10 +24,9 @@ const ExternalMediaPage: React.FC = () => {
             ? enabledProviders.filter(p => p !== provider)
             : [...enabledProviders, provider];
 
-        dispatch(updateNotificationSettings({
-            ...settings,
+        updateSettings({
             enabledMediaProviders: newProviders
-        }));
+        });
     };
 
     useDocumentTitle(t('content.external_media_title'));

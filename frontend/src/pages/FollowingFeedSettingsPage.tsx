@@ -4,15 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiInfo, FiMessageSquare, FiRepeat, FiMessageCircle, FiActivity } from 'react-icons/fi';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { cn } from '../utils/classNames';
-import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { RootState } from '../redux/store';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 
 const FollowingFeedSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
 
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
@@ -23,7 +22,7 @@ const FollowingFeedSettingsPage: React.FC = () => {
     const experimental = settings?.showSampleSavedFeeds ?? false;
 
     const handleUpdate = (key: string, value: boolean) => {
-        dispatch(updateNotificationSettings({ [key]: value }));
+        updateSettings({ [key]: value });
     };
 
     const SettingsItem = ({

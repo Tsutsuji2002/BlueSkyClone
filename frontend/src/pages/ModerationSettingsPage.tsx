@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../redux/store';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useSelector } from 'react-redux';
+import { RootState } from '../redux/store';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import {
     FiArrowLeft,
     FiEdit,
@@ -24,7 +24,7 @@ const ModerationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
 
-    const dispatch = useDispatch<AppDispatch>();
+    const [updateSettings] = useUpdateSettingsMutation();
     const settings = useSelector((state: RootState) => state.auth.settings);
 
     // Derived values from Redux state
@@ -43,7 +43,7 @@ const ModerationSettingsPage: React.FC = () => {
     const [loadingCounts, setLoadingCounts] = React.useState(true);
 
     const handleUpdate = (update: any) => {
-        dispatch(updateNotificationSettings(update));
+        updateSettings(update);
     };
 
     const fetchCounts = async () => {

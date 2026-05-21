@@ -6,13 +6,14 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { RootState } from '../../redux/store';
 import { fetchTrending } from '../../redux/slices/trendingSlice';
-import { updateNotificationSettings } from '../../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../../redux/api/authApi';
 import ConfirmModal from '../common/ConfirmModal';
 import { formatCount } from '../../utils/formatNumber';
 
 const TrendingSection: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     const { t } = useTranslation();
     const { topics, isLoading } = useAppSelector((state: RootState) => state.trending);
     const settings = useAppSelector((state: RootState) => state.auth.settings);
@@ -33,7 +34,7 @@ const TrendingSection: React.FC = () => {
     }
 
     const handleHideTrending = () => {
-        dispatch(updateNotificationSettings({ openTrendingTopics: false }));
+        updateSettings({ openTrendingTopics: false });
     };
 
     return (

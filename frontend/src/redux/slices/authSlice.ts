@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AuthState, User, UserSettings, LoginFormData, SignUpFormData } from '../../types';
 import agent from '../../services/atpAgent';
+import { authApi } from '../api/authApi';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
@@ -160,6 +161,16 @@ const authSlice = createSlice({
                 if (action.payload && state.user) {
                     state.user = action.payload;
                 }
+            })
+            // RTK Query Sync
+            .addMatcher(authApi.endpoints.updateSettings.matchFulfilled, (state, { payload }) => {
+                state.settings = normalizeSettings(payload);
+            })
+            .addMatcher(authApi.endpoints.updateProfile.matchFulfilled, (state, { payload }) => {
+                state.user = payload;
+            })
+            .addMatcher(authApi.endpoints.updateAccount.matchFulfilled, (state, { payload }) => {
+                state.user = payload;
             });
     },
 });

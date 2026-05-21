@@ -5,7 +5,8 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiChevronRight, FiMail, FiEdit2, FiLock, FiAtSign, FiGift, FiDownload, FiX, FiTrash2, FiAlertCircle, FiCheck, FiCalendar } from 'react-icons/fi';
 import Button from '../components/common/Button';
-import { updateUserAccount, updateUser, verifyDomain } from '../redux/slices/authSlice';
+import { updateUser, verifyDomain } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation, useUpdateAccountMutation } from '../redux/api/authApi';
 import { showToast } from '../redux/slices/toastSlice';
 import ChangeHandleModal from '../modals/ChangeHandleModal';
 import agent, { SERVICE_URL } from '../services/atpAgent';
@@ -175,6 +176,7 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
 const EditBirthdateModal: React.FC<{ isOpen: boolean; onClose: () => void; birthdate?: string }> = ({ isOpen, onClose, birthdate }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const [updateAccount] = useUpdateAccountMutation();
     const [date, setDate] = useState(birthdate ? birthdate.split('T')[0] : '');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -191,10 +193,11 @@ const EditBirthdateModal: React.FC<{ isOpen: boolean; onClose: () => void; birth
         setIsLoading(true);
         setError('');
         try {
-            await dispatch(updateUserAccount({ dateOfBirth: date || null })).unwrap();
+            await updateAccount({ dateOfBirth: date || undefined }).unwrap();
             onClose();
-        } catch (err: any) {
-            setError(err || 'Failed to update birthdate');
+        } catch (err) {
+            const errorMessage = (err as any)?.data?.message || (err as any)?.message || 'Failed to update birthdate';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

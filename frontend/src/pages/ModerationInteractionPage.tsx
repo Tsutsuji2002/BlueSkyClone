@@ -5,8 +5,7 @@ import { FiArrowLeft, FiInfo, FiGlobe, FiUsers, FiAtSign, FiXCircle, FiCheck, Fi
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { useAppDispatch } from '../hooks/useAppDispatch';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { RootState } from '../redux/store';
 import Button from '../components/common/Button';
 import { API_BASE_URL } from '../constants';
@@ -21,7 +20,7 @@ interface List {
 const ModerationInteractionPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     const settings = useAppSelector((state: RootState) => state.auth.settings);
 
     // Local state
@@ -74,10 +73,10 @@ const ModerationInteractionPage: React.FC = () => {
         }
 
         try {
-            await dispatch(updateNotificationSettings({
+            await updateSettings({
                 defaultReplyRestriction: finalRestriction,
                 defaultAllowQuotes: allowQuote
-            })).unwrap();
+            }).unwrap();
         } catch (error) {
             console.error("Failed to save settings", error);
         } finally {

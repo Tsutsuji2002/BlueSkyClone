@@ -2,20 +2,20 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiBell } from 'react-icons/fi';
-import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useAppSelector } from '../hooks/useAppSelector';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 
 const PostNotificationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     
     // Map the post notification UI to defaultReplyRestriction as it has the same 3-states and was synced to PDS
     const settings = useAppSelector(state => state.auth.settings);
     const selectedOption = settings?.defaultReplyRestriction || 'anyone';
 
     const handleOptionChange = (option: 'anyone' | 'followers' | 'none') => {
-        dispatch(updateNotificationSettings({ defaultReplyRestriction: option }));
+        updateSettings({ defaultReplyRestriction: option });
     };
 
     return (

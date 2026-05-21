@@ -9,7 +9,7 @@ import {
     toggleContentLanguage,
     setContentLanguages
 } from '../redux/slices/languageSlice';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import {
     FiArrowLeft, FiPlus, FiX, FiCheck, FiChevronRight, FiSearch
 } from 'react-icons/fi';
@@ -21,6 +21,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 const LanguagePage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     const { t, i18n } = useTranslation();
     const { appLanguage, primaryLanguage, contentLanguages } = useAppSelector((state) => state.language);
 
@@ -31,13 +32,13 @@ const LanguagePage: React.FC = () => {
     const handleAppLangChange = (code: string) => {
         dispatch(setAppLanguage(code));
         i18n.changeLanguage(code);
-        dispatch(updateNotificationSettings({ appLanguage: code }));
+        updateSettings({ appLanguage: code });
         setIsAppLangOpen(false);
     };
 
     const handlePrimaryLangChange = (code: string) => {
         dispatch(setPrimaryLanguage(code));
-        dispatch(updateNotificationSettings({ primaryLanguage: code }));
+        updateSettings({ primaryLanguage: code });
         setIsPrimaryLangOpen(false);
     };
 

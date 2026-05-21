@@ -99,10 +99,10 @@ class PostSignalRService {
                 console.warn('[PostSignalR] Unauthorized. Attempting session refresh...');
                 
                 try {
-                    const { refreshSession } = await import('../redux/slices/authSlice');
-                    const result = await store.dispatch(refreshSession() as any);
+                    const { authApi } = await import('../redux/api/authApi');
+                    const result = await store.dispatch(authApi.endpoints.refreshSession.initiate() as any);
                     
-                    if (refreshSession.fulfilled.match(result)) {
+                    if (result.data) {
                         console.log('[PostSignalR] Session refreshed successfully. Retrying connection...');
                         this.isConnecting = false;
                         return this.startConnection();

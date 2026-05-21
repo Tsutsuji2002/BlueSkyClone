@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { setColorMode, setDarkVariant, setFontFamily, setFontSize } from '../redux/slices/themeSlice';
-import { updateNotificationSettings } from '../redux/slices/authSlice';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import {
@@ -14,18 +14,19 @@ import { cn } from '../utils/classNames';
 const AppearancePage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
+    const [updateSettings] = useUpdateSettingsMutation();
     const { t } = useTranslation();
     const { colorMode, darkVariant, fontFamily, fontSize } = useAppSelector((state) => state.theme);
 
     const handleColorModeChange = (val: string) => {
         dispatch(setColorMode(val as any));
-        dispatch(updateNotificationSettings({ themeMode: val as any }));
+        updateSettings({ themeMode: val as any });
     };
 
     const handleFontSizeChange = (val: 'sm' | 'md' | 'lg') => {
         dispatch(setFontSize(val));
         const numericSize = val === 'sm' ? 14 : val === 'md' ? 16 : 18;
-        dispatch(updateNotificationSettings({ fontSize: numericSize }));
+        updateSettings({ fontSize: numericSize });
     };
 
     const handleDarkVariantChange = (val: 'dim' | 'dark') => {
