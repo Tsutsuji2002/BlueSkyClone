@@ -127,7 +127,8 @@ export const setupFetchInterceptor = () => {
         const isRetry = input instanceof Request ? input.headers.has('X-Retry-Attempt') : (init?.headers as any)?.['X-Retry-Attempt'];
 
         // Handle 401 Unauthorized
-        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isLoginRequest && !isRetry) {
+        const isSwitchRequest = url.endsWith('/auth/switch');
+        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isLoginRequest && !isRetry && !isSwitchRequest) {
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
             
             if (!isAuthPage) {

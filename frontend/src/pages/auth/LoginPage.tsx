@@ -104,8 +104,13 @@ const LoginPage: React.FC = () => {
                 dispatch(showToast({ message: `Signed in as @${account.handle}`, type: 'success' }));
                 navigate('/');
                 return;
-            } catch (err) {
+            } catch (err: any) {
                 console.warn('Instant switch failed, falling back to login form', err);
+                const status = err?.status || err?.data?.status;
+                if (status === 401) {
+                    const { setSessionExpired } = require('../../redux/slices/authSlice');
+                    dispatch(setSessionExpired(account.did));
+                }
                 // Fallback to manual login form if token is invalid
             }
         }
@@ -120,12 +125,8 @@ const LoginPage: React.FC = () => {
         setActiveMenu(null);
     };
 
-    // Auto-redirect if already authenticated (e.g. from App.tsx session restore)
-    useEffect(() => {
-        if (isAuthenticated) {
-            navigate('/', { replace: true });
-        }
-    }, [isAuthenticated, navigate]);
+    // Removed global auto-redirect to allow "Add account" while logged in.
+    // Redeirection is now handled in the login/switch handlers on success.
 
     // If accounts are empty and we are in selector view, switch to form
     useEffect(() => {
