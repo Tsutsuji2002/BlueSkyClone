@@ -7,6 +7,8 @@ export interface StoredAccount {
     displayName: string;
     avatar?: string;
     lastUsed: number;
+    accessToken?: string;
+    refreshToken?: string;
 }
 
 const STORAGE_KEY = 'bsky_saved_accounts';
@@ -23,7 +25,7 @@ export const AccountManager = {
         }
     },
 
-    saveAccount: (user: User) => {
+    saveAccount: (user: User, accessToken?: string, refreshToken?: string) => {
         const accounts = AccountManager.getAccounts();
         const existingIndex = accounts.findIndex(a => a.did === user.did);
         
@@ -33,16 +35,34 @@ export const AccountManager = {
             handle: user.handle,
             displayName: (user.displayName || user.handle || '') as string,
             avatar: (user.avatarUrl || user.avatar || undefined) as string | undefined,
-            lastUsed: Date.now()
+            lastUsed: Date.now(),
+            accessToken,
+            refreshToken
         };
 
         if (existingIndex > -1) {
-            accounts[existingIndex] = newAccount;
+            // Preserve existing tokens if not provided in this call
+            accounts[existingIndex] = {
+                ...newAccount,
+                accessToken: accessToken || accounts[existingIndex].accessToken,
+                refreshToken: refreshToken || accounts[existingIndex].refreshToken
+            };
         } else {
             accounts.push(newAccount);
         }
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+    },
+
+    updateTokens: (did: string, accessToken: string, refreshToken: string) => {
+        const accounts = AccountManager.getAccounts();
+        const index = accounts.findIndex(a => a.did === did);
+        if (index > -1) {
+            accounts[index].accessToken = accessToken;
+            accounts[index].refreshToken = refreshToken;
+            accounts[index].lastUsed = Date.now();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+        }
     },
 
     removeAccount: (did: string) => {

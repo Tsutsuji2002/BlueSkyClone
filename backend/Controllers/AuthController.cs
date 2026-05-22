@@ -109,7 +109,22 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid refresh token." });
         }
         SetTokenCookies(result.Token, result.RefreshToken, result.RememberMe);
-        return Ok(new { user = result.User, settings = result.Settings });
+        return Ok(new { user = result.User, settings = result.Settings, token = result.Token, refreshToken = result.RefreshToken });
+    }
+
+    [HttpPost("switch")]
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> Switch([FromBody] SwitchRequest request)
+    {
+        if (string.IsNullOrEmpty(request.RefreshToken)) return BadRequest(new { message = "No refresh token provided." });
+
+        var result = await _authService.RefreshTokenAsync(request.RefreshToken);
+        if (result == null)
+        {
+            return Unauthorized(new { message = "Session expired. Please log in again." });
+        }
+        SetTokenCookies(result.Token, result.RefreshToken, result.RememberMe);
+        return Ok(new { user = result.User, settings = result.Settings, token = result.Token, refreshToken = result.RefreshToken });
     }
 
     [HttpPost("logout")]

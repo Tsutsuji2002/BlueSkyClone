@@ -25,6 +25,10 @@ public record LoginRequest(
     bool RememberMe = false
 );
 
+public record SwitchRequest(
+    [Required] string RefreshToken
+);
+
 public record UserDto(
     Guid Id,
     string Username,

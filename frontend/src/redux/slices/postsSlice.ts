@@ -948,7 +948,12 @@ const postsSlice = createSlice({
 472:                 state.discoverPosts = [newPost, ...state.discoverPosts];
 473:             }
 474:         }
-475:         */
+475:         },
+        clearSearchResults: (state: PostsState) => {
+            state.searchPostsByTab = {};
+            state.searchHasMoreByTab = {};
+            state.posts = [];
+        },
     },
 
     extraReducers: (builder) => {
@@ -1984,7 +1989,7 @@ const postsSlice = createSlice({
 });
 
 
-export const { clearPosts, clearThreadPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost, seedInteractionTruth } = postsSlice.actions;
+export const { clearPosts, clearThreadPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost, seedInteractionTruth, clearSearchResults } = postsSlice.actions;
 
 
 export default postsSlice.reducer;

@@ -141,14 +141,14 @@ const authSlice = createSlice({
         stopLoading: (state) => {
             state.isLoading = false;
         },
-        setAuth: (state, action: PayloadAction<{ user: User; settings: any }>) => {
+        setAuth: (state, action: PayloadAction<{ user: User; settings: any; token: string; refreshToken: string }>) => {
             state.isAuthenticated = true;
             state.user = action.payload.user;
             state.settings = normalizeSettings(action.payload.settings);
             state.isLoading = false;
             
-            // Save to account manager and mark as active
-            AccountManager.saveAccount(action.payload.user);
+            // Save to account manager with tokens and mark as active
+            AccountManager.saveAccount(action.payload.user, action.payload.token, action.payload.refreshToken);
             AccountManager.setActiveAccount(action.payload.user);
             state.savedAccounts = AccountManager.getAccounts();
         },

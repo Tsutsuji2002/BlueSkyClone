@@ -728,6 +728,11 @@ const userSlice = createSlice({
             state.followingInitializedOwnerId = null;
             state.followingLoading = false;
         },
+        clearSearchResults: (state: UserState) => {
+            state.searchResultsByTab = {};
+            state.searchHasMoreByTab = {};
+            state.searchResults = [];
+        },
     },
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
         builder
@@ -1278,6 +1283,7 @@ export const {
     clearMutedUsers,
     clearBlockedUsers,
     clearFollowers,
-    clearFollowing
+    clearFollowing,
+    clearSearchResults
 } = userSlice.actions;
 export default userSlice.reducer;

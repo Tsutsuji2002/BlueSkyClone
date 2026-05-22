@@ -33,9 +33,10 @@ import postSignalrService from './services/postSignalrService';
 import { closeAllModals } from './redux/slices/modalsSlice';
 
 import LoadingScreen from './components/common/LoadingScreen';
+import { SessionKeeper } from './SessionKeeper';
 
-const VERSION = '1.1.1';
-const BUILD_TIME = '23:45:00 1/5/2026';
+const VERSION = '1.1.2';
+const BUILD_TIME = '19:15:00 22/5/2026';
 
 const AppContent: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -62,7 +63,12 @@ const AppContent: React.FC = () => {
   // Sync RTK Query result to authSlice for backward compatibility
   useEffect(() => {
     if (meData) {
-      dispatch(setAuth(meData));
+      dispatch(setAuth({
+        user: meData.user,
+        settings: meData.settings,
+        token: meData.token || '',
+        refreshToken: meData.refreshToken || ''
+      }));
     } else if (meError) {
       // If error (e.g. 401), we ensure state is not loading
       dispatch(stopLoading());
@@ -228,6 +234,7 @@ const AppContent: React.FC = () => {
       <MutedWordsModal />
       <GlobalDeleteConfirmModal />
       <Toast />
+      <SessionKeeper />
     </>
   );
 };

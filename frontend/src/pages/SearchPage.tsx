@@ -5,8 +5,8 @@ import Feed from '../components/feed/Feed';
 import { FiArrowLeft, FiSearch, FiX } from 'react-icons/fi';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
-import { fetchPostsSearch } from '../redux/slices/postsSlice';
-import { searchUsers } from '../redux/slices/userSlice';
+import { fetchPostsSearch, clearSearchResults as clearPostSearchResults } from '../redux/slices/postsSlice';
+import { searchUsers, clearSearchResults as clearUserSearchResults } from '../redux/slices/userSlice';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import Avatar from '../components/common/Avatar';
@@ -51,10 +51,12 @@ const SearchPage: React.FC = () => {
 
     // Reset scroll and data on new query
     useEffect(() => {
+        dispatch(clearPostSearchResults());
+        dispatch(clearUserSearchResults());
         scrollPositionsRef.current = {};
         setVisitedTabs(new Set([activeTab]));
         window.scrollTo(0, 0);
-    }, [query]);
+    }, [query, dispatch, activeTab]);
 
     // Restore scroll position when tab changes (Instant feel)
     React.useLayoutEffect(() => {

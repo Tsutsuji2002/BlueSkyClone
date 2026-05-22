@@ -1,9 +1,10 @@
 import { apiSlice } from './apiSlice';
 import { User, UserSettings, LoginFormData, SignUpFormData } from '../../types';
+import { AccountManager } from '../../utils/accountManager';
 
 export const authApi = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
-        login: builder.mutation<{ user: User; settings: any }, LoginFormData>({
+        login: builder.mutation<{ user: User; settings: any; token: string; refreshToken: string }, LoginFormData>({
             query: (credentials) => ({
                 url: '/auth/login',
                 method: 'POST',
@@ -19,7 +20,7 @@ export const authApi = apiSlice.injectEndpoints({
                 } catch { /* login error is handled in the component */ }
             },
         }),
-        signUp: builder.mutation<{ user: User; settings: any }, SignUpFormData>({
+        signUp: builder.mutation<{ user: User; settings: any; token: string; refreshToken: string }, SignUpFormData>({
             query: (userData) => ({
                 url: '/auth/register',
                 method: 'POST',
@@ -33,16 +34,38 @@ export const authApi = apiSlice.injectEndpoints({
                 } catch { }
             },
         }),
-        getMe: builder.query<{ user: User; settings: any }, void>({
+        getMe: builder.query<{ user: User; settings: any; token: string; refreshToken: string }, void>({
             query: () => '/auth/me',
             providesTags: ['Auth'],
         }),
-        refreshSession: builder.mutation<{ user: User; settings: any }, void>({
+        refreshSession: builder.mutation<{ user: User; settings: any; token: string; refreshToken: string }, void>({
             query: () => ({
                 url: '/auth/refresh',
                 method: 'POST',
             }),
             invalidatesTags: ['Auth'],
+            onQueryStarted: async (_arg, { queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data.user?.did && data.token && data.refreshToken) {
+                        AccountManager.updateTokens(data.user.did, data.token, data.refreshToken);
+                    }
+                } catch { }
+            },
+        }),
+        switchAccount: builder.mutation<{ user: User; settings: any; token: string; refreshToken: string }, { refreshToken: string }>({
+            query: (body) => ({
+                url: '/auth/switch',
+                method: 'POST',
+                body,
+            }),
+            invalidatesTags: ['Auth'],
+            onQueryStarted: async (_arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    dispatch(authApi.util.updateQueryData('getMe', undefined, () => data));
+                } catch { }
+            },
         }),
         logout: builder.mutation<{ success: boolean }, void>({
             query: () => ({
@@ -83,6 +106,7 @@ export const {
     useSignUpMutation,
     useGetMeQuery,
     useRefreshSessionMutation,
+    useSwitchAccountMutation,
     useLogoutMutation,
     useUpdateSettingsMutation,
     useUpdateProfileMutation,
