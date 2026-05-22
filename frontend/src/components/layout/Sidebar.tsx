@@ -115,20 +115,24 @@ const Sidebar: React.FC = () => {
                             </button>
                         }
                         items={[
-                            // Current Active User (Pic 4 / Image 1 style)
+                            // Header (based on HTML)
+                            {
+                                id: 'header',
+                                content: (
+                                    <div className="text-[13.1px] tracking-[0.25px] text-[#8798B0] font-semibold px-[10px] py-2 leading-[17px] select-none">
+                                        {t('auth.login.switch_account')}
+                                    </div>
+                                ),
+                                disabled: true,
+                            },
+                            // Active User
                             {
                                 id: 'active-user',
                                 content: (
-                                    <div className="px-4 py-3 border-b border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-surface/30">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="md" />
-                                            <div className="min-w-0">
-                                                <div className="text-[15px] font-bold text-gray-900 dark:text-dark-text truncate flex items-center gap-1">
-                                                    {user.displayName}
-                                                    {user.isVerified && <BsPatchCheckFill className="text-blue-500" size={14} />}
-                                                </div>
-                                                <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">@{user.handle}</div>
-                                            </div>
+                                    <div className="flex items-center gap-2 px-[10px] py-2 rounded-[4px] hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+                                        <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="xs" className="w-5 h-5" />
+                                        <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate flex-1">
+                                            @{user.handle}
                                         </div>
                                     </div>
                                 ),
@@ -140,26 +144,34 @@ const Sidebar: React.FC = () => {
                                 .map(acc => ({
                                     id: `switch-${acc.did}`,
                                     content: (
-                                        <div className="flex items-center gap-3">
-                                            <Avatar src={acc.avatar} alt={acc.displayName} size="sm" />
-                                            <div className="min-w-0">
-                                                <div className="text-[14px] font-bold text-gray-700 dark:text-dark-text truncate">{acc.displayName}</div>
-                                                <div className="text-[12px] text-gray-500 dark:text-dark-text-secondary truncate">@{acc.handle}</div>
+                                        <div className="flex items-center gap-2 px-[10px] py-2 rounded-[4px] hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+                                            <Avatar src={acc.avatar} alt={acc.displayName} size="xs" className="w-5 h-5" />
+                                            <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate flex-1">
+                                                @{acc.handle}
                                             </div>
                                         </div>
                                     ),
                                     onClick: () => handleSwitchAccount(acc.handle),
                                 })),
-                            { h: true, id: 'divider-1' } as any, // Divider
+                            { h: true, id: 'divider-1' } as any,
+                            // Go to profile
+                            {
+                                id: 'go-profile',
+                                label: t('nav.go_profile'),
+                                icon: <FiUser className="text-[20px]" />,
+                                onClick: () => navigate(`/profile/${user.handle}`),
+                            },
+                            // Add another account
                             {
                                 id: 'add-account',
-                                label: t('auth.login.other_account') || 'Add another account',
+                                label: t('auth.login.other_account'),
                                 icon: <FiPlus className="text-[20px]" />,
                                 onClick: handleAddAccount,
                             },
+                            // Sign out
                             {
                                 id: 'logout',
-                                label: (t('auth.signup.logout_full') || 'Sign out') + ` @${user.handle}`,
+                                label: t('auth.login.sign_out'),
                                 icon: <FiLogOut className="text-[20px]" />,
                                 onClick: handleLogout,
                             },

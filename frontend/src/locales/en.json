@@ -628,7 +628,9 @@
             "sign_in_as": "SIGN IN AS",
             "other_account": "Add another account",
             "logged_out": "Logged out",
-            "remove_account": "Remove account"
+            "remove_account": "Remove account",
+            "switch_account": "Switch account",
+            "sign_out": "Sign out"
         },
         "signup": {
             "title": "Create an account",

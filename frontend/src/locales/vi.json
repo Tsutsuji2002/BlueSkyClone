@@ -629,7 +629,9 @@
             "sign_in_as": "ĐĂNG NHẬP BẰNG",
             "other_account": "Thêm tài khoản khác",
             "logged_out": "Đã đăng xuất",
-            "remove_account": "Xóa tài khoản"
+            "remove_account": "Xóa tài khoản",
+            "switch_account": "Chuyển tài khoản",
+            "sign_out": "Đăng xuất"
         },
         "signup": {
             "title": "Tạo tài khoản",

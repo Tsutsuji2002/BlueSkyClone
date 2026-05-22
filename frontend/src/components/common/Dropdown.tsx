@@ -146,7 +146,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                         ref={menuRef}
                         style={getAlignmentStyles()}
                         className={cn(
-                            'bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl shadow-xl py-1 transition-all',
+                            'bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-lg shadow-xl p-1 transition-all',
                             'max-h-[min(480px,80vh)] overflow-y-auto scrollbar-hide'
                         )}
                     >
@@ -164,7 +164,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                                         }
                                     }}
                                     className={cn(
-                                        'w-full px-4 py-2 text-left flex items-center justify-between transition-colors font-semibold text-[15px]',
+                                        'w-full px-[10px] py-2 text-left flex items-center justify-between transition-colors font-semibold text-[13.1px] tracking-[0.25px] rounded-[4px]',
                                         'hover:bg-gray-50 dark:hover:bg-dark-hover',
                                         item.danger
                                             ? 'text-red-500'
