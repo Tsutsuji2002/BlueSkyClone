@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
     FiHome, FiSearch, FiBell, FiSettings,
-    FiSun, FiMoon, FiLogOut, FiEdit, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle, FiUser
+    FiSun, FiMoon, FiLogOut, FiEdit, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle, FiUser, FiPlus
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import ScrollToTopButton from '../common/ScrollToTopButton';
@@ -40,15 +40,12 @@ const Sidebar: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const { toggle, isDark } = useTheme();
-    const user = useAppSelector((state) => state.auth.user);
+    const { user, savedAccounts } = useAppSelector((state) => state.auth);
     const unreadNotifications = useAppSelector((state) => state.notifications.unreadCount);
     const conversations = useAppSelector((state) => state.messages.conversations);
     const unreadMessages = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
 
     const [logoutMutation] = useLogoutMutation();
-
-    // Removed redundant polling logic that caused infinite loops when counts were zero.
-    // App.tsx now handles the unified session lifecycle and periodic updates.
 
     const handleLogout = async () => {
         try {
@@ -61,19 +58,42 @@ const Sidebar: React.FC = () => {
         }
     };
 
+    const handleAddAccount = async () => {
+        try {
+            await logoutMutation().unwrap();
+        } catch (err) {
+            console.error('Log out before add account failed:', err);
+        } finally {
+            dispatch(logout());
+            navigate('/login');
+        }
+    };
+
+    const handleSwitchAccount = async (handle: string) => {
+        try {
+            await logoutMutation().unwrap();
+        } catch (err) {
+            console.error('Switch logout failed:', err);
+        } finally {
+            dispatch(logout());
+            // Navigate to login with pre-selected account handled by LoginPage selector
+            navigate('/login');
+        }
+    };
+
     return (
         <div className="h-screen sticky top-0 flex flex-col py-3 px-2 lg:px-4 w-[72px] xl:w-full transition-all overflow-y-auto no-scrollbar border-r border-transparent">
             
             {/* Content Wrapper restricting to 240px width and pushing to right boundary */}
             <div className="flex flex-col w-full xl:w-[240px] xl:ml-auto">
             
-            {/* Account Switcher - AT TOP */}
+            {/* Account Switcher - AT TOP (Refactored for Multi-Account as per Pic 3) */}
             {user ? (
                 <div className="w-full flex justify-center xl:justify-start">
                     <Dropdown
                         trigger={
-                            <button aria-label="Switch accounts" className="group flex items-center justify-center xl:justify-between py-1.5 px-2 xl:w-full rounded-full bg-transparent hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-150 gap-2.5 outline-none">
-                                <div className="flex-shrink-0 relative z-10 transform origin-left transition-transform duration-150 group-hover:scale-[0.80] group-hover:-translate-x-0.5">
+                            <button aria-label="Switch accounts" className="group flex items-center justify-center xl:justify-between py-1.5 px-2 xl:w-full rounded-xl bg-transparent hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-150 gap-2.5 outline-none">
+                                <div className="flex-shrink-0 relative z-10 transform origin-left transition-transform duration-150 group-hover:scale-[0.85] group-hover:-translate-x-0.5">
                                     <Avatar
                                         src={user.avatarUrl || user.avatar}
                                         alt={user.displayName}
@@ -95,27 +115,51 @@ const Sidebar: React.FC = () => {
                             </button>
                         }
                         items={[
+                            // Current Active User (Header style)
                             {
-                                id: 'go-profile',
-                                label: t('nav.go_profile'),
-                                icon: <FiUser />,
-                                onClick: () => navigate(`/profile/${user.handle}`),
+                                id: 'active-user',
+                                content: (
+                                    <div className="px-3 py-2 border-b border-gray-100 dark:border-dark-border">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="sm" />
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName}</div>
+                                                <div className="text-xs text-gray-500 truncate">@{user.handle}</div>
+                                            </div>
+                                            <div className="ml-auto">
+                                                <BsPatchCheckFill className="text-blue-500" size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ),
+                                disabled: true,
                             },
+                            // Other Saved Accounts
+                            ...savedAccounts
+                                .filter(acc => acc.did !== user.did)
+                                .map(acc => ({
+                                    id: `switch-${acc.did}`,
+                                    content: (
+                                        <div className="flex items-center gap-3">
+                                            <Avatar src={acc.avatar} alt={acc.displayName} size="sm" />
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-medium text-gray-700 dark:text-dark-text truncate">{acc.displayName}</div>
+                                                <div className="text-xs text-gray-500 truncate">@{acc.handle}</div>
+                                            </div>
+                                        </div>
+                                    ),
+                                    onClick: () => handleSwitchAccount(acc.handle),
+                                })),
+                            { h: true, id: 'divider-1' } as any, // Divider
                             {
                                 id: 'add-account',
-                                label: t('settings.add_account'),
-                                icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" /></svg>,
-                                onClick: () => {},
-                            },
-                            {
-                                id: 'theme-toggle',
-                                label: isDark ? t('settings.light_mode') : t('settings.dark_mode'),
-                                icon: isDark ? <FiSun /> : <FiMoon />,
-                                onClick: toggle,
+                                label: t('settings.add_account') as string,
+                                icon: <FiPlus />,
+                                onClick: handleAddAccount,
                             },
                             {
                                 id: 'logout',
-                                label: t('auth.signup.logout_full'),
+                                label: `${t('auth.signup.logout_full')} @${user.handle}` as string,
                                 icon: <FiLogOut />,
                                 onClick: handleLogout,
                             },

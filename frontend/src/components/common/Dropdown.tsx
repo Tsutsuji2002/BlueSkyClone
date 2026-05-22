@@ -3,14 +3,17 @@ import { createPortal } from 'react-dom';
 import { cn } from '../../utils/classNames';
 
 export interface DropdownItem {
-    id: string;
-    label: string;
+    id?: string;
+    label?: string;
+    content?: React.ReactNode;
     icon?: React.ReactNode;
-    onClick: () => void;
+    onClick?: () => void;
     danger?: boolean;
     hasDivider?: boolean;
     type?: 'default' | 'radio';
     selected?: boolean;
+    h?: boolean; // divider shorthand
+    disabled?: boolean;
 }
 
 interface DropdownProps {
@@ -147,40 +150,49 @@ const Dropdown: React.FC<DropdownProps> = ({
                             'max-h-[min(480px,80vh)] overflow-y-auto scrollbar-hide'
                         )}
                     >
-                        {items.map((item) => (
-                            <React.Fragment key={item.id}>
+                        {items.map((item, idx) => (
+                            <React.Fragment key={item.id || `divider-${idx}`}>
                                 <button
                                     type="button"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        item.onClick();
+                                        item.onClick?.();
                                         // Delay closing to ensure the action (like file picker) is triggered
-                                        setTimeout(() => setIsOpen(false), 10);
+                                        if (!item.content || item.onClick) {
+                                            setTimeout(() => setIsOpen(false), 10);
+                                        }
                                     }}
                                     className={cn(
                                         'w-full px-4 py-2 text-left flex items-center justify-between transition-colors font-semibold text-[15px]',
                                         'hover:bg-gray-50 dark:hover:bg-dark-hover',
                                         item.danger
                                             ? 'text-red-500'
-                                            : 'text-gray-900 dark:text-dark-text'
+                                            : 'text-gray-900 dark:text-dark-text',
+                                        item.content ? 'p-0 h-auto' : ''
                                     )}
                                 >
-                                    <span>{item.label}</span>
-                                    {item.type === 'radio' ? (
-                                        <div className={cn(
-                                            "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-                                            item.selected 
-                                                ? "border-primary-500 bg-primary-500" 
-                                                : "border-gray-300 dark:border-dark-border"
-                                        )}>
-                                            {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
-                                        </div>
+                                    {item.content ? (
+                                        item.content
                                     ) : (
-                                        item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>
+                                        <>
+                                            <span>{item.label}</span>
+                                            {item.type === 'radio' ? (
+                                                <div className={cn(
+                                                    "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                                    item.selected 
+                                                        ? "border-primary-500 bg-primary-500" 
+                                                        : "border-gray-300 dark:border-dark-border"
+                                                )}>
+                                                    {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                                </div>
+                                            ) : (
+                                                item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>
+                                            )}
+                                        </>
                                     )}
                                 </button>
-                                {item.hasDivider && (
+                                {(item.hasDivider || item.h) && (
                                     <div className="h-[1px] bg-gray-100 dark:bg-dark-border mx-0" />
                                 )}
                             </React.Fragment>

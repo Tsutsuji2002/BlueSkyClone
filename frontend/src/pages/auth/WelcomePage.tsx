@@ -15,6 +15,13 @@ const WelcomePage: React.FC = () => {
     const dispatch = useAppDispatch();
     useDocumentTitle(t('auth.welcome.title'));
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
+    const savedAccounts = useAppSelector((state) => state.auth.savedAccounts);
+
+    React.useEffect(() => {
+        if (savedAccounts && savedAccounts.length > 0) {
+            navigate('/login');
+        }
+    }, [savedAccounts, navigate]);
 
     const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const lang = e.target.value;

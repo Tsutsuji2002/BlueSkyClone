@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AuthState, User, UserSettings, LoginFormData, SignUpFormData } from '../../types';
 import agent from '../../services/atpAgent';
 import { authApi } from '../api/authApi';
+import { AccountManager, StoredAccount } from '../../utils/accountManager';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
@@ -87,12 +88,13 @@ function normalizeSettings(raw: any): UserSettings {
 
 // Removed hydrateAtpSession because the backend handles session via HttpOnly cookies
 
-const initialState: AuthState = {
+const initialState: AuthState & { savedAccounts: StoredAccount[] } = {
     user: null,
     settings: null,
     isAuthenticated: false,
     isLoading: true, // Start loading automatically to fetch the me endpoint via cookies
     error: null,
+    savedAccounts: AccountManager.getAccounts(),
 };
 
 // verifyDomain thunk could also be migrated to RTK Query userApi later
@@ -144,6 +146,10 @@ const authSlice = createSlice({
             state.user = action.payload.user;
             state.settings = normalizeSettings(action.payload.settings);
             state.isLoading = false;
+            
+            // Save to account manager
+            AccountManager.saveAccount(action.payload.user);
+            state.savedAccounts = AccountManager.getAccounts();
         },
         logout: (state) => {
             state.user = null;
@@ -152,6 +158,12 @@ const authSlice = createSlice({
             state.isLoading = false;
             state.error = null;
             localStorage.removeItem('home_active_tab');
+            // We don't clear savedAccounts on logout, just refresh the list from storage
+            state.savedAccounts = AccountManager.getAccounts();
+        },
+        removeSavedAccount: (state, action: PayloadAction<string>) => {
+            AccountManager.removeAccount(action.payload);
+            state.savedAccounts = AccountManager.getAccounts();
         }
     },
     extraReducers: (builder) => {
@@ -175,5 +187,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout } = authSlice.actions;
+export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount } = authSlice.actions;
 export default authSlice.reducer;
