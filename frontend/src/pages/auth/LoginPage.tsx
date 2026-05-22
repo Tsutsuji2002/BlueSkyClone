@@ -68,7 +68,16 @@ const LoginPage: React.FC = () => {
         }
     };
 
-    const handleAccountClick = (handle: string) => {
+    const handleAccountClick = (handle: string, did: string, accountId: string | number) => {
+        // If this is the currently active session, just go home — no re-login needed
+        const isActiveAccount = isAuthenticated && user && (
+            (user.did && did && user.did === did) ||
+            (String(user.id) === String(accountId))
+        );
+        if (isActiveAccount) {
+            navigate('/');
+            return;
+        }
         setFormData({ ...formData, identifier: handle });
         setView('form');
     };
@@ -109,7 +118,7 @@ const LoginPage: React.FC = () => {
                         <div className="space-y-6">
                             <div>
                                 <div className="text-[13px] font-bold text-gray-400 dark:text-dark-text-secondary mb-3 uppercase tracking-wider">
-                                    {t('auth.login.sign_in_as') || 'auth.login.sign_in_as'}
+                                    {t('auth.login.sign_in_as')}
                                 </div>
                                 
                                 <div className="border border-gray-100 dark:border-dark-border rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-dark-surface">
@@ -117,7 +126,7 @@ const LoginPage: React.FC = () => {
                                         <div key={account.did}>
                                             <div 
                                                 className="flex items-center p-4 hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer transition-colors group relative"
-                                                onClick={() => handleAccountClick(account.handle)}
+                                                onClick={() => handleAccountClick(account.handle, account.did, account.id)}
                                             >
                                                 <div className="w-12 h-12 flex-shrink-0 mr-3">
                                                     <Avatar src={account.avatar} alt={account.displayName} size="md" />
@@ -132,11 +141,17 @@ const LoginPage: React.FC = () => {
                                                         @{account.handle}
                                                     </div>
                                                     {/* Only show 'Logged out' if this account is NOT the active session */}
-                                                    {(!isAuthenticated || user?.did !== account.did) && (
-                                                        <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                                                            {t('auth.login.logged_out')}
-                                                        </div>
-                                                    )}
+                                                    {(() => {
+                                                        const isActiveAccount = isAuthenticated && user && (
+                                                            (user.did && account.did && user.did === account.did) ||
+                                                            (String(user.id) === String(account.id))
+                                                        );
+                                                        return !isActiveAccount ? (
+                                                            <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                                                                {t('auth.login.logged_out')}
+                                                            </div>
+                                                        ) : null;
+                                                    })()}
                                                 </div>
                                                 
                                                 <div className="flex items-center gap-2">
