@@ -56,7 +56,7 @@ const SearchPage: React.FC = () => {
         scrollPositionsRef.current = {};
         setVisitedTabs(new Set([activeTab]));
         window.scrollTo(0, 0);
-    }, [query, dispatch, activeTab]);
+    }, [query, dispatch]);
 
     // Restore scroll position when tab changes (Instant feel)
     React.useLayoutEffect(() => {
@@ -69,12 +69,13 @@ const SearchPage: React.FC = () => {
 
     useEffect(() => {
         setInputValue(query);
-        if (query && !isLoading) {
+        if (query) {
             const currentResults = activeTab === 'people' 
                 ? (searchResultsByTab?.[activeTab] || [])
                 : (searchPostsByTab?.[activeTab] || []);
             
             // Only fetch if we don't have results for this tab yet
+            // The cleanup effect clears these results on query change, so this will be 0 on new query
             if (currentResults.length === 0) {
                 if (activeTab === 'people') {
                     const userQuery = query.startsWith('@') ? query.slice(1) : query;
@@ -84,7 +85,7 @@ const SearchPage: React.FC = () => {
                 }
             }
         }
-    }, [dispatch, query, activeTab]);
+    }, [dispatch, query, activeTab, searchPostsByTab, searchResultsByTab]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();

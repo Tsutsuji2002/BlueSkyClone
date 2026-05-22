@@ -12,7 +12,7 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useTheme } from '../../hooks/useTheme';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
 import { logout } from '../../redux/slices/authSlice';
-import { useLogoutMutation } from '../../redux/api/authApi';
+import { useLogoutMutation, useSwitchAccountMutation } from '../../redux/api/authApi';
 import Avatar from '../common/Avatar';
 import Dropdown from '../common/Dropdown';
 import { BsPatchCheckFill } from 'react-icons/bs';
@@ -46,6 +46,7 @@ const Sidebar: React.FC = () => {
     const unreadMessages = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
 
     const [logoutMutation] = useLogoutMutation();
+    const [switchMutation] = useSwitchAccountMutation();
 
     const handleLogout = async () => {
         try {
@@ -64,9 +65,22 @@ const Sidebar: React.FC = () => {
         navigate('/login');
     };
 
-    const handleSwitchAccount = (handle: string) => {
+    const handleSwitchAccount = async (account: any) => {
+        // Try instant switch if account has a token
+        if (account.refreshToken) {
+            try {
+                const data = await switchMutation({ refreshToken: account.refreshToken }).unwrap();
+                dispatch({ type: 'auth/setAuth', payload: data });
+                // We don't necessarily need to navigate, but closing the dropdown/refreshing data is good
+                dispatch(fetchUnreadCount());
+                dispatch(fetchConversations());
+                return;
+            } catch (err) {
+                console.warn('Instant switch failed, falling back to login form', err);
+            }
+        }
         // Navigate to login with the account pre-filled — current session stays alive
-        navigate('/login', { state: { prefillHandle: handle } });
+        navigate('/login', { state: { prefillHandle: account.handle } });
     };
 
     return (
@@ -134,12 +148,17 @@ const Sidebar: React.FC = () => {
                                     content: (
                                         <div className="flex items-center gap-2 px-[10px] py-2 rounded-[4px] hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
                                             <Avatar src={acc.avatar} alt={acc.displayName} size="xs" className="w-5 h-5" />
-                                            <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate flex-1">
-                                                @{acc.handle}
+                                            <div className="flex-1 min-w-0 flex flex-col items-start leading-[1.2]">
+                                                <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate w-full text-left">
+                                                    @{acc.handle}
+                                                </div>
+                                                <div className="text-[10px] text-green-500 font-medium">
+                                                    {t('auth.login.logged_in') || 'Logged in'}
+                                                </div>
                                             </div>
                                         </div>
                                     ),
-                                    onClick: () => handleSwitchAccount(acc.handle),
+                                    onClick: () => handleSwitchAccount(acc),
                                 })),
                             { h: true, id: 'divider-1' } as any,
                             // Go to profile

@@ -8,7 +8,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
 import { clearError, setAuth, removeSavedAccount } from '../../redux/slices/authSlice';
-import { useLoginMutation } from '../../redux/api/authApi';
+import { useLoginMutation, useSwitchAccountMutation } from '../../redux/api/authApi';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import ButterflyLogo from '../../components/common/ButterflyLogo';
@@ -29,6 +29,7 @@ const LoginPage: React.FC = () => {
     // Read active account synchronously from localStorage — avoids race with async Redux auth check
     const activeAccountId = AccountManager.getActiveAccountId();
     const [loginMutation, { isLoading: isMutationLoading }] = useLoginMutation();
+    const [switchMutation, { isLoading: isSwitchLoading }] = useSwitchAccountMutation();
     
     // View state: 'selector' if accounts exist, 'form' for new login
     const [view, setView] = useState<'selector' | 'form'>(savedAccounts.length > 0 ? 'selector' : 'form');
@@ -87,14 +88,28 @@ const LoginPage: React.FC = () => {
         }
     };
 
-    const handleAccountClick = (handle: string, did: string, accountId: string | number) => {
-        // If this is the currently active session, just go home — no re-login needed
-        const isActiveAccount = activeAccountId && String(accountId) === activeAccountId;
+    const handleAccountClick = async (account: any) => {
+        const isActiveAccount = activeAccountId && String(account.id) === activeAccountId;
         if (isActiveAccount) {
             navigate('/');
             return;
         }
-        setFormData({ ...formData, identifier: handle });
+
+        // Try instant switch if account has a token
+        const storedAccount = savedAccounts.find(a => a.did === account.did);
+        if (storedAccount?.refreshToken) {
+            try {
+                const data = await switchMutation({ refreshToken: storedAccount.refreshToken }).unwrap();
+                dispatch(setAuth(data));
+                navigate('/');
+                return;
+            } catch (err) {
+                console.warn('Instant switch failed, falling back to login form', err);
+                // Fallback to manual login form if token is invalid
+            }
+        }
+
+        setFormData({ ...formData, identifier: account.handle });
         setView('form');
     };
 
@@ -142,7 +157,7 @@ const LoginPage: React.FC = () => {
                                         <div key={account.did}>
                                             <div 
                                                 className="flex items-center p-4 hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer transition-colors group relative"
-                                                onClick={() => handleAccountClick(account.handle, account.did, account.id)}
+                                                onClick={() => handleAccountClick(account)}
                                             >
                                                 <div className="w-12 h-12 flex-shrink-0 mr-3">
                                                     <Avatar src={account.avatar} alt={account.displayName} size="md" />
@@ -156,10 +171,17 @@ const LoginPage: React.FC = () => {
                                                     <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">
                                                         @{account.handle}
                                                     </div>
-                                                    {/* Only show 'Logged out' if this account is NOT the active session */}
-                                                    {(!activeAccountId || String(account.id) !== activeAccountId) && (
+                                                    {activeAccountId && String(account.id) === activeAccountId ? (
+                                                        <div className="text-[11px] text-primary-500 font-bold mt-0.5">
+                                                            {t('auth.login.active_session') || 'Active'}
+                                                        </div>
+                                                    ) : account.refreshToken ? (
+                                                        <div className="text-[11px] text-green-500 font-medium mt-0.5">
+                                                            {t('auth.login.logged_in') || 'Logged in'}
+                                                        </div>
+                                                    ) : (
                                                         <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                                                            {t('auth.login.logged_out')}
+                                                            {t('auth.login.logged_out') || 'Logged out'}
                                                         </div>
                                                     )}
                                                 </div>

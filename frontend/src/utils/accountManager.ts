@@ -80,6 +80,13 @@ export const AccountManager = {
         return localStorage.getItem(ACTIVE_KEY);
     },
 
+    /** Check if an account has tokens and is resumable without re-login */
+    isAccountResumable: (did: string): boolean => {
+        const accounts = AccountManager.getAccounts();
+        const account = accounts.find(a => a.did === did);
+        return !!(account?.refreshToken);
+    },
+
     /** Clear the active marker (call on logout) */
     clearActiveAccount: () => {
         localStorage.removeItem(ACTIVE_KEY);
