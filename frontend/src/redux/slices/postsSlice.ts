@@ -14,6 +14,7 @@ const initialState: PostsState = {
     bookmarkedPosts: [],
     searchPostsByTab: {},
     searchHasMoreByTab: {},
+    searchFetchedByTab: {},
     isLoading: false,
     isThreadLoading: false,
     isRepliesLoading: false,
@@ -943,6 +944,7 @@ const postsSlice = createSlice({
         clearSearchResults: (state: PostsState) => {
             state.searchPostsByTab = {};
             state.searchHasMoreByTab = {};
+            state.searchFetchedByTab = {};
             state.posts = [];
         },
     },
@@ -1609,6 +1611,9 @@ const postsSlice = createSlice({
                 
                 if (!state.searchPostsByTab) state.searchPostsByTab = {};
                 if (!state.searchHasMoreByTab) state.searchHasMoreByTab = {};
+                if (!state.searchFetchedByTab) state.searchFetchedByTab = {};
+
+                state.searchFetchedByTab[tab] = true;
 
                 if (skip === 0) {
                     state.searchPostsByTab[tab] = action.payload.posts;
@@ -1626,9 +1631,12 @@ const postsSlice = createSlice({
                 state.searchHasMoreByTab[tab] = action.payload.posts.length > 0 && newPostsCount > 0;
                 state.hasMore = state.searchHasMoreByTab[tab]; // legacy sync
             })
-            .addCase(fetchPostsSearch.rejected, (state: PostsState, action) => {
+            .addCase(fetchPostsSearch.rejected, (state: PostsState, action: any) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+                const { tab = 'top' } = action.meta.arg;
+                if (!state.searchFetchedByTab) state.searchFetchedByTab = {};
+                state.searchFetchedByTab[tab] = true;
             })
             // Fetch Post Replies
             .addCase(fetchPostReplies.pending, (state: PostsState) => {

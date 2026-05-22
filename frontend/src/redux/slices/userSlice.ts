@@ -39,6 +39,7 @@ const initialState: UserState = {
     hasMore: true,
     searchResultsByTab: {},
     searchHasMoreByTab: {},
+    searchFetchedByTab: {},
 };
 
 export const normalizeIdentifier = (value?: string | null): string => {
@@ -731,6 +732,7 @@ const userSlice = createSlice({
         clearSearchResults: (state: UserState) => {
             state.searchResultsByTab = {};
             state.searchHasMoreByTab = {};
+            state.searchFetchedByTab = {};
             state.searchResults = [];
         },
     },
@@ -754,6 +756,9 @@ const userSlice = createSlice({
 
                 if (!state.searchResultsByTab) state.searchResultsByTab = {};
                 if (!state.searchHasMoreByTab) state.searchHasMoreByTab = {};
+                if (!state.searchFetchedByTab) state.searchFetchedByTab = {};
+
+                state.searchFetchedByTab[tab] = true;
 
                 if (skip === 0 || !skip) {
                     state.searchResultsByTab[tab] = incomingUsers;
@@ -770,9 +775,12 @@ const userSlice = createSlice({
                 state.searchHasMoreByTab[tab] = incomingUsers.length >= requestLimit;
                 state.hasMore = state.searchHasMoreByTab[tab]; // legacy sync
             })
-            .addCase(searchUsers.rejected, (state: UserState, action) => {
+            .addCase(searchUsers.rejected, (state: UserState, action: any) => {
                 state.searchLoading = false;
                 state.error = action.payload as string;
+                const { tab = 'people' } = action.meta.arg;
+                if (!state.searchFetchedByTab) state.searchFetchedByTab = {};
+                state.searchFetchedByTab[tab] = true;
             })
             // Fetch Profile
             .addCase(fetchUserProfile.pending, (state: UserState, action) => {

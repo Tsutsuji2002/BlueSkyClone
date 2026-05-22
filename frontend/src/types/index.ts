@@ -464,6 +464,7 @@ export interface PostsState {
     lastUserPostsType: string | null;
     searchPostsByTab: Record<string, Post[]>;
     searchHasMoreByTab: Record<string, boolean>;
+    searchFetchedByTab: Record<string, boolean>;
     interactionTruth: Record<string, Partial<Post>>;
 }
 
@@ -505,6 +506,7 @@ export interface UserState {
     followingHasMore: boolean;
     searchResultsByTab: Record<string, User[]>;
     searchHasMoreByTab: Record<string, boolean>;
+    searchFetchedByTab: Record<string, boolean>;
 }
 
 export interface NotificationsState {

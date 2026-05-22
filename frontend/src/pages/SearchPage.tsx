@@ -25,8 +25,8 @@ const SearchPage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
 
-    const { searchPostsByTab, searchHasMoreByTab, isLoading: isPostsLoading } = useAppSelector((state: RootState) => state.posts);
-    const { searchResultsByTab, searchHasMoreByTab: searchUsersHasMoreByTab, searchLoading: isUsersLoading } = useAppSelector((state: RootState) => state.user);
+    const { searchPostsByTab, searchHasMoreByTab, isLoading: isPostsLoading, searchFetchedByTab: postsFetchedByTab } = useAppSelector((state: RootState) => state.posts);
+    const { searchResultsByTab, searchHasMoreByTab: searchUsersHasMoreByTab, searchLoading: isUsersLoading, searchFetchedByTab: usersFetchedByTab } = useAppSelector((state: RootState) => state.user);
 
     const [inputValue, setInputValue] = useState(query);
     const limit = 20;
@@ -70,13 +70,12 @@ const SearchPage: React.FC = () => {
     useEffect(() => {
         setInputValue(query);
         if (query) {
-            const currentResults = activeTab === 'people' 
-                ? (searchResultsByTab?.[activeTab] || [])
-                : (searchPostsByTab?.[activeTab] || []);
+            const isFetched = activeTab === 'people' 
+                ? !!usersFetchedByTab?.[activeTab]
+                : !!postsFetchedByTab?.[activeTab];
             
-            // Only fetch if we don't have results for this tab yet
-            // The cleanup effect clears these results on query change, so this will be 0 on new query
-            if (currentResults.length === 0) {
+            // Only fetch if we haven't fetched for this tab yet and we aren't currently loading
+            if (!isFetched && !isLoading) {
                 if (activeTab === 'people') {
                     const userQuery = query.startsWith('@') ? query.slice(1) : query;
                     dispatch(searchUsers({ query: userQuery, skip: 0, take: limit, tab: activeTab }));
@@ -85,7 +84,7 @@ const SearchPage: React.FC = () => {
                 }
             }
         }
-    }, [dispatch, query, activeTab, searchPostsByTab, searchResultsByTab]);
+    }, [dispatch, query, activeTab, isLoading, postsFetchedByTab, usersFetchedByTab]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
