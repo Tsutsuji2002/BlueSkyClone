@@ -166,6 +166,10 @@ const authSlice = createSlice({
         removeSavedAccount: (state, action: PayloadAction<string>) => {
             AccountManager.removeAccount(action.payload);
             state.savedAccounts = AccountManager.getAccounts();
+        },
+        setSessionExpired: (state, action: PayloadAction<string>) => {
+            AccountManager.clearTokens(action.payload);
+            state.savedAccounts = AccountManager.getAccounts();
         }
     },
     extraReducers: (builder) => {

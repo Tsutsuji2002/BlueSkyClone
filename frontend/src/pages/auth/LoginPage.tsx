@@ -179,9 +179,13 @@ const LoginPage: React.FC = () => {
                                                     <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">
                                                         @{account.handle}
                                                     </div>
-                                                    {activeAccountId && String(account.id) === activeAccountId && (
-                                                        <div className="text-[11px] text-primary-500 font-bold mt-0.5">
+                                                    {activeAccountId && String(account.id) === activeAccountId ? (
+                                                        <div className="text-[11px] text-primary-500 font-bold mt-0.5 uppercase tracking-tight">
                                                             {t('auth.login.active_session') || 'Active'}
+                                                        </div>
+                                                    ) : !account.refreshToken && (
+                                                        <div className="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-0.5 uppercase tracking-tight">
+                                                            {t('auth.login.session_expired') || 'Session expired'}
                                                         </div>
                                                     )}
                                                 </div>

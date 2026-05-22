@@ -65,6 +65,16 @@ export const AccountManager = {
         }
     },
 
+    clearTokens: (did: string) => {
+        const accounts = AccountManager.getAccounts();
+        const index = accounts.findIndex(a => a.did === did);
+        if (index > -1) {
+            accounts[index].accessToken = undefined;
+            accounts[index].refreshToken = undefined;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+        }
+    },
+
     removeAccount: (did: string) => {
         const accounts = AccountManager.getAccounts().filter(a => a.did !== did);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));

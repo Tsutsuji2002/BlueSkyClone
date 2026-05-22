@@ -70,8 +70,13 @@ const AppContent: React.FC = () => {
         refreshToken: meData.refreshToken || ''
       }));
     } else if (meError) {
-      // If error (e.g. 401), we ensure state is not loading
-      dispatch(stopLoading());
+      // If error is 401, the fetchInterceptor is currently retrying or refreshing.
+      // We only stop the loading screen if it's a "terminal" error (not 401)
+      // or if the request is no longer fetching (meaning interceptor retries finished).
+      const status = (meError as any)?.status;
+      if (status !== 401 && !isMeFetching) {
+        dispatch(stopLoading());
+      }
     }
   }, [meData, meError, dispatch]);
 

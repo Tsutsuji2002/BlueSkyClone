@@ -160,8 +160,16 @@ export const setupFetchInterceptor = () => {
                 } else {
                     // Refresh failed - session really is dead.
                     const state = store.getState();
+                    const activeDid = state.auth.user?.did;
+                    
                     if (state.auth.isAuthenticated) {
                         store.dispatch(logout());
+                    }
+
+                    if (activeDid) {
+                        // Import dynamic to avoid circular dep if any, though authSlice is already imported for logout
+                        const { setSessionExpired } = require('../redux/slices/authSlice');
+                        store.dispatch(setSessionExpired(activeDid));
                     }
                 }
             }
