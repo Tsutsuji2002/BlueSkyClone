@@ -142,9 +142,16 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
     let debounceTimer: NodeJS.Timeout | null = null;
+    const lastFetchRef = { current: 0 };
 
     const fetchCounts = () => {
-        if (isAuthenticated) {
+        const isAuthPage = ['/welcome', '/login', '/signup'].includes(window.location.pathname);
+        if (isAuthenticated && !isAuthPage) {
+            const now = Date.now();
+            // Prevent fetches more often than every 10 seconds, even with focus
+            if (now - lastFetchRef.current < 10000) return;
+            
+            lastFetchRef.current = now;
             dispatch(fetchUnreadCount());
             dispatch(fetchConversations());
         }
@@ -158,8 +165,8 @@ const AppContent: React.FC = () => {
     };
 
     if (isAuthenticated) {
-        // Poll every 60s as a fallback; SignalR handles real-time badge updates
-        pollInterval = setInterval(fetchCounts, 60000);
+        // Poll every 5 minutes as a fallback; SignalR handles real-time badge updates
+        pollInterval = setInterval(fetchCounts, 300000);
     }
 
     // Fetch on tab/window return — debounced to avoid storms on rapid focus changes

@@ -197,5 +197,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount } = authSlice.actions;
+export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired } = authSlice.actions;
 export default authSlice.reducer;

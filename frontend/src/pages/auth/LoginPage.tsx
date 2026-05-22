@@ -7,7 +7,7 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
-import { clearError, setAuth, removeSavedAccount } from '../../redux/slices/authSlice';
+import { clearError, setAuth, removeSavedAccount, setSessionExpired } from '../../redux/slices/authSlice';
 import { useLoginMutation, useSwitchAccountMutation } from '../../redux/api/authApi';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
@@ -108,7 +108,6 @@ const LoginPage: React.FC = () => {
                 console.warn('Instant switch failed, falling back to login form', err);
                 const status = err?.status || err?.data?.status;
                 if (status === 401) {
-                    const { setSessionExpired } = require('../../redux/slices/authSlice');
                     dispatch(setSessionExpired(account.did));
                 }
                 // Fallback to manual login form if token is invalid

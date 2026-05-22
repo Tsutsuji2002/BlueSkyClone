@@ -16,10 +16,23 @@ export const SessionKeeper: React.FC = () => {
     const [refreshActive] = useRefreshSessionMutation();
     const [switchMutation] = useSwitchAccountMutation();
 
+    const isInitialized = React.useRef(false);
+    const prevDid = React.useRef(activeUser?.did);
+    
     useEffect(() => {
-        // Refresh active session once on mount if authenticated
-        if (isAuthenticated) {
+        // Only refresh on mount if we haven't already.
+        // Also skip if we just switched (did changed).
+        if (isAuthenticated && !isInitialized.current) {
+            console.log('[SessionKeeper] Initial mount refresh...');
             refreshActive();
+            isInitialized.current = true;
+        }
+
+        // If the DID changed, it means we just performed a Switch.
+        // The switch mutation already provided fresh tokens, so we skip the extra refresh.
+        if (activeUser?.did !== prevDid.current) {
+            console.log('[SessionKeeper] Account switched, skipping redundant refresh.');
+            prevDid.current = activeUser?.did;
         }
 
         // Background keeper interval (every 4 hours)

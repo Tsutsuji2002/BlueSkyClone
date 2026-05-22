@@ -634,7 +634,9 @@
             "sign_out": "Sign out",
             "account_label": "Account",
             "enter_details": "Enter your details",
-            "forgot_password_short": "Forgot?"
+            "forgot_password_short": "Forgot?",
+            "hero_title": "Sign in",
+            "hero_subtitle": "Select from an existing account"
         },
         "signup": {
             "title": "Create an account",
