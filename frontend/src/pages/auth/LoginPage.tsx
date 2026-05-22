@@ -14,6 +14,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import ButterflyLogo from '../../components/common/ButterflyLogo';
 import Avatar from '../../components/common/Avatar';
 import { APP_LANGUAGES } from '../../constants/languages';
+import { AccountManager } from '../../utils/accountManager';
 import { FiPlus, FiChevronRight, FiMoreVertical, FiTrash2, FiUser, FiGlobe, FiEdit } from 'react-icons/fi';
 
 const LoginPage: React.FC = () => {
@@ -24,7 +25,9 @@ const LoginPage: React.FC = () => {
     useDocumentTitle(t('auth.login.title'));
     
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
-    const { error, savedAccounts, user, isAuthenticated } = useAppSelector((state) => state.auth);
+    const { error, savedAccounts } = useAppSelector((state) => state.auth);
+    // Read active account synchronously from localStorage — avoids race with async Redux auth check
+    const activeAccountId = AccountManager.getActiveAccountId();
     const [loginMutation, { isLoading: isMutationLoading }] = useLoginMutation();
     
     // View state: 'selector' if accounts exist, 'form' for new login
@@ -70,10 +73,7 @@ const LoginPage: React.FC = () => {
 
     const handleAccountClick = (handle: string, did: string, accountId: string | number) => {
         // If this is the currently active session, just go home — no re-login needed
-        const isActiveAccount = isAuthenticated && user && (
-            (user.did && did && user.did === did) ||
-            (String(user.id) === String(accountId))
-        );
+        const isActiveAccount = activeAccountId && String(accountId) === activeAccountId;
         if (isActiveAccount) {
             navigate('/');
             return;
@@ -141,17 +141,11 @@ const LoginPage: React.FC = () => {
                                                         @{account.handle}
                                                     </div>
                                                     {/* Only show 'Logged out' if this account is NOT the active session */}
-                                                    {(() => {
-                                                        const isActiveAccount = isAuthenticated && user && (
-                                                            (user.did && account.did && user.did === account.did) ||
-                                                            (String(user.id) === String(account.id))
-                                                        );
-                                                        return !isActiveAccount ? (
-                                                            <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                                                                {t('auth.login.logged_out')}
-                                                            </div>
-                                                        ) : null;
-                                                    })()}
+                                                    {(!activeAccountId || String(account.id) !== activeAccountId) && (
+                                                        <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                                                            {t('auth.login.logged_out')}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 
                                                 <div className="flex items-center gap-2">

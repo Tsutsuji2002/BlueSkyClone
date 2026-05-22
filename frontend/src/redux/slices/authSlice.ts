@@ -147,8 +147,9 @@ const authSlice = createSlice({
             state.settings = normalizeSettings(action.payload.settings);
             state.isLoading = false;
             
-            // Save to account manager
+            // Save to account manager and mark as active
             AccountManager.saveAccount(action.payload.user);
+            AccountManager.setActiveAccount(action.payload.user);
             state.savedAccounts = AccountManager.getAccounts();
         },
         logout: (state) => {
@@ -158,7 +159,8 @@ const authSlice = createSlice({
             state.isLoading = false;
             state.error = null;
             localStorage.removeItem('home_active_tab');
-            // We don't clear savedAccounts on logout, just refresh the list from storage
+            // Clear active session marker but keep saved accounts list
+            AccountManager.clearActiveAccount();
             state.savedAccounts = AccountManager.getAccounts();
         },
         removeSavedAccount: (state, action: PayloadAction<string>) => {

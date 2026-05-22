@@ -10,6 +10,7 @@ export interface StoredAccount {
 }
 
 const STORAGE_KEY = 'bsky_saved_accounts';
+const ACTIVE_KEY = 'bsky_active_account_id';
 
 export const AccountManager = {
     getAccounts: (): StoredAccount[] => {
@@ -49,7 +50,23 @@ export const AccountManager = {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
     },
 
+    /** Mark which account is currently active (call on login success) */
+    setActiveAccount: (user: User) => {
+        localStorage.setItem(ACTIVE_KEY, String(user.id));
+    },
+
+    /** Get the stored active account id synchronously (returns null if none) */
+    getActiveAccountId: (): string | null => {
+        return localStorage.getItem(ACTIVE_KEY);
+    },
+
+    /** Clear the active marker (call on logout) */
+    clearActiveAccount: () => {
+        localStorage.removeItem(ACTIVE_KEY);
+    },
+
     clear: () => {
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(ACTIVE_KEY);
     }
 };
