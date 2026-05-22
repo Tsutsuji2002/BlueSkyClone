@@ -624,6 +624,7 @@
             "signup_now": "Đăng ký ngay",
             "back": "Quay lại",
             "error_generic": "Đăng nhập thất bại. Kiểm tra lại thông tin.",
+            "error_rate_limit": "Quá nhiều lần đăng nhập. Vui lòng chờ một chút và thử lại.",
             "sign_in_title_selector": "Đăng nhập bằng...",
             "select_existing": "Chọn một tài khoản hiện có",
             "sign_in_as": "ĐĂNG NHẬP BẰNG",

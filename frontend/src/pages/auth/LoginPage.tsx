@@ -40,6 +40,17 @@ const LoginPage: React.FC = () => {
         rememberMe: true, // Default to true for multi-account persistence
     });
 
+    // Handle pre-filling from navigation state (used for switching accounts from sidebar)
+    React.useEffect(() => {
+        const state = location.state as { prefillHandle?: string } | null;
+        if (state?.prefillHandle) {
+            setFormData(prev => ({ ...prev, identifier: state.prefillHandle! }));
+            setView('form');
+            // Clear the state once handled to prevent repeated triggers on navigation
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state, location.pathname, navigate]);
+
     const formatErrorMessage = (err: string | null) => {
         if (!err) return null;
         if (err.includes('{') && err.includes('}')) {
@@ -64,10 +75,15 @@ const LoginPage: React.FC = () => {
             dispatch(setAuth(data));
             navigate('/');
         } catch (err: any) {
-            dispatch(showToast({
-                message: formatErrorMessage(err?.data?.message || err?.message) || t('auth.login.error_generic'),
-                type: 'error'
-            }));
+            // HTTP 429 = rate limited by the server
+            const status = err?.status || err?.data?.status;
+            let message: string;
+            if (status === 429) {
+                message = t('auth.login.error_rate_limit');
+            } else {
+                message = formatErrorMessage(err?.data?.message || err?.message) || t('auth.login.error_generic');
+            }
+            dispatch(showToast({ message, type: 'error' }));
         }
     };
 

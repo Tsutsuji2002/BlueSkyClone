@@ -58,27 +58,15 @@ const Sidebar: React.FC = () => {
         }
     };
 
-    const handleAddAccount = async () => {
-        try {
-            await logoutMutation().unwrap();
-        } catch (err) {
-            console.error('Log out before add account failed:', err);
-        } finally {
-            dispatch(logout());
-            navigate('/login');
-        }
+    const handleAddAccount = () => {
+        // Navigate to login WITHOUT logging out — the current session stays alive
+        // until the new account successfully logs in (setAuth replaces the session)
+        navigate('/login');
     };
 
-    const handleSwitchAccount = async (handle: string) => {
-        try {
-            await logoutMutation().unwrap();
-        } catch (err) {
-            console.error('Switch logout failed:', err);
-        } finally {
-            dispatch(logout());
-            // Navigate to login with pre-selected account handled by LoginPage selector
-            navigate('/login');
-        }
+    const handleSwitchAccount = (handle: string) => {
+        // Navigate to login with the account pre-filled — current session stays alive
+        navigate('/login', { state: { prefillHandle: handle } });
     };
 
     return (
