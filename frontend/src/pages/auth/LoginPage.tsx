@@ -88,14 +88,14 @@ const LoginPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg flex flex-col lg:flex-row">
-            {/* Left Side - Branding (Premium look from HTML sample) */}
+            {/* Left Side - Branding (Pic 2 / Image 3 style) */}
             <div className="hidden lg:flex lg:flex-[1.2] bg-white dark:bg-dark-bg p-12 items-center justify-center border-r border-gray-100 dark:border-dark-border">
                 <div className="text-center max-w-sm">
                     <h1 className="text-[64px] font-bold text-[#0085FF] leading-tight mb-4 select-none">
-                        {view === 'selector' ? t('auth.login.sign_in_title_selector') || 'Sign in' : t('auth.login.title')}
+                        {view === 'selector' ? t('auth.login.sign_in_title_selector') : (t('auth.login.title') || 'Log in')}
                     </h1>
-                    <p className="text-[20px] text-gray-700 dark:text-dark-text-secondary font-medium">
-                        {view === 'selector' ? t('auth.login.select_existing') || 'Select from an existing account' : t('auth.login.enter_details') || 'Enter your handle and password'}
+                    <p className="text-[18px] text-gray-500 dark:text-dark-text-secondary font-medium">
+                        {view === 'selector' ? t('auth.login.select_existing') : t('auth.login.enter_details')}
                     </p>
                 </div>
             </div>
@@ -105,14 +105,14 @@ const LoginPage: React.FC = () => {
                 <div className="w-full max-w-[400px]">
                     
                     {view === 'selector' ? (
-                        /* PIC 1 & 4: Account Selector */
+                        /* PIC 1: Account Selector (Image 2) */
                         <div className="space-y-6">
                             <div>
-                                <div className="text-[13px] font-medium text-gray-500 dark:text-dark-text-secondary mb-3">
-                                    {t('auth.login.sign_in_as') || 'Sign in as...'}
+                                <div className="text-[13px] font-bold text-gray-400 dark:text-dark-text-secondary mb-3 uppercase tracking-wider">
+                                    {t('auth.login.sign_in_as') || 'auth.login.sign_in_as'}
                                 </div>
                                 
-                                <div className="border border-gray-200 dark:border-dark-border rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-dark-surface">
+                                <div className="border border-gray-100 dark:border-dark-border rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-dark-surface">
                                     {savedAccounts.map((account, index) => (
                                         <div key={account.did}>
                                             <div 
@@ -124,15 +124,15 @@ const LoginPage: React.FC = () => {
                                                 </div>
                                                 <div className="flex-1 min-w-0 mr-2 text-left">
                                                     <div className="flex items-center gap-1">
-                                                        <span className="text-[15px] font-semibold text-gray-900 dark:text-dark-text truncate">
+                                                        <span className="text-[15px] font-bold text-gray-900 dark:text-dark-text truncate">
                                                             {account.displayName}
                                                         </span>
                                                     </div>
                                                     <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">
                                                         @{account.handle}
                                                     </div>
-                                                    <div className="text-[11px] italic text-gray-400 dark:text-gray-500 mt-0.5">
-                                                        {t('auth.login.logged_out') || 'Logged out'}
+                                                    <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                                                        {t('auth.login.logged_out')}
                                                     </div>
                                                 </div>
                                                 
@@ -146,14 +146,13 @@ const LoginPage: React.FC = () => {
                                                     >
                                                         <FiMoreVertical className="text-gray-400" />
                                                     </button>
-                                                    <FiChevronRight className="text-gray-300 dark:text-dark-border" size={20} />
                                                 </div>
 
-                                                {/* Context Menu for Remove Account */}
+                                                {/* Context Menu for Remove Account (PIC 5) */}
                                                 {activeMenu === account.did && (
-                                                    <div className="absolute right-12 top-10 w-48 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl shadow-xl z-50 overflow-hidden">
+                                                    <div className="absolute right-4 top-14 w-48 bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl shadow-2xl z-50 overflow-hidden py-1">
                                                         <button 
-                                                            className="w-full flex items-center gap-3 px-4 py-3 text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                                                            className="w-full flex items-center gap-3 px-4 py-3 text-[14px] font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                                                             onClick={(e) => handleRemoveAccount(e, account.did)}
                                                         >
                                                             <FiTrash2 size={16} />
@@ -162,26 +161,26 @@ const LoginPage: React.FC = () => {
                                                     </div>
                                                 )}
                                             </div>
-                                            {index < savedAccounts.length && (
-                                                <div className="border-b border-gray-100 dark:border-dark-border mx-4" />
+                                            {index < savedAccounts.length - 0 && (
+                                                <div className="border-b border-gray-50 dark:border-dark-border/50 mx-0" />
                                             )}
                                         </div>
                                     ))}
 
-                                    {/* Add Another Account Row */}
+                                    {/* Other Account Row (Pic 1 Style) */}
                                     <button 
-                                        className="w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors group"
+                                        className="w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors group border-t border-gray-50 dark:border-dark-border"
                                         onClick={() => {
                                             setFormData({ identifier: '', password: '', rememberMe: true });
                                             setView('form');
                                         }}
                                     >
                                         <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-border flex items-center justify-center mr-3 group-hover:bg-gray-200 dark:group-hover:bg-dark-hover-darker transition-colors">
-                                            <FiPlus className="text-gray-500" size={20} />
+                                            <FiPlus className="text-gray-400" size={24} />
                                         </div>
                                         <div className="flex-1 text-left">
-                                            <span className="text-[15px] font-semibold text-gray-900 dark:text-dark-text">
-                                                {t('auth.login.other_account') || 'Other account'}
+                                            <span className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
+                                                {t('auth.login.other_account')}
                                             </span>
                                         </div>
                                         <FiChevronRight className="text-gray-300 dark:text-dark-border" size={20} />
@@ -189,26 +188,28 @@ const LoginPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => navigate('/welcome')}
-                                className="px-6 py-3 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-gray-600 dark:text-dark-text-secondary font-semibold rounded-full transition-colors text-[15px]"
-                            >
-                                {t('auth.login.back') || 'Back'}
-                            </button>
+                            <div className="flex justify-start">
+                                <button
+                                    onClick={() => navigate('/welcome')}
+                                    className="px-6 py-2.5 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-gray-900 dark:text-dark-text font-bold rounded-full transition-colors text-[15px]"
+                                >
+                                    {t('auth.login.back') || 'Back'}
+                                </button>
+                            </div>
                         </div>
                     ) : (
-                        /* PIC 2: Login Form */
+                        /* PIC 2: Login Form (Image 3) */
                         <div className="space-y-6">
-                            {/* Hosting Provider (Styled like Pic 2) */}
+                            {/* Hosting Provider Row */}
                             <div className="space-y-2">
-                                <label className="text-[13px] font-medium text-gray-500 dark:text-dark-text-secondary">
-                                    {t('auth.signup.hosting_provider') || 'Hosting Provider'}
+                                <label className="text-[13px] font-bold text-gray-400 dark:text-dark-text-secondary uppercase tracking-wider">
+                                    {t('auth.signup.hosting_provider')}
                                 </label>
-                                <div className="flex items-center gap-2 p-3 bg-gray-100 dark:bg-dark-surface rounded-xl border border-transparent hover:border-[#0085FF]/30 transition-all cursor-not-allowed">
+                                <div className="flex items-center gap-3 p-4 bg-gray-100 dark:bg-dark-surface rounded-2xl border border-transparent shadow-sm">
                                     <FiGlobe className="text-gray-500" size={20} />
-                                    <span className="flex-1 text-[15px] text-gray-900 dark:text-dark-text">Bluesky Social</span>
-                                    <div className="bg-gray-200 dark:bg-dark-border p-1.5 rounded-lg">
-                                        <FiEdit className="text-gray-500" size={14} />
+                                    <span className="flex-1 text-[16px] font-bold text-gray-900 dark:text-dark-text">Bluesky Social</span>
+                                    <div className="bg-gray-200 dark:bg-dark-border p-1.5 rounded-lg cursor-not-allowed">
+                                        <FiEdit className="text-gray-500" size={16} />
                                     </div>
                                 </div>
                             </div>

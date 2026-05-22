@@ -115,19 +115,19 @@ const Sidebar: React.FC = () => {
                             </button>
                         }
                         items={[
-                            // Current Active User (Header style)
+                            // Current Active User (Pic 4 / Image 1 style)
                             {
                                 id: 'active-user',
                                 content: (
-                                    <div className="px-3 py-2 border-b border-gray-100 dark:border-dark-border">
+                                    <div className="px-4 py-3 border-b border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-surface/30">
                                         <div className="flex items-center gap-3">
-                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="sm" />
+                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="md" />
                                             <div className="min-w-0">
-                                                <div className="text-sm font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName}</div>
-                                                <div className="text-xs text-gray-500 truncate">@{user.handle}</div>
-                                            </div>
-                                            <div className="ml-auto">
-                                                <BsPatchCheckFill className="text-blue-500" size={16} />
+                                                <div className="text-[15px] font-bold text-gray-900 dark:text-dark-text truncate flex items-center gap-1">
+                                                    {user.displayName}
+                                                    {user.isVerified && <BsPatchCheckFill className="text-blue-500" size={14} />}
+                                                </div>
+                                                <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">@{user.handle}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -143,8 +143,8 @@ const Sidebar: React.FC = () => {
                                         <div className="flex items-center gap-3">
                                             <Avatar src={acc.avatar} alt={acc.displayName} size="sm" />
                                             <div className="min-w-0">
-                                                <div className="text-sm font-medium text-gray-700 dark:text-dark-text truncate">{acc.displayName}</div>
-                                                <div className="text-xs text-gray-500 truncate">@{acc.handle}</div>
+                                                <div className="text-[14px] font-bold text-gray-700 dark:text-dark-text truncate">{acc.displayName}</div>
+                                                <div className="text-[12px] text-gray-500 dark:text-dark-text-secondary truncate">@{acc.handle}</div>
                                             </div>
                                         </div>
                                     ),
@@ -153,14 +153,14 @@ const Sidebar: React.FC = () => {
                             { h: true, id: 'divider-1' } as any, // Divider
                             {
                                 id: 'add-account',
-                                label: t('settings.add_account') as string,
-                                icon: <FiPlus />,
+                                label: t('auth.login.other_account') || 'Add another account',
+                                icon: <FiPlus className="text-[20px]" />,
                                 onClick: handleAddAccount,
                             },
                             {
                                 id: 'logout',
-                                label: `${t('auth.signup.logout_full')} @${user.handle}` as string,
-                                icon: <FiLogOut />,
+                                label: (t('auth.signup.logout_full') || 'Sign out') + ` @${user.handle}`,
+                                icon: <FiLogOut className="text-[20px]" />,
                                 onClick: handleLogout,
                             },
                         ]}
