@@ -940,15 +940,6 @@ const postsSlice = createSlice({
         seedInteractionTruth: (state, action: PayloadAction<Post[]>) => {
             syncPostsWithTruth(state, action.payload);
         },
-        /*
-468:         receiveGlobalPost: (state, action: PayloadAction<Post>) => {
-469:             const newPost = action.payload;
-470:             // Add to discover/trending if not exists
-471:             if (!state.discoverPosts.some(p => p.uri === newPost.uri)) {
-472:                 state.discoverPosts = [newPost, ...state.discoverPosts];
-473:             }
-474:         }
-475:         },
         clearSearchResults: (state: PostsState) => {
             state.searchPostsByTab = {};
             state.searchHasMoreByTab = {};
