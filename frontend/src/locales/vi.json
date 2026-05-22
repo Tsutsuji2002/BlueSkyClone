@@ -631,7 +631,10 @@
             "logged_out": "Đã đăng xuất",
             "remove_account": "Xóa tài khoản",
             "switch_account": "Chuyển tài khoản",
-            "sign_out": "Đăng xuất"
+            "sign_out": "Đăng xuất",
+            "account_label": "Tài khoản",
+            "enter_details": "Nhập thông tin của bạn",
+            "forgot_password_short": "Quên?"
         },
         "signup": {
             "title": "Tạo tài khoản",
@@ -640,6 +643,7 @@
             "your_account": "Tài khoản của bạn",
             "creating_on": "Bạn đang tạo tài khoản trên",
             "hosting_provider_name": "Bluesky Social",
+            "hosting_provider": "Nhà cung cấp dịch vụ",
             "email_label": "Email",
             "email_placeholder": "Địa chỉ email của bạn",
             "password_label": "Mật khẩu",

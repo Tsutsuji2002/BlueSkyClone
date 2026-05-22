@@ -630,7 +630,10 @@
             "logged_out": "Logged out",
             "remove_account": "Remove account",
             "switch_account": "Switch account",
-            "sign_out": "Sign out"
+            "sign_out": "Sign out",
+            "account_label": "Account",
+            "enter_details": "Enter your details",
+            "forgot_password_short": "Forgot?"
         },
         "signup": {
             "title": "Create an account",
@@ -639,6 +642,7 @@
             "your_account": "Your account",
             "creating_on": "You are creating an account on",
             "hosting_provider_name": "Bluesky Social",
+            "hosting_provider": "Hosting provider",
             "email_label": "Email",
             "email_placeholder": "Enter your email address",
             "password_label": "Password",

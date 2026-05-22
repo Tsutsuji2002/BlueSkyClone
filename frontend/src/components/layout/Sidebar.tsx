@@ -119,7 +119,7 @@ const Sidebar: React.FC = () => {
                             {
                                 id: 'header',
                                 content: (
-                                    <div className="text-[13.1px] tracking-[0.25px] text-[#8798B0] font-semibold px-[10px] py-2 leading-[17px] select-none">
+                                    <div className="text-[13.1px] tracking-[0.25px] text-[#8798B0] font-semibold px-[10px] py-1 leading-[17px] select-none">
                                         {t('auth.login.switch_account')}
                                     </div>
                                 ),

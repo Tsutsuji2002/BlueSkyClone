@@ -24,7 +24,7 @@ const LoginPage: React.FC = () => {
     useDocumentTitle(t('auth.login.title'));
     
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
-    const { error, savedAccounts } = useAppSelector((state) => state.auth);
+    const { error, savedAccounts, user, isAuthenticated } = useAppSelector((state) => state.auth);
     const [loginMutation, { isLoading: isMutationLoading }] = useLoginMutation();
     
     // View state: 'selector' if accounts exist, 'form' for new login
@@ -131,9 +131,12 @@ const LoginPage: React.FC = () => {
                                                     <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">
                                                         @{account.handle}
                                                     </div>
-                                                    <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                                                        {t('auth.login.logged_out')}
-                                                    </div>
+                                                    {/* Only show 'Logged out' if this account is NOT the active session */}
+                                                    {(!isAuthenticated || user?.did !== account.did) && (
+                                                        <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                                                            {t('auth.login.logged_out')}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 
                                                 <div className="flex items-center gap-2">
@@ -216,7 +219,7 @@ const LoginPage: React.FC = () => {
 
                             <div className="space-y-6">
                                 <h2 className="text-[13px] font-medium text-gray-500 dark:text-dark-text-secondary -mb-4">
-                                    {t('auth.login.account_label') || 'Account'}
+                                    {t('auth.login.account_label')}
                                 </h2>
 
                                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -263,7 +266,7 @@ const LoginPage: React.FC = () => {
                                             type="button"
                                             className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-200 dark:bg-dark-border hover:bg-gray-300 dark:hover:bg-dark-hover-darker px-3 py-1.5 rounded-lg text-[13px] font-medium text-gray-600 dark:text-dark-text-secondary transition-colors"
                                         >
-                                            {t('auth.login.forgot_password_short') || 'Forgot?'}
+                                            {t('auth.login.forgot_password_short')}
                                         </button>
                                     </div>
 
