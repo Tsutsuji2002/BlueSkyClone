@@ -43,14 +43,14 @@ async function tryRefreshToken(): Promise<boolean> {
     console.log('[FetchInterceptor] Starting fresh session refresh...');
     isRefreshing = true;
 
-    // Use a race to ensure we don't hang indefinitely
+    // Use a race to ensure we don't hang indefinitely. 15s is plenty even for slow connections.
     const refreshTimeout = new Promise<boolean>((resolve) => {
         setTimeout(() => {
             if (isRefreshing) {
-                console.warn('[FetchInterceptor] Refresh attempt TIMED OUT after 30s.');
+                console.warn('[FetchInterceptor] Refresh attempt TIMED OUT after 15s.');
                 resolve(false);
             }
-        }, 30000);
+        }, 15000);
     });
 
     const refreshActual = (async () => {

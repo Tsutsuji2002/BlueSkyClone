@@ -77,15 +77,7 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     sessionStorage.removeItem('chunk_reload_count');
-    
-    const fallbackTimer = setTimeout(() => {
-        dispatch(stopLoading());
-    }, 10000);
-
-    return () => {
-        clearTimeout(fallbackTimer);
-    };
-}, [dispatch]);
+  }, []);
 
   // Unified SignalR Lifecycle with Debouncing
   useEffect(() => {
@@ -95,30 +87,35 @@ const AppContent: React.FC = () => {
     }
 
     if (isAuthenticated) {
-        console.log('[App] Authenticated: Starting SignalR...');
-        signalrService.startConnection();
-        postSignalrService.startConnection();
-
-        // Monitor SignalR connection status
-        const statusCallback = (status: HubStatus) => {
-            if (status === HubStatus.Disconnected) {
-                dispatch({
-                    type: 'toast/showToast',
-                    payload: { message: t('common.signalr.disconnected'), type: 'error' }
-                });
-            } else if (status === HubStatus.Reconnecting) {
-                dispatch({
-                    type: 'toast/showToast',
-                    payload: { message: t('common.signalr.reconnecting'), type: 'info' }
-                });
-            }
-        };
-
-        signalrService.onStatusChange(statusCallback);
+        console.log('[App] Authenticated: Starting background services in 2s...');
         
-        // Initial fetch
-        dispatch(fetchUnreadCount());
-        dispatch(fetchConversations());
+        signalrTimerRef.current = setTimeout(() => {
+            console.log('[App] Starting connections after grace period.');
+            signalrService.startConnection();
+            postSignalrService.startConnection();
+
+            // Monitor SignalR connection status
+            const statusCallback = (status: HubStatus) => {
+                if (status === HubStatus.Disconnected) {
+                    dispatch({
+                        type: 'toast/showToast',
+                        payload: { message: t('common.signalr.disconnected'), type: 'error' }
+                    });
+                } else if (status === HubStatus.Reconnecting) {
+                    dispatch({
+                        type: 'toast/showToast',
+                        payload: { message: t('common.signalr.reconnecting'), type: 'info' }
+                    });
+                }
+            };
+
+            signalrService.onStatusChange(statusCallback);
+            
+            // Initial fetch of background data
+            dispatch(fetchUnreadCount());
+            dispatch(fetchConversations());
+            signalrTimerRef.current = null;
+        }, 2000);
     } else {
         console.log('[App] Unauthenticated: Stopping SignalR in 1s grace period...');
         signalrTimerRef.current = setTimeout(() => {

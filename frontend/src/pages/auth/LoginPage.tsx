@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
     useDocumentTitle(t('auth.login.title'));
     
     const appLanguage = useAppSelector((state) => state.language.appLanguage);
-    const { error, savedAccounts } = useAppSelector((state) => state.auth);
+    const { error, savedAccounts, isAuthenticated } = useAppSelector((state) => state.auth);
     // Read active account synchronously from localStorage — avoids race with async Redux auth check
     const activeAccountId = AccountManager.getActiveAccountId();
     const [loginMutation, { isLoading: isMutationLoading }] = useLoginMutation();
@@ -119,6 +119,13 @@ const LoginPage: React.FC = () => {
         dispatch(removeSavedAccount(did));
         setActiveMenu(null);
     };
+
+    // Auto-redirect if already authenticated (e.g. from App.tsx session restore)
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/', { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
 
     // If accounts are empty and we are in selector view, switch to form
     useEffect(() => {
