@@ -75,11 +75,11 @@ const HomePage: React.FC = () => {
     const isInitialLoading = (feedsLoading || authLoading || (isAuthenticated && subscribedFeeds.length === 0)) && !hasAnyData;
 
     useEffect(() => {
-        if (!authLoading && subscribedFeeds.length === 0) {
+        if (!authLoading && isAuthenticated && subscribedFeeds.length === 0) {
             dispatch(fetchSubscribedFeeds());
             dispatch(fetchPinnedLists());
         }
-    }, [dispatch, authLoading, subscribedFeeds.length]);
+    }, [dispatch, authLoading, isAuthenticated, subscribedFeeds.length]);
 
     useEffect(() => {
         if (!activeTab) return;
@@ -182,17 +182,18 @@ const HomePage: React.FC = () => {
     }, [subscribedFeeds]);
 
     const visibleHomeFeeds = useMemo(() => {
-        if (pinnedHomeFeeds.length > 0) {
-            return pinnedHomeFeeds;
-        }
-
+        // If authenticated, show pinned feeds or defaults
         if (isAuthenticated) {
+            if (pinnedHomeFeeds.length > 0) {
+                return pinnedHomeFeeds;
+            }
             return [
                 { id: 'following', handle: 'following', name: 'Following' } as FeedType,
                 { id: 'discover', handle: 'discover', name: 'Discover' } as FeedType,
             ];
         }
 
+        // Guests ONLY see Discover
         return [
             { id: 'discover', handle: 'discover', name: t('nav.discover') } as FeedType,
         ];

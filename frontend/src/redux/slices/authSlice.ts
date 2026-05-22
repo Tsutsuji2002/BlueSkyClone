@@ -162,6 +162,10 @@ const authSlice = createSlice({
             // Clear active session marker but keep saved accounts list
             AccountManager.clearActiveAccount();
             state.savedAccounts = AccountManager.getAccounts();
+            
+            // We can't dispatch resetApiState directly here, 
+            // but we can rely on components or a middleware to react.
+            // Actually, the best way is to do it in the App.tsx or use a listener.
         },
         removeSavedAccount: (state, action: PayloadAction<string>) => {
             AccountManager.removeAccount(action.payload);

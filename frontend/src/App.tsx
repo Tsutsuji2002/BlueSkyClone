@@ -25,7 +25,7 @@ import { RootState } from './redux/store';
 import { useAppDispatch } from './hooks/useAppDispatch';
 import { stopLoading, setAuth, logout } from './redux/slices/authSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
-import { useGetMeQuery } from './redux/api/authApi';
+import { useGetMeQuery, authApi } from './redux/api/authApi';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
 import signalrService, { HubStatus } from './services/signalrService';
@@ -216,6 +216,19 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     dispatch(closeAllModals());
   }, [location.pathname, dispatch]);
+
+  // Prevent "Ghost" states: Clear caches when transitioning from logged-in to logged-out
+  const prevAuth = React.useRef(isAuthenticated);
+  useEffect(() => {
+    if (prevAuth.current && !isAuthenticated) {
+        console.log('[App] Auth lost: Clearing caches to prevent ghost data.');
+        dispatch(authApi.util.resetApiState());
+        // For other API slices like userApi, postsApi if they have their own cache:
+        // dispatch(userApi.util.resetApiState());
+        // dispatch(postsApi.util.resetApiState());
+    }
+    prevAuth.current = isAuthenticated;
+  }, [isAuthenticated, dispatch]);
 
   if (isLoading && !isAuthenticated) {
     return <LoadingScreen />;
