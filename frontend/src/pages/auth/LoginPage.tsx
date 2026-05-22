@@ -101,6 +101,7 @@ const LoginPage: React.FC = () => {
             try {
                 const data = await switchMutation({ refreshToken: storedAccount.refreshToken }).unwrap();
                 dispatch(setAuth(data));
+                dispatch(showToast({ message: `Signed in as @${account.handle}`, type: 'success' }));
                 navigate('/');
                 return;
             } catch (err) {
@@ -171,17 +172,9 @@ const LoginPage: React.FC = () => {
                                                     <div className="text-[13px] text-gray-500 dark:text-dark-text-secondary truncate">
                                                         @{account.handle}
                                                     </div>
-                                                    {activeAccountId && String(account.id) === activeAccountId ? (
+                                                    {activeAccountId && String(account.id) === activeAccountId && (
                                                         <div className="text-[11px] text-primary-500 font-bold mt-0.5">
                                                             {t('auth.login.active_session') || 'Active'}
-                                                        </div>
-                                                    ) : account.refreshToken ? (
-                                                        <div className="text-[11px] text-green-500 font-medium mt-0.5">
-                                                            {t('auth.login.logged_in') || 'Logged in'}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                                                            {t('auth.login.logged_out') || 'Logged out'}
                                                         </div>
                                                     )}
                                                 </div>

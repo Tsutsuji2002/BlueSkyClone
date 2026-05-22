@@ -71,7 +71,16 @@ const Sidebar: React.FC = () => {
             try {
                 const data = await switchMutation({ refreshToken: account.refreshToken }).unwrap();
                 dispatch({ type: 'auth/setAuth', payload: data });
-                // We don't necessarily need to navigate, but closing the dropdown/refreshing data is good
+                
+                // Show notification like pic 2
+                dispatch({
+                    type: 'toast/showToast',
+                    payload: { 
+                        message: `Signed in as @${account.handle}`, 
+                        type: 'success'
+                    }
+                });
+
                 dispatch(fetchUnreadCount());
                 dispatch(fetchConversations());
                 return;
@@ -148,12 +157,9 @@ const Sidebar: React.FC = () => {
                                     content: (
                                         <div className="flex items-center gap-2 px-[10px] py-2 rounded-[4px] hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
                                             <Avatar src={acc.avatar} alt={acc.displayName} size="xs" className="w-5 h-5" />
-                                            <div className="flex-1 min-w-0 flex flex-col items-start leading-[1.2]">
+                                            <div className="flex-1 min-w-0">
                                                 <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate w-full text-left">
                                                     @{acc.handle}
-                                                </div>
-                                                <div className="text-[10px] text-green-500 font-medium">
-                                                    {t('auth.login.logged_in') || 'Logged in'}
                                                 </div>
                                             </div>
                                         </div>
