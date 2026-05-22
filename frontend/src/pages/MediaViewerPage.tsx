@@ -446,7 +446,7 @@ const MediaViewerPage: React.FC = () => {
                                 key={item.id}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    item.onClick();
+                                    item.onClick?.();
                                     setShowShareMenu(false);
                                 }}
                                 className="w-full text-left py-4 px-4 flex items-center gap-4 text-[17px] font-semibold text-gray-900 dark:text-dark-text border-b border-gray-50 dark:border-dark-border active:bg-gray-100 dark:active:bg-dark-surface"
