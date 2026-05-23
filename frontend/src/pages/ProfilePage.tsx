@@ -48,8 +48,20 @@ const ProfilePage: React.FC = () => {
     const isProfileLoading = useAppSelector((state: RootState) => state.user.isLoading);
     const profileError = useAppSelector((state: RootState) => state.user.error);
     const userLists = useAppSelector((state: RootState) => state.lists.userLists);
+    const isListsLoading = useAppSelector((state: RootState) => state.lists.userListsLoading);
+    
+    console.log('[ProfilePage] Tab Debug:', {
+        handle,
+        isOwnProfile: currentUser?.did === profileUser?.did,
+        userListsLength: userLists?.length,
+        isListsLoading,
+        isProfileLoading,
+        currentUserDid: currentUser?.did,
+        profileUserDid: profileUser?.did
+    });
+    const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
+    const isUserFeedsLoading = useAppSelector((state: RootState) => state.feeds.userFeedsLoading);
     const pinnedFeedIds = useAppSelector((state: RootState) => state.feeds.pinnedFeedIds);
-    const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
     const actionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
     const activeProfileTab = useAppSelector((state: RootState) => state.user.activeProfileTab);
     const {
@@ -72,8 +84,6 @@ const ProfilePage: React.FC = () => {
         return [pinned, ...reduxPosts.filter(p => (p.uri || p.id) !== (pinned.uri || pinned.id))];
     }, [reduxPosts, activeTab, profileUser?.pinnedPost]);
 
-    const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
-    const isUserFeedsLoading = useAppSelector((state: RootState) => state.feeds.userFeedsLoading);
     const observerTarget = React.useRef(null);
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -98,6 +108,7 @@ const ProfilePage: React.FC = () => {
         if (isSameProfile) {
             lastFetchedHandle.current = handle;
             if (handle) {
+                // Ensure fresh fetch even if profile is same
                 dispatch(fetchUserFeeds(handle));
                 dispatch(fetchUserLists(handle));
             }
@@ -615,8 +626,12 @@ const ProfilePage: React.FC = () => {
                             <div className="flex w-full px-2">
                                 {PROFILE_TABS.filter(tab => {
                                     if (isOwnProfile) return true;
-                                    if (tab.id === 'feeds') return userFeeds.length > 0 || isUserFeedsLoading;
-                                    if (tab.id === 'lists') return userLists.length > 0 || isListsLoading;
+                                    if (tab.id === 'feeds') {
+                                        return (userFeeds && userFeeds.length > 0) || isUserFeedsLoading || isProfileLoading;
+                                    }
+                                    if (tab.id === 'lists') {
+                                        return (userLists && userLists.length > 0) || isListsLoading || isProfileLoading;
+                                    }
                                     return true;
                                 }).map((tab: { id: string; label: string }) => (
                                     <button
@@ -643,8 +658,8 @@ const ProfilePage: React.FC = () => {
                     <div className="flex-1 bg-white dark:bg-dark-bg min-h-screen">
                         {PROFILE_TABS.filter(tab => {
                             if (isOwnProfile) return true;
-                            if (tab.id === 'feeds') return userFeeds.length > 0;
-                            if (tab.id === 'lists') return userLists.length > 0;
+                            if (tab.id === 'feeds') return (userFeeds && userFeeds.length > 0) || isUserFeedsLoading || isProfileLoading;
+                            if (tab.id === 'lists') return (userLists && userLists.length > 0) || isListsLoading || isProfileLoading;
                             return true;
                         }).map((tab: any) => {
                             if (!visitedTabs.has(tab.id)) return null;

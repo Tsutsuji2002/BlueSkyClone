@@ -17,6 +17,7 @@ interface ListsState {
     candidatePosts: Post[]; // For adding posts
     activeListFeed: Post[];
     isLoading: boolean;
+    userListsLoading: boolean;
     hasMoreFeed: boolean;
     error: string | null;
     lastFetchDid: string;
@@ -35,6 +36,7 @@ const initialState: ListsState = {
     candidatePosts: [],
     activeListFeed: [],
     isLoading: false,
+    userListsLoading: false,
     hasMoreFeed: true,
     error: null,
     lastFetchDid: localStorage.getItem('lists_last_did') || '',
@@ -548,15 +550,15 @@ const listsSlice = createSlice({
 
         // Fetch User Lists
         builder.addCase(fetchUserLists.pending, (state) => {
-            state.isLoading = true;
+            state.userListsLoading = true;
             state.error = null;
         });
         builder.addCase(fetchUserLists.fulfilled, (state, action) => {
-            state.isLoading = false;
+            state.userListsLoading = false;
             state.userLists = action.payload;
         });
         builder.addCase(fetchUserLists.rejected, (state, action) => {
-            state.isLoading = false;
+            state.userListsLoading = false;
             state.error = action.payload as string;
         });
 
