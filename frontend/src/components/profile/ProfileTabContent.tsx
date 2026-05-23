@@ -38,9 +38,22 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     const isFetchingRef = useRef(false);
     const sentinelRef = useRef<HTMLDivElement>(null);
 
+    // Feeds and Lists from Redux
+    const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
+    const userLists = useAppSelector((state: RootState) => state.lists.userLists);
+    const isUserFeedsLoading = useAppSelector((state: RootState) => state.feeds.userFeedsLoading);
+    const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
+
     const fetchBatch = useCallback(async (isInitial = false) => {
         if (!isInitial && (!hasMore || loading)) return;
         if (isFetchingRef.current) return;
+
+        // Skip internal fetch if using Redux-managed lists/feeds
+        if (type === 'feeds' || type === 'lists') {
+            setInitialLoading(false);
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
         isFetchingRef.current = true;
@@ -50,7 +63,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         }
 
         try {
-            // We use HttpOnly cookies, so no manual Authorization header is needed
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json'
             };
@@ -73,7 +85,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     const data = await response.json();
                     fetchedItems = Array.isArray(data) ? data : (data.posts || []);
                     
-                    // Interaction hydration now relies on cookies
                     if (fetchedItems.length > 0) {
                         fetchedItems = await hydratePostsWithInteractionStatus(fetchedItems);
                     }
@@ -85,35 +96,13 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     }
                     nextCursor = data.cursor || null;
                 }
-            } else if (type === 'lists') {
-                // Use XRPD getLists which we know works and proxies to Bluesky
-                const response = await fetch(`/xrpc/app.bsky.graph.getLists?actor=${encodeURIComponent(userId)}&limit=50`, { 
-                    headers,
-                    credentials: 'include' 
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    fetchedItems = data.lists || [];
-                    nextCursor = data.cursor || null;
-                }
-            } else if (type === 'feeds') {
-                const response = await fetch(`${API_BASE_URL}/feeds/actor/${encodeURIComponent(userId)}`, { headers });
-                if (response.ok) {
-                    const data = await response.json();
-                    fetchedItems = Array.isArray(data) ? data : (data.feeds || []);
-                    // Manual pagination if needed, but usually actor feeds are small
-                    nextCursor = null; 
-                }
             }
 
             if (type === 'likes') {
                 fetchedItems.forEach(p => { p.isLiked = true; });
             }
 
-            // Seed interactionTruth in Redux so PostCard reads the correct
-            // isLiked / isReposted / isBookmarked from the backend-enriched data,
-            // overwriting any stale entries from earlier timeline loads.
-            if (type !== 'lists' && fetchedItems.length > 0) {
+            if (type !== 'lists' && type !== 'feeds' && fetchedItems.length > 0) {
                 dispatch(seedInteractionTruth(fetchedItems));
             }
 
@@ -220,7 +209,10 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         }
     };
 
-    if ((type === 'lists' || type === 'feeds') && initialLoading) {
+    const displayItems = type === 'feeds' ? userFeeds : type === 'lists' ? userLists : items;
+    const isDisplayLoading = type === 'feeds' ? isUserFeedsLoading : type === 'lists' ? isListsLoading : initialLoading;
+
+    if ((type === 'lists' || type === 'feeds') && isDisplayLoading && displayItems.length === 0) {
         return (
             <div className="flex items-center justify-center py-20">
                 <LoadingIndicator size="md" />
@@ -228,7 +220,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         );
     }
 
-    if ((type === 'lists' || type === 'feeds') && items.length === 0) {
+    if ((type === 'lists' || type === 'feeds') && displayItems.length === 0) {
         const Icon = type === 'lists' ? FiList : FiRss;
         return (
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -243,7 +235,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     if (type === 'lists' || type === 'feeds') {
         return (
             <div className="divide-y divide-gray-200 dark:divide-dark-border border-b border-gray-200 dark:border-dark-border">
-                {items.map(item => {
+                {displayItems.map(item => {
                     const rkey = item.uri?.split('/').pop();
                     const creatorHandle = item.creator?.handle || item.handle || userId;
                     const itemId = item.uri || item.id;

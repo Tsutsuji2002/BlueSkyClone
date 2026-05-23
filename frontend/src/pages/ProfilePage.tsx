@@ -94,13 +94,17 @@ const ProfilePage: React.FC = () => {
 
         const isSameProfile = profileMatchesIdentifier(profileUser, handle);
         
-        // Skip if already loaded in Redux (e.g. from a previous visit or background fetch)
+        // Skip profile fetch if already loaded, but ALWAYS ensure feeds/lists are fresh
         if (isSameProfile) {
             lastFetchedHandle.current = handle;
+            if (profileUser?.did) {
+                dispatch(fetchUserFeeds(profileUser.did));
+                dispatch(fetchUserLists(profileUser.did));
+            }
             return;
         }
         
-        // Trigger fresh fetch
+        // Trigger fresh profile fetch
         lastFetchedHandle.current = handle;
         dispatch(clearProfile());
         dispatch(clearPosts());
@@ -611,8 +615,8 @@ const ProfilePage: React.FC = () => {
                             <div className="flex w-full px-2">
                                 {PROFILE_TABS.filter(tab => {
                                     if (isOwnProfile) return true;
-                                    if (tab.id === 'feeds') return userFeeds.length > 0;
-                                    if (tab.id === 'lists') return userLists.length > 0;
+                                    if (tab.id === 'feeds') return userFeeds.length > 0 || isUserFeedsLoading;
+                                    if (tab.id === 'lists') return userLists.length > 0 || isListsLoading;
                                     return true;
                                 }).map((tab: { id: string; label: string }) => (
                                     <button

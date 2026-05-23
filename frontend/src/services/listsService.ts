@@ -22,7 +22,7 @@ const listService = {
     },
 
     getUserLists: async (userId: string) => {
-        const response = await api.get<ListDto[]>(`/lists/user/${userId}`);
+        const response = await api.get<ListDto[]>(`/lists/user/${encodeURIComponent(userId)}`);
         return response.data;
     },
 
