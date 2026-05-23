@@ -22,10 +22,20 @@ interface ListsState {
 }
 
 const initialState: ListsState = {
-    myLists: [],
+    myLists: (() => {
+        try {
+            const cached = localStorage.getItem('lists_my');
+            return cached ? JSON.parse(cached) : [];
+        } catch (e) { return []; }
+    })(),
     userLists: [],
     listsIAmOn: [],
-    pinnedLists: [],
+    pinnedLists: (() => {
+        try {
+            const cached = localStorage.getItem('lists_pinned');
+            return cached ? JSON.parse(cached) : [];
+        } catch (e) { return []; }
+    })(),
     activeList: null,
     activeListMembers: [],
     candidateMembers: [],
@@ -396,6 +406,13 @@ const listsSlice = createSlice({
         },
         clearCandidatePosts: (state) => {
             state.candidatePosts = [];
+        },
+        clearLists: (state) => {
+            state.myLists = [];
+            state.pinnedLists = [];
+            state.activeListFeed = [];
+            localStorage.removeItem('lists_my');
+            localStorage.removeItem('lists_pinned');
         }
     },
     extraReducers: (builder) => {
@@ -409,6 +426,7 @@ const listsSlice = createSlice({
         builder.addCase(fetchMyLists.fulfilled, (state, action) => {
             state.isLoading = false;
             state.myLists = action.payload;
+            localStorage.setItem('lists_my', JSON.stringify(action.payload));
         });
         builder.addCase(fetchMyLists.rejected, (state, action) => {
             state.isLoading = false;
@@ -418,6 +436,7 @@ const listsSlice = createSlice({
         // Fetch Pinned Lists
         builder.addCase(fetchPinnedLists.fulfilled, (state, action) => {
             state.pinnedLists = action.payload;
+            localStorage.setItem('lists_pinned', JSON.stringify(action.payload));
         });
 
         // Create List
@@ -469,6 +488,7 @@ const listsSlice = createSlice({
             const list = state.myLists.find(l => l.id === action.payload);
             if (list) list.isPinned = false;
             state.pinnedLists = state.pinnedLists.filter(l => l.id !== action.payload);
+            localStorage.setItem('lists_pinned', JSON.stringify(state.pinnedLists));
         });
 
         // Members
@@ -746,10 +766,18 @@ const listsSlice = createSlice({
 
                 updateAuthor(state.activeListFeed);
                 updateAuthor(state.candidatePosts);
-            }
-        );
+            })
+            .addMatcher(
+                (action) => action.type === 'auth/logout',
+                (state: ListsState) => {
+                    state.myLists = [];
+                    state.pinnedLists = [];
+                    state.activeListFeed = [];
+                    localStorage.removeItem('lists_pinned');
+                }
+            );
     }
 });
 
-export const { clearActiveList, clearCandidates, clearCandidatePosts } = listsSlice.actions;
+export const { clearActiveList, clearCandidates, clearCandidatePosts, clearLists } = listsSlice.actions;
 export default listsSlice.reducer;

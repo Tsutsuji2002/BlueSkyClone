@@ -27,7 +27,7 @@ const HomePage: React.FC = () => {
     const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch } = useAppSelector((state: RootState) => state.feeds);
+    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch, lastSubscribedFeedsFetch } = useAppSelector((state: RootState) => state.feeds);
     const { isAuthenticated, user, isLoading: authLoading } = useAppSelector((state: RootState) => state.auth);
 
     const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
@@ -71,15 +71,17 @@ const HomePage: React.FC = () => {
 
     const hasAnyData = subscribedFeeds.length > 0 || pinnedLists.length > 0 || (activeTab && feedPosts[activeTab]?.length > 0);
     // Stay in loading state if auth is still working, or if we are authenticated but haven't even started fetching feeds/lists yet.
-    // We check lastSubscribedFeedsFetch === 0 to know if we've ever tried.
-    const isInitialLoading = (feedsLoading || authLoading || (isAuthenticated && subscribedFeeds.length === 0)) && !hasAnyData;
+    // We check lastSubscribedFeedsFetch === 0 to know if we've ever tried (even in past session).
+    const isInitialLoading = (feedsLoading || authLoading || (isAuthenticated && subscribedFeeds.length === 0 && lastSubscribedFeedsFetch === 0)) && !hasAnyData;
 
     useEffect(() => {
-        if (!authLoading && isAuthenticated && subscribedFeeds.length === 0) {
+        // Always try to fetch if we are authenticated and haven't fetched in the last 10 seconds
+        const now = Date.now();
+        if (!authLoading && isAuthenticated && (subscribedFeeds.length === 0 || (now - lastSubscribedFeedsFetch > 10000))) {
             dispatch(fetchSubscribedFeeds());
             dispatch(fetchPinnedLists());
         }
-    }, [dispatch, authLoading, isAuthenticated, subscribedFeeds.length]);
+    }, [dispatch, authLoading, isAuthenticated, subscribedFeeds.length, lastSubscribedFeedsFetch]);
 
     useEffect(() => {
         if (!activeTab) return;

@@ -120,9 +120,19 @@ interface FeedsState {
 
 const initialState: FeedsState = {
     feeds: [],
-    subscribedFeeds: [],
+    subscribedFeeds: (() => {
+        try {
+            const cached = localStorage.getItem('feeds_subscribed');
+            return cached ? JSON.parse(cached) : [];
+        } catch (e) { return []; }
+    })(),
     searchResults: [],
-    pinnedFeedIds: [],
+    pinnedFeedIds: (() => {
+        try {
+            const cached = localStorage.getItem('feeds_pinned_ids');
+            return cached ? JSON.parse(cached) : [];
+        } catch (e) { return []; }
+    })(),
     activeFeedId: null,
     activeTab: localStorage.getItem('home_active_tab') || 'following', // Default to following or persisted tab
     feedPosts: {},
@@ -141,7 +151,7 @@ const initialState: FeedsState = {
     infoError: {},
     userFeeds: [],
     userFeedsLoading: false,
-    lastSubscribedFeedsFetch: 0,
+    lastSubscribedFeedsFetch: Number(localStorage.getItem('feeds_last_fetch') || '0'),
     trendingFeeds: [],
 };
 
@@ -519,7 +529,17 @@ const feedsSlice = createSlice({
         },
         setPinnedFeedIds: (state: FeedsState, action: PayloadAction<string[]>) => {
             state.pinnedFeedIds = action.payload;
+            localStorage.setItem('feeds_pinned_ids', JSON.stringify(action.payload));
         },
+        clearFeeds: (state: FeedsState) => {
+            state.subscribedFeeds = [];
+            state.pinnedFeedIds = [];
+            state.feedPosts = {};
+            state.lastSubscribedFeedsFetch = 0;
+            localStorage.removeItem('feeds_subscribed');
+            localStorage.removeItem('feeds_pinned_ids');
+            localStorage.removeItem('feeds_last_fetch');
+        }
     },
     extraReducers: (builder: ActionReducerMapBuilder<FeedsState>) => {
         builder
@@ -593,6 +613,10 @@ const feedsSlice = createSlice({
                 state.pinnedFeedIds = action.payload
                     .filter((f: Feed) => f.isPinned)
                     .map((f: Feed) => feedActionKey(f));
+
+                localStorage.setItem('feeds_subscribed', JSON.stringify(state.subscribedFeeds));
+                localStorage.setItem('feeds_pinned_ids', JSON.stringify(state.pinnedFeedIds));
+                localStorage.setItem('feeds_last_fetch', state.lastSubscribedFeedsFetch.toString());
             })
             .addCase(fetchFeedInfo.pending, (state: FeedsState, action) => {
                 state.infoLoading[action.meta.arg] = true;
@@ -1034,25 +1058,21 @@ const feedsSlice = createSlice({
                     });
                 }
             )
-            // Synchronize Profile Updates
             .addMatcher(
-                (action) => action.type.endsWith('/updateProfile/fulfilled'),
-                (state: FeedsState, action: any) => {
-                    const updatedUser = action.payload;
-                    if (!updatedUser || !updatedUser.id) return;
-
-                    Object.keys(state.feedPosts).forEach(feedId => {
-                        state.feedPosts[feedId].forEach(post => {
-                            if (post.author && post.author.id === updatedUser.id) {
-                                post.author = { ...post.author, ...updatedUser };
-                            }
-                        });
-                    });
+                (action) => action.type === 'auth/logout',
+                (state: FeedsState) => {
+                    state.subscribedFeeds = [];
+                    state.pinnedFeedIds = [];
+                    state.feedPosts = {};
+                    state.lastSubscribedFeedsFetch = 0;
+                    localStorage.removeItem('feeds_subscribed');
+                    localStorage.removeItem('feeds_pinned_ids');
+                    localStorage.removeItem('feeds_last_fetch');
                 }
             );
     }
 });
 
-export const { setActiveFeed, setActiveTab, setPinnedFeedIds } = feedsSlice.actions;
+export const { setActiveFeed, setActiveTab, setPinnedFeedIds, clearFeeds } = feedsSlice.actions;
 export default feedsSlice.reducer;
 
