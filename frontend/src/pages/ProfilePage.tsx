@@ -5,12 +5,14 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab, profileMatchesIdentifier } from '../redux/slices/userSlice';
+import { fetchUserFeeds } from '../redux/slices/feedsSlice';
+import { fetchUserLists } from '../redux/slices/listsSlice';
 import { openEditProfile, openCreatePost, openReport, openAuthWall, openAddToList } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
-import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss, FiAlertTriangle, FiLock } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss, FiAlertTriangle, FiLock, FiStar } from 'react-icons/fi';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import ListAvatar from '../components/common/ListAvatar';
 import { showToast } from '../redux/slices/toastSlice';
@@ -46,6 +48,7 @@ const ProfilePage: React.FC = () => {
     const isProfileLoading = useAppSelector((state: RootState) => state.user.isLoading);
     const profileError = useAppSelector((state: RootState) => state.user.error);
     const userLists = useAppSelector((state: RootState) => state.lists.userLists);
+    const pinnedFeedIds = useAppSelector((state: RootState) => state.feeds.pinnedFeedIds);
     const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
     const actionLoading = useAppSelector((state: RootState) => state.user.actionLoading);
     const activeProfileTab = useAppSelector((state: RootState) => state.user.activeProfileTab);
@@ -102,8 +105,13 @@ const ProfilePage: React.FC = () => {
         dispatch(clearProfile());
         dispatch(clearPosts());
         setShowWarn(true);
-        dispatch(fetchUserProfile(handle));
-    }, [dispatch, handle]); 
+        dispatch(fetchUserProfile(handle)).unwrap().then((profile) => {
+            if (profile && profile.user && profile.user.did && profile.user.did !== currentUser?.did) {
+                dispatch(fetchUserFeeds(profile.user.did));
+                dispatch(fetchUserLists(profile.user.did));
+            }
+        });
+    }, [dispatch, handle, currentUser?.did]);
 
     useEffect(() => {
         if (handle && profileUser?.handle && handle !== profileUser.handle) {
@@ -597,12 +605,17 @@ const ProfilePage: React.FC = () => {
                     <div className="border-b border-gray-100 dark:border-dark-border w-full sticky top-0 bg-white dark:bg-dark-bg z-30">
                         <div className="flex overflow-x-auto no-scrollbar scroll-smooth">
                             <div className="flex w-full px-2">
-                                {PROFILE_TABS.map((tab: { id: string; label: string }) => (
+                                {PROFILE_TABS.filter(tab => {
+                                    if (isOwnProfile) return true;
+                                    if (tab.id === 'feeds') return userFeeds.length > 0;
+                                    if (tab.id === 'lists') return userLists.length > 0;
+                                    return true;
+                                }).map((tab: { id: string; label: string }) => (
                                     <button
                                         key={tab.id}
                                         onClick={() => handleTabChange(tab.id)}
                                         className={cn(
-                                            'px-3 py-3 text-[14px] font-bold transition-all whitespace-nowrap relative flex-shrink-0',
+                                            'px-3 py-3 text-[14px] font-bold transition-all whitespace-nowrap relative flex-1',
                                             activeTab === tab.id
                                                 ? 'text-gray-900 dark:text-dark-text'
                                                 : 'text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50'

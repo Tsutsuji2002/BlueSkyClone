@@ -26,6 +26,7 @@ export const PROFILE_TABS = [
     { id: 'media', label: 'nav.media' },
     { id: 'video', label: 'nav.videos' },
     { id: 'likes', label: 'nav.likes' },
+    { id: 'feeds', label: 'nav.feeds' },
     { id: 'lists', label: 'nav.lists' },
 ];
 

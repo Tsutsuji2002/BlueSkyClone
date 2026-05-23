@@ -7,16 +7,18 @@ import { agent } from '../../services/atpAgent';
 import { Post } from '../../types';
 import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 import LoadingIndicator from '../common/LoadingIndicator';
-import { FiList, FiImage, FiVideo } from 'react-icons/fi';
+import { FiList, FiImage, FiVideo, FiRss } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import { seedInteractionTruth } from '../../redux/slices/postsSlice';
+import { saveFeed, unsaveFeed, pinFeed, unpinFeed } from '../../redux/slices/feedsSlice';
 import { getDynamicBatchSize } from '../../utils/pagination';
 import { matchesPost } from '../../utils/postUtils';
 import { Link } from 'react-router-dom';
 import ListAvatar from '../common/ListAvatar';
+import { cn } from '../../utils/classNames';
 
 interface ProfileTabContentProps {
     userId: string;
@@ -93,6 +95,14 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     const data = await response.json();
                     fetchedItems = data.lists || [];
                     nextCursor = data.cursor || null;
+                }
+            } else if (type === 'feeds') {
+                const response = await fetch(`${API_BASE_URL}/feeds/actor/${encodeURIComponent(userId)}`, { headers });
+                if (response.ok) {
+                    const data = await response.json();
+                    fetchedItems = Array.isArray(data) ? data : (data.feeds || []);
+                    // Manual pagination if needed, but usually actor feeds are small
+                    nextCursor = null; 
                 }
             }
 
@@ -189,7 +199,28 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         }
     }, [interactionTruth, items]);
 
-    if (type === 'lists' && initialLoading) {
+    // Feeds Tab Selectors
+    const subscribedFeeds = useAppSelector((state: RootState) => state.feeds.subscribedFeeds);
+    const pinnedFeedIds = useAppSelector((state: RootState) => state.feeds.pinnedFeedIds);
+
+    const handleFeedAction = async (e: React.MouseEvent, feed: any) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const feedId = feed.uri || feed.id;
+        const isPinned = pinnedFeedIds.includes(feedId);
+        const isSubscribed = subscribedFeeds.some(f => (f.uri || f.id) === feedId);
+
+        if (isPinned) {
+            await dispatch(unpinFeed(feedId));
+        } else if (isSubscribed) {
+            await dispatch(pinFeed(feedId));
+        } else {
+            await dispatch(saveFeed(feedId));
+        }
+    };
+
+    if ((type === 'lists' || type === 'feeds') && initialLoading) {
         return (
             <div className="flex items-center justify-center py-20">
                 <LoadingIndicator size="md" />
@@ -197,46 +228,88 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         );
     }
 
-    if (type === 'lists' && items.length === 0) {
+    if ((type === 'lists' || type === 'feeds') && items.length === 0) {
+        const Icon = type === 'lists' ? FiList : FiRss;
         return (
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                <FiList size={80} className="text-gray-300 dark:text-dark-border mb-4" strokeWidth={1.2} />
+                <Icon size={80} className="text-gray-300 dark:text-dark-border mb-4" strokeWidth={1.2} />
                 <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary">
-                    {t('profile.no_lists', 'No lists found')}
+                    {t(`profile.no_${type}`, `No ${type} found`)}
                 </h3>
             </div>
         );
     }
 
-    if (type === 'lists') {
+    if (type === 'lists' || type === 'feeds') {
         return (
-            <div className="divide-y divide-gray-200 dark:divide-dark-border">
-                {items.map(list => {
-                    const rkey = list.uri?.split('/').pop();
-                    const creatorHandle = list.creator?.handle || userId;
+            <div className="divide-y divide-gray-200 dark:divide-dark-border border-b border-gray-200 dark:border-dark-border">
+                {items.map(item => {
+                    const rkey = item.uri?.split('/').pop();
+                    const creatorHandle = item.creator?.handle || item.handle || userId;
+                    const itemId = item.uri || item.id;
+                    const isPinned = pinnedFeedIds.includes(itemId);
+                    const isSubscribed = subscribedFeeds.some(f => (f.uri || f.id) === itemId);
+
+                    let buttonText = t('feeds.subscribe');
+                    if (isPinned) buttonText = t('feeds.unpin');
+                    else if (isSubscribed) buttonText = t('feeds.pin');
+
+                    const linkTo = type === 'lists' 
+                        ? `/profile/${creatorHandle}/lists/${rkey}`
+                        : `/profile/${creatorHandle}/feed/${rkey}`;
+
                     return (
                         <Link
-                            key={list.uri}
-                            to={`/profile/${creatorHandle}/lists/${rkey}`}
+                            key={item.uri || item.id}
+                            to={linkTo}
                             className="block p-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
                         >
-                            <div className="flex flex-row items-start gap-3">
+                            <div className="flex flex-row items-center gap-3">
                                 <div className="shrink-0" style={{ width: '40px', height: '40px' }}>
-                                    <ListAvatar src={list.avatar} alt={list.name} size="lg" />
-                                </div>
-                                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                                    <h3 className="font-bold truncate text-[15px] text-gray-900 dark:text-white leading-[20px]">
-                                        {list.name}
-                                    </h3>
-                                    <div className="truncate text-[13.1px] text-gray-500 dark:text-gray-400 leading-[17px]">
-                                        {t('lists.list_by', { handle: creatorHandle })}
-                                    </div>
-                                    {list.description && (
-                                        <div className="mt-1 line-clamp-2 text-[15px] text-gray-900 dark:text-gray-200 leading-[20px]">
-                                            {list.description}
+                                    {type === 'lists' ? (
+                                        <ListAvatar src={item.avatar} alt={item.name} size="lg" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100 dark:bg-dark-surface">
+                                            {item.avatar ? (
+                                                <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-primary-500">
+                                                    <FiRss size={20} />
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
+                                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                    <h3 className="font-bold truncate text-[15px] text-gray-900 dark:text-white leading-[20px]">
+                                        {item.name || item.displayName}
+                                    </h3>
+                                    <div className="truncate text-[13.1px] text-gray-500 dark:text-gray-400 leading-[17px]">
+                                        {type === 'lists' 
+                                            ? t('lists.list_by', { handle: creatorHandle })
+                                            : t('feeds.feed_by', { handle: creatorHandle })}
+                                    </div>
+                                    {item.description && (
+                                        <div className="mt-0.5 line-clamp-1 text-[14px] text-gray-600 dark:text-gray-300 leading-[18px]">
+                                            {item.description}
+                                        </div>
+                                    )}
+                                </div>
+                                {isOwnProfile && (
+                                    <div className="shrink-0 ml-2">
+                                        <button
+                                            onClick={(e) => handleFeedAction(e, item)}
+                                            className={cn(
+                                                "px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors",
+                                                isPinned 
+                                                    ? "bg-gray-200 dark:bg-dark-surface text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-dark-border"
+                                                    : "bg-primary-500 text-white hover:bg-primary-600"
+                                            )}
+                                        >
+                                            {buttonText}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </Link>
                     );
