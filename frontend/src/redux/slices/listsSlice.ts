@@ -19,23 +19,16 @@ interface ListsState {
     isLoading: boolean;
     hasMoreFeed: boolean;
     error: string | null;
+    lastFetchDid: string;
 }
 
+const getAccountKey = (key: string, did?: string) => did ? `${key}_${did.replace(/:/g, '_')}` : key;
+
 const initialState: ListsState = {
-    myLists: (() => {
-        try {
-            const cached = localStorage.getItem('lists_my');
-            return cached ? JSON.parse(cached) : [];
-        } catch (e) { return []; }
-    })(),
+    myLists: [],
     userLists: [],
     listsIAmOn: [],
-    pinnedLists: (() => {
-        try {
-            const cached = localStorage.getItem('lists_pinned');
-            return cached ? JSON.parse(cached) : [];
-        } catch (e) { return []; }
-    })(),
+    pinnedLists: [],
     activeList: null,
     activeListMembers: [],
     candidateMembers: [],
@@ -44,7 +37,25 @@ const initialState: ListsState = {
     isLoading: false,
     hasMoreFeed: true,
     error: null,
+    lastFetchDid: localStorage.getItem('lists_last_did') || '',
 };
+
+const getHydratedState = (initial: ListsState): ListsState => {
+    const did = localStorage.getItem('lists_last_did');
+    if (!did) return initial;
+
+    try {
+        return {
+            ...initial,
+            myLists: JSON.parse(localStorage.getItem(getAccountKey('lists_my', did)) || '[]'),
+            pinnedLists: JSON.parse(localStorage.getItem(getAccountKey('lists_pinned', did)) || '[]'),
+            lastFetchDid: did,
+        };
+    } catch (e) {
+        return initial;
+    }
+};
+
 
 // ---------- XRPC helpers (bypass @atproto/api SDK validation) ----------
 const getXrpcBase = () => '/xrpc';
@@ -393,8 +404,18 @@ export const rejectInvitation = createAsyncThunk(
 
 const listsSlice = createSlice({
     name: 'lists',
-    initialState,
+    initialState: getHydratedState(initialState),
     reducers: {
+        hydrateForAccount: (state, action) => {
+            const did = action.payload;
+            if (!did) return;
+            
+            state.myLists = JSON.parse(localStorage.getItem(getAccountKey('lists_my', did)) || '[]');
+            state.pinnedLists = JSON.parse(localStorage.getItem(getAccountKey('lists_pinned', did)) || '[]');
+            state.lastFetchDid = did;
+            
+            localStorage.setItem('lists_last_did', did);
+        },
         clearActiveList: (state) => {
             state.activeList = null;
             state.activeListMembers = [];
@@ -414,8 +435,8 @@ const listsSlice = createSlice({
             state.myLists = [];
             state.pinnedLists = [];
             state.activeListFeed = [];
-            localStorage.removeItem('lists_my');
-            localStorage.removeItem('lists_pinned');
+            state.lastFetchDid = '';
+            localStorage.removeItem('lists_last_did');
         }
     },
     extraReducers: (builder) => {
@@ -429,7 +450,10 @@ const listsSlice = createSlice({
         builder.addCase(fetchMyLists.fulfilled, (state, action) => {
             state.isLoading = false;
             state.myLists = action.payload;
-            localStorage.setItem('lists_my', JSON.stringify(action.payload));
+            const did = state.lastFetchDid;
+            if (did) {
+                localStorage.setItem(getAccountKey('lists_my', did), JSON.stringify(action.payload));
+            }
         });
         builder.addCase(fetchMyLists.rejected, (state, action) => {
             state.isLoading = false;
@@ -438,8 +462,12 @@ const listsSlice = createSlice({
 
         // Fetch Pinned Lists
         builder.addCase(fetchPinnedLists.fulfilled, (state, action) => {
+            state.isLoading = false;
             state.pinnedLists = action.payload;
-            localStorage.setItem('lists_pinned', JSON.stringify(action.payload));
+            const did = state.lastFetchDid;
+            if (did) {
+                localStorage.setItem(getAccountKey('lists_pinned', did), JSON.stringify(action.payload));
+            }
         });
 
         // Create List
@@ -776,11 +804,12 @@ const listsSlice = createSlice({
                     state.myLists = [];
                     state.pinnedLists = [];
                     state.activeListFeed = [];
-                    localStorage.removeItem('lists_pinned');
+                    state.lastFetchDid = '';
+                    localStorage.removeItem('lists_last_did');
                 }
             );
     }
 });
 
-export const { clearActiveList, clearCandidates, clearCandidatePosts, clearUserLists, clearLists } = listsSlice.actions;
+export const { clearActiveList, clearCandidates, clearCandidatePosts, clearUserLists, clearLists, hydrateForAccount } = listsSlice.actions;
 export default listsSlice.reducer;

@@ -7,7 +7,7 @@ import { agent } from '../../services/atpAgent';
 import { Post } from '../../types';
 import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 import LoadingIndicator from '../common/LoadingIndicator';
-import { FiList, FiImage, FiVideo, FiRss } from 'react-icons/fi';
+import { FiList, FiImage, FiVideo, FiRss, FiPlus } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
@@ -263,6 +263,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
                     // Like count for feeds
                     const likeCount = item.likeCount || item.likesCount || item.followersCount || 0;
+                    const langs = item.langs || [];
 
                     return (
                         <Link
@@ -287,9 +288,20 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                                    <h3 className="font-bold truncate text-[15px] text-gray-900 dark:text-white leading-[20px]">
-                                        {item.name || item.displayName}
-                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold truncate text-[15px] text-gray-900 dark:text-white leading-[20px]">
+                                            {item.name || item.displayName}
+                                        </h3>
+                                        {langs.length > 0 && (
+                                            <div className="flex items-center gap-1">
+                                                {langs.map((lang: string) => (
+                                                    <span key={lang} className="px-1 py-0.5 bg-gray-100 dark:bg-dark-surface rounded text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase">
+                                                        {lang}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="truncate text-[13.1px] text-gray-500 dark:text-gray-400 leading-[17px]">
                                         {type === 'lists' 
                                             ? t('lists.list_by', { handle: creatorHandle })
@@ -311,13 +323,13 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                                         <button
                                             onClick={(e) => handleFeedAction(e, item)}
                                             className={cn(
-                                                "px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors flex items-center gap-1.5",
+                                                "px-4 py-1.5 rounded-full text-[14px] font-bold transition-all flex items-center gap-1.5",
                                                 isPinned 
-                                                    ? "bg-gray-200 dark:bg-dark-surface text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-dark-border"
-                                                    : "bg-primary-500 text-white hover:bg-primary-600"
+                                                    ? "bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-white border border-gray-300 dark:border-dark-border hover:bg-gray-200"
+                                                    : "bg-primary-500 text-white hover:bg-primary-600 shadow-sm"
                                             )}
                                         >
-                                            <span>📌</span>
+                                            {isPinned ? null : <FiPlus size={14} strokeWidth={3} />}
                                             {buttonText}
                                         </button>
                                     </div>

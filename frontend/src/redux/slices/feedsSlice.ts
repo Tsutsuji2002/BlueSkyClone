@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
-import { Feed, Post } from '../../types';
+import { Feed, Post, TrendingTopic } from '../../types';
+import { RootState } from '../store';
 import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { feedActionKey } from '../../utils/feedKeys';
@@ -7,6 +8,9 @@ import { mapAtProtoPostToPost } from '../../utils/postMapper';
 import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
 
 const REMOTE_METADATA_FALLBACK_DESCRIPTION = 'Remote feed metadata is temporarily unavailable.';
+
+const getAccountKey = (key: string, did?: string) => did ? `${key}_${did.replace(/:/g, '_')}` : key;
+
 
 const isRemoteMetadataFallback = (feed: Feed): boolean =>
     (feed.description || '').trim().toLowerCase() === REMOTE_METADATA_FALLBACK_DESCRIPTION.toLowerCase();
@@ -115,26 +119,17 @@ interface FeedsState {
     userFeeds: Feed[];
     userFeedsLoading: boolean;
     lastSubscribedFeedsFetch: number;
+    lastFetchDid: string;
     trendingFeeds: Feed[];
 }
 
 const initialState: FeedsState = {
     feeds: [],
-    subscribedFeeds: (() => {
-        try {
-            const cached = localStorage.getItem('feeds_subscribed');
-            return cached ? JSON.parse(cached) : [];
-        } catch (e) { return []; }
-    })(),
+    subscribedFeeds: [],
     searchResults: [],
-    pinnedFeedIds: (() => {
-        try {
-            const cached = localStorage.getItem('feeds_pinned_ids');
-            return cached ? JSON.parse(cached) : [];
-        } catch (e) { return []; }
-    })(),
+    pinnedFeedIds: [],
     activeFeedId: null,
-    activeTab: localStorage.getItem('home_active_tab') || 'following', // Default to following or persisted tab
+    activeTab: localStorage.getItem('home_active_tab') || 'following', 
     feedPosts: {},
     recommendedFeeds: [],
     recommendedCursor: null,
@@ -151,9 +146,29 @@ const initialState: FeedsState = {
     infoError: {},
     userFeeds: [],
     userFeedsLoading: false,
-    lastSubscribedFeedsFetch: Number(localStorage.getItem('feeds_last_fetch') || '0'),
+    lastSubscribedFeedsFetch: 0,
+    lastFetchDid: localStorage.getItem('feeds_last_did') || '',
     trendingFeeds: [],
 };
+
+// Internal helper to get initial state with hydration
+const getHydratedState = (initial: FeedsState): FeedsState => {
+    const did = localStorage.getItem('feeds_last_did');
+    if (!did) return initial;
+
+    try {
+        return {
+            ...initial,
+            subscribedFeeds: JSON.parse(localStorage.getItem(getAccountKey('feeds_subscribed', did)) || '[]'),
+            pinnedFeedIds: JSON.parse(localStorage.getItem(getAccountKey('feeds_pinned_ids', did)) || '[]'),
+            lastSubscribedFeedsFetch: Number(localStorage.getItem(getAccountKey('feeds_last_fetch', did)) || '0'),
+            lastFetchDid: did,
+        };
+    } catch (e) {
+        return initial;
+    }
+};
+
 
 export const fetchTrendingFeeds = createAsyncThunk<
     Feed[],
@@ -214,13 +229,19 @@ export const fetchSubscribedFeeds = createAsyncThunk<
     async (params, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
         try {
             const bypassThrottle = params && typeof params === 'object' ? params.bypassThrottle : false;
-            const state = getState() as { feeds: FeedsState };
+            const state = getState() as RootState;
+            const currentDid = state.auth.user?.did;
             const now = Date.now();
-            // Throttle: don't fetch more than once every 10 seconds unless explicitly bypassed
-            if (!bypassThrottle && state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000)) {
-                console.log('feedsSlice: fetchSubscribedFeeds throttled (called too recently)');
+            
+            // Throttle: don't fetch more than once every 10 seconds unless explicitly bypassed OR account changed
+            const isSameAccount = currentDid && state.feeds.lastFetchDid === currentDid;
+            const isFresh = state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000);
+
+            if (!bypassThrottle && isSameAccount && isFresh) {
+                console.log('feedsSlice: fetchSubscribedFeeds throttled (called too recently for same account)');
                 return state.feeds.subscribedFeeds;
             }
+
 
             const response = await fetch(`${API_BASE_URL}/feeds/subscribed?t=${now}`);
             const data = await response.json().catch(() => ([]));
@@ -510,8 +531,19 @@ export const hydrateInteractionStatusForFeed = createAsyncThunk<
 
 const feedsSlice = createSlice({
     name: 'feeds',
-    initialState,
+    initialState: getHydratedState(initialState),
     reducers: {
+        hydrateForAccount: (state, action: PayloadAction<string>) => {
+            const did = action.payload;
+            if (!did) return;
+            
+            state.subscribedFeeds = JSON.parse(localStorage.getItem(getAccountKey('feeds_subscribed', did)) || '[]');
+            state.pinnedFeedIds = JSON.parse(localStorage.getItem(getAccountKey('feeds_pinned_ids', did)) || '[]');
+            state.lastSubscribedFeedsFetch = Number(localStorage.getItem(getAccountKey('feeds_last_fetch', did)) || '0');
+            state.lastFetchDid = did;
+            
+            localStorage.setItem('feeds_last_did', did);
+        },
         setActiveFeed: (state: FeedsState, action: PayloadAction<string | null>) => {
             state.activeFeedId = action.payload;
             if (action.payload) {
@@ -529,7 +561,10 @@ const feedsSlice = createSlice({
         },
         setPinnedFeedIds: (state: FeedsState, action: PayloadAction<string[]>) => {
             state.pinnedFeedIds = action.payload;
-            localStorage.setItem('feeds_pinned_ids', JSON.stringify(action.payload));
+            const did = state.lastFetchDid;
+            if (did) {
+                localStorage.setItem(getAccountKey('feeds_pinned_ids', did), JSON.stringify(action.payload));
+            }
         },
         clearUserFeeds: (state: FeedsState) => {
             state.userFeeds = [];
@@ -539,9 +574,8 @@ const feedsSlice = createSlice({
             state.pinnedFeedIds = [];
             state.feedPosts = {};
             state.lastSubscribedFeedsFetch = 0;
-            localStorage.removeItem('feeds_subscribed');
-            localStorage.removeItem('feeds_pinned_ids');
-            localStorage.removeItem('feeds_last_fetch');
+            state.lastFetchDid = '';
+            localStorage.removeItem('feeds_last_did');
         }
     },
     extraReducers: (builder: ActionReducerMapBuilder<FeedsState>) => {
@@ -582,12 +616,12 @@ const feedsSlice = createSlice({
                 }
                 
                 state.recommendedCursor = cursor;
-
+ 
                 const recommendedByKey = new Map<string, Feed>();
                 feeds.forEach((feed: Feed) => {
                     recommendedByKey.set(feedActionKey(feed), feed);
                 });
-
+ 
                 state.subscribedFeeds.forEach((feed) => {
                     if (!isRemoteMetadataFallback(feed)) return;
                     const preferred = recommendedByKey.get(feedActionKey(feed));
@@ -598,17 +632,19 @@ const feedsSlice = createSlice({
             })
             .addCase(fetchSubscribedFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
                 state.lastSubscribedFeedsFetch = Date.now();
+                const currentDid = state.lastFetchDid;
+ 
                 const cacheByKey = new Map<string, Feed>();
                 [...state.subscribedFeeds, ...state.recommendedFeeds, ...state.searchResults, ...state.feeds].forEach((feed) => {
                     cacheByKey.set(feedActionKey(feed), feed);
                 });
-
+ 
                 state.subscribedFeeds = action.payload.map((incoming) => {
                     const key = feedActionKey(incoming);
                     const cached = cacheByKey.get(key);
                     if (!cached) return incoming;
                     if (!isRemoteMetadataFallback(incoming) && incoming.name?.trim()) return incoming;
-
+ 
                     const merged = { ...incoming };
                     applyVisualMetadata(merged, cached);
                     return merged;
@@ -616,10 +652,13 @@ const feedsSlice = createSlice({
                 state.pinnedFeedIds = action.payload
                     .filter((f: Feed) => f.isPinned)
                     .map((f: Feed) => feedActionKey(f));
-
-                localStorage.setItem('feeds_subscribed', JSON.stringify(state.subscribedFeeds));
-                localStorage.setItem('feeds_pinned_ids', JSON.stringify(state.pinnedFeedIds));
-                localStorage.setItem('feeds_last_fetch', state.lastSubscribedFeedsFetch.toString());
+ 
+                if (currentDid) {
+                    localStorage.setItem(getAccountKey('feeds_subscribed', currentDid), JSON.stringify(state.subscribedFeeds));
+                    localStorage.setItem(getAccountKey('feeds_pinned_ids', currentDid), JSON.stringify(state.pinnedFeedIds));
+                    localStorage.setItem(getAccountKey('feeds_last_fetch', currentDid), state.lastSubscribedFeedsFetch.toString());
+                    localStorage.setItem('feeds_last_did', currentDid);
+                }
             })
             .addCase(fetchFeedInfo.pending, (state: FeedsState, action) => {
                 state.infoLoading[action.meta.arg] = true;
@@ -1076,6 +1115,6 @@ const feedsSlice = createSlice({
     }
 });
 
-export const { setActiveFeed, setActiveTab, setPinnedFeedIds, clearUserFeeds, clearFeeds } = feedsSlice.actions;
+export const { setActiveFeed, setActiveTab, setPinnedFeedIds, clearUserFeeds, clearFeeds, hydrateForAccount } = feedsSlice.actions;
 export default feedsSlice.reducer;
 

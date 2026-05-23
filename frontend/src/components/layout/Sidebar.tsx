@@ -20,6 +20,8 @@ import { cn } from '../../utils/classNames';
 import ButterflyLogo from '../common/ButterflyLogo';
 import { fetchUnreadCount } from '../../redux/slices/notificationsSlice';
 import { fetchConversations } from '../../redux/slices/messagesSlice';
+import { hydrateForAccount as hydrateFeedsForAccount } from '../../redux/slices/feedsSlice';
+import { hydrateForAccount as hydrateListsForAccount } from '../../redux/slices/listsSlice';
 
 const iconMap: Record<string, React.ReactNode> = {
     home: <FiHome size={28} strokeWidth={2} />,
@@ -80,6 +82,9 @@ const Sidebar: React.FC = () => {
                         type: 'success'
                     }
                 });
+
+                dispatch(hydrateFeedsForAccount(account.did));
+                dispatch(hydrateListsForAccount(account.did));
 
                 dispatch(fetchUnreadCount());
                 dispatch(fetchConversations());

@@ -28,6 +28,8 @@ import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetMeQuery, authApi } from './redux/api/authApi';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
+import { hydrateForAccount as hydrateFeedsForAccount } from './redux/slices/feedsSlice';
+import { hydrateForAccount as hydrateListsForAccount } from './redux/slices/listsSlice';
 import signalrService, { HubStatus } from './services/signalrService';
 import postSignalrService from './services/postSignalrService';
 import { closeAllModals } from './redux/slices/modalsSlice';
@@ -69,6 +71,12 @@ const AppContent: React.FC = () => {
         token: meData.token || '',
         refreshToken: meData.refreshToken || ''
       }));
+      
+      // Hydrate local state for this specific account
+      if (meData.user?.did) {
+        dispatch(hydrateFeedsForAccount(meData.user.did));
+        dispatch(hydrateListsForAccount(meData.user.did));
+      }
     } else if (meError) {
       // If error is 401, the fetchInterceptor is currently retrying or refreshing.
       // We only stop the loading screen if it's a "terminal" error (not 401)
