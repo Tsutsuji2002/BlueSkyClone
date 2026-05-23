@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BSkyClone.Utilities;
+using System.Text.Json;
+using System.Net.Http;
 
 namespace BSkyClone.Services;
 
@@ -19,6 +21,8 @@ public class ListService : IListService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IRepoManager _repoManager;
     private readonly IUserService _userService;
+    private readonly IXrpcProxyService _xrpcProxy;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public ListService(
         IUnitOfWork unitOfWork, 
@@ -26,7 +30,9 @@ public class ListService : IListService
         IPostService postService, 
         IServiceScopeFactory scopeFactory,
         IRepoManager repoManager,
-        IUserService userService) 
+        IUserService userService,
+        IXrpcProxyService xrpcProxy,
+        IHttpClientFactory httpClientFactory) 
     {
         _unitOfWork = unitOfWork;
         _hubContext = hubContext;
@@ -34,6 +40,8 @@ public class ListService : IListService
         _scopeFactory = scopeFactory;
         _repoManager = repoManager;
         _userService = userService;
+        _xrpcProxy = xrpcProxy;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<ListDto> CreateListAsync(Guid userId, CreateListDto dto)
@@ -98,21 +106,135 @@ public class ListService : IListService
         return result;
     }
 
-    public async Task<IEnumerable<ListDto>> GetUserListsAsync(Guid userId, Guid viewerId)
+    public async Task<IEnumerable<ListDto>> GetUserListsAsync(string actor, Guid? viewerId)
     {
-        // Lists of another user (or current user)
+        var targetUser = await GetResolvedUserAsync(actor, viewerId);
+        if (targetUser == null) return new List<ListDto>();
+
+        // 1. Remote Fetch Check
+        bool isRemoteAtProto = !string.IsNullOrWhiteSpace(targetUser.Did) &&
+                               !targetUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (isRemoteAtProto)
+        {
+            try
+            {
+                string? token = viewerId.HasValue ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
+                var viewerDid = viewerId.HasValue ? (await _unitOfWork.Users.GetByIdAsync(viewerId.Value))?.Did : null;
+
+                var queryParams = new Dictionary<string, string?> { ["actor"] = targetUser.Did };
+                
+                ProxyResponse resp;
+                if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(viewerDid))
+                {
+                    resp = await _xrpcProxy.ProxyRequestAsync(viewerDid, "app.bsky.graph.getLists", queryParams, token);
+                }
+                else
+                {
+                    using var client = _httpClientFactory.CreateClient();
+                    var url = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor={Uri.EscapeDataString(targetUser.Did)}";
+                    var httpResp = await client.GetAsync(url);
+                    if (!httpResp.IsSuccessStatusCode) return new List<ListDto>();
+                    resp = new ProxyResponse { Success = true, Content = await httpResp.Content.ReadAsStringAsync() };
+                }
+
+                if (resp.Success)
+                {
+                    using var doc = JsonDocument.Parse(resp.Content);
+                    if (doc.RootElement.TryGetProperty("lists", out var listsArray))
+                    {
+                        var result = new List<ListDto>();
+                        foreach (var listElem in listsArray.EnumerateArray())
+                        {
+                            result.Add(MapRemoteListToDto(listElem, viewerId ?? Guid.Empty));
+                        }
+                        return result;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ListService] Remote GetUserListsAsync error: {ex.Message}");
+            }
+        }
+
+        // 2. Local Fallback
         var lists = await _unitOfWork.Lists.Query()
-            .Where(l => l.OwnerId == userId && l.IsDeleted != true)
+            .Where(l => l.OwnerId == targetUser.Id && l.IsDeleted != true)
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
 
-        var result = new List<ListDto>();
+        var localResult = new List<ListDto>();
         foreach (var list in lists)
         {
             if (list == null) continue;
-            result.Add(await MapToListDto(list, viewerId));
+            localResult.Add(await MapToListDto(list, viewerId ?? Guid.Empty));
         }
+        return localResult;
+    }
+
+    private async Task<User?> GetResolvedUserAsync(string identifier, Guid? viewerId = null)
+    {
+        if (Guid.TryParse(identifier, out var guid))
+        {
+            return await _unitOfWork.Users.GetByIdAsync(guid);
+        }
+
+        // Try local handle lookup first
+        var localUser = await _userService.GetUserByHandleAsync(identifier)
+            ?? await _userService.GetUserByUsernameAsync(identifier)
+            ?? await _userService.GetUserByDidAsync(identifier);
+        if (localUser != null)
+        {
+            return localUser;
+        }
+
+        // Try remote resolution
+        var (result, _) = await _userService.ResolveRemoteProfileAsync(identifier, viewerId: viewerId);
         return result;
+    }
+
+    private ListDto MapRemoteListToDto(JsonElement list, Guid viewerId)
+    {
+        var uri = list.GetProperty("uri").GetString()!;
+        var creator = list.GetProperty("creator");
+        var creatorDid = creator.GetProperty("did").GetString()!;
+        var creatorHandle = creator.GetProperty("handle").GetString()!;
+
+        return new ListDto
+        {
+            Id = Guid.Empty, // Remote lists don't have local GUIDs
+            OwnerId = Guid.Empty,
+            Name = list.GetProperty("name").GetString()!,
+            Description = list.TryGetProperty("description", out var d) ? d.GetString() : null,
+            Purpose = list.GetProperty("purpose").GetString()!,
+            AvatarUrl = list.TryGetProperty("avatar", out var a) ? a.GetString() : null,
+            MembersCount = 0, // Metadata doesn't usually include count in list view
+            PostsCount = 0,
+            CreatedAt = list.TryGetProperty("indexedAt", out var idx) ? idx.GetDateTime() : DateTime.UtcNow,
+            IsPinned = false, // Simplified
+            IsOwner = false,
+            Uri = uri,
+            Cid = list.TryGetProperty("cid", out var cid) ? cid.GetString() : null,
+            Owner = new UserDto(
+                Guid.Empty,
+                creatorHandle,
+                creatorHandle,
+                "",
+                creator.TryGetProperty("displayName", out var dn) ? dn.GetString() : creatorHandle,
+                creator.TryGetProperty("avatar", out var cav) ? cav.GetString() : null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0, 0, 0,
+                "user",
+                null,
+                false,
+                creatorDid
+            )
+        };
     }
 
     public async Task<ListDto?> GetListByIdAsync(Guid userId, Guid listId)
@@ -529,8 +651,11 @@ public class ListService : IListService
         return result;
     }
 
-    public async Task<IEnumerable<Guid>> GetUserMembershipsInMyListsAsync(Guid viewerId, Guid targetUserId)
+    public async Task<IEnumerable<Guid>> GetUserMembershipsInMyListsAsync(Guid viewerId, string targetActor)
     {
+        var targetUser = await GetResolvedUserAsync(targetActor, viewerId);
+        if (targetUser == null) return new List<Guid>();
+
         var myLists = await _unitOfWork.Lists.Query()
             .Where(l => l.OwnerId == viewerId && l.IsDeleted != true)
             .Select(l => l.Id)
@@ -539,7 +664,7 @@ public class ListService : IListService
         if (!myLists.Any()) return new List<Guid>();
 
         return await _unitOfWork.ListMembers.Query()
-            .Where(lm => myLists.Contains(lm.ListId) && lm.UserId == targetUserId && lm.Status == 1)
+            .Where(lm => myLists.Contains(lm.ListId) && lm.UserId == targetUser.Id && lm.Status == 1)
             .Select(lm => lm.ListId)
             .ToListAsync();
     }

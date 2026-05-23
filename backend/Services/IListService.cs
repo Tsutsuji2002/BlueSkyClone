@@ -9,7 +9,7 @@ public interface IListService
 {
     Task<ListDto> CreateListAsync(Guid userId, CreateListDto dto);
     Task<IEnumerable<ListDto>> GetMyListsAsync(Guid userId, string? purpose = null);
-    Task<IEnumerable<ListDto>> GetUserListsAsync(Guid userId, Guid viewerId);
+    Task<IEnumerable<ListDto>> GetUserListsAsync(string actor, Guid? viewerId);
     Task<ListDto?> GetListByIdAsync(Guid userId, Guid listId);
     Task<ListDto> UpdateListAsync(Guid userId, Guid listId, UpdateListDto dto);
     Task<bool> DeleteListAsync(Guid userId, Guid listId); // Only owner
@@ -28,7 +28,7 @@ public interface IListService
     Task<IEnumerable<PostDto>> GetListFeedAsync(Guid userId, Guid listId, int limit = 50, int offset = 0); 
 
     Task<IEnumerable<ListDto>> GetListsIAmOnAsync(Guid userId);
-    Task<IEnumerable<Guid>> GetUserMembershipsInMyListsAsync(Guid viewerId, Guid targetUserId);
+    Task<IEnumerable<Guid>> GetUserMembershipsInMyListsAsync(Guid viewerId, string targetActor);
     Task<IEnumerable<UserDto>> GetCandidateMembersAsync(Guid listId, Guid userId, string? query);
     Task<IEnumerable<PostDto>> GetCandidatePostsAsync(Guid listId, Guid userId, int limit = 10, int offset = 0);
 

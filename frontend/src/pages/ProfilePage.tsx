@@ -49,16 +49,7 @@ const ProfilePage: React.FC = () => {
     const profileError = useAppSelector((state: RootState) => state.user.error);
     const userLists = useAppSelector((state: RootState) => state.lists.userLists);
     const isListsLoading = useAppSelector((state: RootState) => state.lists.userListsLoading);
-    
-    console.log('[ProfilePage] Tab Debug:', {
-        handle,
-        isOwnProfile: currentUser?.did === profileUser?.did,
-        userListsLength: userLists?.length,
-        isListsLoading,
-        isProfileLoading,
-        currentUserDid: currentUser?.did,
-        profileUserDid: profileUser?.did
-    });
+
     const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
     const isUserFeedsLoading = useAppSelector((state: RootState) => state.feeds.userFeedsLoading);
     const pinnedFeedIds = useAppSelector((state: RootState) => state.feeds.pinnedFeedIds);

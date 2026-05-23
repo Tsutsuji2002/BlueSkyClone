@@ -58,16 +58,15 @@ public class ListsController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserLists(Guid userId)
+    public async Task<IActionResult> GetUserLists(string userId)
     {
         var viewerId = GetUserId();
-        if (viewerId == null) return Unauthorized();
-        var lists = await _listService.GetUserListsAsync(userId, viewerId.Value);
+        var lists = await _listService.GetUserListsAsync(userId, viewerId);
         return Ok(lists);
     }
 
     [HttpGet("memberships/{targetUserId}")]
-    public async Task<IActionResult> GetUserMembershipsInMyLists(Guid targetUserId)
+    public async Task<IActionResult> GetUserMembershipsInMyLists(string targetUserId)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
