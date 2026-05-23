@@ -407,6 +407,9 @@ const listsSlice = createSlice({
         clearCandidatePosts: (state) => {
             state.candidatePosts = [];
         },
+        clearUserLists: (state) => {
+            state.userLists = [];
+        },
         clearLists: (state) => {
             state.myLists = [];
             state.pinnedLists = [];
@@ -779,5 +782,5 @@ const listsSlice = createSlice({
     }
 });
 
-export const { clearActiveList, clearCandidates, clearCandidatePosts, clearLists } = listsSlice.actions;
+export const { clearActiveList, clearCandidates, clearCandidatePosts, clearUserLists, clearLists } = listsSlice.actions;
 export default listsSlice.reducer;

@@ -250,13 +250,27 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     const isPinned = pinnedFeedIds.includes(itemId);
                     const isSubscribed = subscribedFeeds.some(f => (f.uri || f.id) === itemId);
 
-                    let buttonText = t('feeds.subscribe');
-                    if (isPinned) buttonText = t('feeds.unpin');
-                    else if (isSubscribed) buttonText = t('feeds.pin');
+                    // Determine button text with pin icon
+                    let buttonText = '';
+                    if (type === 'feeds') {
+                        if (isPinned) {
+                            buttonText = t('feeds.unpin_feed', 'Unpin feed');
+                        } else {
+                            buttonText = t('feeds.pin_feed', 'Pin feed');
+                        }
+                    } else {
+                        // Lists: keep original behavior
+                        if (isPinned) buttonText = t('feeds.unpin');
+                        else if (isSubscribed) buttonText = t('feeds.pin');
+                        else buttonText = t('feeds.subscribe');
+                    }
 
                     const linkTo = type === 'lists' 
                         ? `/profile/${creatorHandle}/lists/${rkey}`
                         : `/profile/${creatorHandle}/feed/${rkey}`;
+
+                    // Like count for feeds
+                    const likeCount = item.likeCount || item.likesCount || item.followersCount || 0;
 
                     return (
                         <Link
@@ -269,9 +283,9 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                                     {type === 'lists' ? (
                                         <ListAvatar src={item.avatar} alt={item.name} size="lg" />
                                     ) : (
-                                        <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100 dark:bg-dark-surface">
-                                            {item.avatar ? (
-                                                <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
+                                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-dark-surface">
+                                            {(item.avatar || item.avatarUrl) ? (
+                                                <img src={item.avatar || item.avatarUrl} alt={item.name} className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-primary-500">
                                                     <FiRss size={20} />
@@ -294,18 +308,24 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                                             {item.description}
                                         </div>
                                     )}
+                                    {type === 'feeds' && likeCount > 0 && (
+                                        <div className="mt-0.5 text-[13px] text-gray-400 dark:text-gray-500 leading-[17px]">
+                                            {t('feeds.liked_by_users', { count: likeCount, defaultValue: `Liked by {{count}} users` })}
+                                        </div>
+                                    )}
                                 </div>
-                                {isOwnProfile && (
+                                {type === 'feeds' && (
                                     <div className="shrink-0 ml-2">
                                         <button
                                             onClick={(e) => handleFeedAction(e, item)}
                                             className={cn(
-                                                "px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors",
+                                                "px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors flex items-center gap-1.5",
                                                 isPinned 
                                                     ? "bg-gray-200 dark:bg-dark-surface text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-dark-border"
                                                     : "bg-primary-500 text-white hover:bg-primary-600"
                                             )}
                                         >
+                                            <span>📌</span>
                                             {buttonText}
                                         </button>
                                     </div>

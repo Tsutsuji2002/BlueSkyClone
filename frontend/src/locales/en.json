@@ -513,7 +513,9 @@
         "my_feeds_hint": "Pin feeds to add them to Home. Use settings for order on Home.",
         "no_recommendations": "No recommendations found.",
         "unpin": "Unpin",
-        "pin": "Pin"
+        "pin": "Pin",
+        "unpin_feed": "Unpin feed",
+        "feed_by": "Feed by @{{handle}}"
     },
     "explore": {
         "search_placeholder": "Search for posts, users or feeds",

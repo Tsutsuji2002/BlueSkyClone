@@ -513,7 +513,9 @@
         "my_feeds_hint": "Ghim bảng tin để thêm vào Trang chủ. Dùng cài đặt để chỉnh thứ tự.",
         "no_recommendations": "Không có gợi ý nào.",
         "unpin": "Bỏ ghim",
-        "pin": "Ghim"
+        "pin": "Ghim",
+        "unpin_feed": "Bỏ ghim bảng tin",
+        "feed_by": "Bảng tin của @{{handle}}"
     },
     "explore": {
         "search_placeholder": "Tìm bài đăng, người dùng hoặc bảng tin",

@@ -5,8 +5,8 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab, profileMatchesIdentifier } from '../redux/slices/userSlice';
-import { fetchUserFeeds } from '../redux/slices/feedsSlice';
-import { fetchUserLists } from '../redux/slices/listsSlice';
+import { fetchUserFeeds, clearUserFeeds } from '../redux/slices/feedsSlice';
+import { fetchUserLists, clearUserLists } from '../redux/slices/listsSlice';
 import { openEditProfile, openCreatePost, openReport, openAuthWall, openAddToList } from '../redux/slices/modalsSlice';
 import { useTranslation } from 'react-i18next';
 import Avatar from '../components/common/Avatar';
@@ -104,9 +104,13 @@ const ProfilePage: React.FC = () => {
         lastFetchedHandle.current = handle;
         dispatch(clearProfile());
         dispatch(clearPosts());
+        dispatch(clearUserFeeds());
+        dispatch(clearUserLists());
+        dispatch(setActiveProfileTab('posts'));
+        setVisitedTabs(new Set(['posts']));
         setShowWarn(true);
         dispatch(fetchUserProfile(handle)).unwrap().then((profile) => {
-            if (profile && profile.user && profile.user.did && profile.user.did !== currentUser?.did) {
+            if (profile && profile.user && profile.user.did) {
                 dispatch(fetchUserFeeds(profile.user.did));
                 dispatch(fetchUserLists(profile.user.did));
             }
@@ -631,9 +635,14 @@ const ProfilePage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Content Section */}
+                    {/* Content Section — only render tabs that are visible */}
                     <div className="flex-1 bg-white dark:bg-dark-bg min-h-screen">
-                        {PROFILE_TABS.map((tab: any) => {
+                        {PROFILE_TABS.filter(tab => {
+                            if (isOwnProfile) return true;
+                            if (tab.id === 'feeds') return userFeeds.length > 0;
+                            if (tab.id === 'lists') return userLists.length > 0;
+                            return true;
+                        }).map((tab: any) => {
                             if (!visitedTabs.has(tab.id)) return null;
                             return (
                                 <div 

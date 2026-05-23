@@ -88,14 +88,30 @@ function normalizeSettings(raw: any): UserSettings {
 
 // Removed hydrateAtpSession because the backend handles session via HttpOnly cookies
 
-const initialState: AuthState & { savedAccounts: StoredAccount[] } = {
-    user: null,
-    settings: null,
-    isAuthenticated: false,
-    isLoading: true, // Start loading automatically to fetch the me endpoint via cookies
-    error: null,
-    savedAccounts: AccountManager.getAccounts(),
-};
+const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
+    const savedAccounts = AccountManager.getAccounts();
+    const activeId = AccountManager.getActiveAccountId();
+    const activeAccount = activeId ? savedAccounts.find(a => a.id === activeId || a.did === activeId) : null;
+
+    return {
+        user: activeAccount ? {
+            id: activeAccount.id,
+            did: activeAccount.did,
+            handle: activeAccount.handle,
+            displayName: activeAccount.displayName,
+            avatarUrl: activeAccount.avatar,
+            avatar: activeAccount.avatar,
+            followersCount: 0, // Fallback
+            followingCount: 0,
+            postsCount: 0
+        } as User : null,
+        settings: null,
+        isAuthenticated: !!activeAccount,
+        isLoading: !activeAccount, // Only show LoadingScreen if no cached account exists
+        error: null,
+        savedAccounts,
+    };
+})();
 
 // verifyDomain thunk could also be migrated to RTK Query userApi later
 export const verifyDomain = createAsyncThunk(

@@ -531,6 +531,9 @@ const feedsSlice = createSlice({
             state.pinnedFeedIds = action.payload;
             localStorage.setItem('feeds_pinned_ids', JSON.stringify(action.payload));
         },
+        clearUserFeeds: (state: FeedsState) => {
+            state.userFeeds = [];
+        },
         clearFeeds: (state: FeedsState) => {
             state.subscribedFeeds = [];
             state.pinnedFeedIds = [];
@@ -1073,6 +1076,6 @@ const feedsSlice = createSlice({
     }
 });
 
-export const { setActiveFeed, setActiveTab, setPinnedFeedIds, clearFeeds } = feedsSlice.actions;
+export const { setActiveFeed, setActiveTab, setPinnedFeedIds, clearUserFeeds, clearFeeds } = feedsSlice.actions;
 export default feedsSlice.reducer;
 
