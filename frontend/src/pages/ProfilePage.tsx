@@ -97,9 +97,9 @@ const ProfilePage: React.FC = () => {
         // Skip profile fetch if already loaded, but ALWAYS ensure feeds/lists are fresh
         if (isSameProfile) {
             lastFetchedHandle.current = handle;
-            if (profileUser?.did) {
-                dispatch(fetchUserFeeds(profileUser.did));
-                dispatch(fetchUserLists(profileUser.did));
+            if (handle) {
+                dispatch(fetchUserFeeds(handle));
+                dispatch(fetchUserLists(handle));
             }
             return;
         }
@@ -114,9 +114,9 @@ const ProfilePage: React.FC = () => {
         setVisitedTabs(new Set(['posts']));
         setShowWarn(true);
         dispatch(fetchUserProfile(handle)).unwrap().then((profile) => {
-            if (profile && profile.user && profile.user.did) {
-                dispatch(fetchUserFeeds(profile.user.did));
-                dispatch(fetchUserLists(profile.user.did));
+            if (profile && profile.user) {
+                dispatch(fetchUserFeeds(handle));
+                dispatch(fetchUserLists(handle));
             }
         });
     }, [dispatch, handle, currentUser?.did]);
