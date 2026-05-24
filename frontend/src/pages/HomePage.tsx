@@ -109,7 +109,7 @@ const HomePage: React.FC = () => {
                     .catch(() => {});
             }
         }
-    }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading]);
+    }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading, isSessionSettled]);
 
     // Consolidated scroll management moved to global useScrollRestoration(activeTab)
 
