@@ -20,6 +20,9 @@ namespace BSkyClone.Services
         private readonly string _relayUrl = "wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos";
 
         private readonly int _samplingRate;
+        private HashSet<string> _localUserDids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private DateTime _lastCacheUpdate = DateTime.MinValue;
+        private readonly SemaphoreSlim _cacheLock = new SemaphoreSlim(1, 1);
 
         public FirehoseService(ILogger<FirehoseService> logger, IServiceProvider serviceProvider, IConfiguration configuration)
         {
@@ -31,6 +34,9 @@ namespace BSkyClone.Services
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("FirehoseService starting...");
+
+            // Initial cache load
+            await UpdateLocalUserCacheAsync(stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -50,6 +56,34 @@ namespace BSkyClone.Services
                     _logger.LogError(ex, "Firehose connection error. Retrying in 10 seconds...");
                     await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                 }
+            }
+        }
+
+        private async Task UpdateLocalUserCacheAsync(CancellationToken ct)
+        {
+            await _cacheLock.WaitAsync(ct);
+            try
+            {
+                if (DateTime.UtcNow - _lastCacheUpdate < TimeSpan.FromMinutes(10)) return;
+
+                using var scope = _serviceProvider.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<BSkyDbContext>();
+                var dids = await db.Users
+                    .Where(u => !string.IsNullOrEmpty(u.Did))
+                    .Select(u => u.Did)
+                    .ToListAsync(ct);
+
+                _localUserDids = new HashSet<string>(dids, StringComparer.OrdinalIgnoreCase);
+                _lastCacheUpdate = DateTime.UtcNow;
+                _logger.LogInformation("Firehose: Updated local user cache with {Count} DIDs.", _localUserDids.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Firehose: Failed to update local user cache.");
+            }
+            finally
+            {
+                _cacheLock.Release();
             }
         }
 
@@ -133,17 +167,9 @@ namespace BSkyClone.Services
 
             if (did != null && blocks != null && ops != null)
             {
-                // [RELIABILITY] DID-Aware Filter:
-                // Always process events from locally registered users.
-                // Apply 30% sampling ONLY for unknown remote DIDs to prevent DB saturation.
-                bool isLocalUser = false;
-                try
-                {
-                    using var checkScope = _serviceProvider.CreateScope();
-                    var db = checkScope.ServiceProvider.GetRequiredService<BSkyDbContext>();
-                    isLocalUser = await db.Users.AnyAsync(u => u.Did == did);
-                }
-                catch { /* Non-critical: fall through to sampling */ }
+                // [RELIABILITY] Use Cache-First check instead of hits DB every time
+                await UpdateLocalUserCacheAsync(CancellationToken.None);
+                bool isLocalUser = _localUserDids.Contains(did);
 
                 if (!isLocalUser && new Random().Next(0, 100) > _samplingRate)
                 {

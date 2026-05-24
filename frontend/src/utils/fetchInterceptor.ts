@@ -35,23 +35,28 @@ const getNativeFetch = (): typeof window.fetch => {
  */
 async function tryRefreshToken(): Promise<boolean> {
     const nativeFetch = getNativeFetch();
+    
+    // If already refreshing, wait for that promise but add a safety fallback
     if (isRefreshing && refreshPromise) {
         console.log('[FetchInterceptor] Waiting for existing refresh attempt...');
-        return refreshPromise;
+        try {
+            // Wait for existing, but don't hang forever if the original promise leaked
+            const result = await Promise.race([
+                refreshPromise,
+                new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 20000))
+            ]);
+            return result === true;
+        } catch {
+            return false;
+        }
     }
 
     console.log('[FetchInterceptor] Starting fresh session refresh...');
     isRefreshing = true;
 
-    // Use a race to ensure we don't hang indefinitely. 15s is plenty even for slow connections.
-    const refreshTimeout = new Promise<boolean>((resolve) => {
-        setTimeout(() => {
-            if (isRefreshing) {
-                console.warn('[FetchInterceptor] Refresh attempt TIMED OUT after 15s.');
-                resolve(false);
-            }
-        }, 15000);
-    });
+    // Use a race to ensure we don't hang indefinitely.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const refreshActual = (async () => {
         try {
@@ -59,20 +64,26 @@ async function tryRefreshToken(): Promise<boolean> {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal
             });
             
             console.log(`[FetchInterceptor] Refresh result: ${res.status}`);
             return res.ok;
         } catch (err) {
-            console.error('[FetchInterceptor] Refresh network error:', err);
+            if ((err as Error).name === 'AbortError') {
+                console.warn('[FetchInterceptor] Refresh attempt TIMED OUT.');
+            } else {
+                console.error('[FetchInterceptor] Refresh network error:', err);
+            }
             return false;
         } finally {
+            clearTimeout(timeoutId);
             isRefreshing = false;
             refreshPromise = null;
         }
     })();
 
-    refreshPromise = Promise.race([refreshActual, refreshTimeout]);
+    refreshPromise = refreshActual;
     return refreshPromise;
 }
 
@@ -121,7 +132,33 @@ export const setupFetchInterceptor = () => {
             firstCallArgs = [input.clone(), init];
         }
 
-        const response = await (nativeFetch as any)(...firstCallArgs);
+        // 1. ADD TIMEOUT to all requests (30s)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        if (init) {
+            init.signal = controller.signal;
+        } else if (input instanceof Request) {
+            // Signal cannot be set directly on cloned request if not provided in constructor
+            // but we can pass it to nativeFetch separately
+        } else {
+            init = { signal: controller.signal };
+        }
+
+        let response: Response;
+        try {
+            response = await (nativeFetch as any)(...firstCallArgs);
+        } catch (err) {
+            if ((err as Error).name === 'AbortError') {
+                console.warn(`[FetchInterceptor] Request TIMED OUT: ${url}`);
+                // Return a fake 408 Timeout response or rethrow? 
+                // Let's rethrow so the UI can handle the error.
+                throw err;
+            }
+            throw err;
+        } finally {
+            clearTimeout(timeoutId);
+        }
 
         // Avoid infinite loops: if a request marked as a retry still returns 401, don't try to refresh again.
         const isRetry = input instanceof Request ? input.headers.has('X-Retry-Attempt') : (init?.headers as any)?.['X-Retry-Attempt'];
