@@ -142,8 +142,9 @@ public class AuthService : IAuthService
         var bskyCacheOptions = new DistributedCacheEntryOptions { 
             AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) 
         };
-        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
-        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions, cts.Token);
+        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions, cts.Token);
 
         try
         {
@@ -249,19 +250,21 @@ public class AuthService : IAuthService
         var bskyCacheOptions = new DistributedCacheEntryOptions { 
             AbsoluteExpirationRelativeToNow = request.RememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
         };
-        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions);
-        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions, cts.Token);
+        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions, cts.Token);
 
         return MapToAuthResponse(user, token, refreshToken, request.RememberMe);
     }
 
     public async Task<AuthResponse?> RefreshTokenAsync(string refreshToken)
     {
-        var userIdString = await _cache.GetStringAsync($"RefreshToken_{refreshToken}");
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var userIdString = await _cache.GetStringAsync($"RefreshToken_{refreshToken}", cts.Token);
         if (string.IsNullOrEmpty(userIdString)) return null;
 
         // Invalidate the old token immediately (refresh token rotation)
-        await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
+        await _cache.RemoveAsync($"RefreshToken_{refreshToken}", cts.Token);
 
         var userId = Guid.Parse(userIdString.Split('|')[0]);
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -276,7 +279,8 @@ public class AuthService : IAuthService
         // Synchronize Bluesky session refresh
         if (!string.IsNullOrEmpty(user.Did))
         {
-            var bskyRefreshToken = await _cache.GetStringAsync($"BlueskyRefreshToken_{user.Id}");
+            using var ctsSync = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var bskyRefreshToken = await _cache.GetStringAsync($"BlueskyRefreshToken_{user.Id}", ctsSync.Token);
             if (!string.IsNullOrEmpty(bskyRefreshToken))
             {
                 try 
@@ -310,8 +314,9 @@ public class AuthService : IAuthService
                         var bskyCacheOptions = new DistributedCacheEntryOptions { 
                             AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
                         };
-                        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions);
-                        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions);
+                        using var ctsSet = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions, ctsSet.Token);
+                        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions, ctsSet.Token);
                         _logger.LogInformation("Successfully refreshed and PERSISTED Bluesky session for user {UserId}", user.Id);
                     }
                     else
@@ -359,7 +364,8 @@ public class AuthService : IAuthService
         {
             try
             {
-                var token = await _cache.GetStringAsync($"BlueskyToken_{user.Id}");
+                using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var token = await _cache.GetStringAsync($"BlueskyToken_{user.Id}", cts2.Token);
                 if (!string.IsNullOrEmpty(token))
                 {
                     var profileResponse = await _xrpcProxy.ProxyRequestAsync(user.Did!, "app.bsky.actor.getProfile", new Dictionary<string, string?> { { "actor", user.Did } }, token);
@@ -396,7 +402,8 @@ public class AuthService : IAuthService
 
     public async Task LogoutAsync(string refreshToken)
     {
-        await _cache.RemoveAsync($"RefreshToken_{refreshToken}");
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await _cache.RemoveAsync($"RefreshToken_{refreshToken}", cts.Token);
     }
 
     private async Task<string> GenerateAndSaveRefreshToken(Guid userId, bool rememberMe = false)
@@ -412,7 +419,8 @@ public class AuthService : IAuthService
             AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(365) : TimeSpan.FromDays(7)
         };
 
-        await _cache.SetStringAsync($"RefreshToken_{refreshToken}", $"{userId}|{rememberMe}", cacheOptions);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await _cache.SetStringAsync($"RefreshToken_{refreshToken}", $"{userId}|{rememberMe}", cacheOptions, cts.Token);
         return refreshToken;
     }
 

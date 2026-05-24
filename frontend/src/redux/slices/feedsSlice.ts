@@ -119,6 +119,7 @@ interface FeedsState {
     userFeeds: Feed[];
     userFeedsLoading: boolean;
     lastSubscribedFeedsFetch: number;
+    isFetchingSubscribed: boolean;
     lastFetchDid: string;
     trendingFeeds: Feed[];
 }
@@ -147,6 +148,7 @@ const initialState: FeedsState = {
     userFeeds: [],
     userFeedsLoading: false,
     lastSubscribedFeedsFetch: 0,
+    isFetchingSubscribed: false,
     lastFetchDid: localStorage.getItem('feeds_last_did') || '',
     trendingFeeds: [],
 };
@@ -236,9 +238,10 @@ export const fetchSubscribedFeeds = createAsyncThunk<
             // Throttle: don't fetch more than once every 10 seconds unless explicitly bypassed OR account changed
             const isSameAccount = currentDid && state.feeds.lastFetchDid === currentDid;
             const isFresh = state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000);
+            const isPending = state.feeds.isFetchingSubscribed;
 
-            if (!bypassThrottle && isSameAccount && isFresh) {
-                console.log('feedsSlice: fetchSubscribedFeeds throttled (called too recently for same account)');
+            if (!bypassThrottle && isSameAccount && (isFresh || isPending)) {
+                console.log(`feedsSlice: fetchSubscribedFeeds throttled (called too recently or already pending for same account) - isFresh: ${isFresh}, isPending: ${isPending}`);
                 return state.feeds.subscribedFeeds;
             }
 
@@ -630,7 +633,11 @@ const feedsSlice = createSlice({
                     }
                 });
             })
+            .addCase(fetchSubscribedFeeds.pending, (state: FeedsState) => {
+                state.isFetchingSubscribed = true;
+            })
             .addCase(fetchSubscribedFeeds.fulfilled, (state: FeedsState, action: PayloadAction<Feed[]>) => {
+                state.isFetchingSubscribed = false;
                 state.lastSubscribedFeedsFetch = Date.now();
                 const currentDid = state.lastFetchDid;
  
@@ -659,6 +666,9 @@ const feedsSlice = createSlice({
                     localStorage.setItem(getAccountKey('feeds_last_fetch', currentDid), state.lastSubscribedFeedsFetch.toString());
                     localStorage.setItem('feeds_last_did', currentDid);
                 }
+            })
+            .addCase(fetchSubscribedFeeds.rejected, (state: FeedsState) => {
+                state.isFetchingSubscribed = false;
             })
             .addCase(fetchFeedInfo.pending, (state: FeedsState, action) => {
                 state.infoLoading[action.meta.arg] = true;

@@ -74,12 +74,27 @@ const HomePage: React.FC = () => {
     // We check lastSubscribedFeedsFetch === 0 to know if we've ever tried (even in past session).
     const isInitialLoading = (feedsLoading || authLoading || (isAuthenticated && subscribedFeeds.length === 0 && lastSubscribedFeedsFetch === 0)) && !hasAnyData;
 
+    const isInitializingRef = React.useRef(false);
+
     useEffect(() => {
         // Always try to fetch if we are authenticated and haven't fetched in the last 10 seconds
         const now = Date.now();
-        if (!authLoading && isAuthenticated && (subscribedFeeds.length === 0 || (now - lastSubscribedFeedsFetch > 10000))) {
-            dispatch(fetchSubscribedFeeds());
-            dispatch(fetchPinnedLists());
+        const isStale = (now - lastSubscribedFeedsFetch > 10000);
+        const needsFetch = subscribedFeeds.length === 0 || isStale;
+
+        if (!authLoading && isAuthenticated && needsFetch && !isInitializingRef.current) {
+            console.log('[HomePage] Triggering initial data fetch (Feeds + Lists)');
+            isInitializingRef.current = true;
+            
+            // We use .finally to reset the ref, but the throttle in slices will prevent 
+            // subsequent calls for 10s anyway once they succeed.
+            // The ref primarily prevents "render loops" from spawning 10 calls in 100ms.
+            Promise.all([
+                dispatch(fetchSubscribedFeeds()).unwrap(),
+                dispatch(fetchPinnedLists()).unwrap()
+            ]).finally(() => {
+                isInitializingRef.current = false;
+            });
         }
     }, [dispatch, authLoading, isAuthenticated, subscribedFeeds.length, lastSubscribedFeedsFetch]);
 

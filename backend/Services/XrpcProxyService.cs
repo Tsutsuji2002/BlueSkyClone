@@ -73,7 +73,8 @@ namespace BSkyClone.Services
 
             if (cacheKey != null)
             {
-                var cached = await _cache.GetStringAsync(cacheKey);
+                using var ctsCache = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var cached = await _cache.GetStringAsync(cacheKey, ctsCache.Token);
                 if (!string.IsNullOrEmpty(cached))
                 {
                     try
@@ -158,7 +159,8 @@ namespace BSkyClone.Services
                     if (content.Length < 500000) // 0.5MB limit
                     {
                         var json = JsonSerializer.Serialize(proxyResponse);
-                        await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(3) });
+                        using var ctsCacheSet = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+                        await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(3) }, ctsCacheSet.Token);
                     }
                 }
 
@@ -239,19 +241,18 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task<string?> ResolvePdsUrlAsync(string didOrHandle)
-        {
             try
             {
                 var cacheKey = $"PdsUrl_{didOrHandle.ToLower()}";
-                var cachedUrl = await _cache.GetStringAsync(cacheKey);
+                using var ctsCache1 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var cachedUrl = await _cache.GetStringAsync(cacheKey, ctsCache1.Token);
                 if (!string.IsNullOrEmpty(cachedUrl)) return cachedUrl;
 
-                string did = didOrHandle;
                 if (!didOrHandle.StartsWith("did:"))
                 {
                     var handleCacheKey = $"ResolvedHandle_{didOrHandle.ToLower()}";
-                    var cachedDid = await _cache.GetStringAsync(handleCacheKey);
+                    using var ctsCache2 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    var cachedDid = await _cache.GetStringAsync(handleCacheKey, ctsCache2.Token);
                     
                     if (!string.IsNullOrEmpty(cachedDid))
                     {
@@ -274,7 +275,8 @@ namespace BSkyClone.Services
                                 if (data != null && data.TryGetValue("did", out var resolvedDid))
                                 {
                                     did = resolvedDid;
-                                    await _cache.SetStringAsync(handleCacheKey, did, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
+                                    using var ctsCache3 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+                                    await _cache.SetStringAsync(handleCacheKey, did, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) }, ctsCache3.Token);
                                 }
                             }
                         }
@@ -291,7 +293,8 @@ namespace BSkyClone.Services
                 if (service == null || string.IsNullOrEmpty(service.ServiceEndpoint)) return null;
 
                 var endpoint = service.ServiceEndpoint;
-                await _cache.SetStringAsync(cacheKey, endpoint, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
+                using var ctsCache4 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await _cache.SetStringAsync(cacheKey, endpoint, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) }, ctsCache4.Token);
                 
                 return endpoint;
             }

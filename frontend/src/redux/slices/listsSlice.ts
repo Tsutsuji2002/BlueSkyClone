@@ -18,6 +18,7 @@ interface ListsState {
     activeListFeed: Post[];
     isLoading: boolean;
     userListsLoading: boolean;
+    isFetchingPinned: boolean;
     hasMoreFeed: boolean;
     error: string | null;
     lastFetchDid: string;
@@ -37,6 +38,7 @@ const initialState: ListsState = {
     activeListFeed: [],
     isLoading: false,
     userListsLoading: false,
+    isFetchingPinned: false,
     hasMoreFeed: true,
     error: null,
     lastFetchDid: localStorage.getItem('lists_last_did') || '',
@@ -148,8 +150,13 @@ export const fetchUserLists = createAsyncThunk(
 
 export const fetchPinnedLists = createAsyncThunk(
     'lists/fetchPinnedLists',
-    async (_, { rejectWithValue }) => {
+    async (_, { rejectWithValue, getState }) => {
         try {
+            const state = getState() as any;
+            if (state.lists.isFetchingPinned) {
+                console.log('listsSlice: fetchPinnedLists throttled (already pending)');
+                return state.lists.pinnedLists;
+            }
             return await listService.getPinnedLists();
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Failed to fetch pinned lists');
@@ -463,13 +470,20 @@ const listsSlice = createSlice({
         });
 
         // Fetch Pinned Lists
+        builder.addCase(fetchPinnedLists.pending, (state) => {
+            state.isFetchingPinned = true;
+        });
         builder.addCase(fetchPinnedLists.fulfilled, (state, action) => {
+            state.isFetchingPinned = false;
             state.isLoading = false;
             state.pinnedLists = action.payload;
             const did = state.lastFetchDid;
             if (did) {
                 localStorage.setItem(getAccountKey('lists_pinned', did), JSON.stringify(action.payload));
             }
+        });
+        builder.addCase(fetchPinnedLists.rejected, (state) => {
+            state.isFetchingPinned = false;
         });
 
         // Create List
