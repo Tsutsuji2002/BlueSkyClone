@@ -78,11 +78,9 @@ const AppContent: React.FC = () => {
         dispatch(hydrateListsForAccount(meData.user.did));
       }
     } else if (meError) {
-      // If error is 401, the fetchInterceptor is currently retrying or refreshing.
-      // We only stop the loading screen if it's a "terminal" error (not 401)
-      // or if the request is no longer fetching (meaning interceptor retries finished).
-      const status = (meError as any)?.status;
-      if (status !== 401 && !isMeFetching) {
+      // If error occurs, we stop loading once the fetch is complete.
+      // This is critical for guest users where meData will be a 401.
+      if (!isMeFetching) {
         dispatch(stopLoading());
       }
     }
