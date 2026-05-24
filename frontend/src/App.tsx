@@ -28,8 +28,8 @@ import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetMeQuery, authApi } from './redux/api/authApi';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
-import { hydrateForAccount as hydrateFeedsForAccount } from './redux/slices/feedsSlice';
-import { hydrateForAccount as hydrateListsForAccount } from './redux/slices/listsSlice';
+import { hydrateForAccount as hydrateFeedsForAccount, fetchSubscribedFeeds } from './redux/slices/feedsSlice';
+import { hydrateForAccount as hydrateListsForAccount, fetchPinnedLists } from './redux/slices/listsSlice';
 import signalrService, { HubStatus } from './services/signalrService';
 import postSignalrService from './services/postSignalrService';
 import { closeAllModals } from './redux/slices/modalsSlice';
@@ -100,6 +100,10 @@ const AppContent: React.FC = () => {
     if (isAuthenticated) {
         console.log('[App] Authenticated: Starting background services in 2s...');
         
+        // Eagerly trigger network refresh for core metadata immediately
+        dispatch(fetchSubscribedFeeds());
+        dispatch(fetchPinnedLists());
+
         signalrTimerRef.current = setTimeout(() => {
             console.log('[App] Starting connections after grace period.');
             signalrService.startConnection();
