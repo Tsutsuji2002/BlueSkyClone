@@ -241,6 +241,8 @@ namespace BSkyClone.Services
             }
         }
 
+        public async Task<string?> ResolvePdsUrlAsync(string didOrHandle)
+        {
             try
             {
                 var cacheKey = $"PdsUrl_{didOrHandle.ToLower()}";
@@ -248,6 +250,7 @@ namespace BSkyClone.Services
                 var cachedUrl = await _cache.GetStringAsync(cacheKey, ctsCache1.Token);
                 if (!string.IsNullOrEmpty(cachedUrl)) return cachedUrl;
 
+                string did = didOrHandle;
                 if (!didOrHandle.StartsWith("did:"))
                 {
                     var handleCacheKey = $"ResolvedHandle_{didOrHandle.ToLower()}";
