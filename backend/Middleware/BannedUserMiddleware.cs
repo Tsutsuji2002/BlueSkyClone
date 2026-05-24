@@ -1,14 +1,17 @@
-using BSkyClone.Models;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using BSkyClone.Models;
 
 namespace BSkyClone.Middleware
 {
     public class BannedUserMiddleware
     {
         private readonly RequestDelegate _next;
+        private static readonly ConcurrentDictionary<Guid, (bool IsBanned, DateTime Expiry)> _cache = new();
+        private static readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(5);
 
         public BannedUserMiddleware(RequestDelegate next)
         {
@@ -24,10 +27,20 @@ namespace BSkyClone.Middleware
                     var userIdString = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? context.User.FindFirst("sub")?.Value;
                     if (Guid.TryParse(userIdString, out var userId))
                     {
-                        var isBanned = await dbContext.Users
-                            .Where(u => u.Id == userId)
-                            .Select(u => u.IsBanned)
-                            .FirstOrDefaultAsync();
+                        bool isBanned = false;
+                        if (_cache.TryGetValue(userId, out var entry) && entry.Expiry > DateTime.UtcNow)
+                        {
+                            isBanned = entry.IsBanned;
+                        }
+                        else
+                        {
+                            isBanned = await dbContext.Users
+                                .Where(u => u.Id == userId)
+                                .Select(u => u.IsBanned)
+                                .FirstOrDefaultAsync();
+                            
+                            _cache[userId] = (isBanned, DateTime.UtcNow.Add(_cacheDuration));
+                        }
 
                         if (isBanned)
                         {

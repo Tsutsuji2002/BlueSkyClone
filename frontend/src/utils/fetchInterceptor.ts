@@ -31,11 +31,43 @@ const getNativeFetch = (): typeof window.fetch => {
 };
 
 /**
+ * Helper to perform fetch with a timeout and robust logging.
+ */
+async function fetchWithTimeout(
+    input: RequestInfo | URL, 
+    init: RequestInit = {}, 
+    timeoutMs: number = 30000,
+    retryCount: number = 0
+): Promise<Response> {
+    const nativeFetch = getNativeFetch();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    // Merge existing signal if any
+    const existingSignal = init.signal;
+    if (existingSignal) {
+        existingSignal.addEventListener('abort', () => controller.abort());
+        if (existingSignal.aborted) controller.abort();
+    }
+
+    try {
+        const response = await nativeFetch(input, { ...init, signal: controller.signal });
+        return response;
+    } catch (err) {
+        if ((err as Error).name === 'AbortError') {
+            const url = input instanceof Request ? input.url : input.toString();
+            console.warn(`[FetchInterceptor] Request TIMED OUT after ${timeoutMs}ms: ${url}`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+/**
  * Silent session refresh attempt with a safety timeout.
  */
 async function tryRefreshToken(): Promise<boolean> {
-    const nativeFetch = getNativeFetch();
-    
     // If already refreshing, wait for that promise but add a safety fallback
     if (isRefreshing && refreshPromise) {
         console.log('[FetchInterceptor] Waiting for existing refresh attempt...');
@@ -54,30 +86,20 @@ async function tryRefreshToken(): Promise<boolean> {
     console.log('[FetchInterceptor] Starting fresh session refresh...');
     isRefreshing = true;
 
-    // Use a race to ensure we don't hang indefinitely.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
     const refreshActual = (async () => {
         try {
-            const res = await nativeFetch(`${API_URL}/auth/refresh`, {
+            const res = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
                 method: 'POST',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal
-            });
+                headers: { 'Content-Type': 'application/json' }
+            }, 15000); // Strict 15s for refresh
             
             console.log(`[FetchInterceptor] Refresh result: ${res.status}`);
             return res.ok;
         } catch (err) {
-            if ((err as Error).name === 'AbortError') {
-                console.warn('[FetchInterceptor] Refresh attempt TIMED OUT.');
-            } else {
-                console.error('[FetchInterceptor] Refresh network error:', err);
-            }
+            console.error('[FetchInterceptor] Refresh attempt failed:', err);
             return false;
         } finally {
-            clearTimeout(timeoutId);
             isRefreshing = false;
             refreshPromise = null;
         }
@@ -111,54 +133,22 @@ export const setupFetchInterceptor = () => {
         const isExternalRequest = url.startsWith('http') && !isSameOrigin;
 
         // Force credentials: 'include' for same-origin
+        let fetchOptions: RequestInit = { ...(init || {}) };
         if (isSameOrigin && !isExternalRequest && !isRefreshRequest) {
-            if (init) {
-                init.credentials = 'include';
-            } else if (input instanceof Request) {
-                // If input is a Request, we need to ensure its credentials property is set.
-                // Request objects are immutable, so we must clone and replace.
-                if (input.credentials !== 'include') {
-                    input = new Request(input, { credentials: 'include' });
-                }
-            } else {
-                init = { credentials: 'include' };
+            fetchOptions.credentials = 'include';
+            if (input instanceof Request && input.credentials !== 'include') {
+                input = new Request(input, { credentials: 'include' });
             }
         }
 
-        // Clone request body if it's potentially retryable
-        let firstCallArgs: [RequestInfo | URL, RequestInit?] = [input, init];
+        // Clone/capture request for potential retry
+        let retryArgs: [RequestInfo | URL, RequestInit?] = [input, fetchOptions];
         if (input instanceof Request) {
-            // If it's a request object, we must clone it to reuse it later
-            firstCallArgs = [input.clone(), init];
+            // Re-clone request if needed for retry
+            retryArgs = [input.clone(), fetchOptions];
         }
 
-        // 1. ADD TIMEOUT to all requests (30s)
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-        if (init) {
-            init.signal = controller.signal;
-        } else if (input instanceof Request) {
-            // Signal cannot be set directly on cloned request if not provided in constructor
-            // but we can pass it to nativeFetch separately
-        } else {
-            init = { signal: controller.signal };
-        }
-
-        let response: Response;
-        try {
-            response = await (nativeFetch as any)(...firstCallArgs);
-        } catch (err) {
-            if ((err as Error).name === 'AbortError') {
-                console.warn(`[FetchInterceptor] Request TIMED OUT: ${url}`);
-                // Return a fake 408 Timeout response or rethrow? 
-                // Let's rethrow so the UI can handle the error.
-                throw err;
-            }
-            throw err;
-        } finally {
-            clearTimeout(timeoutId);
-        }
+        const response = await fetchWithTimeout(input, fetchOptions, 30000);
 
         // Avoid infinite loops: if a request marked as a retry still returns 401, don't try to refresh again.
         const isRetry = input instanceof Request ? input.headers.has('X-Retry-Attempt') : (init?.headers as any)?.['X-Retry-Attempt'];
@@ -173,27 +163,24 @@ export const setupFetchInterceptor = () => {
                 const refreshed = await tryRefreshToken();
 
                 if (refreshed) {
-                    // Successful refresh! Now retry the original request.
+                    console.log(`[FetchInterceptor] Session refreshed. Retrying: ${url}`);
+                    // Successful refresh! Now retry the original request with a timeout.
+                    const finalOptions: RequestInit = { ...fetchOptions };
+                    const finalHeaders = new Headers(finalOptions.headers || {});
+                    finalHeaders.set('X-Retry-Attempt', '1');
+                    finalOptions.headers = finalHeaders;
+
+                    // If input was a Request object, we need to create a new one to carry the new headers
                     if (input instanceof Request) {
-                        const newHeaders = new Headers(input.headers);
-                        newHeaders.delete('Authorization');
-                        newHeaders.set('X-Retry-Attempt', '1');
-                        
                         const retryReq = new Request(input.url, {
                             method: input.method,
-                            headers: newHeaders,
+                            headers: finalHeaders,
                             body: input.body,
                             credentials: 'include'
                         });
-                        return nativeFetch(retryReq);
+                        return fetchWithTimeout(retryReq, {}, 30000);
                     } else {
-                        const retryHeaders = new Headers(init?.headers || {});
-                        retryHeaders.set('X-Retry-Attempt', '1');
-                        return nativeFetch(input, {
-                            ...(init || {}),
-                            headers: retryHeaders,
-                            credentials: 'include'
-                        });
+                        return fetchWithTimeout(input, finalOptions, 30000);
                     }
                 } else {
                     // Refresh failed - session really is dead.
@@ -205,7 +192,6 @@ export const setupFetchInterceptor = () => {
                     }
 
                     if (activeDid) {
-                        // Import dynamic to avoid circular dep if any, though authSlice is already imported for logout
                         const { setSessionExpired } = require('../redux/slices/authSlice');
                         store.dispatch(setSessionExpired(activeDid));
                     }
