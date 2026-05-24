@@ -230,22 +230,7 @@ export const fetchSubscribedFeeds = createAsyncThunk<
     'feeds/fetchSubscribedFeeds',
     async (params, { rejectWithValue, getState }: { rejectWithValue: (value: string) => any, getState: () => any }) => {
         try {
-            const bypassThrottle = params && typeof params === 'object' ? params.bypassThrottle : false;
-            const state = getState() as RootState;
-            const currentDid = state.auth.user?.did;
             const now = Date.now();
-            
-            // Throttle: don't fetch more than once every 10 seconds unless explicitly bypassed OR account changed
-            const isSameAccount = currentDid && state.feeds.lastFetchDid === currentDid;
-            const isFresh = state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000);
-            const isPending = state.feeds.isFetchingSubscribed;
-
-            if (!bypassThrottle && isSameAccount && (isFresh || isPending)) {
-                console.log(`feedsSlice: fetchSubscribedFeeds throttled (called too recently or already pending for same account) - isFresh: ${isFresh}, isPending: ${isPending}`);
-                return state.feeds.subscribedFeeds;
-            }
-
-
             const response = await fetch(`${API_BASE_URL}/feeds/subscribed?t=${now}`);
             const data = await response.json().catch(() => ([]));
             console.log('feedsSlice: fetchSubscribedFeeds returned:', data);
@@ -253,6 +238,25 @@ export const fetchSubscribedFeeds = createAsyncThunk<
             return data;
         } catch (error: any) {
             return rejectWithValue(error.message);
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const bypassThrottle = params && typeof params === 'object' ? params.bypassThrottle : false;
+            const currentDid = state.auth.user?.did;
+            const now = Date.now();
+
+            // Throttle: don't fetch more than once every 10 seconds unless explicitly bypassed OR account changed
+            const isSameAccount = currentDid && state.feeds.lastFetchDid === currentDid;
+            const isFresh = state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000);
+            const isPending = state.feeds.isFetchingSubscribed;
+
+            if (!bypassThrottle && isSameAccount && (isFresh || isPending)) {
+                console.log(`feedsSlice: fetchSubscribedFeeds skipped (throttled or pending)`);
+                return false;
+            }
+            return true;
         }
     }
 );
@@ -510,6 +514,18 @@ export const fetchFeedPosts = createAsyncThunk<
             };
         } catch (error: any) {
             return rejectWithValue(error.message);
+        }
+    },
+    {
+        condition: ({ feedId }, { getState }) => {
+            const state = getState() as RootState;
+            // Prevent overlapping fetches for the same feedId.
+            // This is key to preventing the "3 redundant following requests" loop on reload.
+            if (state.feeds.feedLoading[feedId]) {
+                console.log(`feedsSlice: fetchFeedPosts for ${feedId} skipped since it is already loading.`);
+                return false;
+            }
+            return true;
         }
     }
 );

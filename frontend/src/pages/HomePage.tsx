@@ -76,31 +76,8 @@ const HomePage: React.FC = () => {
 
     const isInitializingRef = React.useRef(false);
 
-    useEffect(() => {
-        // ALWAYS wait for the session to be settled (from App.tsx's getMe) before firing anything.
-        // This is the "Auth Barrier" that prevents browser connection slot deadlocks.
-        if (!isSessionSettled) return;
-
-        // Always try to fetch if we are authenticated and haven't fetched in the last 10 seconds
-        const now = Date.now();
-        const isStale = (now - lastSubscribedFeedsFetch > 10000);
-        const needsFetch = subscribedFeeds.length === 0 || isStale;
-
-        if (!authLoading && isAuthenticated && needsFetch && !isInitializingRef.current) {
-            console.log('[HomePage] Triggering initial data fetch (Feeds + Lists)');
-            isInitializingRef.current = true;
-            
-            // We use .finally to reset the ref, but the throttle in slices will prevent 
-            // subsequent calls for 10s anyway once they succeed.
-            // The ref primarily prevents "render loops" from spawning 10 calls in 100ms.
-            Promise.all([
-                dispatch(fetchSubscribedFeeds()).unwrap(),
-                dispatch(fetchPinnedLists()).unwrap()
-            ]).finally(() => {
-                isInitializingRef.current = false;
-            });
-        }
-    }, [dispatch, authLoading, isAuthenticated, subscribedFeeds.length, lastSubscribedFeedsFetch]);
+    // Note: fetchSubscribedFeeds and fetchPinnedLists are now initiated by App.tsx 
+    // immediately following session verification for better performance and to avoid redundancy.
 
     useEffect(() => {
         // Strict guard: ensure we don't start pulling feed content until the session is settled.

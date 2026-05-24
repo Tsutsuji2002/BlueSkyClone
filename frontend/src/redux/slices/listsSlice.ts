@@ -152,14 +152,19 @@ export const fetchPinnedLists = createAsyncThunk(
     'lists/fetchPinnedLists',
     async (_, { rejectWithValue, getState }) => {
         try {
-            const state = getState() as any;
-            if (state.lists.isFetchingPinned) {
-                console.log('listsSlice: fetchPinnedLists throttled (already pending)');
-                return state.lists.pinnedLists;
-            }
             return await listService.getPinnedLists();
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Failed to fetch pinned lists');
+        }
+    },
+    {
+        condition: (_, { getState }) => {
+            const state = getState() as any;
+            if (state.lists.isFetchingPinned) {
+                console.log('listsSlice: fetchPinnedLists skipped (already pending)');
+                return false;
+            }
+            return true;
         }
     }
 );
