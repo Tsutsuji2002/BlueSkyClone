@@ -28,7 +28,7 @@ const HomePage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch, lastSubscribedFeedsFetch } = useAppSelector((state: RootState) => state.feeds);
-    const { isAuthenticated, user, isLoading: authLoading } = useAppSelector((state: RootState) => state.auth);
+    const { isAuthenticated, user, isLoading: authLoading, isSessionSettled } = useAppSelector((state: RootState) => state.auth);
 
     const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
 
@@ -77,6 +77,10 @@ const HomePage: React.FC = () => {
     const isInitializingRef = React.useRef(false);
 
     useEffect(() => {
+        // ALWAYS wait for the session to be settled (from App.tsx's getMe) before firing anything.
+        // This is the "Auth Barrier" that prevents browser connection slot deadlocks.
+        if (!isSessionSettled) return;
+
         // Always try to fetch if we are authenticated and haven't fetched in the last 10 seconds
         const now = Date.now();
         const isStale = (now - lastSubscribedFeedsFetch > 10000);

@@ -107,7 +107,8 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
         } as User : null,
         settings: null,
         isAuthenticated: !!activeAccount,
-        isLoading: !activeAccount, // Only show LoadingScreen if no cached account exists
+        isLoading: !activeAccount,
+        isSessionSettled: false, // New flag: always false until first check completes
         error: null,
         savedAccounts,
     };
@@ -156,12 +157,14 @@ const authSlice = createSlice({
         },
         stopLoading: (state) => {
             state.isLoading = false;
+            state.isSessionSettled = true;
         },
         setAuth: (state, action: PayloadAction<{ user: User; settings: any; token: string; refreshToken: string }>) => {
             state.isAuthenticated = true;
             state.user = action.payload.user;
             state.settings = normalizeSettings(action.payload.settings);
             state.isLoading = false;
+            state.isSessionSettled = true;
             
             // Save to account manager with tokens and mark as active
             AccountManager.saveAccount(action.payload.user, action.payload.token, action.payload.refreshToken);

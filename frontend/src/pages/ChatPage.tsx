@@ -152,7 +152,7 @@ const ChatPage: React.FC = () => {
     const messagesContainerRef = useRef<HTMLDivElement>(null);
 
     const { conversations, activeConversationMessages, isLoading, hasMore, isLoadingMore } = useAppSelector((state: RootState) => state.messages);
-    const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
+    const { isAuthenticated, user: currentUser, isLoading: authLoading, isSessionSettled } = useAppSelector((state: RootState) => state.auth);
     const { mode } = useAppSelector((state: RootState) => state.theme);
     const conversation = conversations.find((c: Conversation) => c.id === conversationId);
 
@@ -187,7 +187,7 @@ const ChatPage: React.FC = () => {
 
     // Set active conversation and fetch messages on mount
     useEffect(() => {
-        if (conversationId) {
+        if (conversationId && isSessionSettled) {
             dispatch(setActiveConversation(conversationId));
             dispatch(fetchMessages({ conversationId, limit: 10 }));
             

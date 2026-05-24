@@ -50,6 +50,10 @@ const AppContent: React.FC = () => {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const { data: meData, error: meError, isFetching: isMeFetching, refetch } = useGetMeQuery();
+  
+  // App Ready is true only when the session check has settled (success or failure)
+  const isAppReady = !isMeFetching && (meData !== undefined || meError !== undefined);
+
   const isFirstRender = React.useRef(true);
   const signalrTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -97,10 +101,10 @@ const AppContent: React.FC = () => {
         signalrTimerRef.current = null;
     }
 
-    if (isAuthenticated) {
-        console.log('[App] Authenticated: Starting background services in 2s...');
+    if (isAuthenticated && isAppReady) {
+        console.log('[App] Authenticated & Ready: Starting background services in 1s...');
         
-        // Eagerly trigger network refresh for core metadata immediately
+        // ONLY trigger metadata recovery once session state is confirmed fresh/valid
         dispatch(fetchSubscribedFeeds());
         dispatch(fetchPinnedLists());
 
@@ -146,7 +150,7 @@ const AppContent: React.FC = () => {
             clearTimeout(signalrTimerRef.current);
         }
     };
-  }, [isAuthenticated, dispatch, t]);
+  }, [isAuthenticated, isAppReady, dispatch, t]);
 
   // Periodic polling for unread counts (fallback + sync)
   useEffect(() => {
@@ -251,16 +255,19 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && isAuthenticated) {
-        console.log('[App] Tab visible: Re-syncing session and connections...');
-        // Force refetch the 'me' endpoint to ensure session is still valid
-        refetch();
-        // Eagerly restart SignalR connections (they handle "already connected" internally)
-        signalrService.startConnection();
-        postSignalrService.startConnection();
-        
-        // Also refresh core metadata
-        dispatch(fetchSubscribedFeeds());
-        dispatch(fetchPinnedLists());
+        console.log('[App] Tab visible: Re-syncing session...');
+        // Force refetch the 'me' endpoint to ensure session is still valid.
+        // The background fetch of feeds/lists should be handled naturally by the
+        // isAppReady change or by explicit dispatches AFTER refetch() settles.
+        refetch().unwrap().then(() => {
+            console.log('[App] Session re-verified. Poking SignalR.');
+            signalrService.startConnection();
+            postSignalrService.startConnection();
+            dispatch(fetchSubscribedFeeds());
+            dispatch(fetchPinnedLists());
+        }).catch(() => {
+            console.log('[App] Session re-verification failed.');
+        });
       }
     };
 
