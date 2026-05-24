@@ -80,7 +80,7 @@ class PostSignalRService {
                 })
                 .withAutomaticReconnect({
                     nextRetryDelayInMilliseconds: retryContext => {
-                        if (retryContext.elapsedMilliseconds > 60000) return null;
+                        // Indefinite retries with backoff while backgrounded.
                         return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 30000);
                     }
                 })

@@ -114,7 +114,8 @@ class SignalRService {
                 })
                 .withAutomaticReconnect({
                     nextRetryDelayInMilliseconds: retryContext => {
-                        if (retryContext.elapsedMilliseconds > 60000) return null;
+                        // Remove the 60s cap to allow indefinite retries while backgrounded.
+                        // Backoff starts at 1s and caps at 30s.
                         return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 30000);
                     }
                 })

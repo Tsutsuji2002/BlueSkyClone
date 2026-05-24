@@ -49,7 +49,7 @@ const AppContent: React.FC = () => {
   const theme = useAppSelector((state: RootState) => state.theme);
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const { data: meData, error: meError, isFetching: isMeFetching } = useGetMeQuery();
+  const { data: meData, error: meError, isFetching: isMeFetching, refetch } = useGetMeQuery();
   const isFirstRender = React.useRef(true);
   const signalrTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -246,6 +246,27 @@ const AppContent: React.FC = () => {
     }
     prevAuth.current = isAuthenticated;
   }, [isAuthenticated, dispatch]);
+
+  // Handle visibility changes to recover from background throttling
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isAuthenticated) {
+        console.log('[App] Tab visible: Re-syncing session and connections...');
+        // Force refetch the 'me' endpoint to ensure session is still valid
+        refetch();
+        // Eagerly restart SignalR connections (they handle "already connected" internally)
+        signalrService.startConnection();
+        postSignalrService.startConnection();
+        
+        // Also refresh core metadata
+        dispatch(fetchSubscribedFeeds());
+        dispatch(fetchPinnedLists());
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAuthenticated, refetch, dispatch]);
 
   if (isLoading && !isAuthenticated) {
     return <LoadingScreen />;
