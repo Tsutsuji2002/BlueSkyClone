@@ -80,6 +80,11 @@ const AppContent: React.FC = () => {
       if (meData.user?.did) {
         dispatch(hydrateFeedsForAccount(meData.user.did));
         dispatch(hydrateListsForAccount(meData.user.did));
+        
+        // Initiate metadata recovery immediately after session verification
+        // This makes discovery of tabs and pins much faster than waiting for SignalR.
+        dispatch(fetchSubscribedFeeds());
+        dispatch(fetchPinnedLists());
       }
     } else if (meError) {
       // If error occurs, we stop loading once the fetch is complete.
@@ -104,9 +109,7 @@ const AppContent: React.FC = () => {
     if (isAuthenticated && isAppReady) {
         console.log('[App] Authenticated & Ready: Starting background services in 1s...');
         
-        // ONLY trigger metadata recovery once session state is confirmed fresh/valid
-        dispatch(fetchSubscribedFeeds());
-        dispatch(fetchPinnedLists());
+        // Metadata is now handled immediately in the meData effect for performance.
 
         signalrTimerRef.current = setTimeout(() => {
             console.log('[App] Starting connections after grace period.');

@@ -103,7 +103,9 @@ const HomePage: React.FC = () => {
     }, [dispatch, authLoading, isAuthenticated, subscribedFeeds.length, lastSubscribedFeedsFetch]);
 
     useEffect(() => {
-        if (!activeTab) return;
+        // Strict guard: ensure we don't start pulling feed content until the session is settled.
+        // This prevents race conditions where feed requests block metadata (subscribed/pinned) from loading.
+        if (!activeTab || !isSessionSettled) return;
         const now = Date.now();
 
         if (activeTab.startsWith('list:')) {
