@@ -555,7 +555,7 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var cacheKey = $"suggested_explore_{category ?? "all"}_{limit}";
+                var cacheKey = $"suggested_explore_v2_{category ?? "all"}_{limit}";
                 var cached = await _cache.GetStringAsync(cacheKey);
                 if (!string.IsNullOrEmpty(cached))
                 {
@@ -589,7 +589,7 @@ namespace BSkyClone.Controllers
                 {
                     // Attempt 2: High-quality fallback
                     using var client2 = _httpClientFactory.CreateClient();
-                    client2.Timeout = TimeSpan.FromSeconds(2); // Shorter timeout for fallback
+                    client2.Timeout = TimeSpan.FromSeconds(2); 
                     
                     if (string.IsNullOrEmpty(category) || category == "all")
                     {
@@ -598,7 +598,11 @@ namespace BSkyClone.Controllers
                         if (altResponse.IsSuccessStatusCode)
                         {
                             var content = await altResponse.Content.ReadAsStringAsync();
-                            finalContent = content.Replace("\"suggestions\":", "\"actors\":");
+                            // Validation: Only use if it actually has users
+                            if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\""))
+                            {
+                                finalContent = content.Replace("\"suggestions\":", "\"actors\":");
+                            }
                         }
                     }
                     else
@@ -607,7 +611,11 @@ namespace BSkyClone.Controllers
                         var searchResponse = await client2.GetAsync(searchUrl);
                         if (searchResponse.IsSuccessStatusCode)
                         {
-                            finalContent = await searchResponse.Content.ReadAsStringAsync();
+                            var content = await searchResponse.Content.ReadAsStringAsync();
+                            if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\""))
+                            {
+                                finalContent = content;
+                            }
                         }
                     }
                 }
