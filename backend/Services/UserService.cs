@@ -3155,19 +3155,26 @@ public class UserService : IUserService
             }
 
             var users = new List<User>();
-            var stubCache = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
-            foreach (var actor in actors.EnumerateArray())
+            var stubCache = new System.Collections.Concurrent.ConcurrentDictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+            
+            var resolveTasks = actors.EnumerateArray().Select(async actor =>
             {
                 try
                 {
-                    var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId, mergeDuplicates: false);
-                    if (u != null) users.Add(u);
+                    var u = await ResolveStubRemoteProfileAsync(actor, new Dictionary<string, User>(stubCache), viewerId: viewerId, mergeDuplicates: false);
+                    if (u != null)
+                    {
+                        lock (users) users.Add(u);
+                        stubCache.TryAdd(u.Did ?? "", u);
+                    }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Error resolving suggested remote profile");
                 }
-            }
+            });
+
+            await Task.WhenAll(resolveTasks);
 
             await _unitOfWork.CompleteAsync();
             return users;

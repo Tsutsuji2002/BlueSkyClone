@@ -33,6 +33,7 @@ namespace BSkyClone.Controllers
         private readonly ILabelingService _labelingService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IDistributedCache _cache;
         private readonly ILogger<XrpcController> _logger;
 
         public XrpcController(
@@ -45,6 +46,7 @@ namespace BSkyClone.Controllers
             ILabelingService labelingService,
             IUnitOfWork unitOfWork,
             IHttpClientFactory httpClientFactory,
+            IDistributedCache cache,
             ILogger<XrpcController> logger)
         {
             _authService = authService;
@@ -56,6 +58,7 @@ namespace BSkyClone.Controllers
             _labelingService = labelingService;
             _unitOfWork = unitOfWork;
             _httpClientFactory = httpClientFactory;
+            _cache = cache;
             _logger = logger;
         }
 
@@ -551,97 +554,78 @@ namespace BSkyClone.Controllers
         {
             try
             {
+                var cacheKey = $"suggested_explore_{category ?? "all"}_{limit}";
+                var cached = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cached))
+                {
+                    return Content(cached, "application/json");
+                }
+
                 using var client1 = _httpClientFactory.CreateClient();
-                client1.Timeout = TimeSpan.FromMilliseconds(700);
+                client1.Timeout = TimeSpan.FromMilliseconds(500); // Shorter timeout for primary
                 var queryParams = Request.Query.Where(q => q.Key != "_t").ToDictionary(x => x.Key, x => x.Value.ToString());
                 var cleanQuery = queryParams.Any() ? "?" + string.Join("&", queryParams.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value)}")) : "";
                 
-                // Attempt 1: proxy to stropharia (best quality, but needs auth usually)
+                // Attempt 1: proxy to stropharia
                 var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore{cleanQuery}";
-                _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 1 (Cleaned): {Url}", url);
                 
+                string? finalContent = null;
                 try 
                 {
                     var response = await client1.GetAsync(url);
                     if (response.IsSuccessStatusCode)
                     {
                         var content = await response.Content.ReadAsStringAsync();
-                        // Ensure the response actually contains actors before returning it
                         if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\""))
                         {
-                            return Content(content, "application/json");
+                            finalContent = content;
                         }
-                        _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 1 returned empty actors, trying fallback.");
                     }
                 }
-                catch (Exception ex)
+                catch { }
+
+                if (finalContent == null)
                 {
-                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 1 failed or timed out: {Msg}", ex.Message);
+                    // Attempt 2: High-quality fallback
+                    using var client2 = _httpClientFactory.CreateClient();
+                    client2.Timeout = TimeSpan.FromSeconds(2); // Shorter timeout for fallback
+                    
+                    if (string.IsNullOrEmpty(category) || category == "all")
+                    {
+                        var altUrl = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
+                        var altResponse = await client2.GetAsync(altUrl);
+                        if (altResponse.IsSuccessStatusCode)
+                        {
+                            var content = await altResponse.Content.ReadAsStringAsync();
+                            finalContent = content.Replace("\"suggestions\":", "\"actors\":");
+                        }
+                    }
+                    else
+                    {
+                        var searchUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(category)}&limit={limit}";
+                        var searchResponse = await client2.GetAsync(searchUrl);
+                        if (searchResponse.IsSuccessStatusCode)
+                        {
+                            finalContent = await searchResponse.Content.ReadAsStringAsync();
+                        }
+                    }
                 }
 
-                // Attempt 2: High-quality fallback using public endpoints
-                using var client2 = _httpClientFactory.CreateClient();
-                client2.Timeout = TimeSpan.FromSeconds(5); // Fallback can take a bit longer if needed
-                
-                if (string.IsNullOrEmpty(category) || category == "all")
+                if (finalContent != null)
                 {
-                    // Attempt 2a: Use public global suggestions
-                    var altUrl = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
-                    _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2a (Public Global): {Url}", altUrl);
-                    
-                    var altResponse = await client2.GetAsync(altUrl);
-                    if (altResponse.IsSuccessStatusCode)
+                    // Cache for 5 minutes
+                    await _cache.SetStringAsync(cacheKey, finalContent, new DistributedCacheEntryOptions
                     {
-                        var content = await altResponse.Content.ReadAsStringAsync();
-                        var transformed = content.Replace("\"suggestions\":", "\"actors\":");
-                        if (transformed.Contains("\"did\":\"") || transformed.Contains("\"handle\":\""))
-                        {
-                            _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2a (Public Global) Succeeded.");
-                            return Content(transformed, "application/json");
-                        }
-                    }
-                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 2a failed, trying 2b.");
-
-                    // Attempt 2b: Try secondary public actor suggestions
-                    var altUrl2 = $"https://api.bsky.app/xrpc/app.bsky.actor.getSuggestions?limit={limit}";
-                    var altResponse2 = await client2.GetAsync(altUrl2);
-                    if (altResponse2.IsSuccessStatusCode)
-                    {
-                        var content = await altResponse2.Content.ReadAsStringAsync();
-                        if (content.Contains("\"did\":\""))
-                        {
-                            _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2b (Actor Suggestions) Succeeded.");
-                            return Content(content, "application/json");
-                        }
-                    }
-                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 2b failed or returned empty actors.");
-                }
-                else
-                {
-                    // For specific categories, use actor.searchActors as a high-quality keyword-based fallback
-                    var searchUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(category)}&limit={limit}";
-                    if (!string.IsNullOrEmpty(cursor)) searchUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
-                    
-                    _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Searching category): {Url}", searchUrl);
-                    var searchResponse = await client2.GetAsync(searchUrl);
-                    if (searchResponse.IsSuccessStatusCode)
-                    {
-                        var content = await searchResponse.Content.ReadAsStringAsync();
-                        if (content.Contains("\"did\":\""))
-                        {
-                            _logger.LogInformation("[GetSuggestedUsersForExplore] Attempt 2 (Search) Succeeded.");
-                            return Content(content, "application/json");
-                        }
-                    }
-                    _logger.LogWarning("[GetSuggestedUsersForExplore] Attempt 2 (Search) failed or returned empty actors.");
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                    });
+                    return Content(finalContent, "application/json");
                 }
                 
-                _logger.LogWarning("[GetSuggestedUsersForExplore] All proxies failed or returned empty - falling back to LOCAL suggestions with limit {Limit}", limit);
                 return await GetSuggestions(limit, cursor);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in GetSuggestedUsersForExplore - falling back to local.");
+                _logger.LogError(ex, "Error in GetSuggestedUsersForExplore");
                 return await GetSuggestions(limit, cursor);
             }
         }
@@ -655,14 +639,6 @@ namespace BSkyClone.Controllers
                 var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
                 Guid? viewerId = Guid.TryParse(userIdStr, out var vid) ? vid : null;
                 
-                var totalUsers = await _unitOfWork.Users.Query().CountAsync();
-                var nonBanned = await _unitOfWork.Users.Query().CountAsync(u => u.IsBanned != true);
-                var hasAvatar = await _unitOfWork.Users.Query().CountAsync(u => !string.IsNullOrEmpty(u.AvatarUrl));
-                var hasDid = await _unitOfWork.Users.Query().CountAsync(u => u.Did != null);
-                var viewerExists = viewerId.HasValue ? await _unitOfWork.Users.Query().AnyAsync(u => u.Id == viewerId.Value) : false;
-
-                _logger.LogInformation("[GetSuggestions] DB Diagnostics - Total: {Total}, NonBanned: {NonBanned}, HasAvatar: {HasAvatar}, HasDid: {HasDid}, ViewerExists: {ViewerExists}", 
-                    totalUsers, nonBanned, hasAvatar, hasDid, viewerExists);
 
                 var suggestions = await _userService.GetSuggestedUsersAsync(limit, viewerId);
                 
@@ -675,11 +651,39 @@ namespace BSkyClone.Controllers
                     suggestions = await _userService.GetProfilesAsync(seedActors, viewerId);
                 }
 
-                var mappedActors = new List<ProfileView>();
-                foreach (var u in suggestions)
+                Dictionary<Guid, UserRelationshipStatusDto> relationshipStatuses = new();
+                if (viewerId.HasValue && suggestions.Count > 0)
                 {
-                    mappedActors.Add(await MapUserToProfileView(u, viewerId));
+                    relationshipStatuses = await _userService.GetInteractionStatusesAsync(viewerId.Value, suggestions.Select(u => u.Id));
                 }
+
+                var mappedActors = suggestions.Select(u => 
+                {
+                    var avatar = u.AvatarUrl;
+                    if (!string.IsNullOrEmpty(avatar) && avatar.StartsWith("uploads/") && !avatar.StartsWith("/"))
+                    {
+                        avatar = "/" + avatar;
+                    }
+
+                    var statuses = relationshipStatuses.TryGetValue(u.Id, out var s) ? s : null;
+
+                    return new ProfileView
+                    {
+                        Did = u.Did ?? "",
+                        Handle = u.Handle ?? u.Did ?? "unknown",
+                        DisplayName = u.DisplayName,
+                        Description = u.Bio,
+                        Avatar = avatar,
+                        IndexedAt = u.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
+                        Viewer = new Lexicons.App.Bsky.Actor.Defs.ViewerState 
+                        { 
+                            Muted = statuses?.IsMuted ?? false, 
+                            BlockedBy = statuses?.IsBlockedBy ?? false,
+                            Following = statuses?.FollowingReference,
+                            Blocking = statuses?.BlockingReference
+                        }
+                    };
+                }).ToList();
                 
                 Response.Headers.Append("X-Debug-Suggestions", "v3-fallback");
                 

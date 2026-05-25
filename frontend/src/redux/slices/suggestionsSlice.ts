@@ -44,6 +44,16 @@ export const fetchSuggestedUsers = createAsyncThunk(
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
+    },
+    {
+        condition: ({ categoryId }, { getState }: any) => {
+            const { suggestions } = getState();
+            // deduplicate if already loading this category
+            if (suggestions.loadingStates[categoryId]) {
+                return false;
+            }
+            return true;
+        }
     }
 );
 
