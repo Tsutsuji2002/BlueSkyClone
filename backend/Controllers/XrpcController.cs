@@ -555,7 +555,7 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var cacheKey = $"suggested_explore_v2_{category ?? "all"}_{limit}";
+                var cacheKey = $"suggested_explore_v3_{category ?? "all"}_{limit}";
                 var cached = await _cache.GetStringAsync(cacheKey);
                 if (!string.IsNullOrEmpty(cached))
                 {

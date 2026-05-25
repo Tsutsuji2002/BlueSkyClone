@@ -3161,7 +3161,9 @@ public class UserService : IUserService
             {
                 try
                 {
-                    var u = await ResolveStubRemoteProfileAsync(actor, new Dictionary<string, User>(stubCache), viewerId: viewerId, mergeDuplicates: false);
+                    using var scope = _scopeFactory.CreateScope();
+                    var scopedUserService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    var u = await scopedUserService.ResolveStubRemoteProfileAsync(actor, new Dictionary<string, User>(stubCache), viewerId: viewerId, mergeDuplicates: false);
                     if (u != null)
                     {
                         lock (users) users.Add(u);
