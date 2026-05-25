@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Security.Claims;
 using BSkyClone.DTOs;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace BSkyClone.Controllers
 {
