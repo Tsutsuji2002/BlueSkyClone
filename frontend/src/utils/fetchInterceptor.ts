@@ -129,7 +129,9 @@ export const setupFetchInterceptor = () => {
         const isRefreshRequest = url.endsWith('/auth/refresh');
         const isLoginRequest = url.endsWith('/auth/login') || url.endsWith('/auth/register');
 
-        const isEssential = url.includes('/posts/') || url.includes('/profile/') || url.includes('/timeline') || isLoginRequest || isRefreshRequest;
+        const isEssential = url.includes('/posts/') || url.includes('/profile/') || url.includes('/timeline') || 
+                            url.includes('/unified-feed') || url.includes('/notification.listNotifications') ||
+                            isLoginRequest || isRefreshRequest;
 
         // DEADLOCK PREVENTION & STAGGERING:
         // If a session refresh is in progress, background requests wait and stagger.

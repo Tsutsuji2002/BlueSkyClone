@@ -139,24 +139,7 @@ class SignalRService {
             
             const errorMessage = err?.toString() || '';
             if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
-                console.warn('[SignalR] Unauthorized. Attempting session refresh...');
-                
-                // Attempt to refresh the session before retrying
-                try {
-                    const { authApi } = await import('../redux/api/authApi');
-                    const result = await store.dispatch(authApi.endpoints.refreshSession.initiate() as any);
-                    
-                    if (result.data) {
-                        console.log('[SignalR] Session refreshed successfully. Retrying connection...');
-                        this.isConnecting = false;
-                        return this.startConnection();
-                    } else {
-                        console.error('[SignalR] Session refresh failed after 401.');
-                    }
-                } catch (refreshErr) {
-                    console.error('[SignalR] Error during session refresh:', refreshErr);
-                }
-
+                console.warn('[SignalR] Unauthorized. The fetch interceptor should handle refresh.');
                 this.isConnecting = false;
                 return;
             }

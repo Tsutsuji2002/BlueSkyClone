@@ -16,13 +16,13 @@ const NotificationsPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
     const { notifications, unreadCount, isLoading, error } = useAppSelector((state: RootState) => state.notifications);
-    const { isSessionSettled } = useAppSelector((state: RootState) => state.auth);
+    const { isSessionSettled, isReverifying } = useAppSelector((state: RootState) => state.auth);
     const [activeTab, setActiveTab] = useState<'all' | 'mentions'>('all');
 
     useEffect(() => {
-        if (!isSessionSettled) return;
+        if (!isSessionSettled || isReverifying) return;
         dispatch(fetchNotifications());
-    }, [dispatch, isSessionSettled]);
+    }, [dispatch, isSessionSettled, isReverifying]);
 
     const handleMarkAllRead = () => {
         dispatch(markAllNotificationsAsRead());

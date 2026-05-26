@@ -102,23 +102,7 @@ class PostSignalRService {
             
             const errorMessage = err?.toString() || '';
             if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.toLowerCase().includes('unauthorized')) {
-                console.warn('[PostSignalR] Unauthorized. Attempting session refresh...');
-                
-                try {
-                    const { authApi } = await import('../redux/api/authApi');
-                    const result = await store.dispatch(authApi.endpoints.refreshSession.initiate() as any);
-                    
-                    if (result.data) {
-                        console.log('[PostSignalR] Session refreshed successfully. Retrying connection...');
-                        this.isConnecting = false;
-                        return this.startConnection();
-                    } else {
-                        console.error('[PostSignalR] Session refresh failed after 401.');
-                    }
-                } catch (refreshErr) {
-                    console.error('[PostSignalR] Error during session refresh:', refreshErr);
-                }
-
+                console.warn('[PostSignalR] Unauthorized. The fetch interceptor should handle refresh.');
                 this.isConnecting = false;
                 return;
             }

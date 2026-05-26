@@ -28,7 +28,7 @@ const HomePage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch, lastSubscribedFeedsFetch } = useAppSelector((state: RootState) => state.feeds);
-    const { isAuthenticated, user, isLoading: authLoading, isSessionSettled } = useAppSelector((state: RootState) => state.auth);
+    const { isAuthenticated, user, isLoading: authLoading, isSessionSettled, isReverifying } = useAppSelector((state: RootState) => state.auth);
 
     const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
 
@@ -82,7 +82,7 @@ const HomePage: React.FC = () => {
     useEffect(() => {
         // Strict guard: ensure we don't start pulling feed content until the session is settled.
         // This prevents race conditions where feed requests block metadata (subscribed/pinned) from loading.
-        if (!activeTab || !isSessionSettled) return;
+        if (!activeTab || !isSessionSettled || isReverifying) return;
         const now = Date.now();
 
         if (activeTab.startsWith('list:')) {

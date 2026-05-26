@@ -56,6 +56,7 @@ const AppContent: React.FC = () => {
 
   const isFirstRender = React.useRef(true);
   const signalrTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const isReverifying = useAppSelector((state: RootState) => state.auth.isReverifying);
 
   React.useLayoutEffect(() => {
     console.log(`%c[BlueSky-Deploy] Version: ${VERSION} (Stability + Interaction Sync)`, 'color: #00acee; font-weight: bold; font-size: 14px;');
@@ -257,35 +258,42 @@ const AppContent: React.FC = () => {
   // Handle visibility changes to recover from background throttling
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && isAuthenticated) {
-        console.log('[App] Tab visible: Re-syncing session...');
-        dispatch(resetSessionStatus());
-        
-        try {
-            await refetch().unwrap();
-            console.log('[App] Session re-verified. Resuming sync...');
+      if (document.visibilityState === 'visible') {
+        if (isAuthenticated) {
+            console.log('[App] Tab visible: Re-syncing session...');
+            dispatch(resetSessionStatus());
             
-            // Priority 1: Real-time
-            signalrService.startConnection();
-            postSignalrService.startConnection();
-            
-            // Priority 2: Core Data (slightly staggered)
-            setTimeout(() => {
-                dispatch(fetchSubscribedFeeds() as any);
-                dispatch(fetchPinnedLists() as any);
-            }, 500);
+            try {
+                await refetch().unwrap();
+                console.log('[App] Session re-verified. Resuming sync...');
+                
+                // Priority 1: Real-time (Start on visible)
+                signalrService.startConnection();
+                postSignalrService.startConnection();
+                
+                // Priority 2: Core Data (slightly staggered)
+                setTimeout(() => {
+                    dispatch(fetchSubscribedFeeds() as any);
+                    dispatch(fetchPinnedLists() as any);
+                }, 500);
 
-            // Priority 3: Notifications
-            setTimeout(() => {
-                dispatch(fetchNotifications({ limit: 40 }) as any);
-                dispatch(fetchUnreadCount() as any);
-            }, 1200);
+                // Priority 3: Notifications
+                setTimeout(() => {
+                    dispatch(fetchNotifications({ limit: 40 }) as any);
+                    dispatch(fetchUnreadCount() as any);
+                }, 1200);
 
-            dispatch(completeReverification());
-        } catch (err) {
-            console.warn('[App] Session re-verification failed.');
-            dispatch(completeReverification()); // Still clear the flag so app can attempt recovery
+                dispatch(completeReverification());
+            } catch (err) {
+                console.warn('[App] Session re-verification failed.');
+                dispatch(completeReverification()); 
+            }
         }
+      } else {
+        // Tab hidden: Kill SignalR noise to protect connection slots/battery
+        console.log('[App] Tab hidden: Stopping SignalR...');
+        signalrService.stopConnection();
+        postSignalrService.stopConnection();
       }
     };
 
@@ -310,6 +318,17 @@ const AppContent: React.FC = () => {
       <AuthWallModal />
       <AddToListModal />
       <MutedWordsModal />
+      {/* Re-verification Overlay */}
+      {isReverifying && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16 bg-white/10 dark:bg-black/10 backdrop-blur-[2px] animate-in fade-in duration-300 pointer-events-auto">
+            <div className="bg-white/80 dark:bg-dark-surface/80 backdrop-blur-md px-4 py-2 rounded-full border border-gray-200 dark:border-dark-border shadow-xl flex items-center gap-3">
+                <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm font-bold text-gray-700 dark:text-dark-text">Re-syncing session...</span>
+            </div>
+        </div>
+      )}
+
+      {/* Global Delete Confirm Modal */}
       <GlobalDeleteConfirmModal />
       <Toast />
       <SessionKeeper />
