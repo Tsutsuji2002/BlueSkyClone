@@ -134,22 +134,44 @@ export const setupFetchInterceptor = () => {
         // DEADLOCK PREVENTION & STAGGERING:
         // If a session refresh is in progress, background requests wait and stagger.
         if (isRefreshing && refreshPromise && !isRefreshRequest) {
+            const state = store.getState();
+            const isReverifying = (state.auth as any).isReverifying;
+
+            // If we are re-verifying and this isn't essential, just skip it to save connection slots.
+            if (!isEssential && isReverifying) {
+                console.log(`[FetchInterceptor] Skipping background request during re-verification: ${url}`);
+                return new Response(JSON.stringify({ error: 'Skipped during re-verification' }), { 
+                    status: 409, 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
+            }
+
             console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
             try {
-                await Promise.race([
+                const refreshedResult = await Promise.race([
                     refreshPromise,
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 20000))
+                    new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 25000))
                 ]);
+
+                if (!refreshedResult) {
+                    console.warn(`[FetchInterceptor] Refresh failed for queued request: ${url}`);
+                    return new Response(JSON.stringify({ error: 'Auth refresh failed' }), { 
+                        status: 401, 
+                        headers: { 'Content-Type': 'application/json' } 
+                    });
+                }
                 
                 // Add a small jittered stagger for background requests to prevent a "thundering herd"
-                // when the refresh completes and all 50+ queued requests fire at once.
                 if (!isEssential) {
-                    const staggerDelay = Math.floor(Math.random() * 800) + 200; // 200-1000ms
+                    const staggerDelay = Math.floor(Math.random() * 1500) + 500; // 500ms-2000ms
                     await new Promise(resolve => setTimeout(resolve, staggerDelay));
                 }
             } catch (err) {
                 console.warn(`[FetchInterceptor] Request wait for refresh failed or timed out: ${url}`);
-                // Continue anyway and let it hit its own 401 or timeout
+                return new Response(JSON.stringify({ error: 'Auth wait timeout' }), { 
+                    status: 408, 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
             }
         }
 

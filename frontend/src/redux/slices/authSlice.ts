@@ -108,7 +108,8 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
         settings: null,
         isAuthenticated: !!activeAccount,
         isLoading: !activeAccount,
-        isSessionSettled: false, // New flag: always false until first check completes
+        isSessionSettled: false, 
+        isReverifying: false, // New flag for background re-verification
         error: null,
         savedAccounts,
     };
@@ -195,8 +196,12 @@ const authSlice = createSlice({
             state.savedAccounts = AccountManager.getAccounts();
         },
         resetSessionStatus: (state) => {
-            state.isLoading = true;
-            state.isSessionSettled = false;
+            state.isReverifying = true;
+        },
+        completeReverification: (state) => {
+            state.isReverifying = false;
+            state.isSessionSettled = true;
+            state.isLoading = false;
         }
     },
     extraReducers: (builder) => {
@@ -220,5 +225,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired, resetSessionStatus } = authSlice.actions;
+export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired, resetSessionStatus, completeReverification } = authSlice.actions;
 export default authSlice.reducer;

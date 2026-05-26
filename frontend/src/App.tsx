@@ -23,10 +23,10 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { stopLoading, setAuth, logout, resetSessionStatus } from './redux/slices/authSlice';
+import { stopLoading, setAuth, logout, resetSessionStatus, completeReverification } from './redux/slices/authSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetMeQuery, authApi } from './redux/api/authApi';
-import { fetchUnreadCount } from './redux/slices/notificationsSlice';
+import { fetchUnreadCount, fetchNotifications } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
 import { hydrateForAccount as hydrateFeedsForAccount, fetchSubscribedFeeds } from './redux/slices/feedsSlice';
 import { hydrateForAccount as hydrateListsForAccount, fetchPinnedLists } from './redux/slices/listsSlice';
@@ -256,22 +256,36 @@ const AppContent: React.FC = () => {
 
   // Handle visibility changes to recover from background throttling
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible' && isAuthenticated) {
-        console.log('[App] Tab visible: Activating Auth Barrier and re-syncing session...');
-        // Put app back into "loading/unsettled" state to block background request storms.
+        console.log('[App] Tab visible: Re-syncing session...');
         dispatch(resetSessionStatus());
         
-        // Force refetch the 'me' endpoint to ensure session is still valid.
-        refetch().unwrap().then(() => {
-            console.log('[App] Session re-verified. Poking SignalR.');
+        try {
+            await refetch().unwrap();
+            console.log('[App] Session re-verified. Resuming sync...');
+            
+            // Priority 1: Real-time
             signalrService.startConnection();
             postSignalrService.startConnection();
-            dispatch(fetchSubscribedFeeds());
-            dispatch(fetchPinnedLists());
-        }).catch(() => {
-            console.log('[App] Session re-verification failed.');
-        });
+            
+            // Priority 2: Core Data (slightly staggered)
+            setTimeout(() => {
+                dispatch(fetchSubscribedFeeds() as any);
+                dispatch(fetchPinnedLists() as any);
+            }, 500);
+
+            // Priority 3: Notifications
+            setTimeout(() => {
+                dispatch(fetchNotifications({ limit: 40 }) as any);
+                dispatch(fetchUnreadCount() as any);
+            }, 1200);
+
+            dispatch(completeReverification());
+        } catch (err) {
+            console.warn('[App] Session re-verification failed.');
+            dispatch(completeReverification()); // Still clear the flag so app can attempt recovery
+        }
       }
     };
 

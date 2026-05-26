@@ -11,11 +11,12 @@ const xrpcFetch = (url: string, options?: RequestInit) =>
     fetch(url, { credentials: 'include', ...options, headers: { ...getXrpcHeaders(), ...(options?.headers || {}) } });
 
 
-export const fetchNotifications = createAsyncThunk<Notification[], void, { rejectValue: string }>(
+export const fetchNotifications = createAsyncThunk<Notification[], { limit?: number } | void, { rejectValue: string }>(
     'notifications/fetchNotifications',
-    async (_, { rejectWithValue }) => {
+    async (params, { rejectWithValue }) => {
         try {
-            const res = await xrpcFetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=50`);
+            const limit = params && typeof params === 'object' ? params.limit : 50;
+            const res = await xrpcFetch(`${getXrpcBase()}/app.bsky.notification.listNotifications?limit=${limit}`);
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 return rejectWithValue(err.message || `Error ${res.status}`);

@@ -103,6 +103,12 @@ class SignalRService {
             return;
         }
 
+        const state = store.getState();
+        if ((state.auth as any).isReverifying) {
+            console.log('[SignalR] Delaying connection during re-verification...');
+            return;
+        }
+
         this.isConnecting = true;
         this.stopRequested = false;
         this.updateStatus(HubStatus.Connecting);

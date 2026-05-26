@@ -70,6 +70,12 @@ class PostSignalRService {
             return;
         }
 
+        const state = store.getState();
+        if ((state.auth as any).isReverifying) {
+            console.log('[PostSignalR] Delaying connection during re-verification...');
+            return;
+        }
+
         this.isConnecting = true;
         this.stopRequested = false;
 
